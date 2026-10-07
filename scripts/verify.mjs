@@ -9,6 +9,7 @@ try { previous = JSON.parse(await readFile('report/summary.json', 'utf8')); } ca
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run verification with make verify or npm run verify.');
 const commands = [
+  ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
   ['build', [npmCli, 'run', 'build']],
   ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts']],
   ['keychain-interop', ['scripts/interop.mjs']],
@@ -19,7 +20,10 @@ const commands = [
 ];
 const suites = [];
 for (const [name, args] of commands) {
+  // QGD-CRD-0012: if the credential path fails, verification halts. Nothing after the
+  // interop proof is run or reported, because nothing is meaningful without credentials.
   if (name !== 'unit' && (suites.some(s => s.name === 'build' && s.result === 'FAIL') ||
+      suites.some(s => s.name === 'keychain-interop' && s.result === 'FAIL') ||
       (name === 'packaged-launch' && suites.some(s => s.name === 'package' && s.result === 'FAIL')))) {
     suites.push({ name, result: 'NOT RUN' });
     continue;
