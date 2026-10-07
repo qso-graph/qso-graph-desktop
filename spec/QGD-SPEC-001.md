@@ -90,7 +90,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | Part | ID | What | Depends on | Exit gate |
 |---|---|---|---|---|
 | **P0** | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | — | The core loads in Node and round-trips a credential through the macOS Keychain; interop test passes both directions |
-| **P1** | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | P0 | `npm start` opens a window on the M3 displaying a credential read back through the Rust core |
+| **P1** | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | P0 | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's interop test under `QGD-CRD-0004`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
 | **P2** | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract | P1 | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected |
 | **P3** | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | P2 | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
 | **P4** | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | P2 | Engine starts on a free port; restore works; migrations apply |

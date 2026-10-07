@@ -31,12 +31,18 @@ function parse(spec) {
   for (const line of spec.split('\n')) {
     if (!line.trim().startsWith('|')) continue;
     const c = cells(line);
-    if (c.length < 3) continue;
 
     // Requirement row:  | `ID` | text | Verify |
+    // The ID is tested BEFORE the column count: a row that drops the Verify cell
+    // entirely must fail QGD-TST-0005, not be skipped as "not a requirement row".
     if (ID.test(unticked(c[0]))) {
       const id = unticked(c[0]);
-      const text = c[1];
+      const text = c[1] ?? '';
+      if (c.length < 3) {
+        errors.push(`${id}: no Verify column (QGD-TST-0005)`);
+        reqs.push({ id, text, verify: [], kind: 'requirement' });
+        continue;
+      }
       const verify = c[2]
         .split(',')
         .map((m) => m.trim())

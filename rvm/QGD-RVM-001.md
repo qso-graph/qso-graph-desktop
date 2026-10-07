@@ -1,8 +1,8 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `8feec70037fa0f457ed34916a040ff397412060d` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `a69f1284575ac40320dcf5b019b90953b30398d0` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `8feec70037fa0f457ed34916a040ff397412060d` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `a69f1284575ac40320dcf5b019b90953b30398d0` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
 > 34 requirements · 12 Parts · 11 Inspection · 9 Static · 16 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s).
 
@@ -50,7 +50,7 @@
 | Part | `QGD-*` | What | Exit gate |
 |------|---------|------|-----------|
 | P0 | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | The core loads in Node and round-trips a credential through the macOS Keychain; interop test passes both directions |
-| P1 | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | `npm start` opens a window on the M3 displaying a credential read back through the Rust core |
+| P1 | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's interop test under `QGD-CRD-0004`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
 | P2 | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected |
 | P3 | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
 | P4 | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | Engine starts on a free port; restore works; migrations apply |
