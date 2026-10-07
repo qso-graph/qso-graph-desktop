@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>QG Desktop</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header><div class="brand"><span class="mark" aria-hidden="true">QG</span><strong>QG Desktop</strong></div><span class="platform">Your station on this Mac</span></header>
+  <div class="workspace">
+    <aside aria-label="Personas">
+      <div class="sidebar-title"><h2>Personas</h2><button id="new-persona" type="button">+ New</button></div>
+      <div id="persona-list"></div>
+      <p class="sidebar-note">Your own call, a club station, or a special-event call. Each has its own logins.</p>
+    </aside>
+    <main>
+      <div class="page-title"><div><p class="eyebrow">STATION IDENTITY</p><h1 id="page-title">Create a persona</h1></div><button id="use-persona" class="secondary" type="button" hidden>Use this persona</button></div>
+      <p id="message" role="status" aria-live="polite"></p>
+      <section class="card" aria-labelledby="identity-title">
+        <h2 id="identity-title">Persona details</h2>
+        <form id="persona-form">
+          <div class="fields"><label>Persona name<input id="persona-name" name="name" required maxlength="128" placeholder="Home station" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off"></label></div>
+          <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label>End date <span class="optional">optional</span><input id="end-date" type="date" name="end"></label></div>
+          <p class="hint">The dates identify when this callsign belongs to this persona.</p>
+          <div class="form-footer"><button id="remove-persona" class="danger" type="button" hidden>Remove persona</button><button id="save-persona" type="submit">Create persona</button></div>
+        </form>
+      </section>
+      <section id="credential-card" class="card" aria-labelledby="credentials-title" hidden>
+        <div class="section-title"><h2 id="credentials-title">Service credentials</h2><span class="badge">macOS Keychain</span></div>
+        <label for="provider">Service</label><select id="provider"><option value="qrz">QRZ lookup</option><option value="qrz_logbook">QRZ logbook</option><option value="eqsl">eQSL</option><option value="lotw">LoTW website</option><option value="hamqth">HamQTH</option><option value="clublog">Club Log</option></select>
+        <p id="credential-status" class="credential-status" role="status">Checking saved credentials…</p>
+        <div class="credential-test"><button id="test-credential" class="secondary" type="button" disabled>Test credential</button><p id="credential-test-result" role="status">Not tested yet.</p></div>
+        <form id="credential-form" autocomplete="off">
+          <label>Username<input id="username" name="username" maxlength="4096" required autocomplete="off"></label>
+          <div class="fields">
+            <div><label>Password<input id="password" type="password" name="password" maxlength="4096" autocomplete="new-password" aria-describedby="password-saved"></label><p id="password-saved" class="saved-indicator" hidden>Password saved in Keychain</p><button id="remove-password" class="danger field-remove" type="button" hidden>Remove password</button></div>
+            <div><label>API key<input id="api-key" type="password" name="apiKey" maxlength="4096" autocomplete="new-password" aria-describedby="api-key-saved"></label><p id="api-key-saved" class="saved-indicator" hidden>API key saved in Keychain</p><button id="remove-api-key" class="danger field-remove" type="button" hidden>Remove API key</button></div>
+          </div>
+          <label for="credential-preference">Preferred credential</label><select id="credential-preference" disabled><option value="service">Service default</option><option value="password">Password</option><option value="api_key">API key</option></select>
+          <p id="credential-effective" class="hint"></p>
+          <p class="hint">Saving updates the fields you enter. Blank password and API key fields keep their saved values. Use Remove to delete one. Saved secrets are never displayed.</p>
+          <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">Save in Keychain</button></div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <footer><span id="active-persona">No active persona</span><span>Stored locally · No service connection made</span></footer>
+</body>
+</html>

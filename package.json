@@ -1,0 +1,47 @@
+{
+  "name": "qg-desktop",
+  "productName": "QG Desktop",
+  "version": "0.0.0-preview.1",
+  "private": true,
+  "description": "QSO Graph Desktop — local P0 preview",
+  "license": "GPL-3.0-only",
+  "author": "QSO Graph contributors",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node scripts/build-native.mjs && tsc && node scripts/copy-renderer.mjs",
+    "start": "npm run build && electron .",
+    "package": "npm run build && electron-builder --dir --publish never",
+    "installer": "npm run build && electron-builder --publish never",
+    "verify": "node scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.4",
+    "electron": "44.6.0",
+    "electron-builder": "26.15.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  },
+  "build": {
+    "appId": "org.qso-graph.desktop",
+    "productName": "QG Desktop",
+    "directories": { "output": "out" },
+    "files": ["dist/**/*", "package.json", "LICENSE"],
+    "asar": true,
+    "asarUnpack": ["dist/native/*.node", "dist/native/*.dylib"],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false,
+      "resetAdHocDarwinSignature": true
+    },
+    "mac": { "target": [{ "target": "dmg", "arch": ["arm64"] }], "identity": null, "category": "public.app-category.utilities" },
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage", "category": "Utility" }
+  }
+}

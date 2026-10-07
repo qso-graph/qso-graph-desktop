@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import type { Persona, Snapshot, CredentialStatus, CredentialTest, PersonaCommand, PersonaReply } from '../persona-contract.js';
+declare global { interface Window { personas: { request(command: PersonaCommand): Promise<PersonaReply> } } }
+const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const input = (id: string) => element<HTMLInputElement>(id);
+let snapshot: Snapshot = { personas: [], active: null };
+let selected: string | null = null;
+const testResults = new Map<string, { text: string; success: boolean }>();
+const testKey = () => `${selected}:${element<HTMLSelectElement>('provider').value}`;
+function showTestResult() {
+  const result = testResults.get(testKey());
+  const target = element('credential-test-result');
+  target.textContent = result?.text ?? 'Not tested yet.';
+  target.classList.toggle('success', result?.success === true);
+  target.classList.toggle('error', Boolean(result && !result.success));
+}
+function invalidateTest() { testResults.delete(testKey()); showTestResult(); }
+function message(text: string, error = false) { const status = element('message'); status.textContent = text; status.classList.toggle('error', error); }
+async function request(command: PersonaCommand) {
+  const reply = await window.personas.request(command);
+  if (!reply.ok) throw new Error(reply.error);
+  return reply.data;
+}
+function current(): Persona | undefined { return snapshot.personas.find(p => p.name === selected); }
+function list() {
+  const container = element('persona-list'); container.replaceChildren();
+  for (const persona of snapshot.personas) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'persona-item';
+    button.classList.toggle('selected', persona.name === selected);
+    button.setAttribute('aria-pressed', String(persona.name === selected));
+    const call = document.createElement('strong'); call.textContent = persona.callsign;
+    const name = document.createElement('span'); name.textContent = persona.name + (persona.name === snapshot.active ? ' · Active' : '');
+    button.append(call, name); button.addEventListener('click', () => select(persona.name)); container.append(button);
+  }
+  if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No personas yet. Start with your station callsign.'; container.append(empty); }
+  const active = snapshot.personas.find(p => p.name === snapshot.active);
+  element('active-persona').textContent = active ? `Active: ${active.callsign} · ${active.name}` : 'No active persona';
+}
+async function credentialStatus() {
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  if (!persona) return;
+  showTestResult();
+  element<HTMLButtonElement>('test-credential').disabled = true;
+  for (const id of ['password', 'api-key']) {
+    input(id).placeholder = '';
+    element(`${id}-saved`).hidden = true;
+    element(`remove-${id}`).hidden = true;
+  }
+  element<HTMLSelectElement>('credential-preference').disabled = true;
+  element('credential-effective').textContent = '';
+  element('remove-credential').hidden = true;
+  element('credential-status').textContent = 'Checking saved credentials…';
+  try {
+    const status = await request({ type: 'status', persona, provider }) as CredentialStatus;
+    if (persona !== selected || provider !== element<HTMLSelectElement>('provider').value) return;
+    showCredentialStatus(status);
+  } catch (error) { if (persona === selected) message((error as Error).message, true); }
+}
+function showCredentialStatus(status: CredentialStatus) {
+  element<HTMLButtonElement>('test-credential').disabled = !status.stored;
+  for (const [id, saved] of [['password', status.hasPassword], ['api-key', status.hasApiKey]] as const) {
+    // Fixed display marker, independent of the stored value or its length.
+    input(id).placeholder = saved ? '••••••••' : '';
+    element(`${id}-saved`).hidden = !saved;
+    element(`remove-${id}`).hidden = !saved;
+  }
+  const preference = element<HTMLSelectElement>('credential-preference');
+  preference.value = status.preferred;
+  preference.disabled = !status.stored;
+  const effective = status.effective === 'api_key' ? 'API key' : 'password';
+  element('credential-effective').textContent = status.effective ? `Selected for use: ${effective}. If the preferred credential is missing, the other saved credential is used.` : '';
+  const parts = [status.hasPassword ? 'password' : '', status.hasApiKey ? 'API key' : ''].filter(Boolean);
+  element('credential-status').textContent = status.stored ? `Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.` : 'No credential saved for this service.';
+  element('remove-credential').hidden = !status.stored;
+}
+function select(name: string | null) {
+  selected = name; const persona = current(); list(); message('');
+  element('page-title').textContent = persona ? persona.callsign : 'Create a persona';
+  input('persona-name').value = persona?.name ?? ''; input('persona-name').readOnly = Boolean(persona);
+  input('callsign').value = persona?.callsign ?? '';
+  input('start-date').value = persona?.start ?? new Date().toISOString().slice(0, 10);
+  input('end-date').value = persona?.end ?? '';
+  element('save-persona').textContent = persona ? 'Save persona details' : 'Create persona';
+  element('use-persona').hidden = !persona || persona.name === snapshot.active;
+  element('remove-persona').hidden = !persona;
+  element('credential-card').hidden = !persona;
+  input('username').value = persona?.callsign ?? '';
+  input('password').value = ''; input('api-key').value = '';
+  if (persona) void credentialStatus(); else input('persona-name').focus();
+}
+async function busy(buttonId: string, action: () => Promise<void>) {
+  const button = element<HTMLButtonElement>(buttonId); button.disabled = true;
+  try { await action(); } catch (error) { message((error as Error).message, true); }
+  finally {
+    if (buttonId === 'test-credential' || buttonId === 'credential-preference') void credentialStatus();
+    else button.disabled = false;
+  }
+}
+element('new-persona').addEventListener('click', () => select(null));
+element('persona-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-persona', async () => {
+    const name = input('persona-name').value.trim();
+    if (!selected && snapshot.personas.some(p => p.name === name.toLowerCase())) throw new Error('That persona exists. Select it to edit its details.');
+    snapshot = await request({ type: 'upsert', name, callsign: input('callsign').value, start: input('start-date').value || undefined, end: input('end-date').value || undefined }) as Snapshot;
+    select(name.toLowerCase()); message('Persona saved.');
+  });
+});
+element('use-persona').addEventListener('click', () => void busy('use-persona', async () => {
+  if (!selected) return;
+  snapshot = await request({ type: 'set-active', name: selected }) as Snapshot;
+  select(selected); message('Active persona selected.');
+}));
+element('remove-persona').addEventListener('click', () => void busy('remove-persona', async () => {
+  if (!selected || !window.confirm('Remove this persona and ALL its saved service credentials from Keychain? This cannot be undone.')) return;
+  const name = selected;
+  snapshot = await request({ type: 'remove-persona', name }) as Snapshot;
+  for (const key of testResults.keys()) if (key.startsWith(`${name}:`)) testResults.delete(key);
+  select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+  message('Persona and its saved service credentials removed.');
+}));
+element('provider').addEventListener('change', () => { input('password').value = ''; input('api-key').value = ''; message(''); void credentialStatus(); });
+element('credential-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-credential', async () => {
+    if (!selected) return;
+    const credentials = { username: input('username').value || undefined, password: input('password').value || undefined, apiKey: input('api-key').value || undefined };
+    input('password').value = ''; input('api-key').value = '';
+    const persona = selected;
+    const provider = element<HTMLSelectElement>('provider').value;
+    const status = await request({ type: 'save-credentials', persona, provider, credentials }) as CredentialStatus;
+    if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+      showCredentialStatus(status); message('Credential saved in macOS Keychain.');
+      invalidateTest();
+    }
+  });
+});
+element('remove-credential').addEventListener('click', () => void busy('remove-credential', async () => {
+  if (!selected || !window.confirm('Remove the saved credential for this persona and service?')) return;
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  const status = await request({ type: 'delete-credentials', persona, provider }) as CredentialStatus;
+  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+    showCredentialStatus(status); message('Saved credential removed.');
+    invalidateTest();
+  }
+}));
+for (const [id, field, label] of [['remove-password', 'password', 'password'], ['remove-api-key', 'api_key', 'API key']] as const) {
+  element(id).addEventListener('click', () => void busy(id, async () => {
+    if (!selected || !window.confirm(`Remove only the saved ${label} for this persona and service?`)) return;
+    const persona = selected;
+    const provider = element<HTMLSelectElement>('provider').value;
+    const status = await request({ type: 'remove-secret', persona, provider, field }) as CredentialStatus;
+    if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+      input(field === 'api_key' ? 'api-key' : 'password').value = '';
+      showCredentialStatus(status); message(`Saved ${label} removed.`);
+      invalidateTest();
+    }
+  }));
+}
+element('credential-preference').addEventListener('change', () => void busy('credential-preference', async () => {
+  if (!selected) return;
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  const preferred = element<HTMLSelectElement>('credential-preference').value as CredentialStatus['preferred'];
+  const status = await request({ type: 'set-preference', persona, provider, preferred }) as CredentialStatus;
+  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+    showCredentialStatus(status); message('Preferred credential saved.');
+    invalidateTest();
+  }
+}));
+element('test-credential').addEventListener('click', () => void busy('test-credential', async () => {
+  if (!selected) return;
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  const key = testKey();
+  element('credential-test-result').textContent = 'Testing saved credential…';
+  const result = await request({ type: 'test-credential', persona, provider }) as CredentialTest;
+  const messages: Record<CredentialTest['outcome'], string> = {
+    success: 'Success — QRZ accepted the saved credential.',
+    rejected: 'Failed — QRZ rejected the credential or denied API access.',
+    'network-error': 'Could not connect securely to QRZ. Check your connection and try again.',
+    'rate-limited': 'Please wait before testing again: 30 seconds normally, five minutes after a rejected login or service limit.',
+    'invalid-response': 'QRZ returned an unexpected response. Credential validity could not be confirmed.',
+    missing: 'No usable credential is saved. Save a username and password or API key first.',
+    unsupported: 'Testing for this service is not implemented yet.'
+  };
+  testResults.set(key, { text: `${messages[result.outcome]} (${new Date().toLocaleTimeString()})`, success: result.outcome === 'success' });
+  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) showTestResult();
+}));
+async function initialize() {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try { snapshot = await request({ type: 'list' }) as Snapshot; select(snapshot.active ?? snapshot.personas[0]?.name ?? null); return; }
+    catch (error) { if (attempt === 9) message((error as Error).message, true); else await new Promise(resolve => setTimeout(resolve, 250)); }
+  }
+}
+void initialize();
