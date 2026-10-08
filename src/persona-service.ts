@@ -3,12 +3,12 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateCommand, type PersonaCommand, type PersonaReply } from './persona-contract.js';
-import { createLogger } from './logger.js';
+import { createForwardingLogger } from './logger.js';
 
 const require = createRequire(import.meta.url);
 const { PersonaCore } = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node'));
 const core = new PersonaCore(process.argv[2]);
-const log = createLogger('persona');
+const log = createForwardingLogger('persona', line => process.parentPort.postMessage({ log: line }));
 log.info({}, 'persona service started');
 function snapshot() { return { personas: core.list(), active: core.active() ?? null }; }
 function execute(command: PersonaCommand): PersonaReply {

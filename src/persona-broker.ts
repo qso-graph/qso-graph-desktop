@@ -3,7 +3,7 @@ import { app, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { allowsSender, validateCommand, type PersonaReply } from './persona-contract.js';
-import { createLogger } from './logger.js';
+import { createLogger, writeForwarded } from './logger.js';
 
 const log = createLogger('broker');
 
@@ -26,6 +26,7 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
       serviceName: 'QG Personas', stdio: 'ignore', allowLoadingUnsignedLibraries: true
     });
     worker.on('message', message => {
+      if (typeof message?.log === 'string') { writeForwarded(message.log); return; }
       if (message?.ready === true) { ready = true; failures = 0; return; }
       const item = pending.get(message?.id);
       if (item) { clearTimeout(item.timer); pending.delete(message.id); item.resolve(message.reply); }

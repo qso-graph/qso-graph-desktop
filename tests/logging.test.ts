@@ -180,3 +180,127 @@ describe('QGD-LOG-0006 and QGD-LOG-0007 enforced on disk', () => {
     }
   });
 });
+
+// The four behaviours that the first version of this layer got wrong. Each of
+// these fails against that version.
+describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
+  const temp = async (name: string) => {
+    const { mkdtemp } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    return mkdtemp(join(tmpdir(), name));
+  };
+
+  it('moves the writer onto the new file when it rotates, instead of writing into the archive', async () => {
+    const { createLogger, maintain, ACTIVE_LOG } = await import('../src/logger.js');
+    const { readFile, readdir, rm, writeFile } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const directory = await temp('qg-log-rotate-');
+    try {
+      const log = createLogger('main', directory);
+      log.info({}, 'before rotation');
+      // Push the active file past the size limit, then maintain as the timer does.
+      await writeFile(join(directory, ACTIVE_LOG), 'x'.repeat(6 * 1024 * 1024));
+      const destination = { reopened: false, reopen() { this.reopened = true; } };
+      expect(maintain(directory, destination).rotated).toBe(true);
+      expect(destination.reopened).toBe(true);
+      log.stop();
+
+      // A fresh writer on the same folder writes to the active path, not the archive.
+      const after = createLogger('main', directory);
+      after.info({}, 'after rotation');
+      after.stop();
+      const active = await readFile(join(directory, ACTIVE_LOG), 'utf8');
+      expect(active).toContain('after rotation');
+      const archives = (await readdir(directory)).filter(name => name !== ACTIVE_LOG && name.endsWith('.log'));
+      expect(archives.length).toBeGreaterThan(0);
+    } finally {
+      const { rm: remove } = await import('node:fs/promises');
+      await remove(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('carries a utility process\'s records into the one file, through the writer', async () => {
+    const { createLogger, createForwardingLogger, writeForwarded, ACTIVE_LOG } = await import('../src/logger.js');
+    const { readFile, rm } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const directory = await temp('qg-log-forward-');
+    try {
+      const main = createLogger('main', directory);
+      main.info({}, 'from main');
+      // The utility hands lines to the writer, exactly as the broker does.
+      const utility = createForwardingLogger('persona', line => writeForwarded(line), directory);
+      utility.info({ command: 'list' }, 'from the utility');
+      main.stop(); utility.stop();
+
+      const lines = (await readFile(join(directory, ACTIVE_LOG), 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line));
+      expect(lines.map(record => record.process)).toEqual(['main', 'persona']);
+      expect(lines[1].msg).toBe('from the utility');
+    } finally {
+      const { rm: remove } = await import('node:fs/promises');
+      await remove(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('redacts in the utility, before the line crosses to the writer', async () => {
+    const { createForwardingLogger } = await import('../src/logger.js');
+    const { rm } = await import('node:fs/promises');
+    const directory = await temp('qg-log-forward-redact-');
+    try {
+      const sent: string[] = [];
+      const utility = createForwardingLogger('persona', line => sent.push(line), directory);
+      utility.warn({ password: 'QG_FAKE_CREDENTIAL_crossing' }, 'attempted');
+      utility.stop();
+      expect(sent.join('')).not.toContain('QG_FAKE_CREDENTIAL');
+      expect(sent.join('')).toContain('[redacted]');
+    } finally {
+      const { rm: remove } = await import('node:fs/promises');
+      await remove(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('lets a raised level expire inside a running process', async () => {
+    const { createForwardingLogger } = await import('../src/logger.js');
+    const { rm, writeFile } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const directory = await temp('qg-log-level-');
+    try {
+      // Raised now, so this process may use it.
+      await writeFile(join(directory, 'level.json'), JSON.stringify({ level: 'debug', raisedAtMs: Date.now() }));
+      const sent: string[] = [];
+      const logger = createForwardingLogger('persona', line => sent.push(line), directory, { levelMs: 10 });
+      logger.debug({}, 'while raised');
+      expect(sent.join('')).toContain('while raised');
+
+      // Expire it and let the follower notice, as it does in a long session.
+      await writeFile(join(directory, 'level.json'), JSON.stringify({ level: 'debug', raisedAtMs: Date.now() - 2 * 60 * 60 * 1000 }));
+      await new Promise(resolve => setTimeout(resolve, 60));
+      sent.length = 0;
+      logger.debug({}, 'after expiry');
+      logger.info({}, 'still info');
+      logger.stop();
+      expect(sent.join('')).not.toContain('after expiry');
+      expect(sent.join('')).toContain('still info');
+    } finally {
+      const { rm: remove } = await import('node:fs/promises');
+      await remove(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('never throws out of a logging call, whatever the destination does', async () => {
+    const { createForwardingLogger } = await import('../src/logger.js');
+    const { rm } = await import('node:fs/promises');
+    const directory = await temp('qg-log-throwing-');
+    try {
+      const logger = createForwardingLogger('persona', () => { throw new Error('disk full'); }, directory);
+      // The broker logs from inside its exit handler; a throw here would stop
+      // the restart that handler exists to perform.
+      expect(() => logger.warn({}, 'service exited')).not.toThrow();
+      expect(() => logger.error({}, 'again')).not.toThrow();
+      logger.stop();
+    } finally {
+      const { rm: remove } = await import('node:fs/promises');
+      await remove(directory, { recursive: true, force: true });
+    }
+  });
+});

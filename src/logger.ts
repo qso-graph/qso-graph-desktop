@@ -1,17 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The filesystem and pino layer behind src/logging.ts, which holds the
-// decisions. QGD-LOG-0001, QGD-LOG-0002, QGD-LOG-0005 to QGD-LOG-0011.
+// decisions. QGD-LOG-0001 through QGD-LOG-0011.
+//
+// One writer. The main process owns the log file, its rotation and its
+// retention; every other process serialises its records — already redacted —
+// and sends them to main, which appends them. Three processes each holding
+// their own descriptor to one path cannot work: whichever rotates first renames
+// the file the others are still writing into, and retention then deletes it,
+// losing their records silently.
+//
+// Nothing here may interrupt the application. Every call is guarded, because a
+// log line that throws inside a crash handler stops the restart that handler
+// exists to perform.
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import pino from 'pino';
 import {
-  DEFAULT_LEVEL, effectiveLevel, isLevel, plan, redactionPaths,
+  DEFAULT_LEVEL, effectiveLevel, plan, redactionPaths,
   type Level, type LogFile, type LevelState
 } from './logging.js';
 
 export const ACTIVE_LOG = 'qg-desktop.log';
 const LEVEL_STATE = 'level.json';
+const CAPS_INTERVAL_MS = 60_000;
+const LEVEL_INTERVAL_MS = 30_000;
 const STARTED_AT = Date.now();
 
 // QGD-LOG-0002: the operating system's standard log folder, and nowhere else.
@@ -36,10 +49,12 @@ function listing(directory: string): LogFile[] {
   return files;
 }
 
-// QGD-LOG-0006 to QGD-LOG-0008 and QGD-LOG-0011, applied. The engine's own
-// files sit in this folder, so the same caps reach them.
+// QGD-LOG-0006 to QGD-LOG-0008, and QGD-LOG-0011 for the engine's files, which
+// sit in this folder and are therefore under the same caps.
 export function enforceCaps(directory: string, nowMs = Date.now()): { rotated: boolean; removed: string[] } {
-  const decision = plan(listing(directory), { active: ACTIVE_LOG, nowMs });
+  let decision;
+  try { decision = plan(listing(directory), { active: ACTIVE_LOG, nowMs }); }
+  catch { return { rotated: false, removed: [] }; }
   const removed: string[] = [];
   for (const name of decision.remove) {
     try { unlinkSync(join(directory, name)); removed.push(name); } catch { /* already gone */ }
@@ -62,29 +77,115 @@ export function currentLevel(directory: string, nowMs = Date.now()): Level {
   return effectiveLevel(levelState(directory), nowMs, STARTED_AT);
 }
 
+export interface Intervals { capsMs?: number; levelMs?: number }
+
 export interface Logger {
   info(fields: Record<string, unknown>, message: string): void;
   warn(fields: Record<string, unknown>, message: string): void;
   error(fields: Record<string, unknown>, message: string): void;
   debug(fields: Record<string, unknown>, message: string): void;
+  stop(): void;
 }
 
-// QGD-LOG-0001: one JSON-lines stream, every process writing into it, each
-// record naming which process wrote it. QGD-LOG-0003: redaction is configured
-// here, on the logger, so no call site can omit it.
-export function createLogger(processName: string, directory = logDirectory()): Logger {
+const SILENT: Logger = { info() {}, warn() {}, error() {}, debug() {}, stop() {} };
+
+// Every call guarded: a destination can fail at any write, not only at the
+// first, and the caller is often in the middle of handling something worse.
+function guard(logger: pino.Logger): Logger {
+  const at = (level: 'info' | 'warn' | 'error' | 'debug') =>
+    (fields: Record<string, unknown>, message: string) => {
+      try { logger[level](fields, message); } catch { /* logging never interrupts */ }
+    };
+  return { info: at('info'), warn: at('warn'), error: at('error'), debug: at('debug'), stop() {} };
+}
+
+function options(processName: string, level: Level): pino.LoggerOptions {
+  return {
+    level,
+    base: { process: processName, pid: process.pid },
+    // QGD-LOG-0003: configured on the logger, by field name, so that no call
+    // site can omit it — and here, so a secret is redacted before it is
+    // serialised and therefore before it could cross a process boundary.
+    redact: { paths: redactionPaths(), censor: '[redacted]' },
+    timestamp: pino.stdTimeFunctions.isoTime
+  };
+}
+
+// QGD-LOG-0010: the level is re-read while the process runs, so a raise expires
+// on its own rather than only at the next start.
+function followLevel(logger: pino.Logger, directory: string, everyMs: number): () => void {
+  const timer = setInterval(() => {
+    try {
+      const level = currentLevel(directory);
+      if (logger.level !== level) logger.level = level;
+    } catch { /* keep the level we have */ }
+  }, everyMs);
+  timer.unref?.();
+  return () => clearInterval(timer);
+}
+
+// The main process: the only writer, and the only process that touches the
+// folder. QGD-LOG-0006 to QGD-LOG-0008 are enforced while it runs, not only at
+// construction, or a long session grows without bound.
+// Rotation and retention applied once, with the writer moved onto the new file
+// afterwards. The descriptor follows a rename, so without the reopen the writer
+// keeps appending to the file it has just archived — and retention then deletes
+// it, taking those records with it.
+export function maintain(directory: string, destination: { reopen(): void }): { rotated: boolean; removed: string[] } {
+  const result = enforceCaps(directory);
+  if (result.rotated) { try { destination.reopen(); } catch { /* ignore */ } }
+  return result;
+}
+
+export function createLogger(processName: string, directory = logDirectory(), intervals: Intervals = {}): Logger {
   try {
     mkdirSync(directory, { recursive: true });
     enforceCaps(directory);
-    return pino({
-      level: currentLevel(directory),
-      base: { process: processName, pid: process.pid },
-      redact: { paths: redactionPaths(), censor: '[redacted]' },
-      timestamp: pino.stdTimeFunctions.isoTime
-    }, pino.destination({ dest: join(directory, ACTIVE_LOG), append: true, sync: true }));
+    const destination = pino.destination({ dest: join(directory, ACTIVE_LOG), append: true, sync: true });
+    const logger = pino(options(processName, currentLevel(directory)), destination);
+    forwardTo = line => { try { destination.write(line); } catch { /* ignore */ } };
+
+    const caps = setInterval(() => {
+      const { rotated } = enforceCaps(directory);
+      
+      if (rotated) { try { destination.reopen(); } catch { /* ignore */ } }
+    }, CAPS_INTERVAL_MS);
+    caps.unref?.();
+    const stopLevel = followLevel(logger, directory, intervals.levelMs ?? LEVEL_INTERVAL_MS);
+
+    const guarded = guard(logger);
+    return { ...guarded, stop() { clearInterval(caps); stopLevel(); } };
   } catch {
     // Logging must never be the reason the application fails to start.
-    const noop = () => {};
-    return { info: noop, warn: noop, error: noop, debug: noop };
+    return SILENT;
+  }
+}
+
+// Set by createLogger in the process that owns the file.
+let forwardTo: ((line: string) => void) | undefined;
+
+// Called by the broker when a utility process sends a record.
+export function writeForwarded(line: unknown): boolean {
+  if (typeof line !== 'string' || !forwardTo) return false;
+  forwardTo(line);
+  return true;
+}
+
+// A utility process: serialises and hands the line to main. It never opens the
+// file, so it cannot race the rotation owner.
+export function createForwardingLogger(
+  processName: string,
+  send: (line: string) => void,
+  directory = logDirectory(),
+  intervals: Intervals = {}
+): Logger {
+  try {
+    const stream = { write(line: string) { try { send(line); } catch { /* ignore */ } } };
+    const logger = pino(options(processName, currentLevel(directory)), stream);
+    const stopLevel = followLevel(logger, directory, intervals.levelMs ?? LEVEL_INTERVAL_MS);
+    const guarded = guard(logger);
+    return { ...guarded, stop: stopLevel };
+  } catch {
+    return SILENT;
   }
 }
