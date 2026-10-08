@@ -71,6 +71,28 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
   });
 });
 
+describe('every advertised story format has an indexer', () => {
+  // .stories.svelte is accepted by the glob and by missingStories. Storybook
+  // cannot index that format on its own: without addon-svelte-csf it fails with
+  // "No matching indexer found", so a developer writing the Svelte-native form
+  // would satisfy the pairing check and break the gallery.
+  it('configures the indexer for the Svelte story format', async () => {
+    const config = await readFile('.storybook/main.js', 'utf8');
+    expect(config).toContain('@storybook/addon-svelte-csf');
+    const manifest = JSON.parse(await readFile('package.json', 'utf8'));
+    expect(manifest.devDependencies['@storybook/addon-svelte-csf']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('advertises exactly the formats the pairing rule accepts', async () => {
+    const config = await readFile('.storybook/main.js', 'utf8');
+    // The glob and scripts/stories.mjs have to agree, or one of them is lying.
+    expect(config).toContain('*.stories.@(js|ts|svelte)');
+    for (const extension of ['js', 'ts', 'svelte']) {
+      expect(isStory(`a/B.stories.${extension}`), `${extension} stories must be recognised`).toBe(true);
+    }
+  });
+});
+
 describe('QGD-FRM-0010 the patterns register', () => {
   it('names the five patterns a later application should copy', async () => {
     const register = JSON.parse(await readFile('data/story-patterns.json', 'utf8'));

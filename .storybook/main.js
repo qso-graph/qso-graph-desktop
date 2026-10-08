@@ -10,7 +10,10 @@
 export default {
   framework: { name: '@storybook/svelte-vite', options: {} },
   stories: ['../src/**/*.stories.@(js|ts|svelte)'],
-  addons: ['@storybook/addon-themes'],
+  // addon-svelte-csf provides the indexer for .stories.svelte. Without it that
+  // format is accepted by the glob and then fails indexing with "No matching
+  // indexer found" — an advertised format that breaks the build.
+  addons: ['@storybook/addon-themes', '@storybook/addon-svelte-csf'],
   core: {
     // Nothing is reported anywhere. QGD-LOG-0002's no-telemetry rule is about
     // the product; the same answer applies to the tools around it.

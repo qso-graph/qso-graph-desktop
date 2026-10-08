@@ -20,6 +20,7 @@
     "@electron/asar": "3.4.1",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
+    "@storybook/addon-svelte-csf": "5.1.5",
     "@storybook/addon-themes": "10.6.1",
     "@storybook/svelte-vite": "10.6.1",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
