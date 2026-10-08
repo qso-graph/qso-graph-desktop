@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
+const ORDER = ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -24,7 +24,7 @@ describe('QGD-TST-0007', () => {
 
   it('still runs and reports the build and the packaging step', () => {
     const suites = run(['keychain-roundtrip']);
-    for (const name of ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'process-recovery', 'axe', 'screenshots', 'package']) {
+    for (const name of ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'process-recovery', 'axe', 'screenshots', 'package']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }
   });

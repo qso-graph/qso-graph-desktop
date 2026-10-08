@@ -13,3 +13,6 @@ storybook-static/
 # Captured every run for comparison against baselines/.
 report/screenshots/
 report/screenshot-logs/
+
+# The pinned PostgreSQL build, fetched by scripts/fetch-postgres.mjs (QGD-ENG-0004).
+vendor/

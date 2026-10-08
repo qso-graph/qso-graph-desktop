@@ -17,7 +17,10 @@ The rest of the desktop shell is still pending.
 TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
 macOS).
 
-On the M3, use Node 26.9.0, Rust and CMake; run `npm ci`, then `make start`.
+On the M3, use Node 26.9.0, Rust and CMake; run `make setup`, then `make start`.
+`make setup` installs the npm dependencies and fetches the pinned PostgreSQL
+build the engine runs from — a ~59 MB download, verified by SHA-256 against
+`data/postgres-build.json` before it is unpacked.
 `make package` produces `out/mac-arm64/QSO Graph Desktop.app`.
 `make installer` produces a local DMG. Signing and publication are deferred.
 
