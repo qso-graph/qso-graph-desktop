@@ -2,16 +2,16 @@
 // Issue #3, item 4: record the crypto module version and operational-environment
 // evidence, and keep compliance claims absent until they are supported.
 //
-// This records what was built and where it ran. It makes no validated-module
-// claim, and it asserts that none appears anywhere in the report artifacts —
-// "built against AWS-LC FIPS" is a build fact; "FIPS 140-3 validated" would be a
-// claim about a certificate, an operational environment and a module boundary
-// that nothing here establishes. The distinction is the requirement, so it is
-// checked mechanically rather than left to whoever writes the next report.
+// Facts only. No claim is made or implied here; whether any claim language has
+// crept into the report artifacts is checked separately by
+// scripts/artifact-scan.mjs, which runs after those artifacts exist.
 //
-// The version is not transcribed from a note: it is read from the module the
-// build actually bundled, from the dependency lock, and from the addon's own
-// linkage, and the three must agree.
+// Two different numbers are easy to confuse, so both are recorded with their
+// provenance: aws-lc-fips-sys is a Rust crate at 0.14.2, and the AWS-LC library
+// it builds is a different version entirely. The library version is read out of
+// the module the build actually produced, and compared against the external
+// CMVP register in data/cmvp-aws-lc.json. The comparison is computed, never
+// asserted, and a mismatch is a recorded fact rather than a failure.
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
@@ -53,11 +53,41 @@ try {
   // The three must agree, or the version recorded here is not the one that runs.
   expect(fromFilename, `bundled module ${fromFilename} does not match locked ${fromLock}`).toBe(fromLock);
 
+  // The AWS-LC library version, read from the module that was built. This is
+  // not the crate version in the filename.
+  const bytes = await readFile(join('dist/native', module));
+  const libraryVersion = bytes.toString('latin1').match(/AWS-LC FIPS (\d+\.\d+\.\d+)/)?.[1];
+  expect(libraryVersion, 'the built module does not carry an AWS-LC FIPS version string').toBeTruthy();
+
+  const register = JSON.parse(await readFile('data/cmvp-aws-lc.json', 'utf8'));
+  expect(register.validated.length, 'the CMVP register is empty, so no comparison was made').toBeGreaterThan(0);
+  const sameVersion = entry => entry.version === libraryVersion ||
+    `${entry.version}.0` === libraryVersion || entry.version === libraryVersion.replace(/\.0$/, '');
+  const validatedMatches = register.validated.filter(sameVersion);
+  const submittedMatches = register.submittedNotYetValidated.filter(sameVersion);
+
   const evidence = {
     date: new Date().toISOString(),
+    awsLcLibrary: {
+      versionBuilt: libraryVersion,
+      readFrom: `the literal string "AWS-LC FIPS ${libraryVersion}" in dist/native/${module}`,
+      crateThatBuiltIt: { name: 'aws-lc-fips-sys', version: fromLock },
+      note: 'The crate version and the library version are different numbers.'
+    },
+    cmvpComparison: {
+      register: 'data/cmvp-aws-lc.json',
+      registerSource: register.source,
+      registerRetrieved: register.retrieved,
+      versionCompared: libraryVersion,
+      appearsInValidatedList: validatedMatches.length > 0,
+      appearsInSubmittedList: submittedMatches.length > 0,
+      matchingEntries: validatedMatches.length + submittedMatches.length,
+      validatedVersionsInRegister: register.validated.map(entry => `${entry.version} (${entry.library})`),
+      submittedVersionsInRegister: register.submittedNotYetValidated.map(entry => `${entry.version} (${entry.library})`)
+    },
     cryptoModule: {
       name: 'AWS-LC FIPS',
-      version: fromLock,
+      crateVersion: fromLock,
       bundledAs: module,
       linkedBy: '@loader_path, so the addon loads the copy beside it',
       agreementChecked: ['bundled filename', 'Cargo.lock', 'otool linkage'],
@@ -88,34 +118,18 @@ try {
       electron: JSON.parse(await readFile('package.json', 'utf8')).devDependencies.electron,
       commit: run('git', ['rev-parse', 'HEAD']) || 'uncommitted'
     },
-    claims: {
-      validatedModuleCompliance: false,
-      statement: 'Built against AWS-LC FIPS and asserted to run with its FIPS provider and TLS 1.3 only. That is build and runtime evidence for this machine. It is not a validated-module claim: no certificate, module boundary or approved operational environment is established here.'
+    scope: {
+      recorded: 'what was built, from the build; and where it ran, from the machine',
+      notRecorded: 'any module boundary, approved operational environment or certificate for this build'
     }
   };
 
   await mkdir('report', { recursive: true });
   await writeFile('report/crypto-evidence.json', JSON.stringify(evidence, null, 2) + '\n');
 
-  // No report artifact may assert validation or certification.
-  const artifacts = (await readdir('report')).filter(name => /\.(md|json|txt)$/.test(name));
-  const claimed = [];
-  for (const name of artifacts) {
-    const text = await readFile(join('report', name), 'utf8');
-    for (const pattern of COMPLIANCE_CLAIMS) {
-      const match = pattern.exec(text);
-      if (match) claimed.push(`${name}: ${match[0]}`);
-    }
-  }
-  expect(claimed, claimed.join('; ')).toEqual([]);
-  expect(artifacts.length, 'no report artifacts were checked for compliance claims').toBeGreaterThan(0);
-
-  // The checker must be able to see a claim, or finding none proves nothing.
-  const control = COMPLIANCE_CLAIMS.some(pattern => pattern.test('this build is FIPS 140-3 validated'));
-  expect(control, 'the compliance-claim checker does not recognise a claim').toBe(true);
-
-  console.log(`Crypto evidence: AWS-LC FIPS ${fromLock} bundled, locked and linked in agreement; rustls ${locked('rustls')}, TLS 1.3 only: PASS`);
-  console.log(`Operational environment recorded: ${evidence.operationalEnvironment.product} ${evidence.operationalEnvironment.version} on ${evidence.operationalEnvironment.model}. No validated-module claim in ${artifacts.length} report artifacts: PASS`);
+  console.log(`Crypto evidence: AWS-LC library ${libraryVersion}, built by aws-lc-fips-sys ${fromLock}, bundled and linked in agreement; rustls ${locked('rustls')}, TLS 1.3 only: PASS`);
+  console.log(`CMVP register ${register.retrieved}: ${libraryVersion} in validated list = ${validatedMatches.length > 0}, in submitted list = ${submittedMatches.length > 0}`);
+  console.log(`Operational environment recorded: ${evidence.operationalEnvironment.product} ${evidence.operationalEnvironment.version} on ${evidence.operationalEnvironment.model}: PASS`);
 } catch (error) {
   console.error('Crypto evidence failed.');
   console.error(error.message.split('\n').slice(0, 20).join('\n'));

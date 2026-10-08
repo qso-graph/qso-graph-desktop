@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { markdown, redact } from './report.mjs';
 import { blockedBy } from './suite-gate.mjs';
+import { artifactScan, sentinelsIn } from './artifact-scan.mjs';
 
 await mkdir('report', { recursive: true });
 let previous;
@@ -21,9 +22,7 @@ const commands = [
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['package', [npmCli, 'run', 'package']],
-  ['packaged-launch', ['scripts/packaged-smoke.mjs']],
-  // Last, so it scans the artifacts the whole run produced.
-  ['sentinel-scan', ['scripts/sentinel-scan.mjs']]
+  ['packaged-launch', ['scripts/packaged-smoke.mjs']]
 ];
 const suites = [];
 for (const [name, args] of commands) {
@@ -34,20 +33,51 @@ for (const [name, args] of commands) {
     continue;
   }
   const run = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 2_000_000 });
-  const passed = run.status === 0 && !run.error;
-  suites.push({ name, result: passed ? 'PASS' : 'FAIL', ...(passed ? {} : {
-    failure: redact(`${run.stdout || ''}\n${run.stderr || ''}`).split('\n').filter(Boolean).slice(0, 20).join('\n') || 'Command did not finish.'
-  }) });
+  const output = `${run.stdout || ''}\n${run.stderr || ''}`;
+  // QGD-CRD-0006: a suite's own output is a place a credential could appear, and
+  // successful output is discarded while failed output is redacted — so neither
+  // survives to be scanned later. It is scanned here, before either happens.
+  const leaked = sentinelsIn(output);
+  const passed = run.status === 0 && !run.error && leaked.length === 0;
+  suites.push({
+    name,
+    result: passed ? 'PASS' : 'FAIL',
+    ...(leaked.length ? { sentinelsPrinted: leaked.length } : {}),
+    ...(passed ? {} : {
+      failure: leaked.length
+        ? `Printed ${leaked.length} credential sentinel(s) to its output. Values omitted.`
+        : redact(output).split('\n').filter(Boolean).slice(0, 20).join('\n') || 'Command did not finish.'
+    })
+  });
 }
 const head = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' });
+const outcome = () => (suites.every(s => s.result === 'PASS') ? 'PASS' : 'FAIL');
 const report = {
   sha: head.status === 0 ? head.stdout.trim() : 'uncommitted-local-preview',
   date: new Date().toISOString(), os: process.platform, arch: process.arch,
-  result: suites.every(s => s.result === 'PASS') ? 'PASS' : 'FAIL',
+  result: outcome(),
   partSignOff: 'PENDING', retries: 0, suites,
-  delta: previous ? `${previous.result} → ${suites.every(s => s.result === 'PASS') ? 'PASS' : 'FAIL'}` : 'first local run'
+  delta: previous ? `${previous.result} → ${outcome()}` : 'first local run'
 };
-await writeFile('report/summary.json', JSON.stringify(report, null, 2) + '\n');
-await writeFile('report/report.md', markdown(report));
+const write = async () => {
+  await writeFile('report/summary.json', JSON.stringify(report, null, 2) + '\n');
+  await writeFile('report/report.md', markdown(report));
+};
+// Written once so the artifact scan has this run's report and summary to read —
+// no suite can scan them, because they do not exist until every suite is done.
+await write();
+
+// Then scanned, and the result folded in. The rewrite that follows adds only
+// this row and its failure text, which carries paths and counts, never a value.
+const scan = await artifactScan();
+suites.push({
+  name: 'artifact-scan',
+  result: scan.ok ? 'PASS' : 'FAIL',
+  ...(scan.ok ? {} : { failure: scan.failures.slice(0, 20).join('\n') })
+});
+report.result = outcome();
+report.delta = previous ? `${previous.result} → ${report.result}` : 'first local run';
+await write();
+
 console.log(`Local verification: ${report.result}. See report/report.md.`);
 process.exitCode = report.result === 'PASS' ? 0 : 1;

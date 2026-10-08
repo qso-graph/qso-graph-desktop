@@ -1,0 +1,18 @@
+{
+  "register": "AWS-LC-FIPS module validation status",
+  "source": "https://github.com/aws/aws-lc/blob/main/crypto/fipsmodule/FIPS.md",
+  "retrieved": "2026-10-07",
+  "retrievedBy": "watson",
+  "note": "External register, recorded verbatim. Versions here are AWS-LC library versions, which are not the aws-lc-fips-sys crate version. Update by re-reading the source and changing the retrieved date in the same commit.",
+  "validated": [
+    { "version": "1.0", "library": "static", "certificate": "4631" },
+    { "version": "2.0", "library": "static", "certificate": "4816" },
+    { "version": "2.0", "library": "dynamic", "certificate": "5429" },
+    { "version": "3.1", "library": "static", "certificate": "5314" },
+    { "version": "3.1", "library": "dynamic", "certificate": "5298" }
+  ],
+  "submittedNotYetValidated": [
+    { "version": "4.0", "library": "static" },
+    { "version": "4.0", "library": "dynamic" }
+  ]
+}
