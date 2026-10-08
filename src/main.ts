@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
 import { startPersonaBroker } from './persona-broker.js';
 import { createLogger } from './logger.js';
+import { startSettingsBroker } from './settings.js';
 
 const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'renderer');
 const log = createLogger('main');
@@ -98,7 +99,8 @@ if (!app.requestSingleInstanceLock()) {
     });
     log.info({ electron: process.versions.electron, platform: process.platform }, 'application ready');
     const stopPersonaBroker = startPersonaBroker(dirname(fileURLToPath(import.meta.url)));
-    app.once('before-quit', stopPersonaBroker);
+    const stopSettingsBroker = startSettingsBroker();
+    app.once('before-quit', () => { stopPersonaBroker(); stopSettingsBroker(); });
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
     });

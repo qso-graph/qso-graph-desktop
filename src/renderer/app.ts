@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type { Persona, Snapshot, CredentialStatus, CredentialTest, PersonaCommand, PersonaReply } from '../persona-contract.js';
-declare global { interface Window { personas: { request(command: PersonaCommand): Promise<PersonaReply> } } }
+import type { SettingsCommand, SettingsReply, ThemeChoice } from '../settings-contract.js';
+import { applyTheme, followSystem, resolveTheme } from './theme.js';
+declare global {
+  interface Window {
+    personas: { request(command: PersonaCommand): Promise<PersonaReply> };
+    settings: { request(command: SettingsCommand): Promise<SettingsReply> };
+  }
+}
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => element<HTMLInputElement>(id);
 let snapshot: Snapshot = { personas: [], active: null };
@@ -194,3 +201,31 @@ async function initialize() {
   }
 }
 void initialize();
+
+
+// QGD-FRM-0001 and QGD-FRM-0002: follow the operating system unless the user
+// has chosen otherwise, and change with it while running.
+let themeChoice: ThemeChoice = 'system';
+let stopFollowing: (() => void) | undefined;
+
+function startTheme(): void {
+  stopFollowing?.();
+  stopFollowing = followSystem(prefersDark => applyTheme(resolveTheme(themeChoice, prefersDark)));
+}
+
+export async function setThemeChoice(choice: ThemeChoice): Promise<boolean> {
+  const reply = await window.settings.request({ type: 'write', key: 'theme', value: choice });
+  if (!reply.ok) return false;
+  themeChoice = reply.data.theme;
+  startTheme();
+  return true;
+}
+
+async function loadTheme(): Promise<void> {
+  const reply = await window.settings.request({ type: 'read' });
+  // A settings channel that cannot answer must not leave the window unthemed.
+  if (reply.ok) themeChoice = reply.data.theme;
+  startTheme();
+}
+
+void loadTheme();
