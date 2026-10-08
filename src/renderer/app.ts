@@ -278,4 +278,23 @@ export async function exportDiagnostics(): Promise<string> {
   return `Saved ${files} (${size}). Passwords and keys were removed.`;
 }
 
-void readLogs();
+// QGD-LOG-0010: a raise expires on its own, after an hour and at restart. The
+// page has to notice, or it goes on offering `debug` while the loggers have
+// been back on `info` for an hour — and somebody collects diagnostics
+// believing they have detail that was never recorded.
+//
+// Read when Settings is opened, and again while it stays open. The level is
+// owned by the main process and changed by a clock, so the renderer has
+// nothing to derive it from; asking is the only honest answer.
+const LOGS_REFRESH_MS = 30_000;
+let logsRefresh: ReturnType<typeof setInterval> | undefined;
+shell.subscribe(state => {
+  const onSettings = state.page === 'settings';
+  if (onSettings && logsRefresh === undefined) {
+    void readLogs();
+    logsRefresh = setInterval(() => { void readLogs(); }, LOGS_REFRESH_MS);
+  } else if (!onSettings && logsRefresh !== undefined) {
+    clearInterval(logsRefresh);
+    logsRefresh = undefined;
+  }
+});

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, rm, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { redact } from './report.mjs';
+import { entries } from './unzip.mjs';
 
 let application;
 const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
@@ -203,6 +204,19 @@ try {
   await page.getByLabel('Detail level', { exact: true }).selectOption('info');
   expect(await levelInFile()).toEqual({ level: 'info' });
 
+  // QGD-LOG-0010: a raise expires on its own, and the page must stop offering
+  // it. Expiry is simulated by writing a raise that predates this process,
+  // which is the restart half of the rule — the hour would take an hour.
+  await page.getByLabel('Detail level', { exact: true }).selectOption('debug');
+  await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('debug');
+  await railAgain('Personas').click();
+  await writeFile(join(logs, 'level.json'),
+    JSON.stringify({ level: 'debug', raisedAtMs: Date.now() - 4 * 60 * 60 * 1000 }) + '\n');
+  await railAgain('Settings').click();
+  // Without the refresh this still read debug, while every logger had already
+  // reverted to info.
+  await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('info');
+
   // Export diagnostics produces the archive QGD-LOG-0012 already builds. The
   // save dialog is replaced through Electron's own API rather than through a
   // hook in the application, so the path that runs is the one that ships.
@@ -212,10 +226,21 @@ try {
   }, archive);
   await page.getByRole('button', { name: 'Export diagnostics', exact: true }).click();
   await expect(page.locator('#export-result')).toContainText('Passwords and keys were removed.', { timeout: 30_000 });
-  const written_archive = await readFile(archive);
-  // A zip, and the credential this run has been handling is not in it.
-  expect(written_archive.subarray(0, 2).toString('latin1')).toBe('PK');
-  expect(written_archive.includes(fakeCredential)).toBe(false);
+  const writtenArchive = await readFile(archive);
+  expect(writtenArchive.subarray(0, 2).toString('latin1')).toBe('PK');
+  // Read, not searched. zip() deflates a log whenever that helps, so the
+  // plaintext is not in the bytes to find and a byte search passes on an
+  // archive that does contain the credential.
+  const exported = entries(writtenArchive);
+  expect(exported.length, 'the export must contain the log files').toBeGreaterThan(0);
+  // The reader is doing its job: something this run certainly logged is here.
+  // Without this, a reader that returned empty buffers would make the check
+  // below pass on anything.
+  expect(exported.some(file => file.content.includes('application ready')),
+    'the reader must be returning real log content').toBe(true);
+  for (const file of exported) {
+    expect(file.content.includes(fakeCredential), `${file.name} must not carry the credential`).toBe(false);
+  }
 
   // And cancelling says so rather than claiming a file was written.
   await application.evaluate(({ dialog }) => {
