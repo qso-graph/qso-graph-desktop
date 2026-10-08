@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { redact } from './report.mjs';
 import { binariesDirectory } from './postgres-build.mjs';
-import { initialise, start, stop } from '../dist/engine/supervisor.js';
+import { initialise, runningPid, start, status, stop } from '../dist/engine/supervisor.js';
+import { bringUp } from '../dist/engine/start.js';
 import { chooseSocketDirectory, socketCandidates } from '../dist/engine/endpoint.js';
 import { connectAsSuperuser } from '../dist/engine/roles.js';
 import { applyMigrations, installation, read, recordInstallation } from '../dist/engine/migrate.js';
@@ -112,6 +113,39 @@ try {
     expect(table.rowCount, 'a failed run must leave no table behind either').toBe(0);
     await second.end();
     notes.push('a migration that fails throws, and the whole run rolls back rather than half-applying');
+  }
+
+  // ---- a failed start leaves nothing running (QGD-ENG-0013) -------------
+  {
+    // Starting means "listening and migrated". If the migrations fail, the
+    // engine did not start — and leaving the postmaster up would mean a
+    // database serving a schema nothing expects, which the next status read
+    // would cheerfully call running.
+    await stop(paths);
+    expect(await status(paths)).toBe('stopped');
+
+    const broken = join(root, 'broken-for-start');
+    await cp(folder, broken, { recursive: true });
+    const journal = JSON.parse(await readFile(join(broken, 'meta', '_journal.json'), 'utf8'));
+    const tag = '9998_cannot_apply';
+    await writeFile(join(broken, `${tag}.sql`), 'SELECT this_is_not_valid_sql FROM nowhere;\n');
+    journal.entries.push({ idx: journal.entries.length, version: journal.version, when: Date.now(), tag, breakpoints: true });
+    await writeFile(join(broken, 'meta', '_journal.json'), JSON.stringify(journal, null, 2));
+
+    let failure;
+    try {
+      await bringUp(paths, endpoint, { migrations: broken, buildFile: resolve('data/postgres-build.json') });
+    } catch (error) { failure = error; }
+    expect(failure, 'a migration that cannot apply must fail the start').toBeDefined();
+    expect(await status(paths), 'the engine must not be left running').toBe('stopped');
+    expect(await runningPid(paths)).toBeUndefined();
+    notes.push('a start whose migrations fail leaves no engine running');
+
+    // And a good start afterwards still works.
+    const started = await bringUp(paths, endpoint, { migrations: folder, buildFile: resolve('data/postgres-build.json') });
+    expect(started.version).toBe(build.version);
+    expect(await status(paths)).toBe('running');
+    notes.push('and a good start afterwards still works');
   }
 
   console.log(`Engine migrations: ${notes.length} checks: PASS`);

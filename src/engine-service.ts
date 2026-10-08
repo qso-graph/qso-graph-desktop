@@ -7,13 +7,10 @@
 //
 // It is given its paths on the command line by the broker. Nothing it does
 // takes a path from a message.
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { createForwardingLogger } from './logger.js';
 import { chooseSocketDirectory, socketCandidates, type Endpoint } from './engine/endpoint.js';
-import { initialise, start, status, stop, type EnginePaths } from './engine/supervisor.js';
-import { connectAsSuperuser } from './engine/roles.js';
-import { applyMigrations, recordInstallation } from './engine/migrate.js';
+import { status, stop, type EnginePaths } from './engine/supervisor.js';
+import { bringUp } from './engine/start.js';
 import { validateEngineCommand, type EngineReply, type EngineStatus } from './engine-contract.js';
 
 const [, , binaries, data, logs, sockets, migrations, buildFile] = process.argv;
@@ -36,21 +33,13 @@ async function bring(up: boolean): Promise<EngineStatus> {
     return { state: 'stopped', version };
   }
   current = { state: 'starting', version };
-  await initialise(paths);
-  await start(paths, endpoint);
-  // The migrations are part of starting: an engine that is up but not
-  // migrated is not one anything should be writing to (QGD-ENG-0013).
-  const client = await connectAsSuperuser(endpoint, 'postgres', error => {
-    log.warn({ reason: error.message }, 'engine connection dropped');
+  const started = await bringUp(paths, endpoint, {
+    migrations,
+    buildFile,
+    onWarning: (message, fields) => log.warn(fields ?? {}, message)
   });
-  try {
-    await applyMigrations(client, migrations);
-    const build = JSON.parse(await readFile(buildFile, 'utf8')) as { major: number; version: string };
-    version = build.version;
-    await recordInstallation(client, build.major, build.version);
-  } finally {
-    await client.end().catch(() => {});
-  }
+  version = started.version;
+  log.info({ migrations: started.migrationsApplied }, 'engine up and migrated');
   return { state: 'running', version };
 }
 
@@ -73,15 +62,18 @@ async function handle(command: unknown): Promise<EngineReply> {
       // block behind a start that takes half a minute, which is the whole
       // reason anything is asking.
       //
-      // Read from disk rather than remembered, because the postmaster may have
-      // gone without telling anyone — except while this process is in the
-      // middle of starting it, when the disk says "stopped" and is about to be
-      // wrong. Neither "starting" nor "failed" is overwritten by it.
-      const state = await status(paths);
-      if (state === 'running') current = { state: 'running', version };
-      else if (current.state !== 'starting' && current.state !== 'failed') {
-        current = { state: 'stopped', version };
+      // While a start is in flight, the answer is "starting" and nothing else.
+      // The postmaster is listening well before the migrations have run, so a
+      // disk read would say "running" of a database that is not yet one
+      // anything should be writing to — and a migration that hung would leave
+      // that showing indefinitely. Only bringUp finishing makes it running.
+      if (current.state === 'starting' || current.state === 'failed') {
+        return { ok: true, status: current };
       }
+      // Otherwise the disk is the authority: the postmaster may have gone
+      // without telling anyone.
+      const state = await status(paths);
+      current = { state: state === 'running' ? 'running' : 'stopped', version };
       return { ok: true, status: current };
     }
     current = await serialised(() => bring(command.type === 'start'));
@@ -106,4 +98,4 @@ process.parentPort.on('message', event => {
 });
 
 process.parentPort.postMessage({ ready: true });
-log.info({ data: join(data, '').length > 0 }, 'engine supervisor ready');
+log.info({}, 'engine supervisor ready');

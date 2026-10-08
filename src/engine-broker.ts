@@ -15,6 +15,10 @@ const log = createLogger('engine-broker');
 
 export const ENGINE_CHANNEL = 'engine:request';
 
+// Long enough for a clean shutdown of a database, short enough that quitting
+// is not something a user waits on indefinitely.
+export const SHUTDOWN_MS = 20_000;
+
 export interface EngineBrokerOptions {
   compiledDirectory: string;
   binaries: string;
@@ -26,7 +30,8 @@ export interface EngineBrokerOptions {
   startAtLaunch?: boolean;
 }
 
-export function startEngineBroker(options: EngineBrokerOptions): () => void {
+// The returned function is awaited: see the shutdown comment below.
+export function startEngineBroker(options: EngineBrokerOptions): () => Promise<void> {
   let worker: UtilityProcess | undefined;
   let stopped = false;
   let nextId = 0;
@@ -114,14 +119,28 @@ export function startEngineBroker(options: EngineBrokerOptions): () => void {
     setTimeout(() => { void ask({ type: 'start' }); }, 0);
   }
 
-  return () => {
+  // Returns when the engine has stopped, or when it has had long enough.
+  // Awaited by the caller: a postmaster left running outlives the application
+  // and refuses the next launch (QGD-ENG-0008), so this is not something to
+  // start and walk away from.
+  return async () => {
     stopped = true;
     ipcMain.removeHandler(ENGINE_CHANNEL);
-    // Asked to stop cleanly; killed if it will not. A postmaster left running
-    // would refuse the next launch (QGD-ENG-0008).
-    const closing = ask({ type: 'stop' }, 20_000);
-    void closing.finally(() => { worker?.kill(); worker = undefined; });
+    // Everything already in flight is abandoned FIRST, and the stop is asked
+    // for after — failing the pending set would otherwise resolve the stop
+    // request itself the instant it was made, and the worker would be killed
+    // before it had stopped anything.
     failPending('The application is closing.');
+    try {
+      await Promise.race([
+        ask({ type: 'stop' }, SHUTDOWN_MS),
+        new Promise(resolve => setTimeout(resolve, SHUTDOWN_MS))
+      ]);
+    } catch {
+      // Nothing to do about it here; the kill below is the backstop.
+    }
+    worker?.kill();
+    worker = undefined;
   };
 }
 

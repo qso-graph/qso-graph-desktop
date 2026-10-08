@@ -336,8 +336,43 @@ try {
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Remove saved credential', exact: true }).click();
   await expect(page.locator('#credential-status')).toContainText('No credential saved', { timeout: 30_000 });
+  // QGD-ENG-0008 and the shutdown path: closing the application must leave no
+  // postmaster behind. One that outlives it holds the data directory and
+  // refuses the next launch — and the stop request used to cancel itself, so
+  // the worker was killed before it had stopped anything.
+  const engineData = join(userData, 'engine', 'data');
   await application.close();
   application = undefined;
+  {
+    // It ran here, so there is something to have stopped.
+    expect(await readFile(join(engineData, 'PG_VERSION'), 'utf8').catch(() => ''),
+      'the engine must have run in the application for this to mean anything').not.toBe('');
+
+    // No postmaster survives.
+    const pid = Number.parseInt(
+      (await readFile(join(engineData, 'postmaster.pid'), 'utf8').catch(() => '')).split('\n')[0] ?? '', 10);
+    if (Number.isInteger(pid) && pid > 0) {
+      let alive = true;
+      for (let attempt = 0; attempt < 50 && alive; attempt++) {
+        try { process.kill(pid, 0); await new Promise(resolve => setTimeout(resolve, 200)); }
+        catch { alive = false; }
+      }
+      expect(alive, `a postmaster (${pid}) outlived the application and would refuse the next launch`).toBe(false);
+    }
+
+    // And it was asked to stop rather than being killed on the way out. This
+    // is the part that distinguishes the two: a killed postmaster also leaves
+    // nothing running, but it leaves a database that needs crash recovery at
+    // the next start — and the request never reached the supervisor at all,
+    // so it never recorded stopping.
+    const application_log = await readFile(join(logs, 'qg-desktop.log'), 'utf8').catch(() => '');
+    const stopped = application_log.split('\n').filter(Boolean)
+      .map(line => { try { return JSON.parse(line); } catch { return undefined; } })
+      .filter(Boolean)
+      .some(entry => entry.msg === 'engine state changed' && entry.state === 'stopped');
+    expect(stopped, 'the engine must have been asked to stop, and recorded doing it').toBe(true);
+    notesEngine += ', and was asked to stop when the application closed';
+  }
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
   console.log(`Database card: the shell is drawn and usable while the engine starts on its own; Settings reports "${notesEngine}": PASS`);

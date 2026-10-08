@@ -145,9 +145,19 @@ if (!app.requestSingleInstanceLock()) {
       migrations: join(compiled, '..', 'drizzle'),
       startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
     });
-    app.once('before-quit', () => {
+    // Stopping the engine is the one thing here that takes time, and it has
+    // to finish: a postmaster that outlives the application refuses the next
+    // launch (QGD-ENG-0008). So the first quit is held, the engine is stopped,
+    // and the quit is asked for again — the second one is let through.
+    let quitting = false;
+    app.on('before-quit', event => {
       stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
-      stopEngineBroker();
+      if (quitting) return;
+      quitting = true;
+      event.preventDefault();
+      void stopEngineBroker()
+        .catch(error => log.warn({ reason: String(error) }, 'the engine did not stop cleanly'))
+        .finally(() => app.quit());
     });
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
