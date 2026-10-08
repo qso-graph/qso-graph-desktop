@@ -72,7 +72,9 @@ const TYPE_AWARE = {
 };
 
 export default [
-  { ignores: ['node_modules/**', 'dist/**', 'out/**', 'report/**', 'native/**/target/**'] },
+  // storybook-static is the built gallery: vendored code carrying directives
+  // for rules this project does not install.
+  { ignores: ['node_modules/**', 'dist/**', 'out/**', 'report/**', 'native/**/target/**', 'storybook-static/**'] },
 
   // The product, as written.
   ...tseslint.config({

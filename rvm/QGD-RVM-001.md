@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `2be19a63be9a6a269bafee9010a2ba1d11067ed1` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `e71b1f1613b24eb351e5efd8a9b375218f9849a5` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `2be19a63be9a6a269bafee9010a2ba1d11067ed1` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `e71b1f1613b24eb351e5efd8a9b375218f9849a5` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 82 requirements · 12 Parts · 2 Demo · 27 Inspection · 27 Static · 39 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 87 requirements · 12 Parts · 4 Demo · 28 Inspection · 28 Static · 43 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -21,7 +21,7 @@
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |  |
 | `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. No gate before Release 1 requires a second operating system or a third-party application. | Static | ✓ |
 | `QGD-PRT-0005` | **P0 to P7 are the frame; P8 onward are applications built on the API the frame provides.** A Part in the second group uses the app API and the grant model, never a private route into the frame. | Inspection |  |
-| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `app-api` — and `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon. | Inspection |  |
+| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `app-api` — `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon, and `storybook/` at the root for the component gallery. | Inspection |  |
 | `QGD-REP-0002` | The move to that layout happens at `QGD-PRT-0107` and not before. Recording it here is not permission to begin it. | Inspection |  |
 | `QGD-REP-0003` | A built-in application uses only the app API and its grants, exactly as a contributed application would. Personas, the engine and the reference data are frame, not applications, because the frame enforces the grants. | Inspection |  |
 | `QGD-REP-0004` | `app-api` and `ui` are separate packages: what an application may call and what it may look like are different contracts. | Inspection |  |
@@ -85,6 +85,11 @@
 | `QGD-FRM-0003` | Light and dark are equally first class. Dark is properly dark, for night nets and contests, not grey; light carries strong contrast for daylight field use. Both are approved by KI7MT under `QGD-PRT-0103`. | Demo, Inspection |  |
 | `QGD-FRM-0004` | A low-light or red night theme is not built in Release 1. | Inspection |  |
 | `QGD-FRM-0005` | The shell is built in Svelte. | Inspection |  |
+| `QGD-FRM-0006` | Each reusable `ui` component and each reusable pattern has a story. | Test | ✓ |
+| `QGD-FRM-0007` | Every story renders in both light and dark, so a component is seen in each before it is accepted. | Test, Demo | ✓ |
+| `QGD-FRM-0008` | `make verify` builds the gallery, so a story that no longer builds fails the run rather than waiting for someone to open it. | Test | ✓ |
+| `QGD-FRM-0009` | The gallery is development-only. It is not in the shipped application, and it is neither hosted nor published. | Static, Test | ✓ |
+| `QGD-FRM-0010` | The patterns listed in `data/story-patterns.json` have stories by `QGD-PRT-0103`'s exit gate: the page layout, a form showing its validation errors, a list in each of its empty, loading, error and populated states, a confirmation dialog, and the credential test with its status display. A later application copies the pattern that is there rather than inventing its own. | Inspection, Demo |  |
 | `QGD-TST-0001` | One command, `make verify`, runs every check and produces the report. | Test | ✓ |
 | `QGD-TST-0002` | `make verify` exits non-zero on any failure. | Test | ✓ |
 | `QGD-TST-0003` | The report records pending acceptance evidence honestly — a gate not yet met is reported as not met, never as passed or omitted. | Inspection |  |

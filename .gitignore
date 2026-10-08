@@ -5,3 +5,4 @@ report/
 .cache/
 .DS_Store
 native/**/target/
+storybook-static/

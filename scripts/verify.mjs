@@ -17,7 +17,7 @@ if (!npmCli) throw new Error('Run verification with make verify or npm run verif
 const commands = [
   ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
   ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs']],
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
@@ -26,6 +26,7 @@ const commands = [
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
+  ['storybook', ['scripts/storybook.mjs']],
   ['package', [npmCli, 'run', 'package']],
   ['packaged-launch', ['scripts/packaged-smoke.mjs']],
   ['electron-audit', ['scripts/electron-audit.mjs']]
