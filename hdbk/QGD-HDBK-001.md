@@ -93,3 +93,18 @@ should not be loaded to build anything:
 
 Material from these is folded into this handbook as it is needed. Open findings become GitHub
 issues on `qso-graph/qso-graph-desktop`, not documents.
+
+## 4. Why a failed credential proof stops some suites and not others
+
+An earlier version of `scripts/verify.mjs` stopped every remaining suite once the credential
+proof failed. The reasoning was sound as far as it went — a `PASS` on packaging, reported
+beside a broken credential path, reads as a healthier build than there is. But it threw away
+results that were never in doubt. Packaging does not touch the OS credential store, so its
+outcome is not made misleading by a credential failure; suppressing it loses a real answer to
+prevent a misleading one that was not going to occur.
+
+`QGD-TST-0007` draws the line at the dependency instead of at the point of failure, which is
+what KI7MT directed on 2026-10-07. A suite is stopped when its result would depend on the
+thing that just failed, and run otherwise. `QGD-TST-0003` already requires the report to be
+honest about what was not met; a suite reported as not run, naming what blocked it, satisfies
+that better than a suite silently absent.

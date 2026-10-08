@@ -167,6 +167,7 @@ not the operator's own.
 | `QGD-TST-0004` | `QGD-RVM-001.md` is generated from this document's Verify columns. A hand-edited RVM fails `make verify`. | Test |
 | `QGD-TST-0005` | Every requirement in this document carries at least one Verify method. `make verify` fails if one does not. | Static |
 | `QGD-TST-0006` | Security tests pass before any artifact is published outside this machine. | Test |
+| `QGD-TST-0007` | A failure of the credential proof in `QGD-CRD-0004` stops only the suites that use the OS credential store; `make verify` reports those as not run, and still runs and reports every suite that does not use it, including the build and the packaging step. | Test |
 
 ## 6. What this document does not contain
 

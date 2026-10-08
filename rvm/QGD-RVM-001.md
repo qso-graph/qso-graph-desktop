@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `7448237a7d58db0461c522410f7622972e87bf12` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `3a5190fb364d90a4488834173c84436d473ad36c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `7448237a7d58db0461c522410f7622972e87bf12` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `3a5190fb364d90a4488834173c84436d473ad36c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 34 requirements · 12 Parts · 12 Inspection · 11 Static · 14 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 35 requirements · 12 Parts · 12 Inspection · 11 Static · 15 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -44,6 +44,7 @@
 | `QGD-TST-0004` | `QGD-RVM-001.md` is generated from this document's Verify columns. A hand-edited RVM fails `make verify`. | Test | ✓ |
 | `QGD-TST-0005` | Every requirement in this document carries at least one Verify method. `make verify` fails if one does not. | Static | ✓ |
 | `QGD-TST-0006` | Security tests pass before any artifact is published outside this machine. | Test | ✓ |
+| `QGD-TST-0007` | A failure of the credential proof in `QGD-CRD-0004` stops only the suites that use the OS credential store; `make verify` reports those as not run, and still runs and reports every suite that does not use it, including the build and the packaging step. | Test | ✓ |
 
 ## Parts
 

@@ -13,7 +13,7 @@ export function markdown(report) {
     '', `LOCAL RESULT: **${report.result}**`,
     '', 'Part sign-off: **PENDING** (local preview is not Part completion).',
     '', '| Suite | Result |', '|---|---|',
-    ...report.suites.map(suite => `| ${suite.name} | ${suite.result} |`),
+    ...report.suites.map(suite => `| ${suite.name} | ${suite.result}${suite.blockedBy ? ` — blocked by ${suite.blockedBy}` : ''} |`),
     '', `Regressions: ${report.result === 'PASS' ? '0 observed in local suites' : 'see failed suites'}.`,
     'Budgets: not yet measured; no milestone budget compliance claimed.',
     'Flaky tests: no automatic retries; no retry success is hidden.',

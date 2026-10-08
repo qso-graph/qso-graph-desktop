@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { markdown, redact } from './report.mjs';
+import { blockedBy } from './suite-gate.mjs';
 
 await mkdir('report', { recursive: true });
 let previous;
@@ -11,7 +12,7 @@ if (!npmCli) throw new Error('Run verification with make verify or npm run verif
 const commands = [
   ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
   ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts']],
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs']],
   ['keychain-interop', ['scripts/interop.mjs']],
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
@@ -20,13 +21,10 @@ const commands = [
 ];
 const suites = [];
 for (const [name, args] of commands) {
-  // A credential-path failure halts the run: nothing after the interop proof is reported,
-  // because a PASS on `package` over a broken credential path is a misleading report.
-  // NOT backed by a requirement -- added by Watson 2026-10-07, pending KI7MT's call.
-  if (name !== 'unit' && (suites.some(s => s.name === 'build' && s.result === 'FAIL') ||
-      suites.some(s => s.name === 'keychain-interop' && s.result === 'FAIL') ||
-      (name === 'packaged-launch' && suites.some(s => s.name === 'package' && s.result === 'FAIL')))) {
-    suites.push({ name, result: 'NOT RUN' });
+  // QGD-TST-0007: stop only the suites whose result depends on what failed.
+  const blocked = blockedBy(name, suites);
+  if (blocked) {
+    suites.push({ name, result: 'NOT RUN', blockedBy: blocked });
     continue;
   }
   const run = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 2_000_000 });
