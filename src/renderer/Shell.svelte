@@ -43,8 +43,28 @@
 </script>
 
 <header>
-  <div class="brand"><span class="mark" aria-hidden="true">QG</span><strong>QSO Graph Desktop</strong></div>
-  <span class="platform">Your station on this Mac</span>
+  <!-- The title centred, with the tower from the application icon beside it.
+       Inline SVG rather than an image: markup is not an image resource, so
+       img-src stays 'none' and src/policy.ts still serves exactly three files
+       (QGD-SEC-0008, QGD-PRC-0006). It draws in currentColor, so it takes the
+       theme rather than needing a light copy and a dark one. -->
+  <span class="brand">
+    <svg class="app-mark" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+         fill="none" stroke="currentColor" stroke-width="1.5"
+         stroke-linecap="round" stroke-linejoin="round">
+      <!-- A lattice tower: two legs and two crossbars. A plain triangle read
+           as the letter A at this size. -->
+      <path d="M9.4 21 L11.1 10.6 M14.6 21 L12.9 10.6" />
+      <path d="M10.2 16.6 H13.8" />
+      <path d="M9.7 19 H14.3" />
+      <path d="M12 10.6 V7.8" />
+      <!-- The bolt is filled rather than stroked; a thin zigzag turns to mush
+           at 20px. -->
+      <path d="M17.2 2.6 L13.4 7.9 L16.3 7.9 L14.9 13.4 L19.1 7.6 L16.2 7.6 Z"
+            fill="currentColor" stroke="none" />
+    </svg>
+    <strong class="app-title">QSO Graph Desktop</strong>
+  </span>
 </header>
 <div class="workspace">
   <Rail pages={PAGES} current={state.page} onNavigate={navigate} />

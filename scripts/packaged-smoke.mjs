@@ -82,7 +82,13 @@ try {
   credentialSaved = true;
   await expect(page.locator('#api-key-saved')).toBeVisible();
   await expect(page.locator('#password-saved')).toBeHidden();
-  expect(await page.getByLabel('API key', { exact: true }).getAttribute('placeholder')).toBe('••••••••');
+  // toHaveAttribute, not a read of getAttribute: the placeholder appears when
+  // the Keychain round-trip returns, and a single read races it — which is how
+  // this suite failed a run while the application was behaving correctly. The
+  // emptiness checks below stay single reads on purpose: retrying one of those
+  // would wait out a window in which a secret was on screen, which is the one
+  // thing they exist to catch.
+  await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
   expect((await readFile(join(profile, 'personas.json'), 'utf8')).includes(fakeCredential)).toBe(false);
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
@@ -108,14 +114,14 @@ try {
   await page.getByLabel('Service', { exact: true }).selectOption('eqsl');
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
   await expect(page.locator('#api-key-saved')).toBeHidden();
-  expect(await page.getByLabel('API key', { exact: true }).getAttribute('placeholder')).toBe('');
+  await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '');
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
   await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe('');
   await page.getByRole('button', { name: 'Test credential', exact: true }).click();
   await expect(page.locator('#credential-test-result')).toContainText('Testing for this service is not implemented yet.');
-  expect(await page.getByLabel('Password', { exact: true }).getAttribute('placeholder')).toBe('••••••••');
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Remove saved credential', exact: true }).click();
   await expect(page.locator('#password-saved')).toBeHidden({ timeout: 30_000 });
