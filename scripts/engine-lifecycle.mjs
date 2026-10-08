@@ -192,6 +192,25 @@ try {
     notes.push(`logs into the managed directory (${written.length} file(s)), not into its data directory`);
   }
 
+  // ---- a different cluster on the same socket is not "started" ----------
+  {
+    // Two installations whose short socket directories collided, or a stale
+    // server somebody left running. Something answers on the socket, and it
+    // is not ours — reporting that as started would mean applying our
+    // migrations to another database.
+    const other = { ...paths, data: join(base, 'another-cluster') };
+    await initialise(other);
+    let refused;
+    try { await start(other, endpoint); } catch (error) { refused = error; }
+    expect(refused, 'a socket already answered by another cluster must not count as started').toBeInstanceOf(EngineError);
+    expect(String(refused.message)).toContain('already answering');
+    // Ours is untouched and still the one serving.
+    expect(await status(paths)).toBe('running');
+    expect(await runningPid(paths)).toBe(pid);
+    expect(await status(other)).toBe('stopped');
+    notes.push('a socket answered by another cluster is refused, not mistaken for a start');
+  }
+
   // ---- stop --------------------------------------------------------------
   expect(await stop(paths)).toBe('stopped');
   expect(await status(paths)).toBe('stopped');

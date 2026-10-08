@@ -8,7 +8,7 @@
 // Mac that finds a different PostgreSQL.
 import { spawn } from 'node:child_process';
 import { Client } from 'pg';
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, stat } from 'node:fs/promises';
 import { writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -221,6 +221,20 @@ export async function start(paths: EnginePaths, endpoint: Endpoint): Promise<voi
   let spawnError: Error | undefined;
   child.once('error', error => { spawnError = error as Error; });
   child.once('exit', code => { exited = code; });
+  // Read through a function: these are set from callbacks, and checking them
+  // inline lets the compiler narrow the first check into the second and decide
+  // the second can never happen.
+  const died = async (): Promise<EngineError | undefined> => {
+    if (spawnError) return new EngineError('The engine could not be run.', spawnError.message);
+    if (exited === undefined) return undefined;
+    // The collector may already have taken over by the time it gave up — an
+    // unreadable pg_hba.conf, for instance — in which case `early` holds only
+    // the redirection notice and the reason is in the engine's own log.
+    const written = await newestEngineLog(paths.logs);
+    return new EngineError('The engine stopped as it started.',
+      `${join(paths.binaries, 'postgres')} exited with ${exited}.\n${early.trim()}` +
+      (written ? `\n${written}` : ''));
+  };
   // The postmaster outlives this function; nothing here should keep the
   // process alive waiting on it.
   child.unref();
@@ -228,12 +242,21 @@ export async function start(paths: EnginePaths, endpoint: Endpoint): Promise<voi
   const deadline = Date.now() + START_TIMEOUT_MS;
   try {
     while (Date.now() < deadline) {
-      if (spawnError) throw new EngineError('The engine could not be run.', spawnError.message);
-      if (exited !== undefined) {
-        throw new EngineError('The engine stopped as it started.',
-          `${join(paths.binaries, 'postgres')} exited with ${exited}.\n${early.trim()}`);
+      const gone = await died();
+      if (gone) throw gone;
+      const answer = await accepting(endpoint, paths.data);
+      if (answer === 'elsewhere') {
+        throw new EngineError('Something else is already answering on that socket.',
+          `A PostgreSQL server is listening there, and it is not the one in ${paths.data}. ` +
+          'Migrating it would be writing into somebody else\'s database.');
       }
-      if (await accepting(endpoint)) return;
+      if (answer === 'ours') {
+        // Checked again after the probe: a connection that was answered is not
+        // the same as a server that is still there, and the probe takes time.
+        const after = await died();
+        if (after) throw after;
+        return;
+      }
       await delay(200);
     }
   } catch (error) {
@@ -254,16 +277,37 @@ export async function start(paths: EnginePaths, endpoint: Endpoint): Promise<voi
 // anything that is about to use it. The bundled build has no pg_isready
 // (QGD-ENG-0005), and a socket file appearing is not the same as a postmaster
 // that will answer.
-async function accepting(endpoint: Endpoint): Promise<boolean> {
+//
+// And it has to be OUR postmaster. A socket directory can already belong to
+// another cluster — a stale server, a second installation whose short
+// directory collided — and a probe that only asked "did something answer"
+// would report started while ours failed to bind, after which the migrations
+// would be applied to somebody else's database. So the server is asked which
+// data directory it is serving.
+async function accepting(endpoint: Endpoint, data: string): Promise<'ours' | 'elsewhere' | 'not-yet'> {
   const client = new Client({ ...connection(endpoint, 'postgres', superuser()), connectionTimeoutMillis: 2000 });
   // A refused connection is the expected answer while it is still coming up.
   client.on('error', () => {});
   try {
     await client.connect();
-    await client.end();
-    return true;
+    const answer = await client.query<{ data_directory: string }>('SHOW data_directory');
+    const serving = answer.rows[0]?.data_directory ?? '';
+    return await sameDirectory(serving, data) ? 'ours' : 'elsewhere';
   } catch {
+    return 'not-yet';
+  } finally {
     await client.end().catch(() => {});
+  }
+}
+
+// Compared after resolving, because macOS hands out temporary directories
+// under /var/folders, which is a symlink to /private/var/folders — the server
+// reports the resolved path and we hold the one we were given.
+async function sameDirectory(a: string, b: string): Promise<boolean> {
+  if (a === '' || b === '') return false;
+  try {
+    return await realpath(a) === await realpath(b);
+  } catch {
     return false;
   }
 }
