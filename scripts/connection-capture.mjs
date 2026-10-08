@@ -286,6 +286,17 @@ try {
     offScheme.map(entry => `${entry.kind} ${entry.url} ${entry.error}`).join(', '))
     .toEqual([`error http://127.0.0.1:${port}/control/filtered`]);
 
+  // The footer makes a claim to the operator about when this application talks
+  // to the outside world. This suite is what evidences it, so the claim and the
+  // evidence are asserted together: the wording must be the one the measurement
+  // supports, and the measurement above must have found no connection during a
+  // workflow that included a credential test.
+  stage = 'the footer claim matches what this suite measured';
+  const footer = await page.locator('#connection-note').innerText();
+  expect(footer).toBe('Stored locally · Connects only when you test a credential');
+  // An absolute claim would be false the moment a user tests a credential.
+  expect(footer).not.toContain('No service connection made');
+
   stage = 'no outbound-network API in the product TypeScript';
   for (const file of PRODUCT_SOURCES) {
     expect(violations(await readFile(file, 'utf8'), file), file).toEqual([]);
