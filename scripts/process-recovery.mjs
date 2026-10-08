@@ -9,10 +9,10 @@
 // therefore does not depend on the credential store and reports its own result
 // when the round-trip fails.
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { redact } from './report.mjs';
 
@@ -24,6 +24,11 @@ const persona = `qg-test-${randomUUID()}`;
 const control = String.fromCharCode(1);
 let application;
 let stage = 'launch';
+// Moving this aside makes every restart fail to load, which holds the outage
+// open for as long as the test needs. Restored in all exit paths.
+const service = resolve('dist/persona-service.js');
+const disabled = `${service}.disabled`;
+let serviceDisabled = false;
 
 // The persona core runs as an Electron utility process, a child of main.
 function personaUtility(mainPid) {
@@ -78,36 +83,50 @@ try {
   expect(intact.ok).toBe(true);
   expect(intact.data.personas.some(entry => entry.name === persona)).toBe(true);
 
-  // QGD-PRC-0001: kill the utility process twice and the window survives both.
-  for (const attempt of [1, 2]) {
-    stage = `crash ${attempt}: locate the utility process`;
-    const victim = personaUtility(mainPid);
-    expect(victim, `persona utility process not found on attempt ${attempt}`).toBeTruthy();
-    process.kill(victim, 'SIGKILL');
+  // QGD-PRC-0001, in three phases. The outage is held open by moving the
+  // service module aside, so the refusal is asserted while recovery is
+  // impossible rather than inside a 250 ms restart timer. Elapsed time decides
+  // nothing here: a busy host cannot turn the refusal into a success, and a
+  // fast host cannot skip it.
+  stage = 'hold the outage open';
+  const victim = personaUtility(mainPid);
+  expect(victim, 'persona utility process not found').toBeTruthy();
+  await rename(service, disabled); serviceDisabled = true;
+  process.kill(victim, 'SIGKILL');
 
-    // The window is still there and still answering while the service is gone.
-    // A request in the gap is refused, not queued, with a static message.
-    stage = `crash ${attempt}: request during the outage`;
-    const duringOutage = await ask(page, { type: 'list' });
-    expect(duringOutage.ok).toBe(false);
+  // Every restart now fails to load, so the broker stays in its refusing state.
+  stage = 'requests are refused for as long as the service cannot start';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const refused = await ask(page, { type: 'list' });
+    expect(refused.ok).toBe(false);
     expect(['The persona service is restarting. Try again.', 'The persona service is starting. Try again.'])
-      .toContain(duringOutage.error);
-
-    stage = `crash ${attempt}: window survives`;
-    expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
-    await expect(page.locator('#active-persona')).toBeVisible();
-    expect(await page.evaluate(() => document.title)).toBe('QG Desktop');
-
-    // The service comes back on its own and the record is unchanged.
-    stage = `crash ${attempt}: service recovers`;
-    await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok), { timeout: 30_000 }).toBe(true);
-    const recovered = await ask(page, { type: 'list' });
-    expect(recovered.data.personas.some(entry => entry.name === persona)).toBe(true);
-
-    const replacement = personaUtility(mainPid);
-    expect(replacement).toBeTruthy();
-    expect(replacement).not.toBe(victim);
+      .toContain(refused.error);
   }
+
+  // QGD-PRC-0001: the window is untouched by a service that cannot start.
+  stage = 'window survives the outage';
+  expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+  await expect(page.locator('#active-persona')).toBeVisible();
+  expect(await page.evaluate(() => document.title)).toBe('QG Desktop');
+
+  // The backoff keeps retrying, so restoring the module is enough to recover.
+  stage = 'service recovers once it can start again';
+  await rename(disabled, service); serviceDisabled = false;
+  await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok), { timeout: 60_000 }).toBe(true);
+  const recovered = await ask(page, { type: 'list' });
+  expect(recovered.data.personas.some(entry => entry.name === persona)).toBe(true);
+  const replacement = personaUtility(mainPid);
+  expect(replacement).toBeTruthy();
+  expect(replacement).not.toBe(victim);
+
+  // A plain crash, the case a user actually hits, recovers without help.
+  stage = 'plain crash recovers unaided';
+  process.kill(replacement, 'SIGKILL');
+  await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok), { timeout: 60_000 }).toBe(true);
+  const afterPlainCrash = personaUtility(mainPid);
+  expect(afterPlainCrash).toBeTruthy();
+  expect(afterPlainCrash).not.toBe(replacement);
+  expect((await ask(page, { type: 'list' })).data.personas.some(entry => entry.name === persona)).toBe(true);
 
   await application.close(); application = undefined;
   console.log('Utility-process crash and recovery, window survival and malformed IPC refusal: PASS');
@@ -116,6 +135,7 @@ try {
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
   process.exitCode = 1;
 } finally {
+  if (serviceDisabled) await rename(disabled, service).catch(() => {});
   if (application) await application.close().catch(() => {});
   await rm(directory, { recursive: true, force: true });
 }
