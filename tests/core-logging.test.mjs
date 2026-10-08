@@ -30,10 +30,25 @@ function tracingCalls(source) {
       index++;
     }
     const text = source.slice(match.index, index);
-    // The message is a string literal and carries no value: "credential saved"
-    // says the word without handing anything over. Only the field expressions
-    // are checked, so strings are blanked first.
-    calls.push({ level: match[1], text: text.replace(/"(?:[^"\\]|\\.)*"/g, '""'), raw: text });
+    // Two different things live in a tracing call, and both can carry a value.
+    //
+    // The field expressions: `password = %password` hands one over by name.
+    // The message: "credential saved" says the word and hands over nothing, so
+    // string literals are blanked before the field check.
+    //
+    // But a Rust format string captures implicitly — `"password={password}"`
+    // interpolates the variable into the message, carrying the value while
+    // naming no field, and blanking the string would hide exactly that. So the
+    // captures are pulled out of the literals first and checked on their own.
+    const literals = text.match(/"(?:[^"\\]|\\.)*"/g) ?? [];
+    const captures = literals.flatMap(literal =>
+      [...literal.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*)(?:[:?][^}]*)?\}/g)].map(capture => capture[1]));
+    calls.push({
+      level: match[1],
+      text: text.replace(/"(?:[^"\\]|\\.)*"/g, '""'),
+      captures,
+      raw: text
+    });
   }
   return calls;
 }
@@ -48,7 +63,9 @@ describe('QGD-LOG-0004', () => {
   it('names no secret in any tracing call in the core', async () => {
     for (const file of SOURCES) {
       for (const call of tracingCalls(await readFile(file, 'utf8'))) {
-        expect(SECRET_NAMES.test(call.text), `${file}: ${call.raw.slice(0, 120)}`).toBe(false);
+        const named = SECRET_NAMES.test(call.text);
+        const captured = call.captures.some(capture => SECRET_NAMES.test(capture));
+        expect(named || captured, `${file}: ${call.raw.slice(0, 120)}`).toBe(false);
       }
     }
   });
@@ -63,6 +80,22 @@ describe('QGD-LOG-0004', () => {
   it('does not fire on the fields the core actually raises', () => {
     const real = 'tracing::info!(provider = %provider, outcome = %result, "credential tested");';
     expect(SECRET_NAMES.test(tracingCalls(real)[0].text)).toBe(false);
+  });
+
+  it('catches a secret captured implicitly by a format string', () => {
+    // Names no field, carries the value anyway, and would reach the message
+    // text where field-name redaction cannot see it.
+    const implicit = tracingCalls('tracing::info!("password={password}");')[0];
+    expect(SECRET_NAMES.test(implicit.text)).toBe(false);
+    expect(implicit.captures.some(capture => SECRET_NAMES.test(capture))).toBe(true);
+
+    const debugged = tracingCalls('tracing::warn!("value {api_key:?} rejected");')[0];
+    expect(debugged.captures.some(capture => SECRET_NAMES.test(capture))).toBe(true);
+
+    // An ordinary capture is not a finding.
+    const ordinary = tracingCalls('tracing::info!("provider {provider} tested");')[0];
+    expect(ordinary.captures).toEqual(['provider']);
+    expect(ordinary.captures.some(capture => SECRET_NAMES.test(capture))).toBe(false);
   });
 
   it('is not fooled by a secret hidden in the message text either way round', () => {

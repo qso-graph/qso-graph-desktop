@@ -89,8 +89,23 @@ pub fn drain() -> Vec<String> {
 mod tests {
     use super::*;
 
+    // The buffer is global by design — one core, one stream — so tests that use
+    // it cannot run beside each other. The mutex protects a single operation,
+    // not a test's whole sequence, and without this each test drains the
+    // other's records.
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn reset() {
+        if let Ok(mut held) = buffer().lock() {
+            held.lines.clear();
+            held.dropped = 0;
+        }
+    }
+
     #[test]
     fn events_are_buffered_as_lines_and_drained_once() {
+        let _serialised = TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        reset();
         init();
         tracing::info!(provider = "qrz_logbook", "credential saved");
         let first = drain();
@@ -102,11 +117,11 @@ mod tests {
 
     #[test]
     fn the_buffer_is_bounded_and_says_what_it_dropped() {
+        let _serialised = TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        reset();
         init();
         {
             let mut held = buffer().lock().unwrap();
-            held.lines.clear();
-            held.dropped = 0;
             for index in 0..(MAX_BUFFERED + 5) {
                 if held.lines.len() >= MAX_BUFFERED {
                     held.lines.remove(0);
