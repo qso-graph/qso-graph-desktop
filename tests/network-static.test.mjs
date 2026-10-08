@@ -34,7 +34,9 @@ describe('QGD-CRD-0007 static gate', () => {
     ["self['importScripts'](url);", 'importScripts by string key'],
     ["import { get as from } from 'node:https';\nfrom(url);", 'an import binding aliased to from'],
     ["const { netLog } = require('electron');\nnetLog.startLogging(path);", 'netLog destructured from a require'],
-    ['electron.netLog.startLogging(path);', 'netLog reached as a property']
+    ['electron.netLog.startLogging(path);', 'netLog reached as a property'],
+    ["import https from 'node:https'\nexport { join } from 'node:path';\nhttps.get(url);", 'a semicolonless import followed by a re-export'],
+    ["import https from 'node:https'\nimport { join } from 'node:path';", 'a semicolonless import followed by another import']
   ])('catches %#: %s', source => {
     expect(violations(source).length).toBeGreaterThan(0);
   });

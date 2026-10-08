@@ -186,12 +186,16 @@ export function violations(source, fileName = 'input.ts') {
       // The statement ends at its semicolon, or at the next import — never
       // later, so one import cannot be read as part of another.
       let end = position + 1;
-      while (end < tokens.length && !is(tokens[end], 'punct', ';') && !is(tokens[end], 'name', 'import')) end++;
+      while (end < tokens.length && !is(tokens[end], 'punct', ';') &&
+             !is(tokens[end], 'name', 'import') && !is(tokens[end], 'name', 'export')) end++;
       const clause = tokens.slice(position + 1, end);
-      // `import { get as from } from 'node:https'` has two tokens named from.
-      // The contextual one is the last whose next token is the specifier.
+      // `import { get as from } from 'node:https'` has two tokens named from,
+      // and a semicolonless import may be followed by a re-export that has one
+      // of its own. The contextual from is the FIRST whose next token is the
+      // specifier: an alias named from is followed by a brace, and a later
+      // declaration's from cannot be reached before this one's.
       let fromIndex = -1;
-      for (let scan = clause.length - 1; scan >= 0; scan--) {
+      for (let scan = 0; scan < clause.length; scan++) {
         if (is(clause[scan], 'name', 'from') && is(clause[scan + 1], 'string')) { fromIndex = scan; break; }
       }
       const specifier = fromIndex >= 0 ? clause[fromIndex + 1] : clause[0];
