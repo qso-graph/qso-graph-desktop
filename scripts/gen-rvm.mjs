@@ -108,13 +108,14 @@ function render(reqs) {
         .sort()
         .map(([m, n]) => `${n} ${m}`)
         .join(' · ') +
-      '. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s).'
+      '. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). ' +
+      '**Automatable** reflects the method the spec declares, not whether a check is implemented yet.'
   );
   out.push('');
   out.push('## Requirements');
   out.push('');
-  out.push('| `QGD-*` | Requirement | Verification method(s) | Automated |');
-  out.push('|---------|-------------|------------------------|:---------:|');
+  out.push('| `QGD-*` | Requirement | Verification method(s) | Automatable |');
+  out.push('|---------|-------------|------------------------|:-----------:|');
   for (const r of plain) {
     const auto = r.verify.some((m) => m === 'Test' || m === 'Static') ? '✓' : '';
     out.push(`| \`${r.id}\` | ${r.text} | ${r.verify.join(', ')} | ${auto} |`);
@@ -150,7 +151,7 @@ if (check) {
   }
   const have = readFileSync(RVM, 'utf8');
   // The provenance sha moves with every commit; compare everything else.
-  const strip = (s) => s.replace(/ at `[0-9a-f]{7,40}|uncommitted`/g, ' at `SHA`');
+  const strip = (s) => s.replace(/ at `(?:[0-9a-f]{7,40}|uncommitted)`/g, ' at `SHA`');
   if (strip(have) !== strip(want)) {
     console.error(
       'rvm/QGD-RVM-001.md does not match spec/QGD-SPEC-001.md (QGD-TST-0004).\n' +

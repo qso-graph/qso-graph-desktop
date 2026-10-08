@@ -1,24 +1,25 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `a69f1284575ac40320dcf5b019b90953b30398d0` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `7ac550b2b6987f5b1b19cdbb8853d5c8a20970b2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `a69f1284575ac40320dcf5b019b90953b30398d0` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `7ac550b2b6987f5b1b19cdbb8853d5c8a20970b2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 34 requirements · 12 Parts · 11 Inspection · 9 Static · 16 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s).
+> 35 requirements · 12 Parts · 12 Inspection · 9 Static · 16 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
-| `QGD-*` | Requirement | Verification method(s) | Automated |
-|---------|-------------|------------------------|:---------:|
+| `QGD-*` | Requirement | Verification method(s) | Automatable |
+|---------|-------------|------------------------|:-----------:|
 | `QGD-SCP-0001` | The target is a single operator on a single computer. | Inspection |  |
 | `QGD-SCP-0002` | The current build platform is **macOS on arm64**, on the M3, and nothing else. | Static | ✓ |
-| `QGD-SCP-0003` | **Code signing and notarization are out of scope.** No Part depends on a signing identity, a signing pipeline, or a notarized artifact. | Static | ✓ |
-| `QGD-SCP-0004` | **Windows and Linux are out of scope.** No Part's exit gate requires a second operating system, a CI matrix, or a clean VM of another OS. | Static | ✓ |
-| `QGD-SCP-0005` | A platform or signing requirement re-enters scope only when KI7MT asks for it, by an edit to this section. An agent may not reintroduce one. | Inspection |  |
+| `QGD-SCP-0003` | **Signing and notarization are deferred, not cancelled.** D-27 stands as the Release 1 intent — SignPath (Windows), Apple Developer ID and notarization (macOS), QSO Graph's own key (Linux). **No Part before Release 1 is gated on a signing identity, a signing pipeline, or a notarized artifact.** | Static | ✓ |
+| `QGD-SCP-0004` | **macOS arm64 is the only platform required before Release 1.** Windows and Linux remain Release 1 targets under D-27. No Part's exit gate before Release 1 requires a second operating system, a CI matrix, or a clean VM of another OS. | Static | ✓ |
+| `QGD-SCP-0005` | The sequencing in `QGD-SCP-0003` and `QGD-SCP-0004` changes only by KI7MT's direction, recorded here. **An agent may not pull signing or a second platform forward into an earlier Part.** | Inspection |  |
+| `QGD-SCP-0006` | Linux distribution through COPR and Launchpad is an **open question**, not a commitment: a bundled Electron runtime, a native addon and a managed PostgreSQL may exceed what those services will build or carry. Resolved before Release 1 packaging, tracked in an issue. | Inspection |  |
 | `QGD-PRT-0001` | Operating-system-level components are built before the screens wired to them. | Inspection |  |
 | `QGD-PRT-0002` | One Part is in flight at a time. | Inspection |  |
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |  |
-| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. | Static | ✓ |
+| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone, except where the gate names an external application that does not run on macOS — P10's NetLogger check is the only such case. | Static | ✓ |
 | `QGD-CRD-0001` | The credential core is Rust, built as a `napi-rs` native addon. | Static | ✓ |
 | `QGD-CRD-0002` | The core owns the OS credential stores, X.509 and PKCS#12 handling, certificate expiry, and the grant model's enforcement point. | Inspection |  |
 | `QGD-CRD-0003` | The keyring naming convention is the contract between the core and `qso-graph-auth`; entry names are set explicitly, never left to a library default. | Test | ✓ |

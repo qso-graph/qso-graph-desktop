@@ -33,12 +33,13 @@ core, while the decision log in the same repository recorded the opposite rule �
 system level components before the screens wired to them. Both were written in a single
 commit, `6b1a55d`, whose own message states its goal as "one Part catalogue." Four review
 passes by three agents did not catch it, because each pass reviewed one file's diff rather
-than the whole against the intent. The reviewer who came closest returned
-`REQUEST_CHANGES — do not lock it as written`; the specification was locked anyway, and that
-reviewer's remaining findings never reached the pull request because a credential had expired.
+than the whole against the intent. A reviewer returned `REQUEST_CHANGES`; the
+specification was locked before those findings reached the pull request, because the
+reviewer's GitHub credential had expired.
 
 The build then followed the locked order, and the first Part produced was packaging and a
-signed installer for three operating systems — neither of which had been asked for.
+signed installer for three operating systems — correct under D-27 as a Release 1 target, but
+sequenced ahead of the credential core the product depends on.
 
 The diagnosis that produced the six-document split was that the original document was too
 long. That diagnosis was wrong, and the fix made the problem worse: one 80K document became
@@ -60,11 +61,18 @@ What `FIDUCIAL-MESH-SPEC-001` has, and what `QGD-SPEC-001` now copies:
 Of those, item 3 is the one that would have prevented the failure above outright. The other
 three make it cheaper to work with; that one makes the defect impossible.
 
-## 2. Scope: why the prohibitions are written as prohibitions
+## 2. Scope: sequencing, not cancellation
 
-`QGD-SCP-0003` and `QGD-SCP-0004` forbid signing and non-macOS platforms, rather than simply
-omitting them. They are written that way because both reached a locked specification without
-ever having been requested, and omission has already proven insufficient to keep them out.
+`QGD-SCP-0003` and `QGD-SCP-0004` are **sequencing requirements, not prohibitions.** D-27
+(*Code signing and the public repo*, decided by KI7MT on 2026-10-07) sets SignPath for
+Windows, an Apple Developer ID and notarization for macOS, and QSO Graph's own key for Linux,
+and it is not reversed. KI7MT's direction of the same date is that it waits until there is a
+useful product to sign. Signing was therefore **deferred, not unrequested** — an earlier draft
+of this handbook said otherwise and was wrong.
+
+`QGD-SCP-0006` records a genuinely open question rather than a decision: whether COPR and
+Launchpad will build or carry a package bundling an Electron runtime, a native addon and a
+managed PostgreSQL. That is a bridge to cross at Release 1 packaging, not now.
 
 `QGD-PRT-0001` — operating system level components before the screens wired to them — was
 proposed in review and accepted by KI7MT on 2026-10-07 as "normally a better way to build."

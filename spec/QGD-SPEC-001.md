@@ -64,13 +64,16 @@ requirement — it is an opinion, and it does not belong here.
 |---|---|---|
 | `QGD-SCP-0001` | The target is a single operator on a single computer. | Inspection |
 | `QGD-SCP-0002` | The current build platform is **macOS on arm64**, on the M3, and nothing else. | Static |
-| `QGD-SCP-0003` | **Code signing and notarization are out of scope.** No Part depends on a signing identity, a signing pipeline, or a notarized artifact. | Static |
-| `QGD-SCP-0004` | **Windows and Linux are out of scope.** No Part's exit gate requires a second operating system, a CI matrix, or a clean VM of another OS. | Static |
-| `QGD-SCP-0005` | A platform or signing requirement re-enters scope only when KI7MT asks for it, by an edit to this section. An agent may not reintroduce one. | Inspection |
+| `QGD-SCP-0003` | **Signing and notarization are deferred, not cancelled.** D-27 stands as the Release 1 intent — SignPath (Windows), Apple Developer ID and notarization (macOS), QSO Graph's own key (Linux). **No Part before Release 1 is gated on a signing identity, a signing pipeline, or a notarized artifact.** | Static |
+| `QGD-SCP-0004` | **macOS arm64 is the only platform required before Release 1.** Windows and Linux remain Release 1 targets under D-27. No Part's exit gate before Release 1 requires a second operating system, a CI matrix, or a clean VM of another OS. | Static |
+| `QGD-SCP-0005` | The sequencing in `QGD-SCP-0003` and `QGD-SCP-0004` changes only by KI7MT's direction, recorded here. **An agent may not pull signing or a second platform forward into an earlier Part.** | Inspection |
+| `QGD-SCP-0006` | Linux distribution through COPR and Launchpad is an **open question**, not a commitment: a bundled Electron runtime, a native addon and a managed PostgreSQL may exceed what those services will build or carry. Resolved before Release 1 packaging, tracked in an issue. | Inspection |
 
-> `QGD-SCP-0003` and `QGD-SCP-0004` are stated as prohibitions because both were introduced
-> by agents and reached a locked specification without ever being requested. Rationale:
-> `QGD-HDBK-001` §2.
+> These are **sequencing requirements, not prohibitions.** D-27 (*Code signing and the public
+> repo — decided KI7MT, 2026-10-07*) is the long-term path and is not reversed; KI7MT's
+> direction of the same date is that it waits until there is a useful product. The earlier
+> draft of this section claimed signing had never been requested. That was wrong, it
+> contradicted the record, and it is corrected here. Rationale: `QGD-HDBK-001` §2.
 
 ## 2. Part catalogue
 
@@ -83,7 +86,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | `QGD-PRT-0001` | Operating-system-level components are built before the screens wired to them. | Inspection |
 | `QGD-PRT-0002` | One Part is in flight at a time. | Inspection |
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |
-| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. | Static |
+| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone, except where the gate names an external application that does not run on macOS — P10's NetLogger check is the only such case. | Static |
 
 ### 2.1 Parts
 
