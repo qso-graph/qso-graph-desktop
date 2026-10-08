@@ -3,6 +3,9 @@ import { app, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { allowsSender, validateCommand, type PersonaReply } from './persona-contract.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('broker');
 
 export function startPersonaBroker(compiledDirectory: string): () => void {
   let worker: UtilityProcess | undefined;
@@ -29,12 +32,19 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
     });
     worker.once('exit', () => {
       ready = false; worker = undefined; failPending();
-      if (!stopped) setTimeout(start, Math.min(250 * 2 ** failures++, 10_000));
+      if (!stopped) {
+        const wait = Math.min(250 * 2 ** failures++, 10_000);
+        log.warn({ waitMs: wait, failures }, 'persona service exited; restarting');
+        setTimeout(start, wait);
+      }
     });
   }
   start();
   ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
-    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command)) return { ok: false, error: 'Invalid persona request.' };
+    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command)) {
+      log.warn({ accepted: false }, 'persona request refused');
+      return { ok: false, error: 'Invalid persona request.' };
+    }
     if (!ready || !worker) return { ok: false, error: 'The persona service is starting. Try again.' };
     if (pending.size >= 16) return { ok: false, error: 'A persona operation is still running. Try again shortly.' };
     const id = ++nextId;

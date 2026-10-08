@@ -12,6 +12,7 @@ const binary = resolve('out/mac-arm64/QG Desktop.app/Contents/MacOS/QG Desktop')
 const directory = await mkdtemp(join(tmpdir(), 'qg-packaged-smoke-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
+const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 const persona = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
@@ -29,7 +30,7 @@ async function launch() {
   await rm(join(userData, 'DevToolsActivePort'), { force: true });
   // Chromium inspection is enabled only by this isolated test invocation.
   child = spawn(binary, ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1'], {
-    stdio: 'ignore', env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData }
+    stdio: 'ignore', env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }
   });
   let failed = false; child.on('error', () => { failed = true; });
   let port;

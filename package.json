@@ -26,10 +26,19 @@
   "build": {
     "appId": "org.qso-graph.desktop",
     "productName": "QG Desktop",
-    "directories": { "output": "out" },
-    "files": ["dist/**/*", "package.json", "LICENSE"],
+    "directories": {
+      "output": "out"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "LICENSE"
+    ],
     "asar": true,
-    "asarUnpack": ["dist/native/*.node", "dist/native/*.dylib"],
+    "asarUnpack": [
+      "dist/native/*.node",
+      "dist/native/*.dylib"
+    ],
     "electronFuses": {
       "runAsNode": false,
       "enableCookieEncryption": true,
@@ -40,8 +49,27 @@
       "grantFileProtocolExtraPrivileges": false,
       "resetAdHocDarwinSignature": true
     },
-    "mac": { "target": [{ "target": "dmg", "arch": ["arm64"] }], "identity": null, "category": "public.app-category.utilities" },
-    "win": { "target": "nsis" },
-    "linux": { "target": "AppImage", "category": "Utility" }
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "pino": "10.4.0"
   }
 }

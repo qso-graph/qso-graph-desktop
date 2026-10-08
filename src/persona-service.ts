@@ -3,10 +3,13 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateCommand, type PersonaCommand, type PersonaReply } from './persona-contract.js';
+import { createLogger } from './logger.js';
 
 const require = createRequire(import.meta.url);
 const { PersonaCore } = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node'));
 const core = new PersonaCore(process.argv[2]);
+const log = createLogger('persona');
+log.info({}, 'persona service started');
 function snapshot() { return { personas: core.list(), active: core.active() ?? null }; }
 function execute(command: PersonaCommand): PersonaReply {
   try {
@@ -38,6 +41,7 @@ function execute(command: PersonaCommand): PersonaReply {
       'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.'
     ];
     const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The persona operation could not be completed.';
+    log.warn({ command: command.type, reason: message }, 'persona operation failed');
     return { ok: false, error: message };
   }
 }

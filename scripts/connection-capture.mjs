@@ -37,19 +37,21 @@
 // without connecting. A real external request happens only when a user presses
 // Test credential with a real credential, which no automated suite does.
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { violations, PRODUCT_SOURCES } from './network-static.mjs';
+import { sentinelsIn } from './artifact-scan.mjs';
 import { redact } from './report.mjs';
 
 const POLL_MS = 40;
 const directory = await mkdtemp(join(tmpdir(), 'qg-connection-capture-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
+const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 const persona = `qg-test-${randomUUID()}`;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
@@ -118,7 +120,7 @@ try {
   stage = 'launch';
   application = await electron.launch({
     args: ['.'], cwd: process.cwd(),
-    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData },
+    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs },
     timeout: 30_000
   });
   // Recording goes in before anything else is awaited. The product calls
@@ -302,6 +304,20 @@ try {
     expect(violations(await readFile(file, 'utf8'), file), file).toEqual([]);
   }
 
+  // QGD-LOG-0003 to QGD-LOG-0005: this run wrote a synthetic credential, so its
+  // own log folder is where a redaction failure would show first. Asserted to
+  // have content, because an empty folder would pass for the wrong reason.
+  stage = 'this run\'s logs carry lines and no sentinel';
+  const logFiles = await readdir(logs).catch(() => []);
+  expect(logFiles.length, 'the application wrote no log at all').toBeGreaterThan(0);
+  let logLines = 0;
+  for (const name of logFiles) {
+    const text = await readFile(join(logs, name), 'utf8').catch(() => '');
+    logLines += text.split('\n').filter(Boolean).length;
+    expect(sentinelsIn(text), `${name} carries a credential sentinel`).toEqual([]);
+  }
+  expect(logLines, 'the log files are empty').toBeGreaterThan(0);
+
   await mkdir('report', { recursive: true });
   await writeFile('report/connections.json', JSON.stringify({
     date: new Date().toISOString(),
@@ -319,6 +335,7 @@ try {
     allowedCoreDestinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],
     coreTransport: 'HTTPS only, no proxy, no redirects, TLS 1.3 only, FIPS provider',
     liveRequestExercised: false,
+    logLinesWritten: logLines,
     distinctEndpointsObserved: [...observed.values()],
     samples: labelled
   }, null, 2) + '\n');

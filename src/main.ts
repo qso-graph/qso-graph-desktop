@@ -5,8 +5,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
 import { startPersonaBroker } from './persona-broker.js';
+import { createLogger } from './logger.js';
 
 const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'renderer');
+const log = createLogger('main');
 
 app.setName('QG Desktop');
 if (process.env.QG_DESKTOP_USER_DATA_DIR) app.setPath('userData', process.env.QG_DESKTOP_USER_DATA_DIR);
@@ -57,6 +59,7 @@ function createWindow(): void {
   window.once('ready-to-show', () => window.show());
   void window.loadURL('qg://desktop/index.html').catch(() => {
     // Deliberately exclude exception payloads and paths from diagnostics.
+    log.error({}, 'the bundled page could not be loaded');
     console.error('The bundled preview page could not be loaded.');
     app.exit(1);
   });
@@ -90,6 +93,7 @@ if (!app.requestSingleInstanceLock()) {
         return new Response(null, { status: 404 });
       }
     });
+    log.info({ electron: process.versions.electron, platform: process.platform }, 'application ready');
     const stopPersonaBroker = startPersonaBroker(dirname(fileURLToPath(import.meta.url)));
     app.once('before-quit', stopPersonaBroker);
     localSession.webRequest.onBeforeRequest((details, callback) => {

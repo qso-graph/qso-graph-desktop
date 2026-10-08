@@ -19,6 +19,7 @@ import { redact } from './report.mjs';
 const directory = await mkdtemp(join(tmpdir(), 'qg-process-recovery-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
+const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 const persona = `qg-test-${randomUUID()}`;
 const control = String.fromCharCode(1);
@@ -52,7 +53,7 @@ try {
   application = await electron.launch({
     args: ['.'], cwd: application_directory,
     executablePath: resolve('node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),
-    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData },
+    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs },
     timeout: 30_000
   });
   const page = await application.firstWindow();

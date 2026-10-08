@@ -41,6 +41,9 @@ const claimIn = text => COMPLIANCE_CLAIMS.filter(claim => claim.pattern.test(tex
 
 const RECENT_MS = 60 * 60 * 1000;
 const CRASH_REPORTS = join(homedir(), 'Library/Logs/DiagnosticReports');
+// QGD-LOG-0005: where QGD-LOG-0002 puts the logs. A suite under test writes to
+// its own temp folder, so this is the operator's real one.
+const LOG_FOLDER = process.env.QG_DESKTOP_LOG_DIR ?? join(homedir(), 'Library/Logs/QG Desktop');
 const PACKAGED = resolve('out/mac-arm64/QG Desktop.app/Contents/Resources');
 // Pixels are not text. A credential rendered into a screenshot cannot be found
 // by scanning bytes, so these are scanned for embedded ASCII only — metadata and
@@ -137,6 +140,7 @@ export async function artifactScan() {
   const targets = [
     ['reports and evidence', await walk(resolve('report'))],
     ['crash artifacts', await walk(CRASH_REPORTS, { recent: true, match: /Electron|QG.?Desktop|qg-desktop|persona/i })],
+    ['application logs', await walk(LOG_FOLDER)],
     ['profile and preference files left in the repository', await walk(resolve('.'), { match: /^(personas\.json|desktop-preferences\.json|current\.txt)$/ })],
     // No extension filter: ASAR enabled means the application's own code lives
     // in app.asar, which stores its entries uncompressed, so a sentinel inside
@@ -180,7 +184,8 @@ export async function artifactScan() {
       note: 'Artifacts are read as bytes and decoded as latin1, so a sentinel embedded in a non-UTF-8 artifact is found. Only locations and counts are recorded, never a matched value.',
       pixelLimitation: 'Image files are scanned for embedded ASCII only. A credential rendered as pixels cannot be found this way; visible disclosure is asserted at capture time in scripts/smoke.mjs, which checks the rendered body text carries no sentinel before the screenshot is taken.',
       suiteOutput: 'Each suite\'s stdout and stderr are scanned by scripts/verify.mjs before redaction or disposal; successful output is otherwise discarded, so it cannot be scanned here.',
-      crashArtifactsWindowMinutes: RECENT_MS / 60000
+      crashArtifactsWindowMinutes: RECENT_MS / 60000,
+      logFolder: LOG_FOLDER
     },
     complianceClaimsFound: claims,
     filesScanned: scans.reduce((total, result) => total + result.filesScanned, 0),

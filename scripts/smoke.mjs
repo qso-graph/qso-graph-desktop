@@ -12,10 +12,11 @@ let application;
 const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
+const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 const persona = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
-const launch = () => electron.launch({ args: ['.'], cwd: process.cwd(), env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData }, timeout: 30_000 });
+const launch = () => electron.launch({ args: ['.'], cwd: process.cwd(), env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }, timeout: 30_000 });
 try {
   application = await launch();
   let page = await application.firstWindow();
