@@ -9,6 +9,7 @@ try { previous = JSON.parse(await readFile('report/summary.json', 'utf8')); } ca
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run verification with make verify or npm run verify.');
 const commands = [
+  ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
   ['build', [npmCli, 'run', 'build']],
   ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts']],
   ['keychain-interop', ['scripts/interop.mjs']],
@@ -19,7 +20,11 @@ const commands = [
 ];
 const suites = [];
 for (const [name, args] of commands) {
+  // A credential-path failure halts the run: nothing after the interop proof is reported,
+  // because a PASS on `package` over a broken credential path is a misleading report.
+  // NOT backed by a requirement -- added by Watson 2026-10-07, pending KI7MT's call.
   if (name !== 'unit' && (suites.some(s => s.name === 'build' && s.result === 'FAIL') ||
+      suites.some(s => s.name === 'keychain-interop' && s.result === 'FAIL') ||
       (name === 'packaged-launch' && suites.some(s => s.name === 'package' && s.result === 'FAIL')))) {
     suites.push({ name, result: 'NOT RUN' });
     continue;
