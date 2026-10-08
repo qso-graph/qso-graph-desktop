@@ -61,6 +61,13 @@ try {
 
   const register = JSON.parse(await readFile('data/cmvp-aws-lc.json', 'utf8'));
   expect(register.validated.length, 'the CMVP register is empty, so no comparison was made').toBeGreaterThan(0);
+  expect(register.buildPlatformSupport?.supportedPlatforms?.length,
+    'the register carries no FIPS build platform support, so this build cannot be placed against it').toBeGreaterThan(0);
+  // AWS supports FIPS builds on Linux and Windows only. This is a shared-library
+  // build on macOS, which is in neither list, so it is not a FIPS build — the
+  // library's own fips() self-report describes its build configuration, not a
+  // supported FIPS build on this platform.
+  const platformSupported = register.buildPlatformSupport.supportedPlatforms.includes(process.platform);
   const sameVersion = entry => entry.version === libraryVersion ||
     `${entry.version}.0` === libraryVersion || entry.version === libraryVersion.replace(/\.0$/, '');
   const validatedMatches = register.validated.filter(sameVersion);
@@ -73,6 +80,18 @@ try {
       readFrom: `the literal string "AWS-LC FIPS ${libraryVersion}" in dist/native/${module}`,
       crateThatBuiltIt: { name: 'aws-lc-fips-sys', version: fromLock },
       note: 'The crate version and the library version are different numbers.'
+    },
+    fipsBuildOnThisPlatform: {
+      platform: process.platform,
+      isFipsBuild: platformSupported,
+      statement: platformSupported
+        ? 'This platform is in the supported list for FIPS builds.'
+        : 'Not a FIPS build. The module is a shared library and this platform is macOS, which appears in neither the static nor the shared supported list.',
+      supportedPlatforms: register.buildPlatformSupport.supportedPlatforms,
+      quotedStatic: register.buildPlatformSupport.static,
+      quotedShared: register.buildPlatformSupport.shared,
+      source: register.source,
+      retrieved: register.retrieved
     },
     cmvpComparison: {
       register: 'data/cmvp-aws-lc.json',
@@ -98,7 +117,8 @@ try {
       rustls: locked('rustls'),
       'webpki-roots': locked('webpki-roots'),
       rustlsFeatures: 'std, fips',
-      assertedBy: 'native/persona-core/src/validation.rs::tests::secure_client_requires_fips_crypto_and_only_tls13, run by the rust-unit suite: the provider reports fips(), the client config reports fips(), and a real ClientHello advertises TLS 1.3 only. It builds the hello in memory and opens no connection.'
+      assertedBy: 'native/persona-core/src/validation.rs::tests::secure_client_requires_fips_crypto_and_only_tls13, run by the rust-unit suite: the provider and the client config both report fips(), and a real ClientHello advertises TLS 1.3 only. It builds the hello in memory and opens no connection.',
+      whatFipsReportsMean: 'fips() is the library reporting the build configuration it was compiled with. It is not a statement that this is a supported FIPS build on this platform — see fipsBuildOnThisPlatform.'
     },
     transport: {
       versions: 'TLS 1.3 only',
@@ -119,7 +139,7 @@ try {
       commit: run('git', ['rev-parse', 'HEAD']) || 'uncommitted'
     },
     scope: {
-      recorded: 'what was built, from the build; and where it ran, from the machine',
+      recorded: 'what was built, from the build; where it ran, from the machine; and how both sit against AWS\'s own register',
       notRecorded: 'any module boundary, approved operational environment or certificate for this build'
     }
   };
@@ -129,6 +149,7 @@ try {
 
   console.log(`Crypto evidence: AWS-LC library ${libraryVersion}, built by aws-lc-fips-sys ${fromLock}, bundled and linked in agreement; rustls ${locked('rustls')}, TLS 1.3 only: PASS`);
   console.log(`CMVP register ${register.retrieved}: ${libraryVersion} in validated list = ${validatedMatches.length > 0}, in submitted list = ${submittedMatches.length > 0}`);
+  console.log(`FIPS build platform support: ${process.platform} supported = ${platformSupported}${platformSupported ? '' : ' — recorded as not a FIPS build'}`);
   console.log(`Operational environment recorded: ${evidence.operationalEnvironment.product} ${evidence.operationalEnvironment.version} on ${evidence.operationalEnvironment.model}: PASS`);
 } catch (error) {
   console.error('Crypto evidence failed.');

@@ -1,5 +1,5 @@
 {
-  "register": "AWS-LC-FIPS module validation status",
+  "register": "AWS-LC-FIPS module validation status and FIPS build platform support",
   "source": "https://github.com/aws/aws-lc/blob/main/crypto/fipsmodule/FIPS.md",
   "retrieved": "2026-10-07",
   "retrievedBy": "watson",
@@ -9,10 +9,25 @@
     { "version": "2.0", "library": "static", "certificate": "4816" },
     { "version": "2.0", "library": "dynamic", "certificate": "5429" },
     { "version": "3.1", "library": "static", "certificate": "5314" },
-    { "version": "3.1", "library": "dynamic", "certificate": "5298" }
+    { "version": "3.1", "library": "dynamic", "certificate": "5298" },
+    {
+      "version": null,
+      "library": "dynamic",
+      "platform": "NetOS",
+      "certificate": "5146",
+      "module": "AWS-LC Cryptographic Module (dynamic library, NetOS)",
+      "note": "The register row states no version number."
+    }
   ],
   "submittedNotYetValidated": [
     { "version": "4.0", "library": "static" },
     { "version": "4.0", "library": "dynamic" }
-  ]
+  ],
+  "buildPlatformSupport": {
+    "static": "Static FIPS builds are only supported on Linux platforms",
+    "shared": "Shared library FIPS builds are supported on both Linux and Windows",
+    "windowsDebug": "Windows Debug builds are not supported with FIPS",
+    "supportedPlatforms": ["linux", "win32"],
+    "note": "Quoted from the source. macOS appears in neither the static nor the shared list, so a FIPS build is not supported there."
+  }
 }

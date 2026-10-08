@@ -104,7 +104,7 @@ The displayed result includes the time and lasts for the current app session.
 Changing a saved secret or its preference invalidates the previous result.
 Other services explicitly return unsupported. QRZ response-parser tests cover
 success, rejection, malformed replies, duplicate result fields, and secret echoes.
-The real ClientHello test confirms FIPS-mode crypto and TLS 1.3 only. Both QRZ
+The real ClientHello test confirms the library reports its FIPS build configuration and advertises TLS 1.3 only. AWS supports FIPS builds on Linux and Windows only, so on macOS this is not a FIPS build; see `report/crypto-evidence.json`. Both QRZ
 servers passed credential-free TLS 1.3 certificate-verified handshakes; no real
 user credential was read or transmitted by these validation tests.
 
