@@ -17,9 +17,7 @@ The rest of the desktop shell is still pending.
 TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
 macOS).
 
-On the M3, use Node 26.9.0, Rust and CMake; run `npm ci`, then `make start`. The root
-install also installs the Electron audit tooling under `tools/electronegativity`, which has
-its own dependency tree because its parser needs an older TypeScript than this project uses.
+On the M3, use Node 26.9.0, Rust and CMake; run `npm ci`, then `make start`.
 `make package` produces `out/mac-arm64/QG Desktop.app`.
 `make installer` produces a local DMG. Signing and publication are deferred.
 

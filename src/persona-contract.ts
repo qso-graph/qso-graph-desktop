@@ -33,7 +33,10 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 function keys(value: Record<string, unknown>, allowed: string[]): boolean { return Object.keys(value).every(key => allowed.includes(key)); }
-function text(value: unknown, maximum = 128): value is string { return typeof value === 'string' && value.length > 0 && value.length <= maximum && !/[\u0000-\u001f]/.test(value); }
+// Rejecting control characters means naming them; that is the check.
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u001f]/;
+function text(value: unknown, maximum = 128): value is string { return typeof value === 'string' && value.length > 0 && value.length <= maximum && !CONTROL.test(value); }
 function date(value: unknown): boolean { return value === undefined || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)); }
 
 export function validateCommand(value: unknown): value is PersonaCommand {
@@ -54,4 +57,13 @@ export function validateCommand(value: unknown): value is PersonaCommand {
     }
     default: return false;
   }
+}
+
+// QGD-SEC-0006, in the other direction: a reply arriving from the utility
+// process is checked before it is handed to whoever is waiting, rather than
+// asserted to be what it should be.
+export function isReply(value: unknown): value is PersonaReply {
+  if (!record(value)) return false;
+  if (value.ok === true) return 'data' in value;
+  return value.ok === false && typeof value.error === 'string';
 }

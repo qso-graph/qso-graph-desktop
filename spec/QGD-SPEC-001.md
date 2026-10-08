@@ -226,6 +226,7 @@ chain. These add to `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*` and do not re
 | `QGD-SEC-0012` | The lockfile is committed and installs use `npm ci`. Dependencies on the credential, crypto, IPC and packaging paths are pinned exactly, a new dependency is a decision someone reviewed, and an audit finding is fixed rather than carried. | Static, Inspection |
 | `QGD-SEC-0013` | `make verify` runs the ESLint security rules, `svelte/no-at-html-tags`, and the `sql.raw` ban. | Test |
 | `QGD-SEC-0014` | `make verify` runs Electronegativity against the packaged application. | Test |
+| `QGD-SEC-0019` | TypeScript is pinned to an exact 6.x. The pin exists so the product is linted from source with type information rather than after compilation, and so component and Electron checking need no isolated dependency trees. **It moves to 7 when `typescript-eslint` supports 7**, and not before: that one tool gates the others in practice. | Static |
 
 ### 4.3.1 Cryptographic claims
 

@@ -3,10 +3,15 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateCommand, type PersonaCommand, type PersonaReply } from './persona-contract.js';
+import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from './native.js';
+import type { CredentialStatus, CredentialTest } from './persona-contract.js';
 import { createForwardingLogger } from './logger.js';
 
 const require = createRequire(import.meta.url);
-const { PersonaCore, initCoreLogging, drainCoreLogs } = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node'));
+// One explicit assertion at the boundary, against the declared shape in
+// native.d.ts, rather than `any` spreading through every call into the core.
+const native = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node')) as NativeModule;
+const { PersonaCore, initCoreLogging, drainCoreLogs } = native;
 const core = new PersonaCore(process.argv[2]);
 const log = createForwardingLogger('persona', line => process.parentPort.postMessage({ log: line }));
 
@@ -18,12 +23,16 @@ initCoreLogging();
 const LEVELS: Record<string, 'debug' | 'info' | 'warn' | 'error'> = {
   TRACE: 'debug', DEBUG: 'debug', INFO: 'info', WARN: 'warn', ERROR: 'error'
 };
+interface CoreRecord { level?: string; fields?: Record<string, unknown> }
+
 function forwardCoreLogs(): void {
-  let lines: string[] = [];
+  let lines: string[];
   try { lines = drainCoreLogs(); } catch { return; }
   for (const line of lines) {
-    let record: { level?: string; fields?: Record<string, unknown> };
-    try { record = JSON.parse(line); } catch { continue; }
+    let parsed: unknown;
+    try { parsed = JSON.parse(line); } catch { continue; }
+    if (parsed === null || typeof parsed !== 'object') continue;
+    const record = parsed as CoreRecord;
     const { message, ...fields } = record.fields ?? {};
     const level = LEVELS[String(record.level ?? 'INFO').toUpperCase()] ?? 'info';
     log[level]({ ...fields, source: 'core' }, typeof message === 'string' ? message : 'core event');
@@ -33,6 +42,33 @@ function forwardCoreLogs(): void {
 log.info({}, 'persona service started');
 forwardCoreLogs();
 function snapshot() { return { personas: core.list(), active: core.active() ?? null }; }
+
+// The core speaks strings; the IPC contract speaks unions. Narrowing here is
+// the point of typing the boundary: the two shapes are not the same, and until
+// this was typed one was being handed to the renderer as the other. An
+// unexpected value is refused, never widened to fit.
+const PREFERENCES = ['service', 'password', 'api_key'] as const;
+const FIELDS = ['password', 'api_key'] as const;
+const OUTCOMES = ['success', 'rejected', 'network-error', 'rate-limited', 'invalid-response', 'missing', 'unsupported'] as const;
+
+function toStatus(native: NativeCredentialStatus): CredentialStatus {
+  const preferred = PREFERENCES.find(value => value === native.preferred);
+  if (!preferred) throw new Error('Credential preference is invalid.');
+  return {
+    stored: native.stored,
+    hasUsername: native.hasUsername,
+    hasPassword: native.hasPassword,
+    hasApiKey: native.hasApiKey,
+    preferred,
+    effective: FIELDS.find(value => value === native.effective) ?? null
+  };
+}
+
+function toTest(native: NativeCredentialTest): CredentialTest {
+  const outcome = OUTCOMES.find(value => value === native.outcome);
+  if (!outcome) throw new Error('The persona operation could not be completed.');
+  return { outcome };
+}
 function execute(command: PersonaCommand): PersonaReply {
   try {
     switch (command.type) {
@@ -40,12 +76,12 @@ function execute(command: PersonaCommand): PersonaReply {
       case 'upsert': core.upsert(command.name, command.callsign, command.start, command.end); return { ok: true, data: snapshot() };
       case 'set-active': core.setActive(command.name); return { ok: true, data: snapshot() };
       case 'remove-persona': core.removePersona(command.name); return { ok: true, data: snapshot() };
-      case 'status': return { ok: true, data: core.credentialStatus(command.persona, command.provider) };
-      case 'test-credential': return { ok: true, data: core.testCredential(command.persona, command.provider) };
-      case 'save-credentials': core.saveCredentials(command.persona, command.provider, command.credentials); return { ok: true, data: core.credentialStatus(command.persona, command.provider) };
-      case 'delete-credentials': core.deleteCredentials(command.persona, command.provider); return { ok: true, data: core.credentialStatus(command.persona, command.provider) };
-      case 'remove-secret': core.removeSecret(command.persona, command.provider, command.field); return { ok: true, data: core.credentialStatus(command.persona, command.provider) };
-      case 'set-preference': core.setPreference(command.persona, command.provider, command.preferred); return { ok: true, data: core.credentialStatus(command.persona, command.provider) };
+      case 'status': return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
+      case 'test-credential': return { ok: true, data: toTest(core.testCredential(command.persona, command.provider)) };
+      case 'save-credentials': core.saveCredentials(command.persona, command.provider, command.credentials); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
+      case 'delete-credentials': core.deleteCredentials(command.persona, command.provider); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
+      case 'remove-secret': core.removeSecret(command.persona, command.provider, command.field); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
+      case 'set-preference': core.setPreference(command.persona, command.provider, command.preferred); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
     }
   } catch (error) {
     // Native methods emit static, credential-free messages. Unexpected errors
@@ -67,10 +103,15 @@ function execute(command: PersonaCommand): PersonaReply {
     return { ok: false, error: message };
   }
 }
-process.parentPort.on('message', event => {
-  const { id, command } = event.data ?? {};
+process.parentPort.on('message', (event: { data?: unknown }) => {
+  // The envelope is checked before anything in it is used: the id has to be a
+  // real id before it can be echoed back, and the command has to pass the
+  // contract before it reaches the core.
+  const data: unknown = event.data;
+  const envelope = data !== null && typeof data === 'object' ? data as { id?: unknown; command?: unknown } : {};
+  const { id, command } = envelope;
   if (!Number.isSafeInteger(id) || !validateCommand(command)) {
-    process.parentPort.postMessage({ id, reply: { ok: false, error: 'Invalid persona request.' } });
+    process.parentPort.postMessage({ id: typeof id === 'number' ? id : null, reply: { ok: false, error: 'Invalid persona request.' } });
     return;
   }
   const reply = execute(command);

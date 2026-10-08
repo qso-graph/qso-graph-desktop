@@ -1,9 +1,0 @@
-{
-  "name": "qg-desktop-electron-audit",
-  "private": true,
-  "description": "QGD-SEC-0014. Isolated because Electronegativity's TypeScript parser needs TypeScript 5 and this project is on 7; a hoisted 7 shadows it and the tool cannot start.",
-  "devDependencies": {
-    "@doyensec/electronegativity": "1.10.3",
-    "typescript": "5.9.3"
-  }
-}

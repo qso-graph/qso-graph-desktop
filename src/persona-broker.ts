@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { app, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
+import { ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { allowsSender, validateCommand, type PersonaReply } from './persona-contract.js';
+import { allowsSender, isReply, validateCommand, type PersonaReply } from './persona-contract.js';
 import { createLogger, writeForwarded } from './logger.js';
 
 const log = createLogger('broker');
@@ -25,11 +25,17 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
     worker = utilityProcess.fork(join(compiledDirectory, 'persona-service.js'), [profileDirectory], {
       serviceName: 'QG Personas', stdio: 'ignore', allowLoadingUnsignedLibraries: true
     });
-    worker.on('message', message => {
-      if (typeof message?.log === 'string') { writeForwarded(message.log); return; }
-      if (message?.ready === true) { ready = true; failures = 0; return; }
-      const item = pending.get(message?.id);
-      if (item) { clearTimeout(item.timer); pending.delete(message.id); item.resolve(message.reply); }
+    worker.on('message', (message: unknown) => {
+      if (message === null || typeof message !== 'object') return;
+      const payload = message as { ready?: unknown; log?: unknown; id?: unknown; reply?: unknown };
+      if (typeof payload.log === 'string') { writeForwarded(payload.log); return; }
+      if (payload.ready === true) { ready = true; failures = 0; return; }
+      // QGD-SEC-0006: the id and the reply are both checked before either is
+      // used, even though the sender is our own utility process.
+      if (!Number.isSafeInteger(payload.id) || !isReply(payload.reply)) return;
+      const id = payload.id as number;
+      const item = pending.get(id);
+      if (item) { clearTimeout(item.timer); pending.delete(id); item.resolve(payload.reply); }
     });
     worker.once('exit', () => {
       ready = false; worker = undefined; failPending();

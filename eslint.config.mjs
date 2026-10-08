@@ -1,30 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // QGD-SEC-0013: the ESLint half of the security gates.
 //
-// The product is TypeScript, and typescript-eslint peers on TypeScript below
-// 6.1 while this project is on 7.0.2 — so the TypeScript is linted after
-// compilation, as dist/. That is not a compromise for these particular rules:
-// eval, a shell spawn, a dynamic require, a raw SQL call and an unsafe timer
-// all survive compilation unchanged, and dist/ is what actually ships.
+// The TypeScript source is linted directly, with type information. That became
+// possible when TypeScript was pinned to 6.0.3 (QGD-SEC-0019); before it, the
+// product was linted after compilation because typescript-eslint would not
+// install, which meant findings named a line nobody edits and no type-aware
+// rule could run at all.
 //
-// Product code is held to the full set. The verification scripts are held to
-// less, because spawning a child process is what several of them exist to do.
+// Type-aware rules are not a tidiness preference here. QGD-SEC-0006 says every
+// IPC message, file input and API response is validated and rejected rather
+// than coerced, and the rules below are what notice a value crossing a boundary
+// as `any` and being used as though it had been checked.
 import js from '@eslint/js';
 import security from 'eslint-plugin-security';
 import svelte from 'eslint-plugin-svelte';
+import tseslint from 'typescript-eslint';
 
 // QGD-SEC-0002 to QGD-SEC-0005 and QGD-SEC-0009, as selectors over the syntax
-// that carries them. QGD-SEC-0001's string-form timer is left to no-implied-eval,
-// which distinguishes setTimeout("code") from setTimeout(5000); a selector on the
-// argument's type cannot.
+// that carries them. QGD-SEC-0001's string-form timer is left to
+// no-implied-eval, which distinguishes setTimeout("code") from setTimeout(5000).
 const FORBIDDEN_SYNTAX = [
   {
     selector: "MemberExpression[property.name='exec'][object.name=/^(child_process|childProcess|cp)$/]",
     message: 'QGD-SEC-0002: no child_process.exec. Use spawn or execFile with an argument array.'
-  },
-  {
-    selector: "CallExpression[callee.name=/^exec$/][arguments.0.type!='ArrayExpression']",
-    message: 'QGD-SEC-0002: no exec. Use spawn or execFile with an argument array.'
   },
   {
     selector: "Property[key.name='shell'][value.value=true]",
@@ -48,39 +46,52 @@ const FORBIDDEN_SYNTAX = [
   }
 ];
 
+const SECURITY_AS_ERRORS = Object.fromEntries(
+  // The plugin ships its rules as warnings. A warning is not a gate.
+  Object.keys(security.configs.recommended.rules).map(rule => [rule, 'error'])
+);
+
+const SHARED = {
+  'no-eval': 'error',
+  'no-implied-eval': 'error',
+  'no-new-func': 'error',
+  'no-restricted-syntax': ['error', ...FORBIDDEN_SYNTAX]
+};
+
+// What a value crossing a trust boundary must not be allowed to do quietly.
+const TYPE_AWARE = {
+  '@typescript-eslint/no-explicit-any': 'error',
+  '@typescript-eslint/no-unsafe-assignment': 'error',
+  '@typescript-eslint/no-unsafe-member-access': 'error',
+  '@typescript-eslint/no-unsafe-call': 'error',
+  '@typescript-eslint/no-unsafe-argument': 'error',
+  '@typescript-eslint/no-unsafe-return': 'error',
+  '@typescript-eslint/no-floating-promises': 'error',
+  '@typescript-eslint/no-misused-promises': 'error',
+  '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }]
+};
+
 export default [
-  { ignores: ['node_modules/**', 'out/**', 'report/**', 'native/**/target/**', 'dist/native/**'] },
+  { ignores: ['node_modules/**', 'dist/**', 'out/**', 'report/**', 'native/**/target/**'] },
 
-  // The product, after compilation.
-  {
-    files: ['dist/**/*.js', 'dist/**/*.cjs'],
-    languageOptions: { ecmaVersion: 2023, sourceType: 'module' },
+  // The product, as written.
+  ...tseslint.config({
+    files: ['src/**/*.ts', 'src/**/*.cts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    languageOptions: {
+      // Both projects named explicitly: tsconfig.json excludes the renderer,
+      // so the service would not find src/renderer/app.ts on its own.
+      parserOptions: {
+        project: ['./tsconfig.json', './tsconfig.renderer.json'],
+        tsconfigRootDir: import.meta.dirname
+      }
+    },
     plugins: { security },
-    rules: {
-      ...js.configs.recommended.rules,
-      // The plugin ships its rules as warnings. A warning is not a gate: these
-      // are the dynamic-require and unsafe-regex bans QGD-SEC-0003 relies on,
-      // so they are errors here.
-      ...Object.fromEntries(Object.keys(security.configs.recommended.rules).map(rule => [rule, 'error'])),
-      'no-eval': 'error',
-      'no-implied-eval': 'error',
-      'no-new-func': 'error',
-      'no-restricted-syntax': ['error', ...FORBIDDEN_SYNTAX],
-      // Compiled output legitimately carries shapes a source linter would question.
-      'no-unused-vars': 'off',
-      'no-empty': 'off',
-      'no-undef': 'off',
-      'security/detect-object-injection': 'off',
-      'security/detect-non-literal-fs-filename': 'off',
-      // Compiler output, not written by hand: these are style, not security.
-      'no-useless-assignment': 'off',
-      // src/persona-contract.ts rejects control characters on purpose, and the
-      // only way to name them is a control-character class.
-      'no-control-regex': 'off'
-    }
-  },
+    rules: { ...SECURITY_AS_ERRORS, ...SHARED, ...TYPE_AWARE, 'security/detect-object-injection': 'off', 'security/detect-non-literal-fs-filename': 'off' }
+  }),
 
-  // QGD-SEC-0011, for when P3 brings the screens.
+  // QGD-SEC-0011, on the source. A compiled component is an innerHTML
+  // assignment that cannot be tied back to the tag that produced it.
   ...svelte.configs.recommended.map(config => ({
     ...config,
     files: ['**/*.svelte'],
@@ -90,15 +101,25 @@ export default [
   // The verification scripts. They spawn processes on purpose; what still holds
   // is the ban on evaluating strings and on building a command from input.
   {
-    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'eslint.config.mjs'],
-    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly', URL: 'readonly' } },
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', '*.config.mjs'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly', URL: 'readonly' }
+    },
+    plugins: { security },
     rules: {
-      'no-eval': 'error',
-      'no-implied-eval': 'error',
-      'no-new-func': 'error',
-      'no-restricted-syntax': ['error',
-        ...FORBIDDEN_SYNTAX.filter(rule => !rule.selector.startsWith('CallExpression[callee.name=/^exec$/]'))
-      ]
+      ...SECURITY_AS_ERRORS,
+      ...SHARED,
+      // These scripts read and write paths and spawn processes by design, and
+      // build patterns over this project's own artifacts. The rules stay on for
+      // src/, which is the product; scripts/lint.mjs asserts that directly
+      // rather than inferring it from a fixture that lives here.
+      'security/detect-non-literal-fs-filename': 'off',
+      'security/detect-child-process': 'off',
+      'security/detect-object-injection': 'off',
+      'security/detect-unsafe-regex': 'off',
+      'security/detect-non-literal-regexp': 'off'
     }
   }
 ];

@@ -180,7 +180,7 @@ export async function exportDiagnostics(
   const { join } = await import('node:path');
 
   const entries: ArchiveEntry[] = [];
-  let names: string[] = [];
+  let names: string[];
   try { names = await readdir(logs); } catch { names = []; }
 
   for (const name of names.sort()) {

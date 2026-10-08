@@ -59,44 +59,56 @@ const eslint = new ESLint({ cwd: root });
 // The controls. Each must fire, or a clean report below means nothing.
 const CONTROLS = [
   { name: 'svelte/no-at-html-tags', path: 'src/renderer/__control__.svelte', code: '<div>{@html value}</div>\n' },
-  { name: 'no-eval', path: 'dist/__control__.js', code: 'eval("1");\n' },
-  { name: 'no-restricted-syntax', path: 'dist/__control__.js', code: 'spawn("x", { shell: true });\n' },
-  { name: 'security/detect-non-literal-require', path: 'dist/__control__.js', code: 'const m = require(name);\n' },
-  { name: 'security/detect-unsafe-regex', path: 'dist/__control__.js', code: 'const r = /(a+)+$/;\n' }
+  { name: 'no-eval', path: 'scripts/__control__.mjs', code: 'eval("1");\n' },
+  { name: 'no-restricted-syntax', path: 'scripts/__control__.mjs', code: 'spawn("x", { shell: true });\n' },
+  { name: 'security/detect-non-literal-require', path: 'scripts/__control__.mjs', code: 'const m = require(name);\n' },
+  { name: 'security/detect-unsafe-regex', path: 'scripts/__control__.mjs', code: 'const r = /(a+)+$/;\n', expect: false }
+];
+
+// Some rules cannot be fixture-tested where they matter: a fixture under src/
+// is not in the TypeScript project, and the type-aware rules need one. So the
+// product's configuration is asserted directly — this is what is actually in
+// force for src/main.ts, rather than what a fixture elsewhere implies.
+const REQUIRED_FOR_PRODUCT = [
+  'no-eval',
+  'no-implied-eval',
+  'no-new-func',
+  'no-restricted-syntax',
+  'security/detect-unsafe-regex',
+  'security/detect-non-literal-require',
+  'security/detect-non-literal-regexp',
+  '@typescript-eslint/no-explicit-any',
+  '@typescript-eslint/no-unsafe-assignment',
+  '@typescript-eslint/no-unsafe-member-access',
+  '@typescript-eslint/no-unsafe-call',
+  '@typescript-eslint/no-unsafe-argument',
+  '@typescript-eslint/no-floating-promises',
+  '@typescript-eslint/no-misused-promises'
 ];
 
 const failures = [];
 for (const control of CONTROLS) {
   const [result] = await eslint.lintText(control.code, { filePath: resolve(root, control.path), warnIgnored: false });
   const fired = (result?.messages ?? []).some(message => message.ruleId === control.name);
-  if (!fired) failures.push(`the ${control.name} gate did not fire on a known-bad fixture, so it is not running`);
+  const wanted = control.expect !== false;
+  if (fired !== wanted) {
+    failures.push(wanted
+      ? `the ${control.name} gate did not fire on a known-bad fixture, so it is not running`
+      : `the ${control.name} rule fired where it is deliberately off; the configuration has drifted`);
+  }
+}
+
+// What is actually in force for the product.
+const productConfig = await eslint.calculateConfigForFile(resolve(root, 'src/main.ts'));
+for (const rule of REQUIRED_FOR_PRODUCT) {
+  const setting = productConfig.rules?.[rule];
+  const severity = Array.isArray(setting) ? setting[0] : setting;
+  if (severity !== 'error' && severity !== 2) {
+    failures.push(`${rule} is not an error for src/main.ts; the product is not held to it`);
+  }
 }
 
 const svelteFiles = await svelteSources(root);
-
-// Vite transpiles and does not check types; tsc -p tsconfig.renderer.json
-// covers the renderer's .ts, and svelte-check is what covers the inside of a
-// component. svelte-check will not install beside TypeScript 7 — the third tool
-// after typescript-eslint and Electronegativity — so it is not wired yet, and
-// there is nothing to wire it for.
-//
-// This fails the moment that stops being true. A component that lands while
-// nothing type-checks it would inherit exactly the hole tsc's exclusion left in
-// app.ts, which is the defect this project has now made twice.
-if (svelteFiles.length > 0) {
-  let checked = false;
-  try {
-    const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
-    checked = Boolean(manifest.scripts?.build?.includes('svelte-check'));
-  } catch { checked = false; }
-  if (!checked) {
-    failures.push(
-      `${svelteFiles.length} Svelte component(s) exist and nothing type-checks inside them. ` +
-      'Wire svelte-check into the build — isolated under tools/ with TypeScript 5, as ' +
-      'tools/electronegativity is, because it will not resolve beside TypeScript 7.'
-    );
-  }
-}
 
 for (const file of svelteFiles) {
   const text = await readFile(file, 'utf8');
@@ -128,5 +140,5 @@ if (failures.length) {
   for (const failure of failures) console.error(`  ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log(`Security lint: ${results.length} files, ${svelteFiles.length} Svelte source(s), ${CONTROLS.length} gate controls fired, 0 findings: PASS`);
+  console.log(`Security lint: ${results.length} files, ${svelteFiles.length} Svelte source(s), ${CONTROLS.length} controls as expected, ${REQUIRED_FOR_PRODUCT.length} rules in force for the product, 0 findings: PASS`);
 }

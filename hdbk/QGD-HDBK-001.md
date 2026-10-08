@@ -251,3 +251,40 @@ rather than in whichever one happened to be set.
 `QGD-FRM-0004` says what is not being built. A red night theme is a real idea for a later Part
 and writing it down as out of scope is cheaper than discovering halfway through P3 that somebody
 started it.
+
+
+## 11. Why TypeScript is pinned behind the current release
+
+TypeScript 7 is the native port and is roughly twice as fast on this codebase —
+0.32 seconds against 0.65. It also could not be used by three tools at once:
+`typescript-eslint`, `svelte-check` and Electronegativity's parser all peer on a
+TypeScript below 6.1, and all three failed to install or to start.
+
+The workarounds each worked and each cost something. The product was linted
+**after compilation**, so findings named a line nobody edits and had to be
+translated back through a source map, and no type-aware rule could run at all.
+Electronegativity needed its own dependency tree and a postinstall step to
+populate it. `svelte-check` could not be wired, so component type checking was
+replaced by a build failure that would fire when the first component arrived.
+
+KI7MT's decision on 2026-10-08 was to pin 6.0.3 and delete all of that
+(`QGD-SEC-0019`). The reason is not tidiness. Each isolation layer is a place a
+gate can stop working quietly, and that had already happened once here:
+`eslint-plugin-security` ships its rules as warnings, the reporter counted
+errors, and the whole family was inert while printing a clean result. Three such
+layers is three more chances at the same failure, in the checks meant to catch
+the serious things.
+
+What the pin bought immediately was not theoretical. Linting the source with
+type information found that every call into the Rust credential core was `any` —
+the addon arrives through `createRequire` untyped, so `saveCredentials`,
+`requireCredential` and `deleteCredentials` were all unchecked at the one
+boundary `QGD-CRD-0002` makes responsible for the OS credential stores. Typing it
+then found that the core's shapes and the IPC contract's shapes are not the same,
+and that one was being handed to the renderer as the other. Neither would have
+been visible from compiled output.
+
+The cost is 0.3 seconds a build and being deliberately one major release behind,
+which is only safe as a dated decision with a trigger rather than as drift. The
+trigger is in the requirement: `typescript-eslint` supporting 7. That one gates
+the others in practice.

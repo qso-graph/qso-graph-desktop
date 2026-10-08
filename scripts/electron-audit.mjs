@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // QGD-SEC-0014: Electronegativity over the packaged application.
 //
-// Run from tools/electronegativity, which has its own dependency tree: its
-// TypeScript parser needs TypeScript 5 and this project is on 7, and a hoisted
-// 7 stops the tool starting at all.
+// Runs from the root install. It needed its own dependency tree while this
+// project was on TypeScript 7, whose API its parser could not use; TypeScript is
+// pinned to 6.0.3 under QGD-SEC-0019 and that isolation is gone.
 //
 // Pointed at app.asar, not the .app bundle. Given the bundle it parses no
 // JavaScript and reports three global findings that are all false.
@@ -25,7 +25,7 @@ import { createHash } from 'node:crypto';
 import { access, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const binary = resolve('tools/electronegativity/node_modules/.bin/electronegativity');
+const binary = resolve('node_modules/.bin/electronegativity');
 const archive = resolve('out/mac-arm64/QG Desktop.app/Contents/Resources/app.asar');
 const sarif = resolve('report/electron-audit.sarif');
 const ELECTRON_VERSION = JSON.parse(await readFile('package.json', 'utf8')).devDependencies.electron;
@@ -53,7 +53,7 @@ function fingerprint(file, line) {
 
 const failures = [];
 for (const [path, message] of [
-  [binary, 'Electronegativity is not installed. Run: npm ci --prefix tools/electronegativity'],
+  [binary, 'Electronegativity is not installed. Run: npm ci'],
   [archive, `No packaged application to audit at ${archive}. Run: make package`]
 ]) {
   try { await access(path); } catch { failures.push(message); }

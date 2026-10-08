@@ -9,14 +9,14 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "build": "node scripts/build-native.mjs && tsc && tsc -p tsconfig.renderer.json && vite build",
+    "build": "node scripts/build-native.mjs && tsc && tsc -p tsconfig.renderer.json && node scripts/svelte-check.mjs && vite build",
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir --publish never",
     "installer": "npm run build && electron-builder --publish never",
-    "verify": "node scripts/verify.mjs",
-    "postinstall": "node scripts/install-tools.mjs"
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
+    "@doyensec/electronegativity": "1.10.3",
     "@electron/asar": "3.4.1",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
@@ -28,7 +28,9 @@
     "eslint-plugin-security": "4.2.0",
     "eslint-plugin-svelte": "3.23.0",
     "svelte": "5.57.2",
-    "typescript": "7.0.2",
+    "svelte-check": "4.7.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
     "vite": "8.3.3",
     "vitest": "5.0.3"
   },

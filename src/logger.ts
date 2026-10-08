@@ -17,7 +17,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import pino from 'pino';
 import {
-  DEFAULT_LEVEL, effectiveLevel, plan, redactionPaths,
+  effectiveLevel, plan, redactionPaths,
   type Level, type LogFile, type LevelState
 } from './logging.js';
 
