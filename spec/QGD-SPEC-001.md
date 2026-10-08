@@ -129,11 +129,6 @@ is defined.
 | `QGD-CRD-0006` | A credential never appears in a log, an error message, an IPC payload rendered to a screen, or a report. | Static |
 | `QGD-CRD-0007` | The renderer never holds a credential and never opens a network connection. | Static, Test |
 | `QGD-CRD-0008` | The OS credential manager is the only store in Release 1. A user's own Vault is a later Part. | Inspection |
-| `QGD-CRD-0009` | `qso-graph-auth` is the cross-language oracle for the keyring naming convention. It is exercised **from source at build time**, never vendored, pinned, mocked or stubbed. | Test |
-| `QGD-CRD-0010` | The interop proof runs both directions in one pass: the core writes and `qso-graph-auth` reads, then `qso-graph-auth` writes and the core reads. A one-direction proof does not satisfy `QGD-CRD-0004`. | Test |
-| `QGD-CRD-0011` | `qso-graph-auth` validates the persona index format as well as the credential entries; the two sides agree on both. | Test |
-| `QGD-CRD-0012` | **If the credential path fails, verification halts.** No suite after the interop proof is run or reported, because nothing in the application is meaningful when credentials do not work. | Test |
-| `QGD-CRD-0013` | No secret appears in the persona index, in a credential status result, or in any failure message from the interop proof. | Test |
 
 ## 3.1 Club rosters — personal data
 

@@ -20,8 +20,9 @@ const commands = [
 ];
 const suites = [];
 for (const [name, args] of commands) {
-  // QGD-CRD-0012: if the credential path fails, verification halts. Nothing after the
-  // interop proof is run or reported, because nothing is meaningful without credentials.
+  // A credential-path failure halts the run: nothing after the interop proof is reported,
+  // because a PASS on `package` over a broken credential path is a misleading report.
+  // NOT backed by a requirement -- added by Watson 2026-10-07, pending KI7MT's call.
   if (name !== 'unit' && (suites.some(s => s.name === 'build' && s.result === 'FAIL') ||
       suites.some(s => s.name === 'keychain-interop' && s.result === 'FAIL') ||
       (name === 'packaged-launch' && suites.some(s => s.name === 'package' && s.result === 'FAIL')))) {
