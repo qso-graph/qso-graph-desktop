@@ -14,6 +14,8 @@
   const settled = {
     onChooseTheme: () => Promise.resolve(true),
     onSetLevel: () => Promise.resolve(true),
+    onStartEngine: () => Promise.resolve(),
+    onStopEngine: () => Promise.resolve(),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.')
   };
 
@@ -32,7 +34,8 @@
       page: 'settings',
       activePersona: 'Active: W1AW · Home station',
       themeChoice: 'system',
-      logs
+      logs,
+      engine: { state: 'running', version: '17.11' }
     })
   }}
 />

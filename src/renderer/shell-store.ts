@@ -7,6 +7,7 @@
 // the one subscriber; app.ts is the one writer.
 import type { ThemeChoice } from '../settings-contract.js';
 import type { LogsStatus } from '../logs-contract.js';
+import type { EngineStatus } from '../engine-contract.js';
 
 // The rail's items. Each carries the Font Awesome icon key it draws, the
 // short label shown under it, a longer description for the tooltip, and where
@@ -45,13 +46,17 @@ export interface ShellState {
   // Undefined until the main process has answered. The Logs page shows that it
   // is still reading rather than a level that might be wrong.
   logs: LogsStatus | undefined;
+  // Undefined until the engine has been asked. It is started in the background
+  // and the shell never waits for it (QGD-ENG-0003).
+  engine: EngineStatus | undefined;
 }
 
 export const INITIAL_SHELL: ShellState = {
   page: 'personas',
   activePersona: 'No active persona',
   themeChoice: 'system',
-  logs: undefined
+  logs: undefined,
+  engine: undefined
 };
 
 export interface ShellStore {

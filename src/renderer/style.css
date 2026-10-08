@@ -128,7 +128,7 @@ input, select { width: 100%; font: inherit; color: var(--ink); border: 1px solid
 input:read-only { background: var(--surface-readonly); }
 /* A select holding a handful of short options does not need the width of
    the card; a text field does. */
-select { max-width: 320px; }
+select, input[readonly].narrow { max-width: 320px; }
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .form-footer { display: flex; justify-content: flex-end; align-items: center; gap: 18px; }
 .form-footer .hint { margin-right: auto; }

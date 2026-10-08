@@ -127,6 +127,14 @@ try {
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 
+  // Settings now shows what the database is doing, and "starting" becomes
+  // "running" a few seconds in. Waited for rather than captured mid-flight,
+  // or the baseline would differ from one run to the next.
+  await rail('Settings').click();
+  await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
+    { message: 'the engine must settle before anything is captured', timeout: 180_000 })
+    .toBe('Running');
+
   for (const theme of THEMES) {
     await rail('Settings').click();
     await page.getByLabel('Theme', { exact: true }).selectOption(theme);

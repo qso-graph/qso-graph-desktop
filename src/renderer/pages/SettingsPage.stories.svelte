@@ -19,6 +19,9 @@
       onChooseTheme: () => Promise.resolve(true),
       logs,
       onSetLevel: () => Promise.resolve(true),
+      engine: { state: 'running', version: '17.11' },
+      onStartEngine: () => Promise.resolve(),
+      onStopEngine: () => Promise.resolve(),
       onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.')
     }
   });

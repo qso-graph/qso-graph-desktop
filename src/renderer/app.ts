@@ -2,6 +2,7 @@
 import type { Persona, Snapshot, CredentialStatus, CredentialTest, PersonaCommand, PersonaReply } from '../persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../settings-contract.js';
 import type { LogsCommand, LogsReply } from '../logs-contract.js';
+import type { EngineCommand, EngineReply } from '../engine-contract.js';
 import type { Level } from '../logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
@@ -12,6 +13,7 @@ declare global {
     personas: { request(command: PersonaCommand): Promise<PersonaReply> };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
+    engine: { request(command: EngineCommand): Promise<EngineReply> };
     appearance?: Appearance;
   }
 }
@@ -22,7 +24,10 @@ declare global {
 const shell = createShellStore();
 mount(Shell, {
   target: document.body,
-  props: { store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics }
+  props: {
+    store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    onStartEngine: startEngine, onStopEngine: stopEngine
+  }
 });
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -296,5 +301,31 @@ shell.subscribe(state => {
   } else if (!onSettings && logsRefresh !== undefined) {
     clearInterval(logsRefresh);
     logsRefresh = undefined;
+  }
+});
+
+
+// QGD-ENG-0003. The engine is asked how it is, and nothing waits for the
+// answer: this file has already mounted the shell by the time any of it runs.
+// While Settings is open it is asked again, because a database that is
+// starting becomes a database that has started without telling anyone.
+async function askEngine(command: EngineCommand): Promise<void> {
+  const reply = await window.engine.request(command);
+  if (reply.ok) shell.set({ engine: reply.status });
+}
+
+export async function startEngine(): Promise<void> { await askEngine({ type: 'start' }); }
+export async function stopEngine(): Promise<void> { await askEngine({ type: 'stop' }); }
+
+const ENGINE_REFRESH_MS = 2_000;
+let engineRefresh: ReturnType<typeof setInterval> | undefined;
+shell.subscribe(state => {
+  const onSettings = state.page === 'settings';
+  if (onSettings && engineRefresh === undefined) {
+    void askEngine({ type: 'status' });
+    engineRefresh = setInterval(() => { void askEngine({ type: 'status' }); }, ENGINE_REFRESH_MS);
+  } else if (!onSettings && engineRefresh !== undefined) {
+    clearInterval(engineRefresh);
+    engineRefresh = undefined;
   }
 });

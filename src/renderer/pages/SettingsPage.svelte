@@ -8,9 +8,11 @@
   import PageLayout from '../ui/PageLayout.svelte';
   import ThemeChoice from '../ui/ThemeChoice.svelte';
   import LogsPage from './LogsPage.svelte';
+  import EnginePage from './EnginePage.svelte';
   import type { ThemeChoice as Choice } from '../../settings-contract.js';
   import type { LogsStatus } from '../../logs-contract.js';
   import type { Level } from '../../logging.js';
+  import type { EngineStatus } from '../../engine-contract.js';
 
   interface Props {
     themeChoice: Choice;
@@ -18,8 +20,14 @@
     logs: LogsStatus | undefined;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
+    engine: EngineStatus | undefined;
+    onStartEngine: () => Promise<void>;
+    onStopEngine: () => Promise<void>;
   }
-  const { themeChoice, onChooseTheme, logs, onSetLevel, onExport }: Props = $props();
+  const {
+    themeChoice, onChooseTheme, logs, onSetLevel, onExport,
+    engine, onStartEngine, onStopEngine
+  }: Props = $props();
 </script>
 
 <PageLayout eyebrow="PREFERENCES" title="Settings">
@@ -27,5 +35,6 @@
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
   </section>
+  <EnginePage status={engine} onStart={onStartEngine} onStop={onStopEngine} />
   <LogsPage status={logs} {onSetLevel} {onExport} />
 </PageLayout>

@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('personas', Object.freeze({
 contextBridge.exposeInMainWorld('settings', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('settings:request', command)
 }));
+contextBridge.exposeInMainWorld('engine', Object.freeze({
+  request: (command: unknown) => ipcRenderer.invoke('engine:request', command)
+}));
 contextBridge.exposeInMainWorld('logs', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('logs:request', command)
 }));

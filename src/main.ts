@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { app, BrowserWindow, Menu, nativeTheme, protocol, session } from 'electron';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
@@ -10,9 +11,21 @@ import { load, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
+import { enginePaths, startEngineBroker } from './engine-broker.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
 
 const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'renderer');
+
+// Read from the register rather than written twice. A version in two places is
+// a version that will disagree with itself.
+function postgresVersion(): string {
+  try {
+    const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'postgres-build.json');
+    return (JSON.parse(readFileSync(file, 'utf8')) as { version: string }).version;
+  } catch {
+    return 'unknown';
+  }
+}
 const log = createLogger('main');
 
 app.setName('QSO Graph Desktop');
@@ -115,8 +128,26 @@ if (!app.requestSingleInstanceLock()) {
     const stopSettingsBroker = startSettingsBroker();
     const stopAppearanceBroker = startAppearanceBroker();
     const stopLogsBroker = startLogsBroker();
+    // QGD-ENG-0003: started in the background and waited on by nothing. The
+    // window below appears whether or not the engine ever comes up.
+    const compiled = dirname(fileURLToPath(import.meta.url));
+    const engine = enginePaths();
+    const stopEngineBroker = startEngineBroker({
+      compiledDirectory: compiled,
+      // The pinned build (QGD-ENG-0004). Absent from a packaged application
+      // until the binaries are bundled, which is its own piece of work — until
+      // then the engine reports that it is unavailable and nothing else
+      // changes.
+      binaries: process.env.QG_DESKTOP_POSTGRES_BIN ?? join(compiled, '..', 'vendor', 'postgres', postgresVersion(), 'bin'),
+      data: engine.data,
+      sockets: engine.sockets,
+      buildFile: join(compiled, '..', 'data', 'postgres-build.json'),
+      migrations: join(compiled, '..', 'drizzle'),
+      startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
+    });
     app.once('before-quit', () => {
       stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
+      stopEngineBroker();
     });
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });

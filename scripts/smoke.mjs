@@ -13,6 +13,7 @@ import { redact } from './report.mjs';
 import { entries } from './unzip.mjs';
 
 let application;
+let notesEngine = 'not reached';
 const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
@@ -242,6 +243,25 @@ try {
       { message: `on System, the shell must follow the operating system turning ${source}` }).toBe(source);
   }
   await application.evaluate(({ nativeTheme }) => { nativeTheme.themeSource = 'system'; });
+  // ---- P4-shell-starts-without-it (QGD-ENG-0003) -------------------------
+  // This suite runs from the repository, where the pinned build exists — but
+  // nothing here waits for the engine, and the point of the requirement is
+  // that the shell is drawn and usable regardless. Everything above has
+  // already happened; Settings must report a state rather than hanging or
+  // showing nothing.
+  await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
+  // Running, not merely "some state": this suite launches the real
+  // application from the repository, where the pinned build is, so the whole
+  // path — utility process, initdb, postmaster, migrations — has to work. The
+  // shell was drawn and fully usable throughout, which is the requirement; the
+  // engine arriving is what says the wiring is real.
+  await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
+    { message: 'the engine must come up on its own, in the background', timeout: 180_000 })
+    .toBe('Running');
+  notesEngine = await page.getByLabel('State', { exact: true }).inputValue();
+  // And it is the bundled one, not something that was already on the machine.
+  await expect(page.locator('#engine-state-hint')).toContainText('PostgreSQL');
+
   // ---- P3-logs-page (QGD-LOG-0013) --------------------------------------
   // The switch writes the level the running process then uses. Read back from
   // the main process rather than from the page, so this measures the file the
@@ -320,6 +340,7 @@ try {
   application = undefined;
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
+  console.log(`Database card: the shell is drawn and usable while the engine starts on its own; Settings reports "${notesEngine}": PASS`);
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');
   console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {

@@ -26,13 +26,6 @@ export interface Applied {
   latest: string | undefined;
 }
 
-// Where the migration files are. Resolved from this module rather than from
-// the working directory, because the packaged application has no working
-// directory to speak of.
-export function migrationsFolder(fromUrl: string): string {
-  return new URL('../../drizzle/', fromUrl).pathname;
-}
-
 export async function applyMigrations(client: Client, folder: string): Promise<Applied> {
   const db = drizzle(client);
   // Drizzle creates the schema and its own table if they are missing, takes a

@@ -23,8 +23,10 @@
     onChooseTheme: (choice: ThemeChoice) => Promise<boolean>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
+    onStartEngine: () => Promise<void>;
+    onStopEngine: () => Promise<void>;
   }
-  const { store, onChooseTheme, onSetLevel, onExport }: Props = $props();
+  const { store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine }: Props = $props();
 
   // untrack, because reading a prop to seed state is not a reactive read and
   // Svelte is right to ask: the subscription below is what keeps it current.
@@ -73,7 +75,8 @@
       <PersonaPage />
     </div>
     <div class="page" hidden={state.page !== 'settings'}>
-      <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport} />
+      <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport}
+                    engine={state.engine} {onStartEngine} {onStopEngine} />
     </div>
   </main>
 </div>
