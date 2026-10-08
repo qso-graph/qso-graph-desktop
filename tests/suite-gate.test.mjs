@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'build', 'unit', 'rust-unit', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'package', 'packaged-launch'];
+const ORDER = ['spec-rvm', 'build', 'unit', 'rust-unit', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'package', 'packaged-launch'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -39,7 +39,7 @@ describe('QGD-TST-0007', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
     expect(resultOf(suites, 'rust-unit').result).toBe('PASS');
-    for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'package', 'packaged-launch']) {
+    for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'package', 'packaged-launch']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });
@@ -47,7 +47,7 @@ describe('QGD-TST-0007', () => {
   it('stops the packaged launch when packaging fails, and nothing else', () => {
     const suites = run(['package']);
     expect(resultOf(suites, 'packaged-launch')).toEqual({ name: 'packaged-launch', result: 'NOT RUN', blockedBy: 'package' });
-    for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke']) {
+    for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke', 'connection-capture']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }
   });

@@ -6,7 +6,7 @@
 // in QGD-HDBK-001 section 4.
 
 // Suites whose result depends on the OS credential store.
-export const CREDENTIAL_SUITES = ['credential-editing', 'electron-smoke', 'packaged-launch'];
+export const CREDENTIAL_SUITES = ['credential-editing', 'electron-smoke', 'connection-capture', 'packaged-launch'];
 
 // Suites that report their own result regardless of the credential proof.
 // rust-unit depends on neither the TypeScript build nor the credential store.

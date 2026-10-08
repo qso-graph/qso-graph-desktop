@@ -18,6 +18,7 @@ const commands = [
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
+  ['connection-capture', ['scripts/connection-capture.mjs']],
   ['package', [npmCli, 'run', 'package']],
   ['packaged-launch', ['scripts/packaged-smoke.mjs']]
 ];
