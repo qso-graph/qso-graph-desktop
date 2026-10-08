@@ -1,0 +1,93 @@
+name: Verification
+description: Evidence still owed before a requirement or exit gate can be signed off.
+labels: ["type:verification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use when the code exists but the proof does not.
+        The spec is `spec/QGD-SPEC-001.md`. Cite requirement IDs; do not restate them.
+        After filing, add the matching `component:*` label and put the issue in its Part's milestone.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      description: Which Part in the build order (QGD-SPEC-001 §2.1) this belongs to.
+      options:
+        - P0 — Rust persona core
+        - P1 — Window showing a persona
+        - P2 — Process map
+        - P3 — Shell
+        - P4 — Engine
+        - P5 — QG Personas
+        - P6 — App runtime and grants
+        - P7 — Logbook store
+        - P8 — QG ADIF
+        - P9 — QG Club
+        - P10 — QG Editor
+        - P11 — Updates and onboarding
+        - After Release 1
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - frame
+        - persona-core
+        - personas
+        - database
+        - integrations
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Spec IDs
+      description: The requirements this issue serves.
+      placeholder: QGD-PRT-0100, QGD-CRD-0004
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What must be shown
+      description: The exit gate or requirement, by ID, and what currently stands in for proof.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence owed
+      description: Each item is a test, report or demo that must exist.
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+      description: Who signs it off, and against what.
+      placeholder: |
+        - [ ] `make verify` passes on the M3
+        - [ ] KI7MT approves
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this issue does not add.
+      value: |
+        macOS on arm64 only. No signing, CI or cross-platform work is added by this issue (QGD-SCP-0003, QGD-SCP-0004).
+    validations:
+      required: true
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Credentials
+      options:
+        - label: No credential value, token, or live service response body appears in this issue or its evidence.
+          required: true
