@@ -9,7 +9,7 @@
 // therefore does not depend on the credential store and reports its own result
 // when the round-trip fails.
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
@@ -24,11 +24,13 @@ const persona = `qg-test-${randomUUID()}`;
 const control = String.fromCharCode(1);
 let application;
 let stage = 'launch';
-// Moving this aside makes every restart fail to load, which holds the outage
-// open for as long as the test needs. Restored in all exit paths.
-const service = resolve('dist/persona-service.js');
+// The outage is held open by moving the service module aside, so the test runs
+// against its own copy of the build. Nothing it does can reach the shared
+// dist/, which a SIGTERM mid-outage would otherwise leave without a service
+// module — verify.mjs sends exactly that on its per-suite timeout.
+const application_directory = join(directory, 'app');
+const service = join(application_directory, 'dist/persona-service.js');
 const disabled = `${service}.disabled`;
-let serviceDisabled = false;
 
 // The persona core runs as an Electron utility process, a child of main.
 function personaUtility(mainPid) {
@@ -44,8 +46,12 @@ function personaUtility(mainPid) {
 const ask = (page, command) => page.evaluate(sent => window.personas.request(sent), command);
 
 try {
+  await mkdir(application_directory, { recursive: true });
+  await cp('dist', join(application_directory, 'dist'), { recursive: true });
+  await cp('package.json', join(application_directory, 'package.json'));
   application = await electron.launch({
-    args: ['.'], cwd: process.cwd(),
+    args: ['.'], cwd: application_directory,
+    executablePath: resolve('node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),
     env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData },
     timeout: 30_000
   });
@@ -91,7 +97,7 @@ try {
   stage = 'hold the outage open';
   const victim = personaUtility(mainPid);
   expect(victim, 'persona utility process not found').toBeTruthy();
-  await rename(service, disabled); serviceDisabled = true;
+  await rename(service, disabled);
   process.kill(victim, 'SIGKILL');
 
   // Every restart now fails to load, so the broker stays in its refusing state.
@@ -111,7 +117,7 @@ try {
 
   // The backoff keeps retrying, so restoring the module is enough to recover.
   stage = 'service recovers once it can start again';
-  await rename(disabled, service); serviceDisabled = false;
+  await rename(disabled, service);
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok), { timeout: 60_000 }).toBe(true);
   const recovered = await ask(page, { type: 'list' });
   expect(recovered.data.personas.some(entry => entry.name === persona)).toBe(true);
@@ -135,7 +141,6 @@ try {
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
   process.exitCode = 1;
 } finally {
-  if (serviceDisabled) await rename(disabled, service).catch(() => {});
   if (application) await application.close().catch(() => {});
   await rm(directory, { recursive: true, force: true });
 }
