@@ -19,6 +19,15 @@
       "commit": "e243225",
       "evidence": "KI7MT ran the application on the M3: persona metadata and credential status on screen through the Rust core, saved secrets not displayed; asserted every run by electron-smoke and packaged-launch",
       "recordedAtUtc": "2026-10-08T04:39:57Z"
+    },
+    {
+      "part": "P2",
+      "id": "QGD-PRT-0102",
+      "by": "KI7MT",
+      "date": "2026-10-07",
+      "commit": "78580b1",
+      "evidence": "KI7MT ran the verification on the M3 at 23:36 MDT: thirteen suites PASS, covering utility-process crash recovery, malformed IPC refusal, and the one redacted JSON-lines stream inside its size, total and retention caps with a raised level that reverts on its own",
+      "recordedAtUtc": "2026-10-08T05:37:05Z"
     }
   ]
 }
