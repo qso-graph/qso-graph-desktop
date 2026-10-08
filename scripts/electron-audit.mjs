@@ -19,6 +19,7 @@
 // reviewed line all match data/electron-audit-accepted.json. Matching the check
 // and file alone would wave through a new switch or a second preload under a
 // rationale written for different code.
+import asar from '@electron/asar';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { access, readFile, rm } from 'node:fs/promises';
@@ -31,10 +32,22 @@ const ELECTRON_VERSION = JSON.parse(await readFile('package.json', 'utf8')).devD
 
 // The reviewed line, normalised so that reformatting is not a new review but a
 // different statement is.
-async function fingerprint(file, line) {
-  const text = await readFile(resolve(file), 'utf8').catch(() => undefined);
-  if (text === undefined) return 'unreadable';
-  const source = (text.split('\n')[line - 1] ?? '').replace(/\s+/g, ' ').trim();
+//
+// Read out of the archive, not the working tree. SARIF's paths are relative to
+// what was scanned, and the loose dist/ can differ from what was packaged — so
+// hashing the working tree would let an altered packaged statement inherit an
+// unchanged local one's fingerprint, and would reject an unchanged package
+// whose dist/ had simply been cleaned.
+function lineFromArchive(file, line) {
+  let bytes;
+  try { bytes = asar.extractFile(archive, file); } catch { return undefined; }
+  const text = bytes.toString('utf8');
+  return (text.split('\n')[line - 1] ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function fingerprint(file, line) {
+  const source = lineFromArchive(file, line);
+  if (source === undefined) return 'unreadable';
   return createHash('sha256').update(source).digest('hex').slice(0, 12);
 }
 
@@ -66,13 +79,15 @@ if (!failures.length) {
       const where = result.locations?.[0]?.physicalLocation ?? {};
       const file = where.artifactLocation?.uri ?? 'unknown';
       const line = where.region?.startLine ?? 0;
-      findings.push({ check: result.ruleId, file, line, sample: await fingerprint(file, line) });
+      findings.push({ check: result.ruleId, file, line, sample: fingerprint(file, line) });
     }
 
     for (const finding of findings) {
       const key = `${finding.check}|${finding.file}|${finding.sample}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
-      if (!accepted.has(key)) {
+      if (finding.sample === 'unreadable') {
+        failures.push(`${finding.file}:${finding.line}  ${finding.check} — could not be read out of the archive, so it cannot be matched to a review.`);
+      } else if (!accepted.has(key)) {
         failures.push(`${finding.file}:${finding.line}  ${finding.check}  sample ${finding.sample} — not reviewed. Add it to data/electron-audit-accepted.json with a reason, or fix the finding.`);
       }
     }
