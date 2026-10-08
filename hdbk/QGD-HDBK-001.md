@@ -232,3 +232,22 @@ KI7MT's decision was to say so, per platform, rather than to reach for the neare
 version. Pinning back to a validated 3.1 would buy a word in a sentence and cost every fix since.
 `QGD-SEC-0018` sets the condition for changing it: a validated 4.x, pinned exactly, and the
 wording steps up then and not before.
+
+
+## 10. Themes follow the system, and dark is not an afterthought
+
+`QGD-FRM-0001` to `QGD-FRM-0004` are KI7MT's decision of 2026-10-08. Following the operating
+system is the default because an operator who has already told their machine which they want
+should not have to tell this application too, and `QGD-FRM-0002` keeps the override for the
+case where they do.
+
+`QGD-FRM-0003` is the one that costs something. A dark theme that is really dark grey is
+comfortable in an office and useless at two in the morning on a contest, where the screen beside
+the radio is the brightest thing in the room; a light theme without strong contrast is unreadable
+on a picnic table in sunlight. Both of those are the operating conditions this application is
+for, which is why `QGD-PRT-0103`'s gate now requires KI7MT to approve the baselines in both
+rather than in whichever one happened to be set.
+
+`QGD-FRM-0004` says what is not being built. A red night theme is a real idea for a later Part
+and writing it down as out of scope is cheaper than discovering halfway through P3 that somebody
+started it.

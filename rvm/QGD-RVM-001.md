@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `226bc66a4d45aca2ef6a5cd03305d9442b2106bd` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `4df2cf0e2d965e4a0f1441444f9028870f8a30f2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `226bc66a4d45aca2ef6a5cd03305d9442b2106bd` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `4df2cf0e2d965e4a0f1441444f9028870f8a30f2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 76 requirements · 12 Parts · 1 Demo · 24 Inspection · 26 Static · 37 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 80 requirements · 12 Parts · 2 Demo · 26 Inspection · 26 Static · 39 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -79,6 +79,10 @@
 | `QGD-SEC-0016` | **Never** "FIPS compliant", "FIPS certified", "FIPS approved application", or "validated" for any module version or platform that is not on a CMVP certificate. | Static | ✓ |
 | `QGD-SEC-0017` | Release evidence records the built module version, the crate version, the platform, and the CMVP validated and submitted lists with the date they were checked. | Test | ✓ |
 | `QGD-SEC-0018` | When a 4.x module version is CMVP-validated, `aws-lc-rs` is pinned to exactly that version and the wording steps up to "validated". An older validated version is not pinned in the meantime. | Inspection |  |
+| `QGD-FRM-0001` | The default theme follows the operating system — light when the system is light, dark when it is dark — and changes with it while the application is running, without a restart. | Test | ✓ |
+| `QGD-FRM-0002` | Settings offers System, Light and Dark. System is the default, and the choice is remembered for that user. | Test | ✓ |
+| `QGD-FRM-0003` | Light and dark are equally first class. Dark is properly dark, for night nets and contests, not grey; light carries strong contrast for daylight field use. Both are approved by KI7MT under `QGD-PRT-0103`. | Demo, Inspection |  |
+| `QGD-FRM-0004` | A low-light or red night theme is not built in Release 1. | Inspection |  |
 | `QGD-TST-0001` | One command, `make verify`, runs every check and produces the report. | Test | ✓ |
 | `QGD-TST-0002` | `make verify` exits non-zero on any failure. | Test | ✓ |
 | `QGD-TST-0003` | The report records pending acceptance evidence honestly — a gate not yet met is reported as not met, never as passed or omitted. | Inspection |  |
@@ -94,12 +98,12 @@
 | P0 | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | The core loads in Node and round-trips a credential through the macOS Keychain, unattended: write, read back, replace, select, delete, and the entry named by the convention |
 | P1 | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's Keychain round-trip under `QGD-PRT-0100`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
 | P2 | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract; application logging | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected. Every process logs into one redacted JSON-lines stream held inside the size, total and retention caps, and a raised level reverts on its own |
-| P3 | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
+| P3 | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | e2e navigation; screenshot baselines approved by KI7MT **in both light and dark**; axe clean |
 | P4 | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | Engine starts on a free port; restore works; migrations apply |
 | P5 | `QGD-PRT-0105` | Reference data: ADIF definitions (`all.json`), CQ and ITU zones, DOKs, and the validation built from them | The reference data loads into the engine and the validation built from it answers ADIF's own cases |
 | P6 | `QGD-PRT-0106` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | KI7MT walks setup on a clean machine; export round-trips |
 | P7 | `QGD-PRT-0107` | App runtime, official tier, grant model, over the message API — the app API | An app without a grant is refused; proven by a no-credential app (solar) and a granted one (QRZ lookup); and by a test application that uses the API and nothing else |
-| P8 | `QGD-PRT-0108` | QG ADIF: validation, import and export of `.adi` files, reading ADIF's definitions from the reference data rather than loading them itself. **Files only; no QSO storage** | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
+| P8 | `QGD-PRT-0108` | QG ADIF: validation, import and export of `.adi` files, using the core's ADIF definitions from `QGD-PRT-0105` through the app API, as any application does under `QGD-REP-0003`, rather than loading them itself. **Files only; no QSO storage** | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
 | P9 | `QGD-PRT-0109` | QG Club: club definition and roster | The field canvas's cases load |
 | P10 | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
 | P11 | `QGD-PRT-0111` | Updates and onboarding | An update installs on a clean machine |
