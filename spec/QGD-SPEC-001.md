@@ -105,7 +105,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | **P5** | `QGD-PRT-0105` | Reference data: ADIF definitions (`all.json`), CQ and ITU zones, DOKs, and the validation built from them | P4 | The reference data loads into the engine and the validation built from it answers ADIF's own cases |
 | **P6** | `QGD-PRT-0106` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | P0, P4 | KI7MT walks setup on a clean machine; export round-trips |
 | **P7** | `QGD-PRT-0107` | App runtime, official tier, grant model, over the message API — the app API | P6 | An app without a grant is refused; proven by a no-credential app (solar) and a granted one (QRZ lookup); and by a test application that uses the API and nothing else |
-| **P8** | `QGD-PRT-0108` | QG ADIF: validation, import and export of `.adi` files, using the core's ADIF definitions from `QGD-PRT-0105` through the app API, as any application does under `QGD-REP-0003`, rather than loading them itself. **Files only; no QSO storage** | P5, P7 | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
+| **P8** | `QGD-PRT-0108` | QG ADIF: validate, check and repair `.adi` files, using the core's ADIF definitions from `QGD-PRT-0105` through the app API, as any application does under `QGD-REP-0003`, rather than loading them itself. **Files only; no QSO storage** | P5, P7 | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
 | **P9** | `QGD-PRT-0109` | QG Club: club definition and roster | P7 | The field canvas's cases load |
 | **P10** | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | P9 | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
 | **P11** | `QGD-PRT-0111` | Updates and onboarding | P6–P10 | An update installs on a clean machine |
@@ -269,6 +269,7 @@ README and the documentation **exactly**, and nowhere is it paraphrased.
 | `QGD-FRM-0002` | Settings offers System, Light and Dark. System is the default, and the choice is remembered for that user. | Test |
 | `QGD-FRM-0003` | Light and dark are equally first class. Dark is properly dark, for night nets and contests, not grey; light carries strong contrast for daylight field use. Both are approved by KI7MT under `QGD-PRT-0103`. | Demo, Inspection |
 | `QGD-FRM-0004` | A low-light or red night theme is not built in Release 1. | Inspection |
+| `QGD-FRM-0005` | The shell is built in Svelte. | Inspection |
 
 ## 5. Test, verification and release
 
