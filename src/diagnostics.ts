@@ -119,6 +119,10 @@ export function zip(entries: readonly ArchiveEntry[]): Buffer {
 const SECRET_FIELDS = new Set(REDACTED_FIELDS.map(field => field.toLowerCase()));
 
 function redactValue(value: unknown): unknown {
+  // A string value can carry a secret the field name cannot reveal:
+  // {"msg":"connection failed password=synthetic"} is a perfectly ordinary
+  // record. Field-name redaction alone does not reach inside it.
+  if (typeof value === 'string') return redactPlain(value);
   if (Array.isArray(value)) return value.map(redactValue);
   if (value !== null && typeof value === 'object') {
     const result: Record<string, unknown> = {};
@@ -130,18 +134,26 @@ function redactValue(value: unknown): unknown {
   return value;
 }
 
+const NAMES = '(?:password|api[-_]?key|secret|token|passphrase|credential)s?';
 // A quoted value is still a value: stopping at the quote leaves the secret.
-const PLAIN_SECRET = /((?:password|api[-_]?key|secret|token|passphrase|credential)s?\s*[=:]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;]+)/gi;
+const PLAIN_SECRET = new RegExp(`(\\b${NAMES}\\s*[=:]\\s*)("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|[^\\s,;}\\]]+)`, 'gi');
+// A quoted FIELD name, for the lines that never reach the structured path:
+// JSON behind a prefix, truncated JSON, pretty-printed JSON, a top-level array.
+const QUOTED_FIELD = new RegExp(`("${NAMES}"\\s*:\\s*)("(?:[^"\\\\]|\\\\.)*"|[^\\s,}\\]]+)`, 'gi');
 const SENTINEL = /QG_FAKE_(?:CREDENTIAL|ROSTER)_[A-Za-z0-9_-]+/g;
 
 function redactPlain(line: string): string {
-  return line.replace(PLAIN_SECRET, '$1[redacted]').replace(SENTINEL, '[redacted]');
+  return line
+    .replace(QUOTED_FIELD, '$1"[redacted]"')
+    .replace(PLAIN_SECRET, '$1[redacted]')
+    .replace(SENTINEL, '[redacted]');
 }
 
 export function redactForExport(text: string): string {
   return text.split('\n').map(line => {
     const trimmed = line.trim();
-    if (trimmed.startsWith('{')) {
+    // A top-level array is a record too.
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
         const parsed: unknown = JSON.parse(trimmed);
         if (parsed !== null && typeof parsed === 'object') {

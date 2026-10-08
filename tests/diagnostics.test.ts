@@ -180,3 +180,27 @@ describe('QGD-LOG-0012 redaction by field, whatever the value is', () => {
     expect(out).not.toContain('"x"');
   });
 });
+
+describe('QGD-LOG-0012 the lines that do not take the structured path', () => {
+  it.each([
+    ['{"msg":"connection failed password=synthetic host=localhost"}', 'synthetic', 'a secret inside a message string'],
+    ['ERROR {"password":"synthetic"}', 'synthetic', 'a record behind a prefix'],
+    ['{"password":"synthetic","msg":', 'synthetic', 'a truncated record'],
+    ['  "password": "synthetic",', 'synthetic', 'one line of pretty-printed JSON'],
+    ['[{"apiKey":"synthetic"}]', 'synthetic', 'a top-level array'],
+    ['{"nested":{"msg":"token=synthetic"}}', 'synthetic', 'an assignment nested in a string value']
+  ])('removes %#: %s', (line, secret) => {
+    expect(redactForExport(line)).not.toContain(secret);
+  });
+
+  it('still leaves an ordinary message intact', () => {
+    const line = '{"level":30,"process":"persona","command":"list","msg":"handled"}';
+    expect(redactForExport(line)).toBe(line);
+  });
+
+  it('keeps the host and the reason a reader needs', () => {
+    const out = redactForExport('{"msg":"connection failed password=synthetic host=localhost"}');
+    expect(out).toContain('host=localhost');
+    expect(out).toContain('connection failed');
+  });
+});
