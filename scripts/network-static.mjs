@@ -214,7 +214,12 @@ export function violations(source, fileName = 'input.ts') {
           }
         }
       }
-      position = end - 1;
+      // Resume at the specifier, not at the clause's end: a declaration without
+      // a semicolon would otherwise swallow the statement after it.
+      // `export { join } from 'node:path'` followed by `fetch(url)` must still
+      // report the call.
+      if (fromIndex >= 0) position = position + 1 + fromIndex + 1;
+      else if (is(clause[0], 'string')) position = position + 1;
       continue;
     }
 

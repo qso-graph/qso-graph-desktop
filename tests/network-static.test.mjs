@@ -40,7 +40,11 @@ describe('QGD-CRD-0007 static gate', () => {
     ["export { get } from 'node:https';", 'a networking re-export'],
     ["export * from 'node:net';", 'a star re-export of a networking module'],
     ["import { join } from 'node:path'\nexport { get } from 'node:https';", 'a safe import then a networking re-export'],
-    ["export { net } from 'electron';", "a re-export of electron's networking"]
+    ["export { net } from 'electron';", "a re-export of electron's networking"],
+    ["export { join } from 'node:path'\nfetch(url);", 'a call after a semicolonless re-export'],
+    ["import { join } from 'node:path'\nfetch(url);", 'a call after a semicolonless import'],
+    ["import './side-effect.js'\nfetch(url);", 'a call after a semicolonless side-effect import'],
+    ["export * from './safe.js'\nnew WebSocket(url);", 'a client after a semicolonless star re-export']
   ])('catches %#: %s', source => {
     expect(violations(source).length).toBeGreaterThan(0);
   });
