@@ -84,6 +84,34 @@ try {
   for (const command of malformed) {
     expect(await ask(page, command)).toEqual({ ok: false, error: 'Invalid persona request.' });
   }
+  // QGD-PRC-0006 and the broker's sender check: a non-main frame must have no
+  // path to the broker. A subframe can be created — window.frames reports it —
+  // so the check is load bearing. What it cannot have is the bridge: the preload
+  // does not run in subframes, and the main frame cannot reach into it either.
+  stage = 'no non-main frame can reach the broker';
+  const subframe = await page.evaluate(async () => {
+    const frame = document.createElement('iframe');
+    frame.src = 'qg://desktop/index.html';
+    document.body.appendChild(frame);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const reach = run => { try { return run(); } catch (error) { return `threw ${error.name}`; } };
+    return {
+      created: window.frames.length,
+      documentReachable: reach(() => !!frame.contentWindow.document.body),
+      bridgeReachable: reach(() => typeof frame.contentWindow.personas)
+    };
+  });
+  expect(subframe.created, 'no subframe was created, so this assertion proves nothing').toBeGreaterThan(0);
+  expect(subframe.documentReachable, 'the main frame can reach into a subframe').toBe('threw SecurityError');
+  expect(subframe.bridgeReachable, 'the main frame can reach a subframe bridge').toBe('threw SecurityError');
+  // And from inside the frame itself, where Playwright can go and script cannot.
+  const inFrame = page.frames().filter(frame => frame !== page.mainFrame());
+  expect(inFrame.length, 'Playwright sees no subframe to address').toBeGreaterThan(0);
+  for (const frame of inFrame) {
+    const bridge = await frame.evaluate(() => typeof window.personas).catch(() => 'unreachable');
+    expect(['undefined', 'unreachable'], 'a subframe holds the persona bridge').toContain(bridge);
+  }
+
   // Refusing malformed input must not have disturbed the service or the record.
   const intact = await ask(page, { type: 'list' });
   expect(intact.ok).toBe(true);
