@@ -29,6 +29,7 @@ const commands = [
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['engine-lifecycle', ['scripts/engine-lifecycle.mjs']],
   ['engine-migrations', ['scripts/engine-migrations.mjs']],
+  ['engine-backup', ['scripts/engine-backup.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['axe', ['scripts/axe.mjs']],
   ['screenshots', ['scripts/screenshots.mjs']],
