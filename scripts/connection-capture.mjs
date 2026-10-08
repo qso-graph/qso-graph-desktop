@@ -43,6 +43,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { classify } from './endpoint.mjs';
 import { violations, PRODUCT_SOURCES } from './network-static.mjs';
 import { sentinelsIn } from './artifact-scan.mjs';
 import { redact } from './report.mjs';
@@ -55,7 +56,6 @@ const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 const persona = `qg-test-${randomUUID()}`;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
-const LOOPBACK = /^(127\.0\.0\.1|\[?::1\]?|localhost)$/;
 let application;
 let stage = 'start the listener';
 let credentialSaved = false;
@@ -79,8 +79,6 @@ function tree(root) {
   return found;
 }
 
-const host = endpoint => endpoint.replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
-
 function sample(label, processes) {
   const run = spawnSync('/usr/sbin/lsof', ['-nP', '-w', '-i', '-a', '-p', [...processes.keys()].join(',')], { encoding: 'utf8' });
   if (run.status !== 0 && !run.stdout) throw new Error('Connections could not be captured.');
@@ -91,11 +89,11 @@ function sample(label, processes) {
     const pid = Number(columns[1]);
     const name = columns.slice(8).join(' ');
     const [local, remote] = name.replace(/\s*\(\w+\)$/, '').split('->');
-    const hosts = [local, remote].filter(Boolean).map(host);
+    const endpoint = { local: local ?? '', remote: remote ?? '' };
+    const { kind, external } = classify(endpoint);
     endpoints.push({
       pid, process: processes.get(pid) ?? 'unknown', protocol: columns[7],
-      state: name.match(/\((\w+)\)$/)?.[1] ?? '', local: local ?? '', remote: remote ?? '',
-      external: hosts.some(value => !LOOPBACK.test(value))
+      state: name.match(/\((\w+)\)$/)?.[1] ?? '', ...endpoint, kind, external
     });
   }
   return { label, processes: Object.fromEntries(processes), endpoints };
