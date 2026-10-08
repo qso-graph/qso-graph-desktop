@@ -19,6 +19,7 @@ const commands = [
   ['build', [npmCli, 'run', 'build']],
   ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
+  ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
   ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
@@ -26,7 +27,8 @@ const commands = [
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['package', [npmCli, 'run', 'package']],
-  ['packaged-launch', ['scripts/packaged-smoke.mjs']]
+  ['packaged-launch', ['scripts/packaged-smoke.mjs']],
+  ['electron-audit', ['scripts/electron-audit.mjs']]
 ];
 const suites = [];
 for (const [name, args] of commands) {

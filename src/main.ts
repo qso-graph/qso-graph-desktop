@@ -41,6 +41,9 @@ function createWindow(): void {
       nodeIntegrationInWorker: false,
       nodeIntegrationInSubFrames: false,
       webviewTag: false,
+      // QGD-SEC-0009 and QGD-PRC-0006: middle-click can start a navigation of
+      // its own. Nothing in this application needs auxclick.
+      disableBlinkFeatures: 'Auxclick',
       webSecurity: true,
       allowRunningInsecureContent: false,
       spellcheck: false

@@ -19,6 +19,7 @@ export function blockedBy(name, suites) {
   // Nothing downstream can be built, packaged or launched without a build.
   if (failed('build')) return 'build';
   if (CREDENTIAL_SUITES.includes(name) && failed('keychain-roundtrip')) return 'keychain-roundtrip';
-  if (name === 'packaged-launch' && failed('package')) return 'package';
+  // Both of these read what packaging produced.
+  if (['packaged-launch', 'electron-audit'].includes(name) && failed('package')) return 'package';
   return undefined;
 }

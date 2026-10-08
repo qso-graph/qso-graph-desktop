@@ -1,0 +1,24 @@
+{
+  "register": "Electron audit findings reviewed and accepted",
+  "tool": "@doyensec/electronegativity",
+  "note": "QGD-SEC-0014. A finding not listed here fails make verify. An entry here that the tool no longer reports also fails it, so the list cannot outlive what it explains. Each entry is a decision someone made, not a suppression.",
+  "reviewed": "2026-10-07",
+  "reviewedBy": "watson, with codex review",
+  "accepted": [
+    {
+      "check": "CSP_GLOBAL_CHECK",
+      "file": "dist/renderer/index.html",
+      "reason": "The policy is default-src 'none' with 'self' allowed only for the one stylesheet and the one script this application ships. The check objects to 'self' in principle; the only stricter setting is to inline them, which the same policy forbids and which is worse. connection-capture proves the policy holds at runtime: the renderer reaches nothing by any of seven routes."
+    },
+    {
+      "check": "CUSTOM_ARGUMENTS_JS_CHECK",
+      "file": "dist/main.js",
+      "reason": "The switches disable background networking, component update, domain reliability, sync, pings, and three features. Every one of them removes something the application would otherwise do; none widens what it can reach."
+    },
+    {
+      "check": "PRELOAD_JS_CHECK",
+      "file": "dist/main.js",
+      "reason": "A preload is the architecture: it is how the sandboxed renderer reaches the broker without Node. QGD-SEC-0007 constrains what it may expose to named functions only, and src/preload.cts exposes exactly one. The check asks for review, and this is the review."
+    }
+  ]
+}

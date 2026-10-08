@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'build', 'unit', 'rust-unit', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'package', 'packaged-launch'];
+const ORDER = ['spec-rvm', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'package', 'packaged-launch', 'electron-audit'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -24,7 +24,7 @@ describe('QGD-TST-0007', () => {
 
   it('still runs and reports the build and the packaging step', () => {
     const suites = run(['keychain-roundtrip']);
-    for (const name of ['spec-rvm', 'build', 'unit', 'rust-unit', 'crypto-evidence', 'process-recovery', 'package']) {
+    for (const name of ['spec-rvm', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'process-recovery', 'package']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }
   });
@@ -39,7 +39,7 @@ describe('QGD-TST-0007', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
     expect(resultOf(suites, 'rust-unit').result).toBe('PASS');
-    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'package', 'packaged-launch']) {
+    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'package', 'packaged-launch', 'electron-audit']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });
@@ -47,6 +47,7 @@ describe('QGD-TST-0007', () => {
   it('stops the packaged launch when packaging fails, and nothing else', () => {
     const suites = run(['package']);
     expect(resultOf(suites, 'packaged-launch')).toEqual({ name: 'packaged-launch', result: 'NOT RUN', blockedBy: 'package' });
+    expect(resultOf(suites, 'electron-audit')).toEqual({ name: 'electron-audit', result: 'NOT RUN', blockedBy: 'package' });
     for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke', 'connection-capture']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }

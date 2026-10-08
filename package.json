@@ -16,10 +16,15 @@
     "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@types/node": "26.6.4",
     "electron": "44.6.0",
     "electron-builder": "26.15.3",
+    "eslint": "10.12.0",
+    "eslint-plugin-security": "4.2.0",
+    "eslint-plugin-svelte": "3.23.0",
+    "svelte": "5.57.2",
     "typescript": "7.0.2",
     "vitest": "5.0.3"
   },

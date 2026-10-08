@@ -218,6 +218,9 @@ try {
         image.onload = resolve;
         image.src = `${url}.png`;
       })),
+      // QGD-SEC-0003 forbids this in the product. Here it is the route being
+      // proven unreachable, so the renderer has to be allowed to attempt it.
+      // eslint-disable-next-line no-restricted-syntax
       attempt('dynamicImport', url => import(`${url}.js`))
     ]));
   }, `http://127.0.0.1:${port}`);
