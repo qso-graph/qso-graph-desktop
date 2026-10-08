@@ -8,6 +8,10 @@ import { artifactScan, sentinelsIn } from './artifact-scan.mjs';
 await mkdir('report', { recursive: true });
 let previous;
 try { previous = JSON.parse(await readFile('report/summary.json', 'utf8')); } catch {}
+// The sign-off register, so the report states what is actually signed off.
+let signedOff = [];
+try { signedOff = JSON.parse(await readFile('data/part-signoff.json', 'utf8')).signedOff ?? []; }
+catch { signedOff = []; }
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run verification with make verify or npm run verify.');
 const commands = [
@@ -56,7 +60,7 @@ const report = {
   sha: head.status === 0 ? head.stdout.trim() : 'uncommitted-local-preview',
   date: new Date().toISOString(), os: process.platform, arch: process.arch,
   result: outcome(),
-  partSignOff: 'PENDING', retries: 0, suites,
+  partSignOff: signedOff, retries: 0, suites,
   delta: previous ? `${previous.result} → ${outcome()}` : 'first local run'
 };
 const write = async () => {

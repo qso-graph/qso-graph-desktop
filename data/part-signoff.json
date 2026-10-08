@@ -1,0 +1,15 @@
+{
+  "register": "Part sign-off",
+  "note": "A Part is signed off when KI7MT has seen its exit gate in QGD-SPEC-001 §2.1 met. A green local run is evidence, not sign-off. Changed only on KI7MT's direction; an agent does not add an entry on its own. Dates are lab-local (UTC-6).",
+  "signedOff": [
+    {
+      "part": "P0",
+      "id": "QGD-PRT-0100",
+      "by": "KI7MT",
+      "date": "2026-10-07",
+      "commit": "f8078e2",
+      "evidence": "keychain-roundtrip run on the M3 by KI7MT",
+      "recordedAtUtc": "2026-10-08T04:24:57Z"
+    }
+  ]
+}
