@@ -108,3 +108,42 @@ what KI7MT directed on 2026-10-07. A suite is stopped when its result would depe
 thing that just failed, and run otherwise. `QGD-TST-0003` already requires the report to be
 honest about what was not met; a suite reported as not run, naming what blocked it, satisfies
 that better than a suite silently absent.
+
+## 5. Why the Python proof left P0
+
+`QGD-CRD-0004` originally made a cross-application round trip a P0 gate: the desktop writes a
+credential, `qso-graph-auth` reads the value back, and the reverse. It never passed twice. The
+diagnosis recorded at the time was an unresolved Keychain authorization, and the suspicion was
+a permission dialog.
+
+Measurement on 2026-10-07 confirmed the dialog and then found that nothing available to this
+project can remove it. Operations performed by the process that wrote an entry complete in
+hundredths of a second with no prompt. An entry written by one process and read by another
+raises a macOS authorization dialog that a human must answer. Seeding the entry with an
+explicit trusted-application list — the two reading binaries by path, not "all applications" —
+did **not** remove the prompt, because `codesign` reports every party as ad-hoc signed with no
+team identifier: `node`, the `python` interpreter, and the `napi-rs` addon itself. macOS cannot
+form a stable designated requirement for an ad-hoc binary, so a trusted-application entry can
+never match one and authorization always falls through to the operator. The only setting that
+would silence it is "allow all applications", which widens the ACL on every entry the product
+writes and is not acceptable for a credential store.
+
+A gate that cannot be met unattended is not a gate; it is a standing request for someone to
+click. Worse, it was declared `Test` while needing a human, which is the same defect as a tick
+in `QGD-RVM-001` with no check behind it — the thing `QGD-TST-0004` and `QGD-TST-0005` exist to
+make impossible. KI7MT's direction on 2026-10-07 was to take Python out of P0 entirely.
+
+What replaced it is `QGD-PRT-0100`'s exit gate, proven by `scripts/keychain-roundtrip.mjs`:
+the writing process round-trips, replaces, selects and deletes its own entry, and a
+metadata-only lookup confirms the entry is named by the convention. Metadata carries no secret
+and needs no authorization, so `QGD-CRD-0003` keeps its `Test` method without a second runtime.
+The suite runs in under a fifth of a second, unattended, where its predecessor needed an
+operator and still timed out.
+
+This narrowed P0's scope; it did not retire the contract. `QGD-CRD-0003` still makes the keyring
+naming convention the contract between the core and `qso-graph-auth`, and `QGD-CRD-0005` still
+leaves the languages either side of it free. One consequence is worth stating plainly, because
+it is a property of the platform and not of this build: an operator who saves a credential in
+the desktop will be asked by macOS to authorize the first read of it by any other application,
+including the Python MCP servers. Signing under D-27 would settle our own side of that; a PyPI
+package running under the user's own interpreter it would not.

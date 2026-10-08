@@ -13,7 +13,7 @@ const commands = [
   ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
   ['build', [npmCli, 'run', 'build']],
   ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs']],
-  ['keychain-interop', ['scripts/interop.mjs']],
+  ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['package', [npmCli, 'run', 'package']],

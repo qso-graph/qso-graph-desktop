@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `3a5190fb364d90a4488834173c84436d473ad36c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `76afbc4742c4fe8a1cb918990b84319b96a4dfb6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `3a5190fb364d90a4488834173c84436d473ad36c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `76afbc4742c4fe8a1cb918990b84319b96a4dfb6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 35 requirements · 12 Parts · 12 Inspection · 11 Static · 15 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 35 requirements · 12 Parts · 13 Inspection · 11 Static · 14 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -23,7 +23,7 @@
 | `QGD-CRD-0001` | The credential core is Rust, built as a `napi-rs` native addon. | Static | ✓ |
 | `QGD-CRD-0002` | The core owns the OS credential stores, X.509 and PKCS#12 handling, certificate expiry, and the grant model's enforcement point. | Inspection |  |
 | `QGD-CRD-0003` | The keyring naming convention is the contract between the core and `qso-graph-auth`; entry names are set explicitly, never left to a library default. | Test | ✓ |
-| `QGD-CRD-0004` | The desktop writes a credential and `qso-graph-auth` reads it back, and the reverse, on macOS. *(proof test 1)* | Test | ✓ |
+| `QGD-CRD-0004` | **The cross-application proof through `qso-graph-auth` is out of P0** (KI7MT, 2026-10-07). No P0 requirement, suite or exit gate depends on a Python process. `QGD-CRD-0003` is proven without one. | Inspection |  |
 | `QGD-CRD-0005` | `qso-graph-auth` remains Python; the shell and frame remain TypeScript. The convention is the contract, so the languages either side of it are free. | Inspection |  |
 | `QGD-CRD-0006` | A credential never appears in a log, an error message, an IPC payload rendered to a screen, or a report. | Static | ✓ |
 | `QGD-CRD-0007` | The renderer never holds a credential and never opens a network connection. | Static, Test | ✓ |
@@ -44,14 +44,14 @@
 | `QGD-TST-0004` | `QGD-RVM-001.md` is generated from this document's Verify columns. A hand-edited RVM fails `make verify`. | Test | ✓ |
 | `QGD-TST-0005` | Every requirement in this document carries at least one Verify method. `make verify` fails if one does not. | Static | ✓ |
 | `QGD-TST-0006` | Security tests pass before any artifact is published outside this machine. | Test | ✓ |
-| `QGD-TST-0007` | A failure of the credential proof in `QGD-CRD-0004` stops only the suites that use the OS credential store; `make verify` reports those as not run, and still runs and reports every suite that does not use it, including the build and the packaging step. | Test | ✓ |
+| `QGD-TST-0007` | A failure of the credential round-trip in `QGD-PRT-0100` stops only the suites that use the OS credential store; `make verify` reports those as not run, and still runs and reports every suite that does not use it, including the build and the packaging step. | Test | ✓ |
 
 ## Parts
 
 | Part | `QGD-*` | What | Exit gate |
 |------|---------|------|-----------|
-| P0 | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | The core loads in Node and round-trips a credential through the macOS Keychain; interop test passes both directions |
-| P1 | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's interop test under `QGD-CRD-0004`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
+| P0 | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | The core loads in Node and round-trips a credential through the macOS Keychain, unattended: write, read back, replace, select, delete, and the entry named by the convention |
+| P1 | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's Keychain round-trip under `QGD-PRT-0100`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
 | P2 | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected |
 | P3 | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
 | P4 | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | Engine starts on a free port; restore works; migrations apply |

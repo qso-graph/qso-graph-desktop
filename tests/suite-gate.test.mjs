@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'build', 'unit', 'keychain-interop', 'credential-editing', 'electron-smoke', 'package', 'packaged-launch'];
+const ORDER = ['spec-rvm', 'build', 'unit', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'package', 'packaged-launch'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -16,29 +16,29 @@ const resultOf = (suites, name) => suites.find(suite => suite.name === name);
 
 describe('QGD-TST-0007', () => {
   it('stops only the credential suites when the credential proof fails', () => {
-    const suites = run(['keychain-interop']);
+    const suites = run(['keychain-roundtrip']);
     for (const name of CREDENTIAL_SUITES) {
-      expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'keychain-interop' });
+      expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'keychain-roundtrip' });
     }
   });
 
   it('still runs and reports the build and the packaging step', () => {
-    const suites = run(['keychain-interop']);
+    const suites = run(['keychain-roundtrip']);
     for (const name of ['spec-rvm', 'build', 'unit', 'package']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }
   });
 
   it('reports a stopped suite as not run, naming what blocked it', () => {
-    const stopped = run(['keychain-interop']).filter(suite => suite.result === 'NOT RUN');
+    const stopped = run(['keychain-roundtrip']).filter(suite => suite.result === 'NOT RUN');
     expect(stopped).toHaveLength(CREDENTIAL_SUITES.length);
-    for (const suite of stopped) expect(suite.blockedBy).toBe('keychain-interop');
+    for (const suite of stopped) expect(suite.blockedBy).toBe('keychain-roundtrip');
   });
 
   it('stops everything downstream of a failed build, except the unit tests', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
-    for (const name of ['keychain-interop', 'credential-editing', 'electron-smoke', 'package', 'packaged-launch']) {
+    for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke', 'package', 'packaged-launch']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });
@@ -46,7 +46,7 @@ describe('QGD-TST-0007', () => {
   it('stops the packaged launch when packaging fails, and nothing else', () => {
     const suites = run(['package']);
     expect(resultOf(suites, 'packaged-launch')).toEqual({ name: 'packaged-launch', result: 'NOT RUN', blockedBy: 'package' });
-    for (const name of ['keychain-interop', 'credential-editing', 'electron-smoke']) {
+    for (const name of ['keychain-roundtrip', 'credential-editing', 'electron-smoke']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }
   });

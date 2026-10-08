@@ -23,8 +23,7 @@ Registered before implementation:
 | persona-records | create, update, list and case-insensitive lookup preserve Python's format; date ordering is validated |
 | persona-active | a known persona can be selected; missing names are refused |
 | credential-selection | QRZ logbook uses the key when both values exist; other providers retain password-first behavior |
-| keychain-interop | Rust writes/Python reads and Python writes/Rust reads the same unique synthetic entry; cleanup in all exit paths |
-| metadata-interop | Python PersonaStore reads Rust's index and Rust reads Python's changes |
+| keychain-roundtrip | the writing process round-trips, replaces, selects and deletes its own unique synthetic entry; a metadata-only lookup confirms the convention name; cleanup in all exit paths |
 | credential-isolation | two synthetic personas cannot read one another's entries |
 | secret-containment | public display/status APIs return presence flags, never secrets; non-secret files and captured output contain no fixture secret |
 | ipc-boundary | wrong frame, malformed commands and extra fields are refused; core lives in a utility process |
@@ -32,7 +31,7 @@ Registered before implementation:
 
 Rust exports: `PersonaCore` constructor (trusted profile directory), `list`,
 `upsert`, `setActive`, `active`, `saveCredentials`, `credentialStatus`,
-`deleteCredentials`, `requireCredential` (trusted-core interop tests only;
+`deleteCredentials`, `requireCredential` (trusted-core round-trip tests only;
 never exposed through renderer IPC). No raw-secret read method reaches the UI.
 The editable controls also use `removeSecret`, `setPreference` and `removePersona`.
 
@@ -44,9 +43,10 @@ this preview makes no validated-module compliance claim.
 Local evidence on 2026-10-07: Rust unit tests passed (3 tests); the development
 window and the packaged arm64 app both passed create, activate, Keychain save,
 restart, and credential deletion tests using isolated synthetic profiles.
-The Python/Rust interoperability test passed once, but subsequent Python reads
-timed out. Cross-process Keychain authorization remains unresolved; repeatable
-Python interoperability and milestone acceptance are not claimed. Judge later
+The Python interoperability proof is out of P0 (KI7MT, 2026-10-07): cross-application
+reads raise a macOS authorization dialog that an explicit trusted-application list
+cannot remove, because every party is ad-hoc signed. See QGD-HDBK-001 section 5. The
+replacement Rust round-trip passes unattended in under 0.2 s. Judge later
 confirmed a successful QRZ test through the app using a saved credential. That
 user check is separate from the isolated automated validation described below.
 

@@ -17,7 +17,7 @@ export function blockedBy(name, suites) {
   if (ALWAYS_RUN.includes(name)) return undefined;
   // Nothing downstream can be built, packaged or launched without a build.
   if (failed('build')) return 'build';
-  if (CREDENTIAL_SUITES.includes(name) && failed('keychain-interop')) return 'keychain-interop';
+  if (CREDENTIAL_SUITES.includes(name) && failed('keychain-roundtrip')) return 'keychain-roundtrip';
   if (name === 'packaged-launch' && failed('package')) return 'package';
   return undefined;
 }
