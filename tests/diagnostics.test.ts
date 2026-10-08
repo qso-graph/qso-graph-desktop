@@ -204,3 +204,45 @@ describe('QGD-LOG-0012 the lines that do not take the structured path', () => {
     expect(out).toContain('connection failed');
   });
 });
+
+// Every shape that has ever been found to leak, in one place. A rewrite that
+// loses coverage fails here immediately — which is how the last three rounds of
+// regressions would have been caught before they were committed. This list only
+// grows.
+const LEAK_CORPUS: readonly [string, string][] = [
+  ['{"password":"synthetic"}', 'synthetic'],
+  ['{"credentials":{"value":"synthetic"}}', 'synthetic'],
+  ['{"token":123456}', '123456'],
+  ['{"secret":["synthetic"]}', 'synthetic'],
+  ['{"outer":{"inner":{"password":"synthetic"}}}', 'synthetic'],
+  ['{"list":[{"apiKey":"synthetic"}]}', 'synthetic'],
+  ['{"msg":"connection failed password=synthetic host=localhost"}', 'synthetic'],
+  ['{"nested":{"msg":"token=synthetic"}}', 'synthetic'],
+  ['ERROR {"password":"synthetic"}', 'synthetic'],
+  ['{"password":"synthetic","msg":', 'synthetic'],
+  ['  "password": "synthetic",', 'synthetic'],
+  ['[{"apiKey":"synthetic"}]', 'synthetic'],
+  ["password='synthetic demo'", 'synthetic demo'],
+  ['password="synthetic demo"', 'synthetic demo'],
+  ['api_key = "synthetic demo"', 'synthetic demo'],
+  ['FATAL token: synthetic', 'synthetic'],
+  ['access_token=synthetic', 'synthetic'],
+  ['db_password=synthetic', 'synthetic'],
+  ['password=abc]synthetic', 'abc]synthetic'],
+  ['password=}synthetic', '}synthetic'],
+  ['passphrase=synthetic', 'synthetic'],
+  ['value QG_FAKE_CREDENTIAL_abc here', 'QG_FAKE_CREDENTIAL_abc']
+];
+
+describe('QGD-LOG-0012 nothing in the corpus survives an export', () => {
+  it.each(LEAK_CORPUS)('removes the secret from %s', (line, secret) => {
+    expect(redactForExport(line)).not.toContain(secret);
+  });
+
+  it('removes every one of them when they arrive as one file', () => {
+    const file = LEAK_CORPUS.map(([line]) => line).join('\n') + '\n';
+    const out = redactForExport(file);
+    for (const [, secret] of LEAK_CORPUS) expect(out).not.toContain(secret);
+    expect(out.split('\n')).toHaveLength(LEAK_CORPUS.length + 1);
+  });
+});

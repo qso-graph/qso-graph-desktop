@@ -135,8 +135,12 @@ function redactValue(value: unknown): unknown {
 }
 
 const NAMES = '(?:password|api[-_]?key|secret|token|passphrase|credential)s?';
-// A quoted value is still a value: stopping at the quote leaves the secret.
-const PLAIN_SECRET = new RegExp(`(\\b${NAMES}\\s*[=:]\\s*)("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|[^\\s,;}\\]]+)`, 'gi');
+// No word boundary before the name: `access_token` and `db_password` are
+// credentials and an underscore is a word character, so \b excludes exactly the
+// prefixed names worth catching. No JSON delimiters in the unquoted value
+// either — a password may contain } or ] and truncating at one leaks the rest.
+// Quoted JSON shapes are QUOTED_FIELD's job, below.
+const PLAIN_SECRET = new RegExp(`(${NAMES}\\s*[=:]\\s*)("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|[^\\s,;]+)`, 'gi');
 // A quoted FIELD name, for the lines that never reach the structured path:
 // JSON behind a prefix, truncated JSON, pretty-printed JSON, a top-level array.
 const QUOTED_FIELD = new RegExp(`("${NAMES}"\\s*:\\s*)("(?:[^"\\\\]|\\\\.)*"|[^\\s,}\\]]+)`, 'gi');
