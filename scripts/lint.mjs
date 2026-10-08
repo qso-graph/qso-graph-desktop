@@ -60,7 +60,9 @@ const eslint = new ESLint({ cwd: root });
 const CONTROLS = [
   { name: 'svelte/no-at-html-tags', path: 'src/renderer/__control__.svelte', code: '<div>{@html value}</div>\n' },
   { name: 'no-eval', path: 'dist/__control__.js', code: 'eval("1");\n' },
-  { name: 'no-restricted-syntax', path: 'dist/__control__.js', code: 'spawn("x", { shell: true });\n' }
+  { name: 'no-restricted-syntax', path: 'dist/__control__.js', code: 'spawn("x", { shell: true });\n' },
+  { name: 'security/detect-non-literal-require', path: 'dist/__control__.js', code: 'const m = require(name);\n' },
+  { name: 'security/detect-unsafe-regex', path: 'dist/__control__.js', code: 'const r = /(a+)+$/;\n' }
 ];
 
 const failures = [];
@@ -85,7 +87,9 @@ const results = await eslint.lintFiles(['.']);
 let errors = 0;
 for (const result of results) {
   for (const message of result.messages) {
-    if (message.severity !== 2) continue;
+    // Severity 1 counts too: a rule that should be a gate and arrives as a
+    // warning is exactly how the plugin's findings were lost before.
+    if (message.severity < 1) continue;
     errors++;
     const where = await original(result.filePath, message.line, message.column);
     const location = where ?? `${relative(root, result.filePath)}:${message.line}:${message.column}`;

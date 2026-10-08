@@ -58,7 +58,10 @@ export default [
     plugins: { security },
     rules: {
       ...js.configs.recommended.rules,
-      ...security.configs.recommended.rules,
+      // The plugin ships its rules as warnings. A warning is not a gate: these
+      // are the dynamic-require and unsafe-regex bans QGD-SEC-0003 relies on,
+      // so they are errors here.
+      ...Object.fromEntries(Object.keys(security.configs.recommended.rules).map(rule => [rule, 'error'])),
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',

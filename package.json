@@ -3,7 +3,7 @@
   "productName": "QG Desktop",
   "version": "0.0.0-preview.1",
   "private": true,
-  "description": "QSO Graph Desktop — local P0 preview",
+  "description": "QSO Graph Desktop \u2014 local P0 preview",
   "license": "GPL-3.0-only",
   "author": "QSO Graph contributors",
   "type": "module",
@@ -13,7 +13,8 @@
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir --publish never",
     "installer": "npm run build && electron-builder --publish never",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "postinstall": "node scripts/install-tools.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -6,90 +6,85 @@
 // 7 stops the tool starting at all.
 //
 // Pointed at app.asar, not the .app bundle. Given the bundle it parses no
-// JavaScript and reports three global findings that are all false — the
-// application does set a content policy, a window-open handler, navigation
-// prevention and permission handlers. Given the archive it reads the code.
+// JavaScript and reports three global findings that are all false.
 //
 // Told the real Electron version, because by default it assumes v0.1.0 and asks
-// about the remote module, which Electron removed in 14.
+// about the remote module Electron removed in 14.
 //
-// A finding must be in data/electron-audit-accepted.json or this fails. An
-// entry there that the tool no longer reports also fails, so the list cannot
-// outlive the thing it explains.
+// SARIF rather than CSV: the CSV writer starts an asynchronous header write and
+// an asynchronous append without sequencing them, so the header can land on top
+// of the first finding. SARIF is written once.
+//
+// A finding is accepted only when its check, its file AND a fingerprint of the
+// reviewed line all match data/electron-audit-accepted.json. Matching the check
+// and file alone would wave through a new switch or a second preload under a
+// rationale written for different code.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { access, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g');
 const binary = resolve('tools/electronegativity/node_modules/.bin/electronegativity');
 const archive = resolve('out/mac-arm64/QG Desktop.app/Contents/Resources/app.asar');
-const csv = resolve('report/electron-audit.csv');
+const sarif = resolve('report/electron-audit.sarif');
 const ELECTRON_VERSION = JSON.parse(await readFile('package.json', 'utf8')).devDependencies.electron;
 
-// A CSV field may hold commas inside quotes; the sample column always does.
-function parseCsv(text) {
-  const rows = [];
-  let row = [], field = '', quoted = false;
-  for (let index = 0; index < text.length; index++) {
-    const character = text[index];
-    if (quoted) {
-      if (character === '"' && text[index + 1] === '"') { field += '"'; index++; }
-      else if (character === '"') quoted = false;
-      else field += character;
-      continue;
-    }
-    if (character === '"') quoted = true;
-    else if (character === ',') { row.push(field.trim()); field = ''; }
-    else if (character === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
-    else if (character !== '\r') field += character;
-  }
-  if (field || row.length) { row.push(field.trim()); rows.push(row); }
-  return rows.filter(entry => entry.length > 1);
+// The reviewed line, normalised so that reformatting is not a new review but a
+// different statement is.
+async function fingerprint(file, line) {
+  const text = await readFile(resolve(file), 'utf8').catch(() => undefined);
+  if (text === undefined) return 'unreadable';
+  const source = (text.split('\n')[line - 1] ?? '').replace(/\s+/g, ' ').trim();
+  return createHash('sha256').update(source).digest('hex').slice(0, 12);
 }
 
 const failures = [];
-for (const [path, message] of [[binary, 'Electronegativity is not installed. Run: npm install --prefix tools/electronegativity'],
-                               [archive, `No packaged application to audit at ${archive}. Run: make package`]]) {
+for (const [path, message] of [
+  [binary, 'Electronegativity is not installed. Run: npm ci --prefix tools/electronegativity'],
+  [archive, `No packaged application to audit at ${archive}. Run: make package`]
+]) {
   try { await access(path); } catch { failures.push(message); }
 }
 
 if (!failures.length) {
-  // Removed first: the tool does not truncate, so a previous longer report
-  // leaves bytes under a shorter one and the parse reads a corrupted row — or,
-  // worse, a stale finding.
-  await rm(csv, { force: true });
-  const run = spawnSync(binary, ['-i', archive, '-e', ELECTRON_VERSION, '-o', csv], { encoding: 'utf8', timeout: 300_000 });
-  const output = `${run.stdout || ''}${run.stderr || ''}`.replace(ANSI, '');
+  await rm(sarif, { force: true });
+  const run = spawnSync(binary, ['-i', archive, '-e', ELECTRON_VERSION, '-o', sarif], { encoding: 'utf8', timeout: 300_000 });
+  const report = await readFile(sarif, 'utf8').catch(() => '');
 
-  // With -o the tool writes the file and prints no banner, so the proof that it
-  // ran is the file itself. The real control is the staleness check below: the
-  // accepted entries are findings we know this application produces, so a tool
-  // that reported nothing would fail on all three rather than pass silently.
-  const report = await readFile(csv, 'utf8').catch(() => '');
-  if (run.error || !report.startsWith('issue, severity, confidence')) {
+  let parsed;
+  try { parsed = JSON.parse(report); } catch { parsed = undefined; }
+  if (run.error || !parsed?.runs?.[0]) {
     failures.push('Electronegativity produced no report, so a clean result would mean nothing.');
-    failures.push(output.split('\n').filter(Boolean).slice(0, 10).join(' | '));
+    failures.push(`${run.stdout || ''}${run.stderr || ''}`.split('\n').filter(Boolean).slice(0, 8).join(' | '));
   } else {
     const register = JSON.parse(await readFile('data/electron-audit-accepted.json', 'utf8'));
-    const accepted = new Map(register.accepted.map(entry => [`${entry.check}|${entry.file}`, entry]));
-    const seen = new Set();
+    const accepted = new Map(register.accepted.map(entry => [`${entry.check}|${entry.file}|${entry.sample}`, entry]));
+    const counts = new Map();
 
-    const rows = parseCsv(report);
-    const findings = rows.slice(1).map(([check, severity, confidence, file, location]) => ({ check, severity, confidence, file, location }));
+    const findings = [];
+    for (const result of parsed.runs[0].results ?? []) {
+      const where = result.locations?.[0]?.physicalLocation ?? {};
+      const file = where.artifactLocation?.uri ?? 'unknown';
+      const line = where.region?.startLine ?? 0;
+      findings.push({ check: result.ruleId, file, line, sample: await fingerprint(file, line) });
+    }
 
     for (const finding of findings) {
-      const key = `${finding.check}|${finding.file}`;
-      seen.add(key);
+      const key = `${finding.check}|${finding.file}|${finding.sample}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
       if (!accepted.has(key)) {
-        failures.push(`${finding.file}:${finding.location}  ${finding.check}  ${finding.severity}/${finding.confidence} — not in data/electron-audit-accepted.json`);
+        failures.push(`${finding.file}:${finding.line}  ${finding.check}  sample ${finding.sample} — not reviewed. Add it to data/electron-audit-accepted.json with a reason, or fix the finding.`);
       }
     }
-    for (const key of accepted.keys()) {
-      if (!seen.has(key)) failures.push(`${key} is accepted but the tool no longer reports it; remove the entry`);
+    for (const [key, entry] of accepted) {
+      const seen = counts.get(key) ?? 0;
+      const expected = entry.occurrences ?? 1;
+      if (seen === 0) failures.push(`${key} is accepted but no longer reported; remove the entry`);
+      else if (seen !== expected) failures.push(`${key} is accepted ${expected} time(s) but reported ${seen}; review the new occurrence`);
     }
 
     if (!failures.length) {
-      console.log(`Electron audit: the packaged archive at Electron ${ELECTRON_VERSION}; ${findings.length} finding(s), all reviewed and accepted, none stale: PASS`);
+      console.log(`Electron audit: the packaged archive at Electron ${ELECTRON_VERSION}; ${findings.length} finding(s), each matching a reviewed sample, none stale: PASS`);
     }
   }
 }

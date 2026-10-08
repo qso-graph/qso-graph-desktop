@@ -1,24 +1,30 @@
 {
   "register": "Electron audit findings reviewed and accepted",
   "tool": "@doyensec/electronegativity",
-  "note": "QGD-SEC-0014. A finding not listed here fails make verify. An entry here that the tool no longer reports also fails it, so the list cannot outlive what it explains. Each entry is a decision someone made, not a suppression.",
+  "note": "QGD-SEC-0014. A finding is accepted only when its check, its file and the fingerprint of the reviewed line all match. Matching the check and file alone would wave through a new switch or a second preload under a rationale written for different code. A finding not listed fails make verify; an entry the tool no longer reports fails it too, so the list cannot outlive what it explains. The sample is a hash of the compiled line, normalised for whitespace: reformatting is not a new review, a different statement is.",
   "reviewed": "2026-10-07",
   "reviewedBy": "watson, with codex review",
   "accepted": [
     {
       "check": "CSP_GLOBAL_CHECK",
       "file": "dist/renderer/index.html",
-      "reason": "The policy is default-src 'none' with 'self' allowed only for the one stylesheet and the one script this application ships. The check objects to 'self' in principle; the only stricter setting is to inline them, which the same policy forbids and which is worse. connection-capture proves the policy holds at runtime: the renderer reaches nothing by any of seven routes."
+      "reason": "The policy is default-src 'none' with 'self' allowed only for the one stylesheet and the one script this application ships. The check objects to 'self' in principle; the only stricter setting is to inline them, which the same policy forbids and which is worse. connection-capture proves the policy holds at runtime: the renderer reaches nothing by any of seven routes.",
+      "sample": "7a9931794810",
+      "occurrences": 1
     },
     {
       "check": "CUSTOM_ARGUMENTS_JS_CHECK",
       "file": "dist/main.js",
-      "reason": "The switches disable background networking, component update, domain reliability, sync, pings, and three features. Every one of them removes something the application would otherwise do; none widens what it can reach."
+      "reason": "The switches disable background networking, component update, domain reliability, sync, pings, and three features. Every one of them removes something the application would otherwise do; none widens what it can reach.",
+      "sample": "0c938e7d2813",
+      "occurrences": 1
     },
     {
       "check": "PRELOAD_JS_CHECK",
       "file": "dist/main.js",
-      "reason": "A preload is the architecture: it is how the sandboxed renderer reaches the broker without Node. QGD-SEC-0007 constrains what it may expose to named functions only, and src/preload.cts exposes exactly one. The check asks for review, and this is the review."
+      "reason": "A preload is the architecture: it is how the sandboxed renderer reaches the broker without Node. QGD-SEC-0007 constrains what it may expose to named functions only, and src/preload.cts exposes exactly one. The check asks for review, and this is the review.",
+      "sample": "9e6434cdbbe8",
+      "occurrences": 1
     }
   ]
 }
