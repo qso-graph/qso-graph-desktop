@@ -2,7 +2,7 @@
 import { app, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { validateCommand, type PersonaReply } from './persona-contract.js';
+import { allowsSender, validateCommand, type PersonaReply } from './persona-contract.js';
 
 export function startPersonaBroker(compiledDirectory: string): () => void {
   let worker: UtilityProcess | undefined;
@@ -34,7 +34,7 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
   }
   start();
   ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
-    if (event.senderFrame !== event.sender.mainFrame || event.senderFrame.url !== 'qg://desktop/index.html' || !validateCommand(command)) return { ok: false, error: 'Invalid persona request.' };
+    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command)) return { ok: false, error: 'Invalid persona request.' };
     if (!ready || !worker) return { ok: false, error: 'The persona service is starting. Try again.' };
     if (pending.size >= 16) return { ok: false, error: 'A persona operation is still running. Try again shortly.' };
     const id = ++nextId;

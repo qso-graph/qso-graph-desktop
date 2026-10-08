@@ -22,6 +22,12 @@ export type PersonaCommand =
   | { type: 'save-credentials'; persona: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } };
 export type PersonaReply = { ok: true; data: Snapshot | CredentialStatus | CredentialTest | null } | { ok: false; error: string };
 
+// The only page allowed to reach the broker, and the only frame of it.
+export const RENDERER_URL = 'qg://desktop/index.html';
+export function allowsSender(senderFrame: unknown, mainFrame: unknown, url: string | undefined): boolean {
+  return senderFrame !== undefined && senderFrame !== null && senderFrame === mainFrame && url === RENDERER_URL;
+}
+
 const providers = new Set(['qrz', 'qrz_logbook', 'eqsl', 'lotw', 'hamqth', 'clublog']);
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

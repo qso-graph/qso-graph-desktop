@@ -84,6 +84,30 @@ try {
   for (const command of malformed) {
     expect(await ask(page, command)).toEqual({ ok: false, error: 'Invalid persona request.' });
   }
+  // The broker's sender rule, exercised rather than inspected. A subframe cannot
+  // construct an IPC request at all (no preload runs there), so the frame
+  // identity half of the rule is only reachable as a unit test —
+  // allowsSender in tests/persona-contract.test.ts. The URL half is reachable
+  // from here: pushState moves the frame off the bundled page's exact URL while
+  // keeping the same frame, and the broker must refuse. Delete the rule and this
+  // assertion fails, which is the point of it.
+  stage = 'the broker refuses a frame that is no longer the bundled page';
+  const moved = await page.evaluate(async () => {
+    history.pushState({}, '', 'index.html?probe=1');
+    const movedUrl = location.href;
+    const reply = await window.personas.request({ type: 'list' });
+    history.pushState({}, '', 'index.html');
+    const restoredUrl = location.href;
+    const after = await window.personas.request({ type: 'list' });
+    return { movedUrl, reply, restoredUrl, afterOk: after.ok };
+  });
+  expect(moved.movedUrl).toBe('qg://desktop/index.html?probe=1');
+  expect(moved.reply).toEqual({ ok: false, error: 'Invalid persona request.' });
+  // And the refusal was about the URL, not a broken service: it answers again
+  // once the frame is back on the bundled page.
+  expect(moved.restoredUrl).toBe('qg://desktop/index.html');
+  expect(moved.afterOk, 'the service did not recover after the frame URL was restored').toBe(true);
+
   // QGD-PRC-0006 and the broker's sender check: a non-main frame must have no
   // path to the broker. A subframe can be created — window.frames reports it —
   // so the check is load bearing. What it cannot have is the bridge: the preload
