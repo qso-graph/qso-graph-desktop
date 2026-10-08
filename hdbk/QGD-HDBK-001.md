@@ -147,3 +147,28 @@ it is a property of the platform and not of this build: an operator who saves a 
 the desktop will be asked by macOS to authorize the first read of it by any other application,
 including the Python MCP servers. Signing under D-27 would settle our own side of that; a PyPI
 package running under the user's own interpreter it would not.
+
+
+## 6. Logging arrives with the process map, and only logging
+
+`qso-graph-desktop#19` records decisions KI7MT made with Bob on 2026-10-08 and is held: it
+lands as one specification pull request at P5–P6, so that P0 and P1 work is not disturbed by a
+catalogue being re-cut underneath it. It carries one carve-out, that the logging section comes
+across early because it belongs with the process map, and `QGD-SPEC-001` §4.1 is that carve-out
+and nothing more.
+
+What is deliberately **not** here, and remains held: the Part catalogue re-ordering, the
+repository layout, the database layer, the club and personal-data decisions, and the removal of
+the `qso-graph-auth` contract from `QGD-CRD-0003`. Until that pull request lands, this
+specification is what the build follows, and a reader comparing the two should expect them to
+differ.
+
+`QGD-PRT-0102`'s row is the one exception taken from the issue, because a Part whose scope
+included logging while its own row did not mention it would be the §0.1 failure again: the
+catalogue is the build order, and a Part's scope has to be visible in it.
+
+The bloat controls — `QGD-LOG-0006` through `QGD-LOG-0011` — are separate requirements rather
+than one because each is a different failure. A log folder can grow without bound through a
+single file that never rotates, through many files that rotate but are never removed, through a
+debug level somebody left on, or through the engine's own log, which no amount of care on our
+side constrains. One requirement covering all four would be met by addressing any one of them.

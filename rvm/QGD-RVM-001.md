@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `76afbc4742c4fe8a1cb918990b84319b96a4dfb6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `e243225360516f58cc8f1475c04b4c3ec31568d7` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `76afbc4742c4fe8a1cb918990b84319b96a4dfb6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `e243225360516f58cc8f1475c04b4c3ec31568d7` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 35 requirements · 12 Parts · 13 Inspection · 11 Static · 14 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 48 requirements · 12 Parts · 1 Demo · 13 Inspection · 13 Static · 26 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -38,6 +38,19 @@
 | `QGD-PRC-0004` | The credential core, station I/O, and the engine supervisor each run as their own utility process. | Inspection |  |
 | `QGD-PRC-0005` | IPC is a typed contract; malformed messages are rejected, not coerced. | Test | ✓ |
 | `QGD-PRC-0006` | Context isolation and the sandbox are enabled; Node is absent from the renderer; new windows are denied; outbound fetch from the renderer is refused. | Test | ✓ |
+| `QGD-LOG-0001` | Every process logs as structured JSON lines into one stream: the TypeScript side through `pino`, the Rust core's `tracing` output forwarded into the same stream, and the engine's own log carried under the same controls. | Test | ✓ |
+| `QGD-LOG-0002` | Logs stay on the machine, in the operating system's standard log folder. Nothing is transmitted; there is no telemetry. | Static, Test | ✓ |
+| `QGD-LOG-0003` | Redaction happens in the logger, by field name, so a caller cannot forget it. | Test | ✓ |
+| `QGD-LOG-0004` | The credential core never hands a secret to a logger. | Static, Test | ✓ |
+| `QGD-LOG-0005` | The log folder is inside the sentinel scan's coverage, under `QGD-CRD-0006`. | Test | ✓ |
+| `QGD-LOG-0006` | Log files rotate by size. | Test | ✓ |
+| `QGD-LOG-0007` | The log folder has a hard total cap; when it is exceeded the oldest file is removed first. | Test | ✓ |
+| `QGD-LOG-0008` | Logs are retained by age, and older ones are removed. | Test | ✓ |
+| `QGD-LOG-0009` | The default level is `info`. | Test | ✓ |
+| `QGD-LOG-0010` | A raised debug level reverts on its own, both after a set time and at restart, so it cannot be left on. | Test | ✓ |
+| `QGD-LOG-0011` | The engine's log is held inside the same size, total and retention caps. | Test | ✓ |
+| `QGD-LOG-0012` | Exporting diagnostics produces one redacted archive for the user to send. Nothing leaves the machine unless the user sends it. | Test | ✓ |
+| `QGD-LOG-0013` | Settings carries a Logs page with a level switch and the export action. Its surface lands with the shell in `QGD-PRT-0103`; the behaviour it drives is `QGD-LOG-0009`–`QGD-LOG-0012`. | Demo |  |
 | `QGD-TST-0001` | One command, `make verify`, runs every check and produces the report. | Test | ✓ |
 | `QGD-TST-0002` | `make verify` exits non-zero on any failure. | Test | ✓ |
 | `QGD-TST-0003` | The report records pending acceptance evidence honestly — a gate not yet met is reported as not met, never as passed or omitted. | Inspection |  |
@@ -52,7 +65,7 @@
 |------|---------|------|-----------|
 | P0 | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | The core loads in Node and round-trips a credential through the macOS Keychain, unattended: write, read back, replace, select, delete, and the entry named by the convention |
 | P1 | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's Keychain round-trip under `QGD-PRT-0100`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
-| P2 | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected |
+| P2 | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract; application logging | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected. Every process logs into one redacted JSON-lines stream held inside the size, total and retention caps, and a raised level reverts on its own |
 | P3 | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
 | P4 | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | Engine starts on a free port; restore works; migrations apply |
 | P5 | `QGD-PRT-0105` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | KI7MT walks setup on a clean machine; export round-trips |

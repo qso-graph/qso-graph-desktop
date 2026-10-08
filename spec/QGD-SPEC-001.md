@@ -45,6 +45,7 @@ two copies will eventually disagree and nothing mechanical will notice.
 | `QGD-PRC` | Process map and IPC |
 | `QGD-FRM` | Frame, shell, apps |
 | `QGD-ENG` | Database engine |
+| `QGD-LOG` | Application logging |
 | `QGD-TST` | Test, verification, release |
 
 **Verify methods**, per NASA/SP-2016-6105 Rev 2 App. D, same as FM's RVM:
@@ -95,7 +96,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 |---|---|---|---|---|
 | **P0** | `QGD-PRT-0100` | Rust persona core (`napi-rs`), OS credential manager only, keyring naming convention | — | The core loads in Node and round-trips a credential through the macOS Keychain, unattended: write, read back, replace, select, delete, and the entry named by the convention |
 | **P1** | `QGD-PRT-0101` | A window that calls the core and shows a persona on screen | P0 | `npm start` opens a window on the M3 showing persona metadata and **credential status** (stored / present, never the value) obtained through the Rust core. The secret round-trip is proven in the core's Keychain round-trip under `QGD-PRT-0100`, never on screen — see `QGD-CRD-0006`, `QGD-CRD-0007` |
-| **P2** | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract | P1 | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected |
+| **P2** | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract; application logging | P1 | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected. Every process logs into one redacted JSON-lines stream held inside the size, total and retention caps, and a raised level reverts on its own |
 | **P3** | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | P2 | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
 | **P4** | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | P2 | Engine starts on a free port; restore works; migrations apply |
 | **P5** | `QGD-PRT-0105` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | P0, P4 | KI7MT walks setup on a clean machine; export round-trips |
@@ -156,6 +157,29 @@ not the operator's own.
 | `QGD-PRC-0004` | The credential core, station I/O, and the engine supervisor each run as their own utility process. | Inspection |
 | `QGD-PRC-0005` | IPC is a typed contract; malformed messages are rejected, not coerced. | Test |
 | `QGD-PRC-0006` | Context isolation and the sandbox are enabled; Node is absent from the renderer; new windows are denied; outbound fetch from the renderer is refused. | Test |
+
+## 4.1 Application logging
+
+Carried into P2 from `qso-graph-desktop#19` §5 (KI7MT with Bob, 2026-10-08), which releases
+this section early because it belongs with the process map. The rest of that issue — the Part
+catalogue re-cut, the repository layout, the database, clubs, and the `qso-graph-auth`
+contract — remains held and is **not** reflected here.
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-LOG-0001` | Every process logs as structured JSON lines into one stream: the TypeScript side through `pino`, the Rust core's `tracing` output forwarded into the same stream, and the engine's own log carried under the same controls. | Test |
+| `QGD-LOG-0002` | Logs stay on the machine, in the operating system's standard log folder. Nothing is transmitted; there is no telemetry. | Static, Test |
+| `QGD-LOG-0003` | Redaction happens in the logger, by field name, so a caller cannot forget it. | Test |
+| `QGD-LOG-0004` | The credential core never hands a secret to a logger. | Static, Test |
+| `QGD-LOG-0005` | The log folder is inside the sentinel scan's coverage, under `QGD-CRD-0006`. | Test |
+| `QGD-LOG-0006` | Log files rotate by size. | Test |
+| `QGD-LOG-0007` | The log folder has a hard total cap; when it is exceeded the oldest file is removed first. | Test |
+| `QGD-LOG-0008` | Logs are retained by age, and older ones are removed. | Test |
+| `QGD-LOG-0009` | The default level is `info`. | Test |
+| `QGD-LOG-0010` | A raised debug level reverts on its own, both after a set time and at restart, so it cannot be left on. | Test |
+| `QGD-LOG-0011` | The engine's log is held inside the same size, total and retention caps. | Test |
+| `QGD-LOG-0012` | Exporting diagnostics produces one redacted archive for the user to send. Nothing leaves the machine unless the user sends it. | Test |
+| `QGD-LOG-0013` | Settings carries a Logs page with a level switch and the export action. Its surface lands with the shell in `QGD-PRT-0103`; the behaviour it drives is `QGD-LOG-0009`–`QGD-LOG-0012`. | Demo |
 
 ## 5. Test, verification and release
 
