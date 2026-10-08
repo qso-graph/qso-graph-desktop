@@ -19,7 +19,7 @@
 
   interface Props {
     store: ShellStore;
-    onChooseTheme: (choice: ThemeChoice) => void;
+    onChooseTheme: (choice: ThemeChoice) => Promise<boolean>;
   }
   const { store, onChooseTheme }: Props = $props();
 
@@ -40,7 +40,7 @@
 </script>
 
 <header>
-  <div class="brand"><span class="mark" aria-hidden="true">QG</span><strong>QG Desktop</strong></div>
+  <div class="brand"><span class="mark" aria-hidden="true">QG</span><strong>QSO Graph Desktop</strong></div>
   <span class="platform">Your station on this Mac</span>
 </header>
 <div class="workspace">

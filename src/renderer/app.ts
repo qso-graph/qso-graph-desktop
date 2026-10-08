@@ -19,7 +19,7 @@ declare global {
 const shell = createShellStore();
 mount(Shell, {
   target: document.body,
-  props: { store: shell, onChooseTheme: (choice: ThemeChoice) => { void setThemeChoice(choice); } }
+  props: { store: shell, onChooseTheme: setThemeChoice }
 });
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;

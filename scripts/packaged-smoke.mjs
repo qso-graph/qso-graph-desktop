@@ -58,11 +58,21 @@ try {
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const username = page.getByLabel('Username', { exact: true });
   await username.fill(fakeCredential);
-  await username.press(`${modifier}+a`); await username.press(`${modifier}+c`);
+  // Re-copied inside the poll rather than once before it. The clipboard is the
+  // operating system's, shared with whoever is using the machine: a copy made
+  // once can be replaced between then and the paste, which is how this failed
+  // a run on a machine in use while every assertion in it was correct. Each
+  // attempt re-establishes the source, so the only thing being measured is
+  // whether a native paste reaches a masked field.
   for (const label of ['Password', 'API key']) {
     const field = page.getByLabel(label, { exact: true });
-    await field.focus(); await field.press(`${modifier}+v`);
-    expect(await field.inputValue() === fakeCredential).toBe(true);
+    await expect.poll(async () => {
+      await username.focus();
+      await username.press(`${modifier}+a`); await username.press(`${modifier}+c`);
+      await field.focus();
+      await field.press(`${modifier}+a`); await field.press(`${modifier}+v`);
+      return field.inputValue();
+    }, { message: `a native paste must reach the ${label} field`, timeout: 15_000 }).toBe(fakeCredential);
   }
   await username.fill('W1AW');
   await username.press(`${modifier}+a`); await username.press(`${modifier}+c`);

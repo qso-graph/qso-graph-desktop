@@ -10,7 +10,7 @@
 
   interface Props {
     themeChoice: Choice;
-    onChooseTheme: (choice: Choice) => void;
+    onChooseTheme: (choice: Choice) => Promise<boolean>;
   }
   const { themeChoice, onChooseTheme }: Props = $props();
 </script>

@@ -6,7 +6,7 @@
   const { Story } = defineMeta({
     title: 'pages/SettingsPage',
     component: SettingsPage,
-    args: { themeChoice: 'system', onChooseTheme: () => {} }
+    args: { themeChoice: 'system', onChooseTheme: () => Promise.resolve(true) }
   });
 </script>
 

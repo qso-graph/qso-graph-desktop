@@ -6,7 +6,7 @@
   const { Story } = defineMeta({
     title: 'ui/ThemeChoice',
     component: ThemeChoice,
-    args: { choice: 'system', onChoose: () => {} }
+    args: { choice: 'system', onChoose: () => Promise.resolve(true) }
   });
 </script>
 
@@ -15,3 +15,5 @@
 <Story name="System" />
 <Story name="Light" args={{ choice: 'light' }} />
 <Story name="Dark" args={{ choice: 'dark' }} />
+<!-- The save that was refused: the control keeps showing the stored theme. -->
+<Story name="Save refused" args={{ onChoose: () => Promise.resolve(false) }} />

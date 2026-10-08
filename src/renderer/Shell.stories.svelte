@@ -7,7 +7,7 @@
   const { Story } = defineMeta({
     title: 'Shell',
     component: Shell,
-    args: { store: createShellStore(), onChooseTheme: () => {} }
+    args: { store: createShellStore(), onChooseTheme: () => Promise.resolve(true) }
   });
 </script>
 

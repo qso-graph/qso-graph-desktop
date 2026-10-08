@@ -50,16 +50,26 @@ try {
   // Exercise native keyboard editing with a synthetic value, including both
   // masked credential fields. No saved user credential is read or revealed.
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-  await page.getByLabel('Username', { exact: true }).fill(fakeCredential);
-  await page.getByLabel('Username', { exact: true }).press(`${modifier}+a`);
-  await page.getByLabel('Username', { exact: true }).press(`${modifier}+c`);
+  const usernameField = page.getByLabel('Username', { exact: true });
+  await usernameField.fill(fakeCredential);
+  // Re-copied inside the poll rather than once before it. The clipboard is the
+  // operating system's, shared with whoever is using the machine: a copy made
+  // once can be replaced between then and the paste, which is how this failed
+  // a run on a machine in use while every assertion in it was correct. Each
+  // attempt re-establishes the source, so the only thing being measured is
+  // whether a native paste reaches a masked field.
   for (const label of ['Password', 'API key']) {
     const field = page.getByLabel(label, { exact: true });
-    await field.focus(); await field.press(`${modifier}+v`);
-    expect(await field.inputValue() === fakeCredential).toBe(true);
+    await expect.poll(async () => {
+      await usernameField.focus();
+      await usernameField.press(`${modifier}+a`); await usernameField.press(`${modifier}+c`);
+      await field.focus();
+      await field.press(`${modifier}+a`); await field.press(`${modifier}+v`);
+      return field.inputValue();
+    }, { message: `a native paste must reach the ${label} field`, timeout: 15_000 }).toBe(fakeCredential);
   }
   await application.evaluate(({ clipboard }) => clipboard.clear());
-  await page.getByLabel('Username', { exact: true }).fill('W1AW');
+  await usernameField.fill('W1AW');
   await page.getByLabel('Password', { exact: true }).fill('');
   await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
   await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
@@ -134,6 +144,27 @@ try {
   const railAgain = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
   await railAgain('Settings').click();
   await expect(page.getByLabel('Theme', { exact: true })).toHaveValue('dark');
+
+  // A refused save must not leave Settings showing a theme nothing is using.
+  // The failure is made to happen rather than assumed: settings.json is
+  // replaced by a non-empty directory, so the atomic rename in save() cannot
+  // land on it. Permissions would not do it — the write goes to a temporary
+  // file beside it and is renamed over the top.
+  const settingsFile = join(userData, 'settings.json');
+  await rm(settingsFile, { recursive: true, force: true });
+  await mkdir(join(settingsFile, 'blocked'), { recursive: true });
+  await page.getByLabel('Theme', { exact: true }).selectOption('light');
+  await expect(page.locator('#theme-status')).toBeVisible();
+  // Still dark: the choice did not take, and neither the control nor the page
+  // pretends it did.
+  await expect(page.getByLabel('Theme', { exact: true })).toHaveValue('dark');
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark');
+  await rm(settingsFile, { recursive: true, force: true });
+  // And it recovers: the next choice is stored normally.
+  await page.getByLabel('Theme', { exact: true }).selectOption('light');
+  await expect(page.locator('#theme-status')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')),
+    { message: 'the control must work again once the file can be written' }).toBe('light');
 
   // P3-theme-system: back on System the shell matches the operating system,
   // and changes with it while running. nativeTheme.themeSource is what the

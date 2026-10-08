@@ -6,3 +6,6 @@ report/
 .DS_Store
 native/**/target/
 storybook-static/
+
+# Written and removed by scripts/svelte-check.mjs while it proves its own coverage.
+.svelte-check-control/
