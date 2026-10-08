@@ -6,10 +6,32 @@ import { validateCommand, type PersonaCommand, type PersonaReply } from './perso
 import { createForwardingLogger } from './logger.js';
 
 const require = createRequire(import.meta.url);
-const { PersonaCore } = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node'));
+const { PersonaCore, initCoreLogging, drainCoreLogs } = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node'));
 const core = new PersonaCore(process.argv[2]);
 const log = createForwardingLogger('persona', line => process.parentPort.postMessage({ log: line }));
+
+// QGD-LOG-0001: the core raises events through `tracing`; they are drained here
+// and emitted through this process's logger, so they reach the one stream and
+// pass the same redaction as everything else — the core is trusted not to raise
+// a secret (QGD-LOG-0004), and this is the second place that would catch it.
+initCoreLogging();
+const LEVELS: Record<string, 'debug' | 'info' | 'warn' | 'error'> = {
+  TRACE: 'debug', DEBUG: 'debug', INFO: 'info', WARN: 'warn', ERROR: 'error'
+};
+function forwardCoreLogs(): void {
+  let lines: string[] = [];
+  try { lines = drainCoreLogs(); } catch { return; }
+  for (const line of lines) {
+    let record: { level?: string; fields?: Record<string, unknown> };
+    try { record = JSON.parse(line); } catch { continue; }
+    const { message, ...fields } = record.fields ?? {};
+    const level = LEVELS[String(record.level ?? 'INFO').toUpperCase()] ?? 'info';
+    log[level]({ ...fields, source: 'core' }, typeof message === 'string' ? message : 'core event');
+  }
+}
+
 log.info({}, 'persona service started');
+forwardCoreLogs();
 function snapshot() { return { personas: core.list(), active: core.active() ?? null }; }
 function execute(command: PersonaCommand): PersonaReply {
   try {
@@ -52,6 +74,9 @@ process.parentPort.on('message', event => {
     return;
   }
   const reply = execute(command);
+  // Drained on the command that raised them, so the ordering a reader expects
+  // is the ordering they appear in.
+  forwardCoreLogs();
   process.parentPort.postMessage({ id, reply });
 });
 process.parentPort.postMessage({ ready: true });

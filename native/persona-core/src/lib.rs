@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const SERVICE: &str = "adif-mcp";
+mod corelog;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
@@ -164,7 +165,14 @@ impl Store {
         profile.providers.entry(provider.clone()).or_insert(ProviderRef { username: String::new() });
         self.save(&index)?;
         let raw = Zeroizing::new(serde_json::to_string(&merged).map_err(|_| "Credential could not be encoded.")?);
-        self.entry(&persona, &provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.")
+        let result = self.entry(&persona, &provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.");
+        // QGD-LOG-0004: the provider and the outcome. Never the value, never
+        // the persona's own name.
+        match &result {
+            Ok(()) => tracing::info!(provider = %provider, "credential saved"),
+            Err(reason) => tracing::warn!(provider = %provider, reason = %reason, "credential could not be saved"),
+        }
+        result
     }
     fn preferences(&self) -> CoreResult<Preferences> {
         match fs::read(self.directory.join("desktop-preferences.json")) {
@@ -191,8 +199,12 @@ impl Store {
         self.lookup(persona)?;
         #[cfg(target_os = "macos")]
         match security_framework::passwords::delete_generic_password(SERVICE, &subject(persona, provider)?) {
-            Ok(()) => Ok(true), Err(e) if e.code() == -25300 => Ok(false),
-            Err(_) => Err("Keychain could not remove this credential."),
+            Ok(()) => { tracing::info!(provider = %provider, "credential removed"); Ok(true) }
+            Err(e) if e.code() == -25300 => Ok(false),
+            Err(_) => {
+                tracing::warn!(provider = %provider, "keychain refused to remove a credential");
+                Err("Keychain could not remove this credential.")
+            }
         }
         #[cfg(not(target_os = "macos"))]
         match self.entry(persona, provider)?.delete_credential() {
@@ -295,6 +307,16 @@ mod addon {
         pub api_key: Option<String>,
     }
 
+    /// QGD-LOG-0001: install the core's subscriber. Idempotent, because a
+    /// utility process that restarts must not fail on logging already being up.
+    #[napi]
+    pub fn init_core_logging() { crate::corelog::init(); }
+
+    /// Hand over everything the core has raised since the last call. The node
+    /// side passes these through its own redacting logger.
+    #[napi]
+    pub fn drain_core_logs() -> Vec<String> { crate::corelog::drain() }
+
     #[napi]
     pub struct PersonaCore { store: Store, tests: std::collections::BTreeMap<String, std::time::Instant> }
 
@@ -318,6 +340,7 @@ mod addon {
                     Some(creds) if creds.username.as_ref().is_some_and(|s| !s.is_empty()) => {
                         self.tests.insert(provider.clone(), std::time::Instant::now() + std::time::Duration::from_secs(30));
                         let result = validation::test(&provider, &creds, if preference == "service" { None } else { Some(&preference) }).map_err(error)?;
+                        tracing::info!(provider = %provider, outcome = %result, "credential tested");
                         if matches!(result, "rejected" | "rate-limited") {
                             self.tests.insert(provider.clone(), std::time::Instant::now() + std::time::Duration::from_secs(300));
                         }

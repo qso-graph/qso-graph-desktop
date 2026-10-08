@@ -318,6 +318,19 @@ try {
   }
   expect(logLines, 'the log files are empty').toBeGreaterThan(0);
 
+  // QGD-LOG-0001: the core's own tracing reaches the same stream. The workflow
+  // above saved and removed a credential, each of which the core reports.
+  stage = 'the core\'s events reached the one stream';
+  let coreRecords = 0;
+  for (const name of logFiles) {
+    const text = await readFile(join(logs, name), 'utf8').catch(() => '');
+    for (const line of text.split('\n').filter(Boolean)) {
+      let record; try { record = JSON.parse(line); } catch { continue; }
+      if (record.source === 'core') coreRecords++;
+    }
+  }
+  expect(coreRecords, 'no record from the Rust core reached the log').toBeGreaterThan(0);
+
   await mkdir('report', { recursive: true });
   await writeFile('report/connections.json', JSON.stringify({
     date: new Date().toISOString(),
@@ -336,6 +349,7 @@ try {
     coreTransport: 'HTTPS only, no proxy, no redirects, TLS 1.3 only, FIPS provider',
     liveRequestExercised: false,
     logLinesWritten: logLines,
+    coreRecordsInLog: coreRecords,
     distinctEndpointsObserved: [...observed.values()],
     samples: labelled
   }, null, 2) + '\n');
