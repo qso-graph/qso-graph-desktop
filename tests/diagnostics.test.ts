@@ -142,3 +142,41 @@ describe('QGD-LOG-0012 the export', () => {
     }
   });
 });
+
+describe('QGD-LOG-0012 redaction by field, whatever the value is', () => {
+  it.each([
+    ['{"credentials":{"value":"synthetic"},"msg":"x"}', 'synthetic', 'an object under a sensitive key'],
+    ['{"token":123456,"msg":"x"}', '123456', 'a number'],
+    ['{"secret":["a","b"],"msg":"x"}', '"a"', 'an array'],
+    ['{"password":null,"apiKey":true,"msg":"x"}', 'true', 'null and boolean'],
+    ['{"outer":{"inner":{"password":"deep"}},"msg":"x"}', 'deep', 'nested two levels down'],
+    ['{"list":[{"apiKey":"inArray"}],"msg":"x"}', 'inArray', 'inside an array of objects']
+  ])('removes %#: %s', (line, secret) => {
+    const out = redactForExport(line);
+    expect(out).not.toContain(secret);
+    expect(out).toContain('[redacted]');
+    expect(out).toContain('"msg":"x"');
+  });
+
+  it.each([
+    ["password='synthetic demo secret'", 'synthetic demo secret', 'single quotes'],
+    ['password="synthetic demo secret"', 'synthetic demo secret', 'double quotes'],
+    ['api_key = "spaced out value"', 'spaced out value', 'spacing and an underscore'],
+    ['FATAL token: bare-value here', 'bare-value', 'an unquoted value']
+  ])('removes a quoted plain-text value %#: %s', (line, secret) => {
+    expect(redactForExport(line)).not.toContain(secret);
+  });
+
+  it('keeps a line that is not a record readable', () => {
+    const line = 'FATAL connection refused for user qg on port 5432';
+    expect(redactForExport(line)).toBe(line);
+  });
+
+  it('keeps the shape of a multi-line file, trailing newline included', () => {
+    const text = '{"a":1}\n{"password":"x"}\n';
+    const out = redactForExport(text);
+    expect(out.split('\n')).toHaveLength(3);
+    expect(out.endsWith('\n')).toBe(true);
+    expect(out).not.toContain('"x"');
+  });
+});

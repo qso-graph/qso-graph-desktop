@@ -111,18 +111,46 @@ export function zip(entries: readonly ArchiveEntry[]): Buffer {
 // A second pass over what is already redacted at write time. The logger is the
 // guarantee; this is what catches a line that reached the folder some other way
 // — the engine's own log, from P4, is not written through our logger at all.
-const FIELD_PATTERN = new RegExp(
-  `("(?:${REDACTED_FIELDS.join('|')})"\\s*:\\s*)("(?:[^"\\\\]|\\\\.)*")`,
-  'gi'
-);
+//
+// Structured lines are parsed and redacted by field name, exactly as the logger
+// does, because a field's value can be an object, an array or a number and a
+// pattern written for quoted strings silently passes all three. Only a line
+// that will not parse falls back to a pattern.
+const SECRET_FIELDS = new Set(REDACTED_FIELDS.map(field => field.toLowerCase()));
+
+function redactValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      result[key] = SECRET_FIELDS.has(key.toLowerCase()) ? '[redacted]' : redactValue(inner);
+    }
+    return result;
+  }
+  return value;
+}
+
+// A quoted value is still a value: stopping at the quote leaves the secret.
+const PLAIN_SECRET = /((?:password|api[-_]?key|secret|token|passphrase|credential)s?\s*[=:]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;]+)/gi;
+const SENTINEL = /QG_FAKE_(?:CREDENTIAL|ROSTER)_[A-Za-z0-9_-]+/g;
+
+function redactPlain(line: string): string {
+  return line.replace(PLAIN_SECRET, '$1[redacted]').replace(SENTINEL, '[redacted]');
+}
 
 export function redactForExport(text: string): string {
-  return text
-    .replace(FIELD_PATTERN, '$1"[redacted]"')
-    // The sentinels the suites plant, so a test fixture can never ride out.
-    .replace(/QG_FAKE_(?:CREDENTIAL|ROSTER)_[A-Za-z0-9_-]+/g, '[redacted]')
-    // Anything shaped like an assignment to a secret in a plain-text line.
-    .replace(/((?:password|api[-_]?key|secret|token|passphrase)\s*[=:]\s*)[^\s,;"']+/gi, '$1[redacted]');
+  return text.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        if (parsed !== null && typeof parsed === 'object') {
+          return JSON.stringify(redactValue(parsed)).replace(SENTINEL, '[redacted]');
+        }
+      } catch { /* not a record; treat it as text */ }
+    }
+    return redactPlain(line);
+  }).join('\n');
 }
 
 // The export itself. Reads the log folder, redacts what it finds, and writes
