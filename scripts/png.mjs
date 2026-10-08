@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Enough PNG to compare two screenshots.
+//
+// Comparing the encoded bytes would be simpler and wrong: two encoders, or one
+// encoder in two moods, produce different bytes for the same picture. What
+// P3-screenshots has to notice is a changed pixel, so the pixels are what get
+// compared.
+//
+// Handles what a Chromium screenshot is: 8 bits per channel, colour type 6
+// (RGBA) or 2 (RGB). Anything else throws rather than being read wrongly — a
+// decoder that quietly returned the wrong pixels would make every baseline
+// comparison pass.
+import { inflateSync } from 'node:zlib';
+
+const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+export function decode(file) {
+  if (!file.subarray(0, 8).equals(SIGNATURE)) throw new Error('not a PNG');
+  let offset = 8;
+  let width = 0, height = 0, depth = 0, colour = 0, interlace = 0;
+  const parts = [];
+  while (offset + 8 <= file.length) {
+    const length = file.readUInt32BE(offset);
+    const type = file.toString('latin1', offset + 4, offset + 8);
+    const data = file.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      depth = data[8];
+      colour = data[9];
+      interlace = data[12];
+    } else if (type === 'IDAT') {
+      parts.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset += 12 + length;
+  }
+  if (depth !== 8) throw new Error(`unsupported bit depth ${depth}`);
+  if (colour !== 2 && colour !== 6) throw new Error(`unsupported colour type ${colour}`);
+  if (interlace !== 0) throw new Error('interlaced PNG is not supported');
+  if (!parts.length) throw new Error('no image data');
+
+  const channels = colour === 6 ? 4 : 3;
+  const raw = inflateSync(Buffer.concat(parts));
+  const stride = width * channels;
+  if (raw.length < (stride + 1) * height) throw new Error('image data is shorter than the header claims');
+
+  const pixels = Buffer.alloc(width * height * 4);
+  let previous = Buffer.alloc(stride);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = Buffer.from(raw.subarray(y * (stride + 1) + 1, y * (stride + 1) + 1 + stride));
+    for (let x = 0; x < stride; x++) {
+      const a = x >= channels ? line[x - channels] : 0;
+      const b = previous[x];
+      const c = x >= channels ? previous[x - channels] : 0;
+      let value = line[x];
+      if (filter === 1) value += a;
+      else if (filter === 2) value += b;
+      else if (filter === 3) value += (a + b) >> 1;
+      else if (filter === 4) {
+        const p = a + b - c;
+        const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+        value += (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c);
+      } else if (filter !== 0) {
+        throw new Error(`unsupported row filter ${filter}`);
+      }
+      line[x] = value & 0xff;
+    }
+    for (let x = 0; x < width; x++) {
+      const source = x * channels, target = (y * width + x) * 4;
+      pixels[target] = line[source];
+      pixels[target + 1] = line[source + 1];
+      pixels[target + 2] = line[source + 2];
+      pixels[target + 3] = channels === 4 ? line[source + 3] : 255;
+    }
+    previous = line;
+  }
+  return { width, height, pixels };
+}
+
+// `tolerance` is per channel. Zero is the default and what this project uses:
+// the same machine rendering the same page twice produces the same pixels, and
+// a tolerance wide enough to absorb a real change is a comparison that passes
+// on anything.
+export function compare(a, b, tolerance = 0) {
+  if (a.width !== b.width || a.height !== b.height) {
+    return { same: false, reason: `size changed: ${b.width}x${b.height} was ${a.width}x${a.height}`, differing: null };
+  }
+  let differing = 0;
+  let first;
+  for (let i = 0; i < a.pixels.length; i += 4) {
+    let changed = false;
+    for (let channel = 0; channel < 4; channel++) {
+      if (Math.abs(a.pixels[i + channel] - b.pixels[i + channel]) > tolerance) { changed = true; break; }
+    }
+    if (!changed) continue;
+    differing++;
+    if (!first) {
+      const pixel = i / 4;
+      first = { x: pixel % a.width, y: Math.floor(pixel / a.width) };
+    }
+  }
+  const total = a.width * a.height;
+  return {
+    same: differing === 0,
+    differing,
+    total,
+    first,
+    reason: differing ? `${differing} of ${total} pixels differ, first at ${first.x},${first.y}` : undefined
+  };
+}

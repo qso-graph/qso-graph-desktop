@@ -9,3 +9,7 @@ storybook-static/
 
 # Written and removed by scripts/svelte-check.mjs while it proves its own coverage.
 .svelte-check-control/
+
+# Captured every run for comparison against baselines/.
+report/screenshots/
+report/screenshot-logs/

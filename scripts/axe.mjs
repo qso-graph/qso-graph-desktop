@@ -102,6 +102,13 @@ try {
   // A persona, so the credential card and the status bar are on screen too —
   // the empty state is the smallest page there is and the least worth
   // measuring.
+  // The persona broker owns a utility process that starts after the window
+  // does. Filling the form before it answers means the create request is sent
+  // to something that is not there yet — which is why this suite failed to
+  // create a persona on roughly one run in five while the application was
+  // perfectly healthy. scripts/smoke.mjs has always waited; these did not.
+  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the persona service must be answering before the form is used', timeout: 30_000 }).toBe(true);
   await page.getByLabel('Persona name', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('W1AW');
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');
