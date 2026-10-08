@@ -1,6 +1,6 @@
 {
   "register": "The PostgreSQL build the engine runs from",
-  "note": "QGD-ENG-0004. One pinned build, verified by SHA-256 before it is used. The machine's own PostgreSQL is never used — on a developer's Mac there is usually one on PATH, and an engine that silently ran against it would be a different database from the one that ships. scripts/fetch-postgres.mjs downloads and verifies this; src/engine/binaries.ts refuses anything whose hash does not match.",
+  "note": "QGD-ENG-0004. One pinned build, verified by SHA-256 before it is used. The machine's own PostgreSQL is never used \u2014 on a developer's Mac there is usually one on PATH, and an engine that silently ran against it would be a different database from the one that ships. scripts/fetch-postgres.mjs downloads and verifies this; src/engine/binaries.ts refuses anything whose hash does not match.",
   "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
   "version": "17.11",
   "major": 17,
@@ -10,11 +10,25 @@
     "sha256": "a1c2786acb0c398f9b2d76806fc52f5dc8b222cbc8e9383a9b9702084daaf3a5",
     "bytes": 62141006,
     "archive": "postgres-darwin-arm_64.txz",
-    "licence": "PostgreSQL Licence — https://www.postgresql.org/about/licence/"
+    "licence": "PostgreSQL Licence \u2014 https://www.postgresql.org/about/licence/"
   },
-  "contains": ["postgres", "initdb", "pg_ctl"],
+  "contains": [
+    "postgres",
+    "initdb"
+  ],
+  "presentButUnused": {
+    "programs": [
+      "pg_ctl"
+    ],
+    "why": "pg_ctl builds the postmaster command line as a string and runs it through a shell, which is the one place a shell survived in this code path and what QGD-SEC-0002 bans everywhere we write ourselves. The supervisor already owns the lifecycle, so it spawns postgres directly with an argument array. The program is in the build; nothing uses it."
+  },
   "absent": {
-    "programs": ["pg_dump", "pg_restore", "psql", "pg_basebackup"],
+    "programs": [
+      "pg_dump",
+      "pg_restore",
+      "psql",
+      "pg_basebackup"
+    ],
     "why": "QGD-ENG-0005. This build carries the server and its two lifecycle tools and nothing else. Backup is therefore a copy of the stopped data directory (QGD-ENG-0011), not a dump."
   }
 }

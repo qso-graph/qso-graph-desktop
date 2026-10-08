@@ -7,11 +7,12 @@
 // supervisor never resolves a program through PATH, because on a developer's
 // Mac that finds a different PostgreSQL.
 import { spawn } from 'node:child_process';
+import { Client } from 'pg';
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { dirname, join } from 'node:path';
-import { configuration, isEngineLog, type Endpoint, type EngineSettings } from './endpoint.js';
+import { configuration, connection, isEngineLog, type Endpoint, type EngineSettings } from './endpoint.js';
 
 export interface EnginePaths {
   // The PostgreSQL build's bin directory (QGD-ENG-0004).
@@ -27,6 +28,8 @@ export interface EnginePaths {
 // The file the supervisor owns. postgresql.conf includes it, so our settings
 // are in one place and PostgreSQL's defaults are left alone.
 const SETTINGS_FILE = 'qg-engine.conf';
+const START_TIMEOUT_MS = 90_000;
+const STOP_TIMEOUT_MS = 60_000;
 const INCLUDE_LINE = `include '${SETTINGS_FILE}'`;
 
 export interface RunResult {
@@ -35,6 +38,17 @@ export interface RunResult {
   stdout: string;
   stderr: string;
 }
+
+// What every PostgreSQL program is run with. No PATH, so nothing here can
+// fall back to the machine's own PostgreSQL; no PGDATA, so an inherited one
+// can never point the supervisor at somebody else's database; and messages in
+// a language the log can be read in.
+const PLAIN_ENV: NodeJS.ProcessEnv = {
+  LC_ALL: 'C',
+  LANG: 'C',
+  HOME: process.env.HOME ?? '',
+  TMPDIR: process.env.TMPDIR ?? '/tmp'
+};
 
 export class EngineError extends Error {
   constructor(message: string, readonly detail?: string) {
@@ -50,15 +64,7 @@ export class EngineError extends Error {
 export function run(paths: EnginePaths, program: string, args: string[], timeoutMs = 60_000): Promise<RunResult> {
   return new Promise(resolve => {
     const child = spawn(join(paths.binaries, program), args, {
-      env: {
-        // Keeps PostgreSQL's own messages in a language the log can be read in.
-        LC_ALL: 'C',
-        LANG: 'C',
-        // PGDATA is not set: every call passes -D explicitly, so an inherited
-        // one can never point the supervisor at somebody else's database.
-        HOME: process.env.HOME ?? '',
-        TMPDIR: process.env.TMPDIR ?? '/tmp'
-      },
+      env: PLAIN_ENV,
       stdio: ['ignore', 'pipe', 'pipe']
     });
     let stdout = '';
@@ -175,6 +181,17 @@ export async function status(paths: EnginePaths): Promise<'running' | 'stopped' 
   return await runningPid(paths) === undefined ? 'stopped' : 'running';
 }
 
+// Spawned, not handed to pg_ctl.
+//
+// pg_ctl builds the postmaster's command line as a string and runs it through
+// a shell. That is the one place a shell survived in this code path, and it is
+// what QGD-SEC-0002 bans everywhere we write ourselves — the "Application
+// Support" failure came out of exactly that layer. Nothing is gained by it:
+// the supervisor already owns the lifecycle, reads the lock file and decides
+// when the engine is up.
+//
+// So: an argument array, no shell, and the postmaster's own pid rather than
+// one parsed out of a file.
 export async function start(paths: EnginePaths, endpoint: Endpoint): Promise<void> {
   const already = await runningPid(paths);
   if (already !== undefined) {
@@ -188,47 +205,105 @@ export async function start(paths: EnginePaths, endpoint: Endpoint): Promise<voi
   await writeFile(join(paths.data, SETTINGS_FILE), configuration(settings), { mode: 0o600 });
   await ensureInclude(paths.data);
 
-  const result = await run(paths, 'pg_ctl', [
-    '--pgdata', paths.data,
-    // Everything the postmaster needs is in the configuration file. pg_ctl's
-    // --options is a string it hands to a shell, and a socket directory under
-    // "Application Support" — which is where macOS puts it — would arrive as
-    // two arguments and refuse to start.
-    '--log', join(paths.logs, 'engine-startup.log'),
-    // Waits for the postmaster to be accepting connections, so a start that
-    // returns has actually started.
-    '--wait',
-    '--timeout', '60',
-    'start'
-  ], 90_000);
+  const child = spawn(join(paths.binaries, 'postgres'), ['-D', paths.data], {
+    env: PLAIN_ENV,
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  // Everything the postmaster says before its own log collector takes over.
+  // Kept in memory rather than in a file: on success the collector has it all,
+  // and on failure this is the only place the reason exists.
+  let early = '';
+  const collect = (chunk: unknown) => { early = (early + String(chunk)).slice(-4000); };
+  child.stdout.on('data', collect);
+  child.stderr.on('data', collect);
 
-  if (!result.ok) {
-    // pg_ctl giving up waiting does not mean nothing started: the postmaster
-    // may still be in recovery and may come up a moment later. Leaving it
-    // there would refuse every later start, with nothing to tell the caller
-    // which engine is theirs. Whatever this attempt launched is stopped.
-    const stray = await runningPid(paths);
-    if (stray !== undefined) await stop(paths).catch(() => {});
-    // The startup file only ever holds "redirecting log output to logging
-    // collector"; the reason is in the collector's own file, which is the one
-    // worth printing. Without this a failed start said nothing useful.
-    const log = await newestEngineLog(paths.logs);
-    throw new EngineError('The engine did not start.',
-      (result.stderr.trim() || result.stdout.trim() || '') +
-      (stray !== undefined ? '\nIt had started late and was stopped.' : '') +
-      (log ? `\n${log}` : ''));
+  let exited: number | null | undefined;
+  let spawnError: Error | undefined;
+  child.once('error', error => { spawnError = error as Error; });
+  child.once('exit', code => { exited = code; });
+  // The postmaster outlives this function; nothing here should keep the
+  // process alive waiting on it.
+  child.unref();
+
+  const deadline = Date.now() + START_TIMEOUT_MS;
+  try {
+    while (Date.now() < deadline) {
+      if (spawnError) throw new EngineError('The engine could not be run.', spawnError.message);
+      if (exited !== undefined) {
+        throw new EngineError('The engine stopped as it started.',
+          `${join(paths.binaries, 'postgres')} exited with ${exited}.\n${early.trim()}`);
+      }
+      if (await accepting(endpoint)) return;
+      await delay(200);
+    }
+  } catch (error) {
+    await stopIfRunning(paths);
+    throw error;
+  }
+
+  // It is still running but not answering. Whatever this attempt started is
+  // stopped: leaving it would refuse every later start, with nothing to say
+  // which engine it belonged to.
+  await stopIfRunning(paths);
+  const log = await newestEngineLog(paths.logs);
+  throw new EngineError('The engine did not start in time.',
+    `${early.trim()}${log ? `\n${log}` : ''}`);
+}
+
+// Readiness is a connection, because that is what "started" has to mean for
+// anything that is about to use it. The bundled build has no pg_isready
+// (QGD-ENG-0005), and a socket file appearing is not the same as a postmaster
+// that will answer.
+async function accepting(endpoint: Endpoint): Promise<boolean> {
+  const client = new Client({ ...connection(endpoint, 'postgres', superuser()), connectionTimeoutMillis: 2000 });
+  // A refused connection is the expected answer while it is still coming up.
+  client.on('error', () => {});
+  try {
+    await client.connect();
+    await client.end();
+    return true;
+  } catch {
+    await client.end().catch(() => {});
+    return false;
   }
 }
 
-async function newestEngineLog(logs: string): Promise<string> {
-  let names: string[];
-  try { names = await readdir(logs); } catch { return ''; }
-  const engine = names.filter(isEngineLog).sort();
-  const newest = engine[engine.length - 1];
-  if (newest === undefined) return '';
-  const contents = await readFile(join(logs, newest), 'utf8').catch(() => '');
-  return contents.trim().split('\n').slice(-10).join('\n');
+// Not unref'd: these waits are the only thing holding the event loop open
+// while the engine comes up or shuts down, and an unref'd timer lets the
+// process exit in the middle of either.
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => { setTimeout(resolve, ms); });
 }
+
+async function stopIfRunning(paths: EnginePaths): Promise<void> {
+  if (await runningPid(paths) !== undefined) await stop(paths).catch(() => {});
+}
+
+// SIGINT is PostgreSQL's fast shutdown: roll back what is open and exit,
+// rather than waiting for clients to disconnect on their own. The signal goes
+// to whatever postmaster.pid names, so a supervisor that was restarted can
+// still stop the engine it did not start.
+export async function stop(paths: EnginePaths): Promise<'stopped' | 'was-not-running'> {
+  const pid = await runningPid(paths);
+  if (pid === undefined) return 'was-not-running';
+
+  try {
+    process.kill(pid, 'SIGINT');
+  } catch {
+    // Gone between the check and the signal, which is the result we wanted.
+    return 'stopped';
+  }
+
+  const deadline = Date.now() + STOP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (await runningPid(paths) === undefined) return 'stopped';
+    await delay(100);
+  }
+
+  throw new EngineError('The engine did not stop.',
+    `Process ${pid} is still running ${STOP_TIMEOUT_MS / 1000} seconds after a fast shutdown was asked for.`);
+}
+
 
 // postgresql.conf is PostgreSQL's; the include line is ours, added once.
 async function ensureInclude(data: string): Promise<void> {
@@ -238,15 +313,15 @@ async function ensureInclude(data: string): Promise<void> {
   await writeFile(path, `${current}\n# The engine supervisor's own settings.\n${INCLUDE_LINE}\n`);
 }
 
-export async function stop(paths: EnginePaths): Promise<'stopped' | 'was-not-running'> {
-  if (await runningPid(paths) === undefined) return 'was-not-running';
-  // fast: roll back open transactions and exit, rather than waiting for
-  // clients to disconnect on their own.
-  const result = await run(paths, 'pg_ctl', [
-    '--pgdata', paths.data, '--mode', 'fast', '--wait', '--timeout', '60', 'stop'
-  ], 90_000);
-  if (!result.ok) {
-    throw new EngineError('The engine did not stop.', result.stderr.trim() || result.stdout.trim());
-  }
-  return 'stopped';
+// The tail of the engine's own log. Once the collector has started this is
+// where the reason for anything lives, and a failed start that printed only
+// what the supervisor saw said nothing useful.
+async function newestEngineLog(logs: string): Promise<string> {
+  let names: string[];
+  try { names = await readdir(logs); } catch { return ''; }
+  const engine = names.filter(isEngineLog).sort();
+  const newest = engine[engine.length - 1];
+  if (newest === undefined) return '';
+  const contents = await readFile(join(logs, newest), 'utf8').catch(() => '');
+  return contents.trim().split('\n').slice(-10).join('\n');
 }

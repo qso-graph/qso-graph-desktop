@@ -27,9 +27,31 @@ describe('QGD-ENG-0004 the pinned build', () => {
   it('records the client tools as absent, which the backup design rests on', () => {
     // QGD-ENG-0005. If this list ever shrinks, QGD-ENG-0011's reason for
     // copying the data directory instead of dumping it has gone away.
-    expect(build.contains).toEqual(['postgres', 'initdb', 'pg_ctl']);
+    expect(build.contains).toEqual(['postgres', 'initdb']);
     expect(build.absent.programs).toContain('pg_dump');
     expect(build.absent.programs).toContain('pg_restore');
+  });
+});
+
+describe('QGD-SEC-0002 nothing reaches a shell', () => {
+  it('runs no PostgreSQL program through pg_ctl', async () => {
+    // pg_ctl builds the postmaster's command line as a string and hands it to
+    // a shell. That layer is where the "Application Support" failure came
+    // from, and it is the one thing QGD-SEC-0002 bans everywhere we write
+    // ourselves. The supervisor spawns postgres with an argument array; this
+    // is what stops pg_ctl coming back in because it is convenient.
+    const { readdir, readFile } = await import('node:fs/promises');
+    const offenders = [];
+    for (const directory of ['src/engine', 'scripts']) {
+      for (const file of await readdir(directory)) {
+        if (!/\.(ts|mjs)$/.test(file)) continue;
+        const text = await readFile(`${directory}/${file}`, 'utf8');
+        // In a string that is run, not in a sentence about it.
+        if (/['"`]pg_ctl['"`]/.test(text)) offenders.push(`${directory}/${file}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+    expect(build.presentButUnused.programs).toContain('pg_ctl');
   });
 });
 
@@ -64,10 +86,10 @@ describe('QGD-ENG-0004 verifying what is on disk', () => {
   });
 
   it('names a missing program rather than failing vaguely', async () => {
-    await plant(['postgres', 'initdb']);
+    await plant(['postgres']);
     const result = await verifyBinaries(build, root);
     expect(result.ok).toBe(false);
-    expect(result.problems.join(' ')).toContain('pg_ctl is missing');
+    expect(result.problems.join(' ')).toContain('initdb is missing');
   });
 
   it('refuses a program that is there but not executable', async () => {

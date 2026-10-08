@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `7d4b5be6e496e7be8b93ec1197d2f38dabd25011` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `d90ffc2b92a8ab8d7a1fa83b23064c74ec4691a4` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `7d4b5be6e496e7be8b93ec1197d2f38dabd25011` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `d90ffc2b92a8ab8d7a1fa83b23064c74ec4691a4` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 100 requirements · 12 Parts · 4 Demo · 29 Inspection · 29 Static · 55 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 101 requirements · 12 Parts · 4 Demo · 29 Inspection · 30 Static · 56 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -64,7 +64,8 @@
 | `QGD-ENG-0002` | Drizzle is the database layer: a TypeScript schema, SQL-like queries and generated migrations. | Inspection |  |
 | `QGD-ENG-0003` | Simple settings — theme, window size and the like — live in a settings file rather than the database, so the application starts before the engine is up. | Test | ✓ |
 | `QGD-ENG-0004` | The engine runs from a binary set the frame provides — one pinned PostgreSQL build, recorded in `data/postgres-build.json` with its version, its source and its SHA-256, and verified before it is started. Whatever PostgreSQL happens to be installed on the machine is never used, and never appears on the supervisor's `PATH`. | Test | ✓ |
-| `QGD-ENG-0005` | The build that is bundled carries the server, `initdb` and `pg_ctl` and **no client tools**: there is no `pg_dump`, `pg_restore` or `psql` in it, and no arm64 build published by EDB or Zonky has them. Anything the engine must do is done with those three programs or through a connection. | Static | ✓ |
+| `QGD-ENG-0005` | The build that is bundled carries the server, `initdb` and `pg_ctl` and **no client tools**: there is no `pg_dump`, `pg_restore` or `psql` in it, and no arm64 build published by EDB or Zonky has them. Anything the engine must do is done with the server, `initdb`, or a connection. | Static | ✓ |
+| `QGD-ENG-0005.1` | `pg_ctl` is not used. It builds the postmaster's command line as a string and runs it through a shell, which `QGD-SEC-0002` bans everywhere this project writes itself — and that layer is where a data directory under `Application Support` was split into two arguments. The supervisor owns the lifecycle already: it spawns the server with an argument array, decides readiness by connecting, and asks for a fast shutdown by signalling the postmaster. | Static, Test | ✓ |
 | `QGD-ENG-0006` | The engine supervisor is the only thing that starts, stops or checks the engine, as its own utility process under `QGD-PRC-0004`. Its arguments are the data directory, the endpoint and the binary set; no part of them comes from a user. | Test | ✓ |
 | `QGD-ENG-0007` | The data directory is created on first run, and a creation that fails leaves nothing behind — never a half-made directory that the next start would treat as a database. | Test | ✓ |
 | `QGD-ENG-0008` | Two engines never run against one data directory. A start that finds the directory already in use reports that and does not begin a second. | Test | ✓ |
