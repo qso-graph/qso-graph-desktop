@@ -14,13 +14,16 @@ const commands = [
   ['build', [npmCli, 'run', 'build']],
   ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
+  ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
   ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['package', [npmCli, 'run', 'package']],
-  ['packaged-launch', ['scripts/packaged-smoke.mjs']]
+  ['packaged-launch', ['scripts/packaged-smoke.mjs']],
+  // Last, so it scans the artifacts the whole run produced.
+  ['sentinel-scan', ['scripts/sentinel-scan.mjs']]
 ];
 const suites = [];
 for (const [name, args] of commands) {
