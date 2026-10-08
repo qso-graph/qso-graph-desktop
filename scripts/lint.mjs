@@ -73,6 +73,31 @@ for (const control of CONTROLS) {
 }
 
 const svelteFiles = await svelteSources(root);
+
+// Vite transpiles and does not check types; tsc -p tsconfig.renderer.json
+// covers the renderer's .ts, and svelte-check is what covers the inside of a
+// component. svelte-check will not install beside TypeScript 7 — the third tool
+// after typescript-eslint and Electronegativity — so it is not wired yet, and
+// there is nothing to wire it for.
+//
+// This fails the moment that stops being true. A component that lands while
+// nothing type-checks it would inherit exactly the hole tsc's exclusion left in
+// app.ts, which is the defect this project has now made twice.
+if (svelteFiles.length > 0) {
+  let checked = false;
+  try {
+    const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+    checked = Boolean(manifest.scripts?.build?.includes('svelte-check'));
+  } catch { checked = false; }
+  if (!checked) {
+    failures.push(
+      `${svelteFiles.length} Svelte component(s) exist and nothing type-checks inside them. ` +
+      'Wire svelte-check into the build — isolated under tools/ with TypeScript 5, as ' +
+      'tools/electronegativity is, because it will not resolve beside TypeScript 7.'
+    );
+  }
+}
+
 for (const file of svelteFiles) {
   const text = await readFile(file, 'utf8');
   const lines = text.split('\n');
