@@ -22,9 +22,26 @@ describe('QGD-CRD-0007 static gate', () => {
     ["import {\n  get\n} from 'node:https';\nget(url);", 'multiline import'],
     ["import {\n  net\n} from 'electron';", 'multiline electron import'],
     ['const text = `${JSON.stringify({}) + fetch(url)}`;', 'fetch after an object literal in a template hole'],
-    ['const text = `${ { a: `${fetch(url)}` } }`;', 'fetch in a nested template hole']
+    ['const text = `${ { a: `${fetch(url)}` } }`;', 'fetch in a nested template hole'],
+    ['const text = `${ /* don\'t cache */ fetch(url) }`;', 'fetch behind an apostrophe in a comment in a template hole'],
+    ["import {\n  get /* /* xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */ */\n} from 'node:https';", 'import whose comment runs past any character bound'],
+    ["const pattern = /'/;\nfetch(url);", 'fetch after a regex literal containing a quote'],
+    ['const text = `${ // note\n fetch(url) }`;', 'fetch after a line comment in a template hole'],
+    ["import { net as alias } from 'electron';", 'renamed electron networking import']
   ])('catches %#: %s', source => {
     expect(violations(source).length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["import { net } from './settings.js';\nimport { app } from 'electron';", 'a net import from a local module, then an electron import'],
+    ['const text = "fetch(url)";', 'a call inside a string'],
+    ['// fetch(url)', 'a call inside a line comment'],
+    ['/* fetch(url) */', 'a call inside a block comment'],
+    ['const text = `fetch(url)`;', 'a call inside template text'],
+    ["import { app } from 'electron';\nimport { join } from 'node:path';", 'ordinary imports'],
+    ['const pattern = /fetch\\(/;', 'a call inside a regex literal']
+  ])('does not flag %#: %s', source => {
+    expect(violations(source)).toEqual([]);
   });
 
   it('does not flag the in-process resource scheme the product actually uses', () => {

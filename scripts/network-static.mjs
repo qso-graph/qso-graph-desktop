@@ -3,125 +3,219 @@
 // outbound-network API, so the Rust credential core is the only component that
 // can open a connection.
 //
-// Not AST-based, deliberately: TypeScript 7's package root exports only version
-// information, and its `unstable/sync` surface is a project and type-checker
-// API, not a JavaScript syntax tree. So this strips comments, then matches in
-// two passes — one over code that still carries its module specifiers, one over
-// code with string contents blanked so a quoted "fetch(" cannot false-positive.
-// Whitespace is tolerated everywhere a call can take it.
+// This tokenizes. Two earlier versions matched patterns against source text and
+// both lost the same way — every fix opened another hole. A regex missed
+// `import { net } from 'electron'`, `import https from 'https'` and `fetch (url)`;
+// character-bounded patterns then missed a multiline import whose comment ran
+// past the bound, crossed statement boundaries into a false positive, and hid a
+// call behind an apostrophe in a comment inside a template interpolation. Those
+// are not bugs in the patterns, they are the consequence of not knowing where a
+// string, a comment, a regex literal or a statement begins and ends.
 //
-// The guarantee is tests/network-static.test.mjs, which asserts every pattern
-// below against the evasions that defeated the regex this replaced:
-// `import { net } from 'electron'`, `import https from 'https'`, `fetch (url)`.
+// TypeScript 7's package root exports only version information and its
+// `unstable/sync` surface is a project and type-checker API, not a syntax tree,
+// so the compiler's own parser is not available. This is a lexer, not a parser:
+// it yields names, punctuators and string values with comments, regex literals
+// and template text removed, and template interpolations tokenized as the code
+// they are. Checks then run over tokens, where `fetch` in a comment is not a
+// token and `from` in the next statement is not in this one.
+//
+// The guarantee is tests/network-static.test.mjs.
 
 // Node's networking, with or without the node: prefix.
-const MODULE = String.raw`(?:node:)?(?:http|https|http2|net|tls|dgram)`;
-const CLIENTS = 'fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts';
+const MODULES = /^(?:node:)?(?:http|https|http2|net|tls|dgram)$/;
+const NETWORK_OVER_THE_WIRE = /^https?:\/\//;
+// Electron's own networking surface.
+const ELECTRON_NETWORK = new Set(['net', 'netLog', 'ClientRequest']);
+// Web platform clients.
+const CLIENTS = new Set(['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts']);
+const CLIENT_PROPERTIES = new Set(['sendBeacon', 'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource']);
+// After these, a slash opens a regex literal rather than dividing.
+const REGEX_MAY_FOLLOW = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete',
+  'void', 'do', 'else', 'yield', 'await', 'case', 'throw']);
 
-// Matched against code that keeps its strings: module specifiers and the
-// string-keyed property access that blanking would erase.
-const WITH_STRINGS = [
-  // [^;]{0,400} rather than [^;\n]: an import clause may span lines.
-  [new RegExp(String.raw`\bimport\b[^;]{0,400}?\bfrom\s*(['"\`])${MODULE}\1`), 'imports a networking module'],
-  [new RegExp(String.raw`\bimport\s*\(\s*(['"\`])${MODULE}\1`), 'imports a networking module'],
-  [new RegExp(String.raw`\brequire\s*\(\s*(['"\`])${MODULE}\1`), 'requires a networking module'],
-  [new RegExp(String.raw`\b(?:import|require)\s*\(\s*(['"\`])https?://`), 'imports over the network'],
-  [/\bimport\s*\{[\s\S]{0,400}?\b(?:net|netLog|ClientRequest)\b[\s\S]{0,400}?\}\s*from\s*(['"`])electron\1/, "imports electron's networking"],
-  [new RegExp(String.raw`\[\s*(['"\`])(?:${CLIENTS})\1\s*\]`), 'reaches a network client by name']
-];
+const NAME_START = /[A-Za-z_$]/;
+const NAME_PART = /[A-Za-z0-9_$]/;
 
-// Matched against code with string contents blanked: bare identifiers.
-const WITHOUT_STRINGS = [
-  [/\bfetch\s*\(/, 'calls fetch'],
-  [/\bnew\s+(?:XMLHttpRequest|WebSocket|EventSource)\b/, 'constructs a network client'],
-  [/\b(?:XMLHttpRequest|WebSocket|EventSource)\s*\(/, 'calls a network client'],
-  [/\.\s*sendBeacon\s*\(/, 'calls sendBeacon'],
-  [/\bimportScripts\s*\(/, 'calls importScripts'],
-  [/\b(?:net|netLog|ClientRequest)\s*\.\s*request\s*\(/, "calls electron's net.request"],
-  [/\bnetLog\s*\./, "uses electron's netLog"]
-];
+// Tokens: { kind: 'name' | 'string' | 'punct', value, line }.
+// Comments, regex literals, numbers and template text are dropped; the code
+// inside a template interpolation is tokenized normally.
+export function tokenize(source) {
+  const tokens = [];
+  let line = 1;
+  let index = 0;
+  // Each frame is a template literal whose interpolation we are inside.
+  const templates = [];
+  let braceDepth = 0;
 
-// Comments out, line structure kept so a reported line number is the real one.
-function stripComments(source) {
-  let out = '';
-  let state = 'code';
-  let quote = '';
-  for (let index = 0; index < source.length; index++) {
+  const previous = () => tokens[tokens.length - 1];
+  const regexAllowed = () => {
+    const token = previous();
+    if (!token) return true;
+    if (token.kind === 'string') return false;
+    if (token.kind === 'name') return REGEX_MAY_FOLLOW.has(token.value);
+    return !([')', ']', '}', '++', '--'].includes(token.value));
+  };
+
+  const readString = quote => {
+    let value = '';
+    index++;
+    while (index < source.length && source[index] !== quote) {
+      if (source[index] === '\\') { if (source[index + 1] === '\n') line++; index += 2; value += ' '; continue; }
+      if (source[index] === '\n') line++;
+      value += source[index++];
+    }
+    index++;
+    return value;
+  };
+
+  while (index < source.length) {
     const character = source[index];
     const next = source[index + 1];
-    if (state === 'code') {
-      if (character === '/' && next === '/') { state = 'line'; out += '  '; index++; continue; }
-      if (character === '/' && next === '*') { state = 'block'; out += '  '; index++; continue; }
-      if (character === "'" || character === '"' || character === '`') { state = 'string'; quote = character; }
-      out += character;
+
+    if (character === '\n') { line++; index++; continue; }
+    if (character === ' ' || character === '\t' || character === '\r') { index++; continue; }
+    if (character === '/' && next === '/') { while (index < source.length && source[index] !== '\n') index++; continue; }
+    if (character === '/' && next === '*') {
+      index += 2;
+      while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) { if (source[index] === '\n') line++; index++; }
+      index += 2;
       continue;
     }
-    if (state === 'line') { if (character === '\n') { state = 'code'; out += character; } else out += ' '; continue; }
-    if (state === 'block') {
-      if (character === '*' && next === '/') { state = 'code'; out += '  '; index++; continue; }
-      out += character === '\n' ? character : ' ';
-      continue;
-    }
-    // Inside a string: copy it through, tracking escapes, so specifiers survive.
-    out += character;
-    if (character === '\\') { out += source[++index] ?? ''; continue; }
-    if (character === quote) { state = 'code'; quote = ''; }
-  }
-  return out;
-}
-
-// String contents blanked, quotes and newlines kept. Template `${...}` holes
-// stay as code, because code inside a template is still code. Brace depth is
-// tracked inside a hole: an object literal's closing brace must not be taken
-// for the end of the interpolation, or everything after it is blanked as if it
-// were string content.
-function blankStrings(source) {
-  let out = '';
-  const stack = [];
-  for (let index = 0; index < source.length; index++) {
-    const character = source[index];
-    const top = stack[stack.length - 1];
-
-    if (!top || top.type === 'hole') {
-      if (character === "'" || character === '"') { stack.push({ type: 'string', quote: character }); out += character; continue; }
-      if (character === '`') { stack.push({ type: 'template' }); out += character; continue; }
-      if (top && character === '{') { top.depth++; out += character; continue; }
-      if (top && character === '}') {
-        if (top.depth === 0) stack.pop(); else top.depth--;
-        out += character; continue;
+    if (character === '/' && regexAllowed()) {
+      // A regex literal: skip it, including classes, so a quote inside cannot
+      // be taken for a string delimiter.
+      index++;
+      let inClass = false;
+      while (index < source.length) {
+        if (source[index] === '\\') { index += 2; continue; }
+        if (source[index] === '[') inClass = true;
+        else if (source[index] === ']') inClass = false;
+        else if (source[index] === '/' && !inClass) { index++; break; }
+        else if (source[index] === '\n') { line++; break; }
+        index++;
       }
-      out += character;
+      while (index < source.length && NAME_PART.test(source[index])) index++;
       continue;
     }
-
-    if (top.type === 'string') {
-      if (character === '\\') { out += '  '; index++; continue; }
-      if (character === top.quote) { stack.pop(); out += character; continue; }
-      out += character === '\n' ? character : ' ';
+    if (character === "'" || character === '"') {
+      const startLine = line;
+      tokens.push({ kind: 'string', value: readString(character), line: startLine });
       continue;
     }
-
-    // Inside a template literal.
-    if (character === '\\') { out += '  '; index++; continue; }
-    if (character === '`') { stack.pop(); out += character; continue; }
-    if (character === '$' && source[index + 1] === '{') { stack.push({ type: 'hole', depth: 0 }); out += '${'; index++; continue; }
-    out += character === '\n' ? character : ' ';
+    if (character === '`') {
+      // Template literal: drop the text, tokenize each interpolation.
+      index++;
+      while (index < source.length) {
+        if (source[index] === '\\') { index += 2; continue; }
+        if (source[index] === '`') { index++; break; }
+        if (source[index] === '$' && source[index + 1] === '{') {
+          templates.push(braceDepth);
+          braceDepth++;
+          index += 2;
+          break;
+        }
+        if (source[index] === '\n') line++;
+        index++;
+      }
+      continue;
+    }
+    if (character === '}' && templates.length && braceDepth === templates[templates.length - 1] + 1) {
+      // The interpolation closes; resume the template text that follows it.
+      templates.pop();
+      braceDepth--;
+      index++;
+      while (index < source.length) {
+        if (source[index] === '\\') { index += 2; continue; }
+        if (source[index] === '`') { index++; break; }
+        if (source[index] === '$' && source[index + 1] === '{') { templates.push(braceDepth); braceDepth++; index += 2; break; }
+        if (source[index] === '\n') line++;
+        index++;
+      }
+      continue;
+    }
+    if (NAME_START.test(character)) {
+      const start = index;
+      while (index < source.length && NAME_PART.test(source[index])) index++;
+      tokens.push({ kind: 'name', value: source.slice(start, index), line });
+      continue;
+    }
+    if (character >= '0' && character <= '9') {
+      while (index < source.length && /[0-9a-fA-FxXoObBeE._n]/.test(source[index])) index++;
+      continue;
+    }
+    if (character === '{') braceDepth++;
+    if (character === '}') braceDepth--;
+    const two = character + (next ?? '');
+    if (['++', '--', '=>', '?.', '??', '===', '!=='].includes(two)) { tokens.push({ kind: 'punct', value: two, line }); index += 2; continue; }
+    tokens.push({ kind: 'punct', value: character, line });
+    index++;
   }
-  return out;
+  return tokens;
 }
 
 export function violations(source, fileName = 'input.ts') {
-  const code = stripComments(source);
-  const bare = blankStrings(code);
+  const tokens = tokenize(source);
   const found = [];
-  const lineOf = (text, index) => text.slice(0, index).split('\n').length;
-  for (const [pattern, what] of WITH_STRINGS) {
-    const match = pattern.exec(code);
-    if (match) found.push({ file: fileName, line: lineOf(code, match.index), what });
-  }
-  for (const [pattern, what] of WITHOUT_STRINGS) {
-    const match = pattern.exec(bare);
-    if (match) found.push({ file: fileName, line: lineOf(bare, match.index), what });
+  const add = (line, what) => found.push({ file: fileName, line, what });
+  const is = (token, kind, value) => token && token.kind === kind && (value === undefined || token.value === value);
+
+  for (let position = 0; position < tokens.length; position++) {
+    const token = tokens[position];
+
+    // import ... from 'module';  and  import 'module';
+    if (is(token, 'name', 'import') && !is(tokens[position + 1], 'punct', '(')) {
+      // The statement ends at its semicolon, or at the next import — never
+      // later, so one import cannot be read as part of another.
+      let end = position + 1;
+      while (end < tokens.length && !is(tokens[end], 'punct', ';') && !is(tokens[end], 'name', 'import')) end++;
+      const clause = tokens.slice(position + 1, end);
+      const fromIndex = clause.findIndex(entry => is(entry, 'name', 'from'));
+      const specifier = fromIndex >= 0 ? clause[fromIndex + 1] : clause[0];
+      if (is(specifier, 'string')) {
+        if (MODULES.test(specifier.value)) add(token.line, `imports ${specifier.value}`);
+        else if (NETWORK_OVER_THE_WIRE.test(specifier.value)) add(token.line, 'imports over the network');
+        else if (specifier.value === 'electron') {
+          const bindings = fromIndex >= 0 ? clause.slice(0, fromIndex) : [];
+          for (const entry of bindings) {
+            if (is(entry, 'name') && ELECTRON_NETWORK.has(entry.value)) add(token.line, `imports ${entry.value} from electron`);
+          }
+        }
+      }
+      position = end - 1;
+      continue;
+    }
+
+    // require('module') and import('module')
+    if ((is(token, 'name', 'require') || is(token, 'name', 'import')) && is(tokens[position + 1], 'punct', '(') && is(tokens[position + 2], 'string')) {
+      const specifier = tokens[position + 2].value;
+      if (MODULES.test(specifier)) add(token.line, `requires ${specifier}`);
+      if (NETWORK_OVER_THE_WIRE.test(specifier)) add(token.line, 'imports over the network');
+      continue;
+    }
+
+    if (is(token, 'name') && CLIENTS.has(token.value) && is(tokens[position + 1], 'punct', '(')) {
+      // Not a property of something else: `personas.fetch(` is not global fetch.
+      if (!is(tokens[position - 1], 'punct', '.')) add(token.line, `calls ${token.value}`);
+      continue;
+    }
+    if (is(token, 'name', 'new') && is(tokens[position + 1], 'name') && CLIENTS.has(tokens[position + 1].value)) {
+      add(token.line, `constructs ${tokens[position + 1].value}`);
+      continue;
+    }
+    if (is(token, 'punct', '.') && is(tokens[position + 1], 'name') && CLIENT_PROPERTIES.has(tokens[position + 1].value)) {
+      add(token.line, `reaches ${tokens[position + 1].value}`);
+      continue;
+    }
+    if (is(token, 'punct', '[') && is(tokens[position + 1], 'string') && CLIENT_PROPERTIES.has(tokens[position + 1].value)) {
+      add(token.line, `reaches ${tokens[position + 1].value}`);
+      continue;
+    }
+    if (is(token, 'name') && ELECTRON_NETWORK.has(token.value) &&
+        is(tokens[position + 1], 'punct', '.') && is(tokens[position + 2], 'name', 'request')) {
+      add(token.line, `calls ${token.value}.request`);
+      continue;
+    }
   }
   return found;
 }
