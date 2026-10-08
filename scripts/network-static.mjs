@@ -181,8 +181,10 @@ export function violations(source, fileName = 'input.ts') {
   for (let position = 0; position < tokens.length; position++) {
     const token = tokens[position];
 
-    // import ... from 'module';  and  import 'module';
-    if (is(token, 'name', 'import') && !is(tokens[position + 1], 'punct', '(')) {
+    // import ... from 'module';  import 'module';  and the re-export forms,
+    // export { get } from 'node:https' and export * from 'node:https', which
+    // create the same dependency as an import.
+    if ((is(token, 'name', 'import') || is(token, 'name', 'export')) && !is(tokens[position + 1], 'punct', '(')) {
       // The statement ends at its semicolon, or at the next import — never
       // later, so one import cannot be read as part of another.
       let end = position + 1;
@@ -198,14 +200,17 @@ export function violations(source, fileName = 'input.ts') {
       for (let scan = 0; scan < clause.length; scan++) {
         if (is(clause[scan], 'name', 'from') && is(clause[scan + 1], 'string')) { fromIndex = scan; break; }
       }
+      // `export const x = 1` has no specifier; only a re-export does.
+      if (is(token, 'name', 'export') && fromIndex < 0) continue;
       const specifier = fromIndex >= 0 ? clause[fromIndex + 1] : clause[0];
       if (is(specifier, 'string')) {
-        if (MODULES.test(specifier.value)) add(token.line, `imports ${specifier.value}`);
-        else if (NETWORK_OVER_THE_WIRE.test(specifier.value)) add(token.line, 'imports over the network');
+        const verb = is(token, 'name', 'export') ? 're-exports' : 'imports';
+        if (MODULES.test(specifier.value)) add(token.line, `${verb} ${specifier.value}`);
+        else if (NETWORK_OVER_THE_WIRE.test(specifier.value)) add(token.line, `${verb} over the network`);
         else if (specifier.value === 'electron') {
           const bindings = fromIndex >= 0 ? clause.slice(0, fromIndex) : [];
           for (const entry of bindings) {
-            if (is(entry, 'name') && ELECTRON_NETWORK.has(entry.value)) add(token.line, `imports ${entry.value} from electron`);
+            if (is(entry, 'name') && ELECTRON_NETWORK.has(entry.value)) add(token.line, `${verb} ${entry.value} from electron`);
           }
         }
       }

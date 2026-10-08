@@ -36,7 +36,11 @@ describe('QGD-CRD-0007 static gate', () => {
     ["const { netLog } = require('electron');\nnetLog.startLogging(path);", 'netLog destructured from a require'],
     ['electron.netLog.startLogging(path);', 'netLog reached as a property'],
     ["import https from 'node:https'\nexport { join } from 'node:path';\nhttps.get(url);", 'a semicolonless import followed by a re-export'],
-    ["import https from 'node:https'\nimport { join } from 'node:path';", 'a semicolonless import followed by another import']
+    ["import https from 'node:https'\nimport { join } from 'node:path';", 'a semicolonless import followed by another import'],
+    ["export { get } from 'node:https';", 'a networking re-export'],
+    ["export * from 'node:net';", 'a star re-export of a networking module'],
+    ["import { join } from 'node:path'\nexport { get } from 'node:https';", 'a safe import then a networking re-export'],
+    ["export { net } from 'electron';", "a re-export of electron's networking"]
   ])('catches %#: %s', source => {
     expect(violations(source).length).toBeGreaterThan(0);
   });
@@ -48,7 +52,9 @@ describe('QGD-CRD-0007 static gate', () => {
     ['/* fetch(url) */', 'a call inside a block comment'],
     ['const text = `fetch(url)`;', 'a call inside template text'],
     ["import { app } from 'electron';\nimport { join } from 'node:path';", 'ordinary imports'],
-    ['const pattern = /fetch\\(/;', 'a call inside a regex literal']
+    ['const pattern = /fetch\\(/;', 'a call inside a regex literal'],
+    ['export const limit = 1;\nexport default limit;', 'ordinary exports'],
+    ["export { join } from 'node:path';", 'a re-export of a safe module']
   ])('does not flag %#: %s', source => {
     expect(violations(source)).toEqual([]);
   });
