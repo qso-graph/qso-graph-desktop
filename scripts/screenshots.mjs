@@ -45,7 +45,16 @@ async function stableShot(page, path) {
   throw new Error(`${path}: the page never stopped changing (${last?.reason ?? 'no comparison'})`);
 }
 
-const PERSONA = { name: 'Home station', callsign: 'W1AW', start: '2026-01-01' };
+// The name is deliberately one nobody would choose. QGD-CRD-0003 has the
+// credential core own its Keychain entry names, and it keys them by the
+// service and `persona:provider` — the profile directory is not part of the
+// key, so a temporary profile does NOT isolate a persona from the operator's
+// real Keychain entries. "Home station" is the placeholder text in the persona
+// name field and so is about the likeliest real persona name there is: this
+// fixture would have read the operator's saved credentials, drawn a different
+// credential status into the baseline, and possibly raised a Keychain prompt
+// in the middle of a verification run.
+const PERSONA = { name: 'qg-baseline-fixture', callsign: 'W1AW', start: '2026-01-01' };
 const VIEW = { width: 1100, height: 740 };
 const THEMES = ['light', 'dark'];
 const PAGES = ['Personas', 'Settings'];

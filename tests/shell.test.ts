@@ -182,3 +182,32 @@ describe('one page, one framework, one Svelte configuration', () => {
     expect(html).not.toContain('unsafe-eval');
   });
 });
+
+describe('QGD-CRD-0003: a fixture persona cannot collide with a real one', () => {
+  it('names every suite persona in the reserved qg- space', async () => {
+    // The credential core keys Keychain entries by the service and
+    // `persona:provider`. The profile directory is NOT part of that key, so a
+    // temporary profile does not isolate a suite's persona from the operator's
+    // own. A fixture called "Home station" — which is the placeholder text in
+    // the persona name field — read the operator's saved credentials into a
+    // screenshot baseline and could have raised a Keychain prompt in the
+    // middle of a verification run.
+    //
+    // Reserved rather than remembered: every persona a suite creates starts
+    // with qg-, which no operator would type.
+    const { readdir, readFile } = await import('node:fs/promises');
+    const names: { file: string; name: string }[] = [];
+    for (const file of await readdir('scripts')) {
+      if (!file.endsWith('.mjs')) continue;
+      const text = await readFile(`scripts/${file}`, 'utf8');
+      for (const match of text.matchAll(/\bconst\s+(?:persona|PERSONA)\s*=\s*(.+)/g)) {
+        const literal = /`([^`]*)`/.exec(match[1]) ?? /name:\s*'([^']*)'/.exec(match[1]) ?? /'([^']*)'/.exec(match[1]);
+        if (literal) names.push({ file, name: literal[1] });
+      }
+    }
+    expect(names.length, 'the scan must be finding the suites that create personas').toBeGreaterThan(5);
+    for (const { file, name } of names) {
+      expect(name.startsWith('qg-'), `${file} names a persona "${name}", outside the reserved qg- space`).toBe(true);
+    }
+  });
+});

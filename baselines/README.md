@@ -30,3 +30,10 @@ that will need an answer then.
 The content is fixed so the comparison means something: one persona with a
 fixed name, callsign and start date, and a log directory inside the repository
 — a temporary path would change every run and redraw the Logs page every run.
+
+The persona is called `qg-baseline-fixture`, which is not a name anybody would
+choose, and that is the point. The credential core keys Keychain entries by the
+service and `persona:provider`; the profile directory is not part of the key,
+so a temporary profile does not isolate a fixture persona from the operator's
+real credentials. A plausible name here would read somebody's saved credential
+status into the baseline and could raise a Keychain prompt mid-verification.
