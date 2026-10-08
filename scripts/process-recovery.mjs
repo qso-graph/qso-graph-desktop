@@ -9,7 +9,7 @@
 // therefore does not depend on the credential store and reports its own result
 // when the round-trip fails.
 import { _electron as electron, expect } from '@playwright/test';
-import { cp, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rename, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
@@ -50,6 +50,9 @@ try {
   await mkdir(application_directory, { recursive: true });
   await cp('dist', join(application_directory, 'dist'), { recursive: true });
   await cp('package.json', join(application_directory, 'package.json'));
+  // The application has runtime dependencies now, so the copy needs them on its
+  // resolution path. Linked rather than copied: this suite only reads them.
+  await symlink(resolve('node_modules'), join(application_directory, 'node_modules'), 'dir');
   application = await electron.launch({
     args: ['.'], cwd: application_directory,
     executablePath: resolve('node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),

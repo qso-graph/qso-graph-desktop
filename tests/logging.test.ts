@@ -304,3 +304,29 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
     }
   });
 });
+
+describe('one writer per process', () => {
+  it('shares a destination between components of the writing process', async () => {
+    const { createLogger, ACTIVE_LOG } = await import('../src/logger.js');
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const directory = await mkdtemp(join(tmpdir(), 'qg-log-single-'));
+    try {
+      // main.ts and persona-broker.ts both ask for one at startup.
+      const main = createLogger('main', directory);
+      const broker = createLogger('broker', directory);
+      main.info({}, 'from main');
+      broker.info({}, 'from the broker');
+      main.stop();
+
+      const records = (await readFile(join(directory, ACTIVE_LOG), 'utf8'))
+        .split('\n').filter(Boolean).map(line => JSON.parse(line));
+      // Both reached the one active file, each naming its own component.
+      expect(records.map(record => record.process)).toEqual(['main', 'broker']);
+      expect(records.map(record => record.msg)).toEqual(['from main', 'from the broker']);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});

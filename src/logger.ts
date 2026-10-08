@@ -99,10 +99,10 @@ function guard(logger: pino.Logger): Logger {
   return { info: at('info'), warn: at('warn'), error: at('error'), debug: at('debug'), stop() {} };
 }
 
-function options(processName: string, level: Level): pino.LoggerOptions {
+function options(directory: string): pino.LoggerOptions {
   return {
-    level,
-    base: { process: processName, pid: process.pid },
+    level: currentLevel(directory),
+    base: { pid: process.pid },
     // QGD-LOG-0003: configured on the logger, by field name, so that no call
     // site can omit it — and here, so a secret is redacted before it is
     // serialised and therefore before it could cross a process boundary.
@@ -139,22 +139,32 @@ export function maintain(directory: string, destination: { reopen(): void }): { 
 
 export function createLogger(processName: string, directory = logDirectory(), intervals: Intervals = {}): Logger {
   try {
+    // One destination and one maintenance timer per process. Several components
+    // in the writing process ask for a logger — main and the broker both do —
+    // and each opening its own reproduces the race this layer exists to avoid,
+    // one process further in: whichever rotates first leaves the other writing
+    // into the archive, which retention then deletes.
+    if (root && root.directory === directory) return guard(root.logger.child({ process: processName }));
+    root?.stop();
+
     mkdirSync(directory, { recursive: true });
     enforceCaps(directory);
     const destination = pino.destination({ dest: join(directory, ACTIVE_LOG), append: true, sync: true });
-    const logger = pino(options(processName, currentLevel(directory)), destination);
+    // A destination reports a failed write or a failed reopen asynchronously,
+    // where no try/catch around the call can reach it, and pino's default
+    // listener rethrows. Routine maintenance must not be able to end the
+    // application.
+    destination.on?.('error', () => { /* logging never interrupts */ });
+
+    const logger = pino(options(directory), destination);
     forwardTo = line => { try { destination.write(line); } catch { /* ignore */ } };
 
-    const caps = setInterval(() => {
-      const { rotated } = enforceCaps(directory);
-      
-      if (rotated) { try { destination.reopen(); } catch { /* ignore */ } }
-    }, CAPS_INTERVAL_MS);
+    const caps = setInterval(() => maintain(directory, destination), intervals.capsMs ?? CAPS_INTERVAL_MS);
     caps.unref?.();
     const stopLevel = followLevel(logger, directory, intervals.levelMs ?? LEVEL_INTERVAL_MS);
+    root = { directory, logger, stop() { clearInterval(caps); stopLevel(); } };
 
-    const guarded = guard(logger);
-    return { ...guarded, stop() { clearInterval(caps); stopLevel(); } };
+    return { ...guard(logger.child({ process: processName })), stop() { root?.stop(); root = undefined; } };
   } catch {
     // Logging must never be the reason the application fails to start.
     return SILENT;
@@ -163,6 +173,7 @@ export function createLogger(processName: string, directory = logDirectory(), in
 
 // Set by createLogger in the process that owns the file.
 let forwardTo: ((line: string) => void) | undefined;
+let root: { directory: string; logger: pino.Logger; stop(): void } | undefined;
 
 // Called by the broker when a utility process sends a record.
 export function writeForwarded(line: unknown): boolean {
@@ -181,7 +192,7 @@ export function createForwardingLogger(
 ): Logger {
   try {
     const stream = { write(line: string) { try { send(line); } catch { /* ignore */ } } };
-    const logger = pino(options(processName, currentLevel(directory)), stream);
+    const logger = pino({ ...options(directory), base: { process: processName, pid: process.pid } }, stream);
     const stopLevel = followLevel(logger, directory, intervals.levelMs ?? LEVEL_INTERVAL_MS);
     const guarded = guard(logger);
     return { ...guarded, stop: stopLevel };
