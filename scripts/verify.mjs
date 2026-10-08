@@ -30,6 +30,7 @@ const commands = [
   ['axe', ['scripts/axe.mjs']],
   ['screenshots', ['scripts/screenshots.mjs']],
   ['storybook', ['scripts/storybook.mjs']],
+  ['story-themes', ['scripts/story-themes.mjs']],
   ['package', [npmCli, 'run', 'package']],
   ['packaged-launch', ['scripts/packaged-smoke.mjs']],
   ['electron-audit', ['scripts/electron-audit.mjs']]

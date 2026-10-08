@@ -31,8 +31,8 @@ describe('the vendored Font Awesome icons', () => {
   });
 });
 
-describe('CC BY 4.0 attribution', () => {
-  it('credits Font Awesome in NOTICE, at the version that ships', async () => {
+describe('QGD-REP-0005: third-party material carries its attribution', () => {
+  it('records it in NOTICE, with the licence and the version that ships', async () => {
     const notice = await readFile('NOTICE', 'utf8');
     expect(notice).toContain('Font Awesome Free');
     expect(notice).toContain(fontAwesomeVersion());
@@ -41,9 +41,9 @@ describe('CC BY 4.0 attribution', () => {
     expect(notice).toContain('Fonticons, Inc.');
   });
 
-  it('credits Font Awesome in the About panel the user can open', async () => {
-    // NOTICE is the record; this is the one somebody can actually reach, which
-    // is what the licence is asking for.
+  it('puts it in a surface the user can reach', async () => {
+    // QGD-REP-0005: NOTICE is the record, and a file in the repository is not
+    // somewhere a user can be expected to look. The About panel is.
     const main = await readFile('src/main.ts', 'utf8');
     expect(main).toContain('setAboutPanelOptions');
     expect(main).toContain('FONT_AWESOME_CREDIT');

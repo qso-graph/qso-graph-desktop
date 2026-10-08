@@ -132,6 +132,7 @@ QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 | `QGD-REP-0002` | The move to that layout happens at `QGD-PRT-0107` and not before. Recording it here is not permission to begin it. | Inspection |
 | `QGD-REP-0003` | A built-in application uses only the app API and its grants, exactly as a contributed application would. Personas, the engine and the reference data are frame, not applications, because the frame enforces the grants. | Inspection |
 | `QGD-REP-0004` | `app-api` and `ui` are separate packages: what an application may call and what it may look like are different contracts. | Inspection |
+| `QGD-REP-0005` | Third-party material that ships inside the application is recorded in `NOTICE`, with its licence and the version that ships. Where that licence requires attribution, the attribution also appears in a surface the user can reach — the About panel — because a file in the repository is not somewhere a user can be expected to look. | Test, Inspection |
 
 ## 3. Credential core
 
@@ -175,6 +176,7 @@ not the operator's own.
 | `QGD-PRC-0004` | The credential core, station I/O, and the engine supervisor each run as their own utility process. | Inspection |
 | `QGD-PRC-0005` | IPC is a typed contract; malformed messages are rejected, not coerced. | Test |
 | `QGD-PRC-0006` | Context isolation and the sandbox are enabled; Node is absent from the renderer; new windows are denied; outbound fetch from the renderer is refused. | Test |
+| `QGD-PRC-0007` | Only one instance of the application runs at a time. A second launch exits and raises the window already open, so two instances can never both own the profile, the settings file and the operating system's credential-store entries — which `QGD-CRD-0003` keys by name rather than by profile, so a second instance would be writing over the first. | Test |
 
 ## 4.1 Application logging
 

@@ -20,6 +20,8 @@ export function blockedBy(name, suites) {
   // Nothing downstream can be built, packaged or launched without a build.
   if (failed('build')) return 'build';
   if (CREDENTIAL_SUITES.includes(name) && failed('keychain-roundtrip')) return 'keychain-roundtrip';
+  // story-themes walks the gallery that storybook built.
+  if (name === 'story-themes' && failed('storybook')) return 'storybook';
   // Both of these read what packaging produced.
   if (['packaged-launch', 'electron-audit'].includes(name) && failed('package')) return 'package';
   return undefined;

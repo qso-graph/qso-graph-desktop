@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'package', 'packaged-launch', 'electron-audit'];
+const ORDER = ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -39,7 +39,7 @@ describe('QGD-TST-0007', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
     expect(resultOf(suites, 'rust-unit').result).toBe('PASS');
-    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'package', 'packaged-launch', 'electron-audit']) {
+    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });
@@ -55,5 +55,14 @@ describe('QGD-TST-0007', () => {
 
   it('runs every suite when nothing has failed', () => {
     expect(run([]).every(suite => suite.result === 'PASS')).toBe(true);
+  });
+});
+
+describe('QGD-FRM-0007 story-themes reads what storybook builds', () => {
+  it('is stopped when the gallery did not build', () => {
+    // It walks storybook-static. Running it after a failed build would report
+    // on whatever the last successful build left behind.
+    expect(blockedBy('story-themes', [{ name: 'storybook', result: 'FAIL' }])).toBe('storybook');
+    expect(blockedBy('story-themes', [{ name: 'storybook', result: 'PASS' }])).toBeUndefined();
   });
 });

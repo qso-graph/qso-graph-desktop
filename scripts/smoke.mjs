@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { _electron as electron, expect } from '@playwright/test';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { createRequire as createElectronRequire } from 'node:module';
 import { mkdir, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -28,6 +31,26 @@ try {
     return { sandbox: prefs.sandbox, contextIsolation: prefs.contextIsolation, nodeIntegration: prefs.nodeIntegration, spellcheck: session.defaultSession.isSpellCheckerEnabled() };
   });
   expect(preferences).toEqual({ sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false });
+  // QGD-PRC-0007: a second launch exits and raises the window already open.
+  // Two instances would both own the profile, the settings file and the
+  // Keychain entries QGD-CRD-0003 keys by name rather than by profile.
+  {
+    const electronBinary = createElectronRequire(import.meta.url)('electron');
+    const second = spawn(electronBinary, ['.'], {
+      cwd: process.cwd(), stdio: 'ignore',
+      env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }
+    });
+    const exited = await Promise.race([
+      once(second, 'exit').then(([code]) => code),
+      new Promise(resolve => setTimeout(() => resolve('still running'), 20_000))
+    ]);
+    if (exited === 'still running') { second.kill('SIGKILL'); }
+    expect(exited, 'a second launch must exit rather than open a second application').not.toBe('still running');
+    // And the first is untouched: one window, still answering.
+    expect(application.windows()).toHaveLength(1);
+    await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
+  }
+
   expect(await page.evaluate(() => 'require' in window || 'process' in window)).toBe(false);
   expect(await page.evaluate(async () => {
     try { await fetch('https://example.invalid/'); return 'allowed'; }
@@ -285,6 +308,7 @@ try {
   await application.close();
   application = undefined;
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
+  console.log('Single instance: a second launch exited and the first kept its one window: PASS');
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');
   console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {
