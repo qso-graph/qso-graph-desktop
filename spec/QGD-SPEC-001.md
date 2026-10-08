@@ -46,6 +46,8 @@ two copies will eventually disagree and nothing mechanical will notice.
 | `QGD-FRM` | Frame, shell, apps |
 | `QGD-ENG` | Database engine |
 | `QGD-LOG` | Application logging |
+| `QGD-REP` | Repository layout |
+| `QGD-SEC` | Security rules and cryptographic claims |
 | `QGD-TST` | Test, verification, release |
 
 **Verify methods**, per NASA/SP-2016-6105 Rev 2 App. D, same as FM's RVM:
@@ -89,6 +91,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | `QGD-PRT-0002` | One Part is in flight at a time. | Inspection |
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |
 | `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. No gate before Release 1 requires a second operating system or a third-party application. | Static |
+| `QGD-PRT-0005` | **P0 to P7 are the frame; P8 onward are applications built on the API the frame provides.** A Part in the second group uses the app API and the grant model, never a private route into the frame. | Inspection |
 
 ### 2.1 Parts
 
@@ -99,24 +102,36 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | **P2** | `QGD-PRT-0102` | Process map: main as IPC broker, utility processes, typed IPC contract; application logging | P1 | Killing a utility process leaves the window running and the process recovers; malformed IPC is rejected. Every process logs into one redacted JSON-lines stream held inside the size, total and retention caps, and a raised level reverts on its own |
 | **P3** | `QGD-PRT-0103` | Shell: rail, pages, Settings, status bar, themes | P2 | e2e navigation; screenshot baselines approved by KI7MT; axe clean |
 | **P4** | `QGD-PRT-0104` | Engine: bundled PostgreSQL, lifecycle, data directory, free port, roles per app, backup and restore, migrations | P2 | Engine starts on a free port; restore works; migrations apply |
-| **P5** | `QGD-PRT-0105` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | P0, P4 | KI7MT walks setup on a clean machine; export round-trips |
-| **P6** | `QGD-PRT-0106` | App runtime, official tier, grant model, over the message API | P5 | An app without a grant is refused; proven by a no-credential app (solar) and a granted one (QRZ lookup) |
-| **P7** | `QGD-PRT-0107` | Logbook store: QSO schema in ADIF fields, stable unique ID and last-changed time from the first row written | P4, P6 | Rows carry ID and last-changed from the first write; 49,233 synthetic QSOs load within budget |
-| **P8** | `QGD-PRT-0108` | QG ADIF: `all.json` load, validation, import and export | P7 | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
-| **P9** | `QGD-PRT-0109` | QG Club: club definition and roster | P8 | The field canvas's cases load |
+| **P5** | `QGD-PRT-0105` | Reference data: ADIF definitions (`all.json`), CQ and ITU zones, DOKs, and the validation built from them | P4 | The reference data loads into the engine and the validation built from it answers ADIF's own cases |
+| **P6** | `QGD-PRT-0106` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | P0, P4 | KI7MT walks setup on a clean machine; export round-trips |
+| **P7** | `QGD-PRT-0107` | App runtime, official tier, grant model, over the message API — the app API | P6 | An app without a grant is refused; proven by a no-credential app (solar) and a granted one (QRZ lookup); and by a test application that uses the API and nothing else |
+| **P8** | `QGD-PRT-0108` | QG ADIF: `all.json` load, validation, import and export of `.adi` files. **Files only; no QSO storage** | P5, P7 | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
+| **P9** | `QGD-PRT-0109` | QG Club: club definition and roster | P7 | The field canvas's cases load |
 | **P10** | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | P9 | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
-| **P11** | `QGD-PRT-0111` | Updates and onboarding | P5–P10 | An update installs on a clean machine |
+| **P11** | `QGD-PRT-0111` | Updates and onboarding | P6–P10 | An update installs on a clean machine |
 
 **Release 1 = P0–P11.**
 
-**After Release 1**, each its own Part in an order KI7MT sets: QG Reference, QG Log, QG Net,
-the representative spike, QG NCS, LoTW signing, the contributed tier and sandbox, QG Spots,
-QG Rig, the Vault store, QG Sync, QG Atlas, QG Predict, QG Chat, and QG Awards once "awards"
-is defined.
+**The logbook store and QG Log are not in Release 1.** This replaces D-29, which placed the
+logbook store inside it. Release 1 reads and writes ADIF files; it does not keep QSOs.
+
+**After Release 1**, in order: the logbook store, then QG Log. Then, each its own Part in an
+order KI7MT sets: QG Reference's browsable surface, QG Net, the representative spike, QG NCS,
+LoTW signing, the contributed tier and sandbox, QG Spots, QG Rig, the Vault store, QG Sync,
+QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 
 > The persona core is P0 and the shell is P3 because `QGD-PRT-0001` says operating-system-level
 > components come first. Rationale: `QGD-HDBK-001` §2. Any document placing the shell ahead of
 > the core contradicts `QGD-PRT-0001` and is wrong by this specification.
+
+## 2.2 Repository layout
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `app-api` — and `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon. | Inspection |
+| `QGD-REP-0002` | The move to that layout happens at `QGD-PRT-0107` and not before. Recording it here is not permission to begin it. | Inspection |
+| `QGD-REP-0003` | A built-in application uses only the app API and its grants, exactly as a contributed application would. Personas, the engine and the reference data are frame, not applications, because the frame enforces the grants. | Inspection |
+| `QGD-REP-0004` | `app-api` and `ui` are separate packages: what an application may call and what it may look like are different contracts. | Inspection |
 
 ## 3. Credential core
 
@@ -124,9 +139,9 @@ is defined.
 |---|---|---|
 | `QGD-CRD-0001` | The credential core is Rust, built as a `napi-rs` native addon. | Static |
 | `QGD-CRD-0002` | The core owns the OS credential stores, X.509 and PKCS#12 handling, certificate expiry, and the grant model's enforcement point. | Inspection |
-| `QGD-CRD-0003` | The keyring naming convention is the contract between the core and `qso-graph-auth`; entry names are set explicitly, never left to a library default. | Test |
-| `QGD-CRD-0004` | **The cross-application proof through `qso-graph-auth` is out of P0** (KI7MT, 2026-10-07). No P0 requirement, suite or exit gate depends on a Python process. `QGD-CRD-0003` is proven without one. | Inspection |
-| `QGD-CRD-0005` | `qso-graph-auth` remains Python; the shell and frame remain TypeScript. The convention is the contract, so the languages either side of it are free. | Inspection |
+| `QGD-CRD-0003` | The credential core owns its OS credential-store entry names and sets them explicitly, never leaving them to a library default. | Test |
+| `QGD-CRD-0004` | **QG Desktop has no Python and no MCP-server interoperability, in any Part, now or later** (KI7MT, 2026-10-08). No requirement, suite, gate or shipped artifact depends on a Python runtime or on `qso-graph-auth`. | Static |
+| `QGD-CRD-0005` | The credential core is Rust and the shell and frame are TypeScript. | Inspection |
 | `QGD-CRD-0006` | A credential never appears in a log, an error message, an IPC payload rendered to a screen, or a report. | Static |
 | `QGD-CRD-0007` | The renderer never holds a credential and never opens a network connection. | Static, Test |
 | `QGD-CRD-0008` | The OS credential manager is the only store in Release 1. A user's own Vault is a later Part. | Inspection |
@@ -144,8 +159,11 @@ not the operator's own.
 | `QGD-PII-0003` | Roster field values are never written to logs, `report.md`, telemetry, or error messages. | Static, Test |
 | `QGD-PII-0004` | Sharing or exporting a roster is an explicit user action, never a side effect of opening, validating or saving a file. | Test |
 
-> How roster handling squares with the project's never-a-PII-source rule is **open for KI7MT**
-> (D-30). `QGD-PII-0001`–`0004` hold whatever that answer is.
+| `QGD-PII-0005` | A club customises by **defining lists** — offices, membership classes, net roles, award categories — and by assigning members to them with dates, so history is kept. A club never adds fields: the schema is the same for every club. | Inspection, Test |
+| `QGD-PII-0006` | Club data on a user's machine is theirs. Nothing is collected, no telemetry is sent, and no feature pushes another person's details to a shared or public service. | Static, Inspection |
+
+> `QGD-PII-0006` closes what D-30 left open: how roster handling squares with the project's
+> never-a-PII-source rule. The answer is that the data stays where the user put it.
 
 ## 4. Process map
 
@@ -160,10 +178,8 @@ not the operator's own.
 
 ## 4.1 Application logging
 
-Carried into P2 from `qso-graph-desktop#19` §5 (KI7MT with Bob, 2026-10-08), which releases
-this section early because it belongs with the process map. The rest of that issue — the Part
-catalogue re-cut, the repository layout, the database, clubs, and the `qso-graph-auth`
-contract — remains held and is **not** reflected here.
+From `qso-graph-desktop#19` §5 (KI7MT with Bob, 2026-10-08), released early for P2 because it
+belongs with the process map. The rest of that issue is now carried here too.
 
 | ID | Requirement | Verify |
 |---|---|---|
@@ -180,6 +196,70 @@ contract — remains held and is **not** reflected here.
 | `QGD-LOG-0011` | The engine's log is held inside the same size, total and retention caps. | Test |
 | `QGD-LOG-0012` | Exporting diagnostics produces one redacted archive for the user to send. Nothing leaves the machine unless the user sends it. | Test |
 | `QGD-LOG-0013` | Settings carries a Logs page with a level switch and the export action. Its surface lands with the shell in `QGD-PRT-0103`; the behaviour it drives is `QGD-LOG-0009`–`QGD-LOG-0012`. | Demo |
+
+## 4.2 Database engine
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-ENG-0001` | PostgreSQL is the database, provided by the frame as a substrate service rather than by an application. Per-application roles are how the grant model reaches the data, and several processes connect at once. | Inspection |
+| `QGD-ENG-0002` | Drizzle is the database layer: a TypeScript schema, SQL-like queries and generated migrations. | Inspection |
+| `QGD-ENG-0003` | Simple settings — theme, window size and the like — live in a settings file rather than the database, so the application starts before the engine is up. | Test |
+
+## 4.3 Security rules
+
+Electron's threat model treats the screens as untrusted and the dependency tree as a supply
+chain. These add to `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*` and do not restate them.
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-SEC-0001` | No `eval`, no `new Function`, and no string-form timer. | Static |
+| `QGD-SEC-0002` | No `child_process.exec` and no `shell: true`. A child process is started with `spawn` or `execFile` and an argument array. | Static |
+| `QGD-SEC-0003` | No dynamic `require` or `import` of a path built from input. | Static |
+| `QGD-SEC-0004` | A file path derived from input is checked against traversal before it is used. | Test |
+| `QGD-SEC-0005` | Drizzle's `sql.raw()` is not used, except on a fixed literal that carries no input. | Static |
+| `QGD-SEC-0006` | Every IPC message, file input and API response is validated against a schema and **rejected, never coerced**, including keys that would pollute a prototype. | Test |
+| `QGD-SEC-0007` | The preload exposes named functions only. It never exposes `ipcRenderer`, a generic send, or anything that forwards an arbitrary channel. | Static, Test |
+| `QGD-SEC-0008` | The content security policy forbids `unsafe-eval`, inline scripts and remote script sources. | Static, Test |
+| `QGD-SEC-0009` | `shell.openExternal` is called only with an allowlisted `https://` URL. | Static, Test |
+| `QGD-SEC-0010` | The Electron fuses stay set in a packaged build. | Test |
+| `QGD-SEC-0011` | No `{@html}` with content that did not come from this application. | Static |
+| `QGD-SEC-0012` | The lockfile is committed and installs use `npm ci`. Dependencies on the credential, crypto, IPC and packaging paths are pinned exactly, a new dependency is a decision someone reviewed, and an audit finding is fixed rather than carried. | Static, Inspection |
+| `QGD-SEC-0013` | `make verify` runs the ESLint security rules, `svelte/no-at-html-tags`, and the `sql.raw` ban. | Test |
+| `QGD-SEC-0014` | `make verify` runs Electronegativity against the packaged application. | Test |
+
+### 4.3.1 Cryptographic claims
+
+The wording below is the whole of what this project says about FIPS. It is reproduced in the
+README and the documentation **exactly**, and nowhere is it paraphrased.
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-SEC-0015` | A cryptographic claim uses the wording in this section exactly, and the wording that applies to the platform the artifact runs on. | Static, Inspection |
+| `QGD-SEC-0016` | **Never** "FIPS compliant", "FIPS certified", "FIPS approved application", or "validated" for any module version or platform that is not on a CMVP certificate. | Static |
+| `QGD-SEC-0017` | Release evidence records the built module version, the crate version, the platform, and the CMVP validated and submitted lists with the date they were checked. | Test |
+| `QGD-SEC-0018` | When a 4.x module version is CMVP-validated, `aws-lc-rs` is pinned to exactly that version and the wording steps up to "validated". An older validated version is not pinned in the meantime. | Inspection |
+
+**Windows and Linux:**
+
+> QSO Graph Desktop performs its cryptography in its credential core using AWS-LC's FIPS module
+> (version 4.2.0) in FIPS mode, with TLS 1.3 and FIPS-approved cipher suites only. Earlier
+> versions of this module hold CMVP certificates; version 4.2.0 is not yet validated. Each
+> release records evidence of the module version and mode.
+
+**macOS:**
+
+> Credentials are stored in the macOS Keychain. Network connections use TLS 1.3 with
+> FIPS-approved cipher suites, built from AWS-LC's FIPS module source; macOS builds are not
+> FIPS builds.
+
+**README:**
+
+> TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
+> macOS).
+
+> Before the macOS line is published, Apple's current corecrypto certificate for the targeted
+> macOS version is checked. Apple's validations trail its releases, so where the targeted
+> version is not covered the phrase is "Apple's own cryptographic module", not "validated".
 
 ## 5. Test, verification and release
 

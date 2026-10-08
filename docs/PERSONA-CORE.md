@@ -1,7 +1,8 @@
 # Rust persona core — local Mac build
 
-The implementation model is `qso-graph-auth`. Its published Python package stays
-unchanged. This core follows its persona operations and stored formats:
+The core owns its entry names and stored formats (`QGD-CRD-0003`). They began as
+`qso-graph-auth`'s and are kept because they work, not because anything else reads
+them — `QGD-CRD-0004` rules out Python and MCP interoperability in any Part:
 
 - Non-secret index: `personas.json`, `{ "personas": { name: record } }`.
 - Record: lowercase name, uppercase callsign, start/end dates, provider refs.
@@ -11,8 +12,8 @@ unchanged. This core follows its persona operations and stored formats:
 - Secret selection: `qrz_logbook` prefers `api_key`; others prefer `password`;
   each falls back to the other, as in `PersonaManager.require()`.
 
-Default profile directory follows qso-graph-auth on macOS:
-`$XDG_CONFIG_HOME/adif-mcp` or `~/.config/adif-mcp`. Only the trusted app process
+Default profile directory on macOS: `$XDG_CONFIG_HOME/adif-mcp` or
+`~/.config/adif-mcp`. Only the trusted app process
 chooses this path. Tests use their own temporary directory and unique fake
 Keychain entries; no test reads or changes an existing user credential.
 
@@ -20,7 +21,7 @@ Registered before implementation:
 
 | Test | Required result |
 |---|---|
-| persona-records | create, update, list and case-insensitive lookup preserve `qso-graph-auth`'s stored format; date ordering is validated |
+| persona-records | create, update, list and case-insensitive lookup preserve the stored record format; date ordering is validated |
 | persona-active | a known persona can be selected; missing names are refused |
 | credential-selection | QRZ logbook uses the key when both values exist; other providers retain password-first behavior |
 | rust-unit | the core's own unit tests, including the simulated Keychain refusal and retry, run under `make verify` |
@@ -54,10 +55,11 @@ operational-environment evidence all run under `make verify`. See
 Local evidence on 2026-10-07: Rust unit tests passed (3 tests); the development
 window and the packaged arm64 app both passed create, activate, Keychain save,
 restart, and credential deletion tests using isolated synthetic profiles.
-The Python interoperability proof is out of P0 (KI7MT, 2026-10-07): cross-application
-reads raise a macOS authorization dialog that an explicit trusted-application list
-cannot remove, because every party is ad-hoc signed. See QGD-HDBK-001 section 5. The
-replacement Rust round-trip passes unattended in under 0.2 s. Judge later
+Python interoperability is out, in any Part (KI7MT, 2026-10-08, `QGD-CRD-0004`).
+It was first dropped from P0 on 2026-10-07 because cross-application reads raise a
+macOS authorization dialog that an explicit trusted-application list cannot remove,
+every party being ad-hoc signed. See QGD-HDBK-001 section 5. The Rust round-trip
+passes unattended in under 0.2 s. Judge later
 confirmed a successful QRZ test through the app using a saved credential. That
 user check is separate from the isolated automated validation described below.
 
@@ -73,12 +75,11 @@ refresh on persona/service selection and disappear after credential deletion.
 
 Password and API key can be removed independently. Saving only one field keeps
 the other saved field; empty inputs are not deletion requests. Removing the last
-secret removes the Keychain entry. Service default preserves qso-graph-auth's
+secret removes the Keychain entry. The service default keeps the original
 selection order; a desktop override prefers password or API key and falls back
 to the other if the preferred value is missing. The core enforces that choice.
 Overrides are non-secret, stored in `desktop-preferences.json` per persona and
-provider. The published Python package remains unchanged and does not consume
-these desktop overrides.
+provider. Nothing outside this application reads them.
 
 Remove persona requires UI confirmation and deletes its indexed service
 credentials, checks all supported providers for legacy entries, clears its

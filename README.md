@@ -7,12 +7,15 @@ Remove password and API key independently, choose which to prefer, or remove a
 persona together with its credentials. Saving one secret keeps the other saved
 secret; use the explicit removal controls to delete it.
 
-The working baseline is `qso-graph-auth`: the same `adif-mcp` Keychain service,
-`persona:provider` accounts, `personas.json` format and `current.txt` active marker.
+The credential core owns its own Keychain entry names: the `adif-mcp` service with
+`persona:provider` accounts, a `personas.json` index and a `current.txt` active marker.
 The default profile directory is `${XDG_CONFIG_HOME:-~/.config}/adif-mcp`.
 Test credential checks QRZ lookup login or QRZ logbook STATUS, through the Rust
 core's TLS 1.3 client. Other services explicitly report that testing is pending.
 The rest of the desktop shell is still pending.
+
+TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
+macOS).
 
 On the M3, use Node 26.9.0, Rust and CMake; run `npm ci`, then `make start`.
 `make package` produces `out/mac-arm64/QG Desktop.app`.

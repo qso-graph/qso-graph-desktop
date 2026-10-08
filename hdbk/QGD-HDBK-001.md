@@ -140,28 +140,20 @@ and needs no authorization, so `QGD-CRD-0003` keeps its `Test` method without a 
 The suite runs in under a fifth of a second, unattended, where its predecessor needed an
 operator and still timed out.
 
-This narrowed P0's scope; it did not retire the contract. `QGD-CRD-0003` still makes the keyring
-naming convention the contract between the core and `qso-graph-auth`, and `QGD-CRD-0005` still
-leaves the languages either side of it free. One consequence is worth stating plainly, because
-it is a property of the platform and not of this build: an operator who saves a credential in
-the desktop will be asked by macOS to authorize the first read of it by any other application,
-including the Python MCP servers. Signing under D-27 would settle our own side of that; a PyPI
-package running under the user's own interpreter it would not.
+That narrowed P0's scope. KI7MT closed the question the following day: `QGD-CRD-0004` now rules
+out Python and MCP-server interoperability in any Part, and `QGD-CRD-0003` makes the credential
+core the owner of its own entry names rather than a party to a contract with something else.
+The measurement above is why that is cheap rather than costly — the interoperability it would
+have bought could not be proven unattended on this platform anyway.
 
 
-## 6. Logging arrives with the process map, and only logging
+## 6. Logging arrived with the process map, ahead of the rest
 
-`qso-graph-desktop#19` records decisions KI7MT made with Bob on 2026-10-08 and is held: it
-lands as one specification pull request at P5–P6, so that P0 and P1 work is not disturbed by a
-catalogue being re-cut underneath it. It carries one carve-out, that the logging section comes
-across early because it belongs with the process map, and `QGD-SPEC-001` §4.1 is that carve-out
-and nothing more.
-
-What is deliberately **not** here, and remains held: the Part catalogue re-ordering, the
-repository layout, the database layer, the club and personal-data decisions, and the removal of
-the `qso-graph-auth` contract from `QGD-CRD-0003`. Until that pull request lands, this
-specification is what the build follows, and a reader comparing the two should expect them to
-differ.
+`qso-graph-desktop#19` recorded decisions KI7MT made with Bob on 2026-10-08 and was held, to
+land as one specification change so that P0 and P1 work would not be disturbed by a catalogue
+being re-cut underneath it. One carve-out came across early — the logging section, because it
+belongs with the process map, and §4.1 is that. The rest followed after P2 was signed off and is
+described in §7 below.
 
 `QGD-PRT-0102`'s row is the one exception taken from the issue, because a Part whose scope
 included logging while its own row did not mention it would be the §0.1 failure again: the
@@ -172,3 +164,71 @@ than one because each is a different failure. A log folder can grow without boun
 single file that never rotates, through many files that rotate but are never removed, through a
 debug level somebody left on, or through the engine's own log, which no amount of care on our
 side constrains. One requirement covering all four would be met by addressing any one of them.
+
+
+## 7. The catalogue re-cut, and what it is for
+
+`qso-graph-desktop#19` landed whole once P2 was signed off, before any P3 code, because the
+Parts it re-numbers are all ahead of the build rather than behind it. Re-cutting a catalogue
+under work already done is the failure §1 describes; re-cutting it ahead of the work is just
+planning.
+
+**P0 to P7 are the frame and P8 onward are applications on its API** (`QGD-PRT-0005`). That line
+is what the rest follows from. Reference data moves to P5 and depends on P4 alone, because
+definitions and zone tables are data in a database and need nothing else. Personas becomes P6
+and the app runtime P7, whose sign-off now includes a test application that uses the API and
+nothing else — the only way to find out whether the API is usable is to be its first consumer.
+QG Club moves off ADIF and onto P7, because a roster is people, not contacts, and never needed
+ADIF to describe it.
+
+**The logbook store and QG Log leave Release 1**, replacing D-29. Release 1 reads and writes
+ADIF files and keeps no QSOs. That is a smaller product and a much smaller surface: a store
+that holds a user's whole log is a different undertaking from a tool that validates a file, and
+pretending otherwise is how Release 1 never ships.
+
+**The repository layout is recorded now and moved at P7** (`QGD-REP-0002`). Recording it early
+settles where things will live so that P3 through P6 can be written in the right shape; moving
+early would be churn for its own sake.
+
+**Clubs customise by defining lists, never by adding fields** (`QGD-PII-0005`). A club that can
+add a field forks the schema, and from then on every feature has to ask which club it is talking
+to. Offices, membership classes and net roles are rows with dates, so history survives and the
+schema stays one schema. `QGD-PII-0006` closes D-30 the same way: the data stays where the user
+put it.
+
+## 8. Security rules, before the screens are written
+
+`QGD-SPEC-001` §4.3 exists because P3 brings Svelte screens and `QGD-PRT-0003` says a Part
+registers its acceptance tests before any of its code is written. Rules that arrive after the
+code are a cleanup; rules that arrive before it are a constraint.
+
+Electron's threat model is the reason the list looks the way it does. The renderer is treated as
+untrusted — it is a browser running content, and the question is never whether it is honest but
+what it can reach if it is not. So the preload exposes named functions rather than a channel
+(`QGD-SEC-0007`), the policy forbids inline and remote scripts (`QGD-SEC-0008`), and external
+links are an allowlist rather than a URL the screen hands over (`QGD-SEC-0009`). The rest —
+`eval`, `shell: true`, dynamic `require`, `sql.raw`, `{@html}` — are the ways untrusted content
+becomes executable, each cheap to forbid and expensive to find later.
+
+The dependency rules (`QGD-SEC-0012`) are there because a credential application ships its whole
+dependency tree to the people who install it. The two gates, ESLint and Electronegativity, are
+what make any of this more than intention: `QGD-SEC-0013` and `QGD-SEC-0014` put them in
+`make verify`, where a rule that stops holding fails the build rather than waiting for a reader
+to notice.
+
+## 9. Saying only what is true about FIPS
+
+§4.3.1 carries the exact wording rather than a description of it, because the difference between
+"uses AWS-LC's FIPS module" and "is FIPS validated" is the difference between a fact and a claim
+somebody could act on.
+
+The facts, checked on 2026-10-08 against the built binary and AWS's own register: this project
+builds **AWS-LC FIPS 4.2.0**, from crate `aws-lc-fips-sys` 0.14.2 — two different numbers that
+are easy to confuse. CMVP has validated 1.0, 2.0, 3.1 and a NetOS build; 4.0 is submitted and
+not yet validated; **4.2.0 is in neither list.** AWS supports FIPS builds on Linux and Windows
+only, so a macOS build is not a FIPS build and no AWS certificate will ever cover one.
+
+KI7MT's decision was to say so, per platform, rather than to reach for the nearest validated
+version. Pinning back to a validated 3.1 would buy a word in a sentence and cost every fix since.
+`QGD-SEC-0018` sets the condition for changing it: a validated 4.x, pinned exactly, and the
+wording steps up then and not before.
