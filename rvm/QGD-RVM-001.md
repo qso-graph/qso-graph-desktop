@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `7ac550b2b6987f5b1b19cdbb8853d5c8a20970b2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `e81ed5696ea8d91c66a4a267b6e7e6b99d0f0b90` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `7ac550b2b6987f5b1b19cdbb8853d5c8a20970b2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `e81ed5696ea8d91c66a4a267b6e7e6b99d0f0b90` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 35 requirements · 12 Parts · 12 Inspection · 9 Static · 16 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 39 requirements · 12 Parts · 12 Inspection · 11 Static · 19 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -19,7 +19,7 @@
 | `QGD-PRT-0001` | Operating-system-level components are built before the screens wired to them. | Inspection |  |
 | `QGD-PRT-0002` | One Part is in flight at a time. | Inspection |  |
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |  |
-| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone, except where the gate names an external application that does not run on macOS — P10's NetLogger check is the only such case. | Static | ✓ |
+| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. No gate before Release 1 requires a second operating system or a third-party application. | Static | ✓ |
 | `QGD-CRD-0001` | The credential core is Rust, built as a `napi-rs` native addon. | Static | ✓ |
 | `QGD-CRD-0002` | The core owns the OS credential stores, X.509 and PKCS#12 handling, certificate expiry, and the grant model's enforcement point. | Inspection |  |
 | `QGD-CRD-0003` | The keyring naming convention is the contract between the core and `qso-graph-auth`; entry names are set explicitly, never left to a library default. | Test | ✓ |
@@ -33,6 +33,10 @@
 | `QGD-CRD-0011` | `qso-graph-auth` validates the persona index format as well as the credential entries; the two sides agree on both. | Test | ✓ |
 | `QGD-CRD-0012` | **If the credential path fails, verification halts.** No suite after the interop proof is run or reported, because nothing in the application is meaningful when credentials do not work. | Test | ✓ |
 | `QGD-CRD-0013` | No secret appears in the persona index, in a credential status result, or in any failure message from the interop proof. | Test | ✓ |
+| `QGD-PII-0001` | Club rosters are personal data. A real roster never enters this repository, its history, or CI output. Test fixtures are synthetic or anonymized. | Static | ✓ |
+| `QGD-PII-0002` | Round-trip and comparison tests report positions and lengths, never field values, so a failing diff cannot leak a member's details. | Test | ✓ |
+| `QGD-PII-0003` | Roster field values are never written to logs, `report.md`, telemetry, or error messages. | Static, Test | ✓ |
+| `QGD-PII-0004` | Sharing or exporting a roster is an explicit user action, never a side effect of opening, validating or saving a file. | Test | ✓ |
 | `QGD-PRC-0001` | Every risky job runs in its own process, so a crash in one never takes the application down. | Test | ✓ |
 | `QGD-PRC-0002` | The renderer holds screens only — no credentials, no network. | Static, Test | ✓ |
 | `QGD-PRC-0003` | The main process is windows and the IPC broker only. | Inspection |  |
@@ -60,5 +64,5 @@
 | P7 | `QGD-PRT-0107` | Logbook store: QSO schema in ADIF fields, stable unique ID and last-changed time from the first row written | Rows carry ID and last-changed from the first write; 49,233 synthetic QSOs load within budget |
 | P8 | `QGD-PRT-0108` | QG ADIF: `all.json` load, validation, import and export | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
 | P9 | `QGD-PRT-0109` | QG Club: club definition and roster | The field canvas's cases load |
-| P10 | `QGD-PRT-0110` | QG Editor: open, edit and save a club's NetLogger `.cli` and `.prf` files in NetLogger's own format | Synthetic fixtures round-trip byte for byte when unchanged; an edited file loads in NetLogger |
+| P10 | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
 | P11 | `QGD-PRT-0111` | Updates and onboarding | An update installs on a clean machine |

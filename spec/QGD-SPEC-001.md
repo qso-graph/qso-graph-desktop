@@ -41,6 +41,7 @@ two copies will eventually disagree and nothing mechanical will notice.
 | `QGD-SCP` | Scope, platform, what is and is not being built |
 | `QGD-PRT` | Part catalogue — build order and per-Part exit gates |
 | `QGD-CRD` | Credential core, persona storage, grants |
+| `QGD-PII` | Personal data — club rosters and anything carrying a third party's details |
 | `QGD-PRC` | Process map and IPC |
 | `QGD-FRM` | Frame, shell, apps |
 | `QGD-ENG` | Database engine |
@@ -86,7 +87,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | `QGD-PRT-0001` | Operating-system-level components are built before the screens wired to them. | Inspection |
 | `QGD-PRT-0002` | One Part is in flight at a time. | Inspection |
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |
-| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone, except where the gate names an external application that does not run on macOS — P10's NetLogger check is the only such case. | Static |
+| `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. No gate before Release 1 requires a second operating system or a third-party application. | Static |
 
 ### 2.1 Parts
 
@@ -102,7 +103,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | **P7** | `QGD-PRT-0107` | Logbook store: QSO schema in ADIF fields, stable unique ID and last-changed time from the first row written | P4, P6 | Rows carry ID and last-changed from the first write; 49,233 synthetic QSOs load within budget |
 | **P8** | `QGD-PRT-0108` | QG ADIF: `all.json` load, validation, import and export | P7 | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
 | **P9** | `QGD-PRT-0109` | QG Club: club definition and roster | P8 | The field canvas's cases load |
-| **P10** | `QGD-PRT-0110` | QG Editor: open, edit and save a club's NetLogger `.cli` and `.prf` files in NetLogger's own format | P9 | Synthetic fixtures round-trip byte for byte when unchanged; an edited file loads in NetLogger |
+| **P10** | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | P9 | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
 | **P11** | `QGD-PRT-0111` | Updates and onboarding | P5–P10 | An update installs on a clean machine |
 
 **Release 1 = P0–P11.**
@@ -133,6 +134,22 @@ is defined.
 | `QGD-CRD-0011` | `qso-graph-auth` validates the persona index format as well as the credential entries; the two sides agree on both. | Test |
 | `QGD-CRD-0012` | **If the credential path fails, verification halts.** No suite after the interop proof is run or reported, because nothing in the application is meaningful when credentials do not work. | Test |
 | `QGD-CRD-0013` | No secret appears in the persona index, in a credential status result, or in any failure message from the interop proof. | Test |
+
+## 3.1 Club rosters — personal data
+
+Carried forward from the superseded spec's `QGD-5-10`–`5-12`. A `.prf` roster carries members'
+names, email addresses and telephone numbers, so the Editor (P10) handles personal data that is
+not the operator's own.
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-PII-0001` | Club rosters are personal data. A real roster never enters this repository, its history, or CI output. Test fixtures are synthetic or anonymized. | Static |
+| `QGD-PII-0002` | Round-trip and comparison tests report positions and lengths, never field values, so a failing diff cannot leak a member's details. | Test |
+| `QGD-PII-0003` | Roster field values are never written to logs, `report.md`, telemetry, or error messages. | Static, Test |
+| `QGD-PII-0004` | Sharing or exporting a roster is an explicit user action, never a side effect of opening, validating or saving a file. | Test |
+
+> How roster handling squares with the project's never-a-PII-source rule is **open for KI7MT**
+> (D-30). `QGD-PII-0001`–`0004` hold whatever that answer is.
 
 ## 4. Process map
 
