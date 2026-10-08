@@ -18,7 +18,11 @@ describe('QGD-CRD-0007 static gate', () => {
     ['new EventSource("https://example.invalid/");', 'EventSource'],
     ['navigator.sendBeacon("https://example.invalid/", "x");', 'sendBeacon'],
     ['window["fetch"]("https://example.invalid/");', 'bracket access'],
-    ["import { netLog } from 'electron';", 'electron netLog']
+    ["import { netLog } from 'electron';", 'electron netLog'],
+    ["import {\n  get\n} from 'node:https';\nget(url);", 'multiline import'],
+    ["import {\n  net\n} from 'electron';", 'multiline electron import'],
+    ['const text = `${JSON.stringify({}) + fetch(url)}`;', 'fetch after an object literal in a template hole'],
+    ['const text = `${ { a: `${fetch(url)}` } }`;', 'fetch in a nested template hole']
   ])('catches %#: %s', source => {
     expect(violations(source).length).toBeGreaterThan(0);
   });

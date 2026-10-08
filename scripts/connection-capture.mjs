@@ -8,9 +8,12 @@
 //
 // Three kinds of evidence, because no one of them is complete:
 //
-//  1. Chromium request history, from webRequest listeners installed before the
-//     first navigation and kept for the whole run. Not sampled, so a request
-//     that opens and closes between two samples is still recorded. Blind to
+//  1. Chromium request history, from webRequest listeners installed as the
+//     first thing after launch and kept for the whole run. Not sampled, so a
+//     request that opens and closes between two samples is still recorded. The
+//     product navigates from app.whenReady, so the very first load can finish
+//     before the listeners exist; the suite therefore reloads once with
+//     everything in place and asserts that whole navigation. Blind to
 //     anything that does not go through Chromium — Node's fetch in main, and
 //     the Rust core's own client — and blind to attempts refused inside the
 //     renderer by CSP before they reach the network stack.
@@ -118,12 +121,12 @@ try {
     env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData },
     timeout: 30_000
   });
-  const page = await application.firstWindow();
-  const mainPid = await application.evaluate(() => process.pid);
-
-  // Chromium request history for the whole run. onBeforeRequest belongs to the
-  // product, which cancels there, so this records the outcome events instead:
-  // onErrorOccurred catches what the product's filter refused.
+  // Recording goes in before anything else is awaited. The product calls
+  // loadURL() from app.whenReady, so the first navigation may already be in
+  // flight or finished by now; the reload below is what gives a complete,
+  // instrumented navigation rather than a partial one.
+  // onBeforeRequest belongs to the product, which cancels there, so this
+  // records the outcome events: onErrorOccurred catches what the filter refused.
   stage = 'install the Chromium request history';
   await application.evaluate(({ session }) => {
     globalThis.__qgRequests = [];
@@ -131,6 +134,8 @@ try {
     session.defaultSession.webRequest.onCompleted(record('completed'));
     session.defaultSession.webRequest.onErrorOccurred(record('error'));
   });
+  const page = await application.firstWindow();
+  const mainPid = await application.evaluate(() => process.pid);
 
   poller = setInterval(() => {
     try {
@@ -141,6 +146,19 @@ try {
   }, POLL_MS);
 
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+
+  // One whole navigation inside instrumentation. The application's very first
+  // load can complete before the listeners and the poll exist, so the same
+  // resource path is exercised again with both in place, and the request
+  // history is asserted to have recorded it.
+  stage = 'a full navigation recorded from its first request';
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+  const navigation = await application.evaluate(() => globalThis.__qgRequests ?? []);
+  expect(navigation.length, 'the request history recorded no navigation at all').toBeGreaterThan(0);
+  expect(navigation.every(entry => entry.url.startsWith('qg://desktop/')),
+    navigation.map(entry => `${entry.kind} ${entry.url}`).join(', ')).toBe(true);
+
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok)).toBe(true);
   labelled.push(sample('idle', tree(mainPid)));
 
@@ -277,7 +295,8 @@ try {
   await writeFile('report/connections.json', JSON.stringify({
     date: new Date().toISOString(),
     method: 'Chromium request history (not sampled) + a socket poll every ' + POLL_MS + 'ms over every process in the tree + a static gate over the product TypeScript.',
-    limits: 'The request history cannot see Node-side or native requests, nor renderer attempts refused by CSP before reaching the network stack. The poll cannot see a connection open for less than its interval. The static gate is what rules out TypeScript that could connect between polls; the core\'s only connection path is validation::test for a supported provider, which no suite invokes.',
+    limits: 'The request history cannot see Node-side or native requests, nor renderer attempts refused by CSP before reaching the network stack. The application navigates from app.whenReady, so its first load can finish before the listeners exist; a full reload is recorded instead and asserted. The poll cannot see a connection open for less than its interval. The static gate is what rules out TypeScript that could connect between polls; the core\'s only connection path is validation::test for a supported provider, which no suite invokes.',
+    navigationRecordedUnderInstrumentation: true,
     pollIntervalMs: POLL_MS,
     positiveControls: {
       nodeFetchFromMain: { request: '/control/linger', outcome: control, arrived: true, observedByPoll: sawControl },

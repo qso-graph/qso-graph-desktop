@@ -12,7 +12,7 @@ if (!npmCli) throw new Error('Run verification with make verify or npm run verif
 const commands = [
   ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
   ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs']],
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],

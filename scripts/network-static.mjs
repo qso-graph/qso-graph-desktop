@@ -21,11 +21,12 @@ const CLIENTS = 'fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScr
 // Matched against code that keeps its strings: module specifiers and the
 // string-keyed property access that blanking would erase.
 const WITH_STRINGS = [
-  [new RegExp(String.raw`\bimport\b[^;\n]*?\bfrom\s*(['"\`])${MODULE}\1`), 'imports a networking module'],
+  // [^;]{0,400} rather than [^;\n]: an import clause may span lines.
+  [new RegExp(String.raw`\bimport\b[^;]{0,400}?\bfrom\s*(['"\`])${MODULE}\1`), 'imports a networking module'],
   [new RegExp(String.raw`\bimport\s*\(\s*(['"\`])${MODULE}\1`), 'imports a networking module'],
   [new RegExp(String.raw`\brequire\s*\(\s*(['"\`])${MODULE}\1`), 'requires a networking module'],
   [new RegExp(String.raw`\b(?:import|require)\s*\(\s*(['"\`])https?://`), 'imports over the network'],
-  [/\bimport\s*\{[^}]*\b(?:net|netLog|ClientRequest)\b[^}]*\}\s*from\s*(['"`])electron\1/, "imports electron's networking"],
+  [/\bimport\s*\{[\s\S]{0,400}?\b(?:net|netLog|ClientRequest)\b[\s\S]{0,400}?\}\s*from\s*(['"`])electron\1/, "imports electron's networking"],
   [new RegExp(String.raw`\[\s*(['"\`])(?:${CLIENTS})\1\s*\]`), 'reaches a network client by name']
 ];
 
@@ -70,23 +71,40 @@ function stripComments(source) {
 }
 
 // String contents blanked, quotes and newlines kept. Template `${...}` holes
-// stay as code, because code inside a template is still code.
+// stay as code, because code inside a template is still code. Brace depth is
+// tracked inside a hole: an object literal's closing brace must not be taken
+// for the end of the interpolation, or everything after it is blanked as if it
+// were string content.
 function blankStrings(source) {
   let out = '';
-  let quote = '';
-  const holes = [];
+  const stack = [];
   for (let index = 0; index < source.length; index++) {
     const character = source[index];
-    if (!quote) {
-      if (character === "'" || character === '"' || character === '`') { quote = character; out += character; continue; }
+    const top = stack[stack.length - 1];
+
+    if (!top || top.type === 'hole') {
+      if (character === "'" || character === '"') { stack.push({ type: 'string', quote: character }); out += character; continue; }
+      if (character === '`') { stack.push({ type: 'template' }); out += character; continue; }
+      if (top && character === '{') { top.depth++; out += character; continue; }
+      if (top && character === '}') {
+        if (top.depth === 0) stack.pop(); else top.depth--;
+        out += character; continue;
+      }
       out += character;
       continue;
     }
+
+    if (top.type === 'string') {
+      if (character === '\\') { out += '  '; index++; continue; }
+      if (character === top.quote) { stack.pop(); out += character; continue; }
+      out += character === '\n' ? character : ' ';
+      continue;
+    }
+
+    // Inside a template literal.
     if (character === '\\') { out += '  '; index++; continue; }
-    if (character === quote && !holes.length) { quote = ''; out += character; continue; }
-    if (quote === '`' && character === '$' && source[index + 1] === '{') { holes.push(true); out += '${'; index++; continue; }
-    if (quote === '`' && character === '}' && holes.length) { holes.pop(); out += '}'; continue; }
-    if (holes.length) { out += character; continue; }
+    if (character === '`') { stack.pop(); out += character; continue; }
+    if (character === '$' && source[index + 1] === '{') { stack.push({ type: 'hole', depth: 0 }); out += '${'; index++; continue; }
     out += character === '\n' ? character : ' ';
   }
   return out;
