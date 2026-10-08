@@ -97,7 +97,21 @@ export default [
   ...svelte.configs.recommended.map(config => ({
     ...config,
     files: ['**/*.svelte'],
-    rules: { ...config.rules, 'svelte/no-at-html-tags': 'error' }
+    languageOptions: {
+      ...config.languageOptions,
+      parserOptions: {
+        ...config.languageOptions?.parserOptions,
+        // The script blocks are TypeScript, and svelte-eslint-parser hands them
+        // to this one. Without it every component was a parse error — which
+        // ESLint reports and then has nothing left to review, so the whole
+        // family of rules here, no-at-html-tags included, inspected nothing.
+        // scripts/lint.mjs asserts a component is actually parsed.
+        parser: tseslint.parser,
+        extraFileExtensions: ['.svelte'],
+        tsconfigRootDir: import.meta.dirname
+      }
+    },
+    rules: { ...config.rules, ...SHARED, 'svelte/no-at-html-tags': 'error' }
   })),
 
   // The verification scripts. They spawn processes on purpose; what still holds

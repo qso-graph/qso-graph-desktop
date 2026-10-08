@@ -1,13 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type { Persona, Snapshot, CredentialStatus, CredentialTest, PersonaCommand, PersonaReply } from '../persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../settings-contract.js';
-import { applyTheme, followSystem, resolveTheme } from './theme.js';
+import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
+import { mount } from 'svelte';
+import Shell from './Shell.svelte';
+import { createShellStore } from './shell-store.js';
 declare global {
   interface Window {
     personas: { request(command: PersonaCommand): Promise<PersonaReply> };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
+    appearance?: Appearance;
   }
 }
+// QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
+// below looks for an element. The Persona screen's markup moved into
+// PersonaPage.svelte unchanged and this file still finds it by id, so the
+// workflow signed off at P1 is the same code driving the same markup.
+const shell = createShellStore();
+mount(Shell, {
+  target: document.body,
+  props: { store: shell, onChooseTheme: (choice: ThemeChoice) => { void setThemeChoice(choice); } }
+});
+
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => element<HTMLInputElement>(id);
 let snapshot: Snapshot = { personas: [], active: null };
@@ -41,7 +55,7 @@ function list() {
   }
   if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No personas yet. Start with your station callsign.'; container.append(empty); }
   const active = snapshot.personas.find(p => p.name === snapshot.active);
-  element('active-persona').textContent = active ? `Active: ${active.callsign} · ${active.name}` : 'No active persona';
+  shell.set({ activePersona: active ? `Active: ${active.callsign} · ${active.name}` : 'No active persona' });
 }
 async function credentialStatus() {
   const persona = selected;
@@ -210,13 +224,15 @@ let stopFollowing: (() => void) | undefined;
 
 function startTheme(): void {
   stopFollowing?.();
-  stopFollowing = followSystem(prefersDark => applyTheme(resolveTheme(themeChoice, prefersDark)));
+  stopFollowing = followSystem(prefersDark =>
+    applyTheme(resolveTheme(themeChoice, prefersDark), isPinned(themeChoice)));
 }
 
 export async function setThemeChoice(choice: ThemeChoice): Promise<boolean> {
   const reply = await window.settings.request({ type: 'write', key: 'theme', value: choice });
   if (!reply.ok) return false;
   themeChoice = reply.data.theme;
+  shell.set({ themeChoice });
   startTheme();
   return true;
 }
@@ -225,6 +241,7 @@ async function loadTheme(): Promise<void> {
   const reply = await window.settings.request({ type: 'read' });
   // A settings channel that cannot answer must not leave the window unthemed.
   if (reply.ok) themeChoice = reply.data.theme;
+  shell.set({ themeChoice });
   startTheme();
 }
 

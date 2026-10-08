@@ -73,6 +73,85 @@ try {
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  // ---- P3: the shell ----------------------------------------------------
+  await mkdir('report', { recursive: true });
+  // P3-navigation: the rail moves between pages and the document never does.
+  const before = page.url();
+  await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
+  const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
+  await rail('Settings').click();
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Persona details', exact: true })).toBeHidden();
+  expect(await rail('Settings').getAttribute('aria-current')).toBe('page');
+  expect(await rail('Personas').getAttribute('aria-current')).toBeNull();
+  // P3-status-bar: the active persona is on every page, not just its own.
+  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  // QGD-PRC-0006: one bundled page. Navigating a section is not navigation.
+  expect(page.url()).toBe(before);
+  expect(await page.evaluate(() => history.length)).toBe(1);
+
+  // P3-keyboard: every rail item is reachable and operable from the keyboard.
+  await rail('Personas').focus();
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe('Personas');
+  const outline = await page.evaluate(() => getComputedStyle(document.activeElement, null).outlineWidth);
+  expect(parseFloat(outline), 'the focused rail item must show a focus indicator').toBeGreaterThan(0);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Persona details', exact: true })).toBeVisible();
+  await rail('Settings').click();
+
+  // P3-theme-override: System, Light and Dark, with System the default.
+  const theme = page.getByLabel('Theme', { exact: true });
+  await expect(theme).toHaveValue('system');
+  expect(await theme.locator('option').allTextContents()).toEqual(['System', 'Light', 'Dark']);
+
+  // P3-theme-contrast's measurement, and the reason the palette exists at all:
+  // a resolved theme that does not change what is drawn is not a theme. The
+  // relative luminance of the page is read, not judged.
+  const drawn = () => page.evaluate(() => {
+    const parts = getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g).map(Number);
+    const [r, g, b] = parts;
+    return {
+      theme: document.documentElement.getAttribute('data-theme'),
+      luminance: (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+    };
+  });
+  await theme.selectOption('light');
+  await expect.poll(async () => (await drawn()).theme, { message: 'choosing Light must apply light' }).toBe('light');
+  const light = await drawn();
+  expect(light.luminance, 'light must be light').toBeGreaterThan(0.85);
+  await theme.selectOption('dark');
+  await expect.poll(async () => (await drawn()).theme, { message: 'choosing Dark must apply dark' }).toBe('dark');
+  const dark = await drawn();
+  // QGD-FRM-0003: properly dark, for night nets and contests, not grey.
+  expect(dark.luminance, 'dark must be properly dark, not grey').toBeLessThan(0.08);
+  await page.screenshot({ path: resolve('report/shell-settings-dark.png') });
+
+  // The choice survives a restart, and the control comes back showing it.
+  await application.close();
+  application = await launch(); page = await application.firstWindow();
+  await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')),
+    { message: 'the chosen theme must survive a restart' }).toBe('dark');
+  const railAgain = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
+  await railAgain('Settings').click();
+  await expect(page.getByLabel('Theme', { exact: true })).toHaveValue('dark');
+
+  // P3-theme-system: back on System the shell matches the operating system,
+  // and changes with it while running. nativeTheme.themeSource is what the
+  // renderer's prefers-color-scheme reports, so this is the real signal and
+  // not a simulated one — no restart anywhere in it (QGD-FRM-0001).
+  await page.getByLabel('Theme', { exact: true }).selectOption('system');
+  for (const source of ['dark', 'light', 'dark']) {
+    await application.evaluate(({ nativeTheme }, value) => { nativeTheme.themeSource = value; }, source);
+    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')),
+      { message: `on System, the shell must follow the operating system turning ${source}` }).toBe(source);
+  }
+  await application.evaluate(({ nativeTheme }) => { nativeTheme.themeSource = 'system'; });
+  await railAgain('Personas').click();
+  await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
+  // P3-personas-intact: the P1 screen still works after all of that.
+  await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
+  await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+
   await mkdir('report', { recursive: true });
   await page.screenshot({ path: resolve('report/personas-preview.png') });
   page.once('dialog', dialog => dialog.accept());
@@ -81,6 +160,7 @@ try {
   await application.close();
   application = undefined;
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
+  console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {
   // Do not serialize Playwright's exception payloads into shared artifacts.
   console.error('P0 local Electron smoke failed. Check launch, page and security assertions.');

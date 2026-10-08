@@ -59,6 +59,16 @@ const eslint = new ESLint({ cwd: root });
 // The controls. Each must fire, or a clean report below means nothing.
 const CONTROLS = [
   { name: 'svelte/no-at-html-tags', path: 'src/renderer/__control__.svelte', code: '<div>{@html value}</div>\n' },
+  // The same rule again, on a component whose script is TypeScript. The plain
+  // fixture above parses without a TypeScript parser configured and fired
+  // happily while every real component in src/ was a parse error reviewing
+  // nothing — so it reported PASS through the whole failure.
+  {
+    name: 'svelte/no-at-html-tags',
+    label: 'svelte/no-at-html-tags on a TypeScript component',
+    path: 'src/renderer/__control__.svelte',
+    code: '<script lang="ts">\n  interface Props { value: string }\n  const { value }: Props = $props();\n</script>\n<div>{@html value}</div>\n'
+  },
   { name: 'no-eval', path: 'scripts/__control__.mjs', code: 'eval("1");\n' },
   { name: 'no-restricted-syntax', path: 'scripts/__control__.mjs', code: 'spawn("x", { shell: true });\n' },
   { name: 'security/detect-non-literal-require', path: 'scripts/__control__.mjs', code: 'const m = require(name);\n' },
@@ -92,10 +102,23 @@ for (const control of CONTROLS) {
   const fired = (result?.messages ?? []).some(message => message.ruleId === control.name);
   const wanted = control.expect !== false;
   if (fired !== wanted) {
+    const label = control.label ?? control.name;
     failures.push(wanted
-      ? `the ${control.name} gate did not fire on a known-bad fixture, so it is not running`
-      : `the ${control.name} rule fired where it is deliberately off; the configuration has drifted`);
+      ? `the ${label} gate did not fire on a known-bad fixture, so it is not running`
+      : `the ${label} rule fired where it is deliberately off; the configuration has drifted`);
   }
+}
+
+// A well-formed component has to parse, or the rules above have nothing to
+// look at. Checked as its own control because a parse error is reported with a
+// null ruleId, which no rule-named control can notice.
+const [parsedControl] = await eslint.lintText(
+  '<script lang="ts">\n  interface Props { value: string }\n  const { value }: Props = $props();\n</script>\n<p>{value}</p>\n',
+  { filePath: resolve(root, 'src/renderer/__control__.svelte'), warnIgnored: false }
+);
+const parseErrors = (parsedControl?.messages ?? []).filter(message => message.ruleId === null);
+if (parseErrors.length) {
+  failures.push(`a TypeScript component does not parse, so no rule reviews one: ${parseErrors[0].message}`);
 }
 
 // What is actually in force for the product.

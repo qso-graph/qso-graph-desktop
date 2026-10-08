@@ -13,11 +13,17 @@
 // polyfill Vite injects by default.
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   root: 'src/renderer',
   base: './',
-  plugins: [svelte()],
+  // configFile is explicit because vite-plugin-svelte looks beside the Vite
+  // root, which is src/renderer, and would silently fall back to its defaults —
+  // the gallery reads svelte.config.js from the repository root, so without
+  // this the two compile components differently and the warning is the only
+  // sign of it.
+  plugins: [svelte({ configFile: fileURLToPath(new URL('./svelte.config.js', import.meta.url)) })],
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,

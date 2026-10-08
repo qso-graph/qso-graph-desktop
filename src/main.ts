@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { app, BrowserWindow, Menu, protocol, session } from 'electron';
+import { app, BrowserWindow, Menu, nativeTheme, protocol, session } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
 import { startPersonaBroker } from './persona-broker.js';
 import { createLogger } from './logger.js';
-import { startSettingsBroker } from './settings.js';
+import { load, startSettingsBroker } from './settings.js';
+import { windowBackground } from './window-background.js';
+import { startAppearanceBroker } from './system-appearance.js';
 
 const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'renderer');
 const log = createLogger('main');
@@ -32,7 +34,9 @@ function createWindow(): void {
     minWidth: 640,
     minHeight: 420,
     title: 'QG Desktop',
-    backgroundColor: '#f6f7f9',
+    // Read here rather than fixed: the renderer themes itself a moment later,
+    // and this is the frame before that (QGD-FRM-0001).
+    backgroundColor: windowBackground(load().theme, nativeTheme.shouldUseDarkColors),
     show: false,
     webPreferences: {
       sandbox: true,
@@ -100,7 +104,8 @@ if (!app.requestSingleInstanceLock()) {
     log.info({ electron: process.versions.electron, platform: process.platform }, 'application ready');
     const stopPersonaBroker = startPersonaBroker(dirname(fileURLToPath(import.meta.url)));
     const stopSettingsBroker = startSettingsBroker();
-    app.once('before-quit', () => { stopPersonaBroker(); stopSettingsBroker(); });
+    const stopAppearanceBroker = startAppearanceBroker();
+    app.once('before-quit', () => { stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); });
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
     });
