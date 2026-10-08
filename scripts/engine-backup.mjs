@@ -14,7 +14,7 @@ import { binariesDirectory } from './postgres-build.mjs';
 import { initialise, start, status, stop, exists } from '../dist/engine/supervisor.js';
 import { chooseSocketDirectory, socketCandidates } from '../dist/engine/endpoint.js';
 import { connectAsSuperuser } from '../dist/engine/roles.js';
-import { backup, readManifest, restore, majorOf, isManifest, MANIFEST, DATA } from '../dist/engine/backup.js';
+import { backup, readManifest, restore, majorOf, isManifest, verifyCopy, MANIFEST, DATA } from '../dist/engine/backup.js';
 
 const build = JSON.parse(await readFile('data/postgres-build.json', 'utf8'));
 const root = await mkdtemp(join(tmpdir(), 'qg-backup-'));
@@ -118,6 +118,62 @@ try {
     expect(refused, 'a manifest that disagrees with the data must be refused').toBeDefined();
     expect(String(refused.message)).toContain('does not match its own manifest');
     notes.push('a manifest that disagrees with the data it describes is refused');
+  }
+
+  // ---- QGD-ENG-0012: an incomplete backup is refused ---------------------
+  {
+    // The case that destroyed a working database: a copy that kept its
+    // manifest and its PG_VERSION but lost a file PostgreSQL cannot start
+    // without. Every other check passed it.
+    const fs = await import('node:fs/promises');
+    const gutted = join(root, 'missing-a-file');
+    await fs.cp(archive, gutted, { recursive: true });
+    await fs.rm(join(gutted, DATA, 'global', 'pg_control'));
+
+    let refused;
+    try { await restore(paths, gutted, build.major); } catch (error) { refused = error; }
+    expect(refused, 'a backup missing pg_control must be refused').toBeDefined();
+    expect(String(refused.message)).toContain('incomplete');
+
+    await start(paths, endpoint);
+    expect((await readRows('SELECT count(*)::int AS n FROM kept'))[0].n).toBe(1);
+    await stop(paths);
+
+    // And one that is merely short, with every essential file present.
+    const shortened = join(root, 'short');
+    await fs.cp(archive, shortened, { recursive: true });
+    const spare = (await fs.readdir(join(shortened, DATA, 'pg_twophase'))).length === 0;
+    await fs.writeFile(join(shortened, DATA, 'pg_twophase', 'an_extra_file'), 'not in the manifest');
+    expect(spare, 'pg_twophase is the empty directory this adds to').toBe(true);
+    let counted;
+    try { await restore(paths, shortened, build.major); } catch (error) { counted = error; }
+    expect(counted, 'a copy whose contents do not match the manifest must be refused').toBeDefined();
+    expect(String(counted.message)).toContain('not all there');
+    notes.push('a backup that is incomplete, or does not match its own counts, is refused');
+  }
+
+  // ---- housekeeping after the swap cannot fail the restore ---------------
+  {
+    const fs = await import('node:fs/promises');
+    // A directory inside the live database that cannot be emptied. Removing
+    // the replaced copy will fail on it — after the swap has committed, where
+    // reporting a failure would be untrue and would send the caller into a
+    // rollback that must not run.
+    const locked = join(paths.data, 'qg_locked');
+    await fs.mkdir(locked, { recursive: true });
+    await fs.writeFile(join(locked, 'held'), 'x');
+    await fs.chmod(locked, 0o500);
+    try {
+      const manifest = await restore(paths, archive, build.major);
+      expect(manifest.postgresMajor, 'the restore committed, so it must report success').toBe(build.major);
+      await start(paths, endpoint);
+      expect((await readRows('SELECT count(*)::int AS n FROM kept'))[0].n).toBe(1);
+      await stop(paths);
+      notes.push('a restore that commits reports success even when the old copy cannot be cleared away');
+    } finally {
+      await fs.chmod(locked, 0o700).catch(() => {});
+      await fs.chmod(join(`${paths.data}.replaced`, 'qg_locked'), 0o700).catch(() => {});
+    }
   }
 
   // ---- a restore that fails leaves the database working ------------------

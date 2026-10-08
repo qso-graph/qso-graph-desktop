@@ -98,12 +98,13 @@ export async function backup(paths: EnginePaths, destination: string, version: s
     await writeFile(join(staging, MANIFEST), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 });
 
     if (await exists(destination)) {
-      await rm(previous, { recursive: true, force: true });
+      await tidy(previous);
       await rename(destination, previous);
       moved = true;
     }
     await rename(staging, destination);
-    await rm(previous, { recursive: true, force: true });
+    // Committed. Removing the old copy is housekeeping from here on.
+    await tidy(previous);
     return manifest;
   } catch (error) {
     await rm(staging, { recursive: true, force: true });
@@ -112,6 +113,38 @@ export async function backup(paths: EnginePaths, destination: string, version: s
     if (moved && !await exists(destination)) await rename(previous, destination).catch(() => {});
     throw error;
   }
+}
+
+// What a PostgreSQL data directory cannot be a database without. A copy that
+// lost one of these would still have its manifest and its PG_VERSION, and
+// would still pass every other check here — and restoring it would delete a
+// working database in exchange for one that cannot start.
+const ESSENTIAL = ['PG_VERSION', 'global/pg_control', 'base'];
+
+// QGD-ENG-0012: checked before the swap, never after. The counts in the
+// manifest were measured from this same tree when the backup was written, so
+// they are exact — and until this existed they were recorded and never read,
+// which is a record that proves nothing.
+export async function verifyCopy(staged: string, manifest: BackupManifest): Promise<void> {
+  for (const name of ESSENTIAL) {
+    if (!await exists(join(staged, name))) {
+      throw new EngineError('That backup is incomplete.',
+        `${name} is missing from it. Restoring it would replace a working database with one that cannot start.`);
+    }
+  }
+  const { files, bytes } = await measure(staged);
+  if (files !== manifest.files || bytes !== manifest.bytes) {
+    throw new EngineError('That backup is not all there.',
+      `${MANIFEST} records ${manifest.files} files and ${manifest.bytes} bytes; the copy holds ${files} and ${bytes}.`);
+  }
+}
+
+// Housekeeping after an operation has committed. It cannot be allowed to fail
+// the operation: the database has already been replaced, so reporting a
+// failure would be untrue and would send the caller down a rollback path that
+// must not run. What is left behind is a directory, which the next run clears.
+async function tidy(path: string): Promise<void> {
+  await rm(path, { recursive: true, force: true }).catch(() => {});
 }
 
 export async function readManifest(source: string): Promise<BackupManifest> {
@@ -158,14 +191,18 @@ export async function restore(paths: EnginePaths, source: string, intoMajor: num
     // PostgreSQL refuses to start on a data directory anyone else can read.
     await chmod(staging, 0o700);
     await majorOf(staging);
+    // Everything that can be known about the copy is checked here, before the
+    // database that is there is touched.
+    await verifyCopy(staging, manifest);
 
     if (await exists(paths.data)) {
-      await rm(replaced, { recursive: true, force: true });
+      await tidy(replaced);
       await rename(paths.data, replaced);
       swapped = true;
     }
     await rename(staging, paths.data);
-    await rm(replaced, { recursive: true, force: true });
+    // Committed. What is left of the old database is housekeeping.
+    await tidy(replaced);
     return manifest;
   } catch (error) {
     await rm(staging, { recursive: true, force: true });
