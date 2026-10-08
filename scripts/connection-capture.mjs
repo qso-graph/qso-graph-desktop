@@ -6,16 +6,31 @@
 // Issue #3, item 2: capture the application's connections and confirm external
 // requests originate only in the credential core.
 //
-// What this proves: across a full credential workflow — create, save, status,
-// test, delete, remove — no process in the application's tree opens a single
-// TCP endpoint outside loopback, the renderer opens none at all, and the
-// credential core opens none either, because nothing here presses Test
-// credential against a supported provider.
+// Three kinds of evidence, because no one of them is complete:
 //
-// What it deliberately does not do: transmit a synthetic credential to a live
-// provider. The core's destinations are two fixed HTTPS URLs under https_only
-// with no proxy, no redirects and TLS 1.3 only (native/persona-core/src/
-// validation.rs), and its ClientHello is asserted by the rust-unit suite
+//  1. Chromium request history, from webRequest listeners installed before the
+//     first navigation and kept for the whole run. Not sampled, so a request
+//     that opens and closes between two samples is still recorded. Blind to
+//     anything that does not go through Chromium — Node's fetch in main, and
+//     the Rust core's own client — and blind to attempts refused inside the
+//     renderer by CSP before they reach the network stack.
+//  2. A dense socket poll over every process in the tree, which covers the two
+//     Chromium cannot see. Its resolution is the poll interval: a connection
+//     open for less than that can be missed, which is why it is not the only
+//     evidence here.
+//  3. A static gate, scripts/network-static.mjs, asserting the product's
+//     TypeScript holds no outbound-network API at all. That is what makes the
+//     two runtime results meaningful rather than lucky: there is no code in the
+//     TypeScript that could have connected between samples.
+//
+// A positive control proves the capture can see anything at all: the main
+// process makes one deliberate loopback request that lingers, and both the
+// listener and the poll are asserted to have observed it.
+//
+// What this does not do, deliberately: transmit a synthetic credential to a
+// live provider. The core's destinations are two fixed HTTPS URLs under
+// https_only with no proxy, no redirects and TLS 1.3 only (native/persona-core/
+// src/validation.rs), and its ClientHello is asserted by the rust-unit suite
 // without connecting. A real external request happens only when a user presses
 // Test credential with a real credential, which no automated suite does.
 import { _electron as electron, expect } from '@playwright/test';
@@ -25,8 +40,10 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
+import { violations, PRODUCT_SOURCES } from './network-static.mjs';
 import { redact } from './report.mjs';
 
+const POLL_MS = 40;
 const directory = await mkdtemp(join(tmpdir(), 'qg-connection-capture-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
@@ -35,11 +52,11 @@ const persona = `qg-test-${randomUUID()}`;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 const LOOPBACK = /^(127\.0\.0\.1|\[?::1\]?|localhost)$/;
 let application;
-let stage = 'launch';
+let stage = 'start the listener';
 let credentialSaved = false;
 let listener;
+let poller;
 
-// Every process Electron owns, labelled by Chromium's own process type.
 function tree(root) {
   const ps = spawnSync('/bin/ps', ['-ax', '-o', 'pid=,ppid=,command='], { encoding: 'utf8' });
   const rows = (ps.stdout || '').split('\n').map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean);
@@ -59,24 +76,20 @@ function tree(root) {
 
 const host = endpoint => endpoint.replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
 
-// One lsof sample over the whole tree, parsed into endpoints per process.
 function sample(label, processes) {
-  const pids = [...processes.keys()];
-  const run = spawnSync('/usr/sbin/lsof', ['-nP', '-w', '-i', '-a', '-p', pids.join(',')], { encoding: 'utf8' });
+  const run = spawnSync('/usr/sbin/lsof', ['-nP', '-w', '-i', '-a', '-p', [...processes.keys()].join(',')], { encoding: 'utf8' });
   if (run.status !== 0 && !run.stdout) throw new Error('Connections could not be captured.');
   const endpoints = [];
   for (const line of (run.stdout || '').split('\n').slice(1)) {
     const columns = line.trim().split(/\s+/);
     if (columns.length < 9) continue;
     const pid = Number(columns[1]);
-    const protocol = columns[7];
     const name = columns.slice(8).join(' ');
-    const state = name.match(/\((\w+)\)$/)?.[1] ?? '';
     const [local, remote] = name.replace(/\s*\(\w+\)$/, '').split('->');
     const hosts = [local, remote].filter(Boolean).map(host);
     endpoints.push({
-      pid, process: processes.get(pid) ?? 'unknown', protocol, state,
-      local: local ?? '', remote: remote ?? '',
+      pid, process: processes.get(pid) ?? 'unknown', protocol: columns[7],
+      state: name.match(/\((\w+)\)$/)?.[1] ?? '', local: local ?? '', remote: remote ?? '',
       external: hosts.some(value => !LOOPBACK.test(value))
     });
   }
@@ -84,8 +97,22 @@ function sample(label, processes) {
 }
 
 const ask = (page, command) => page.evaluate(sent => window.personas.request(sent), command);
+const arrivals = [];
+const observed = new Map();   // every endpoint the poll ever saw, deduplicated
+const labelled = [];          // named points in the workflow, for the record
 
 try {
+  listener = createServer((request, response) => {
+    arrivals.push(request.url ?? '');
+    // The control request lingers so the poll cannot miss it; a renderer route
+    // that somehow arrived would be recorded either way.
+    if ((request.url ?? '').startsWith('/control')) setTimeout(() => response.end('x'), 400);
+    else response.end('x');
+  });
+  await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+  const port = listener.address().port;
+
+  stage = 'launch';
   application = await electron.launch({
     args: ['.'], cwd: process.cwd(),
     env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData },
@@ -93,20 +120,36 @@ try {
   });
   const page = await application.firstWindow();
   const mainPid = await application.evaluate(() => process.pid);
+
+  // Chromium request history for the whole run. onBeforeRequest belongs to the
+  // product, which cancels there, so this records the outcome events instead:
+  // onErrorOccurred catches what the product's filter refused.
+  stage = 'install the Chromium request history';
+  await application.evaluate(({ session }) => {
+    globalThis.__qgRequests = [];
+    const record = kind => details => globalThis.__qgRequests.push({ kind, url: details.url, error: details.error ?? '' });
+    session.defaultSession.webRequest.onCompleted(record('completed'));
+    session.defaultSession.webRequest.onErrorOccurred(record('error'));
+  });
+
+  poller = setInterval(() => {
+    try {
+      for (const endpoint of sample('poll', tree(mainPid)).endpoints) {
+        observed.set(`${endpoint.pid}|${endpoint.local}|${endpoint.remote}|${endpoint.state}`, endpoint);
+      }
+    } catch { /* a process exiting mid-sample is not a finding */ }
+  }, POLL_MS);
+
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok)).toBe(true);
+  labelled.push(sample('idle', tree(mainPid)));
 
-  const processes = tree(mainPid);
-  const samples = [sample('idle', processes)];
-
-  // The whole credential workflow, sampled after every step.
   stage = 'credential workflow';
   const steps = [
     ['persona created', { type: 'upsert', name: persona, callsign: 'w1aw' }],
     ['persona activated', { type: 'set-active', name: persona }],
     ['credential saved', { type: 'save-credentials', persona, provider: 'qrz_logbook', credentials: { username: 'W1AW', password } }],
     ['status read', { type: 'status', persona, provider: 'qrz_logbook' }],
-    // An unsupported provider returns a fixed outcome without connecting.
     ['credential tested on an unsupported provider', { type: 'test-credential', persona, provider: 'eqsl' }],
     ['credential deleted', { type: 'delete-credentials', persona, provider: 'qrz_logbook' }],
     ['persona removed', { type: 'remove-persona', name: persona }]
@@ -117,50 +160,20 @@ try {
     if (label === 'credential saved') credentialSaved = true;
     if (label === 'credential deleted') credentialSaved = false;
     if (label === 'credential tested on an unsupported provider') expect(reply.data.outcome).toBe('unsupported');
-    samples.push(sample(label, tree(mainPid)));
+    labelled.push(sample(label, tree(mainPid)));
   }
 
-  // A sample of nothing must not pass: the tree has to be the real one.
-  stage = 'the capture is not vacuous';
-  expect(samples.length).toBe(steps.length + 1);
-  for (const taken of samples) {
-    const kinds = Object.values(taken.processes);
-    expect(kinds, `${taken.label}: no renderer in the tree`).toContain('renderer');
-    expect(kinds, `${taken.label}: no credential core in the tree`).toContain('utility:node.mojom.NodeService');
-    expect(kinds.length, `${taken.label}: tree too small to be the application`).toBeGreaterThanOrEqual(4);
-  }
-
-  stage = 'no external connection anywhere in the application';
-  for (const taken of samples) {
-    const external = taken.endpoints.filter(endpoint => endpoint.external);
-    expect(external, `${taken.label}: ${external.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ')}`).toEqual([]);
-  }
-
-  stage = 'the renderer and the credential core hold no socket at all';
-  for (const taken of samples) {
-    for (const kind of ['renderer', 'utility:node.mojom.NodeService']) {
-      const held = taken.endpoints.filter(endpoint => endpoint.process === kind);
-      expect(held, `${taken.label}: ${kind} holds ${held.length} endpoint(s)`).toEqual([]);
-    }
-  }
-
-  // QGD-PRC-0006 / QGD-CRD-0007: the renderer cannot reach the network by any
-  // route, not only by fetch. Each route is aimed at a loopback server this
-  // test owns, and the assertion is that nothing arrives — not that each API
-  // reports an error. navigator.sendBeacon returns true for a queued beacon
-  // whether or not it is ever delivered, so its return value proves nothing;
-  // an empty request log does.
+  // QGD-PRC-0006 / QGD-CRD-0007: every outbound route the renderer has, aimed
+  // at a listener this test owns. The assertion is that nothing arrives, not
+  // that each API reports an error: navigator.sendBeacon reports success for a
+  // queued beacon whether or not it is ever delivered.
   stage = 'the renderer reaches nothing by any outbound route';
-  const arrivals = [];
-  listener = createServer((request, response) => { arrivals.push(request.url ?? ''); response.end('x'); });
-  await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
-  const port = listener.address().port;
   const routes = await page.evaluate(async target => {
     const attempt = async (name, run) => {
-      try { await run(`${target}/${name}`); return [name, 'reported allowed']; }
+      try { await run(`${target}/renderer/${name}`); return [name, 'reported allowed']; }
       catch { return [name, 'reported denied']; }
     };
-    const outcomes = await Promise.all([
+    return Object.fromEntries(await Promise.all([
       attempt('fetch', url => fetch(url)),
       attempt('xhr', url => new Promise((resolve, reject) => {
         const request = new XMLHttpRequest();
@@ -186,48 +199,110 @@ try {
         image.src = `${url}.png`;
       })),
       attempt('dynamicImport', url => import(`${url}.js`))
-    ]);
-    return Object.fromEntries(outcomes);
+    ]));
   }, `http://127.0.0.1:${port}`);
-  // Give anything that was queued rather than refused a chance to be delivered.
   await page.waitForTimeout(1500);
-  expect(arrivals, `the renderer reached the listener: ${arrivals.join(', ')}`).toEqual([]);
+  labelled.push(sample('renderer outbound routes attempted', tree(mainPid)));
   expect(Object.keys(routes).length).toBe(7);
 
-  // Nothing new may have appeared in the tree as a result of trying.
-  const afterRoutes = sample('renderer outbound routes attempted', tree(mainPid));
-  samples.push(afterRoutes);
-  expect(afterRoutes.endpoints.filter(endpoint => endpoint.external)).toEqual([]);
-  expect(afterRoutes.endpoints.filter(endpoint => endpoint.process === 'renderer')).toEqual([]);
+  // The positive control. Node's fetch in the main process is outside
+  // Chromium's pipeline, so this also shows what the request history cannot
+  // see and the poll can.
+  stage = 'positive control';
+  // The first argument of an Electron evaluate is the electron module itself.
+  const control = await application.evaluate(async (_electron, target) => {
+    try { await fetch(`${target}/control/linger`); return 'completed'; } catch (error) { return `failed: ${error.message}`; }
+  }, `http://127.0.0.1:${port}`);
+  expect(control).toBe('completed');
+  expect(arrivals.filter(url => url.startsWith('/control'))).toEqual(['/control/linger']);
+  const sawControl = [...observed.values()].some(endpoint => endpoint.remote.endsWith(`:${port}`));
+  expect(sawControl, 'the socket poll did not observe the control connection, so it cannot be trusted to observe any').toBe(true);
 
-  // QGD-CRD-0007 is Static as well as Test: the product's TypeScript holds no
-  // outbound-network API at all, so the core is the only place one can exist.
+  // A second control, for the third detector. Electron's net.request goes
+  // through the session, so the product's own onBeforeRequest filter sees it:
+  // this proves the request history is live AND that the filter cancels a
+  // main-process request to an address that is not a bundled resource.
+  stage = 'positive control for the request history';
+  const filtered = await application.evaluate(({ net }, target) => new Promise(resolve => {
+    const request = net.request(`${target}/control/filtered`);
+    request.on('response', () => resolve('completed'));
+    request.on('error', error => resolve(`refused: ${error.message}`));
+    request.end();
+  }), `http://127.0.0.1:${port}`);
+  expect(filtered, 'the product let a main-process request to a non-resource address through').toMatch(/^refused:/);
+
+  clearInterval(poller); poller = undefined;
+
+  stage = 'nothing but the Node control ever reached the listener';
+  // The filtered control must never have arrived: the product cancelled it.
+  expect(arrivals, `unexpected arrivals: ${arrivals.join(', ')}`).toEqual(['/control/linger']);
+
+  stage = 'the capture is not vacuous';
+  expect(labelled.length).toBe(steps.length + 2);
+  expect(observed.size, 'the poll observed nothing at all').toBeGreaterThan(0);
+  for (const taken of labelled) {
+    const kinds = Object.values(taken.processes);
+    expect(kinds, `${taken.label}: no renderer in the tree`).toContain('renderer');
+    expect(kinds, `${taken.label}: no credential core in the tree`).toContain('utility:node.mojom.NodeService');
+    expect(kinds.length, `${taken.label}: tree too small to be the application`).toBeGreaterThanOrEqual(4);
+  }
+
+  stage = 'no external connection anywhere, in any sample or poll';
+  const everyEndpoint = [...observed.values(), ...labelled.flatMap(taken => taken.endpoints)];
+  const external = everyEndpoint.filter(endpoint => endpoint.external);
+  expect(external, external.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ')).toEqual([]);
+
+  stage = 'the renderer and the credential core hold no socket at all';
+  for (const kind of ['renderer', 'utility:node.mojom.NodeService']) {
+    const held = everyEndpoint.filter(endpoint => endpoint.process === kind);
+    expect(held, `${kind} held ${held.length} endpoint(s)`).toEqual([]);
+  }
+
+  stage = 'the request history is live, and holds nothing but the control off-scheme';
+  const requests = await application.evaluate(() => globalThis.__qgRequests ?? []);
+  const offScheme = requests.filter(entry => !entry.url.startsWith('qg://desktop/'));
+  // Exactly one off-scheme entry: the control, recorded as refused. If the
+  // history were dead this would be empty, and every other assertion over it
+  // would pass for the wrong reason.
+  expect(offScheme.map(entry => `${entry.kind} ${entry.url}`),
+    offScheme.map(entry => `${entry.kind} ${entry.url} ${entry.error}`).join(', '))
+    .toEqual([`error http://127.0.0.1:${port}/control/filtered`]);
+
   stage = 'no outbound-network API in the product TypeScript';
-  const forbidden = /fetch\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|node:(?:http|https|net|tls|dgram)|require\(['"](?:http|https|net|tls)/;
-  for (const file of ['src/main.ts', 'src/persona-broker.ts', 'src/persona-contract.ts', 'src/persona-service.ts', 'src/policy.ts', 'src/preload.cts', 'src/renderer/app.ts']) {
-    expect(forbidden.test(await readFile(file, 'utf8')), `${file} contains an outbound-network API`).toBe(false);
+  for (const file of PRODUCT_SOURCES) {
+    expect(violations(await readFile(file, 'utf8'), file), file).toEqual([]);
   }
 
   await mkdir('report', { recursive: true });
   await writeFile('report/connections.json', JSON.stringify({
     date: new Date().toISOString(),
-    note: 'TCP and UDP endpoints of every process in the application tree, sampled through a full credential workflow. Loopback endpoints on the main process are the test harness inspector channel.',
+    method: 'Chromium request history (not sampled) + a socket poll every ' + POLL_MS + 'ms over every process in the tree + a static gate over the product TypeScript.',
+    limits: 'The request history cannot see Node-side or native requests, nor renderer attempts refused by CSP before reaching the network stack. The poll cannot see a connection open for less than its interval. The static gate is what rules out TypeScript that could connect between polls; the core\'s only connection path is validation::test for a supported provider, which no suite invokes.',
+    pollIntervalMs: POLL_MS,
+    positiveControls: {
+      nodeFetchFromMain: { request: '/control/linger', outcome: control, arrived: true, observedByPoll: sawControl },
+      electronNetRequestFromMain: { request: '/control/filtered', outcome: filtered, arrived: false, recordedByRequestHistory: true }
+    },
     rendererOutboundRoutes: routes,
-    rendererRequestsThatArrived: arrivals,
+    requestsThatArrived: arrivals,
+    chromiumRequests: requests,
     allowedCoreDestinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],
     coreTransport: 'HTTPS only, no proxy, no redirects, TLS 1.3 only, FIPS provider',
     liveRequestExercised: false,
-    samples
+    distinctEndpointsObserved: [...observed.values()],
+    samples: labelled
   }, null, 2) + '\n');
 
   await application.close(); application = undefined;
-  console.log('Connection capture: no external endpoint in any process; renderer and credential core hold none: PASS');
+  console.log(`Connection capture: ${observed.size} distinct endpoints observed, none external; renderer and credential core held none: PASS`);
   console.log('Renderer reached nothing by fetch, XHR, WebSocket, EventSource, beacon, image or dynamic import: PASS');
+  console.log('Both positive controls observed; the product refused the filtered one; static network gate clean: PASS');
 } catch (error) {
   console.error(`Connection capture failed at: ${stage}`);
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
   process.exitCode = 1;
 } finally {
+  if (poller) clearInterval(poller);
   if (credentialSaved && application) {
     const page = await application.firstWindow().catch(() => undefined);
     if (page) await ask(page, { type: 'delete-credentials', persona, provider: 'qrz_logbook' }).catch(() => {});
