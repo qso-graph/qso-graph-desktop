@@ -5,7 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { access, readdir, readFile, rm } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
-import { isComponent, missingStories, orphanStories } from './stories.mjs';
+import { isComponent, isStory, missingStories, orphanStories } from './stories.mjs';
 
 const SKIP = new Set(['node_modules', 'dist', 'out', 'report', 'target', '.git', 'storybook-static']);
 const root = resolve('.');
@@ -48,15 +48,30 @@ if (build.status !== 0 || build.error) {
   catch { failures.push('the build reported success but produced no index.html.'); }
 }
 
-// QGD-FRM-0010: reported every run, so which patterns still lack a story is
-// visible while P3 is being built rather than discovered at its exit gate.
-// Not a failure yet — the gate is the Part's, and the patterns arrive with the
-// shell they describe.
+// QGD-FRM-0010. A story claims a pattern by saying so, rather than by being
+// named in a way the gate can guess at: the marker is read out of the file, so
+// a component keeps the name it should have and the link to the register is
+// visible to whoever opens it.
+//
+// Now that all five exist this is a failure, not a report. A pattern that
+// loses its story is the register drifting from what is actually there, which
+// is the thing it was written to prevent.
 const register = JSON.parse(await readFile('data/story-patterns.json', 'utf8'));
-const storyNames = files.filter(path => /\.stories\./.test(path)).map(path => path.toLowerCase());
-const pattern = Object.fromEntries(register.patterns.map(entry =>
-  [entry.id, storyNames.some(name => name.includes(entry.id.replace(/-/g, '')) || name.includes(entry.id))]));
-const have = Object.values(pattern).filter(Boolean).length;
+const claimed = new Map();
+for (const story of files.filter(isStory)) {
+  const text = await readFile(story, 'utf8');
+  for (const match of text.matchAll(/QGD-FRM-0010 pattern:\s*([a-z-]+)/g)) {
+    claimed.set(match[1], story);
+  }
+}
+const known = new Set(register.patterns.map(entry => entry.id));
+for (const [id, story] of claimed) {
+  if (!known.has(id)) failures.push(`${story} claims pattern "${id}", which is not in data/story-patterns.json.`);
+}
+const missing = register.patterns.filter(entry => !claimed.has(entry.id));
+for (const entry of missing) {
+  failures.push(`no story claims the "${entry.id}" pattern (${entry.what}). QGD-FRM-0010.`);
+}
 
 const components = files.filter(isComponent).length;
 if (failures.length) {
@@ -65,6 +80,5 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(`Storybook: ${components} component(s), each with a story; gallery builds: PASS`);
-  console.log(`QGD-FRM-0010 patterns with a story: ${have} of ${register.patterns.length}` +
-    (have === register.patterns.length ? '' : ` — still to write: ${Object.entries(pattern).filter(([, present]) => !present).map(([id]) => id).join(', ')}`));
+  console.log(`QGD-FRM-0010 patterns with a story: ${claimed.size} of ${register.patterns.length} — ${[...claimed.keys()].sort().join(', ')}`);
 }

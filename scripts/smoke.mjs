@@ -185,7 +185,7 @@ try {
   await rm(settingsFile, { recursive: true, force: true });
   await mkdir(join(settingsFile, 'blocked'), { recursive: true });
   await page.getByLabel('Theme', { exact: true }).selectOption('light');
-  await expect(page.locator('#theme-status')).toBeVisible();
+  await expect(page.locator('#theme-choice-error')).toBeVisible();
   // Still dark: the choice did not take, and neither the control nor the page
   // pretends it did.
   await expect(page.getByLabel('Theme', { exact: true })).toHaveValue('dark');
@@ -193,7 +193,7 @@ try {
   await rm(settingsFile, { recursive: true, force: true });
   // And it recovers: the next choice is stored normally.
   await page.getByLabel('Theme', { exact: true }).selectOption('light');
-  await expect(page.locator('#theme-status')).toBeHidden();
+  await expect(page.locator('#theme-choice-error')).toBeHidden();
   await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')),
     { message: 'the control must work again once the file can be written' }).toBe('light');
 
@@ -222,7 +222,7 @@ try {
   expect(written.level).toBe('debug');
   // QGD-LOG-0010: a raise is stamped, which is what lets it expire on its own.
   expect(typeof written.raisedAtMs).toBe('number');
-  await expect(page.locator('#log-level-status')).toBeHidden();
+  await expect(page.locator('#log-level-error')).toBeHidden();
   await page.getByLabel('Detail level', { exact: true }).selectOption('info');
   expect(await levelInFile()).toEqual({ level: 'info' });
 

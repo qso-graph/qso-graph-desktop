@@ -147,5 +147,25 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
 #credential-test-result { font-size: 12px; color: var(--ink-muted); }
 #credential-test-result.success { color: var(--ok); }
 #credential-test-result.error { color: var(--danger); }
+/* StateList: the three states that are not a list of things. */
+.state-list ul { list-style: none; margin: 0; padding: 0; }
+.state-list li { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--surface); }
+.state-list li strong, .state-list li span { display: block; }
+.state-list li span { font-size: 12px; color: var(--ink-muted); }
+.state-message { font-size: 12px; color: var(--ink-muted); margin: 0 0 10px; }
+.state-error { color: var(--danger); }
+
+/* ConfirmDialog: a native dialog, so the backdrop and the focus trap are the
+   platform's. Only the look is ours. */
+.confirm { max-width: 420px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 22px; }
+.confirm::backdrop { background: rgb(0 0 0 / .45); }
+.confirm h2 { margin: 0 0 10px; }
+.confirm p { margin: 0 0 20px; font-size: 13px; line-height: 1.6; color: var(--ink-muted); }
+.danger-solid { background: var(--danger); color: var(--surface); border-color: transparent; }
+
+.credential-test-result { font-size: 12px; color: var(--ink-muted); margin: 0; }
+.credential-test-result.success { color: var(--ok); }
+.credential-test-result.error { color: var(--danger); }
+
 footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 8px 24px; font-size: 11px; color: var(--ink-muted); }
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }

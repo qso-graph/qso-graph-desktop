@@ -5,6 +5,7 @@
   fails leaves the control showing the theme the application is actually using.
 -->
 <script lang="ts">
+  import Field, { type ControlAttributes } from './Field.svelte';
   import { THEME_CHOICES, isThemeChoice, type ThemeChoice } from '../../settings-contract.js';
 
   interface Props {
@@ -37,12 +38,17 @@
   }
 </script>
 
-<label for="theme-choice">Theme</label>
-<select id="theme-choice" value={choice} onchange={changed} aria-describedby="theme-status">
-  {#each THEME_CHOICES as option (option)}
-    <option value={option}>{LABELS[option]}</option>
-  {/each}
-</select>
-<p id="theme-status" class="field-error" role="status" hidden={!failed}>
-  The theme could not be saved. It is unchanged.
-</p>
+<Field
+  id="theme-choice"
+  label="Theme"
+  hint="System follows this Mac and changes with it while QSO Graph Desktop is running. Light and dark are both first class: dark is for night nets and contests, light carries the contrast for daylight field use."
+  error={failed ? 'The theme could not be saved. It is unchanged.' : undefined}
+>
+  {#snippet control({ describedBy, invalid }: ControlAttributes)}
+    <select id="theme-choice" value={choice} onchange={changed} aria-describedby={describedBy} aria-invalid={invalid}>
+      {#each THEME_CHOICES as option (option)}
+        <option value={option}>{LABELS[option]}</option>
+      {/each}
+    </select>
+  {/snippet}
+</Field>

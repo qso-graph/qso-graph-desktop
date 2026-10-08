@@ -8,6 +8,7 @@
   displayed as what it is rather than as what was asked for.
 -->
 <script lang="ts">
+  import Field, { type ControlAttributes } from '../ui/Field.svelte';
   import { LOG_LEVELS, type LogsStatus } from '../../logs-contract.js';
   import { isLevel, type Level } from '../../logging.js';
 
@@ -54,20 +55,20 @@
   <h2 id="logs-title">Logs</h2>
 
   {#if status}
-    <label for="log-level">Detail level</label>
-    <select id="log-level" value={status.level} onchange={levelChanged} aria-describedby="log-level-note">
-      {#each LOG_LEVELS as level (level)}
-        <option value={level}>{level}</option>
-      {/each}
-    </select>
-    <p id="log-level-note" class="hint">
-      Normally {status.defaultLevel}. More detail than that turns itself off again after
-      {revertAfter} minutes and when QSO Graph Desktop restarts, so it cannot be left on
-      by accident.
-    </p>
-    <p id="log-level-status" class="field-error" role="status" hidden={!failed}>
-      The level could not be saved. It is unchanged.
-    </p>
+    <Field
+      id="log-level"
+      label="Detail level"
+      hint={`Normally ${status.defaultLevel}. More detail than that turns itself off again after ${revertAfter} minutes and when QSO Graph Desktop restarts, so it cannot be left on by accident.`}
+      error={failed ? 'The level could not be saved. It is unchanged.' : undefined}
+    >
+      {#snippet control({ describedBy, invalid }: ControlAttributes)}
+        <select id="log-level" value={status.level} onchange={levelChanged} aria-describedby={describedBy} aria-invalid={invalid}>
+          {#each LOG_LEVELS as level (level)}
+            <option value={level}>{level}</option>
+          {/each}
+        </select>
+      {/snippet}
+    </Field>
 
     <div class="credential-test">
       <button id="export-diagnostics" class="secondary" type="button" disabled={exporting} onclick={exportDiagnostics}>

@@ -5,6 +5,7 @@
   as a heading with nothing behind it.
 -->
 <script lang="ts">
+  import PageLayout from '../ui/PageLayout.svelte';
   import ThemeChoice from '../ui/ThemeChoice.svelte';
   import LogsPage from './LogsPage.svelte';
   import type { ThemeChoice as Choice } from '../../settings-contract.js';
@@ -21,16 +22,10 @@
   const { themeChoice, onChooseTheme, logs, onSetLevel, onExport }: Props = $props();
 </script>
 
-<div class="page-main">
-  <div class="page-title"><div><p class="eyebrow">PREFERENCES</p><h1>Settings</h1></div></div>
+<PageLayout eyebrow="PREFERENCES" title="Settings">
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
-    <p class="hint">
-      System follows this Mac and changes with it while QSO Graph Desktop is running.
-      Light and dark are both first class: dark is for night nets and contests,
-      light carries the contrast for daylight field use.
-    </p>
   </section>
   <LogsPage status={logs} {onSetLevel} {onExport} />
-</div>
+</PageLayout>
