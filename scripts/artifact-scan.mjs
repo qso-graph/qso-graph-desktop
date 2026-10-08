@@ -21,16 +21,23 @@ export const SENTINEL = /QG_FAKE_(?:CREDENTIAL|ROSTER)_[A-Za-z0-9_-]+/g;
 // Language asserting validation, certification or an approved mode. "Built
 // against AWS-LC FIPS" is a build fact; these would be claims about a
 // certificate, a module boundary and an operational environment.
+// Identified by opaque id, never by their wording: a finding records the id and
+// the location only. Writing the matched text into report/artifact-scan.json
+// made the next scan flag this scan's own diagnostic, so a single claim failed
+// every run after it until the evidence file was deleted by hand. The same rule
+// already applied to sentinels; it applies here for the same reason.
+//
+// Not the bare word CMVP: naming the register is a fact, and
+// report/crypto-evidence.json records the comparison against it. Quoting a
+// certificate number in a report about this build is the claim.
 const COMPLIANCE_CLAIMS = [
-  /FIPS\s*140(?:-[23])?\s*(?:validated|certified|compliant|approved)/i,
-  /validated\s+(?:crypto(?:graphic)?\s+)?module/i,
-  // Not the bare word CMVP: naming the register is a fact, and
-  // report/crypto-evidence.json records the comparison against it. Quoting a
-  // certificate number in a report about this build is the claim.
-  /certificate\s*#?\s*\d{4,}/i,
-  /FIPS\s+(?:mode\s+)?(?:certified|validated)/i,
-  /meets\s+FIPS/i
+  { id: 'C1', pattern: /FIPS\s*140(?:-[23])?\s*(?:validated|certified|compliant|approved)/i },
+  { id: 'C2', pattern: /validated\s+(?:crypto(?:graphic)?\s+)?module/i },
+  { id: 'C3', pattern: /certificate\s*#?\s*\d{4,}/i },
+  { id: 'C4', pattern: /FIPS\s+(?:mode\s+)?(?:certified|validated)/i },
+  { id: 'C5', pattern: /meets\s+FIPS/i }
 ];
+const claimIn = text => COMPLIANCE_CLAIMS.filter(claim => claim.pattern.test(text)).map(claim => claim.id);
 
 const RECENT_MS = 60 * 60 * 1000;
 const CRASH_REPORTS = join(homedir(), 'Library/Logs/DiagnosticReports');
@@ -119,12 +126,12 @@ export async function artifactScan() {
 
   // Control 2: the claim checker must recognise a claim.
   const claimControl = ['this build is FIPS 140-3 validated', 'validated cryptographic module', 'certificate #5429']
-    .every(claim => COMPLIANCE_CLAIMS.some(pattern => pattern.test(claim)));
+    .every(claim => claimIn(claim).length > 0);
   if (!claimControl) failures.push('the compliance-claim checker does not recognise a known claim');
   // And it must not fire on the register being named, or recording the facts
   // becomes impossible.
   const factControl = ['cmvpComparison', 'register: data/cmvp-aws-lc.json', 'appearsInValidatedList: false']
-    .every(fact => !COMPLIANCE_CLAIMS.some(pattern => pattern.test(fact)));
+    .every(fact => claimIn(fact).length === 0);
   if (!factControl) failures.push('the compliance-claim checker fires on a recorded fact');
 
   const targets = [
@@ -159,12 +166,10 @@ export async function artifactScan() {
   const textArtifacts = reports ? (await walk(resolve('report'), { match: /\.(md|json|txt|log)$/ })).files : [];
   for (const path of textArtifacts) {
     const text = await readFile(path, 'utf8').catch(() => '');
-    for (const pattern of COMPLIANCE_CLAIMS) {
-      const match = pattern.exec(text);
-      if (match) claims.push(`${path}: ${match[0]}`);
-    }
+    // The id and the location, never the wording.
+    for (const id of claimIn(text)) claims.push({ path, claimPattern: id });
   }
-  for (const claim of claims) failures.push(`unsupported compliance claim — ${claim}`);
+  for (const claim of claims) failures.push(`unsupported compliance claim ${claim.claimPattern} in ${claim.path}`);
   if (textArtifacts.length === 0) failures.push('no text artifacts were checked for compliance claims');
 
   const evidence = {
@@ -181,7 +186,15 @@ export async function artifactScan() {
     filesScanned: scans.reduce((total, result) => total + result.filesScanned, 0),
     scans
   };
-  await writeFile('report/artifact-scan.json', JSON.stringify(evidence, null, 2) + '\n');
+  // Before writing: this file is scanned by the next run, so it must not itself
+  // contain a sentinel or claim language. Checked rather than assumed, because
+  // assuming it is exactly how the previous version poisoned every later run.
+  const serialized = JSON.stringify(evidence, null, 2);
+  const selfSentinels = sentinelsIn(serialized);
+  const selfClaims = claimIn(serialized);
+  if (selfSentinels.length) failures.push(`this scan's own evidence would carry ${selfSentinels.length} sentinel(s); not written`);
+  if (selfClaims.length) failures.push(`this scan's own evidence would carry claim language (${selfClaims.join(', ')}); not written`);
+  if (!selfSentinels.length && !selfClaims.length) await writeFile('report/artifact-scan.json', serialized + '\n');
   return { ok: failures.length === 0, failures, evidence };
 }
 

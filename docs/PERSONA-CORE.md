@@ -29,6 +29,10 @@ Registered before implementation:
 | secret-containment | public display/status APIs return presence flags, never secrets; non-secret files and captured output contain no fixture secret |
 | ipc-boundary | wrong frame, malformed commands and extra fields are refused; core lives in a utility process |
 | usable-mac | create and select a persona, save and remove a synthetic service credential through the UI; state survives restart |
+| process-recovery | killing the persona utility process leaves the window present and answering; a request in the held-open outage is refused with a static message, not queued; the service restarts unaided as a different pid and the record is unchanged; thirteen malformed commands are refused |
+| connection-capture | across a full credential workflow no process in the tree holds an endpoint outside loopback, and the renderer and credential core hold none; the renderer reaches a listener by none of its seven outbound routes; no outbound-network API appears in the product TypeScript; three detectors each carry a positive control |
+| crypto-evidence | the AWS-LC library version is read from the module that was built and agrees with the lock and the addon's linkage; it is compared against the recorded CMVP register; the operational environment is recorded |
+| artifact-scan | reports, evidence, recent crash artifacts, the packaged application including `app.asar`, and the compiled output carry no credential or roster sentinel; no report artifact asserts validation or certification; each suite's raw output is scanned before redaction; unreadable files fail rather than counting as clean |
 
 Rust exports: `PersonaCore` constructor (trusted profile directory), `list`,
 `upsert`, `setActive`, `active`, `saveCredentials`, `credentialStatus`,
@@ -40,6 +44,12 @@ This is local development. No signing, publication or CI work blocks it.
 The test client builds with AWS-LC FIPS and rustls. This is build evidence only;
 module certification and operational-environment evidence remain separate, so
 this preview makes no validated-module compliance claim.
+
+Issue #3's acceptance run is complete: process recovery and malformed IPC,
+connection capture, the sentinel scan and the crypto-module and
+operational-environment evidence all run under `make verify`. See
+`report/connections.json`, `report/artifact-scan.json` and
+`report/crypto-evidence.json`.
 
 Local evidence on 2026-10-07: Rust unit tests passed (3 tests); the development
 window and the packaged arm64 app both passed create, activate, Keychain save,
