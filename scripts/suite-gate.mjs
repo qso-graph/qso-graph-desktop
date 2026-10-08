@@ -20,6 +20,9 @@ export function blockedBy(name, suites) {
   // Nothing downstream can be built, packaged or launched without a build.
   if (failed('build')) return 'build';
   if (CREDENTIAL_SUITES.includes(name) && failed('keychain-roundtrip')) return 'keychain-roundtrip';
+  // The engine suites run a real PostgreSQL from the pinned build, so there is
+  // nothing for them to run if the build is not there.
+  if (name.startsWith('engine-') && name !== 'engine-binaries' && failed('engine-binaries')) return 'engine-binaries';
   // story-themes walks the gallery that storybook built.
   if (name === 'story-themes' && failed('storybook')) return 'storybook';
   // Both of these read what packaging produced.

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
+const ORDER = ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -39,7 +39,7 @@ describe('QGD-TST-0007', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
     expect(resultOf(suites, 'rust-unit').result).toBe('PASS');
-    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit']) {
+    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });
@@ -64,5 +64,14 @@ describe('QGD-FRM-0007 story-themes reads what storybook builds', () => {
     // on whatever the last successful build left behind.
     expect(blockedBy('story-themes', [{ name: 'storybook', result: 'FAIL' }])).toBe('storybook');
     expect(blockedBy('story-themes', [{ name: 'storybook', result: 'PASS' }])).toBeUndefined();
+  });
+});
+
+describe('QGD-ENG-0004 the engine suites need the pinned build', () => {
+  it('stops them when the build is not there, rather than failing each for the same reason', () => {
+    expect(blockedBy('engine-lifecycle', [{ name: 'engine-binaries', result: 'FAIL' }])).toBe('engine-binaries');
+    expect(blockedBy('engine-lifecycle', [{ name: 'engine-binaries', result: 'PASS' }])).toBeUndefined();
+    // The check itself still runs: it is the one that says "run make setup".
+    expect(blockedBy('engine-binaries', [{ name: 'engine-binaries', result: 'FAIL' }])).toBeUndefined();
   });
 });

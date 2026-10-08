@@ -27,6 +27,7 @@ const commands = [
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
+  ['engine-lifecycle', ['scripts/engine-lifecycle.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['axe', ['scripts/axe.mjs']],
   ['screenshots', ['scripts/screenshots.mjs']],
