@@ -9,7 +9,7 @@
 // It reads storybook-static, which scripts/storybook.mjs has already built.
 // Building it a second time would double the slowest suite in the run for no
 // new information.
-import { chromium } from '@playwright/test';
+import { _electron as electron } from '@playwright/test';
 import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -68,8 +68,15 @@ if (index) {
   }
 
   const { server, origin } = await serveGallery();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  // Electron, not Playwright's Chromium: `npm ci` installs the first and not
+  // the second, and nothing in the documented setup fetches browser binaries.
+  // scripts/gallery-host.cjs is a window and nothing else.
+  const host = await electron.launch({
+    args: [resolve('scripts/gallery-host.cjs')],
+    cwd: process.cwd(),
+    timeout: 30_000
+  });
+  const page = await host.firstWindow();
 
   // Anything the story throws while rendering. Storybook renders an error into
   // the page rather than failing the load, so the page's own report is what
@@ -130,7 +137,7 @@ if (index) {
       }
     }
   } finally {
-    await browser.close();
+    await host.close().catch(() => {});
     server.close();
   }
 

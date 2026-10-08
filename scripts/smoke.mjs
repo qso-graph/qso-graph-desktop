@@ -35,6 +35,14 @@ try {
   // Two instances would both own the profile, the settings file and the
   // Keychain entries QGD-CRD-0003 keys by name rather than by profile.
   {
+    // Minimised first, because the lock is only half the requirement: the
+    // second launch must also raise the window already open. Without this the
+    // second-instance handler could be deleted and these assertions would
+    // still pass — the lock alone makes the second process exit.
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize());
+    await expect.poll(() => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized()))
+      .toBe(true);
+
     const electronBinary = createElectronRequire(import.meta.url)('electron');
     const second = spawn(electronBinary, ['.'], {
       cwd: process.cwd(), stdio: 'ignore',
@@ -46,7 +54,10 @@ try {
     ]);
     if (exited === 'still running') { second.kill('SIGKILL'); }
     expect(exited, 'a second launch must exit rather than open a second application').not.toBe('still running');
-    // And the first is untouched: one window, still answering.
+    // And the window already open is raised rather than left where it was.
+    await expect.poll(() => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized()),
+      { message: 'a second launch must restore the window already open' }).toBe(false);
+    // Still one application, still answering.
     expect(application.windows()).toHaveLength(1);
     await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
   }
@@ -308,7 +319,7 @@ try {
   await application.close();
   application = undefined;
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
-  console.log('Single instance: a second launch exited and the first kept its one window: PASS');
+  console.log('Single instance: a second launch exited and raised the window already open: PASS');
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');
   console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {
