@@ -29,7 +29,7 @@ const NETWORK_OVER_THE_WIRE = /^https?:\/\//;
 const ELECTRON_NETWORK = new Set(['net', 'netLog', 'ClientRequest']);
 // Web platform clients.
 const CLIENTS = new Set(['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts']);
-const CLIENT_PROPERTIES = new Set(['sendBeacon', 'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource']);
+const CLIENT_PROPERTIES = new Set(['sendBeacon', 'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'netLog']);
 // After these, a slash opens a regex literal rather than dividing.
 const REGEX_MAY_FOLLOW = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete',
   'void', 'do', 'else', 'yield', 'await', 'case', 'throw']);
@@ -104,7 +104,25 @@ export function tokenize(source) {
       continue;
     }
     if (character === '`') {
-      // Template literal: drop the text, tokenize each interpolation.
+      // A template with no interpolation is a constant string: `node:https`
+      // and [`fetch`] are ordinary specifiers and property names.
+      let scan = index + 1;
+      let constant = '';
+      let simple = false;
+      while (scan < source.length) {
+        if (source[scan] === '\\') { constant += ' '; scan += 2; continue; }
+        if (source[scan] === '`') { simple = true; break; }
+        if (source[scan] === '$' && source[scan + 1] === '{') break;
+        constant += source[scan++];
+      }
+      if (simple) {
+        const startLine = line;
+        for (const character of constant) if (character === '\n') line++;
+        tokens.push({ kind: 'string', value: constant, line: startLine });
+        index = scan + 1;
+        continue;
+      }
+      // Otherwise: drop the text, tokenize each interpolation.
       index++;
       while (index < source.length) {
         if (source[index] === '\\') { index += 2; continue; }
@@ -170,7 +188,12 @@ export function violations(source, fileName = 'input.ts') {
       let end = position + 1;
       while (end < tokens.length && !is(tokens[end], 'punct', ';') && !is(tokens[end], 'name', 'import')) end++;
       const clause = tokens.slice(position + 1, end);
-      const fromIndex = clause.findIndex(entry => is(entry, 'name', 'from'));
+      // `import { get as from } from 'node:https'` has two tokens named from.
+      // The contextual one is the last whose next token is the specifier.
+      let fromIndex = -1;
+      for (let scan = clause.length - 1; scan >= 0; scan--) {
+        if (is(clause[scan], 'name', 'from') && is(clause[scan + 1], 'string')) { fromIndex = scan; break; }
+      }
       const specifier = fromIndex >= 0 ? clause[fromIndex + 1] : clause[0];
       if (is(specifier, 'string')) {
         if (MODULES.test(specifier.value)) add(token.line, `imports ${specifier.value}`);
@@ -214,6 +237,11 @@ export function violations(source, fileName = 'input.ts') {
     if (is(token, 'name') && ELECTRON_NETWORK.has(token.value) &&
         is(tokens[position + 1], 'punct', '.') && is(tokens[position + 2], 'name', 'request')) {
       add(token.line, `calls ${token.value}.request`);
+      continue;
+    }
+    // netLog has no request method; any use of it is the logging surface.
+    if (is(token, 'name', 'netLog') && is(tokens[position + 1], 'punct', '.')) {
+      add(token.line, "uses electron's netLog");
       continue;
     }
   }

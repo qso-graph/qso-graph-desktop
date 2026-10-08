@@ -27,7 +27,14 @@ describe('QGD-CRD-0007 static gate', () => {
     ["import {\n  get /* /* xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */ */\n} from 'node:https';", 'import whose comment runs past any character bound'],
     ["const pattern = /'/;\nfetch(url);", 'fetch after a regex literal containing a quote'],
     ['const text = `${ // note\n fetch(url) }`;', 'fetch after a line comment in a template hole'],
-    ["import { net as alias } from 'electron';", 'renamed electron networking import']
+    ["import { net as alias } from 'electron';", 'renamed electron networking import'],
+    ['require(`node:https`);', 'a template-literal module specifier'],
+    ['globalThis[`fetch`](url);', 'a template-literal property name'],
+    ['self.importScripts(url);', 'importScripts as a property'],
+    ["self['importScripts'](url);", 'importScripts by string key'],
+    ["import { get as from } from 'node:https';\nfrom(url);", 'an import binding aliased to from'],
+    ["const { netLog } = require('electron');\nnetLog.startLogging(path);", 'netLog destructured from a require'],
+    ['electron.netLog.startLogging(path);', 'netLog reached as a property']
   ])('catches %#: %s', source => {
     expect(violations(source).length).toBeGreaterThan(0);
   });
