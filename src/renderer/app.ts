@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type { Persona, Snapshot, CredentialStatus, CredentialTest, PersonaCommand, PersonaReply } from '../persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../settings-contract.js';
+import type { LogsCommand, LogsReply } from '../logs-contract.js';
+import type { Level } from '../logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
@@ -9,6 +11,7 @@ declare global {
   interface Window {
     personas: { request(command: PersonaCommand): Promise<PersonaReply> };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
+    logs: { request(command: LogsCommand): Promise<LogsReply> };
     appearance?: Appearance;
   }
 }
@@ -19,7 +22,7 @@ declare global {
 const shell = createShellStore();
 mount(Shell, {
   target: document.body,
-  props: { store: shell, onChooseTheme: setThemeChoice }
+  props: { store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics }
 });
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -246,3 +249,33 @@ async function loadTheme(): Promise<void> {
 }
 
 void loadTheme();
+
+
+// QGD-LOG-0013. The page shows the level that is in force, so every reply is
+// read back into the shell rather than the renderer assuming the change took.
+async function readLogs(): Promise<void> {
+  const reply = await window.logs.request({ type: 'read' });
+  if (reply.ok && reply.kind === 'status') shell.set({ logs: reply.status });
+}
+
+export async function setLogLevel(level: Level): Promise<boolean> {
+  const reply = await window.logs.request({ type: 'set-level', level });
+  if (!reply.ok || reply.kind !== 'status') return false;
+  shell.set({ logs: reply.status });
+  return true;
+}
+
+// Returns the line the page displays. The wording is here because this is the
+// only place that knows which of the three outcomes happened.
+export async function exportDiagnostics(): Promise<string> {
+  const reply = await window.logs.request({ type: 'export' });
+  if (!reply.ok) return reply.error;
+  if (reply.kind === 'cancelled') return 'Export cancelled.';
+  if (reply.kind !== 'exported') return '';
+  const megabytes = reply.bytes / (1024 * 1024);
+  const size = megabytes >= 0.1 ? `${megabytes.toFixed(1)} MB` : `${Math.max(1, Math.round(reply.bytes / 1024))} KB`;
+  const files = reply.files === 1 ? '1 log file' : `${reply.files} log files`;
+  return `Saved ${files} (${size}). Passwords and keys were removed.`;
+}
+
+void readLogs();

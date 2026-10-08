@@ -6,13 +6,19 @@
 -->
 <script lang="ts">
   import ThemeChoice from '../ui/ThemeChoice.svelte';
+  import LogsPage from './LogsPage.svelte';
   import type { ThemeChoice as Choice } from '../../settings-contract.js';
+  import type { LogsStatus } from '../../logs-contract.js';
+  import type { Level } from '../../logging.js';
 
   interface Props {
     themeChoice: Choice;
     onChooseTheme: (choice: Choice) => Promise<boolean>;
+    logs: LogsStatus | undefined;
+    onSetLevel: (level: Level) => Promise<boolean>;
+    onExport: () => Promise<string>;
   }
-  const { themeChoice, onChooseTheme }: Props = $props();
+  const { themeChoice, onChooseTheme, logs, onSetLevel, onExport }: Props = $props();
 </script>
 
 <div class="page-main">
@@ -26,4 +32,5 @@
       light carries the contrast for daylight field use.
     </p>
   </section>
+  <LogsPage status={logs} {onSetLevel} {onExport} />
 </div>

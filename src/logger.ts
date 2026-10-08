@@ -12,12 +12,12 @@
 // Nothing here may interrupt the application. Every call is guarded, because a
 // log line that throws inside a crash handler stops the restart that handler
 // exists to perform.
-import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import pino from 'pino';
 import {
-  effectiveLevel, plan, redactionPaths,
+  DEFAULT_LEVEL, effectiveLevel, plan, redactionPaths,
   type Level, type LogFile, type LevelState
 } from './logging.js';
 
@@ -75,6 +75,33 @@ function levelState(directory: string): LevelState | undefined {
 // QGD-LOG-0009 and QGD-LOG-0010.
 export function currentLevel(directory: string, nowMs = Date.now()): Level {
   return effectiveLevel(levelState(directory), nowMs, STARTED_AT);
+}
+
+// QGD-LOG-0013's half of QGD-LOG-0009 and QGD-LOG-0010: the switch that
+// writes the level every process then follows.
+//
+// Written beside and renamed, like the settings file, so a process reading it
+// while this runs sees the old state or the new one and never a half-written
+// file. The running logger in this process is moved at once rather than at its
+// next poll, because a switch that takes effect in half a minute reads as one
+// that did not work.
+//
+// raisedAtMs is recorded only for a raise. effectiveLevel uses it for both
+// halves of QGD-LOG-0010 — the hour, and the process start — so a quietening,
+// which hides nothing the default would have shown, is simply kept.
+export function setLevel(level: Level, directory = logDirectory(), nowMs = Date.now()): boolean {
+  try {
+    mkdirSync(directory, { recursive: true });
+    const state: LevelState = level === DEFAULT_LEVEL ? { level } : { level, raisedAtMs: nowMs };
+    const path = join(directory, LEVEL_STATE);
+    const temporary = `${path}.${process.pid}.tmp`;
+    writeFileSync(temporary, JSON.stringify(state) + '\n', { mode: 0o600 });
+    renameSync(temporary, path);
+    if (root && root.directory === directory) root.logger.level = currentLevel(directory, nowMs);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface Intervals { capsMs?: number; levelMs?: number }

@@ -9,6 +9,7 @@ import { createLogger } from './logger.js';
 import { load, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
 import { startAppearanceBroker } from './system-appearance.js';
+import { startLogsBroker } from './logs-broker.js';
 
 const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'renderer');
 const log = createLogger('main');
@@ -105,7 +106,10 @@ if (!app.requestSingleInstanceLock()) {
     const stopPersonaBroker = startPersonaBroker(dirname(fileURLToPath(import.meta.url)));
     const stopSettingsBroker = startSettingsBroker();
     const stopAppearanceBroker = startAppearanceBroker();
-    app.once('before-quit', () => { stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); });
+    const stopLogsBroker = startLogsBroker();
+    app.once('before-quit', () => {
+      stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
+    });
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
     });

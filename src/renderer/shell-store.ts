@@ -6,6 +6,7 @@
 // checks it and a test can drive it without a component tree. Shell.svelte is
 // the one subscriber; app.ts is the one writer.
 import type { ThemeChoice } from '../settings-contract.js';
+import type { LogsStatus } from '../logs-contract.js';
 
 // The rail's items, in the order it shows them. QGD-LOG-0013 puts the Logs page
 // inside Settings, so it is not a third rail item.
@@ -26,12 +27,16 @@ export interface ShellState {
   // decides nothing, so there is one place the wording lives (app.ts).
   activePersona: string;
   themeChoice: ThemeChoice;
+  // Undefined until the main process has answered. The Logs page shows that it
+  // is still reading rather than a level that might be wrong.
+  logs: LogsStatus | undefined;
 }
 
 export const INITIAL_SHELL: ShellState = {
   page: 'personas',
   activePersona: 'No active persona',
-  themeChoice: 'system'
+  themeChoice: 'system',
+  logs: undefined
 };
 
 export interface ShellStore {

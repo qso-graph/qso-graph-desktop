@@ -52,19 +52,27 @@ try {
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const usernameField = page.getByLabel('Username', { exact: true });
   await usernameField.fill(fakeCredential);
-  // Re-copied inside the poll rather than once before it. The clipboard is the
-  // operating system's, shared with whoever is using the machine: a copy made
-  // once can be replaced between then and the paste, which is how this failed
-  // a run on a machine in use while every assertion in it was correct. Each
-  // attempt re-establishes the source, so the only thing being measured is
-  // whether a native paste reaches a masked field.
+  // Copy, measured where it lands. Pressing the keys and then reading another
+  // field conflates two things; this asserts the copy reached the system
+  // clipboard, which is the half the Edit menu roles are for.
+  await usernameField.press(`${modifier}+a`);
+  await usernameField.press(`${modifier}+c`);
+  await expect.poll(() => application.evaluate(({ clipboard }) => clipboard.readText()),
+    { message: 'a native copy must reach the system clipboard' }).toBe(fakeCredential);
+
+  // Paste, with the clipboard set rather than copied. The clipboard belongs to
+  // the operating system and is shared with whoever is using the machine, so
+  // copying into it from one field and pasting out of it into another measures
+  // the machine's state as much as the application's — it failed a run that
+  // way on a machine in use. Setting it is deterministic and still measures
+  // what this is for: a native paste reaching a masked field.
   for (const label of ['Password', 'API key']) {
     const field = page.getByLabel(label, { exact: true });
     await expect.poll(async () => {
-      await usernameField.focus();
-      await usernameField.press(`${modifier}+a`); await usernameField.press(`${modifier}+c`);
+      await application.evaluate(({ clipboard }, value) => clipboard.writeText(value), fakeCredential);
       await field.focus();
-      await field.press(`${modifier}+a`); await field.press(`${modifier}+v`);
+      await field.press(`${modifier}+a`);
+      await field.press(`${modifier}+v`);
       return field.inputValue();
     }, { message: `a native paste must reach the ${label} field`, timeout: 15_000 }).toBe(fakeCredential);
   }
@@ -177,6 +185,45 @@ try {
       { message: `on System, the shell must follow the operating system turning ${source}` }).toBe(source);
   }
   await application.evaluate(({ nativeTheme }) => { nativeTheme.themeSource = 'system'; });
+  // ---- P3-logs-page (QGD-LOG-0013) --------------------------------------
+  // The switch writes the level the running process then uses. Read back from
+  // the main process rather than from the page, so this measures the file the
+  // loggers follow and not what the select is displaying.
+  // Read here rather than through the application: this is the file the
+  // running loggers poll, and reading it from outside is the whole point.
+  const levelInFile = async () => JSON.parse(await readFile(join(logs, 'level.json'), 'utf8'));
+  await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('info');
+  await page.getByLabel('Detail level', { exact: true }).selectOption('debug');
+  await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('debug');
+  const written = await levelInFile();
+  expect(written.level).toBe('debug');
+  // QGD-LOG-0010: a raise is stamped, which is what lets it expire on its own.
+  expect(typeof written.raisedAtMs).toBe('number');
+  await expect(page.locator('#log-level-status')).toBeHidden();
+  await page.getByLabel('Detail level', { exact: true }).selectOption('info');
+  expect(await levelInFile()).toEqual({ level: 'info' });
+
+  // Export diagnostics produces the archive QGD-LOG-0012 already builds. The
+  // save dialog is replaced through Electron's own API rather than through a
+  // hook in the application, so the path that runs is the one that ships.
+  const archive = join(directory, 'diagnostics.zip');
+  await application.evaluate(({ dialog }, filePath) => {
+    dialog.showSaveDialog = () => Promise.resolve({ canceled: false, filePath });
+  }, archive);
+  await page.getByRole('button', { name: 'Export diagnostics', exact: true }).click();
+  await expect(page.locator('#export-result')).toContainText('Passwords and keys were removed.', { timeout: 30_000 });
+  const written_archive = await readFile(archive);
+  // A zip, and the credential this run has been handling is not in it.
+  expect(written_archive.subarray(0, 2).toString('latin1')).toBe('PK');
+  expect(written_archive.includes(fakeCredential)).toBe(false);
+
+  // And cancelling says so rather than claiming a file was written.
+  await application.evaluate(({ dialog }) => {
+    dialog.showSaveDialog = () => Promise.resolve({ canceled: true, filePath: undefined });
+  });
+  await page.getByRole('button', { name: 'Export diagnostics', exact: true }).click();
+  await expect(page.locator('#export-result')).toHaveText('Export cancelled.', { timeout: 30_000 });
+
   await railAgain('Personas').click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   // P3-personas-intact: the P1 screen still works after all of that.
@@ -191,6 +238,7 @@ try {
   await application.close();
   application = undefined;
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
+  console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');
   console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {
   // Do not serialize Playwright's exception payloads into shared artifacts.
