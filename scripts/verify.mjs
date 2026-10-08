@@ -17,6 +17,7 @@ const commands = [
   ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
+  ['process-recovery', ['scripts/process-recovery.mjs']],
   ['package', [npmCli, 'run', 'package']],
   ['packaged-launch', ['scripts/packaged-smoke.mjs']]
 ];
