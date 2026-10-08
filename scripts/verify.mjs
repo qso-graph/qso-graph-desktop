@@ -27,6 +27,7 @@ const commands = [
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
+  ['axe', ['scripts/axe.mjs']],
   ['storybook', ['scripts/storybook.mjs']],
   ['package', [npmCli, 'run', 'package']],
   ['packaged-launch', ['scripts/packaged-smoke.mjs']],

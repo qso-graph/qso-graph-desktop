@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'storybook', 'package', 'packaged-launch', 'electron-audit'];
+const ORDER = ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'storybook', 'package', 'packaged-launch', 'electron-audit'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -24,7 +24,7 @@ describe('QGD-TST-0007', () => {
 
   it('still runs and reports the build and the packaging step', () => {
     const suites = run(['keychain-roundtrip']);
-    for (const name of ['spec-rvm', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'process-recovery', 'package']) {
+    for (const name of ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'process-recovery', 'axe', 'package']) {
       expect(resultOf(suites, name).result).toBe('PASS');
     }
   });
@@ -39,7 +39,7 @@ describe('QGD-TST-0007', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
     expect(resultOf(suites, 'rust-unit').result).toBe('PASS');
-    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'storybook', 'package', 'packaged-launch', 'electron-audit']) {
+    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'connection-capture', 'axe', 'storybook', 'package', 'packaged-launch', 'electron-audit']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });

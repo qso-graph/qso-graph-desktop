@@ -9,8 +9,9 @@
 export const CREDENTIAL_SUITES = ['credential-editing', 'electron-smoke', 'connection-capture', 'packaged-launch'];
 
 // Suites that report their own result regardless of the credential proof.
-// rust-unit depends on neither the TypeScript build nor the credential store.
-const ALWAYS_RUN = ['spec-rvm', 'build', 'unit', 'rust-unit'];
+// rust-unit depends on neither the TypeScript build nor the credential store,
+// and icons compares a committed file against an installed package.
+const ALWAYS_RUN = ['spec-rvm', 'icons', 'build', 'unit', 'rust-unit'];
 
 // Returns the name of the failed suite that stops `name`, or undefined to run it.
 export function blockedBy(name, suites) {
