@@ -1,8 +1,8 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `71e9187fa64e90598122b7306967f80eb7c097d6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `226bc66a4d45aca2ef6a5cd03305d9442b2106bd` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `71e9187fa64e90598122b7306967f80eb7c097d6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `226bc66a4d45aca2ef6a5cd03305d9442b2106bd` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
 > 76 requirements · 12 Parts · 1 Demo · 24 Inspection · 26 Static · 37 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
@@ -99,7 +99,7 @@
 | P5 | `QGD-PRT-0105` | Reference data: ADIF definitions (`all.json`), CQ and ITU zones, DOKs, and the validation built from them | The reference data loads into the engine and the validation built from it answers ADIF's own cases |
 | P6 | `QGD-PRT-0106` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | KI7MT walks setup on a clean machine; export round-trips |
 | P7 | `QGD-PRT-0107` | App runtime, official tier, grant model, over the message API — the app API | An app without a grant is refused; proven by a no-credential app (solar) and a granted one (QRZ lookup); and by a test application that uses the API and nothing else |
-| P8 | `QGD-PRT-0108` | QG ADIF: `all.json` load, validation, import and export of `.adi` files. **Files only; no QSO storage** | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
+| P8 | `QGD-PRT-0108` | QG ADIF: validation, import and export of `.adi` files, reading ADIF's definitions from the reference data rather than loading them itself. **Files only; no QSO storage** | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
 | P9 | `QGD-PRT-0109` | QG Club: club definition and roster | The field canvas's cases load |
 | P10 | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
 | P11 | `QGD-PRT-0111` | Updates and onboarding | An update installs on a clean machine |
