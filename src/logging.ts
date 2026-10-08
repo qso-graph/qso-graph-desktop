@@ -46,7 +46,15 @@ export interface LogFile {
 }
 
 export interface PlanOptions {
-  active: string;
+  // The files that are being written to right now and must not be removed.
+  // More than one since QGD-LOG-0011: the engine writes its own, in this same
+  // directory, through a process we do not control — deleting the file it has
+  // open would lose the records and free nothing.
+  //
+  // The first is the application's own, and the only one rotation applies to:
+  // renaming a file out from under PostgreSQL's collector would leave it
+  // writing into the archive, so the engine rotates its own by configuration.
+  active: string | readonly string[];
   nowMs: number;
   maxFileBytes?: number;
   maxTotalBytes?: number;
@@ -69,11 +77,12 @@ export function plan(files: readonly LogFile[], options: PlanOptions): Plan {
   const maxTotalBytes = options.maxTotalBytes ?? MAX_TOTAL_BYTES;
   const maxAgeMs = options.maxAgeMs ?? MAX_AGE_MS;
 
-  const active = files.find(file => file.name === options.active);
+  const inUse = typeof options.active === 'string' ? [options.active] : options.active;
+  const active = files.find(file => file.name === inUse[0]);
   const rotate = active !== undefined && active.bytes >= maxFileBytes;
 
   const removable = files
-    .filter(file => file.name !== options.active)
+    .filter(file => !inUse.includes(file.name))
     .sort((a, b) => a.modifiedMs - b.modifiedMs || a.name.localeCompare(b.name));
 
   const remove = new Set<string>();

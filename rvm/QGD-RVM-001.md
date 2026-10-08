@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `8c45fa6334a37c421055e8bb6fe4f60632234e51` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `7d4b5be6e496e7be8b93ec1197d2f38dabd25011` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `8c45fa6334a37c421055e8bb6fe4f60632234e51` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `7d4b5be6e496e7be8b93ec1197d2f38dabd25011` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 99 requirements · 12 Parts · 4 Demo · 29 Inspection · 29 Static · 54 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 100 requirements · 12 Parts · 4 Demo · 29 Inspection · 29 Static · 55 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -68,7 +68,8 @@
 | `QGD-ENG-0006` | The engine supervisor is the only thing that starts, stops or checks the engine, as its own utility process under `QGD-PRC-0004`. Its arguments are the data directory, the endpoint and the binary set; no part of them comes from a user. | Test | ✓ |
 | `QGD-ENG-0007` | The data directory is created on first run, and a creation that fails leaves nothing behind — never a half-made directory that the next start would treat as a database. | Test | ✓ |
 | `QGD-ENG-0008` | Two engines never run against one data directory. A start that finds the directory already in use reports that and does not begin a second. | Test | ✓ |
-| `QGD-ENG-0009` | On macOS and Linux the engine listens on a Unix socket inside the application's own directory and opens **no TCP port at all**; on Windows, which has no equivalent, it listens on loopback on a port chosen free at start. The port chooser is tested on every platform because it is the Windows path. | Test | ✓ |
+| `QGD-ENG-0009` | On macOS and Linux the engine listens on a Unix socket and opens **no TCP port at all**; on Windows, which has no equivalent, it listens on loopback on a port chosen free at start. The port chooser is tested on every platform because it is the Windows path. | Test | ✓ |
+| `QGD-ENG-0009.1` | The socket goes in the application's own directory where it fits, and a short directory of the user's own where it does not. A socket path is bounded — 104 bytes on macOS, 108 on Linux, including what PostgreSQL appends — and the obvious place for it, beside the data under `Application Support`, is close enough to that bound to fail on a machine with a longer home directory. The directory is chosen by measuring, and a start with nowhere short enough reports that rather than failing as something else. | Test | ✓ |
 | `QGD-ENG-0010` | One database role and one schema per application, and the role's password is fresh random bytes at each start, held in memory and never written to disk. | Test | ✓ |
 | `QGD-ENG-0011` | A backup is a copy of the data directory taken with the engine stopped, recorded with the major version that made it. Taken this way because `QGD-ENG-0005` leaves no `pg_dump` to take a portable one; the cost is that a backup is not portable across major versions, which is why a restore refuses one made by a different major rather than corrupting a database with it. | Test | ✓ |
 | `QGD-ENG-0012` | A restore never leaves a half-replaced data directory: it is staged beside the live one and moved into place, and a restore that fails leaves the database that was there untouched. A failed backup leaves the previous backup in place. | Test | ✓ |
