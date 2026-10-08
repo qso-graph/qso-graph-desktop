@@ -4,8 +4,10 @@
 // QGD-PRT-0102's exit gate: killing a utility process leaves the window running
 // and the process recovers.
 //
-// No credential is read here, so this suite does not depend on the credential
-// store and reports its own result when the round-trip fails.
+// No credential is read here: the fixture is created over IPC and never
+// selected, so nothing triggers a credential-status request. The suite
+// therefore does not depend on the credential store and reports its own result
+// when the round-trip fails.
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -47,10 +49,11 @@ try {
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok)).toBe(true);
 
-  await page.getByLabel('Persona name', { exact: true }).fill(persona);
-  await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
-  await page.getByRole('button', { name: 'Create persona', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
+  // The fixture is created over IPC and never selected. Selecting a persona in
+  // the UI issues a credential-status request, which reads the credential store
+  // and would make this suite depend on it.
+  stage = 'create the fixture over IPC';
+  expect(await ask(page, { type: 'upsert', name: persona, callsign: 'w1aw' })).toMatchObject({ ok: true });
 
   stage = 'malformed IPC refusal';
   // QGD-PRC-0005: every one of these is refused with the one static message,
@@ -83,18 +86,17 @@ try {
     process.kill(victim, 'SIGKILL');
 
     // The window is still there and still answering while the service is gone.
-    stage = `crash ${attempt}: window survives`;
-    expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
-    await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-    expect(await page.evaluate(() => document.title)).toBe('QG Desktop');
-
-    // A request in the gap is refused with a static, credential-free message.
+    // A request in the gap is refused, not queued, with a static message.
     stage = `crash ${attempt}: request during the outage`;
     const duringOutage = await ask(page, { type: 'list' });
-    if (duringOutage.ok === false) {
-      expect(['The persona service is restarting. Try again.', 'The persona service is starting. Try again.'])
-        .toContain(duringOutage.error);
-    }
+    expect(duringOutage.ok).toBe(false);
+    expect(['The persona service is restarting. Try again.', 'The persona service is starting. Try again.'])
+      .toContain(duringOutage.error);
+
+    stage = `crash ${attempt}: window survives`;
+    expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+    await expect(page.locator('#active-persona')).toBeVisible();
+    expect(await page.evaluate(() => document.title)).toBe('QG Desktop');
 
     // The service comes back on its own and the record is unchanged.
     stage = `crash ${attempt}: service recovers`;
