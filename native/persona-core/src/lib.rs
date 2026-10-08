@@ -393,7 +393,7 @@ mod addon {
 mod tests {
     use super::*;
     #[test]
-    fn python_compatible_records_and_dates() {
+    fn auth_compatible_records_and_dates() {
         let temp = tempfile::tempdir().unwrap();
         let store = Store::new(temp.path().into()).unwrap();
         let persona = store.upsert("Home", "w1aw", Some("2026-01-01".into()), None).unwrap();

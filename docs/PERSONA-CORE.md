@@ -20,9 +20,10 @@ Registered before implementation:
 
 | Test | Required result |
 |---|---|
-| persona-records | create, update, list and case-insensitive lookup preserve Python's format; date ordering is validated |
+| persona-records | create, update, list and case-insensitive lookup preserve `qso-graph-auth`'s stored format; date ordering is validated |
 | persona-active | a known persona can be selected; missing names are refused |
 | credential-selection | QRZ logbook uses the key when both values exist; other providers retain password-first behavior |
+| rust-unit | the core's own unit tests, including the simulated Keychain refusal and retry, run under `make verify` |
 | keychain-roundtrip | the writing process round-trips, replaces, selects and deletes its own unique synthetic entry; a metadata-only lookup confirms the convention name; cleanup in all exit paths |
 | credential-isolation | two synthetic personas cannot read one another's entries |
 | secret-containment | public display/status APIs return presence flags, never secrets; non-secret files and captured output contain no fixture secret |
