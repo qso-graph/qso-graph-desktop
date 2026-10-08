@@ -56,8 +56,23 @@ function identifier(name: string): string {
   return name;
 }
 
-export async function connectAsSuperuser(endpoint: Endpoint, database = 'postgres'): Promise<Client> {
-  const client = new Client({ ...connection(endpoint, database, superuser()) });
+// A pg Client emits 'error' for a connection that drops with no query in
+// flight, and an 'error' event nobody is listening for ends the process. The
+// engine stopping is a normal thing for the frame to do, and it must not take
+// the application down with it — so every client gets a listener. A query that
+// fails still rejects its own promise; nothing is swallowed that a caller
+// would otherwise see.
+function attend(client: Client, onError?: (error: Error) => void): Client {
+  client.on('error', error => onError?.(error as Error));
+  return client;
+}
+
+export async function connectAsSuperuser(
+  endpoint: Endpoint,
+  database = 'postgres',
+  onError?: (error: Error) => void
+): Promise<Client> {
+  const client = attend(new Client({ ...connection(endpoint, database, superuser()) }), onError);
   await client.connect();
   return client;
 }
@@ -96,11 +111,16 @@ function literal(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
-export async function connectAs(endpoint: Endpoint, grant: Grant, database = 'postgres'): Promise<Client> {
-  const client = new Client({
+export async function connectAs(
+  endpoint: Endpoint,
+  grant: Grant,
+  database = 'postgres',
+  onError?: (error: Error) => void
+): Promise<Client> {
+  const client = attend(new Client({
     ...connection(endpoint, database, grant.role),
     password: grant.password
-  });
+  }), onError);
   await client.connect();
   return client;
 }

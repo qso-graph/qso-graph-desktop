@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
 
-const ORDER = ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
+const ORDER = ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'engine-migrations', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -39,7 +39,7 @@ describe('QGD-TST-0007', () => {
     const suites = run(['build']);
     expect(resultOf(suites, 'unit').result).toBe('PASS');
     expect(resultOf(suites, 'rust-unit').result).toBe('PASS');
-    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit']) {
+    for (const name of ['keychain-roundtrip', 'crypto-evidence', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'engine-migrations', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit']) {
       expect(resultOf(suites, name)).toEqual({ name, result: 'NOT RUN', blockedBy: 'build' });
     }
   });

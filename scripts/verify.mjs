@@ -28,6 +28,7 @@ const commands = [
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['engine-lifecycle', ['scripts/engine-lifecycle.mjs']],
+  ['engine-migrations', ['scripts/engine-migrations.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['axe', ['scripts/axe.mjs']],
   ['screenshots', ['scripts/screenshots.mjs']],
