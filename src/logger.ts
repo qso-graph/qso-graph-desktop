@@ -30,9 +30,9 @@ const STARTED_AT = Date.now();
 // QGD-LOG-0002: the operating system's standard log folder, and nowhere else.
 export function logDirectory(): string {
   if (process.env.QG_DESKTOP_LOG_DIR) return process.env.QG_DESKTOP_LOG_DIR;
-  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Logs', 'QG Desktop');
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Logs', 'QSO Graph Desktop');
   if (process.platform === 'win32') {
-    return join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'QG Desktop', 'Logs');
+    return join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'QSO Graph Desktop', 'Logs');
   }
   return join(process.env.XDG_STATE_HOME ?? join(homedir(), '.local', 'state'), 'qg-desktop', 'logs');
 }

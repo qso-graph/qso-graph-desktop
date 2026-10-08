@@ -8,11 +8,26 @@
 import type { ThemeChoice } from '../settings-contract.js';
 import type { LogsStatus } from '../logs-contract.js';
 
-// The rail's items, in the order it shows them. QGD-LOG-0013 puts the Logs page
-// inside Settings, so it is not a third rail item.
+// The rail's items. Each carries the Font Awesome icon key it draws, the
+// short label shown under it, a longer description for the tooltip, and where
+// it sits. Settings is at the bottom, which is where an application with a
+// rail conventionally puts it — it is not one of the places you work, it is
+// where you go to change how the places you work behave.
 export const PAGES = [
-  { id: 'personas', label: 'Personas' },
-  { id: 'settings', label: 'Settings' }
+  {
+    id: 'personas',
+    label: 'Personas',
+    icon: 'personas',
+    description: 'Station personas and the credentials saved for each',
+    placement: 'top'
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: 'settings',
+    description: 'Appearance, and the logs this Mac keeps',
+    placement: 'bottom'
+  }
 ] as const;
 
 export type PageId = (typeof PAGES)[number]['id'];

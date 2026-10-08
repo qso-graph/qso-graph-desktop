@@ -1,9 +1,9 @@
 {
   "name": "qg-desktop",
-  "productName": "QG Desktop",
+  "productName": "QSO Graph Desktop",
   "version": "0.0.0-preview.1",
   "private": true,
-  "description": "QSO Graph Desktop \u2014 local P0 preview",
+  "description": "QSO Graph Desktop — local P0 preview",
   "license": "GPL-3.0-only",
   "author": "QSO Graph contributors",
   "type": "module",
@@ -19,6 +19,7 @@
     "@doyensec/electronegativity": "1.10.3",
     "@electron/asar": "3.4.1",
     "@eslint/js": "10.0.1",
+    "@fortawesome/fontawesome-free": "7.3.1",
     "@playwright/test": "1.63.0",
     "@storybook/addon-svelte-csf": "5.1.5",
     "@storybook/addon-themes": "10.6.1",
@@ -40,7 +41,7 @@
   },
   "build": {
     "appId": "org.qso-graph.desktop",
-    "productName": "QG Desktop",
+    "productName": "QSO Graph Desktop",
     "directories": {
       "output": "out"
     },

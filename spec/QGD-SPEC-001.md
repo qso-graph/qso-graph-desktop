@@ -140,7 +140,7 @@ QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 | `QGD-CRD-0001` | The credential core is Rust, built as a `napi-rs` native addon. | Static |
 | `QGD-CRD-0002` | The core owns the OS credential stores, X.509 and PKCS#12 handling, certificate expiry, and the grant model's enforcement point. | Inspection |
 | `QGD-CRD-0003` | The credential core owns its OS credential-store entry names and sets them explicitly, never leaving them to a library default. | Test |
-| `QGD-CRD-0004` | **QG Desktop has no Python and no MCP-server interoperability, in any Part, now or later** (KI7MT, 2026-10-08). No requirement, suite, gate or shipped artifact depends on a Python runtime or on `qso-graph-auth`. | Static |
+| `QGD-CRD-0004` | **QSO Graph Desktop has no Python and no MCP-server interoperability, in any Part, now or later** (KI7MT, 2026-10-08). No requirement, suite, gate or shipped artifact depends on a Python runtime or on `qso-graph-auth`. | Static |
 | `QGD-CRD-0005` | The credential core is Rust and the shell and frame are TypeScript. | Inspection |
 | `QGD-CRD-0006` | A credential never appears in a log, an error message, an IPC payload rendered to a screen, or a report. | Static |
 | `QGD-CRD-0007` | The renderer never holds a credential and never opens a network connection. | Static, Test |

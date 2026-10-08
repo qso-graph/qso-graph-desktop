@@ -8,7 +8,7 @@
     level: 'info',
     defaultLevel: 'info',
     revertAfterMs: 60 * 60 * 1000,
-    directory: '/Users/you/Library/Logs/QG Desktop'
+    directory: '/Users/you/Library/Logs/QSO Graph Desktop'
   };
 
   const { Story } = defineMeta({

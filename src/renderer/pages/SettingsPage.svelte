@@ -27,7 +27,7 @@
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
     <p class="hint">
-      System follows this Mac and changes with it while QG Desktop is running.
+      System follows this Mac and changes with it while QSO Graph Desktop is running.
       Light and dark are both first class: dark is for night nets and contests,
       light carries the contrast for daylight field use.
     </p>

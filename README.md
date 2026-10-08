@@ -1,4 +1,4 @@
-# QG Desktop
+# QSO Graph Desktop
 
 A local macOS preview of QSO Graph Desktop with a Rust persona core. Create or
 edit station personas, select the active persona, and save or remove service
@@ -18,7 +18,7 @@ TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIP
 macOS).
 
 On the M3, use Node 26.9.0, Rust and CMake; run `npm ci`, then `make start`.
-`make package` produces `out/mac-arm64/QG Desktop.app`.
+`make package` produces `out/mac-arm64/QSO Graph Desktop.app`.
 `make installer` produces a local DMG. Signing and publication are deferred.
 
 `make verify` builds and packages the application, runs the unit and Electron smoke suites,

@@ -62,7 +62,7 @@
     </select>
     <p id="log-level-note" class="hint">
       Normally {status.defaultLevel}. More detail than that turns itself off again after
-      {revertAfter} minutes and when QG Desktop restarts, so it cannot be left on
+      {revertAfter} minutes and when QSO Graph Desktop restarts, so it cannot be left on
       by accident.
     </p>
     <p id="log-level-status" class="field-error" role="status" hidden={!failed}>

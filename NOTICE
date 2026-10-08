@@ -1,0 +1,31 @@
+# Third-party notices — QSO Graph Desktop
+
+QSO Graph Desktop is GPL-3.0-only. See LICENSE.
+
+This file records third-party material that is redistributed inside the
+application and the terms it carries. It is not a list of build dependencies:
+it names what ships, and what shipping it obliges us to say.
+
+--------------------------------------------------------------------------------
+
+## Font Awesome Free 7.3.1
+
+Icons by Fonticons, Inc. — https://fontawesome.com
+
+Icon artwork is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Full Font Awesome Free license: https://fontawesome.com/license/free
+
+The navigation rail's icons are Font Awesome Free icons. Their geometry is
+vendored into `src/renderer/ui/icons.ts`, generated from the installed package
+by `scripts/gen-icons.mjs` — the application does not load a Font Awesome
+webfont, stylesheet or sprite at runtime, because its content policy
+(`QGD-SEC-0008`) allows the renderer no font and no image. Inline SVG markup is
+neither, so the icons are drawn as paths.
+
+No icon has been modified. Attribution appears here and in the application's
+About panel, as CC BY 4.0 requires.
+
+--------------------------------------------------------------------------------

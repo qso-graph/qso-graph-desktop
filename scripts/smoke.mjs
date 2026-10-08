@@ -111,12 +111,34 @@ try {
 
   // P3-keyboard: every rail item is reachable and operable from the keyboard.
   await rail('Personas').focus();
-  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe('Personas');
+  // Trimmed: the button is an icon above a label, so its text carries the
+  // whitespace between them.
+  expect((await page.evaluate(() => document.activeElement?.textContent ?? '')).trim()).toBe('Personas');
   const outline = await page.evaluate(() => getComputedStyle(document.activeElement, null).outlineWidth);
   expect(parseFloat(outline), 'the focused rail item must show a focus indicator').toBeGreaterThan(0);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Persona details', exact: true })).toBeVisible();
   await rail('Settings').click();
+
+  // The rail's icons carry a label and a tooltip, and the label is what is
+  // read aloud: getByRole resolves these by accessible name, so every rail()
+  // call above already proves the names. The tooltips and the ordering are
+  // what is left.
+  for (const name of ['Personas', 'Settings']) {
+    const tooltip = await rail(name).getAttribute('title');
+    expect(tooltip && tooltip.length > name.length, `${name} must carry a tooltip`).toBe(true);
+    // An icon is drawn and hidden from assistive technology, which reads the
+    // label instead.
+    expect(await rail(name).locator('svg[aria-hidden="true"]').count(), `${name} icon`).toBe(1);
+  }
+  // Settings sits at the bottom of the rail, below everything else and near
+  // the foot of it.
+  const railBox = await page.getByRole('navigation', { name: 'Sections' }).boundingBox();
+  const personasBox = await rail('Personas').boundingBox();
+  const settingsBox = await rail('Settings').boundingBox();
+  expect(settingsBox.y).toBeGreaterThan(personasBox.y);
+  const gapBelow = railBox.y + railBox.height - (settingsBox.y + settingsBox.height);
+  expect(gapBelow, 'Settings must sit at the foot of the rail').toBeLessThan(40);
 
   // P3-theme-override: System, Light and Dark, with System the default.
   const theme = page.getByLabel('Theme', { exact: true });

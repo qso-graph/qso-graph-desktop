@@ -43,8 +43,8 @@ const RECENT_MS = 60 * 60 * 1000;
 const CRASH_REPORTS = join(homedir(), 'Library/Logs/DiagnosticReports');
 // QGD-LOG-0005: where QGD-LOG-0002 puts the logs. A suite under test writes to
 // its own temp folder, so this is the operator's real one.
-const LOG_FOLDER = process.env.QG_DESKTOP_LOG_DIR ?? join(homedir(), 'Library/Logs/QG Desktop');
-const PACKAGED = resolve('out/mac-arm64/QG Desktop.app/Contents/Resources');
+const LOG_FOLDER = process.env.QG_DESKTOP_LOG_DIR ?? join(homedir(), 'Library/Logs/QSO Graph Desktop');
+const PACKAGED = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/Resources');
 // Pixels are not text. A credential rendered into a screenshot cannot be found
 // by scanning bytes, so these are scanned for embedded ASCII only — metadata and
 // text chunks — and the claim is limited accordingly. Visible disclosure is

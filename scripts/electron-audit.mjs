@@ -26,7 +26,7 @@ import { access, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const binary = resolve('node_modules/.bin/electronegativity');
-const archive = resolve('out/mac-arm64/QG Desktop.app/Contents/Resources/app.asar');
+const archive = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/Resources/app.asar');
 const sarif = resolve('report/electron-audit.sarif');
 const ELECTRON_VERSION = JSON.parse(await readFile('package.json', 'utf8')).devDependencies.electron;
 

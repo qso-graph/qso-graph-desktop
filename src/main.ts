@@ -10,11 +10,19 @@ import { load, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
+import { FONT_AWESOME_CREDIT } from './attribution.js';
 
 const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'renderer');
 const log = createLogger('main');
 
-app.setName('QG Desktop');
+app.setName('QSO Graph Desktop');
+// The About panel carries the attribution CC BY 4.0 requires for the rail's
+// icons. NOTICE is the written record; this is the one a user can actually
+// reach, which is the point of the obligation.
+app.setAboutPanelOptions({
+  applicationName: 'QSO Graph Desktop',
+  credits: FONT_AWESOME_CREDIT
+});
 if (process.env.QG_DESKTOP_USER_DATA_DIR) app.setPath('userData', process.env.QG_DESKTOP_USER_DATA_DIR);
 // An in-process resource scheme: no socket, server or external request.
 protocol.registerSchemesAsPrivileged([
@@ -34,7 +42,7 @@ function createWindow(): void {
     height: 740,
     minWidth: 640,
     minHeight: 420,
-    title: 'QG Desktop',
+    title: 'QSO Graph Desktop',
     // Read here rather than fixed: the renderer themes itself a moment later,
     // and this is the frame before that (QGD-FRM-0001).
     backgroundColor: windowBackground(load().theme, nativeTheme.shouldUseDarkColors),
@@ -114,7 +122,7 @@ if (!app.requestSingleInstanceLock()) {
       callback({ cancel: !allowsResource(details.url) });
     });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
-      { label: 'QG Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
+      { label: 'QSO Graph Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
       { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] }
     ]));
