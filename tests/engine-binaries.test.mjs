@@ -118,3 +118,44 @@ describe('QGD-ENG-0004 verifying what is on disk', () => {
     expect(result.problems.join(' ')).toContain(`pins ${build.version}`);
   });
 });
+
+describe('QGD-ENG-0004.1 the trim', () => {
+  it('keeps only the plugins the server will not start without', () => {
+    // An allow list, so a later version that added a module cannot ship it
+    // without someone deciding to. Each of these earned its place by initdb
+    // refusing to finish without it.
+    expect(build.trim.plugins.keep).toEqual(['plpgsql.dylib', 'pgoutput.dylib', 'dict_snowball.dylib']);
+    expect(build.trim.extensions.keep).toContain('plpgsql.control');
+  });
+
+  it('removes nothing from share, because initdb reads all of it', () => {
+    // Tried, three times, one file at a time: snowball_create.sql,
+    // tsearch_data and sql_features.txt. Together under a megabyte and a half.
+    expect(build.trim.remove).toEqual([]);
+    expect(build.trim.keptBecauseInitdbReadsThem.files.length).toBe(3);
+  });
+
+  it('is applied only to a tree whose hash has been checked', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const fetcher = await readFile('scripts/fetch-postgres.mjs', 'utf8');
+    const checked = fetcher.indexOf('checksum mismatch');
+    const trimmed = fetcher.indexOf('await trim(');
+    expect(checked).toBeGreaterThan(-1);
+    expect(trimmed, 'the trim must come after the hash check, not before').toBeGreaterThan(checked);
+  });
+});
+
+describe('QGD-ENG-0004.1 the trimmed build is what ships', () => {
+  it('is packaged as a resource rather than inside the asar', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const manifest = JSON.parse(await readFile('package.json', 'utf8'));
+    // Programs have to be executed, and an asar is not a filesystem.
+    expect(manifest.build.extraResources).toEqual([
+      { from: 'vendor/postgres', to: 'postgres', filter: ['**/*'] }
+    ]);
+    // The migrations and the register the engine reads its version from go
+    // with it, or a packaged application cannot start the database it carries.
+    expect(manifest.build.files).toContain('drizzle/**/*');
+    expect(manifest.build.files).toContain('data/postgres-build.json');
+  });
+});

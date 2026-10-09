@@ -30,5 +30,33 @@
       "pg_basebackup"
     ],
     "why": "QGD-ENG-0005. This build carries the server and its two lifecycle tools and nothing else. Backup is therefore a copy of the stopped data directory (QGD-ENG-0011), not a dump."
+  },
+  "trim": {
+    "note": "QGD-ENG-0004.1. The published build is 356 MB; almost half of it is the same file stored under two or three names, and most of the rest is machinery this product never reaches. scripts/trim-postgres.mjs applies this after the download has been verified against the SHA-256 above, so the trim is only ever applied to a tree already known to be genuine.",
+    "plugins": {
+      "keep": [
+        "plpgsql.dylib",
+        "pgoutput.dylib",
+        "dict_snowball.dylib"
+      ],
+      "why": "plpgsql because initdb installs it into template1 and will not finish without it; pgoutput because it is core rather than contrib; dict_snowball because initdb runs snowball_create.sql, and CREATE FUNCTION checks that the library it names is there. Everything else in lib/postgresql is a procedural language, a contrib module, or a conversion between character encodings this product never uses \u2014 the database is UTF8 and so is the only client that connects to it. An allow list rather than a deny list: a later version that added a module would otherwise ship it without anyone deciding to."
+    },
+    "extensions": {
+      "keep": [
+        "plpgsql.control",
+        "plpgsql--1.0.sql",
+        "plpgsql--1.0--1.1.sql"
+      ],
+      "why": "The control and script files for the one extension that is kept. initdb reads these; the rest describe contrib modules that are no longer here."
+    },
+    "remove": [],
+    "keptBecauseInitdbReadsThem": {
+      "files": [
+        "share/postgresql/snowball_create.sql",
+        "share/postgresql/tsearch_data",
+        "share/postgresql/sql_features.txt"
+      ],
+      "why": "initdb reads all of share/postgresql and refuses to finish if a piece of it is missing: snowball_create.sql builds the text-search dictionaries in template1, those dictionaries name stopword files in tsearch_data, and sql_features.txt fills in information_schema. Tried removing each; initdb named them one at a time. Together they are under a megabyte and a half, so nothing in share is removed at all \u2014 the sample files beside them are not worth a separate decision."
+    }
   }
 }

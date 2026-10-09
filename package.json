@@ -3,7 +3,7 @@
   "productName": "QSO Graph Desktop",
   "version": "0.0.0-preview.1",
   "private": true,
-  "description": "QSO Graph Desktop — local P0 preview",
+  "description": "QSO Graph Desktop \u2014 local P0 preview",
   "license": "GPL-3.0-only",
   "author": "QSO Graph contributors",
   "type": "module",
@@ -51,7 +51,9 @@
     "files": [
       "dist/**/*",
       "package.json",
-      "LICENSE"
+      "LICENSE",
+      "data/postgres-build.json",
+      "drizzle/**/*"
     ],
     "asar": true,
     "asarUnpack": [
@@ -89,7 +91,16 @@
       "target": "AppImage",
       "category": "Utility",
       "icon": "build/icon.png"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/postgres",
+        "to": "postgres",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "drizzle-orm": "0.45.4",

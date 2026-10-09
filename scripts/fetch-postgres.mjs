@@ -14,6 +14,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/p
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { binariesDirectory, verifyBinaries } from './postgres-build.mjs';
+import { describe, trim } from './trim-postgres.mjs';
 
 const build = JSON.parse(await readFile('data/postgres-build.json', 'utf8'));
 const target = binariesDirectory(build);
@@ -24,10 +25,20 @@ if (already?.ok && !process.argv.includes('--force')) {
 } else {
   const staging = await mkdtemp(join(tmpdir(), 'qg-postgres-'));
   try {
-    console.log(`Fetching PostgreSQL ${build.version} …`);
-    const response = await fetch(build.source.url);
-    if (!response.ok) throw new Error(`${build.source.url} answered ${response.status}`);
-    const archive = Buffer.from(await response.arrayBuffer());
+    // Kept so that re-trimming, or changing what is trimmed, does not mean
+    // downloading 59 MB again. It is verified below exactly as a fresh
+    // download is — a cache that is trusted because it is a cache is a way of
+    // skipping the check that matters.
+    const cache = resolve('vendor', '.cache', `postgres-${build.version}.jar`);
+    let archive = await readFile(cache).catch(() => undefined);
+    if (archive) {
+      console.log(`Using the cached PostgreSQL ${build.version} download.`);
+    } else {
+      console.log(`Fetching PostgreSQL ${build.version} …`);
+      const response = await fetch(build.source.url);
+      if (!response.ok) throw new Error(`${build.source.url} answered ${response.status}`);
+      archive = Buffer.from(await response.arrayBuffer());
+    }
 
     const digest = createHash('sha256').update(archive).digest('hex');
     if (digest !== build.source.sha256) {
@@ -37,6 +48,8 @@ if (already?.ok && !process.argv.includes('--force')) {
       throw new Error(`size mismatch: expected ${build.source.bytes} bytes, got ${archive.length}`);
     }
 
+    await mkdir(resolve('vendor', '.cache'), { recursive: true });
+    await writeFile(cache, archive);
     const jar = join(staging, 'postgres.jar');
     await writeFile(jar, archive);
     // The jar is a zip holding one .txz. Both tools are on every macOS.
@@ -57,6 +70,11 @@ if (already?.ok && !process.argv.includes('--force')) {
     await rm(staging, { recursive: true, force: true });
   }
 }
+
+// Trimmed only after the hash has been checked, so what is cut down is always
+// a tree already known to be what was published (QGD-ENG-0004.1).
+const report = await trim(target, build);
+console.log(describe(report));
 
 const check = await verifyBinaries(build);
 if (!check.ok) {

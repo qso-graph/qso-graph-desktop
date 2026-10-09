@@ -157,6 +157,18 @@ try {
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
   await page.getByLabel('Service', { exact: true }).selectOption('eqsl');
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
+  // QGD-ENG-0004.1: the trimmed PostgreSQL is in the bundle and the packaged
+  // application runs it. Nothing here points at the repository — the binaries
+  // come from Contents/Resources, which is the only copy a user would have.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
+  await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
+    { message: 'the packaged application must run its own bundled engine', timeout: 180_000 })
+    .toBe('Running');
+  await expect(page.locator('#engine-state-hint')).toContainText('PostgreSQL');
+  console.log('Packaged engine: the bundled PostgreSQL started from inside the application: PASS');
+
   console.log('Packaged Rust personas: create, activate, Keychain save, restart and delete: PASS');
 } catch (error) {
   console.error('Packaged persona test failed.');

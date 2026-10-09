@@ -20,11 +20,22 @@ const rendererDirectory = join(dirname(fileURLToPath(import.meta.url)), 'rendere
 // a version that will disagree with itself.
 function postgresVersion(): string {
   try {
-    const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'postgres-build.json');
+    const file = join(app.getAppPath(), 'data', 'postgres-build.json');
     return (JSON.parse(readFileSync(file, 'utf8')) as { version: string }).version;
   } catch {
     return 'unknown';
   }
+}
+
+// Packaged, the build is in Contents/Resources: programs have to be executed
+// and an asar is not a filesystem, so it is an extraResource rather than part
+// of the application archive. Running from the repository, it is in vendor/
+// where make setup put it.
+function postgresBin(): string {
+  const root = app.isPackaged
+    ? join(process.resourcesPath, 'postgres')
+    : join(app.getAppPath(), 'vendor', 'postgres');
+  return join(root, postgresVersion(), 'bin');
 }
 const log = createLogger('main');
 
@@ -134,15 +145,12 @@ if (!app.requestSingleInstanceLock()) {
     const engine = enginePaths();
     const stopEngineBroker = startEngineBroker({
       compiledDirectory: compiled,
-      // The pinned build (QGD-ENG-0004). Absent from a packaged application
-      // until the binaries are bundled, which is its own piece of work — until
-      // then the engine reports that it is unavailable and nothing else
-      // changes.
-      binaries: process.env.QG_DESKTOP_POSTGRES_BIN ?? join(compiled, '..', 'vendor', 'postgres', postgresVersion(), 'bin'),
+      // The pinned, trimmed build (QGD-ENG-0004, QGD-ENG-0004.1).
+      binaries: process.env.QG_DESKTOP_POSTGRES_BIN ?? postgresBin(),
       data: engine.data,
       sockets: engine.sockets,
-      buildFile: join(compiled, '..', 'data', 'postgres-build.json'),
-      migrations: join(compiled, '..', 'drizzle'),
+      buildFile: join(app.getAppPath(), 'data', 'postgres-build.json'),
+      migrations: join(app.getAppPath(), 'drizzle'),
       startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
     });
     // Stopping the engine is the one thing here that takes time, and it has

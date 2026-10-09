@@ -57,8 +57,11 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
     const manifest = JSON.parse(await readFile('package.json', 'utf8'));
     const files = manifest.build.files.join(' ');
     expect(files).not.toContain('storybook');
-    // What is packaged is exactly the compiled application and its manifest.
-    expect(manifest.build.files).toEqual(['dist/**/*', 'package.json', 'LICENSE']);
+    // What is packaged is the compiled application, its manifest, the register
+    // the engine reads its version from, and the migrations it applies.
+    expect(manifest.build.files).toEqual([
+      'dist/**/*', 'package.json', 'LICENSE', 'data/postgres-build.json', 'drizzle/**/*'
+    ]);
   });
 
   it('keeps the built gallery out of the repository', async () => {

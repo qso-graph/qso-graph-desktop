@@ -105,7 +105,13 @@ export async function initialise(paths: EnginePaths): Promise<'created' | 'alrea
     const result = await run(paths, 'initdb', [
       '--pgdata', staging,
       '--encoding', 'UTF8',
-      '--locale', 'C',
+      // PostgreSQL 17's built-in provider. C.UTF-8 sorts by code point, which
+      // for callsigns — letters, digits and a slash, all ASCII — is exactly
+      // the order anyone would write them in, and it needs no ICU: that is
+      // 57 MB of collation tables this product would otherwise carry to sort
+      // strings it does not have.
+      '--locale-provider', 'builtin',
+      '--locale', 'C.UTF-8',
       // Peer on the local socket: the operating system says who is connecting,
       // so the superuser needs no password and there is no secret to store.
       // Roles that are not an operating-system user get scram, written into

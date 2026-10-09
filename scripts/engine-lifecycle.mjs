@@ -211,6 +211,42 @@ try {
     notes.push('a socket answered by another cluster is refused, not mistaken for a start');
   }
 
+  // ---- QGD-ENG-0004.2: what the built-in collation sorts, and what it does not
+  {
+    const client = await connectAsSuperuser(endpoint);
+    try {
+      const where = await client.query(
+        "SELECT datlocprovider AS p, datlocale AS l FROM pg_database WHERE datname = 'postgres'");
+      expect(where.rows[0].p, 'the built-in provider, not ICU').toBe('b');
+      expect(where.rows[0].l).toBe('C.UTF-8');
+
+      await client.query('CREATE TABLE calls (v text)');
+      const calls = ['W1AW', 'K7RA', 'G4ABC', '9A1A', 'W1AW/4', 'KH6/W1AW', '4X4AA', 'ZS6BKW', 'N0CALL'];
+      for (const call of calls) await client.query('INSERT INTO calls VALUES ($1)', [call]);
+      const sorted = (await client.query('SELECT v FROM calls ORDER BY v')).rows.map(row => row.v);
+      // The order an operator would write them in: digits before letters, and
+      // a bare call before the same call with a suffix.
+      expect(sorted).toEqual(['4X4AA', '9A1A', 'G4ABC', 'K7RA', 'KH6/W1AW', 'N0CALL', 'W1AW', 'W1AW/4', 'ZS6BKW']);
+
+      // And the half it gets wrong, stated rather than discovered later: an
+      // accented initial sorts past Z. A name column carries its own ICU
+      // collation; this is what says one will have to.
+      await client.query('CREATE TABLE names (v text)');
+      for (const name of ['Zulu', 'Ångström', 'Alice']) await client.query('INSERT INTO names VALUES ($1)', [name]);
+      const byDefault = (await client.query('SELECT v FROM names ORDER BY v')).rows.map(row => row.v);
+      expect(byDefault, 'the default collation puts an accented initial after Z').toEqual(['Alice', 'Zulu', 'Ångström']);
+
+      // ICU is still there for exactly that, which is why it is worth its size.
+      const icu = await client.query(
+        "SELECT v FROM names ORDER BY v COLLATE \"en-US-x-icu\"");
+      expect(icu.rows.map(row => row.v), 'an ICU collation sorts it where a reader expects')
+        .toEqual(['Alice', 'Ångström', 'Zulu']);
+      notes.push('callsigns sort correctly under the built-in collation; names need an ICU collation, and one is available');
+    } finally {
+      await client.end();
+    }
+  }
+
   // ---- stop --------------------------------------------------------------
   expect(await stop(paths)).toBe('stopped');
   expect(await status(paths)).toBe('stopped');
