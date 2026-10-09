@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// P6-services-are-data and P6-register-matches-core (QGD-PSN-0002,
-// QGD-PSN-0003, QGD-PSN-0005).
+// P6-services-are-data, P6-one-list and P6-expiry (QGD-PSN-0002,
+// QGD-PSN-0003, QGD-PSN-0005, QGD-PSN-0006).
 //
 // The point of the register is that adding a service is a data change. The
 // tests that matter here are therefore the two directions of that: a service
@@ -25,6 +25,7 @@ const service = (overrides: Record<string, unknown> = {}) => ({
   id: 'example', name: 'Example', what: 'A service', site: 'https://example.invalid/',
   howToGet: 'Ask them',
   fields: [{ name: 'username', label: 'User', secret: false, required: true }],
+  expiry: { known: false, why: 'Nothing about this example credential expires on a date' },
   test: null,
   ...overrides
 });
@@ -57,11 +58,17 @@ describe('QGD-PSN-0003 what the register ships with', () => {
     expect(shipped.services.filter(entry => entry.test === null).map(entry => entry.id)).toEqual([]);
   });
 
-  it('says how an expiring credential expires, for the one that has one', () => {
-    const expiring = shipped.services.filter(entry => entry.expires);
-    expect(expiring.map(entry => entry.id), 'LoTW is the credential that expires (QGD-PSN-0006)')
-      .toEqual(['lotw']);
-    expect(expiring[0].expires?.kind).toBe('pkcs12');
+  it('says of every service whether its credential expires (QGD-PSN-0006)', () => {
+    for (const entry of shipped.services) {
+      // Today every answer is "no expiry this product can read", and each
+      // gives its reason. Nothing this product stores carries a date: the
+      // LoTW credential it keeps is the web account, not ARRL's certificate.
+      expect(entry.expiry.known, entry.id).toBe(false);
+      expect(entry.expiry.why.length, entry.id).toBeGreaterThan(20);
+    }
+    const lotw = shipped.services.find(entry => entry.id === 'lotw')!;
+    expect(lotw.expiry.why, "LoTW's reason has to name the thing it is not holding")
+      .toContain('certificate');
   });
 
   it('asks only for things the credential core can store', () => {
@@ -83,6 +90,7 @@ describe('QGD-PSN-0002 a service is a data change, not a code change', () => {
         id: 'newservice', name: 'A New Service', what: 'Something this product has never heard of',
         site: 'https://new.invalid/', howToGet: 'Sign up and ask for a key, which takes a day',
         fields: [{ name: 'api_key', label: 'Their key', secret: true, required: true }],
+        expiry: { known: false, why: 'Their key is valid until it is replaced, with no date on it' },
         test: { what: 'Asks the service whether the key works' }
       }
     ]
@@ -169,9 +177,17 @@ describe('a register that is damaged or hand-edited is refused', () => {
     expect(() => made(service({ site: 'javascript:alert(1)' }))).toThrow(/not https/);
   });
 
-  it('refuses an expiry this product cannot read', () => {
-    expect(() => made(service({ expires: { kind: 'guess', what: 'somehow' } })))
-      .toThrow(/cannot read/);
+  it('refuses a service that does not answer the expiry question', () => {
+    const { expiry, ...withoutExpiry } = service();
+    expect(expiry.known).toBe(false);
+    expect(() => made(withoutExpiry)).toThrow(/does not say whether its credential expires/);
+  });
+
+  it('refuses a register that claims an expiry nothing here can read', () => {
+    // The product holds no credential with a date in it. A register saying
+    // otherwise would have the status show an expiry nobody computed.
+    expect(() => made(service({ expiry: { known: true, why: 'it has a certificate' } })))
+      .toThrow(/claims an expiry this product cannot read/);
   });
 
   it('refuses the same field asked for twice', () => {

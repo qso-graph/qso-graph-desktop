@@ -34,8 +34,14 @@ export interface ServiceProfile {
   site: string;
   howToGet: string;
   fields: ServiceField[];
-  // QGD-PSN-0006: a credential that expires says how its expiry is read.
-  expires?: { kind: 'pkcs12'; what: string };
+  // QGD-PSN-0006, answered outright by every service. `known: false` with a
+  // reason is an answer; a missing key is a register that forgot to answer.
+  //
+  // Nothing this product stores today has an expiry it can read — the LoTW
+  // credential it keeps is the web account, not ARRL's PKCS#12 certificate —
+  // so `known: true` is refused until there is a credential to read a date
+  // out of and a way to read it.
+  expiry: { known: false; why: string };
   // QGD-PSN-0005: a service either has a test or says it has none. `null`
   // is the saying-so; a missing key is a register that forgot to answer.
   test: { what: string } | null;
@@ -110,12 +116,18 @@ export function validateRegister(parsed: unknown): ServiceRegister {
       ? null
       : { what: string((service.test as Record<string, unknown>)?.what, `"${id}"'s test description`) };
 
-    let expires: ServiceProfile['expires'];
-    if (service.expires !== undefined) {
-      const kind = string((service.expires as Record<string, unknown>)?.kind, `"${id}"'s expiry kind`, 32);
-      if (kind !== 'pkcs12') fail(`"${id}" expires by "${kind}", which this product cannot read`);
-      expires = { kind, what: string((service.expires as Record<string, unknown>)?.what, `"${id}"'s expiry note`) };
+    if (typeof service.expiry !== 'object' || service.expiry === null) {
+      fail(`"${id}" does not say whether its credential expires`);
     }
+    const expiryOf = service.expiry as Record<string, unknown>;
+    if (typeof expiryOf.known !== 'boolean') fail(`"${id}"'s expiry does not say whether it is known`);
+    if (expiryOf.known) {
+      // Refused rather than believed: there is nothing in this product that
+      // can read an expiry out of a credential, so a register claiming one
+      // would have the status show a date nobody computed.
+      fail(`"${id}" claims an expiry this product cannot read; no stored credential carries a date`);
+    }
+    const expiry = { known: false as const, why: string(expiryOf.why, `"${id}"'s reason for having no expiry`) };
 
     return {
       id,
@@ -124,7 +136,7 @@ export function validateRegister(parsed: unknown): ServiceRegister {
       site: siteOf(service.site, id),
       howToGet: string(service.howToGet, `"${id}"'s instructions`, 800),
       fields,
-      ...(expires ? { expires } : {}),
+      expiry,
       test
     };
   });

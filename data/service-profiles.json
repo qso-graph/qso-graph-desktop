@@ -1,6 +1,6 @@
 {
   "register": "The services a persona can hold a credential for, and what each needs",
-  "note": "QGD-PSN-0002 and QGD-PSN-0003. This is the only place a service is named. The setup screens, the command validation and the per-service test all read it, so a service added here appears with its own fields and its own test and no code change — the rule QGD-REF-0005 applies to ADIF's definitions, applied to services. The credential core names no service at all: it treats a provider as an identifier and stores whatever it is given (QGD-CRD-0003), so there is no second list in Rust for this one to drift from.",
+  "note": "QGD-PSN-0002 and QGD-PSN-0003. This is the only place a service is named. The setup screens, the command validation and the per-service test all read it, so a service added here appears with its own fields and its own test and no code change — the rule QGD-REF-0005 applies to ADIF's definitions, applied to services. The credential core names no service at all: it treats a provider as an identifier and stores whatever it is given (QGD-CRD-0003), so there is no second list in Rust for this one to drift from. Every service answers two questions outright: whether it can be tested, and whether its credential expires in a way this product can read (QGD-PSN-0005, QGD-PSN-0006). A missing answer is a register that forgot, and is refused.",
   "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
   "fieldKinds": {
     "username": "An account name, which is not a secret and is shown",
@@ -15,9 +15,23 @@
       "site": "https://www.qrz.com/",
       "howToGet": "A QRZ account. Lookup by callsign needs an XML subscription; the account alone will be refused by the lookup service.",
       "fields": [
-        { "name": "username", "label": "QRZ username", "secret": false, "required": true },
-        { "name": "password", "label": "QRZ password", "secret": true, "required": true }
+        {
+          "name": "username",
+          "label": "QRZ username",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "label": "QRZ password",
+          "secret": true,
+          "required": true
+        }
       ],
+      "expiry": {
+        "known": false,
+        "why": "A QRZ password does not expire on a date. The subscription it depends on does, and QRZ does not publish that to this product."
+      },
       "test": {
         "what": "Asks QRZ for a session with the username and password, and nothing else"
       }
@@ -29,8 +43,17 @@
       "site": "https://logbook.qrz.com/",
       "howToGet": "The logbook's own API key, from the logbook's settings. It is not the QRZ account password, and a logbook has one key per book.",
       "fields": [
-        { "name": "api_key", "label": "Logbook API key", "secret": true, "required": true }
+        {
+          "name": "api_key",
+          "label": "Logbook API key",
+          "secret": true,
+          "required": true
+        }
       ],
+      "expiry": {
+        "known": false,
+        "why": "A logbook key is valid until the operator replaces it; there is no date on it."
+      },
       "test": {
         "what": "Asks the logbook for its status with the key, which returns the book's name and QSO count"
       }
@@ -42,9 +65,23 @@
       "site": "https://www.eqsl.cc/",
       "howToGet": "An eQSL account. The callsign the account is registered under has to be the persona's.",
       "fields": [
-        { "name": "username", "label": "eQSL callsign", "secret": false, "required": true },
-        { "name": "password", "label": "eQSL password", "secret": true, "required": true }
+        {
+          "name": "username",
+          "label": "eQSL callsign",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "label": "eQSL password",
+          "secret": true,
+          "required": true
+        }
       ],
+      "expiry": {
+        "known": false,
+        "why": "An eQSL password does not expire on a date."
+      },
       "test": {
         "what": "Asks eQSL to verify the account, which answers without returning any card"
       }
@@ -56,12 +93,22 @@
       "site": "https://lotw.arrl.org/",
       "howToGet": "An ARRL LoTW account, and a certificate ARRL issues after checking the licence. The certificate is a PKCS#12 file with a date in it and has to be renewed.",
       "fields": [
-        { "name": "username", "label": "LoTW username", "secret": false, "required": true },
-        { "name": "password", "label": "LoTW password", "secret": true, "required": true }
+        {
+          "name": "username",
+          "label": "LoTW username",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "label": "LoTW password",
+          "secret": true,
+          "required": true
+        }
       ],
-      "expires": {
-        "kind": "pkcs12",
-        "what": "ARRL's certificate carries its own expiry, which the credential core reads from the certificate rather than asking the operator to remember it (QGD-PSN-0006)"
+      "expiry": {
+        "known": false,
+        "why": "The LoTW credential this product stores is the web account, not ARRL's TQSL certificate. The certificate expires and the account password does not, and this product does not hold the certificate — so there is no date here to read (QGD-PSN-0006)."
       },
       "test": {
         "what": "Asks LoTW for the account's own QSO count, which needs the username and password and returns no QSO"
@@ -74,9 +121,23 @@
       "site": "https://www.hamqth.com/",
       "howToGet": "A free HamQTH account. Most of HamQTH answers without one; lookup does not.",
       "fields": [
-        { "name": "username", "label": "HamQTH username", "secret": false, "required": true },
-        { "name": "password", "label": "HamQTH password", "secret": true, "required": true }
+        {
+          "name": "username",
+          "label": "HamQTH username",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "label": "HamQTH password",
+          "secret": true,
+          "required": true
+        }
       ],
+      "expiry": {
+        "known": false,
+        "why": "A HamQTH password does not expire on a date."
+      },
       "test": {
         "what": "Asks HamQTH for a session key, which it returns or refuses"
       }
@@ -88,10 +149,29 @@
       "site": "https://clublog.org/",
       "howToGet": "A Club Log account, and an API key the operator asks Club Log for. Both are needed: the key identifies the application and the account identifies the operator.",
       "fields": [
-        { "name": "username", "label": "Club Log email", "secret": false, "required": true },
-        { "name": "password", "label": "Club Log password", "secret": true, "required": true },
-        { "name": "api_key", "label": "Club Log API key", "secret": true, "required": false }
+        {
+          "name": "username",
+          "label": "Club Log email",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "label": "Club Log password",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "label": "Club Log API key",
+          "secret": true,
+          "required": false
+        }
       ],
+      "expiry": {
+        "known": false,
+        "why": "Neither the Club Log password nor the API key carries an expiry date."
+      },
       "test": {
         "what": "Asks Club Log to check the account, which answers yes or no and returns no log"
       }
