@@ -10,6 +10,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 const SERVICE: &str = "adif-mcp";
 mod corelog;
 mod portable;
+mod reference;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
@@ -584,6 +585,16 @@ mod addon {
         pub overwritten: Vec<String>,
     }
 
+    /// What came back from a reference source. `fresh` false is a 304: the
+    /// body is empty and nothing changed (QGD-REF-0010).
+    #[napi(object)]
+    pub struct FetchedReference {
+        pub fresh: bool,
+        pub body: Buffer,
+        pub etag: Option<String>,
+        pub last_modified: Option<String>,
+    }
+
     #[napi(object)]
     pub struct ImportSummary {
         pub personas: u32,
@@ -669,6 +680,33 @@ mod addon {
         // What crosses this boundary is ciphertext. The bundle is built,
         // sealed and dropped inside the core, so the plaintext never reaches a
         // JavaScript heap that nothing can zeroize (QGD-PSN-0007).
+        // ---- reference data, fetched through this process's TLS ---------
+        //
+        // D-18 and D-31: all of the app's outbound HTTPS goes through this
+        // core, because Electron's networking is BoringSSL and not the
+        // validated module. The engine asks; this fetches; the bytes go back
+        // for the engine to load. No credential is involved and none is read.
+        #[napi]
+        pub fn fetch_reference(
+            &self,
+            url: String,
+            etag: Option<String>,
+            last_modified: Option<String>,
+        ) -> Result<FetchedReference> {
+            let fetched = crate::reference::fetch(&url, etag.as_deref(), last_modified.as_deref())
+                .map_err(error)?;
+            // The host, so a run can be read back later; never the path, which
+            // is longer and says no more about where this went.
+            let host = url.split('/').nth(2).unwrap_or("").to_string();
+            tracing::info!(host, fresh = fetched.fresh, bytes = fetched.body.len(), "reference fetched");
+            Ok(FetchedReference {
+                fresh: fetched.fresh,
+                body: fetched.body.into(),
+                etag: fetched.etag,
+                last_modified: fetched.last_modified,
+            })
+        }
+
         #[napi]
         pub fn export_profile(&self, passphrase: String) -> Result<Buffer> {
             let bundle = self.store.gather().map_err(error)?;

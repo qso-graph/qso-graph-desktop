@@ -9,6 +9,15 @@
 // Approving is a deliberate command, so a changed screen cannot become the
 // expected screen by being run past.
 //
+// **Approving is KI7MT's, not an agent's.** QGD-PRT-0103 says "screenshot
+// baselines approved by KI7MT": a baseline is what the product is supposed to
+// look like, so approving one is a judgement about what a user sees. An agent
+// captures and compares; it does not decide. Watson ran --approve during P5
+// and P6 on a change to two sentences the product shows, which was not his to
+// make — Bob caught it. So the command now records who ran it against
+// data/baseline-approval.json, and every run says how many baselines are
+// waiting for KI7MT.
+//
 // The content is fixed: one persona with a fixed name, callsign and date, and
 // a log directory inside the repository rather than a temporary one — a path
 // that changed every run would redraw the Logs page every run and the
@@ -18,8 +27,15 @@ import { _electron as electron, expect } from '@playwright/test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { redact } from './report.mjs';
 import { compare, decode } from './png.mjs';
+
+// Who is approving. An agent passing --approve has to say so, and what it
+// writes lands in "awaiting" rather than in "approved": the register is the
+// honest record of what KI7MT has actually seen.
+const APPROVAL_REGISTER = resolve('data/baseline-approval.json');
+const approvedBy = (process.argv.find(argument => argument.startsWith('--by='))?.slice(5) ?? '').trim();
 
 const approve = process.argv.includes('--approve');
 const baselines = resolve('baselines');
@@ -203,7 +219,29 @@ try {
   }
 
   if (approve) {
-    console.log(`Screenshots approved: ${written.length} baseline(s) written to baselines/ — ${written.join(', ')}`);
+    const register = JSON.parse(await readFile(APPROVAL_REGISTER, 'utf8'));
+    const hashes = {};
+    for (const file of written) {
+      hashes[file] = createHash('sha256').update(await readFile(join(baselines, file))).digest('hex');
+    }
+    if (approvedBy.toUpperCase() === 'KI7MT') {
+      register.approved.push({
+        by: 'KI7MT', date: new Date().toISOString().slice(0, 10),
+        what: `${written.length} baseline(s): ${written.join(', ')}`,
+        recordedAtUtc: new Date().toISOString(),
+        files: hashes
+      });
+      register.awaiting.files = {};
+      console.log(`Screenshots approved by KI7MT: ${written.length} baseline(s) — ${written.join(', ')}`);
+    } else {
+      // Captured and written, and recorded as not yet approved. An agent can
+      // keep the suite comparing against what the product draws without
+      // pretending the judgement has been made.
+      register.awaiting.files = { ...register.awaiting.files, ...hashes };
+      console.log(`${written.length} baseline(s) written and recorded as AWAITING KI7MT — ${written.join(', ')}`);
+      console.log('  Approving is his (QGD-PRT-0103). Run with --by=KI7MT only when he has said so.');
+    }
+    await writeFile(APPROVAL_REGISTER, JSON.stringify(register, null, 2) + '\n');
   } else if (failures.length || changed.length) {
     console.error('Screenshot baselines failed.');
     for (const failure of [...failures, ...changed]) console.error(`  ${failure}`);
@@ -214,6 +252,15 @@ try {
     process.exitCode = 1;
   } else {
     console.log(`Screenshots: ${PAGES.length * THEMES.length} baselines (${PAGES.join(' and ')}, in ${THEMES.join(' and ')}) match, pixel for pixel: PASS`);
+    // Said on every green run, because a baseline nobody has approved is a
+    // picture of what the product draws and not a statement that it is right
+    // (QGD-PRT-0103).
+    const register = JSON.parse(await readFile(APPROVAL_REGISTER, 'utf8').catch(() => '{}'));
+    const waiting = Object.keys(register?.awaiting?.files ?? {}).length;
+    if (waiting) {
+      console.log(`  ${waiting} of them are waiting for KI7MT to approve ` +
+        '(data/baseline-approval.json); an agent captured and compared, it did not approve.');
+    }
   }
 } catch (error) {
   console.error('Screenshot capture could not run.');

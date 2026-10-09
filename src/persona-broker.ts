@@ -5,14 +5,23 @@ import { basename, join } from 'node:path';
 import { homedir } from 'node:os';
 import {
   allowsSender, isReply, validateCommand,
-  type PersonaCommand, type PersonaReply, type SealedExport, type ServiceCommand
+  type FetchedReference, type PersonaCommand, type PersonaReply, type SealedExport, type ServiceCommand
 } from './persona-contract.js';
 import { readServices, serviceIds } from './services.js';
 import { createLogger, writeForwarded } from './logger.js';
 
 const log = createLogger('broker');
 
-export function startPersonaBroker(compiledDirectory: string, registerFile: string): () => void {
+export interface PersonaBroker {
+  stop: () => void;
+  // Reference data, fetched by the credential core because that is where all
+  // of this product's outbound HTTPS goes (D-18, D-31). Handed to the engine
+  // broker by main; never reachable from a renderer, which has no command for
+  // it (see validateCommand in persona-contract.ts).
+  fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
+}
+
+export function startPersonaBroker(compiledDirectory: string, registerFile: string): PersonaBroker {
   let worker: UtilityProcess | undefined;
   let ready = false;
   let stopped = false;
@@ -159,5 +168,17 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
     }
     return ask(command);
   });
-  return () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); };
+  return {
+    stop: () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); },
+    async fetchReference(url, etag, lastModified) {
+      const reply = await ask({
+        type: 'fetch-reference', url,
+        ...(etag ? { etag } : {}), ...(lastModified ? { lastModified } : {})
+      });
+      if (!reply.ok) return reply.error;
+      const data = reply.data as FetchedReference | null;
+      if (!data || typeof data.fresh !== 'boolean') return 'The reference source could not be read.';
+      return data;
+    }
+  };
 }

@@ -12,6 +12,14 @@
 // trusted because it is a cache is a way of skipping the check that matters —
 // and the cache is a file in the user's own directory, which is the easiest
 // thing on the machine for something else to write to.
+//
+// **Nothing here opens a connection.** KI7MT decided that all of this
+// product's outbound HTTPS goes through the Rust credential core (D-18,
+// D-31), because Electron's networking is BoringSSL and not the validated
+// module — "without that, the FIPS claim would be false for most traffic".
+// The first version of this module called Node's `fetch` from the engine
+// process. It worked, and it was wrong. The fetching function is passed in,
+// and in the product it is the one that asks the core.
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -26,16 +34,11 @@ export interface Release {
   };
 }
 
-// Injected so a suite can hand over bytes it already has. The default is the
-// platform's fetch, over HTTPS only.
+// How bytes are obtained. Supplied by the caller — in the product, the
+// function that asks the credential core; in a suite, one that hands over
+// bytes it already has. There is no default, deliberately: a default would be
+// a connection opened from this process, which is the thing D-18 forbids.
 export type FetchArchive = (url: string) => Promise<Buffer>;
-
-export async function download(url: string): Promise<Buffer> {
-  if (!url.startsWith('https://')) throw new Error('reference data is fetched over HTTPS only');
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
-}
 
 function digest(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
@@ -53,7 +56,7 @@ export interface Obtained {
 export async function obtain(
   release: Release,
   directory: string,
-  fetchArchive: FetchArchive = download
+  fetchArchive: FetchArchive
 ): Promise<Obtained> {
   const path = cachePath(directory, release);
   const cached = await readFile(path).catch(() => undefined);
@@ -89,7 +92,7 @@ export interface Archive {
 export async function openArchive(
   release: Release,
   directory: string,
-  fetchArchive: FetchArchive = download
+  fetchArchive: FetchArchive
 ): Promise<Archive> {
   const { bytes, fromCache } = await obtain(release, directory, fetchArchive);
   const definitions = definitionsOf(JSON.parse(read(bytes, release.source.definitions).toString('utf8')));
@@ -109,9 +112,8 @@ export async function openArchive(
 // ---------------------------------------------------------------------------
 // The conditional fetch POTA's lists use (QGD-REF-0010).
 //
-// In this module because QGD-SEC-0020 allows one outbound client in the whole
-// product and this is it. The caller passes a URL from the register and
-// nothing else: no host is written here.
+// A type and nothing else. The implementation is the credential core's: this
+// process does not open connections (D-18, D-31).
 
 export interface Conditional {
   etag?: string | null;
@@ -123,22 +125,3 @@ export type Fetched =
   | { status: 'unchanged' };
 
 export type FetchText = (url: string, conditional: Conditional) => Promise<Fetched>;
-
-export async function downloadText(url: string, conditional: Conditional = {}): Promise<Fetched> {
-  if (!url.startsWith('https://')) throw new Error('reference data is fetched over HTTPS only');
-  const headers: Record<string, string> = {};
-  // Asked with both where both are known: a server that honours either
-  // answers 304 and sends nothing, which is the point of asking.
-  if (conditional.etag) headers['If-None-Match'] = conditional.etag;
-  if (conditional.lastModified) headers['If-Modified-Since'] = conditional.lastModified;
-
-  const response = await fetch(url, { headers });
-  if (response.status === 304) return { status: 'unchanged' };
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-  return {
-    status: 'fresh',
-    body: await response.text(),
-    etag: response.headers.get('etag'),
-    lastModified: response.headers.get('last-modified')
-  };
-}

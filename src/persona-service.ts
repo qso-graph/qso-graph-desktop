@@ -109,6 +109,13 @@ function execute(command: ServiceCommand): PersonaReply {
       case 'set-preference': core.setPreference(command.persona, command.provider, command.preferred); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
       // The sealed bytes, handed to the broker to put where the operator
       // chose. Nothing of the bundle is in this reply but its ciphertext.
+      case 'fetch-reference': {
+        const fetched = core.fetchReference(command.url, command.etag, command.lastModified);
+        return { ok: true, data: {
+          fresh: fetched.fresh, body: fetched.body,
+          etag: fetched.etag, lastModified: fetched.lastModified
+        } };
+      }
       case 'export-profile': return { ok: true, data: { bytes: core.exportProfile(command.passphrase) } };
       case 'import-profile': {
         const file = Buffer.from(command.file);
@@ -147,7 +154,13 @@ function execute(command: ServiceCommand): PersonaReply {
       'This export holds a credential with no service.',
       'This export could not be read.',
       'The export could not be written.',
-      "This machine's random number generator is unavailable."
+      "This machine's random number generator is unavailable.",
+      // Fetching reference data, all fixed sentences carrying no URL.
+      'Reference data is fetched over HTTPS only.',
+      'The reference source could not be reached.',
+      'The reference source refused the request.',
+      'The reference source sent more than this product will read.',
+      'The reference source could not be read.'
     ];
     const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The persona operation could not be completed.';
     log.warn({ command: command.type, reason: message }, 'persona operation failed');

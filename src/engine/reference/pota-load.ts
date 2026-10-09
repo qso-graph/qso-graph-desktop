@@ -18,7 +18,7 @@
 //    and is reported. It never stops the engine (QGD-REF-0014).
 import type { Client } from 'pg';
 import { REFERENCE_SCHEMA } from './schema.js';
-import { downloadText, type FetchText } from './fetch.js';
+import type { FetchText } from './fetch.js';
 import {
   type Location, type Park, type Program, ShapeError,
   readLocations, readParks, readPrograms, refuseIfShrunk
@@ -68,10 +68,13 @@ const HOUR = 60 * 60 * 1000;
 export async function loadPota(
   client: Client,
   register: PotaRegister,
-  options: { now?: Date; fetchText?: FetchText; force?: boolean } = {}
+  // `fetchText` is required: there is no default, because a default would be
+  // a connection opened from this process and all of this product's outbound
+  // HTTPS goes through the credential core (D-18, D-31).
+  options: { fetchText: FetchText; now?: Date; force?: boolean }
 ): Promise<PotaLoaded> {
   const now = options.now ?? new Date();
-  const fetchText = options.fetchText ?? downloadText;
+  const fetchText = options.fetchText;
   const outcomes: ListOutcome[] = [];
 
   for (const list of ['parks', 'programs', 'locations'] as PotaList[]) {

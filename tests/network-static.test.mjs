@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  hardCodedHosts, violations, NETWORK_EXCEPTIONS, NETWORK_MODULE, productSources
+  hardCodedHosts, violations, NETWORK_EXCEPTIONS, productSources
 } from '../scripts/network-static.mjs';
 
 describe('QGD-CRD-0007 static gate', () => {
@@ -116,26 +116,31 @@ describe('QGD-SEC-0021 the gate reviews what is there, not what it was told abou
   });
 });
 
-describe('QGD-SEC-0020 the one outbound client', () => {
-  it('is the only module with a client, and the engine listener is the other exception', () => {
-    expect(Object.keys(NETWORK_EXCEPTIONS)).toContain(NETWORK_MODULE);
-    expect(Object.keys(NETWORK_EXCEPTIONS)).toHaveLength(2);
+describe('QGD-SEC-0020 no outbound client in the product\u2019s TypeScript', () => {
+  it('has one exception, and it is a listener rather than a client', () => {
+    // KI7MT decided all of the app's outbound HTTPS goes through the Rust
+    // credential core (D-18, D-31), so there is nothing here that connects.
+    // node:net in the engine's endpoint asks the OS for a free port to listen
+    // on; it opens nothing.
+    expect(Object.keys(NETWORK_EXCEPTIONS)).toEqual(['src/engine/endpoint.ts']);
     for (const reason of Object.values(NETWORK_EXCEPTIONS)) expect(reason.length).toBeGreaterThan(20);
   });
 
-  it('takes its destination from the register, not from its own source', async () => {
-    expect(hardCodedHosts(await readFile(NETWORK_MODULE, 'utf8'))).toEqual([]);
+  it('finds no host written into any product source', async () => {
+    // Every URL comes from a register. One in the source would be a
+    // destination nobody registered.
+    for (const file of await productSources()) {
+      const found = hardCodedHosts(await readFile(file, 'utf8'), file)
+        // Attribution the licence requires the About panel to show, and the
+        // shell.openExternal allowlist, which QGD-SEC-0009 governs.
+        .filter(() => !/attribution\.ts$|icons\.ts$/.test(file));
+      expect(found, file).toEqual([]);
+    }
   });
 
-  it('would notice a host written into it', () => {
-    expect(hardCodedHosts("await fetch('https://adif.org.uk/317/x.zip');")).toEqual([
-      { line: 1, file: NETWORK_MODULE, what: 'names https://adif.org.uk rather than reading it from the register' }
+  it('would notice a host written into a module', () => {
+    expect(hardCodedHosts("await get('https://adif.org.uk/317/x.zip');", 'somewhere.ts')).toEqual([
+      { line: 1, file: 'somewhere.ts', what: 'names https://adif.org.uk rather than reading it from the register' }
     ]);
-  });
-
-  it('refuses a URL that is not https', async () => {
-    const { download } = await import('../src/engine/reference/fetch.js');
-    await expect(download('http://adif.org.uk/317/x.zip')).rejects.toThrow(/HTTPS only/);
-    await expect(download('file:///etc/passwd')).rejects.toThrow(/HTTPS only/);
   });
 });

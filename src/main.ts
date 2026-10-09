@@ -135,9 +135,10 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
     log.info({ electron: process.versions.electron, platform: process.platform }, 'application ready');
-    const stopPersonaBroker = startPersonaBroker(
+    const personas = startPersonaBroker(
       dirname(fileURLToPath(import.meta.url)),
       join(app.getAppPath(), 'data', 'service-profiles.json'));
+    const stopPersonaBroker = personas.stop;
     const stopSettingsBroker = startSettingsBroker();
     const stopAppearanceBroker = startAppearanceBroker();
     const stopLogsBroker = startLogsBroker();
@@ -158,6 +159,10 @@ if (!app.requestSingleInstanceLock()) {
       // Overridable for the same reason QG_DESKTOP_POSTGRES_BIN is: a suite
       // needs to run the product against an archive that is already there.
       referenceCache: process.env.QG_DESKTOP_REFERENCE_CACHE ?? engine.referenceCache,
+      // The engine never opens a connection of its own: it asks the
+      // credential core, which is the one process that reaches the network
+      // (D-18, D-31).
+      fetchReference: personas.fetchReference,
       startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
     });
     // Stopping the engine is the one thing here that takes time, and it has

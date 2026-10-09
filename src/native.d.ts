@@ -55,6 +55,15 @@ export interface NativeImportPreview {
   overwritten: string[];
 }
 
+// What came back from a reference source. `fresh` false is a 304: the body is
+// empty and nothing changed (QGD-REF-0010).
+export interface NativeFetchedReference {
+  fresh: boolean;
+  body: Buffer;
+  etag: string | null;
+  lastModified: string | null;
+}
+
 export interface NativeImportSummary {
   personas: number;
   credentials: number;
@@ -76,6 +85,9 @@ export declare class PersonaCore {
   // Moving a profile between machines (QGD-PSN-0007 to QGD-PSN-0011). What
   // crosses this boundary is ciphertext: the bundle is built, sealed and
   // dropped inside the core.
+  // All of the app's outbound HTTPS goes through this core (D-18, D-31):
+  // rustls over AWS-LC in FIPS mode, TLS 1.3, not Electron's BoringSSL.
+  fetchReference(url: string, etag?: string, lastModified?: string): NativeFetchedReference;
   exportProfile(passphrase: string): Buffer;
   inspectImport(file: Buffer, passphrase: string): NativeImportPreview;
   applyImport(file: Buffer, passphrase: string): NativeImportSummary;

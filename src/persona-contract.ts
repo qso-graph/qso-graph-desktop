@@ -18,6 +18,13 @@ export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-err
 // renderer: the broker writes it where the operator chose and replies with
 // ExportResult instead.
 export interface SealedExport { bytes: Uint8Array }
+// A reference source's answer, on its way back from the credential core.
+export interface FetchedReference {
+  fresh: boolean;
+  body: Uint8Array;
+  etag: string | null;
+  lastModified: string | null;
+}
 // What an export did, for the operator to read. The path is shown because the
 // operator chose it; nothing else about the file is.
 export interface ExportResult { written: string; bytes: number }
@@ -50,7 +57,7 @@ export type PersonaReply =
   | {
       ok: true;
       data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
-        | SealedExport | ExportResult | ImportPreview | ImportResult | null;
+        | SealedExport | FetchedReference | ExportResult | ImportPreview | ImportResult | null;
     }
   | { ok: false; error: string };
 
@@ -129,10 +136,25 @@ export function isReply(value: unknown): value is PersonaReply {
 // (QGD-SEC-0006).
 export type ServiceCommand =
   | Exclude<PersonaCommand, { type: 'import-profile' }>
-  | { type: 'import-profile'; passphrase: string; apply: boolean; file: Uint8Array };
+  | { type: 'import-profile'; passphrase: string; apply: boolean; file: Uint8Array }
+  // Fetching reference data, which the credential core does because KI7MT
+  // decided all outbound HTTPS goes through it (D-18, D-31). It is not a
+  // PersonaCommand: a renderer may not ask this product to fetch a URL, and
+  // validateCommand — which is what the renderer's requests are held to —
+  // does not accept it.
+  | { type: 'fetch-reference'; url: string; etag?: string; lastModified?: string };
 
 export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
   if (!record(value)) return false;
+  if (value.type === 'fetch-reference') {
+    return keys(value, ['type', 'url', 'etag', 'lastModified'])
+      // HTTPS is checked here, in the core, and in the caller. It is the one
+      // property of a destination this product will not take on trust.
+      && typeof value.url === 'string' && value.url.startsWith('https://') && value.url.length <= 2048
+      && (value.etag === undefined || (typeof value.etag === 'string' && value.etag.length <= 256))
+      && (value.lastModified === undefined
+        || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));
+  }
   if (value.type === 'import-profile') {
     return keys(value, ['type', 'passphrase', 'apply', 'file'])
       && passphrase(value.passphrase)

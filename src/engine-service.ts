@@ -45,6 +45,65 @@ function describe(reference: ReferenceState): Record<string, unknown> {
 const [, , binaries, data, logs, sockets, migrations, buildFile, registerFile, referenceCache] = process.argv;
 const log = createForwardingLogger('engine', line => process.parentPort.postMessage({ log: line }));
 
+// Asking the credential core for a reference source, through the broker.
+//
+// This process opens no connection: KI7MT decided that all of the app's
+// outbound HTTPS goes through the Rust core (D-18, D-31), because Electron's
+// networking is BoringSSL and not the validated module. So the supervisor
+// asks, and bytes come back.
+let nextFetch = 0;
+const fetches = new Map<number, (answer: unknown) => void>();
+
+function askForReference(url: string, etag?: string, lastModified?: string): Promise<unknown> {
+  const id = ++nextFetch;
+  return new Promise(resolve => {
+    // A reference source that never answers must not hold the engine's start
+    // open for ever: the load reports that it could not happen, and the
+    // engine starts anyway (QGD-REF-0014).
+    const timer = setTimeout(() => {
+      fetches.delete(id);
+      resolve('The reference source could not be reached.');
+    }, 180_000);
+    fetches.set(id, answer => { clearTimeout(timer); resolve(answer); });
+    process.parentPort.postMessage({
+      reference: { id, url, ...(etag ? { etag } : {}), ...(lastModified ? { lastModified } : {}) }
+    });
+  });
+}
+
+interface Reference { fresh: boolean; body: Uint8Array; etag: string | null; lastModified: string | null }
+
+function asReference(answer: unknown): Reference {
+  if (typeof answer === 'string') throw new Error(answer);
+  const value = answer as Reference | null;
+  if (!value || typeof value.fresh !== 'boolean') throw new Error('The reference source could not be read.');
+  return value;
+}
+
+// What the loader wants: a whole archive, by URL.
+const fetchArchive = async (url: string): Promise<Buffer> => {
+  const answer = asReference(await askForReference(url));
+  if (!answer.fresh) throw new Error('The reference source could not be read.');
+  return Buffer.from(answer.body);
+};
+
+// And a conditional text fetch, for POTA's three lists.
+const fetchText = async (
+  url: string,
+  conditional: { etag?: string | null; lastModified?: string | null }
+): Promise<{ status: 'fresh'; body: string; etag: string | null; lastModified: string | null }
+  | { status: 'unchanged' }> => {
+  const answer = asReference(await askForReference(
+    url, conditional.etag ?? undefined, conditional.lastModified ?? undefined));
+  if (!answer.fresh) return { status: 'unchanged' };
+  return {
+    status: 'fresh',
+    body: Buffer.from(answer.body).toString('utf8'),
+    etag: answer.etag,
+    lastModified: answer.lastModified
+  };
+};
+
 const paths: EnginePaths = {
   binaries,
   data,
@@ -74,7 +133,9 @@ async function bring(up: boolean): Promise<EngineStatus> {
   const started = await bringUp(paths, endpoint, {
     migrations,
     buildFile,
-    ...(register ? { reference: { register, cacheDirectory: referenceCache, pota: true } } : {}),
+    ...(register
+      ? { reference: { register, cacheDirectory: referenceCache, pota: true, fetchArchive, fetchText } }
+      : {}),
     onWarning: (message, fields) => log.warn(fields ?? {}, message)
   });
   version = started.version;
@@ -132,6 +193,15 @@ async function handle(command: unknown): Promise<EngineReply> {
 }
 
 process.parentPort.on('message', event => {
+  // An answer to something this process asked for, rather than a command.
+  const answered = (event.data as { referenceAnswer?: unknown })?.referenceAnswer;
+  if (answered !== null && typeof answered === 'object') {
+    const { id, result } = answered as { id?: unknown; result?: unknown };
+    if (!Number.isSafeInteger(id)) return;
+    const waiting = fetches.get(id as number);
+    if (waiting) { fetches.delete(id as number); waiting(result); }
+    return;
+  }
   const payload = event.data as { id?: unknown; command?: unknown };
   if (!Number.isSafeInteger(payload?.id)) return;
   void handle(payload.command).then(reply => {

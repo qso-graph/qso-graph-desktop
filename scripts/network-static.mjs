@@ -291,40 +291,33 @@ export async function productSources(root = 'src') {
 
 // The exceptions, each named with what makes it one.
 //
-// QGD-SEC-0010. A derived scope found two uses of a networking API in the
-// product, and they are different kinds of thing:
+// QGD-SEC-0020. There is **no outbound client in this product's TypeScript at
+// all**. KI7MT decided that all of the app's outbound HTTPS goes through the
+// Rust credential core (D-18, D-31), because Electron's networking is
+// BoringSSL and not the validated module — "without that, the FIPS claim
+// would be false for most traffic". So what is left here is one listener:
 //
-// - src/engine/reference/fetch.ts holds the one outbound client there is.
-//   Reference data is fetched at run time (QGD-REF-0001, QGD-REF-0009), and
-//   this is where. The destination is not in its source: it comes from the
-//   register, which is what the URL check below proves.
 // - src/engine/endpoint.ts imports node:net to ask the operating system for a
-//   free TCP port, which is what the engine listens on where there are no Unix
-//   sockets (QGD-ENG-0009). A listener is not a client: it opens nothing.
+//   free TCP port, which is what the engine listens on where there are no
+//   Unix sockets (QGD-ENG-0009). A listener is not a client: it opens nothing.
 //
-// Listed rather than inferred, because an exception that a rule works out for
-// itself is not an exception, it is a hole. A third entry here is a decision
-// somebody has to make on purpose.
+// This list was two entries until the reference fetch moved into the core.
+// Listed rather than inferred, because an exception a rule works out for
+// itself is not an exception, it is a hole.
 export const NETWORK_EXCEPTIONS = {
-  'src/engine/reference/fetch.ts': 'the one outbound client: the reference fetch (QGD-SEC-0010)',
   'src/engine/endpoint.ts': 'node:net, to ask the OS for a free port to listen on (QGD-ENG-0009)'
 };
 
-// The module that holds the outbound client, whose destination must come from
-// the register rather than from its own source.
-export const NETWORK_MODULE = 'src/engine/reference/fetch.ts';
-
-// A host written into the fetcher instead of read from the register.
-// QGD-SEC-0010 allows the hosts the register names and no others, so a literal
-// host in the module that does the fetching is a destination nobody
-// registered. The bare scheme is not a destination: the fetcher tests for
-// https:// before it will fetch anything at all.
+// Hosts are not written into this product's TypeScript at all: every URL comes
+// from a register, and the one process that connects is the Rust core. This
+// is kept because a URL appearing in a product source is still worth seeing —
+// it would mean a destination nobody registered.
 //
-// This is deliberately not applied to the rest of the product, where a URL is
+// It is deliberately not applied to the whole product, where a URL is
 // ordinarily attribution — the Font Awesome and Creative Commons links the
 // licence requires the About panel to show — or an entry in the
 // shell.openExternal allowlist, which QGD-SEC-0009 governs instead.
-export function hardCodedHosts(source, file = NETWORK_MODULE) {
+export function hardCodedHosts(source, file = 'the fetching module') {
   const found = [];
   let line = 1;
   for (const part of source.split('\n')) {

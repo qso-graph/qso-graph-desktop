@@ -316,33 +316,40 @@ try {
     expect(kinds.length, `${taken.label}: tree too small to be the application`).toBeGreaterThanOrEqual(4);
   }
 
-  stage = 'every external connection is the engine fetching reference data';
+  stage = 'every external connection belongs to the credential core';
   // QGD-SEC-0020. The product does reach the network: it fetches ADIF's
   // archive and POTA's three lists, which QGD-REF-0001 and QGD-REF-0009
-  // require it to do rather than ship them. So this is not a zero any more,
-  // and pretending it were would mean either a false claim in the footer or a
+  // require it to do rather than ship them. So this is not a zero, and
+  // pretending it were would mean either a false claim in the footer or a
   // suite that only passes offline.
   //
-  // What is asserted instead is the whole of what QGD-SEC-0020 allows: the
-  // engine's own process, TCP, port 443. No other process may hold an
-  // external endpoint and no other port may be reached — no telemetry, no
-  // update check, nothing from the renderer or the credential core.
+  // What is asserted is the whole of what QGD-SEC-0020 allows: **the
+  // credential core's process**, TCP, port 443. KI7MT decided that (D-18,
+  // D-31) — all outbound HTTPS goes through the Rust core, over rustls and
+  // AWS-LC in FIPS mode, because Electron's networking is BoringSSL and not
+  // the validated module.
   //
-  // Which hosts is held statically rather than here: the fetcher contains no
-  // host at all and takes every URL from data/reference-sources.json, which
-  // tests/network-static.test.mjs proves. Resolving the register's hostnames
-  // in this suite would make it depend on a CDN answering with the same
-  // addresses twice, which is a flake rather than a check.
+  // This rule said "the engine's own process" until Bob checked P5 against
+  // the decisions. The reference loader was using Node's fetch from the
+  // engine, and this suite was asserting that was correct. It is now the
+  // other way round: an external endpoint held by the engine is a finding.
+  //
+  // Which hosts is held statically rather than here: no product source names
+  // one, every URL comes from a register, and tests/network-static.test.mjs
+  // proves it. Resolving the register's hostnames in this suite would make it
+  // depend on a CDN answering with the same addresses twice, which is a flake
+  // rather than a check.
+  const CORE = 'utility:node.mojom.NodeService';
   const everyEndpoint = [...observed.values(), ...labelled.flatMap(taken => taken.endpoints)];
   const external = everyEndpoint.filter(endpoint => endpoint.external);
   const describe = list => list.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ');
   const unexpected = external.filter(endpoint =>
-    endpoint.process !== 'utility:engine'
+    endpoint.process !== CORE
     || endpoint.protocol !== 'TCP'
     || !String(endpoint.remote).endsWith(':443'));
   expect(unexpected, `external connection(s) QGD-SEC-0020 does not allow: ${describe(unexpected)}`).toEqual([]);
   if (external.length) {
-    console.log(`  the engine reached ${new Set(external.map(e => e.remote)).size} address(es) on 443: ` +
+    console.log(`  the credential core reached ${new Set(external.map(e => e.remote)).size} address(es) on 443: ` +
       `${[...new Set(external.map(e => e.remote))].join(', ')}`);
   }
 
@@ -354,11 +361,26 @@ try {
     .map(name => readFile(join(logs, name), 'utf8').catch(() => '')))).join('\n');
   expect(engineLog, 'the engine must say what became of the reference data').toContain('reference data');
 
-  stage = 'the renderer and the credential core hold no socket at all';
-  for (const kind of ['renderer', 'utility:node.mojom.NodeService']) {
-    const held = everyEndpoint.filter(endpoint => endpoint.process === kind);
-    expect(held, `${kind} held ${held.length} endpoint(s): ` +
+  stage = 'the renderer holds no socket at all';
+  {
+    const held = everyEndpoint.filter(endpoint => endpoint.process === 'renderer');
+    expect(held, `the renderer held ${held.length} endpoint(s): ` +
       held.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
+  }
+
+  stage = 'the credential core connects and never listens';
+  {
+    // It is the one process that may reach out (D-18, D-31), and that is all
+    // it may do: a listener in the process that holds the keys would be
+    // something on this machine able to reach them.
+    const held = everyEndpoint.filter(endpoint => endpoint.process === CORE);
+    const listening = held.filter(endpoint => endpoint.kind === 'listening');
+    expect(listening, `the credential core listened on ${listening.length} endpoint(s): ` +
+      listening.map(e => `${e.protocol} ${e.local}`).join(', ')).toEqual([]);
+    const wrongPort = held.filter(endpoint =>
+      endpoint.kind === 'connected' && !String(endpoint.remote).endsWith(':443'));
+    expect(wrongPort, `the credential core reached ${wrongPort.length} endpoint(s) off 443: ` +
+      describe(wrongPort)).toEqual([]);
   }
 
   stage = 'the engine and PostgreSQL were actually identified';
@@ -376,7 +398,7 @@ try {
   expect([...everyLabel].includes('utility:node.mojom.NodeService'),
     `the credential core was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
 
-  stage = 'the engine holds no TCP port of its own';
+  stage = 'the engine holds no socket at all';
   // A different rule, deliberately. The engine talks to PostgreSQL over a Unix
   // socket, which is not an internet socket and does not appear here at all —
   // so it should hold nothing either. But it is a database supervisor rather
@@ -384,15 +406,14 @@ try {
   // TCP port or anything external. Any other endpoint it holds is named in the
   // output of every run rather than passed over, because something that opens
   // a socket here is something to understand.
+  // Nothing at all. The engine talks to PostgreSQL over a Unix socket, which
+  // is not an internet socket and does not appear here — and it no longer
+  // fetches anything: it asks the credential core and receives bytes (D-18,
+  // D-31). This rule allowed the engine an outbound connection on 443 until
+  // that moved; now any endpoint it holds is a finding.
   const engineHeld = everyEndpoint.filter(endpoint => endpoint.process === 'utility:engine');
-  // A listener, or a connection to anything but a reference source on 443.
-  // The engine talks to PostgreSQL over a Unix socket, which is not an
-  // internet socket and does not appear here at all — so what it may hold is
-  // the outbound fetch above and nothing else.
-  const engineOther = engineHeld.filter(endpoint =>
-    !(endpoint.external && endpoint.protocol === 'TCP' && String(endpoint.remote).endsWith(':443')));
-  expect(engineOther, `the engine held ${engineOther.length} endpoint(s) that are not the reference fetch: ` +
-    engineOther.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
+  expect(engineHeld, `the engine held ${engineHeld.length} endpoint(s): ` +
+    engineHeld.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
 
   stage = 'PostgreSQL itself holds no TCP port';
   // QGD-ENG-0009, from outside: the server is on a Unix socket and listens on
@@ -491,11 +512,11 @@ try {
   // engine may reach a reference source on 443 and nothing else may reach
   // anything.
   const reached = [...new Set(external.map(endpoint => endpoint.remote))];
-  const engineNote = reached.length
-    ? `the engine reached ${reached.length} address(es) on 443 and held nothing else`
-    : 'the engine reached nothing (no network on this run) and held nothing';
+  const coreNote = reached.length
+    ? `the credential core reached ${reached.length} address(es) on 443 and listened on none`
+    : 'the credential core reached nothing (no network on this run) and listened on none';
   console.log(`Connection capture: ${observed.size} distinct endpoints observed; ` +
-    `renderer and credential core held none; ${engineNote}: PASS`);
+    `renderer and engine held none; ${coreNote}: PASS`);
   console.log('Renderer reached nothing by fetch, XHR, WebSocket, EventSource, beacon, image or dynamic import: PASS');
   console.log('Both positive controls observed; the product refused the filtered one; static network gate clean: PASS');
 } catch (error) {

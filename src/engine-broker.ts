@@ -7,7 +7,7 @@
 // not it ever does.
 import { app, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
-import { allowsSender } from './persona-contract.js';
+import { allowsSender, type FetchedReference } from './persona-contract.js';
 import { createLogger, logDirectory, writeForwarded } from './logger.js';
 import { isEngineStatus, validateEngineCommand, type EngineReply, type EngineStatus } from './engine-contract.js';
 
@@ -30,6 +30,11 @@ export interface EngineBrokerOptions {
   // between starts (QGD-REF-0001).
   registerFile: string;
   referenceCache: string;
+  // How the engine reaches a reference source: by asking, never by
+  // connecting. The credential core is the one process in this product that
+  // opens an outbound connection (D-18, D-31), so the engine's supervisor
+  // posts a request and gets bytes back.
+  fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
   // Off by default in tests that only want the shell.
   startAtLaunch?: boolean;
 }
@@ -60,8 +65,36 @@ export function startEngineBroker(options: EngineBrokerOptions): () => Promise<v
 
     worker.on('message', (message: unknown) => {
       if (message === null || typeof message !== 'object') return;
-      const payload = message as { ready?: unknown; log?: unknown; id?: unknown; reply?: unknown };
+      const payload = message as {
+        ready?: unknown; log?: unknown; id?: unknown; reply?: unknown;
+        reference?: unknown;
+      };
       if (typeof payload.log === 'string') { writeForwarded(payload.log); return; }
+      // A reference source, asked for by the engine. Checked here before it
+      // is passed on, because this is a message from another process even
+      // though that process is ours (QGD-SEC-0006).
+      //
+      // The field is `reference` and not `fetch` because the network gate
+      // reads a property called `fetch` as a client reaching the network, and
+      // it is right to: it cannot tell this message's field from window's.
+      // Naming a field after the thing the gate exists to find is how the
+      // next one gets an exception written for it.
+      if (payload.reference !== null && typeof payload.reference === 'object') {
+        const request = payload.reference as { id?: unknown; url?: unknown; etag?: unknown; lastModified?: unknown };
+        const id = request.id;
+        if (!Number.isSafeInteger(id)) return;
+        const answer = (result: unknown) => worker?.postMessage({ referenceAnswer: { id, result } });
+        if (typeof request.url !== 'string' || !request.url.startsWith('https://') || request.url.length > 2048) {
+          answer('Reference data is fetched over HTTPS only.');
+          return;
+        }
+        void options.fetchReference(
+          request.url,
+          typeof request.etag === 'string' ? request.etag : undefined,
+          typeof request.lastModified === 'string' ? request.lastModified : undefined
+        ).then(answer, () => answer('The reference source could not be reached.'));
+        return;
+      }
       if (payload.ready === true) { failures = 0; return; }
       if (!Number.isSafeInteger(payload.id)) return;
       const reply = payload.reply as EngineReply | undefined;

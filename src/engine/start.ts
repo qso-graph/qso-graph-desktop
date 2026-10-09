@@ -21,10 +21,13 @@ export interface ReferenceOptions {
   register: Register;
   // Where the fetched archive is kept between starts.
   cacheDirectory: string;
-  // Replaced by the suite, which has the archive already.
-  fetchArchive?: FetchArchive;
+  // How bytes are obtained. Required, not defaulted: this process opens no
+  // connection, and the product supplies the function that asks the
+  // credential core (D-18, D-31). A suite supplies one that hands over bytes
+  // it already has.
+  fetchArchive: FetchArchive;
   // The same, for POTA's three lists.
-  fetchText?: FetchText;
+  fetchText: FetchText;
   // POTA's lists are fetched at every start that is a day past the last one.
   // Left out, they are not loaded at all, which is reported rather than
   // assumed — the same rule as the archive (QGD-REF-0014).
