@@ -42,9 +42,16 @@ export interface ServiceProfile {
   // so `known: true` is refused until there is a credential to read a date
   // out of and a way to read it.
   expiry: { known: false; why: string };
-  // QGD-PSN-0005: a service either has a test or says it has none. `null`
-  // is the saying-so; a missing key is a register that forgot to answer.
-  test: { what: string } | null;
+  // QGD-PSN-0005: a service either has a test or says it has none, and both
+  // answers carry a sentence. A service with no test says why there is none,
+  // because "no test" with no reason reads as an oversight rather than as the
+  // fact it is — and an operator deciding whether to trust a saved credential
+  // is owed the difference.
+  //
+  // The credential core is the authority on which exists: it either has an
+  // implementation or it does not. This says what it does, or why it does
+  // not, and the credential-editing suite holds the two to each other.
+  test: { what: string } | { none: string };
 }
 
 export interface ServiceRegister {
@@ -111,10 +118,18 @@ export function validateRegister(parsed: unknown): ServiceRegister {
     });
     if (!fields.some(field => field.required)) fail(`"${id}" requires nothing, so there is nothing to save`);
 
-    if (!('test' in service)) fail(`"${id}" does not say whether it can be tested`);
-    const test = service.test === null
-      ? null
-      : { what: string((service.test as Record<string, unknown>)?.what, `"${id}"'s test description`) };
+    if (typeof service.test !== 'object' || service.test === null) {
+      fail(`"${id}" does not say whether it can be tested`);
+    }
+    const testOf = service.test as Record<string, unknown>;
+    const describes = 'what' in testOf;
+    const explains = 'none' in testOf;
+    if (describes === explains) {
+      fail(`"${id}"'s test must either describe a test or say why there is none, and not both`);
+    }
+    const test = describes
+      ? { what: string(testOf.what, `"${id}"'s test description`) }
+      : { none: string(testOf.none, `"${id}"'s reason for having no test`) };
 
     if (typeof service.expiry !== 'object' || service.expiry === null) {
       fail(`"${id}" does not say whether its credential expires`);

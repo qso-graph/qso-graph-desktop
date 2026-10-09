@@ -1,6 +1,6 @@
 {
   "register": "The services a persona can hold a credential for, and what each needs",
-  "note": "QGD-PSN-0002 and QGD-PSN-0003. This is the only place a service is named. The setup screens, the command validation and the per-service test all read it, so a service added here appears with its own fields and its own test and no code change — the rule QGD-REF-0005 applies to ADIF's definitions, applied to services. The credential core names no service at all: it treats a provider as an identifier and stores whatever it is given (QGD-CRD-0003), so there is no second list in Rust for this one to drift from. Every service answers two questions outright: whether it can be tested, and whether its credential expires in a way this product can read (QGD-PSN-0005, QGD-PSN-0006). A missing answer is a register that forgot, and is refused.",
+  "note": "QGD-PSN-0002 and QGD-PSN-0003. This is the only place a service is named. The setup screens, the command validation and the per-service test all read it, so a service added here appears with its own fields and its own test and no code change — the rule QGD-REF-0005 applies to ADIF's definitions, applied to services. The credential core names no service at all: it treats a provider as an identifier and stores whatever it is given (QGD-CRD-0003), so there is no second list in Rust for this one to drift from. Every service answers two questions outright: whether it can be tested, and whether its credential expires in a way this product can read (QGD-PSN-0005, QGD-PSN-0006). A missing answer is a register that forgot, and is refused. The credential core is the authority on whether a test exists — it either has an implementation or it does not — and the two are held to each other by the credential-editing suite, so a register describing a test the core cannot run fails the gate.",
   "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
   "fieldKinds": {
     "username": "An account name, which is not a secret and is shown",
@@ -83,7 +83,7 @@
         "why": "An eQSL password does not expire on a date."
       },
       "test": {
-        "what": "Asks eQSL to verify the account, which answers without returning any card"
+        "none": "This product has no test for eQSL yet. The credential is saved and used; nothing here can tell you in advance whether it is right, and saying otherwise would be a button that proves nothing."
       }
     },
     {
@@ -111,7 +111,7 @@
         "why": "The LoTW credential this product stores is the web account, not ARRL's TQSL certificate. The certificate expires and the account password does not, and this product does not hold the certificate — so there is no date here to read (QGD-PSN-0006)."
       },
       "test": {
-        "what": "Asks LoTW for the account's own QSO count, which needs the username and password and returns no QSO"
+        "none": "This product has no test for LoTW yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
       }
     },
     {
@@ -139,7 +139,7 @@
         "why": "A HamQTH password does not expire on a date."
       },
       "test": {
-        "what": "Asks HamQTH for a session key, which it returns or refuses"
+        "none": "This product has no test for HamQTH yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
       }
     },
     {
@@ -173,7 +173,7 @@
         "why": "Neither the Club Log password nor the API key carries an expiry date."
       },
       "test": {
-        "what": "Asks Club Log to check the account, which answers yes or no and returns no log"
+        "none": "This product has no test for Club Log yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
       }
     }
   ]

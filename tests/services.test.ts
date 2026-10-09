@@ -26,7 +26,7 @@ const service = (overrides: Record<string, unknown> = {}) => ({
   howToGet: 'Ask them',
   fields: [{ name: 'username', label: 'User', secret: false, required: true }],
   expiry: { known: false, why: 'Nothing about this example credential expires on a date' },
-  test: null,
+  test: { none: 'This example service has no test, and this is why there is none' },
   ...overrides
 });
 
@@ -46,16 +46,18 @@ describe('QGD-PSN-0003 what the register ships with', () => {
     }
   });
 
-  it('says of every service whether it can be tested (QGD-PSN-0005)', () => {
+  it('says of every service whether it can be tested, and why not (QGD-PSN-0005)', () => {
     for (const entry of shipped.services) {
-      // null is an answer; undefined is a register that forgot to answer, and
-      // validateRegister refuses that — asserted below.
-      expect(entry.test === null || typeof entry.test.what === 'string', entry.id).toBe(true);
-      if (entry.test) expect(entry.test.what.length).toBeGreaterThan(10);
+      const answer = 'what' in entry.test ? entry.test.what : entry.test.none;
+      expect(answer.length, entry.id).toBeGreaterThan(20);
     }
-    // All six are testable today. If one ever is not, this says so rather
-    // than the fact disappearing into a null nobody notices.
-    expect(shipped.services.filter(entry => entry.test === null).map(entry => entry.id)).toEqual([]);
+    // Two have a test today and four do not, and the four say why rather than
+    // leaving a null for a reader to interpret. The credential-editing suite
+    // is what holds this to the core, which is the authority on which exist.
+    expect(shipped.services.filter(entry => 'what' in entry.test).map(entry => entry.id))
+      .toEqual(['qrz', 'qrz_logbook']);
+    expect(shipped.services.filter(entry => 'none' in entry.test).map(entry => entry.id))
+      .toEqual(['eqsl', 'lotw', 'hamqth', 'clublog']);
   });
 
   it('says of every service whether its credential expires (QGD-PSN-0006)', () => {
@@ -125,7 +127,7 @@ describe('QGD-PSN-0002 a service is a data change, not a code change', () => {
   it('carries the new service’s own fields and test, not the shipped ones', () => {
     const added = extended.services.find(entry => entry.id === 'newservice')!;
     expect(added.fields.map(field => field.name)).toEqual(['api_key']);
-    expect(added.test?.what).toContain('key works');
+    expect('what' in added.test && added.test.what).toContain('key works');
   });
 });
 
@@ -168,8 +170,16 @@ describe('a register that is damaged or hand-edited is refused', () => {
 
   it('refuses a service that does not say whether it can be tested', () => {
     const { test, ...withoutTest } = service();
-    expect(test).toBeNull();
+    expect('none' in test).toBe(true);
     expect(() => made(withoutTest)).toThrow(/does not say whether it can be tested/);
+    expect(() => made(service({ test: null }))).toThrow(/does not say whether it can be tested/);
+  });
+
+  it('refuses a service that both describes a test and says it has none', () => {
+    expect(() => made(service({ test: { what: 'Asks them', none: 'There is none' } })))
+      .toThrow(/either describe a test or say why there is none/);
+    expect(() => made(service({ test: {} })))
+      .toThrow(/either describe a test or say why there is none/);
   });
 
   it('refuses a site that is not https', () => {

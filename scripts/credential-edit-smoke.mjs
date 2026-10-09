@@ -10,6 +10,7 @@ const directory = await mkdtemp(join(tmpdir(), 'qg-credential-edit-'));
 const core = new PersonaCore(directory);
 const persona = `qg-test-${randomUUID()}`;
 const other = `qg-test-${randomUUID()}`;
+const untouched = `qg-test-${randomUUID()}`;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 const apiKey = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 function check(ok, name) { if (!ok) throw new Error(`${name} failed; values omitted.`); }
@@ -58,10 +59,36 @@ try {
     const text = await readFile(join(directory, filename), 'utf8');
     check(!text.includes(password) && !text.includes(apiKey), 'No secret in metadata');
   }
+  // QGD-PSN-0005: the register says whether a service can be tested, and the
+  // core is the authority on whether a test exists — it either has an
+  // implementation or it does not. Held to each other here, because a
+  // register promising a test the core cannot run is a button that proves
+  // nothing, and a core with a test the register calls absent is a capability
+  // nobody is offered.
+  const register = JSON.parse(await readFile('data/service-profiles.json', 'utf8'));
+  // A persona of its own, with nothing saved against it: what is being shown
+  // is that testability is a fact about the service, not about what is stored.
+  core.upsert(untouched, 'W1AW/3');
+  for (const service of register.services) {
+    const describes = 'what' in service.test;
+    const { testable } = core.credentialStatus(untouched, service.id);
+    check(describes === testable,
+      `The register and the core agree about testing ${service.id}`);
+    // And testability is answered without anything being saved for it, so a
+    // screen can say so before the operator presses (QGD-CRD-0011).
+    check(!core.credentialStatus(untouched, service.id).stored,
+      `Testability for ${service.id} is answered with nothing stored`);
+  }
+  check(register.services.filter(s => 'what' in s.test).length >= 1,
+    'At least one service has a test, or this check is vacuous');
+  check(register.services.filter(s => 'none' in s.test).length >= 1,
+    'At least one service has none, or this check is vacuous');
+
   console.log('Credential editing and persona deletion: merge, independent removal, preference, fallback, cascade and isolation: PASS');
+  console.log(`The register and the core agree about which of the ${register.services.length} services can be tested: PASS`);
 } catch (error) { console.error(error.message); process.exitCode = 1; }
 finally {
-  for (const name of [persona, other]) {
+  for (const name of [persona, other, untouched]) {
     if (core.list().some(p => p.name === name)) core.removePersona(name);
   }
   await rm(directory, { recursive: true, force: true });
