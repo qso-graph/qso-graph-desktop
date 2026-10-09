@@ -71,8 +71,21 @@ export PATH="${SHARED_RUST}/cargo/bin:/opt/homebrew/bin:$PATH"
 const first = `cd ${CHECKOUT}\n. ./verify-env.sh\nmake setup          # first time in this account only\nmake verify\n`;
 await writeFile(`${CHECKOUT}/startup.txt`, first);
 
-// The verification account writes dist/, out/, report/ and target/ here.
-run(['chmod', '-R', 'a+rwX', CHECKOUT]);
+// Made writable so the verification account can build here — but only the
+// files this account owns.
+//
+// After the first run in that account, node_modules, vendor, dist, out, report
+// and target belong to IT: it ran `make setup` and `make verify`. chmod on
+// another user's file is refused unless you are root, so a blanket
+// `chmod -R` fails with thousands of "Operation not permitted" lines the
+// moment the procedure actually starts being used — which is exactly what
+// happened on the first sync after the first run. Those directories do not
+// need our permission anyway; they are already that account's.
+run(['bash', '-c',
+  `find ${JSON.stringify(CHECKOUT)} ` +
+  '\\( -name node_modules -o -name vendor -o -name target -o -name dist ' +
+  '   -o -name out -o -name report -o -name .git \\) -prune -o ' +
+  `-user "$(id -un)" -print0 | xargs -0 chmod a+rwX`]);
 
 const at = run(['git', '-C', CHECKOUT, 'log', '--oneline', '-1']);
 console.log(`Verification checkout synced: ${CHECKOUT}`);
@@ -80,4 +93,7 @@ console.log(`  ${ref} at ${at}`);
 console.log(`  toolchain: ${SHARED_RUST} (shared, read-write)`);
 console.log('');
 console.log('Then, logged in as qgdesktop:');
-console.log(`  cd ${CHECKOUT} && . ./verify-env.sh && npm ci && node scripts/fetch-postgres.mjs && make verify`);
+// Printed from the same string that was just written, so the message and the
+// crib sheet cannot say different things. They did: this line listed two of
+// the four setup steps while startup.txt was being hand-maintained.
+for (const command of first.trimEnd().split('\n')) console.log(`  ${command}`);
