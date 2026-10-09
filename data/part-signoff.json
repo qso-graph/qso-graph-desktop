@@ -30,6 +30,15 @@
       "recordedAtUtc": "2026-10-08T05:37:05Z"
     },
     {
+      "part": "P3",
+      "id": "QGD-PRT-0103",
+      "by": "KI7MT",
+      "date": "2026-10-08",
+      "commit": "39741bd",
+      "evidence": "KI7MT approved all six screenshot baselines \u2014 home, personas and settings, in light and dark. The shell on the M3: rail navigation with Home at the top and Settings at the foot, the P1 persona workflow unchanged inside it, themes following the system and overridable, the Logs page, and the two faults he found on the way fixed and held by tests \u2014 no credential secret read at startup (QGD-CRD-0009) and no disabled control drawn as busy (QGD-CRD-0011). Twenty-four suites PASS, including axe over six page views and the baselines compared pixel for pixel.",
+      "recordedAtUtc": "2026-10-09T03:52:14Z"
+    },
+    {
       "part": "P4",
       "id": "QGD-PRT-0104",
       "by": "KI7MT",
