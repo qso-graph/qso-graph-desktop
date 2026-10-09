@@ -73,7 +73,23 @@ const written = [];
 
 try {
   application = await electron.launch({
-    args: ['.'], cwd: process.cwd(),
+    // Rendered the same way every time, rather than the way this display
+    // happens to render today. Without these, half the pixels differ between
+    // two runs that look identical: the differences are 1 or 2 out of 255,
+    // antialiasing and colour profile, and they are invisible to the eye and
+    // fatal to an exact comparison. Removing the variable is better than
+    // widening the comparison until it stops noticing.
+    args: [
+      '.',
+      // Software rendering: no GPU, so no difference between one and another.
+      '--disable-gpu',
+      // One colour profile, not the profile of whichever display the window
+      // opened on.
+      '--force-color-profile=srgb',
+      // Greyscale antialiasing. Subpixel antialiasing depends on the panel.
+      '--disable-lcd-text'
+    ],
+    cwd: process.cwd(),
     env: {
       ...process.env,
       QG_DESKTOP_PROFILE_DIR: join(directory, 'profile'),
@@ -147,6 +163,14 @@ try {
       await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
       const file = `${name.toLowerCase()}-${theme}.png`;
       const shot = await stableShot(page, join(captures, file));
+      // Checked after the fact, not only before: a capture is worth nothing if
+      // the page re-themed while it was being taken, and "half the pixels
+      // differ" is a slow way to be told that.
+      const drawnAs = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+      if (drawnAs !== theme) {
+        failures.push(`${file}: captured while the page was ${drawnAs ?? 'unthemed'}, not ${theme}`);
+        continue;
+      }
 
       const baselineFile = join(baselines, file);
       const current = decode(shot);

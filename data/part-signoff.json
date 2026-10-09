@@ -28,6 +28,15 @@
       "commit": "78580b1",
       "evidence": "KI7MT ran the verification on the M3 at 23:36 MDT: thirteen suites PASS, covering utility-process crash recovery, malformed IPC refusal, and the one redacted JSON-lines stream inside its size, total and retention caps with a raised level that reverts on its own",
       "recordedAtUtc": "2026-10-08T05:37:05Z"
+    },
+    {
+      "part": "P4",
+      "id": "QGD-PRT-0104",
+      "by": "KI7MT",
+      "date": "2026-10-08",
+      "commit": "f8af876",
+      "evidence": "KI7MT signed off after the bundling gap closed: the packaged application runs the PostgreSQL it carries, 121 MB trimmed from 356 MB. Twenty-four suites PASS, four of them the engine \u2014 the pinned build verified by SHA-256, first run and lifecycle, a second start on the same data refused, a Unix socket with no TCP port read off the running process, per-application roles with a password fresh at each start, migrations applied and rolled back whole when one fails, and a backup round-tripped with its three failure paths driven.",
+      "recordedAtUtc": "2026-10-09T02:17:30Z"
     }
   ]
 }
