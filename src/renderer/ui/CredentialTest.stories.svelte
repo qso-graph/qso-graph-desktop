@@ -19,4 +19,7 @@
 <Story name="Worked" args={{ outcome: 'success' }} />
 <Story name="Rejected" args={{ outcome: 'failure' }} />
 <Story name="Not supported yet" args={{ outcome: 'unsupported' }} />
-<Story name="Nothing saved to test" args={{ disabled: true, message: 'Save a username and password or API key first.' }} />
+<!-- The two states that must never be a dead, silent button. KI7MT found the
+     second on Club Log: disabled, unexplained, and drawing a busy cursor. -->
+<Story name="Nothing saved to test" args={{ unavailable: 'Save a username and password or API key first, then this can be tested.' }} />
+<Story name="Service cannot be tested yet" args={{ unavailable: 'Testing for this service is not implemented yet.' }} />

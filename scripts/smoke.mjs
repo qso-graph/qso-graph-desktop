@@ -15,6 +15,7 @@ import { entries } from './unzip.mjs';
 let application;
 let notesEngine = 'not reached';
 let notesSecrets = 'not reached';
+let notesServices = 'not reached';
 const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
@@ -298,12 +299,54 @@ try {
       { message: `on System, the shell must follow the operating system turning ${source}` }).toBe(source);
   }
   await application.evaluate(({ nativeTheme }) => { nativeTheme.themeSource = 'system'; });
+  // ---- QGD-CRD-0011: no Test button is dead, and none looks busy ---------
+  // KI7MT found Club Log's Test button disabled, unexplained, and drawing a
+  // spinning busy cursor — the shared disabled style said `cursor: wait`, so a
+  // control doing nothing looked like one that was working. Every service is
+  // checked, not the one that was reported.
+  {
+    await page.getByRole('navigation', { name: 'Sections' })
+      .getByRole('button', { name: 'Personas', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
+
+    const services = await page.getByLabel('Service', { exact: true })
+      .locator('option').evaluateAll(options => options.map(option => option.value));
+    expect(services.length, 'every service in the list is checked').toBeGreaterThan(4);
+
+    const testButton = page.getByRole('button', { name: 'Test credential', exact: true });
+    const reported = [];
+    for (const service of services) {
+      await page.getByLabel('Service', { exact: true }).selectOption(service);
+      await expect(page.locator('#credential-status')).not.toHaveText('Checking saved credentials…', { timeout: 30_000 });
+
+      const disabled = await testButton.isDisabled();
+      const explanation = (await page.locator('#credential-test-result').textContent() ?? '').trim();
+      // Dead and silent is the state that must not exist. Whether it is
+      // disabled is allowed to vary; being disabled with nothing to read is not.
+      expect(explanation, `${service}: a Test button must never be unexplained`).not.toBe('');
+      if (disabled) {
+        expect(explanation, `${service}: a disabled Test button must say why`)
+          .toMatch(/not implemented yet|Save a username/);
+      }
+      // And never the busy cursor: that belongs to a control that is working.
+      const cursor = await testButton.evaluate(node => getComputedStyle(node).cursor);
+      expect(cursor, `${service}: a Test button that is not working must not look busy`).not.toBe('wait');
+      expect(cursor, `${service}: a Test button that is not working must not look busy`).not.toBe('progress');
+      if (disabled) expect(cursor, `${service}: a disabled control should say not-allowed`).toBe('not-allowed');
+      reported.push(`${service}${disabled ? ' (disabled)' : ''}`);
+    }
+    notesServices = reported.join(', ');
+    await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
+  }
+
   // ---- P4-shell-starts-without-it (QGD-ENG-0003) -------------------------
   // This suite runs from the repository, where the pinned build exists — but
   // nothing here waits for the engine, and the point of the requirement is
   // that the shell is drawn and usable regardless. Everything above has
   // already happened; Settings must report a state rather than hanging or
   // showing nothing.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
   // Running, not merely "some state": this suite launches the real
   // application from the repository, where the pinned build is, so the whole
@@ -430,6 +473,7 @@ try {
   }
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
   console.log(`No secret read without asking: ${notesSecrets}: PASS`);
+  console.log(`Every Test button explains itself and none looks busy: ${notesServices}: PASS`);
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
   console.log(`Database card: the shell is drawn and usable while the engine starts on its own; Settings reports "${notesEngine}": PASS`);
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');

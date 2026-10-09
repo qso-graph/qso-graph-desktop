@@ -62,6 +62,11 @@ pub struct Credentials {
 #[derive(Serialize)]
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
 pub struct CredentialStatus {
+    // Whether this service can be tested at all, which is a fact about the
+    // service and not about what is saved for it. Reported so the screen can
+    // say so before the operator presses anything: a button that does nothing
+    // teaches nothing, and pressing it to be told is a poor way to find out.
+    pub testable: bool,
     pub stored: bool,
     // Whether which kinds are stored is actually known.
     //
@@ -392,6 +397,7 @@ impl Store {
             if preferred == "service" { None } else { Some(&preferred) });
 
         Ok(CredentialStatus {
+            testable: validation::supported(&provider),
             stored: exists,
             kinds_known: !exists || known,
             has_username: exists && reference.as_ref().is_some_and(|r| !r.username.is_empty()),

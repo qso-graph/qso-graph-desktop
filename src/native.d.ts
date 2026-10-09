@@ -30,6 +30,7 @@ export interface NativeCredentialInput {
 }
 
 export interface NativeCredentialStatus {
+  testable: boolean;
   stored: boolean;
   kindsKnown: boolean;
   hasUsername: boolean;

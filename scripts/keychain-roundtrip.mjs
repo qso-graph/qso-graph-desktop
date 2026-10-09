@@ -50,7 +50,7 @@ try {
   check(!core.credentialStatus(other, provider).stored, 'Persona credential isolation');
   const status = core.credentialStatus(persona, provider);
   check(status.stored && status.hasApiKey && status.hasPassword, 'Credential status');
-  check(Object.keys(status).sort().join(',') === 'effective,hasApiKey,hasPassword,hasUsername,kindsKnown,preferred,stored', 'No secret in status API');
+  check(Object.keys(status).sort().join(',') === 'effective,hasApiKey,hasPassword,hasUsername,kindsKnown,preferred,stored,testable', 'No secret in status API');
   check(status.kindsKnown, 'Status knows what it holds when it wrote it');
 
   core.setActive(persona.toUpperCase());

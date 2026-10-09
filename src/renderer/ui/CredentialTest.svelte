@@ -16,10 +16,14 @@
   interface Props {
     outcome: TestOutcome;
     message?: string;
-    disabled?: boolean;
+    // Why it cannot be pressed. A disabled control that gives no reason is the
+    // defect this pattern exists to stop being written again: on Club Log the
+    // Test button was dead, silent, and drawn with a busy cursor.
+    unavailable?: string;
     onTest: () => void;
   }
-  const { outcome, message, disabled = false, onTest }: Props = $props();
+  const { outcome, message, unavailable, onTest }: Props = $props();
+  const disabled = $derived(Boolean(unavailable) || outcome === 'testing');
 
   const DEFAULTS: Record<TestOutcome, string> = {
     untested: 'Not tested yet.',
@@ -31,14 +35,21 @@
 </script>
 
 <div class="credential-test">
-  <button type="button" class="secondary" disabled={disabled || outcome === 'testing'} onclick={onTest}>
-    Test credential
-  </button>
+  <button
+    type="button"
+    class="secondary"
+    class:working={outcome === 'testing'}
+    {disabled}
+    aria-describedby="credential-test-reason"
+    aria-busy={outcome === 'testing' ? 'true' : undefined}
+    onclick={onTest}
+  >Test credential</button>
   <p
+    id="credential-test-reason"
     class="credential-test-result"
     class:success={outcome === 'success'}
     class:error={outcome === 'failure'}
     role="status"
     aria-busy={outcome === 'testing' ? 'true' : undefined}
-  >{message ?? DEFAULTS[outcome]}</p>
+  >{unavailable ?? message ?? DEFAULTS[outcome]}</p>
 </div>

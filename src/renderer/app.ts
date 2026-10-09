@@ -41,12 +41,26 @@ let snapshot: Snapshot = { personas: [], active: null };
 let selected: string | null = null;
 const testResults = new Map<string, { text: string; success: boolean }>();
 const testKey = () => `${selected}:${element<HTMLSelectElement>('provider').value}`;
-function showTestResult() {
-  const result = testResults.get(testKey());
+function setTestResult(text: string, kind: 'success' | 'error' | 'plain' = 'plain') {
   const target = element('credential-test-result');
-  target.textContent = result?.text ?? 'Not tested yet.';
-  target.classList.toggle('success', result?.success === true);
-  target.classList.toggle('error', Boolean(result && !result.success));
+  target.textContent = text;
+  target.classList.toggle('success', kind === 'success');
+  target.classList.toggle('error', kind === 'error');
+}
+
+// The one writer of that line, so a remembered result and the reason the
+// button is unavailable cannot overwrite each other. They used to: saving a
+// credential drew the reason and then invalidateTest() immediately replaced it
+// with "Not tested yet." — a claim about a service that cannot be tested.
+let serviceState: CredentialStatus | undefined;
+
+function showTestResult() {
+  if (serviceState === undefined) { setTestResult('Checking saved credentials…'); return; }
+  if (!serviceState.testable) { setTestResult('Testing for this service is not implemented yet.'); return; }
+  if (!serviceState.stored) { setTestResult('Save a username and password or API key first, then this can be tested.'); return; }
+  const result = testResults.get(testKey());
+  setTestResult(result?.text ?? 'Not tested yet.',
+    result ? (result.success ? 'success' : 'error') : 'plain');
 }
 function invalidateTest() { testResults.delete(testKey()); showTestResult(); }
 function message(text: string, error = false) { const status = element('message'); status.textContent = text; status.classList.toggle('error', error); }
@@ -74,6 +88,9 @@ async function credentialStatus() {
   const persona = selected;
   const provider = element<HTMLSelectElement>('provider').value;
   if (!persona) return;
+  // Nothing is known about this service until the answer comes back, and the
+  // line says so rather than making a claim it has not checked.
+  serviceState = undefined;
   showTestResult();
   element<HTMLButtonElement>('test-credential').disabled = true;
   for (const id of ['password', 'api-key']) {
@@ -92,7 +109,17 @@ async function credentialStatus() {
   } catch (error) { if (persona === selected) message((error as Error).message, true); }
 }
 function showCredentialStatus(status: CredentialStatus) {
-  element<HTMLButtonElement>('test-credential').disabled = !status.stored;
+  // A control that cannot be used says why, without being pressed. Both
+  // reasons are knowable in advance: the service may not be testable at all,
+  // or there may be nothing saved to test. Leaving the button simply dead was
+  // the bug — on Club Log it was disabled, offered no reason, and the shared
+  // disabled style drew a busy cursor over it, so a control that was doing
+  // nothing looked like one that was working.
+  const test = element<HTMLButtonElement>('test-credential');
+  serviceState = status;
+  test.disabled = !status.testable || !status.stored;
+  test.setAttribute('aria-describedby', 'credential-test-result');
+  showTestResult();
   // An entry saved before the index recorded which kinds it holds says so,
   // rather than being drawn as holding neither (QGD-CRD-0010). Both removal
   // controls are offered, because each is an explicit action that will read
@@ -133,9 +160,16 @@ function select(name: string | null) {
   if (persona) void credentialStatus(); else input('persona-name').focus();
 }
 async function busy(buttonId: string, action: () => Promise<void>) {
-  const button = element<HTMLButtonElement>(buttonId); button.disabled = true;
+  const button = element<HTMLButtonElement>(buttonId);
+  button.disabled = true;
+  // Working, as opposed to merely unavailable. The two look different now,
+  // because they are different and the operator should be able to tell.
+  button.classList.add('working');
+  button.setAttribute('aria-busy', 'true');
   try { await action(); } catch (error) { message((error as Error).message, true); }
   finally {
+    button.classList.remove('working');
+    button.removeAttribute('aria-busy');
     if (buttonId === 'test-credential' || buttonId === 'credential-preference') void credentialStatus();
     else button.disabled = false;
   }
@@ -216,7 +250,7 @@ element('test-credential').addEventListener('click', () => void busy('test-crede
   const persona = selected;
   const provider = element<HTMLSelectElement>('provider').value;
   const key = testKey();
-  element('credential-test-result').textContent = 'Testing saved credential…';
+  setTestResult('Testing saved credential…');
   const result = await request({ type: 'test-credential', persona, provider }) as CredentialTest;
   const messages: Record<CredentialTest['outcome'], string> = {
     success: 'Success — QRZ accepted the saved credential.',

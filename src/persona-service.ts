@@ -55,6 +55,7 @@ function toStatus(native: NativeCredentialStatus): CredentialStatus {
   const preferred = PREFERENCES.find(value => value === native.preferred);
   if (!preferred) throw new Error('Credential preference is invalid.');
   return {
+    testable: native.testable,
     stored: native.stored,
     kindsKnown: native.kindsKnown,
     hasUsername: native.hasUsername,

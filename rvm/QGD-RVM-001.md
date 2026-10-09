@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `ac9ebaea0832bd743691bd49a942969c0ec38dc2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `55c853d474cfabc46672d677a47ccf3366943398` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `ac9ebaea0832bd743691bd49a942969c0ec38dc2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `55c853d474cfabc46672d677a47ccf3366943398` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 116 requirements · 12 Parts · 5 Demo · 32 Inspection · 30 Static · 69 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 117 requirements · 12 Parts · 5 Demo · 32 Inspection · 30 Static · 70 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -34,6 +34,7 @@
 | `QGD-CRD-0006` | A credential never appears in a log, an error message, an IPC payload rendered to a screen, or a report. | Static | ✓ |
 | `QGD-CRD-0007` | The renderer never holds a credential and never opens a network connection. | Static, Test | ✓ |
 | `QGD-CRD-0008` | The OS credential manager is the only store in Release 1. A user's own Vault is a later Part. | Inspection |  |
+| `QGD-CRD-0011` | A control that cannot be used says why, without being pressed, in words a screen reader reaches. Whether a service can be tested at all, and whether there is anything saved to test, are both known in advance and are reported in advance. **A disabled control is never drawn as a busy one.** (KI7MT, 2026-10-08: Club Log's Test button was disabled, unexplained, and drawing a spinning busy cursor, because the shared disabled style said `cursor: wait`.) | Test | ✓ |
 | `QGD-CRD-0009` | **No credential secret is read at startup, by navigation, or to display status.** A secret is read only on an explicit action of the operator's that needs it — testing a credential, or handing one to something that will use it. Reading a secret is what makes macOS ask for the login keychain password, and asking for it before the operator has done anything is both alarming and unearned. (KI7MT, 2026-10-08: opening the application prompted him, because the remembered persona was selected and its status read.) | Test | ✓ |
 | `QGD-CRD-0010` | The status display answers from the index and from the existence of the Keychain entry — which the Keychain reports from an item's attributes without unlocking its data — and never from the secret. Which kinds of secret an entry holds is not itself a secret, and is recorded when it is written. | Test | ✓ |
 | `QGD-PII-0001` | Club rosters are personal data. A real roster never enters this repository, its history, or CI output. Test fixtures are synthetic or anonymized. | Static | ✓ |

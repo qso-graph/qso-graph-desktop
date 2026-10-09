@@ -136,7 +136,11 @@ select, input[readonly].narrow { max-width: 320px; }
 button { border: 1px solid transparent; border-radius: 6px; padding: 9px 15px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 550; cursor: pointer; }
 button.secondary { background: var(--surface); color: var(--ink); border-color: var(--border-strong); }
 button.danger { margin-right: auto; background: var(--surface); color: var(--danger); border-color: var(--danger-border); }
-button:disabled { opacity: .5; cursor: wait; }
+/* not-allowed, never wait: a disabled control is not a working one, and
+   the busy cursor said it was. A control that is genuinely working says so
+   with .working. */
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.working { cursor: progress; }
 button:hover:not(:disabled) { filter: brightness(1.08); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .credential-status { padding: 10px 12px; border-radius: 6px; background: var(--surface-inset); font-size: 12px; margin: 0 0 18px; }

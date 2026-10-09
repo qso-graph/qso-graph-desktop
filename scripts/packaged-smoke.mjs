@@ -124,7 +124,10 @@ try {
   await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe('');
-  await page.getByRole('button', { name: 'Test credential', exact: true }).click();
+  // QGD-CRD-0011: eQSL cannot be tested yet, and that is said without being
+  // pressed. It used to be learned by pressing, which left a service with
+  // nothing saved showing a dead, silent button.
+  await expect(page.getByRole('button', { name: 'Test credential', exact: true })).toBeDisabled();
   await expect(page.locator('#credential-test-result')).toContainText('Testing for this service is not implemented yet.');
   await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   page.once('dialog', dialog => dialog.accept());
