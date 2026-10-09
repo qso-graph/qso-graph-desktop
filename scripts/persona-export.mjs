@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// P6-export-encrypted, P6-export-header, P6-export-round-trip,
-// P6-import-all-or-none and P6-import-cannot-tell (QGD-PSN-0007 to
-// QGD-PSN-0011).
+// P6-persona-owns-credential, P6-export-encrypted, P6-export-header,
+// P6-export-round-trip, P6-import-all-or-none, P6-import-cannot-tell and
+// P6-export-goes-nowhere (QGD-PSN-0001, QGD-PSN-0007 to QGD-PSN-0011).
 //
 // Against the real credential core and the real Keychain, because what is
 // being proved is that the secrets come out of the Keychain, go into one
@@ -15,9 +15,11 @@
 import { createRequire } from 'node:module';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { sentinelsIn } from './artifact-scan.mjs';
+import { classify } from './endpoint.mjs';
 
 const require = createRequire(import.meta.url);
 const { PersonaCore } = require('../dist/native/persona.node');
@@ -34,6 +36,7 @@ const to = new PersonaCore(second);
 const notes = [];
 
 function check(ok, name) { if (!ok) throw new Error(`${name} failed; values omitted.`); }
+
 // A refusal, taken without letting the message carry a value into the output.
 function refusal(action, name) {
   try { action(); } catch (error) { return String(error.message); }
@@ -47,6 +50,23 @@ try {
   from.saveCredentials(persona, 'clublog', { username: 'w1aw@example.invalid', password, apiKey });
   from.setPreference(persona, 'clublog', 'api_key');
   from.upsert(alsoHere, 'W1AW/P');
+
+  // ---- P6-persona-owns-credential --------------------------------------
+  {
+    // QGD-PSN-0001: a credential belongs to a persona and a service, never to
+    // the application. Two personas, one service, two different secrets —
+    // and removing one leaves the other, which is the half that would be
+    // missed by a store keyed on the service alone.
+    const second = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
+    from.saveCredentials(alsoHere, 'qrz', { username: 'W1AW/P', password: second });
+    check(from.requireCredential(persona, 'qrz').password === password, 'The first persona keeps its own');
+    check(from.requireCredential(alsoHere, 'qrz').password === second, 'The second persona has its own');
+    from.deleteCredentials(alsoHere, 'qrz');
+    check(!from.credentialStatus(alsoHere, 'qrz').stored, 'The second persona\u2019s credential is gone');
+    check(from.requireCredential(persona, 'qrz').password === password,
+      'And removing it left the first persona\u2019s alone');
+    notes.push('two personas hold separate secrets for one service, and removing one leaves the other');
+  }
 
   // ---- P6-export-encrypted --------------------------------------------
   const file = from.exportProfile(passphrase);
@@ -168,6 +188,53 @@ try {
     const message = refusal(() => to.inspectImport(edited, passphrase), 'A file with an edited header');
     check(/may be the wrong passphrase/.test(message), 'An edited header fails the same tag');
     notes.push('lowering the iteration count in the header fails the same tag the ciphertext does');
+  }
+
+  // ---- P6-export-goes-nowhere ------------------------------------------
+  {
+    // QGD-PSN-0011. The credential core can reach the network — it tests
+    // credentials — so "an export sends nothing" is a claim about this path,
+    // and it is read off the process rather than argued.
+    //
+    // The reading is taken by another process. The core's export is a
+    // synchronous call into Rust: it blocks this thread, so a timer here
+    // cannot fire until it has returned, and a socket opened and closed
+    // inside the call would never be seen. That is the socket worth catching.
+    const sampler = spawn(process.execPath,
+      [resolve('scripts/socket-sampler.mjs'), String(process.pid), '1500'],
+      { stdio: ['ignore', 'pipe', 'ignore'] });
+    let output = '';
+    sampler.stdout.on('data', chunk => { output += chunk; });
+
+    // The positive control: a socket opened on purpose, while the sampler is
+    // watching, has to appear in what it saw. Without it, an empty list means
+    // nothing — it could be a sampler that is not looking at this process.
+    const { createServer } = await import('node:net');
+    const listener = createServer();
+    await new Promise(done => listener.listen(0, '127.0.0.1', done));
+    const port = listener.address().port;
+    await new Promise(done => setTimeout(done, 300));
+    await new Promise(done => listener.close(done));
+
+    // Then the thing being measured, inside the sampler's window.
+    const during = from.exportProfile(passphrase);
+    const opened = to.inspectImport(during, passphrase);
+    check(during.length > 100 && opened.personas === 2, 'The sampled export and open worked');
+
+    await new Promise(done => sampler.once('exit', done));
+    const watched = JSON.parse(output || '{}');
+    check(Number(watched.readings) > 10, 'The sampler read this process many times');
+    check(watched.sockets.some(socket => String(socket).endsWith(`:${port}`)),
+      'The sampler saw a socket this script opened on purpose');
+    const external = watched.sockets
+      .map(socket => {
+        const [local, remote] = String(socket).split('->');
+        return classify({ local, remote: remote ?? '' });
+      })
+      .filter(endpoint => endpoint.external);
+    check(external.length === 0, 'Nothing external was opened while exporting and importing');
+    notes.push(`${watched.readings} readings by another process across an export and an import: ` +
+      `${watched.sockets.length} socket(s), none external, and the control socket among them`);
   }
 
   // ---- nothing of the profile is written anywhere but the file ---------
