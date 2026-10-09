@@ -13,7 +13,7 @@ or releases.
 
 ## Contact
 
-- **Security reports:** see [SECURITY.md](SECURITY.md): directly to the project lead while the repository is private, then GitHub private vulnerability reporting once it's public.
+- **Private contact** (conduct reports, and security reports while the repository is private):
+  **maintainers@qso-graph.io**. It reaches the maintainers only.
+- **Security reports:** see [SECURITY.md](SECURITY.md).
 - **Bugs and features:** GitHub issues.
-- **Private contact for conduct reports:** to be published here before the repository is made
-  public. Until then, the repository is private and contributors reach the project lead directly.
