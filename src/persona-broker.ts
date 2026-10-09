@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { ipcMain, utilityProcess, type UtilityProcess } from 'electron';
-import { join } from 'node:path';
+import { BrowserWindow, dialog, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
+import { readFile, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { homedir } from 'node:os';
-import { allowsSender, isReply, validateCommand, type PersonaReply } from './persona-contract.js';
+import {
+  allowsSender, isReply, validateCommand,
+  type PersonaCommand, type PersonaReply, type SealedExport, type ServiceCommand
+} from './persona-contract.js';
 import { readServices, serviceIds } from './services.js';
 import { createLogger, writeForwarded } from './logger.js';
 
@@ -21,6 +25,9 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
   // empty, which refuses every command naming a service while leaving the
   // persona commands — list, upsert, set-active — working: an unreadable
   // register is not a reason to lose the personas too.
+  // The file the operator chose to look at, between looking and importing.
+  // The path, never the contents, and never more than one.
+  let inspected: string | undefined;
   let services: ReadonlySet<string> = new Set();
   void readServices(registerFile)
     .then(register => { services = serviceIds(register); })
@@ -58,19 +65,99 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
     });
   }
   start();
-  ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
-    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command, services)) {
-      log.warn({ accepted: false }, 'persona request refused');
-      return { ok: false, error: 'Invalid persona request.' };
-    }
-    if (!ready || !worker) return { ok: false, error: 'The persona service is starting. Try again.' };
-    if (pending.size >= 16) return { ok: false, error: 'A persona operation is still running. Try again shortly.' };
+
+  // One command to the service, awaited.
+  function ask(command: ServiceCommand): Promise<PersonaReply> {
+    if (!ready || !worker) return Promise.resolve({ ok: false, error: 'The persona service is starting. Try again.' });
+    if (pending.size >= 16) return Promise.resolve({ ok: false, error: 'A persona operation is still running. Try again shortly.' });
     const id = ++nextId;
     return new Promise(resolve => {
       const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: 'Keychain did not respond. Check for a macOS permission dialog, then try again.' }); }, 30_000);
       pending.set(id, { resolve, timer });
       worker!.postMessage({ id, command });
     });
+  }
+
+  // The two commands the main process has to finish itself, because they
+  // touch the file system and a renderer must not (QGD-PSN-0011). The
+  // operator chooses the place; the bytes never reach a screen.
+  async function moveProfile(
+    window: BrowserWindow | null,
+    command: Extract<PersonaCommand, { type: 'export-profile' | 'import-profile' }>
+  ): Promise<PersonaReply> {
+    if (command.type === 'export-profile') {
+      const chosen = window
+        ? await dialog.showSaveDialog(window, {
+            title: 'Export personas',
+            defaultPath: 'qso-graph-personas.qgp',
+            filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
+          })
+        : await dialog.showSaveDialog({ defaultPath: 'qso-graph-personas.qgp' });
+      if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Export cancelled.' };
+
+      // Sealed first, written second: a cancelled or failed seal must not
+      // leave a file behind, and a passphrase the core refuses is refused
+      // before anything is created.
+      const sealed = await ask(command);
+      if (!sealed.ok) return sealed;
+      const bytes = (sealed.data as SealedExport | null)?.bytes;
+      if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+        return { ok: false, error: 'The export could not be written.' };
+      }
+      try {
+        await writeFile(chosen.filePath, bytes);
+      } catch {
+        return { ok: false, error: 'That file could not be written. Choose another place.' };
+      }
+      log.info({ bytes: bytes.length }, 'profile exported');
+      return { ok: true, data: { written: basename(chosen.filePath), bytes: bytes.length } };
+    }
+
+    // Looking and importing are two commands, and the operator chose the file
+    // for the first of them. Asking again for the second would be asking the
+    // same question twice, so the path is kept — the path only, never the
+    // bytes — and the file is read again when the import is confirmed. A file
+    // that changed in between fails its tag at that point, like any other
+    // altered file.
+    let path: string | undefined = command.apply ? inspected : undefined;
+    if (!path) {
+      const chosen = window
+        ? await dialog.showOpenDialog(window, {
+            title: 'Import personas',
+            properties: ['openFile'],
+            filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
+          })
+        : await dialog.showOpenDialog({ properties: ['openFile'] });
+      if (chosen.canceled || chosen.filePaths.length !== 1) return { ok: false, error: 'Import cancelled.' };
+      path = chosen.filePaths[0];
+    }
+    let file: Buffer;
+    try {
+      file = await readFile(path);
+    } catch {
+      inspected = undefined;
+      return { ok: false, error: 'That file could not be read.' };
+    }
+    if (file.length === 0 || file.length > 4_194_304) {
+      inspected = undefined;
+      return { ok: false, error: 'That file is not an export this product wrote.' };
+    }
+    const answer = await ask({ type: 'import-profile', passphrase: command.passphrase, apply: command.apply, file });
+    // Remembered only while there is something to confirm: a look that
+    // succeeded. Forgotten the moment it is used, refused, or cancelled.
+    inspected = !command.apply && answer.ok ? path : undefined;
+    return answer;
+  }
+
+  ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
+    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command, services)) {
+      log.warn({ accepted: false }, 'persona request refused');
+      return { ok: false, error: 'Invalid persona request.' };
+    }
+    if (command.type === 'export-profile' || command.type === 'import-profile') {
+      return moveProfile(BrowserWindow.fromWebContents(event.sender), command);
+    }
+    return ask(command);
   });
   return () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); };
 }

@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateCommand, type PersonaCommand, type PersonaReply } from './persona-contract.js';
+import { validateServiceCommand, type ServiceCommand, type PersonaReply } from './persona-contract.js';
 import { serviceIds, validateRegister } from './services.js';
 import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from './native.js';
 import type { CredentialStatus, CredentialTest } from './persona-contract.js';
@@ -88,7 +88,7 @@ function toTest(native: NativeCredentialTest): CredentialTest {
   if (!outcome) throw new Error('The persona operation could not be completed.');
   return { outcome };
 }
-function execute(command: PersonaCommand): PersonaReply {
+function execute(command: ServiceCommand): PersonaReply {
   try {
     switch (command.type) {
       case 'list': return { ok: true, data: snapshot() };
@@ -101,6 +101,17 @@ function execute(command: PersonaCommand): PersonaReply {
       case 'delete-credentials': core.deleteCredentials(command.persona, command.provider); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
       case 'remove-secret': core.removeSecret(command.persona, command.provider, command.field); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
       case 'set-preference': core.setPreference(command.persona, command.provider, command.preferred); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
+      // The sealed bytes, handed to the broker to put where the operator
+      // chose. Nothing of the bundle is in this reply but its ciphertext.
+      case 'export-profile': return { ok: true, data: { bytes: core.exportProfile(command.passphrase) } };
+      case 'import-profile': {
+        const file = Buffer.from(command.file);
+        if (!command.apply) {
+          const preview = core.inspectImport(file, command.passphrase);
+          return { ok: true, data: preview };
+        }
+        return { ok: true, data: core.applyImport(file, command.passphrase) };
+      }
     }
   } catch (error) {
     // Native methods emit static, credential-free messages. Unexpected errors
@@ -115,7 +126,22 @@ function execute(command: PersonaCommand): PersonaReply {
       'Stored credential has an unsupported format. It has not been changed.',
       'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
       'Persona was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
-      'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.'
+      'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
+      // Moving a profile between machines. Each is a fixed sentence from the
+      // core, carrying no value (QGD-PSN-0010's is the one that must reach the
+      // operator intact, because it is the one that says what it cannot tell).
+      'Choose a passphrase. An export is encrypted or it is not written.',
+      'This file could not be opened with that passphrase. It may be the wrong passphrase, or the file may have been altered.',
+      'This is not a QSO Graph Desktop export.',
+      "This file's header is not the shape an export has.",
+      'This export was written by a different version of QSO Graph Desktop.',
+      'This export uses an algorithm this version does not have.',
+      'This export opened, and what is inside it is not a persona export.',
+      'This file is larger than any export this product writes.',
+      'This export holds a credential with no service.',
+      'This export could not be read.',
+      'The export could not be written.',
+      "This machine's random number generator is unavailable."
     ];
     const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The persona operation could not be completed.';
     log.warn({ command: command.type, reason: message }, 'persona operation failed');
@@ -129,7 +155,7 @@ process.parentPort.on('message', (event: { data?: unknown }) => {
   const data: unknown = event.data;
   const envelope = data !== null && typeof data === 'object' ? data as { id?: unknown; command?: unknown } : {};
   const { id, command } = envelope;
-  if (!Number.isSafeInteger(id) || !validateCommand(command, services)) {
+  if (!Number.isSafeInteger(id) || !validateServiceCommand(command, services)) {
     process.parentPort.postMessage({ id: typeof id === 'number' ? id : null, reply: { ok: false, error: 'Invalid persona request.' } });
     return;
   }

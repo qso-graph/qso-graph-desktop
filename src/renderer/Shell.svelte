@@ -18,6 +18,7 @@
   import { PAGES, isPageId, type ShellState, type ShellStore } from './shell-store.js';
   import type { ThemeChoice } from '../settings-contract.js';
   import type { Level } from '../logging.js';
+  import type { ExportResult, ImportPreview, ImportResult } from '../persona-contract.js';
 
   interface Props {
     store: ShellStore;
@@ -26,10 +27,14 @@
     onExport: () => Promise<string>;
     onStartEngine: () => Promise<void>;
     onStopEngine: () => Promise<void>;
+    onExportProfile: (passphrase: string) => Promise<ExportResult | string>;
+    onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
+    onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
     version: string;
   }
   const {
-    store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine, version
+    store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine,
+    onExportProfile, onInspectImport, onApplyImport, version
   }: Props = $props();
 
   // untrack, because reading a prop to seed state is not a reactive read and
@@ -93,7 +98,8 @@
     </div>
     <div class="page" hidden={state.page !== 'settings'}>
       <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport}
-                    engine={state.engine} {onStartEngine} {onStopEngine} />
+                    engine={state.engine} {onStartEngine} {onStopEngine}
+                    {onExportProfile} {onInspectImport} {onApplyImport} />
     </div>
   </main>
 </div>

@@ -9,6 +9,16 @@ export interface Persona {
 export interface Snapshot { personas: Persona[]; active: string | null }
 export interface CredentialStatus { testable: boolean; stored: boolean; kindsKnown: boolean; hasUsername: boolean; hasPassword: boolean; hasApiKey: boolean; preferred: 'service' | 'password' | 'api_key'; effective?: 'password' | 'api_key' | null }
 export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-error' | 'rate-limited' | 'invalid-response' | 'missing' | 'unsupported' }
+// The sealed file on its way from the core to the broker. It never reaches a
+// renderer: the broker writes it where the operator chose and replies with
+// ExportResult instead.
+export interface SealedExport { bytes: Uint8Array }
+// What an export did, for the operator to read. The path is shown because the
+// operator chose it; nothing else about the file is.
+export interface ExportResult { written: string; bytes: number }
+// What an import would do, or did. Counts and names, never a value.
+export interface ImportPreview { created: string; personas: number; credentials: number; arriving: string[]; overwritten: string[] }
+export interface ImportResult { personas: number; credentials: number }
 export type PersonaCommand =
   | { type: 'list' }
   | { type: 'upsert'; name: string; callsign: string; start?: string; end?: string }
@@ -19,8 +29,17 @@ export type PersonaCommand =
   | { type: 'delete-credentials'; persona: string; provider: string }
   | { type: 'remove-secret'; persona: string; provider: string; field: 'password' | 'api_key' }
   | { type: 'set-preference'; persona: string; provider: string; preferred: 'service' | 'password' | 'api_key' }
-  | { type: 'save-credentials'; persona: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } };
-export type PersonaReply = { ok: true; data: Snapshot | CredentialStatus | CredentialTest | null } | { ok: false; error: string };
+  | { type: 'save-credentials'; persona: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } }
+  // Moving a profile between machines (QGD-PSN-0007 to QGD-PSN-0011). The
+  // passphrase travels the same path a credential already does — collected by
+  // the renderer, held by nothing, forwarded to the core. The file itself does
+  // not: the main process shows the dialog and reads or writes the bytes, so
+  // the renderer never touches an export.
+  | { type: 'export-profile'; passphrase: string }
+  | { type: 'import-profile'; passphrase: string; apply: boolean };
+export type PersonaReply =
+  | { ok: true; data: Snapshot | CredentialStatus | CredentialTest | SealedExport | ExportResult | ImportPreview | ImportResult | null }
+  | { ok: false; error: string };
 
 // The only page allowed to reach the broker, and the only frame of it.
 export const RENDERER_URL = 'qg://desktop/index.html';
@@ -41,6 +60,12 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean { retu
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f]/;
 function text(value: unknown, maximum = 128): value is string { return typeof value === 'string' && value.length > 0 && value.length <= maximum && !CONTROL.test(value); }
+// A passphrase is a secret the operator types. Bounded like the other
+// secrets, and never defaulted: an empty one is refused here as well as in the
+// core, because an export with no passphrase is not written (QGD-PSN-0007).
+function passphrase(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 4096;
+}
 function date(value: unknown): boolean { return value === undefined || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)); }
 
 export function validateCommand(value: unknown, providers: Services): value is PersonaCommand {
@@ -55,6 +80,13 @@ export function validateCommand(value: unknown, providers: Services): value is P
     case 'delete-credentials': return keys(value, ['type', 'persona', 'provider']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider);
     case 'remove-secret': return keys(value, ['type', 'persona', 'provider', 'field']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider) && ['password', 'api_key'].includes(value.field as string);
     case 'set-preference': return keys(value, ['type', 'persona', 'provider', 'preferred']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider) && ['service', 'password', 'api_key'].includes(value.preferred as string);
+    // A passphrase is a secret the operator types, so it is bounded the way
+    // the other secrets are and nothing else travels with it.
+    case 'export-profile':
+      return keys(value, ['type', 'passphrase']) && passphrase(value.passphrase);
+    case 'import-profile':
+      return keys(value, ['type', 'passphrase', 'apply'])
+        && passphrase(value.passphrase) && typeof value.apply === 'boolean';
     case 'save-credentials': {
       if (!keys(value, ['type', 'persona', 'provider', 'credentials']) || !text(value.persona) || typeof value.provider !== 'string' || !providers.has(value.provider) || !record(value.credentials) || !keys(value.credentials, ['username', 'password', 'apiKey'])) return false;
       return Object.values(value.credentials).every(item => item === undefined || (typeof item === 'string' && item.length <= 4096));
@@ -70,4 +102,29 @@ export function isReply(value: unknown): value is PersonaReply {
   if (!record(value)) return false;
   if (value.ok === true) return 'data' in value;
   return value.ok === false && typeof value.error === 'string';
+}
+
+// What the broker sends the service, which is what the renderer sent plus the
+// one thing the renderer must not have: the bytes of a file.
+//
+// An import's file is chosen and read by the main process, because a renderer
+// that could hand over a file could hand over any file, and because an export
+// is a thing on disk rather than a thing on a screen (QGD-PSN-0011). So the
+// two commands differ by exactly that field, and both ends validate the shape
+// they actually receive rather than trusting the one before them
+// (QGD-SEC-0006).
+export type ServiceCommand =
+  | Exclude<PersonaCommand, { type: 'import-profile' }>
+  | { type: 'import-profile'; passphrase: string; apply: boolean; file: Uint8Array };
+
+export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
+  if (!record(value)) return false;
+  if (value.type === 'import-profile') {
+    return keys(value, ['type', 'passphrase', 'apply', 'file'])
+      && passphrase(value.passphrase)
+      && typeof value.apply === 'boolean'
+      // Bounded before it reaches the core, which bounds it again.
+      && value.file instanceof Uint8Array && value.file.length > 0 && value.file.length <= 4_194_304;
+  }
+  return validateCommand(value, providers);
 }

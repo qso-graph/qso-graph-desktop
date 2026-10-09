@@ -8,11 +8,13 @@
   import PageLayout from '../ui/PageLayout.svelte';
   import ThemeChoice from '../ui/ThemeChoice.svelte';
   import LogsPage from './LogsPage.svelte';
+  import MoveProfilePage from './MoveProfilePage.svelte';
   import EnginePage from './EnginePage.svelte';
   import type { ThemeChoice as Choice } from '../../settings-contract.js';
   import type { LogsStatus } from '../../logs-contract.js';
   import type { Level } from '../../logging.js';
   import type { EngineStatus } from '../../engine-contract.js';
+  import type { ExportResult, ImportPreview, ImportResult } from '../../persona-contract.js';
 
   interface Props {
     themeChoice: Choice;
@@ -23,10 +25,14 @@
     engine: EngineStatus | undefined;
     onStartEngine: () => Promise<void>;
     onStopEngine: () => Promise<void>;
+    onExportProfile: (passphrase: string) => Promise<ExportResult | string>;
+    onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
+    onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
   }
   const {
     themeChoice, onChooseTheme, logs, onSetLevel, onExport,
-    engine, onStartEngine, onStopEngine
+    engine, onStartEngine, onStopEngine,
+    onExportProfile, onInspectImport, onApplyImport
   }: Props = $props();
 </script>
 
@@ -36,5 +42,6 @@
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
   </section>
   <EnginePage status={engine} onStart={onStartEngine} onStop={onStopEngine} />
+  <MoveProfilePage onExport={onExportProfile} onInspect={onInspectImport} onImport={onApplyImport} />
   <LogsPage status={logs} {onSetLevel} {onExport} />
 </PageLayout>

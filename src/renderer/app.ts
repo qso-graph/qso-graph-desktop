@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import type { Persona, Snapshot, CredentialStatus, CredentialTest, PersonaCommand, PersonaReply } from '../persona-contract.js';
+import type {
+  Persona, Snapshot, CredentialStatus, CredentialTest, ExportResult, ImportPreview, ImportResult,
+  PersonaCommand, PersonaReply
+} from '../persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../settings-contract.js';
 import type { LogsCommand, LogsReply } from '../logs-contract.js';
 import type { EngineCommand, EngineReply } from '../engine-contract.js';
@@ -29,6 +32,7 @@ mount(Shell, {
   props: {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onStartEngine: startEngine, onStopEngine: stopEngine,
+    onExportProfile: exportProfile, onInspectImport: inspectImport, onApplyImport: applyImport,
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
     version: __QG_VERSION__
@@ -329,6 +333,41 @@ export async function exportDiagnostics(): Promise<string> {
   const size = megabytes >= 0.1 ? `${megabytes.toFixed(1)} MB` : `${Math.max(1, Math.round(reply.bytes / 1024))} KB`;
   const files = reply.files === 1 ? '1 log file' : `${reply.files} log files`;
   return `Saved ${files} (${size}). Passwords and keys were removed.`;
+}
+
+// Moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011).
+//
+// The renderer collects the passphrase and nothing else: the file is chosen,
+// read and written by the main process. A refusal is returned as its sentence
+// rather than thrown, because every one of them is something the operator can
+// act on — most of all the one that says a file could not be opened and that
+// it cannot tell whether the passphrase or the file is at fault.
+export async function exportProfile(passphrase: string): Promise<ExportResult | string> {
+  const reply = await window.personas.request({ type: 'export-profile', passphrase });
+  if (!reply.ok) return reply.error;
+  const data = reply.data as ExportResult | null;
+  return data && typeof data.written === 'string' ? data : 'The export could not be written.';
+}
+
+export async function inspectImport(passphrase: string): Promise<ImportPreview | string> {
+  const reply = await window.personas.request({ type: 'import-profile', passphrase, apply: false });
+  if (!reply.ok) return reply.error;
+  const data = reply.data as ImportPreview | null;
+  return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
+}
+
+export async function applyImport(passphrase: string): Promise<ImportResult | string> {
+  const reply = await window.personas.request({ type: 'import-profile', passphrase, apply: true });
+  if (!reply.ok) return reply.error;
+  const data = reply.data as ImportResult | null;
+  if (!data || typeof data.personas !== 'number') return 'The import did not finish.';
+  // The personas on screen are now out of date, because some of them arrived
+  // a moment ago. Reloaded rather than left for the operator to discover.
+  try {
+    snapshot = await request({ type: 'list' }) as Snapshot;
+    select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+  } catch { /* the import worked; the list will catch up at the next action */ }
+  return data;
 }
 
 // QGD-LOG-0010: a raise expires on its own, after an hour and at restart. The
