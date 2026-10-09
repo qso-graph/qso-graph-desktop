@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
 import { blockedBy, CREDENTIAL_SUITES } from '../scripts/suite-gate.mjs';
+import { suiteNames } from '../scripts/suites.mjs';
 
-const ORDER = ['spec-rvm', 'icons', 'engine-binaries', 'adif-reference', 'build', 'unit', 'rust-unit', 'security-lint', 'crypto-evidence', 'keychain-roundtrip', 'credential-editing', 'electron-smoke', 'process-recovery', 'engine-lifecycle', 'engine-migrations', 'engine-backup', 'connection-capture', 'axe', 'screenshots', 'storybook', 'story-themes', 'package', 'packaged-launch', 'electron-audit'];
+// The real order, taken from the runner rather than copied beside it. This
+// was a copy, and it had drifted by four suites — so the test walked an order
+// that was not the one make verify runs (QGD-SEC-0021: a scope is derived).
+const ORDER = suiteNames();
 // Walk the real suite order, failing the named suite, and record what ran.
 function run(failing) {
   const suites = [];
@@ -73,5 +77,19 @@ describe('QGD-ENG-0004 the engine suites need the pinned build', () => {
     expect(blockedBy('engine-lifecycle', [{ name: 'engine-binaries', result: 'PASS' }])).toBeUndefined();
     // The check itself still runs: it is the one that says "run make setup".
     expect(blockedBy('engine-binaries', [{ name: 'engine-binaries', result: 'FAIL' }])).toBeUndefined();
+  });
+});
+
+describe('QGD-SEC-0021 the order this walks is the order that runs', () => {
+  it('is the runner\u2019s own list, not a copy of it', () => {
+    // The control for the fix above. If this file ever goes back to holding
+    // its own list, these three stop being true of it: every suite make
+    // verify runs is here, in that order, including ones added since.
+    expect(ORDER.length).toBeGreaterThan(24);
+    expect(ORDER[0], 'the first suite is the spec check').toBe('spec-rvm');
+    expect(ORDER.at(-1), 'the last is the audit of what was packaged').toBe('electron-audit');
+    for (const name of CREDENTIAL_SUITES) {
+      expect(ORDER, `${name} must be a suite that actually runs`).toContain(name);
+    }
   });
 });

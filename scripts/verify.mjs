@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { markdown, redact } from './report.mjs';
 import { blockedBy } from './suite-gate.mjs';
 import { artifactScan, sentinelsIn } from './artifact-scan.mjs';
+import { suiteCommands } from './suites.mjs';
 
 await mkdir('report', { recursive: true });
 let previous;
@@ -14,35 +15,7 @@ try { signedOff = JSON.parse(await readFile('data/part-signoff.json', 'utf8')).s
 catch { signedOff = []; }
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run verification with make verify or npm run verify.');
-const commands = [
-  ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],
-  ['icons', ['scripts/gen-icons.mjs', '--check']],
-  ['engine-binaries', ['scripts/engine-binaries.mjs']],
-  ['adif-reference', ['scripts/adif-reference.mjs']],
-  ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/engine-binaries.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/services.test.ts']],
-  ['rust-unit', ['scripts/rust-unit.mjs']],
-  ['security-lint', ['scripts/lint.mjs']],
-  ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
-  ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],
-  ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
-  ['electron-smoke', ['scripts/smoke.mjs']],
-  ['process-recovery', ['scripts/process-recovery.mjs']],
-  ['engine-lifecycle', ['scripts/engine-lifecycle.mjs']],
-  ['engine-migrations', ['scripts/engine-migrations.mjs']],
-  ['engine-backup', ['scripts/engine-backup.mjs']],
-  ['reference-load', ['scripts/reference-load.mjs']],
-  ['adif-validation', ['scripts/adif-validation.mjs']],
-  ['pota-load', ['scripts/pota-load.mjs']],
-  ['connection-capture', ['scripts/connection-capture.mjs']],
-  ['axe', ['scripts/axe.mjs']],
-  ['screenshots', ['scripts/screenshots.mjs']],
-  ['storybook', ['scripts/storybook.mjs']],
-  ['story-themes', ['scripts/story-themes.mjs']],
-  ['package', [npmCli, 'run', 'package']],
-  ['packaged-launch', ['scripts/packaged-smoke.mjs']],
-  ['electron-audit', ['scripts/electron-audit.mjs']]
-];
+const commands = suiteCommands(npmCli);
 const suites = [];
 for (const [name, args] of commands) {
   // QGD-TST-0007: stop only the suites whose result depends on what failed.

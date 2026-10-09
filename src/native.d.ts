@@ -44,6 +44,22 @@ export interface NativeCredentialTest {
   outcome: string;
 }
 
+// What an import would do, counted and named. No secret: QGD-CRD-0006 holds
+// here as everywhere, and an operator deciding whether to import needs the
+// names and the numbers, not the values.
+export interface NativeImportPreview {
+  created: string;
+  personas: number;
+  credentials: number;
+  arriving: string[];
+  overwritten: string[];
+}
+
+export interface NativeImportSummary {
+  personas: number;
+  credentials: number;
+}
+
 export declare class PersonaCore {
   constructor(directory: string);
   list(): NativePersona[];
@@ -57,6 +73,12 @@ export declare class PersonaCore {
   setPreference(persona: string, provider: string, preference: string): void;
   removePersona(name: string): void;
   testCredential(persona: string, provider: string): NativeCredentialTest;
+  // Moving a profile between machines (QGD-PSN-0007 to QGD-PSN-0011). What
+  // crosses this boundary is ciphertext: the bundle is built, sealed and
+  // dropped inside the core.
+  exportProfile(passphrase: string): Buffer;
+  inspectImport(file: Buffer, passphrase: string): NativeImportPreview;
+  applyImport(file: Buffer, passphrase: string): NativeImportSummary;
   // Trusted-core only. The broker never exposes this to a renderer.
   requireCredential(persona: string, provider: string, prefer?: string): NativeCredentialInput;
 }

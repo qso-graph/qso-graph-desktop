@@ -9,6 +9,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const SERVICE: &str = "adif-mcp";
 mod corelog;
+mod portable;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
@@ -300,6 +301,91 @@ impl Store {
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)
     }
+
+    // ---- moving a profile between machines (QGD-PSN-0007 to QGD-PSN-0011) --
+
+    // Everything an export carries, read in one go.
+    //
+    // This is the one place that reads every secret the operator has, so it is
+    // the one place where QGD-CRD-0009's "only on an explicit action that
+    // needs it" is doing the most work: an export is such an action, and
+    // nothing else calls this.
+    fn gather(&self) -> CoreResult<portable::Bundle> {
+        let index = self.load()?;
+        let preferences = self.preferences()?.personas;
+        let mut credentials = BTreeMap::new();
+        for (name, persona) in &index.personas {
+            for provider in persona.providers.keys() {
+                // A provider in the index with nothing in the Keychain is
+                // carried as absent rather than as empty: an export says what
+                // there is, and inventing an empty credential for it would
+                // make the import create one.
+                if let Some(creds) = self.read_credentials(name, provider)? {
+                    credentials.insert(subject(name, provider)?, creds);
+                }
+            }
+        }
+        Ok(portable::Bundle {
+            personas: index.personas.into_values().collect(),
+            credentials,
+            preferences,
+        })
+    }
+
+    // What an import would change, without changing it (QGD-PSN-0009). A
+    // persona already here is named, so the operator is told before rather
+    // than after.
+    fn preview(&self, bundle: &portable::Bundle) -> CoreResult<(Vec<String>, Vec<String>)> {
+        let existing = self.load()?;
+        let mut arriving = Vec::new();
+        let mut overwritten = Vec::new();
+        for persona in &bundle.personas {
+            let name = identifier(&persona.name)?;
+            if existing.personas.contains_key(&name) { overwritten.push(persona.name.clone()); }
+            else { arriving.push(persona.name.clone()); }
+        }
+        Ok((arriving, overwritten))
+    }
+
+    // All of it or none of it. The index is written once, at the end, so a
+    // failure part way through leaves the personas as they were — and the
+    // Keychain entries that were written before it are entries for personas
+    // the index does not have, which the next save overwrites. There is no
+    // ordering that makes a Keychain and a file atomic together; what this
+    // guarantees is that the index never half-changes.
+    fn absorb(&self, bundle: &portable::Bundle) -> CoreResult<(usize, usize)> {
+        let mut index = self.load()?;
+        for persona in &bundle.personas {
+            let name = identifier(&persona.name)?;
+            index.personas.insert(name, persona.clone());
+        }
+        let mut written = 0usize;
+        for (subject, creds) in &bundle.credentials {
+            let (persona, provider) = subject.split_once(':').ok_or("This export holds a credential with no service.")?;
+            let raw = Zeroizing::new(serde_json::to_string(creds).map_err(|_| "This export could not be read.")?);
+            keyring::Entry::new(SERVICE, subject).map_err(|_| "Keychain is unavailable.")?
+                .set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
+            // The index records which kinds arrived, so status answers without
+            // reading them back (QGD-CRD-0010).
+            if let Some(persona_entry) = index.personas.get_mut(&identifier(persona)?) {
+                let reference = persona_entry.providers.entry(identifier(provider)?).or_insert_with(ProviderRef::default);
+                reference.username = creds.username.clone().unwrap_or_default();
+                reference.has_password = creds.password.is_some();
+                reference.has_api_key = creds.api_key.is_some();
+                reference.saved_at = Some(now_utc());
+            }
+            written += 1;
+        }
+        self.save(&index)?;
+
+        let mut prefs = self.preferences()?;
+        for (persona, services) in &bundle.preferences {
+            prefs.personas.entry(persona.clone()).or_default().extend(services.clone());
+        }
+        let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
+        atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
+        Ok((bundle.personas.len(), written))
+    }
     fn delete_credentials(&self, persona: &str, provider: &str) -> CoreResult<bool> {
         self.lookup(persona)?;
         #[cfg(target_os = "macos")]
@@ -457,6 +543,7 @@ fn selected_secret<'a>(provider: &str, creds: &'a Credentials, prefer: Option<&s
 mod addon {
     use super::*;
     use napi::{Error, Result};
+    use napi::bindgen_prelude::Buffer;
     use napi_derive::napi;
     fn error(reason: &'static str) -> Error { Error::from_reason(reason) }
 
@@ -484,6 +571,24 @@ mod addon {
 
     #[napi(object)]
     pub struct CredentialTest { pub outcome: String }
+
+    /// What is in an export and what importing it would change. No secret: it
+    /// counts them and names the personas, which is what an operator needs to
+    /// decide (QGD-CRD-0006).
+    #[napi(object)]
+    pub struct ImportPreview {
+        pub created: String,
+        pub personas: u32,
+        pub credentials: u32,
+        pub arriving: Vec<String>,
+        pub overwritten: Vec<String>,
+    }
+
+    #[napi(object)]
+    pub struct ImportSummary {
+        pub personas: u32,
+        pub credentials: u32,
+    }
 
     #[napi]
     impl PersonaCore {
@@ -557,6 +662,48 @@ mod addon {
         #[napi]
         pub fn remove_persona(&self, name: String) -> Result<()> {
             self.store.remove_persona(&name).map_err(error)
+        }
+
+        // ---- moving a profile between machines --------------------------
+        //
+        // What crosses this boundary is ciphertext. The bundle is built,
+        // sealed and dropped inside the core, so the plaintext never reaches a
+        // JavaScript heap that nothing can zeroize (QGD-PSN-0007).
+        #[napi]
+        pub fn export_profile(&self, passphrase: String) -> Result<Buffer> {
+            let bundle = self.store.gather().map_err(error)?;
+            let sealed = crate::portable::seal(&bundle, &passphrase, now_utc()).map_err(error)?;
+            tracing::info!(personas = bundle.personas.len(), "profile exported");
+            Ok(sealed.into())
+        }
+
+        /// What an import would do, without doing it (QGD-PSN-0009). It opens
+        /// the file, so it needs the passphrase; it keeps nothing afterwards.
+        #[napi]
+        pub fn inspect_import(&self, file: Buffer, passphrase: String) -> Result<ImportPreview> {
+            let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
+            let (arriving, overwritten) = self.store.preview(&opened.bundle).map_err(error)?;
+            Ok(ImportPreview {
+                created: opened.header.created,
+                personas: opened.bundle.personas.len() as u32,
+                credentials: opened.bundle.credentials.len() as u32,
+                arriving,
+                overwritten,
+            })
+        }
+
+        #[napi]
+        pub fn apply_import(&self, file: Buffer, passphrase: String) -> Result<ImportSummary> {
+            let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
+            let (personas, entries) = self.store.absorb(&opened.bundle).map_err(error)?;
+            // `entries`, not `credentials`, in the name and in the value:
+            // QGD-LOG-0004's gate refuses a tracing call that names a secret
+            // anywhere in it, including the expression it logs, and it is
+            // right to — the number is a count of Keychain entries written,
+            // and naming a log field after the thing it counts is how one
+            // that does hold a secret slips past later. The gate caught this.
+            tracing::info!(personas, entries, "profile imported");
+            Ok(ImportSummary { personas: personas as u32, credentials: entries as u32 })
         }
         // Available to the trusted native owner for future grant enforcement and
         // interop proof. The app's broker never exposes this method to renderers.
