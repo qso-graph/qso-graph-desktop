@@ -8,6 +8,7 @@
 import type { ThemeChoice } from '../settings-contract.js';
 import type { LogsStatus } from '../logs-contract.js';
 import type { EngineStatus } from '../engine-contract.js';
+import type { ServiceSummary } from '../service-contract.js';
 
 // The rail's items. Each carries the Font Awesome icon key it draws, the
 // short label shown under it, a longer description for the tooltip, and where
@@ -57,6 +58,22 @@ export interface ShellState {
   // Undefined until the engine has been asked. It is started in the background
   // and the shell never waits for it (QGD-ENG-0003).
   engine: EngineStatus | undefined;
+  // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
+  // never imposed: the Personas page a machine with no personas shows is the
+  // one P1 built and P3 was signed off with, and guided setup is a thing to
+  // accept from it. Replacing that page was the first version of this, and
+  // five suites caught it — rightly, because "the P1 persona workflow
+  // unchanged inside the shell" is part of what KI7MT signed off.
+  setup: boolean;
+  // Whether this machine has no personas yet, which is when the offer is
+  // worth making. Read from the personas, not assumed at start.
+  firstRun: boolean;
+  // The services setup walks (QGD-PSN-0002), read from the register once the
+  // persona service answers. Here rather than handed to the shell at mount,
+  // because it arrives afterwards: an array passed as a prop and filled in
+  // later is a prop that was empty when it mattered, which is what the first
+  // version of this did — setup had a callsign step and no services at all.
+  services: ServiceSummary[];
 }
 
 export const INITIAL_SHELL: ShellState = {
@@ -66,12 +83,22 @@ export const INITIAL_SHELL: ShellState = {
   activePersona: '',
   themeChoice: 'system',
   logs: undefined,
-  engine: undefined
+  engine: undefined,
+  // Both decided once the personas have been read, not before: a shell that
+  // opened on an offer and then withdrew it would flash it at somebody who
+  // already has personas.
+  setup: false,
+  firstRun: false,
+  services: []
 };
 
 export interface ShellStore {
   get(): ShellState;
   set(change: Partial<ShellState>): void;
+  // Entering and leaving guided setup, which the screens ask for rather than
+  // reaching into the store for.
+  beginSetup(): void;
+  endSetup(): void;
   // Calls the listener immediately with the current state, so a subscriber
   // never renders a frame of defaults it has to correct.
   subscribe(listener: (state: ShellState) => void): () => void;
@@ -82,6 +109,8 @@ export function createShellStore(initial: ShellState = INITIAL_SHELL): ShellStor
   const listeners = new Set<(state: ShellState) => void>();
   return {
     get: () => state,
+    beginSetup() { this.set({ setup: true }); },
+    endSetup() { this.set({ setup: false }); },
     set(change) {
       const next: ShellState = { ...state, ...change };
       // Nothing is published when nothing moved, so re-reporting the same

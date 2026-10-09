@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateServiceCommand, type ServiceCommand, type PersonaReply } from './persona-contract.js';
-import { serviceIds, validateRegister } from './services.js';
+import { serviceIds, summarise, validateRegister, type ServiceRegister } from './services.js';
 import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from './native.js';
 import type { CredentialStatus, CredentialTest } from './persona-contract.js';
 import { createForwardingLogger } from './logger.js';
@@ -19,9 +19,11 @@ const core = new PersonaCore(process.argv[2]);
 // process validates what reaches it rather than trusting the one before it).
 // Read synchronously at start because nothing can be served without it.
 let services: ReadonlySet<string> = new Set();
+let register: ServiceRegister | undefined;
 let registerProblem: string | undefined;
 try {
-  services = serviceIds(validateRegister(JSON.parse(readFileSync(process.argv[3], 'utf8'))));
+  register = validateRegister(JSON.parse(readFileSync(process.argv[3], 'utf8')));
+  services = serviceIds(register);
 } catch (error) {
   registerProblem = error instanceof Error ? error.message : String(error);
 }
@@ -92,6 +94,10 @@ function execute(command: ServiceCommand): PersonaReply {
   try {
     switch (command.type) {
       case 'list': return { ok: true, data: snapshot() };
+      // An empty list rather than an error: a register that could not be read
+      // is already said once in the log, and a screen that gets nothing shows
+      // no services instead of a failure it cannot explain.
+      case 'services': return { ok: true, data: register ? summarise(register) : [] };
       case 'upsert': core.upsert(command.name, command.callsign, command.start, command.end); return { ok: true, data: snapshot() };
       case 'set-active': core.setActive(command.name); return { ok: true, data: snapshot() };
       case 'remove-persona': core.removePersona(command.name); return { ok: true, data: snapshot() };

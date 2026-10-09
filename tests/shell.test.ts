@@ -6,7 +6,11 @@ import { PAGES, INITIAL_SHELL, createShellStore, isPageId, type ShellState } fro
 describe('the shell store', () => {
   it('starts on Home with no active persona and the system theme', () => {
     expect(INITIAL_SHELL).toEqual({
-      page: 'home', activePersona: '', themeChoice: 'system', logs: undefined, engine: undefined
+      page: 'home', activePersona: '', themeChoice: 'system', logs: undefined, engine: undefined,
+      // Not setup: that is decided once the personas have been read, so a
+      // machine with personas never sees a frame of the setup screen
+      // (QGD-PSN-0004).
+      setup: false, firstRun: false, services: []
     });
     expect(createShellStore().get()).toEqual(INITIAL_SHELL);
   });
@@ -215,5 +219,43 @@ describe('QGD-CRD-0003: a fixture persona cannot collide with a real one', () =>
     for (const { file, name } of names) {
       expect(name.startsWith('qg-'), `${file} names a persona "${name}", outside the reserved qg- space`).toBe(true);
     }
+  });
+});
+
+describe('QGD-PSN-0004 guided setup', () => {
+  it('is off until the personas have been read', () => {
+    // A shell that opened on setup and then swapped to the list would show
+    // setup for a frame to somebody who already has personas.
+    expect(createShellStore().get().setup).toBe(false);
+  });
+
+  it('is entered from the offer and left by finishing', () => {
+    const store = createShellStore();
+    store.beginSetup();
+    expect(store.get().setup).toBe(true);
+    store.endSetup();
+    expect(store.get().setup).toBe(false);
+  });
+
+  it('offers setup only on a machine with no personas', () => {
+    const store = createShellStore();
+    expect(store.get().firstRun, 'not before the personas have been read').toBe(false);
+    store.set({ firstRun: true });
+    // Entering setup does not withdraw the offer, because leaving setup
+    // without making a persona has to come back to it.
+    store.beginSetup();
+    expect(store.get().firstRun).toBe(true);
+  });
+
+  it('tells its subscriber when setup ends, and not when it has already ended', () => {
+    const store = createShellStore();
+    store.beginSetup();
+    const seen: boolean[] = [];
+    store.subscribe(state => seen.push(state.setup));
+    store.endSetup();
+    store.endSetup();
+    // The first is the immediate call, the second the change. The third
+    // endSetup publishes nothing, because nothing moved.
+    expect(seen).toEqual([true, false]);
   });
 });

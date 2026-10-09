@@ -15,6 +15,7 @@
   import HomePage from './pages/HomePage.svelte';
   import PersonaPage from './pages/PersonaPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
+  import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, type ShellState, type ShellStore } from './shell-store.js';
   import type { ThemeChoice } from '../settings-contract.js';
   import type { Level } from '../logging.js';
@@ -27,6 +28,14 @@
     onExport: () => Promise<string>;
     onStartEngine: () => Promise<void>;
     onStopEngine: () => Promise<void>;
+    // Guided setup (QGD-PSN-0004). The services come from the store, because
+    // they are read after the shell is mounted; the two actions are the real
+    // ones, so nothing in setup is held in limbo.
+    onCreatePersona: (callsign: string, name: string) => Promise<string | undefined>;
+    // Setup finishing: the Personas screen has to be drawn again, and only
+    // the caller knows how — its markup is imperative, from P1.
+    onFinishSetup: () => void;
+    onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
     onExportProfile: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
     onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
@@ -34,6 +43,7 @@
   }
   const {
     store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine,
+    onCreatePersona, onSaveCredential, onFinishSetup,
     onExportProfile, onInspectImport, onApplyImport, version
   }: Props = $props();
 
@@ -94,7 +104,29 @@
       />
     </div>
     <div class="page" hidden={state.page !== 'personas'}>
-      <PersonaPage />
+      <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
+           underneath is the one P1 built and P3 was signed off with; a
+           machine with no personas gets an offer above it, and the offer is
+           what opens the flow. -->
+      {#if state.setup}
+        <SetupPage services={state.services} {onCreatePersona} {onSaveCredential} onDone={onFinishSetup} />
+      {:else}
+        <PersonaPage />
+        <!-- Offered only once the services are known. Setup with none of
+             them is a callsign box, which the page below already has — and
+             opening it before the register has answered showed the operator
+             a finished setup they never walked. -->
+        {#if state.firstRun && state.services.length > 0}
+          <section class="card offer" aria-labelledby="setup-offer-title">
+            <h2 id="setup-offer-title">New to QSO Graph Desktop?</h2>
+            <p>
+              Setting up takes a callsign and nothing else. The services after
+              that are optional and can be skipped.
+            </p>
+            <button type="button" id="begin-setup" onclick={() => store.beginSetup()}>Set up step by step</button>
+          </section>
+        {/if}
+      {/if}
     </div>
     <div class="page" hidden={state.page !== 'settings'}>
       <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport}

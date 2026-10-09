@@ -25,6 +25,7 @@ export function suiteCommands(npmCli) {
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['persona-export', ['scripts/persona-export.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
+  ['setup-walk', ['scripts/setup-walk.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['engine-lifecycle', ['scripts/engine-lifecycle.mjs']],
   ['engine-migrations', ['scripts/engine-migrations.mjs']],

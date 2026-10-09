@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import type { ServiceSummary } from './service-contract.js';
 export interface Persona {
   name: string;
   callsign: string;
@@ -7,6 +8,10 @@ export interface Persona {
   providers: Record<string, { username: string }>;
 }
 export interface Snapshot { personas: Persona[]; active: string | null }
+// Imported and re-exported so the renderer has one import for everything it
+// is told about a service. The shape itself is src/services.ts's, which is
+// where the register is read and checked.
+export type { ServiceSummary };
 export interface CredentialStatus { testable: boolean; stored: boolean; kindsKnown: boolean; hasUsername: boolean; hasPassword: boolean; hasApiKey: boolean; preferred: 'service' | 'password' | 'api_key'; effective?: 'password' | 'api_key' | null }
 export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-error' | 'rate-limited' | 'invalid-response' | 'missing' | 'unsupported' }
 // The sealed file on its way from the core to the broker. It never reaches a
@@ -21,6 +26,10 @@ export interface ImportPreview { created: string; personas: number; credentials:
 export interface ImportResult { personas: number; credentials: number }
 export type PersonaCommand =
   | { type: 'list' }
+  // The services this product can hold a credential for, with the fields and
+  // the instructions for each (QGD-PSN-0002). The screens draw themselves
+  // from this rather than from anything written into the renderer.
+  | { type: 'services' }
   | { type: 'upsert'; name: string; callsign: string; start?: string; end?: string }
   | { type: 'set-active'; name: string }
   | { type: 'remove-persona'; name: string }
@@ -38,7 +47,11 @@ export type PersonaCommand =
   | { type: 'export-profile'; passphrase: string }
   | { type: 'import-profile'; passphrase: string; apply: boolean };
 export type PersonaReply =
-  | { ok: true; data: Snapshot | CredentialStatus | CredentialTest | SealedExport | ExportResult | ImportPreview | ImportResult | null }
+  | {
+      ok: true;
+      data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
+        | SealedExport | ExportResult | ImportPreview | ImportResult | null;
+    }
   | { ok: false; error: string };
 
 // The only page allowed to reach the broker, and the only frame of it.
@@ -71,7 +84,8 @@ function date(value: unknown): boolean { return value === undefined || (typeof v
 export function validateCommand(value: unknown, providers: Services): value is PersonaCommand {
   if (!record(value)) return false;
   switch (value.type) {
-    case 'list': return keys(value, ['type']);
+    case 'list':
+    case 'services': return keys(value, ['type']);
     case 'upsert': return keys(value, ['type', 'name', 'callsign', 'start', 'end']) && text(value.name) && text(value.callsign, 64) && date(value.start) && date(value.end);
     case 'set-active':
     case 'remove-persona': return keys(value, ['type', 'name']) && text(value.name);

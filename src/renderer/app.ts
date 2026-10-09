@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type {
   Persona, Snapshot, CredentialStatus, CredentialTest, ExportResult, ImportPreview, ImportResult,
-  PersonaCommand, PersonaReply
+  PersonaCommand, PersonaReply, ServiceSummary
 } from '../persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../settings-contract.js';
 import type { LogsCommand, LogsReply } from '../logs-contract.js';
@@ -33,11 +33,64 @@ mount(Shell, {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onStartEngine: startEngine, onStopEngine: stopEngine,
     onExportProfile: exportProfile, onInspectImport: inspectImport, onApplyImport: applyImport,
+    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
+    onFinishSetup: finishSetup,
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
     version: __QG_VERSION__
   }
 });
+
+// Guided setup's two actions. Both are the real ones: the persona is created
+// when it is named and the credential is saved when it is entered, so there
+// is nothing in setup that is lost by leaving it. A refusal comes back as its
+// sentence for the screen to show.
+export async function createPersona(callsign: string, name: string): Promise<string | undefined> {
+  const reply = await window.personas.request({
+    type: 'upsert', name: name || callsign, callsign
+  });
+  if (!reply.ok) return reply.error;
+  snapshot = reply.data as Snapshot;
+  const made = name || callsign;
+  const activated = await window.personas.request({ type: 'set-active', name: made });
+  if (activated.ok) snapshot = activated.data as Snapshot;
+  // Remembered, not drawn. The Personas screen's markup is not mounted while
+  // setup is showing — setup is in its place — and select() reaches straight
+  // into that markup, so calling it here threw and the operator was left
+  // looking at a callsign box that had already made their persona.
+  selected = made;
+  shell.set({
+    activePersona: `${callsign.toUpperCase()} · ${made}`,
+    firstRun: false
+  });
+  return undefined;
+}
+
+// Drawing the Personas screen again, once it is back on screen. Called when
+// setup finishes, which is the first moment its markup exists again.
+export function finishSetup(): void {
+  shell.endSetup();
+  select(selected ?? snapshot.active ?? snapshot.personas[0]?.name ?? null);
+}
+
+export async function saveSetupCredential(
+  service: string,
+  values: Record<string, string>
+): Promise<string | undefined> {
+  const persona = snapshot.active ?? snapshot.personas[0]?.name;
+  if (!persona) return 'Create a persona first.';
+  const reply = await window.personas.request({
+    type: 'save-credentials',
+    persona,
+    provider: service,
+    credentials: {
+      ...(values.username ? { username: values.username } : {}),
+      ...(values.password ? { password: values.password } : {}),
+      ...(values.api_key ? { apiKey: values.api_key } : {})
+    }
+  });
+  return reply.ok ? undefined : reply.error;
+}
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => element<HTMLInputElement>(id);
@@ -86,7 +139,13 @@ function list() {
   }
   if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No personas yet. Start with your station callsign.'; container.append(empty); }
   const active = snapshot.personas.find(p => p.name === snapshot.active);
-  shell.set({ activePersona: active ? `${active.callsign} · ${active.name}` : '' });
+  // Both read from the personas every time they are drawn, so the offer of
+  // guided setup goes away the moment there is a persona rather than staying
+  // up because it was decided once at start (QGD-PSN-0004).
+  shell.set({
+    activePersona: active ? `${active.callsign} · ${active.name}` : '',
+    firstRun: snapshot.personas.length === 0
+  });
 }
 async function credentialStatus() {
   const persona = selected;
@@ -270,7 +329,19 @@ element('test-credential').addEventListener('click', () => void busy('test-crede
 }));
 async function initialize() {
   for (let attempt = 0; attempt < 10; attempt++) {
-    try { snapshot = await request({ type: 'list' }) as Snapshot; select(snapshot.active ?? snapshot.personas[0]?.name ?? null); return; }
+    try {
+      snapshot = await request({ type: 'list' }) as Snapshot;
+      select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+      // The register, for the setup screen to draw itself from. Whether to
+      // offer setup at all is decided by the persona list every time it is
+      // drawn, above.
+      const listed = await window.personas.request({ type: 'services' });
+      // An empty list is what a register that could not be read looks like
+      // from here, and setup then has a callsign step and nothing after it —
+      // which is still a working setup (QGD-PSN-0004).
+      shell.set({ services: listed.ok && Array.isArray(listed.data) ? listed.data as ServiceSummary[] : [] });
+      return;
+    }
     catch (error) { if (attempt === 9) message((error as Error).message, true); else await new Promise(resolve => setTimeout(resolve, 250)); }
   }
 }
