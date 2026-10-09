@@ -5,16 +5,16 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 const cargo = join(homedir(), '.cargo', 'bin', 'cargo');
 await access(cargo);
-const run = spawnSync(cargo, ['build', '--release', '--manifest-path', 'native/persona-core/Cargo.toml'], { stdio: 'inherit' });
+const run = spawnSync(cargo, ['build', '--release', '--manifest-path', 'packages/persona-core/Cargo.toml'], { stdio: 'inherit' });
 if (run.status !== 0) process.exit(run.status || 1);
 await mkdir('dist/native', { recursive: true });
-await copyFile('native/persona-core/target/release/libqg_persona_core.dylib', 'dist/native/persona.node');
+await copyFile('packages/persona-core/target/release/libqg_persona_core.dylib', 'dist/native/persona.node');
 if (process.platform === 'darwin') {
   const linked = spawnSync('otool', ['-L', 'dist/native/persona.node'], { encoding: 'utf8' });
   if (linked.status !== 0) throw new Error('Native library dependencies could not be inspected.');
   const moduleName = linked.stdout.match(/@rpath\/(libaws_lc_fips_[\w]+\.dylib)/)?.[1];
   if (!moduleName) throw new Error('The required FIPS crypto library was not linked.');
-  const builds = 'native/persona-core/target/release/build';
+  const builds = 'packages/persona-core/target/release/build';
   let found = false;
   for (const directory of await readdir(builds)) {
     if (!directory.startsWith('aws-lc-fips-sys-')) continue;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Reads icon geometry out of the installed Font Awesome Free package.
 //
-// The paths are vendored into src/renderer/ui/icons.ts rather than loaded at
+// The paths are vendored into packages/ui/icons.ts rather than loaded at
 // runtime, because the renderer's content policy allows no font and no image
 // (QGD-SEC-0008): a webfont or an <img> sprite would mean widening it, and
 // inline SVG markup is not a resource at all. Vendoring makes the copy the
@@ -40,7 +40,7 @@ export function extract({ name, style }) {
 
 // The credit the About panel shows, and the version it names. A separate
 // module from the icon geometry because the main process needs it and must
-// never import from src/renderer: Vite empties dist/renderer on every build,
+// never import from packages/renderer: Vite empties dist/renderer on every build,
 // so a main-process import of a file in that tree resolves at compile time and
 // is gone by the time the application starts.
 export function renderAttribution() {

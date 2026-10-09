@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
-import { zip } from '../src/diagnostics.js';
+import { zip } from '../packages/main/diagnostics.js';
 import { entries } from '../scripts/unzip.mjs';
 
 describe('reading back an exported archive', () => {

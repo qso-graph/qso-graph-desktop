@@ -28,10 +28,10 @@ import { initialise, stop } from '../dist/engine/supervisor.js';
 import { bringUp } from '../dist/engine/start.js';
 import { chooseSocketDirectory, socketCandidates } from '../dist/engine/endpoint.js';
 import { connectAsSuperuser } from '../dist/engine/roles.js';
-import { REFERENCE_SCHEMA } from '../dist/engine/reference/schema.js';
-import { openArchive } from '../dist/engine/reference/fetch.js';
-import { parseAdi } from '../dist/engine/reference/adi.js';
-import { readRuleset, rulesetOf, validateRecord } from '../dist/engine/reference/validate.js';
+import { REFERENCE_SCHEMA } from '../dist/reference/schema.js';
+import { openArchive } from '../dist/reference/fetch.js';
+import { parseAdi } from '../dist/reference/adi.js';
+import { readRuleset, rulesetOf, validateRecord } from '../dist/reference/validate.js';
 
 const build = JSON.parse(await readFile('data/postgres-build.json', 'utf8'));
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));

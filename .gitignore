@@ -4,7 +4,7 @@ out/
 report/
 .cache/
 .DS_Store
-native/**/target/
+packages/**/target/
 storybook-static/
 
 # Written and removed by scripts/svelte-check.mjs while it proves its own coverage.

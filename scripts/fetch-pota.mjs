@@ -16,8 +16,8 @@
 // nothing of POTA's is committed by running it.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { downloadText } from '../dist/engine/reference/fetch.js';
-import { readLocations, readParks, readPrograms } from '../dist/engine/reference/pota.js';
+import { downloadText } from '../dist/reference/fetch.js';
+import { readLocations, readParks, readPrograms } from '../dist/reference/pota.js';
 
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const pota = register.pota;

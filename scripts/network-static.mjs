@@ -264,22 +264,26 @@ export function violations(source, fileName = 'input.ts') {
   return found;
 }
 
-// The product files this gate covers: every TypeScript file under src/,
+// The product files this gate covers: every TypeScript file under packages/,
 // found by walking the tree.
 //
 // It was a list of seven file names, written when the product had seven, and
 // it stayed seven while the product grew to thirty-six. Everything added after
 // P2 — the engine, the logs, the settings, the diagnostics — was never looked
-// at by this gate, and a `fetch` added to src/engine/reference/fetch.ts passed
+// at by this gate, and a `fetch` added to packages/reference/fetch.ts passed
 // it. That is the third gate in this project to go quiet because its scope was
 // a list somebody had to remember to extend: ESLint reviewed no Svelte,
 // svelte-check excluded every story, and now this. A derived scope cannot
 // drift, and the control below proves it is derived.
-export async function productSources(root = 'src') {
+export async function productSources(root = 'packages') {
   const found = [];
   const walk = async directory => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
+      // Cargo's build tree holds no product source and tens of thousands of
+      // files. Skipped by name, so a package that happens to be called
+      // something else is still walked.
+      if (entry.isDirectory() && entry.name === 'target') continue;
       if (entry.isDirectory()) await walk(path);
       // .d.ts files declare, they do not call.
       else if (/\.(ts|cts|mts)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) found.push(path);
@@ -297,7 +301,7 @@ export async function productSources(root = 'src') {
 // BoringSSL and not the validated module — "without that, the FIPS claim
 // would be false for most traffic". So what is left here is one listener:
 //
-// - src/engine/endpoint.ts imports node:net to ask the operating system for a
+// - packages/engine/endpoint.ts imports node:net to ask the operating system for a
 //   free TCP port, which is what the engine listens on where there are no
 //   Unix sockets (QGD-ENG-0009). A listener is not a client: it opens nothing.
 //
@@ -305,7 +309,7 @@ export async function productSources(root = 'src') {
 // Listed rather than inferred, because an exception a rule works out for
 // itself is not an exception, it is a hole.
 export const NETWORK_EXCEPTIONS = {
-  'src/engine/endpoint.ts': 'node:net, to ask the OS for a free port to listen on (QGD-ENG-0009)'
+  'packages/engine/endpoint.ts': 'node:net, to ask the OS for a free port to listen on (QGD-ENG-0009)'
 };
 
 // Hosts are not written into this product's TypeScript at all: every URL comes

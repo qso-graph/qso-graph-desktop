@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { PAGES, INITIAL_SHELL, createShellStore, isPageId, type ShellState } from '../src/renderer/shell-store.js';
+import { PAGES, INITIAL_SHELL, createShellStore, isPageId, type ShellState } from '../packages/renderer/shell-store.js';
 
 describe('the shell store', () => {
   it('starts on Home with no active persona and the system theme', () => {
@@ -117,8 +117,8 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
   it('still carries every element app.ts looks for', async () => {
     // Read out of app.ts rather than listed here, so renaming an element in
     // one file and not the other fails this test instead of the application.
-    const app = await readFile('src/renderer/app.ts', 'utf8');
-    const page = await readFile('src/renderer/pages/PersonaPage.svelte', 'utf8');
+    const app = await readFile('packages/renderer/app.ts', 'utf8');
+    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
     const looked = new Set<string>();
     for (const match of app.matchAll(/\b(?:element|input)(?:<[^>]*>)?\('([a-z0-9-]+)'\)/g)) {
       looked.add(match[1]);
@@ -137,7 +137,7 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
   });
 
   it('keeps the labels and roles the packaged suite drives it by', async () => {
-    const page = await readFile('src/renderer/pages/PersonaPage.svelte', 'utf8');
+    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
     for (const label of ['Persona name', 'Callsign', 'Username', 'Password', 'API key',
                          'Service', 'Preferred credential', 'Start date', 'End date']) {
       expect(page, `${label} must still label a field`).toContain(label);
@@ -152,7 +152,7 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
 
   it('holds no behaviour of its own', async () => {
     // app.ts owns this screen. A handler appearing here would mean two owners.
-    const page = await readFile('src/renderer/pages/PersonaPage.svelte', 'utf8');
+    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
     expect(page).not.toMatch(/\bon(?:click|submit|change|input)=/);
     expect(page).not.toContain('$state');
     expect(page).not.toContain('$props');
@@ -161,16 +161,16 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
 
 describe('one page, one framework, one Svelte configuration', () => {
   it('mounts the shell into a body that holds no markup of its own', async () => {
-    const html = await readFile('src/renderer/index.html', 'utf8');
+    const html = await readFile('packages/renderer/index.html', 'utf8');
     const body = html.slice(html.indexOf('<body>') + '<body>'.length, html.indexOf('</body>'));
     // Comments only: anything else is markup the shell does not own.
     expect(body.replace(/<!--[\s\S]*?-->/g, '').trim()).toBe('');
-    const app = await readFile('src/renderer/app.ts', 'utf8');
+    const app = await readFile('packages/renderer/app.ts', 'utf8');
     expect(app).toContain("mount(Shell, {");
   });
 
   it('builds the application and the gallery from the same Svelte config', async () => {
-    // vite-plugin-svelte looks beside the Vite root, which is src/renderer, so
+    // vite-plugin-svelte looks beside the Vite root, which is packages/renderer, so
     // without an explicit configFile the application silently used the plugin
     // defaults while the gallery used svelte.config.js.
     const vite = await readFile('vite.config.mjs', 'utf8');
@@ -184,7 +184,7 @@ describe('one page, one framework, one Svelte configuration', () => {
   it('keeps the content policy intact after the framework arrived', async () => {
     // QGD-SEC-0008: Svelte must not have brought an inline script or style with
     // it, and the policy that would have refused one is unchanged.
-    const html = await readFile('src/renderer/index.html', 'utf8');
+    const html = await readFile('packages/renderer/index.html', 'utf8');
     expect(html).toContain("default-src 'none'");
     expect(html).toContain("script-src 'self'");
     expect(html).toContain("style-src 'self'");

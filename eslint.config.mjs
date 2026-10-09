@@ -74,15 +74,15 @@ const TYPE_AWARE = {
 export default [
   // storybook-static is the built gallery: vendored code carrying directives
   // for rules this project does not install.
-  { ignores: ['node_modules/**', 'dist/**', 'out/**', 'report/**', 'native/**/target/**', 'storybook-static/**'] },
+  { ignores: ['node_modules/**', 'dist/**', 'out/**', 'report/**', 'packages/persona-core/target/**', 'storybook-static/**'] },
 
   // The product, as written.
   ...tseslint.config({
-    files: ['src/**/*.ts', 'src/**/*.cts'],
+    files: ['packages/**/*.ts', 'packages/**/*.cts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       // Both projects named explicitly: tsconfig.json excludes the renderer,
-      // so the service would not find src/renderer/app.ts on its own.
+      // so the service would not find packages/renderer/app.ts on its own.
       parserOptions: {
         project: ['./tsconfig.json', './tsconfig.renderer.json'],
         tsconfigRootDir: import.meta.dirname

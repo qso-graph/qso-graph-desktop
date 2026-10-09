@@ -2,11 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS, isThemeChoice, readSettings, validateSettingsCommand
-} from '../src/settings-contract.js';
-import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance, type Theme } from '../src/renderer/theme.js';
-import { WINDOW_BACKGROUND, windowBackground } from '../src/window-background.js';
+} from '../packages/main/settings-contract.js';
+import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance, type Theme } from '../packages/renderer/theme.js';
+import { WINDOW_BACKGROUND, windowBackground } from '../packages/main/window-background.js';
 import { readFile } from 'node:fs/promises';
-import { THEME_CHOICES } from '../src/settings-contract.js';
+import { THEME_CHOICES } from '../packages/main/settings-contract.js';
 
 // Enough of an element for applyTheme, which touches one attribute and one
 // style property.
@@ -74,7 +74,7 @@ describe('QGD-FRM-0001 the frame before the renderer draws', () => {
   it('uses the same two colours the stylesheet does', async () => {
     // The main process cannot import the renderer's theme module, so these two
     // values are a copy. This is what stops the copy drifting.
-    const css = await readFile('src/renderer/style.css', 'utf8');
+    const css = await readFile('packages/renderer/style.css', 'utf8');
     const block = (selector: string) => {
       const start = css.indexOf(selector);
       expect(start, `${selector} must exist in the stylesheet`).toBeGreaterThan(-1);
@@ -90,7 +90,7 @@ describe('QGD-FRM-0001 the frame before the renderer draws', () => {
   it('declares support for both schemes exactly once, at the root', async () => {
     // A theme block that narrowed color-scheme would answer the media query
     // two rules below it, which is the defect this guards.
-    const css = await readFile('src/renderer/style.css', 'utf8');
+    const css = await readFile('packages/renderer/style.css', 'utf8');
     const declarations = [...css.matchAll(/^\s*color-scheme:\s*([^;]+);/gm)].map(match => match[1].trim());
     expect(declarations).toEqual(['light dark']);
   });

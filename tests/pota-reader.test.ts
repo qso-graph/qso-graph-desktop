@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   judgeCoordinates, parseCsv, readLocations, readParks, readPrograms,
   refuseIfShrunk, ShapeError, PARK_COLUMNS
-} from '../src/engine/reference/pota.js';
+} from '../packages/reference/pota.js';
 
 const header = `"${PARK_COLUMNS.join('","')}"`;
 const park = (

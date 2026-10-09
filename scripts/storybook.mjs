@@ -23,7 +23,7 @@ async function walk(directory, found = []) {
 }
 
 const failures = [];
-const files = await walk(resolve('src'));
+const files = await walk(resolve('packages'));
 
 for (const component of missingStories(files)) {
   failures.push(`${component} has no story. QGD-FRM-0006: every component in the shell and in ui has one.`);
@@ -34,7 +34,10 @@ for (const story of orphanStories(files)) {
 
 const output = resolve('storybook-static');
 await rm(output, { recursive: true, force: true });
-const build = spawnSync(resolve('node_modules/.bin/storybook'), ['build', '--output-dir', output, '--quiet'], {
+// -c names the configuration directory: it moved from .storybook to
+// storybook/ at QGD-PRT-0107 (QGD-REP-0001), and Storybook's default is
+// still the dot-directory.
+const build = spawnSync(resolve('node_modules/.bin/storybook'), ['build', '-c', 'storybook', '--output-dir', output, '--quiet'], {
   encoding: 'utf8', timeout: 600_000
 });
 

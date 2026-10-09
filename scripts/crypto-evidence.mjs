@@ -40,7 +40,7 @@ try {
   const fromFilename = module.match(/fips_([\d_]+)_crypto/)[1].replaceAll('_', '.');
 
   // 2. The same version, from the dependency lock.
-  const lock = await readFile('native/persona-core/Cargo.lock', 'utf8');
+  const lock = await readFile('packages/persona-core/Cargo.lock', 'utf8');
   const locked = name => lock.match(new RegExp(String.raw`name = "${name}"\nversion = "([^"]+)"`))?.[1];
   const fromLock = locked('aws-lc-fips-sys');
   expect(fromLock, 'aws-lc-fips-sys is not in the lock file').toBeTruthy();
@@ -117,14 +117,14 @@ try {
       rustls: locked('rustls'),
       'webpki-roots': locked('webpki-roots'),
       rustlsFeatures: 'std, fips',
-      assertedBy: 'native/persona-core/src/validation.rs::tests::secure_client_requires_fips_crypto_and_only_tls13, run by the rust-unit suite: the provider and the client config both report fips(), and a real ClientHello advertises TLS 1.3 only. It builds the hello in memory and opens no connection.',
+      assertedBy: 'packages/persona-core/src/validation.rs::tests::secure_client_requires_fips_crypto_and_only_tls13, run by the rust-unit suite: the provider and the client config both report fips(), and a real ClientHello advertises TLS 1.3 only. It builds the hello in memory and opens no connection.',
       whatFipsReportsMean: 'fips() is the library reporting the build configuration it was compiled with. It is not a statement that this is a supported FIPS build on this platform — see fipsBuildOnThisPlatform.'
     },
     transport: {
       versions: 'TLS 1.3 only',
       httpsOnly: true, proxies: false, redirects: false,
       destinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],
-      source: 'native/persona-core/src/validation.rs'
+      source: 'packages/persona-core/src/validation.rs'
     },
     operationalEnvironment: {
       product: run('/usr/bin/sw_vers', ['-productName']),

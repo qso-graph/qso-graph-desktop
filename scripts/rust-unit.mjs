@@ -11,5 +11,5 @@ import { join } from 'node:path';
 const cargo = join(homedir(), '.cargo', 'bin', 'cargo');
 await access(cargo);
 // --release reuses the profile scripts/build-native.mjs already built.
-const run = spawnSync(cargo, ['test', '--release', '--manifest-path', 'native/persona-core/Cargo.toml'], { stdio: 'inherit' });
+const run = spawnSync(cargo, ['test', '--release', '--manifest-path', 'packages/persona-core/Cargo.toml'], { stdio: 'inherit' });
 process.exitCode = run.status === 0 ? 0 : run.status || 1;

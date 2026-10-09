@@ -11,8 +11,10 @@ export const CREDENTIAL_SUITES = ['credential-editing', 'persona-export', 'elect
 // Suites that report their own result regardless of the credential proof.
 // rust-unit depends on neither the TypeScript build nor the credential store,
 // and icons, engine-binaries and adif-reference compare what is on disk
-// against a register.
-const ALWAYS_RUN = ['spec-rvm', 'icons', 'engine-binaries', 'adif-reference', 'build', 'unit', 'rust-unit'];
+// against a register. package-boundaries reads the imports as written, so it
+// does not need the build either — and is most useful when the build is what
+// broke, since a wrong-direction import is one reason it would.
+const ALWAYS_RUN = ['spec-rvm', 'icons', 'engine-binaries', 'adif-reference', 'package-boundaries', 'build', 'unit', 'rust-unit'];
 
 // Returns the name of the failed suite that stops `name`, or undefined to run it.
 export function blockedBy(name, suites) {

@@ -7,12 +7,12 @@
 import { readFile } from 'node:fs/promises';
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { entries, read } from '../src/engine/reference/zip.js';
+import { entries, read } from '../packages/reference/zip.js';
 import {
   definitionsOf, dataTypes, derive, fields, parseEnumerationRef, values, type Definitions
-} from '../src/engine/reference/adif.js';
-import { asRecord, parseAdi } from '../src/engine/reference/adi.js';
-import { parameterColumn, rulesetOf, validateRecord } from '../src/engine/reference/validate.js';
+} from '../packages/reference/adif.js';
+import { asRecord, parseAdi } from '../packages/reference/adi.js';
+import { parameterColumn, rulesetOf, validateRecord } from '../packages/reference/validate.js';
 
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const release = register.adif;

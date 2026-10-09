@@ -1,9 +1,11 @@
 {
-  "_comment": "svelte-check's view: the components as well as the TypeScript. It is separate from tsconfig.renderer.json because tsc cannot parse a .svelte file and errors on the glob, while svelte-check needs it — without the glob svelte-check only reaches components that TypeScript imports, so every .stories.svelte went unchecked. scripts/svelte-check.mjs proves the coverage with a standalone fixture before it trusts a clean run.",
+  "_comment": "svelte-check's view: the components as well as the TypeScript. It is separate from tsconfig.renderer.json because tsc cannot parse a .svelte file and errors on the glob, while svelte-check needs it \u2014 without the glob svelte-check only reaches components that TypeScript imports, so every .stories.svelte went unchecked. scripts/svelte-check.mjs proves the coverage with a standalone fixture before it trusts a clean run.",
   "extends": "./tsconfig.renderer.json",
   "include": [
-    "src/renderer/**/*.ts",
-    "src/renderer/**/*.svelte"
+    "packages/renderer/**/*.ts",
+    "packages/renderer/**/*.svelte",
+    "packages/ui/**/*.ts",
+    "packages/ui/**/*.svelte"
   ],
   "exclude": []
 }

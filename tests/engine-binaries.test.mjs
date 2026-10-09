@@ -42,7 +42,7 @@ describe('QGD-SEC-0002 nothing reaches a shell', () => {
     // is what stops pg_ctl coming back in because it is convenient.
     const { readdir, readFile } = await import('node:fs/promises');
     const offenders = [];
-    for (const directory of ['src/engine', 'scripts']) {
+    for (const directory of ['packages/engine', 'scripts']) {
       for (const file of await readdir(directory)) {
         if (!/\.(ts|mjs)$/.test(file)) continue;
         const text = await readFile(`${directory}/${file}`, 'utf8');

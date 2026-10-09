@@ -20,11 +20,11 @@ import { initialise, start, status, stop } from '../dist/engine/supervisor.js';
 import { bringUp } from '../dist/engine/start.js';
 import { chooseSocketDirectory, socketCandidates } from '../dist/engine/endpoint.js';
 import { connectAs, connectAsSuperuser, provision } from '../dist/engine/roles.js';
-import { REFERENCE_SCHEMA } from '../dist/engine/reference/schema.js';
-import { counts, ensureAdif, grantRead, loadedSource } from '../dist/engine/reference/load.js';
-import { cachePath, obtain, openArchive } from '../dist/engine/reference/fetch.js';
-import { entries, read } from '../dist/engine/reference/zip.js';
-import { definitionsOf, derive } from '../dist/engine/reference/adif.js';
+import { REFERENCE_SCHEMA } from '../dist/reference/schema.js';
+import { counts, ensureAdif, grantRead, loadedSource } from '../dist/reference/load.js';
+import { cachePath, obtain, openArchive } from '../dist/reference/fetch.js';
+import { entries, read } from '../dist/reference/zip.js';
+import { definitionsOf, derive } from '../dist/reference/adif.js';
 
 const build = JSON.parse(await readFile('data/postgres-build.json', 'utf8'));
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));

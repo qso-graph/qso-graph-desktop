@@ -7,15 +7,15 @@ describe('QGD-FRM-0006 every component has a story', () => {
   // There are no components yet, so the check passes trivially on this repo.
   // These plant some, which is the only way to know the rule works at all.
   const tree = [
-    'src/renderer/ui/Rail.svelte',
-    'src/renderer/ui/Rail.stories.ts',
-    'src/renderer/ui/StatusBar.svelte',
-    'src/renderer/pages/Settings.svelte',
-    'src/renderer/pages/Settings.stories.svelte'
+    'packages/ui/Rail.svelte',
+    'packages/ui/Rail.stories.ts',
+    'packages/ui/StatusBar.svelte',
+    'packages/renderer/pages/Settings.svelte',
+    'packages/renderer/pages/Settings.stories.svelte'
   ];
 
   it('names the component that has no story', () => {
-    expect(missingStories(tree)).toEqual(['src/renderer/ui/StatusBar.svelte']);
+    expect(missingStories(tree)).toEqual(['packages/ui/StatusBar.svelte']);
   });
 
   it('accepts a story in any of the three forms', () => {
@@ -73,7 +73,7 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
   });
 
   it('reports nothing anywhere', async () => {
-    const config = await readFile('.storybook/main.js', 'utf8');
+    const config = await readFile('storybook/main.js', 'utf8');
     expect(config).toContain('disableTelemetry: true');
   });
 });
@@ -84,14 +84,14 @@ describe('every advertised story format has an indexer', () => {
   // "No matching indexer found", so a developer writing the Svelte-native form
   // would satisfy the pairing check and break the gallery.
   it('configures the indexer for the Svelte story format', async () => {
-    const config = await readFile('.storybook/main.js', 'utf8');
+    const config = await readFile('storybook/main.js', 'utf8');
     expect(config).toContain('@storybook/addon-svelte-csf');
     const manifest = JSON.parse(await readFile('package.json', 'utf8'));
     expect(manifest.devDependencies['@storybook/addon-svelte-csf']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('advertises exactly the formats the pairing rule accepts', async () => {
-    const config = await readFile('.storybook/main.js', 'utf8');
+    const config = await readFile('storybook/main.js', 'utf8');
     // The glob and scripts/stories.mjs have to agree, or one of them is lying.
     expect(config).toContain('*.stories.@(js|ts|svelte)');
     for (const extension of ['js', 'ts', 'svelte']) {

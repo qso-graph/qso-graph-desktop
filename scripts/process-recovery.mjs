@@ -30,7 +30,7 @@ let stage = 'launch';
 // dist/, which a SIGTERM mid-outage would otherwise leave without a service
 // module — verify.mjs sends exactly that on its per-suite timeout.
 const application_directory = join(directory, 'app');
-const service = join(application_directory, 'dist/persona-service.js');
+const service = join(application_directory, 'dist/personas/persona-service.js');
 const disabled = `${service}.disabled`;
 
 // The persona core runs as an Electron utility process, a child of main.

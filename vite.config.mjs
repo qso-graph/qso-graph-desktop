@@ -22,7 +22,7 @@ const version = JSON.parse(readFileSync(new URL('./package.json', import.meta.ur
 
 export default defineConfig({
   define: { __QG_VERSION__: JSON.stringify(version) },
-  root: 'src/renderer',
+  root: 'packages/renderer',
   base: './',
   // configFile is explicit because vite-plugin-svelte looks beside the Vite
   // root, which is src/renderer, and would silently fall back to its defaults —

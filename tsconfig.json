@@ -3,7 +3,7 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "src",
+    "rootDir": "packages",
     "outDir": "dist",
     "strict": true,
     "noEmitOnError": true,
@@ -14,10 +14,11 @@
     "sourceMap": true
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.cts"
+    "packages/**/*.ts",
+    "packages/**/*.cts"
   ],
   "exclude": [
-    "src/renderer"
+    "packages/renderer",
+    "packages/persona-core/target"
   ]
 }

@@ -3,10 +3,10 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { validateLogsCommand, LOG_LEVELS } from '../src/logs-contract.js';
-import { suggestedExportName } from '../src/logs-broker.js';
-import { currentLevel, setLevel } from '../src/logger.js';
-import { DEFAULT_LEVEL, LEVELS, RAISED_LEVEL_MS, effectiveLevel } from '../src/logging.js';
+import { validateLogsCommand, LOG_LEVELS } from '../packages/main/logs-contract.js';
+import { suggestedExportName } from '../packages/main/logs-broker.js';
+import { currentLevel, setLevel } from '../packages/logging/logger.js';
+import { DEFAULT_LEVEL, LEVELS, RAISED_LEVEL_MS, effectiveLevel } from '../packages/logging/logging.js';
 
 describe('QGD-SEC-0006 the logs channel rejects rather than coerces', () => {
   it('accepts exactly the three commands', () => {

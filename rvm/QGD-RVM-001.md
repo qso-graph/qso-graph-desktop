@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `c281d17bda0b42cfe7c3ae66ebc6c93213bc607c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `2c804f6e526d8d027272696036a7cde8000e55b6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `c281d17bda0b42cfe7c3ae66ebc6c93213bc607c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `2c804f6e526d8d027272696036a7cde8000e55b6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 141 requirements · 12 Parts · 6 Demo · 36 Inspection · 34 Static · 92 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 142 requirements · 12 Parts · 6 Demo · 36 Inspection · 34 Static · 93 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -22,8 +22,9 @@
 | `QGD-PRT-0003` | Each Part registers its acceptance tests before any of its code is written. | Inspection |  |
 | `QGD-PRT-0004` | A Part's exit gate is met on macOS arm64 alone. No gate before Release 1 requires a second operating system or a third-party application. | Static | ✓ |
 | `QGD-PRT-0005` | **P0 to P7 are the frame; P8 onward are applications built on the API the frame provides.** A Part in the second group uses the app API and the grant model, never a private route into the frame. | Inspection |  |
-| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `app-api` — `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon, and `storybook/` at the root for the component gallery. | Inspection |  |
+| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `logging`, `app-api` — `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon, and `storybook/` at the root for the component gallery. A package holds its files directly; `src/` and `tests/` are an application's shape, not a package's. The compiled tree mirrors it, so `dist/<package>/` is where a process finds its siblings. | Inspection |  |
 | `QGD-REP-0002` | The move to that layout happens at `QGD-PRT-0107` and not before. Recording it here is not permission to begin it. | Inspection |  |
+| `QGD-REP-0006` | **The dependency direction between packages is fixed, and enforced over the imports themselves.** `persona-core`, `logging`, `reference`, `ui` and `preload` depend on no other package; `personas` and `engine` depend only on those; `main` adds `personas` and `engine`; `renderer` may depend on anything below it and nothing may depend on `renderer`. An application depends on `app-api` and `ui` and on nothing else, which is `QGD-REP-0003` made structural. A contract lives with the side that serves it and its callers depend on it, never the reverse. Checked against the imports rather than asserted, because the layout is only worth the move if a wrong-direction import cannot land. Stories are excluded and the exclusion is named: a `.stories.svelte` ships nowhere (`QGD-FRM-0009`) and the gallery is required to show a component the way the shell does (`QGD-FRM-0006`), which is why the rail's story reads the shell's own page list. | Test | ✓ |
 | `QGD-REP-0003` | A built-in application uses only the app API and its grants, exactly as a contributed application would. Personas, the engine and the reference data are frame, not applications, because the frame enforces the grants. | Inspection |  |
 | `QGD-REP-0004` | `app-api` and `ui` are separate packages: what an application may call and what it may look like are different contracts. | Inspection |  |
 | `QGD-REP-0005` | Third-party material that ships inside the application is recorded in `NOTICE`, with its licence and the version that ships. Where that licence requires attribution, the attribution also appears in a surface the user can reach — the About panel — because a file in the repository is not somewhere a user can be expected to look. | Test, Inspection | ✓ |

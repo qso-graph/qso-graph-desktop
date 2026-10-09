@@ -58,15 +58,15 @@ const eslint = new ESLint({ cwd: root });
 
 // The controls. Each must fire, or a clean report below means nothing.
 const CONTROLS = [
-  { name: 'svelte/no-at-html-tags', path: 'src/renderer/__control__.svelte', code: '<div>{@html value}</div>\n' },
+  { name: 'svelte/no-at-html-tags', path: 'packages/renderer/__control__.svelte', code: '<div>{@html value}</div>\n' },
   // The same rule again, on a component whose script is TypeScript. The plain
   // fixture above parses without a TypeScript parser configured and fired
-  // happily while every real component in src/ was a parse error reviewing
+  // happily while every real component in packages/ was a parse error reviewing
   // nothing — so it reported PASS through the whole failure.
   {
     name: 'svelte/no-at-html-tags',
     label: 'svelte/no-at-html-tags on a TypeScript component',
-    path: 'src/renderer/__control__.svelte',
+    path: 'packages/renderer/__control__.svelte',
     code: '<script lang="ts">\n  interface Props { value: string }\n  const { value }: Props = $props();\n</script>\n<div>{@html value}</div>\n'
   },
   { name: 'no-eval', path: 'scripts/__control__.mjs', code: 'eval("1");\n' },
@@ -75,10 +75,10 @@ const CONTROLS = [
   { name: 'security/detect-unsafe-regex', path: 'scripts/__control__.mjs', code: 'const r = /(a+)+$/;\n', expect: false }
 ];
 
-// Some rules cannot be fixture-tested where they matter: a fixture under src/
+// Some rules cannot be fixture-tested where they matter: a fixture under packages/
 // is not in the TypeScript project, and the type-aware rules need one. So the
 // product's configuration is asserted directly — this is what is actually in
-// force for src/main.ts, rather than what a fixture elsewhere implies.
+// force for packages/main/main.ts, rather than what a fixture elsewhere implies.
 const REQUIRED_FOR_PRODUCT = [
   'no-eval',
   'no-implied-eval',
@@ -114,7 +114,7 @@ for (const control of CONTROLS) {
 // null ruleId, which no rule-named control can notice.
 const [parsedControl] = await eslint.lintText(
   '<script lang="ts">\n  interface Props { value: string }\n  const { value }: Props = $props();\n</script>\n<p>{value}</p>\n',
-  { filePath: resolve(root, 'src/renderer/__control__.svelte'), warnIgnored: false }
+  { filePath: resolve(root, 'packages/renderer/__control__.svelte'), warnIgnored: false }
 );
 const parseErrors = (parsedControl?.messages ?? []).filter(message => message.ruleId === null);
 if (parseErrors.length) {
@@ -122,12 +122,12 @@ if (parseErrors.length) {
 }
 
 // What is actually in force for the product.
-const productConfig = await eslint.calculateConfigForFile(resolve(root, 'src/main.ts'));
+const productConfig = await eslint.calculateConfigForFile(resolve(root, 'packages/main/main.ts'));
 for (const rule of REQUIRED_FOR_PRODUCT) {
   const setting = productConfig.rules?.[rule];
   const severity = Array.isArray(setting) ? setting[0] : setting;
   if (severity !== 'error' && severity !== 2) {
-    failures.push(`${rule} is not an error for src/main.ts; the product is not held to it`);
+    failures.push(`${rule} is not an error for packages/main/main.ts; the product is not held to it`);
   }
 }
 

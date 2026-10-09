@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
-import { allowsResource } from '../src/policy.js';
+import { allowsResource } from '../packages/main/policy.js';
 
 describe('P0-local-policy', () => {
   it('allows only the bundled page and stylesheet', () => {

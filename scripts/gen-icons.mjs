@@ -3,8 +3,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { render, renderAttribution } from './icons.mjs';
 
 const targets = [
-  ['src/renderer/ui/icons.ts', render()],
-  ['src/attribution.ts', renderAttribution()]
+  ['packages/ui/icons.ts', render()],
+  ['packages/main/attribution.ts', renderAttribution()]
 ];
 
 if (process.argv.includes('--check')) {

@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_LEVEL, MAX_AGE_MS, RAISED_LEVEL_MS, REDACTED_FIELDS,
   effectiveLevel, plan, redactionPaths, type LogFile
-} from '../src/logging.js';
-import { liveEngineLogs } from '../src/logger.js';
+} from '../packages/logging/logging.js';
+import { liveEngineLogs } from '../packages/logging/logger.js';
 
 const file = (name: string, bytes: number, modifiedMs: number): LogFile => ({ name, bytes, modifiedMs });
 const NOW = 1_800_000_000_000;
@@ -107,7 +107,7 @@ describe('QGD-LOG-0009 and QGD-LOG-0010 level and its reversion', () => {
 // point is that a caller who passes a secret by name still cannot log it.
 describe('QGD-LOG-0003 redaction happens in the logger', () => {
   it('redacts a secret a caller passed, at the top level and nested', async () => {
-    const { createLogger, ACTIVE_LOG } = await import('../src/logger.js');
+    const { createLogger, ACTIVE_LOG } = await import('../packages/logging/logger.js');
     const { mkdtemp, readFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
@@ -130,7 +130,7 @@ describe('QGD-LOG-0003 redaction happens in the logger', () => {
   });
 
   it('writes one JSON object per line, naming the process that wrote it', async () => {
-    const { createLogger, ACTIVE_LOG } = await import('../src/logger.js');
+    const { createLogger, ACTIVE_LOG } = await import('../packages/logging/logger.js');
     const { mkdtemp, readFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
@@ -155,7 +155,7 @@ describe('QGD-LOG-0003 redaction happens in the logger', () => {
 
 describe('QGD-LOG-0006 and QGD-LOG-0007 enforced on disk', () => {
   it('rotates an oversized active file and removes what the cap requires', async () => {
-    const { enforceCaps, ACTIVE_LOG } = await import('../src/logger.js');
+    const { enforceCaps, ACTIVE_LOG } = await import('../packages/logging/logger.js');
     const { mkdtemp, readdir, rm, writeFile, utimes } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
@@ -193,7 +193,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
   };
 
   it('moves the writer onto the new file when it rotates, instead of writing into the archive', async () => {
-    const { createLogger, maintain, ACTIVE_LOG } = await import('../src/logger.js');
+    const { createLogger, maintain, ACTIVE_LOG } = await import('../packages/logging/logger.js');
     const { readFile, readdir, rm, writeFile } = await import('node:fs/promises');
     const { join } = await import('node:path');
     const directory = await temp('qg-log-rotate-');
@@ -222,7 +222,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
   });
 
   it('carries a utility process\'s records into the one file, through the writer', async () => {
-    const { createLogger, createForwardingLogger, writeForwarded, ACTIVE_LOG } = await import('../src/logger.js');
+    const { createLogger, createForwardingLogger, writeForwarded, ACTIVE_LOG } = await import('../packages/logging/logger.js');
     const { readFile, rm } = await import('node:fs/promises');
     const { join } = await import('node:path');
     const directory = await temp('qg-log-forward-');
@@ -244,7 +244,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
   });
 
   it('redacts in the utility, before the line crosses to the writer', async () => {
-    const { createForwardingLogger } = await import('../src/logger.js');
+    const { createForwardingLogger } = await import('../packages/logging/logger.js');
     const { rm } = await import('node:fs/promises');
     const directory = await temp('qg-log-forward-redact-');
     try {
@@ -261,7 +261,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
   });
 
   it('lets a raised level expire inside a running process', async () => {
-    const { createForwardingLogger } = await import('../src/logger.js');
+    const { createForwardingLogger } = await import('../packages/logging/logger.js');
     const { rm, writeFile } = await import('node:fs/promises');
     const { join } = await import('node:path');
     const directory = await temp('qg-log-level-');
@@ -289,7 +289,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
   });
 
   it('never throws out of a logging call, whatever the destination does', async () => {
-    const { createForwardingLogger } = await import('../src/logger.js');
+    const { createForwardingLogger } = await import('../packages/logging/logger.js');
     const { rm } = await import('node:fs/promises');
     const directory = await temp('qg-log-throwing-');
     try {
@@ -308,7 +308,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
 
 describe('one writer per process', () => {
   it('shares a destination between components of the writing process', async () => {
-    const { createLogger, ACTIVE_LOG } = await import('../src/logger.js');
+    const { createLogger, ACTIVE_LOG } = await import('../packages/logging/logger.js');
     const { mkdtemp, readFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');

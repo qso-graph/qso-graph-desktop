@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { crc32, redactForExport, zip } from '../src/diagnostics.js';
+import { crc32, redactForExport, zip } from '../packages/main/diagnostics.js';
 
 describe('QGD-LOG-0012 the archive', () => {
   it('computes the checksum the format requires', () => {
@@ -91,7 +91,7 @@ describe('QGD-LOG-0012 redaction before export', () => {
 describe('QGD-LOG-0012 the export', () => {
   it('archives the log folder with secrets removed, and leaves the originals alone', async () => {
     const { mkdir } = await import('node:fs/promises');
-    const { exportDiagnostics } = await import('../src/diagnostics.js');
+    const { exportDiagnostics } = await import('../packages/main/diagnostics.js');
     const directory = await mkdtemp(join(tmpdir(), 'qg-export-'));
     const logs = join(directory, 'logs');
     await mkdir(logs, { recursive: true });
@@ -130,7 +130,7 @@ describe('QGD-LOG-0012 the export', () => {
 
   it('produces an archive even when there is nothing to export', async () => {
     const { mkdir } = await import('node:fs/promises');
-    const { exportDiagnostics } = await import('../src/diagnostics.js');
+    const { exportDiagnostics } = await import('../packages/main/diagnostics.js');
     const directory = await mkdtemp(join(tmpdir(), 'qg-export-empty-'));
     try {
       const logs = join(directory, 'logs');

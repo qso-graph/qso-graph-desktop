@@ -1,0 +1,495 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import type {
+  Persona, Snapshot, CredentialStatus, CredentialTest, ExportResult, ImportPreview, ImportResult,
+  PersonaCommand, PersonaReply, ServiceSummary
+} from '../personas/persona-contract.js';
+import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
+import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
+import type { EngineCommand, EngineReply } from '../engine/engine-contract.js';
+import type { Level } from '../logging/logging.js';
+import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
+import { mount } from 'svelte';
+import Shell from './Shell.svelte';
+import { createShellStore } from './shell-store.js';
+declare const __QG_VERSION__: string;
+
+declare global {
+  interface Window {
+    personas: { request(command: PersonaCommand): Promise<PersonaReply> };
+    settings: { request(command: SettingsCommand): Promise<SettingsReply> };
+    logs: { request(command: LogsCommand): Promise<LogsReply> };
+    engine: { request(command: EngineCommand): Promise<EngineReply> };
+    appearance?: Appearance;
+  }
+}
+// QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
+// below looks for an element. The Persona screen's markup moved into
+// PersonaPage.svelte unchanged and this file still finds it by id, so the
+// workflow signed off at P1 is the same code driving the same markup.
+const shell = createShellStore();
+mount(Shell, {
+  target: document.body,
+  props: {
+    store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    onStartEngine: startEngine, onStopEngine: stopEngine,
+    onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
+    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
+    onFinishSetup: finishSetup,
+    // Injected at build time from package.json, so the number on screen is the
+    // number that was built rather than one typed twice.
+    version: __QG_VERSION__
+  }
+});
+
+// Guided setup's two actions. Both are the real ones: the persona is created
+// when it is named and the credential is saved when it is entered, so there
+// is nothing in setup that is lost by leaving it. A refusal comes back as its
+// sentence for the screen to show.
+export async function createPersona(callsign: string, name: string): Promise<string | undefined> {
+  const reply = await window.personas.request({
+    type: 'upsert', name: name || callsign, callsign
+  });
+  if (!reply.ok) return reply.error;
+  snapshot = reply.data as Snapshot;
+  // The name the core stored, not the one that was sent. `identifier()`
+  // lowercases it, so asking for "W1AW/9" back by that spelling finds
+  // nothing — and the Personas page then drew itself as if no persona had
+  // been made, with the status bar saying otherwise. Matched the way the core
+  // matches: case-insensitively, on the name.
+  const asked = name || callsign;
+  const made = snapshot.personas.find(entry => entry.name.toLowerCase() === asked.toLowerCase())?.name ?? asked;
+  const activated = await window.personas.request({ type: 'set-active', name: made });
+  if (activated.ok) snapshot = activated.data as Snapshot;
+  // Remembered, not drawn. The Personas screen's markup is not mounted while
+  // setup is showing — setup is in its place — and select() reaches straight
+  // into that markup, so calling it here threw and the operator was left
+  // looking at a callsign box that had already made their persona.
+  selected = made;
+  shell.set({
+    activePersona: `${callsign.toUpperCase()} · ${made}`,
+    firstRun: false
+  });
+  return undefined;
+}
+
+// Drawing the Personas screen again, once it is back on screen. Called when
+// setup finishes, which is the first moment its markup exists again.
+export function finishSetup(): void {
+  shell.endSetup();
+  select(selected ?? snapshot.active ?? snapshot.personas[0]?.name ?? null);
+}
+
+export async function saveSetupCredential(
+  service: string,
+  values: Record<string, string>
+): Promise<string | undefined> {
+  const persona = snapshot.active ?? snapshot.personas[0]?.name;
+  if (!persona) return 'Create a persona first.';
+  const reply = await window.personas.request({
+    type: 'save-credentials',
+    persona,
+    provider: service,
+    credentials: {
+      ...(values.username ? { username: values.username } : {}),
+      ...(values.password ? { password: values.password } : {}),
+      ...(values.api_key ? { apiKey: values.api_key } : {})
+    }
+  });
+  return reply.ok ? undefined : reply.error;
+}
+
+const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const input = (id: string) => element<HTMLInputElement>(id);
+let snapshot: Snapshot = { personas: [], active: null };
+let selected: string | null = null;
+const testResults = new Map<string, { text: string; success: boolean }>();
+const testKey = () => `${selected}:${element<HTMLSelectElement>('provider').value}`;
+function setTestResult(text: string, kind: 'success' | 'error' | 'plain' = 'plain') {
+  const target = element('credential-test-result');
+  target.textContent = text;
+  target.classList.toggle('success', kind === 'success');
+  target.classList.toggle('error', kind === 'error');
+}
+
+// The one writer of that line, so a remembered result and the reason the
+// button is unavailable cannot overwrite each other. They used to: saving a
+// credential drew the reason and then invalidateTest() immediately replaced it
+// with "Not tested yet." — a claim about a service that cannot be tested.
+let serviceState: CredentialStatus | undefined;
+
+function showTestResult() {
+  if (serviceState === undefined) { setTestResult('Checking saved credentials…'); return; }
+  if (!serviceState.testable) { setTestResult('Testing for this service is not implemented yet.'); return; }
+  if (!serviceState.stored) { setTestResult('Save a username and password or API key first, then this can be tested.'); return; }
+  const result = testResults.get(testKey());
+  setTestResult(result?.text ?? 'Not tested yet.',
+    result ? (result.success ? 'success' : 'error') : 'plain');
+}
+function invalidateTest() { testResults.delete(testKey()); showTestResult(); }
+function message(text: string, error = false) { const status = element('message'); status.textContent = text; status.classList.toggle('error', error); }
+async function request(command: PersonaCommand) {
+  const reply = await window.personas.request(command);
+  if (!reply.ok) throw new Error(reply.error);
+  return reply.data;
+}
+function current(): Persona | undefined { return snapshot.personas.find(p => p.name === selected); }
+function list() {
+  const container = element('persona-list'); container.replaceChildren();
+  for (const persona of snapshot.personas) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'persona-item';
+    button.classList.toggle('selected', persona.name === selected);
+    button.setAttribute('aria-pressed', String(persona.name === selected));
+    const call = document.createElement('strong'); call.textContent = persona.callsign;
+    const name = document.createElement('span'); name.textContent = persona.name + (persona.name === snapshot.active ? ' · Active' : '');
+    button.append(call, name); button.addEventListener('click', () => select(persona.name)); container.append(button);
+  }
+  if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No personas yet. Start with your station callsign.'; container.append(empty); }
+  const active = snapshot.personas.find(p => p.name === snapshot.active);
+  // Both read from the personas every time they are drawn, so the offer of
+  // guided setup goes away the moment there is a persona rather than staying
+  // up because it was decided once at start (QGD-PSN-0004).
+  shell.set({
+    activePersona: active ? `${active.callsign} · ${active.name}` : '',
+    firstRun: snapshot.personas.length === 0
+  });
+}
+async function credentialStatus() {
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  if (!persona) return;
+  // Nothing is known about this service until the answer comes back, and the
+  // line says so rather than making a claim it has not checked.
+  serviceState = undefined;
+  showTestResult();
+  element<HTMLButtonElement>('test-credential').disabled = true;
+  for (const id of ['password', 'api-key']) {
+    input(id).placeholder = '';
+    element(`${id}-saved`).hidden = true;
+    element(`remove-${id}`).hidden = true;
+  }
+  element<HTMLSelectElement>('credential-preference').disabled = true;
+  element('credential-effective').textContent = '';
+  element('remove-credential').hidden = true;
+  element('credential-status').textContent = 'Checking saved credentials…';
+  try {
+    const status = await request({ type: 'status', persona, provider }) as CredentialStatus;
+    if (persona !== selected || provider !== element<HTMLSelectElement>('provider').value) return;
+    showCredentialStatus(status);
+  } catch (error) { if (persona === selected) message((error as Error).message, true); }
+}
+function showCredentialStatus(status: CredentialStatus) {
+  // A control that cannot be used says why, without being pressed. Both
+  // reasons are knowable in advance: the service may not be testable at all,
+  // or there may be nothing saved to test. Leaving the button simply dead was
+  // the bug — on Club Log it was disabled, offered no reason, and the shared
+  // disabled style drew a busy cursor over it, so a control that was doing
+  // nothing looked like one that was working.
+  const test = element<HTMLButtonElement>('test-credential');
+  serviceState = status;
+  test.disabled = !status.testable || !status.stored;
+  test.setAttribute('aria-describedby', 'credential-test-result');
+  showTestResult();
+  // An entry saved before the index recorded which kinds it holds says so,
+  // rather than being drawn as holding neither (QGD-CRD-0010). Both removal
+  // controls are offered, because each is an explicit action that will read
+  // the entry — and reading it is what records the kinds for next time.
+  const unknown = status.stored && !status.kindsKnown;
+  for (const [id, saved] of [['password', status.hasPassword], ['api-key', status.hasApiKey]] as const) {
+    // Fixed display marker, independent of the stored value or its length.
+    input(id).placeholder = saved || unknown ? '••••••••' : '';
+    element(`${id}-saved`).hidden = !saved;
+    element(`remove-${id}`).hidden = !saved && !unknown;
+  }
+  const preference = element<HTMLSelectElement>('credential-preference');
+  preference.value = status.preferred;
+  preference.disabled = !status.stored;
+  const effective = status.effective === 'api_key' ? 'API key' : 'password';
+  element('credential-effective').textContent = status.effective ? `Selected for use: ${effective}. If the preferred credential is missing, the other saved credential is used.` : '';
+  const parts = [status.hasPassword ? 'password' : '', status.hasApiKey ? 'API key' : ''].filter(Boolean);
+  element('credential-status').textContent = !status.stored
+    ? 'No credential saved for this service.'
+    : unknown
+      ? 'Stored in Keychain. Test it or save it again to show what it holds.'
+      : `Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.`;
+  element('remove-credential').hidden = !status.stored;
+}
+function select(name: string | null) {
+  selected = name; const persona = current(); list(); message('');
+  element('page-title').textContent = persona ? persona.callsign : 'Create a persona';
+  input('persona-name').value = persona?.name ?? ''; input('persona-name').readOnly = Boolean(persona);
+  input('callsign').value = persona?.callsign ?? '';
+  input('start-date').value = persona?.start ?? new Date().toISOString().slice(0, 10);
+  input('end-date').value = persona?.end ?? '';
+  element('save-persona').textContent = persona ? 'Save persona details' : 'Create persona';
+  element('use-persona').hidden = !persona || persona.name === snapshot.active;
+  element('remove-persona').hidden = !persona;
+  element('credential-card').hidden = !persona;
+  input('username').value = persona?.callsign ?? '';
+  input('password').value = ''; input('api-key').value = '';
+  if (persona) void credentialStatus(); else input('persona-name').focus();
+}
+async function busy(buttonId: string, action: () => Promise<void>) {
+  const button = element<HTMLButtonElement>(buttonId);
+  button.disabled = true;
+  // Working, as opposed to merely unavailable. The two look different now,
+  // because they are different and the operator should be able to tell.
+  button.classList.add('working');
+  button.setAttribute('aria-busy', 'true');
+  try { await action(); } catch (error) { message((error as Error).message, true); }
+  finally {
+    button.classList.remove('working');
+    button.removeAttribute('aria-busy');
+    if (buttonId === 'test-credential' || buttonId === 'credential-preference') void credentialStatus();
+    else button.disabled = false;
+  }
+}
+element('new-persona').addEventListener('click', () => select(null));
+element('persona-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-persona', async () => {
+    const name = input('persona-name').value.trim();
+    if (!selected && snapshot.personas.some(p => p.name === name.toLowerCase())) throw new Error('That persona exists. Select it to edit its details.');
+    snapshot = await request({ type: 'upsert', name, callsign: input('callsign').value, start: input('start-date').value || undefined, end: input('end-date').value || undefined }) as Snapshot;
+    select(name.toLowerCase()); message('Persona saved.');
+  });
+});
+element('use-persona').addEventListener('click', () => void busy('use-persona', async () => {
+  if (!selected) return;
+  snapshot = await request({ type: 'set-active', name: selected }) as Snapshot;
+  select(selected); message('Active persona selected.');
+}));
+element('remove-persona').addEventListener('click', () => void busy('remove-persona', async () => {
+  if (!selected || !window.confirm('Remove this persona and ALL its saved service credentials from Keychain? This cannot be undone.')) return;
+  const name = selected;
+  snapshot = await request({ type: 'remove-persona', name }) as Snapshot;
+  for (const key of testResults.keys()) if (key.startsWith(`${name}:`)) testResults.delete(key);
+  select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+  message('Persona and its saved service credentials removed.');
+}));
+element('provider').addEventListener('change', () => { input('password').value = ''; input('api-key').value = ''; message(''); void credentialStatus(); });
+element('credential-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-credential', async () => {
+    if (!selected) return;
+    const credentials = { username: input('username').value || undefined, password: input('password').value || undefined, apiKey: input('api-key').value || undefined };
+    input('password').value = ''; input('api-key').value = '';
+    const persona = selected;
+    const provider = element<HTMLSelectElement>('provider').value;
+    const status = await request({ type: 'save-credentials', persona, provider, credentials }) as CredentialStatus;
+    if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+      showCredentialStatus(status); message('Credential saved in macOS Keychain.');
+      invalidateTest();
+    }
+  });
+});
+element('remove-credential').addEventListener('click', () => void busy('remove-credential', async () => {
+  if (!selected || !window.confirm('Remove the saved credential for this persona and service?')) return;
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  const status = await request({ type: 'delete-credentials', persona, provider }) as CredentialStatus;
+  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+    showCredentialStatus(status); message('Saved credential removed.');
+    invalidateTest();
+  }
+}));
+for (const [id, field, label] of [['remove-password', 'password', 'password'], ['remove-api-key', 'api_key', 'API key']] as const) {
+  element(id).addEventListener('click', () => void busy(id, async () => {
+    if (!selected || !window.confirm(`Remove only the saved ${label} for this persona and service?`)) return;
+    const persona = selected;
+    const provider = element<HTMLSelectElement>('provider').value;
+    const status = await request({ type: 'remove-secret', persona, provider, field }) as CredentialStatus;
+    if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+      input(field === 'api_key' ? 'api-key' : 'password').value = '';
+      showCredentialStatus(status); message(`Saved ${label} removed.`);
+      invalidateTest();
+    }
+  }));
+}
+element('credential-preference').addEventListener('change', () => void busy('credential-preference', async () => {
+  if (!selected) return;
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  const preferred = element<HTMLSelectElement>('credential-preference').value as CredentialStatus['preferred'];
+  const status = await request({ type: 'set-preference', persona, provider, preferred }) as CredentialStatus;
+  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+    showCredentialStatus(status); message('Preferred credential saved.');
+    invalidateTest();
+  }
+}));
+element('test-credential').addEventListener('click', () => void busy('test-credential', async () => {
+  if (!selected) return;
+  const persona = selected;
+  const provider = element<HTMLSelectElement>('provider').value;
+  const key = testKey();
+  setTestResult('Testing saved credential…');
+  const result = await request({ type: 'test-credential', persona, provider }) as CredentialTest;
+  const messages: Record<CredentialTest['outcome'], string> = {
+    success: 'Success — QRZ accepted the saved credential.',
+    rejected: 'Failed — QRZ rejected the credential or denied API access.',
+    'network-error': 'Could not connect securely to QRZ. Check your connection and try again.',
+    'rate-limited': 'Please wait before testing again: 30 seconds normally, five minutes after a rejected login or service limit.',
+    'invalid-response': 'QRZ returned an unexpected response. Credential validity could not be confirmed.',
+    missing: 'No usable credential is saved. Save a username and password or API key first.',
+    unsupported: 'Testing for this service is not implemented yet.'
+  };
+  testResults.set(key, { text: `${messages[result.outcome]} (${new Date().toLocaleTimeString()})`, success: result.outcome === 'success' });
+  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) showTestResult();
+}));
+async function initialize() {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      snapshot = await request({ type: 'list' }) as Snapshot;
+      select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+      // The register, for the setup screen to draw itself from. Whether to
+      // offer setup at all is decided by the persona list every time it is
+      // drawn, above.
+      const listed = await window.personas.request({ type: 'services' });
+      // An empty list is what a register that could not be read looks like
+      // from here, and setup then has a callsign step and nothing after it —
+      // which is still a working setup (QGD-PSN-0004).
+      shell.set({ services: listed.ok && Array.isArray(listed.data) ? listed.data as ServiceSummary[] : [] });
+      return;
+    }
+    catch (error) { if (attempt === 9) message((error as Error).message, true); else await new Promise(resolve => setTimeout(resolve, 250)); }
+  }
+}
+void initialize();
+
+
+// QGD-FRM-0001 and QGD-FRM-0002: follow the operating system unless the user
+// has chosen otherwise, and change with it while running.
+let themeChoice: ThemeChoice = 'system';
+let stopFollowing: (() => void) | undefined;
+
+function startTheme(): void {
+  stopFollowing?.();
+  stopFollowing = followSystem(prefersDark =>
+    applyTheme(resolveTheme(themeChoice, prefersDark), isPinned(themeChoice)));
+}
+
+export async function setThemeChoice(choice: ThemeChoice): Promise<boolean> {
+  const reply = await window.settings.request({ type: 'write', key: 'theme', value: choice });
+  if (!reply.ok) return false;
+  themeChoice = reply.data.theme;
+  shell.set({ themeChoice });
+  startTheme();
+  return true;
+}
+
+async function loadTheme(): Promise<void> {
+  const reply = await window.settings.request({ type: 'read' });
+  // A settings channel that cannot answer must not leave the window unthemed.
+  if (reply.ok) themeChoice = reply.data.theme;
+  shell.set({ themeChoice });
+  startTheme();
+}
+
+void loadTheme();
+
+
+// QGD-LOG-0013. The page shows the level that is in force, so every reply is
+// read back into the shell rather than the renderer assuming the change took.
+async function readLogs(): Promise<void> {
+  const reply = await window.logs.request({ type: 'read' });
+  if (reply.ok && reply.kind === 'status') shell.set({ logs: reply.status });
+}
+
+export async function setLogLevel(level: Level): Promise<boolean> {
+  const reply = await window.logs.request({ type: 'set-level', level });
+  if (!reply.ok || reply.kind !== 'status') return false;
+  shell.set({ logs: reply.status });
+  return true;
+}
+
+// Returns the line the page displays. The wording is here because this is the
+// only place that knows which of the three outcomes happened.
+export async function exportDiagnostics(): Promise<string> {
+  const reply = await window.logs.request({ type: 'export' });
+  if (!reply.ok) return reply.error;
+  if (reply.kind === 'cancelled') return 'Export cancelled.';
+  if (reply.kind !== 'exported') return '';
+  const megabytes = reply.bytes / (1024 * 1024);
+  const size = megabytes >= 0.1 ? `${megabytes.toFixed(1)} MB` : `${Math.max(1, Math.round(reply.bytes / 1024))} KB`;
+  const files = reply.files === 1 ? '1 log file' : `${reply.files} log files`;
+  return `Saved ${files} (${size}). Passwords and keys were removed.`;
+}
+
+// Moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011).
+//
+// The renderer collects the passphrase and nothing else: the file is chosen,
+// read and written by the main process. A refusal is returned as its sentence
+// rather than thrown, because every one of them is something the operator can
+// act on — most of all the one that says a file could not be opened and that
+// it cannot tell whether the passphrase or the file is at fault.
+export async function exportPersonas(passphrase: string): Promise<ExportResult | string> {
+  const reply = await window.personas.request({ type: 'export-personas', passphrase });
+  if (!reply.ok) return reply.error;
+  const data = reply.data as ExportResult | null;
+  return data && typeof data.written === 'string' ? data : 'The export could not be written.';
+}
+
+export async function inspectImport(passphrase: string): Promise<ImportPreview | string> {
+  const reply = await window.personas.request({ type: 'import-personas', passphrase, apply: false });
+  if (!reply.ok) return reply.error;
+  const data = reply.data as ImportPreview | null;
+  return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
+}
+
+export async function applyImport(passphrase: string): Promise<ImportResult | string> {
+  const reply = await window.personas.request({ type: 'import-personas', passphrase, apply: true });
+  if (!reply.ok) return reply.error;
+  const data = reply.data as ImportResult | null;
+  if (!data || typeof data.personas !== 'number') return 'The import did not finish.';
+  // The personas on screen are now out of date, because some of them arrived
+  // a moment ago. Reloaded rather than left for the operator to discover.
+  try {
+    snapshot = await request({ type: 'list' }) as Snapshot;
+    select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+  } catch { /* the import worked; the list will catch up at the next action */ }
+  return data;
+}
+
+// QGD-LOG-0010: a raise expires on its own, after an hour and at restart. The
+// page has to notice, or it goes on offering `debug` while the loggers have
+// been back on `info` for an hour — and somebody collects diagnostics
+// believing they have detail that was never recorded.
+//
+// Read when Settings is opened, and again while it stays open. The level is
+// owned by the main process and changed by a clock, so the renderer has
+// nothing to derive it from; asking is the only honest answer.
+const LOGS_REFRESH_MS = 30_000;
+let logsRefresh: ReturnType<typeof setInterval> | undefined;
+shell.subscribe(state => {
+  const onSettings = state.page === 'settings';
+  if (onSettings && logsRefresh === undefined) {
+    void readLogs();
+    logsRefresh = setInterval(() => { void readLogs(); }, LOGS_REFRESH_MS);
+  } else if (!onSettings && logsRefresh !== undefined) {
+    clearInterval(logsRefresh);
+    logsRefresh = undefined;
+  }
+});
+
+
+// QGD-ENG-0003. The engine is asked how it is, and nothing waits for the
+// answer: this file has already mounted the shell by the time any of it runs.
+// While Settings is open it is asked again, because a database that is
+// starting becomes a database that has started without telling anyone.
+async function askEngine(command: EngineCommand): Promise<void> {
+  const reply = await window.engine.request(command);
+  if (reply.ok) shell.set({ engine: reply.status });
+}
+
+export async function startEngine(): Promise<void> { await askEngine({ type: 'start' }); }
+export async function stopEngine(): Promise<void> { await askEngine({ type: 'stop' }); }
+
+const ENGINE_REFRESH_MS = 2_000;
+let engineRefresh: ReturnType<typeof setInterval> | undefined;
+shell.subscribe(state => {
+  const onSettings = state.page === 'settings';
+  if (onSettings && engineRefresh === undefined) {
+    void askEngine({ type: 'status' });
+    engineRefresh = setInterval(() => { void askEngine({ type: 'status' }); }, ENGINE_REFRESH_MS);
+  } else if (!onSettings && engineRefresh !== undefined) {
+    clearInterval(engineRefresh);
+    engineRefresh = undefined;
+  }
+});

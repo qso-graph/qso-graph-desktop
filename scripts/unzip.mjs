@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Reads back what src/diagnostics.ts writes, so a suite can look inside an
+// Reads back what packages/main/diagnostics.ts writes, so a suite can look inside an
 // exported archive rather than at its bytes.
 //
 // This exists because searching the archive bytes for a credential is not a

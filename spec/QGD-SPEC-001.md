@@ -131,11 +131,20 @@ QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 
 | ID | Requirement | Verify |
 |---|---|---|
-| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `app-api` — `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon, and `storybook/` at the root for the component gallery. | Inspection |
+| `QGD-REP-0001` | The repository is laid out as `packages/` — `persona-core`, `main`, `preload`, `renderer`, `ui`, `engine`, `reference`, `personas`, `logging`, `app-api` — `apps/` — `adif`, `club`, `editor` — each application carrying its own `package.json`, `src/`, `tests/`, README and icon, and `storybook/` at the root for the component gallery. A package holds its files directly; `src/` and `tests/` are an application's shape, not a package's. The compiled tree mirrors it, so `dist/<package>/` is where a process finds its siblings. | Inspection |
 | `QGD-REP-0002` | The move to that layout happens at `QGD-PRT-0107` and not before. Recording it here is not permission to begin it. | Inspection |
+| `QGD-REP-0006` | **The dependency direction between packages is fixed, and enforced over the imports themselves.** `persona-core`, `logging`, `reference`, `ui` and `preload` depend on no other package; `personas` and `engine` depend only on those; `main` adds `personas` and `engine`; `renderer` may depend on anything below it and nothing may depend on `renderer`. An application depends on `app-api` and `ui` and on nothing else, which is `QGD-REP-0003` made structural. A contract lives with the side that serves it and its callers depend on it, never the reverse. Checked against the imports rather than asserted, because the layout is only worth the move if a wrong-direction import cannot land. Stories are excluded and the exclusion is named: a `.stories.svelte` ships nowhere (`QGD-FRM-0009`) and the gallery is required to show a component the way the shell does (`QGD-FRM-0006`), which is why the rail's story reads the shell's own page list. | Test |
 | `QGD-REP-0003` | A built-in application uses only the app API and its grants, exactly as a contributed application would. Personas, the engine and the reference data are frame, not applications, because the frame enforces the grants. | Inspection |
 | `QGD-REP-0004` | `app-api` and `ui` are separate packages: what an application may call and what it may look like are different contracts. | Inspection |
 | `QGD-REP-0005` | Third-party material that ships inside the application is recorded in `NOTICE`, with its licence and the version that ships. Where that licence requires attribution, the attribution also appears in a surface the user can reach — the About panel — because a file in the repository is not somewhere a user can be expected to look. | Test, Inspection |
+
+> `logging` is in that list and was not in the version of `QGD-REP-0001` written before the move. Every
+> process logs into one stream (`QGD-LOG-0001`) and the log directory's caps cover the engine's files as
+> well as the application's (`QGD-LOG-0011`), so the logger is shared by `main`, `engine` and `personas`.
+> It had no home among the nine: putting it in `main` would have made the engine depend on the main
+> process to write a log line. The naming of the engine's own log files moved here with it, having lived
+> in the engine's endpoint module — which is what made the logger depend on the engine to sweep its own
+> directory.
 
 ## 3. Credential core
 

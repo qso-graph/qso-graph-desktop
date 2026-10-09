@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { allowsSender, RENDERER_URL, validateCommand as check } from '../src/persona-contract.js';
-import { serviceIds, validateRegister } from '../src/services.js';
+import { allowsSender, RENDERER_URL, validateCommand as check } from '../packages/personas/persona-contract.js';
+import { serviceIds, validateRegister } from '../packages/personas/services.js';
 
 // The services come from the register the product ships, not from a list here
 // (QGD-PSN-0002). A service dropped from it must stop being accepted, which is

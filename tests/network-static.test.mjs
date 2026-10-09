@@ -122,7 +122,7 @@ describe('QGD-SEC-0020 no outbound client in the product\u2019s TypeScript', () 
     // credential core (D-18, D-31), so there is nothing here that connects.
     // node:net in the engine's endpoint asks the OS for a free port to listen
     // on; it opens nothing.
-    expect(Object.keys(NETWORK_EXCEPTIONS)).toEqual(['src/engine/endpoint.ts']);
+    expect(Object.keys(NETWORK_EXCEPTIONS)).toEqual(['packages/engine/endpoint.ts']);
     for (const reason of Object.values(NETWORK_EXCEPTIONS)) expect(reason.length).toBeGreaterThan(20);
   });
 

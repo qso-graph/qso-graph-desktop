@@ -2,10 +2,14 @@
 // QGD-FRM-0005 brings Svelte; svelte-check is what type-checks inside a
 // component, where tsc cannot look.
 //
-// Run only once a component exists. svelte-check warns when it finds no input
-// files, and --fail-on-warnings is what makes a real warning in a real
-// component stop the build — so the choice is between a gate that is strict
-// from the first component and a build that fails until one is written.
+// Finding no components is a failure, not a skip. This script used to print
+// "no components yet; nothing to check" and exit 0, which was true on the
+// first day of the project and became a hole the moment one existed: the
+// QGD-PRT-0107 restructure moved every component out of src/ and this walk,
+// still rooted there, reported nothing to check and passed the build. That is
+// the fourth gate in this project to go quiet because of where it looked —
+// after ESLint reviewing no Svelte, svelte-check excluding every story, and
+// the network scan's scope. A gate that cannot see its subject says so.
 import { spawnSync } from 'node:child_process';
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -33,7 +37,7 @@ const TSCONFIG = './tsconfig.svelte.json';
 
 async function coversAStandaloneComponent() {
   // Inside the repository, so `svelte` resolves, and in its own directory so
-  // there is one thing to remove. Gitignored, and outside src/ so a leftover
+  // there is one thing to remove. Gitignored, and outside packages/ so a leftover
   // cannot be mistaken for a component or fail the story-pairing check.
   const directory = resolve('.svelte-check-control');
   try {
@@ -55,9 +59,11 @@ async function coversAStandaloneComponent() {
   }
 }
 
-const found = await components(resolve('src'));
+const found = await components(resolve('packages'));
 if (found.length === 0) {
-  console.log('svelte-check: no components yet; nothing to check.');
+  console.error('svelte-check found no components under packages/.');
+  console.error('The product has them, so this walk is looking in the wrong place.');
+  process.exitCode = 1;
 } else if (!await coversAStandaloneComponent()) {
   console.error('svelte-check reported nothing on a component with a deliberate type error.');
   console.error(`It is reviewing less than it appears to; check the include patterns in ${TSCONFIG}.`);
