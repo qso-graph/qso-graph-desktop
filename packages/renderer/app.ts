@@ -102,6 +102,44 @@ const element = <T extends HTMLElement>(id: string) => document.getElementById(i
 const input = (id: string) => element<HTMLInputElement>(id);
 let snapshot: Snapshot = { personas: [], active: null };
 let selected: string | null = null;
+// Which secret fields the operator has actually typed into since they were
+// last cleared (QGD-CRD-0006, QGD-APP-0007's sibling concern in the shell).
+//
+// The save used to send whatever the password and API key inputs held, with
+// blank meaning "keep what is saved". That reads correctly and it makes the
+// stored secret depend on the field's value being right at the instant the
+// button is pressed — so any way a value reaches that field without the
+// operator putting it there ends up in the Keychain. A stale value, an
+// autofill, a paste that lands late while focus is moving: each of those
+// writes a secret the operator did not supply.
+//
+// KI7MT, 2026-10-09, after packaged-launch stored a password into an entry
+// whose field the suite had just emptied: treat it as a security bug, not a
+// record entry. It has not been reproduced in twelve runs since, eight of them
+// under load, so this does not fix a known mechanism — it removes the product's
+// dependence on that field being right, which is what every candidate
+// mechanism had in common.
+//
+// Intent is now read from the operator's own input events rather than from the
+// value: a field nobody typed into sends nothing, whatever it contains.
+const edited = new Set<string>();
+
+function clearSecretFields() {
+  for (const id of ['password', 'api-key']) {
+    input(id).value = '';
+    // Cleared by the application, so the operator has said nothing about it.
+    edited.delete(id);
+  }
+}
+
+// Only what the operator entered in this action. Blank still means "keep what
+// is saved" — that is the documented behaviour and the Remove buttons are how
+// a secret is deleted — but now so does untouched.
+function enteredSecret(id: 'password' | 'api-key'): string | undefined {
+  if (!edited.has(id)) return undefined;
+  return input(id).value || undefined;
+}
+
 const testResults = new Map<string, { text: string; success: boolean }>();
 const testKey = () => `${selected}:${element<HTMLSelectElement>('provider').value}`;
 function setTestResult(text: string, kind: 'success' | 'error' | 'plain' = 'plain') {
@@ -225,7 +263,7 @@ function select(name: string | null) {
   element('remove-persona').hidden = !persona;
   element('credential-card').hidden = !persona;
   input('username').value = persona?.callsign ?? '';
-  input('password').value = ''; input('api-key').value = '';
+  clearSecretFields();
   if (persona) void credentialStatus(); else input('persona-name').focus();
 }
 async function busy(buttonId: string, action: () => Promise<void>) {
@@ -265,12 +303,23 @@ element('remove-persona').addEventListener('click', () => void busy('remove-pers
   select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
   message('Persona and its saved service credentials removed.');
 }));
-element('provider').addEventListener('change', () => { input('password').value = ''; input('api-key').value = ''; message(''); void credentialStatus(); });
+element('provider').addEventListener('change', () => { clearSecretFields(); message(''); void credentialStatus(); });
+for (const id of ['password', 'api-key']) {
+  // 'input' rather than 'change': it fires for typing, pasting, autofill the
+  // operator accepted, and a cleared field — every way a person puts a value
+  // in — and does not fire when something else assigns .value, which is the
+  // case this exists to refuse.
+  input(id).addEventListener('input', () => { edited.add(id); });
+}
 element('credential-form').addEventListener('submit', event => {
   event.preventDefault(); void busy('save-credential', async () => {
     if (!selected) return;
-    const credentials = { username: input('username').value || undefined, password: input('password').value || undefined, apiKey: input('api-key').value || undefined };
-    input('password').value = ''; input('api-key').value = '';
+    const credentials = {
+      username: input('username').value || undefined,
+      password: enteredSecret('password'),
+      apiKey: enteredSecret('api-key')
+    };
+    clearSecretFields();
     const persona = selected;
     const provider = element<HTMLSelectElement>('provider').value;
     const status = await request({ type: 'save-credentials', persona, provider, credentials }) as CredentialStatus;
@@ -297,7 +346,9 @@ for (const [id, field, label] of [['remove-password', 'password', 'password'], [
     const provider = element<HTMLSelectElement>('provider').value;
     const status = await request({ type: 'remove-secret', persona, provider, field }) as CredentialStatus;
     if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
-      input(field === 'api_key' ? 'api-key' : 'password').value = '';
+      const cleared = field === 'api_key' ? 'api-key' : 'password';
+      input(cleared).value = '';
+      edited.delete(cleared);
       showCredentialStatus(status); message(`Saved ${label} removed.`);
       invalidateTest();
     }

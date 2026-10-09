@@ -138,6 +138,73 @@ try {
   expect((await page.locator('body').innerText()).includes(fakeCredential)).toBe(false);
   const index = await readFile(join(profile, 'personas.json'), 'utf8');
   expect(index.includes(fakeCredential)).toBe(false);
+
+  // A secret the operator did not enter is not saved, however it got into the
+  // field.
+  //
+  // KI7MT, 2026-10-09, after packaged-launch stored a password into an entry
+  // whose Password field the suite had just emptied: a security bug, not a
+  // record entry. It has not been reproduced — twelve runs since, eight of
+  // them under load — so this does not test a known mechanism. It tests that
+  // the mechanism no longer matters: the save sends what the operator typed in
+  // that action, not what the field happens to hold when the button is
+  // pressed, so a stale value, an autofill, or a paste landing late while
+  // focus moves cannot reach the Keychain.
+  //
+  // The value is assigned through .value with no input event, which is
+  // precisely what a person cannot do and everything else can.
+  //
+  // The completion signal is #message, not the indicator. The first version of
+  // this check asserted #password-saved hidden straight after the click and
+  // passed against the unfixed application, because it read the indicator
+  // before the save round-trip had come back — a control that cannot fail is
+  // not a control. Switching the service away and back clears #message
+  // (app.ts does it on every provider change), so its reappearance is the
+  // save's own answer and nothing else.
+  {
+    const planted = `QG_FAKE_CREDENTIAL_PLANTED_${randomUUID()}`;
+    const service = page.getByLabel('Service', { exact: true });
+    await service.selectOption('eqsl');
+    await service.selectOption('qrz_logbook');
+    await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+    await expect(page.locator('#message')).toHaveText('');
+
+    // The API key is typed, so the save is a real one that completes — this is
+    // the shape of the run that failed: one field the operator filled, one
+    // holding a value they did not. With both fields untouched the application
+    // refuses the save outright ("Enter a password or API key"), which is
+    // correct and would not exercise this.
+    const freshApiKey = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
+    await page.getByLabel('API key', { exact: true }).fill(freshApiKey);
+    await page.evaluate(value => {
+      // No dispatchEvent: the point is a field holding something the operator
+      // never put there.
+      document.getElementById('password').value = value;
+    }, planted);
+    expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe(planted);
+    await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
+    await expect(page.locator('#message')).toHaveText('Credential saved in macOS Keychain.', { timeout: 30_000 });
+    await expect(page.locator('#api-key-saved')).toBeVisible();
+    await expect(page.locator('#password-saved')).toBeHidden();
+    expect((await readFile(join(profile, 'personas.json'), 'utf8')).includes(planted)).toBe(false);
+
+    // The control for the control: the same value, typed, is saved. Without
+    // this the check above would pass on an application that had simply
+    // stopped saving passwords.
+    await service.selectOption('eqsl');
+    await service.selectOption('qrz_logbook');
+    await expect(page.locator('#message')).toHaveText('');
+    await page.getByLabel('Password', { exact: true }).fill(planted);
+    await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
+    await expect(page.locator('#message')).toHaveText('Credential saved in macOS Keychain.', { timeout: 30_000 });
+    await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Remove password', exact: true }).click();
+    await expect(page.locator('#password-saved')).toBeHidden({ timeout: 30_000 });
+    await expect(page.locator('#api-key-saved')).toBeVisible();
+  }
+
   // QGD-CRD-0009 and QGD-CRD-0010. This restart is the exact thing KI7MT hit:
   // a persona with a saved credential, remembered as active, and the
   // application opening on it. It used to read the secret to draw the status,

@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `8813e94a109e26497c052ae904e8184119efb3e5` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `27439cbaea1bce35613b0cfb4f3e3db3dcbbb9c6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `8813e94a109e26497c052ae904e8184119efb3e5` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `27439cbaea1bce35613b0cfb4f3e3db3dcbbb9c6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 156 requirements · 12 Parts · 8 Demo · 37 Inspection · 37 Static · 107 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 157 requirements · 12 Parts · 8 Demo · 37 Inspection · 37 Static · 108 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -39,6 +39,7 @@
 | `QGD-CRD-0011` | A control that cannot be used says why, without being pressed, in words a screen reader reaches. Whether a service can be tested at all, and whether there is anything saved to test, are both known in advance and are reported in advance. **A disabled control is never drawn as a busy one.** (KI7MT, 2026-10-08: Club Log's Test button was disabled, unexplained, and drawing a spinning busy cursor, because the shared disabled style said `cursor: wait`.) | Test | ✓ |
 | `QGD-CRD-0009` | **No credential secret is read at startup, by navigation, or to display status.** A secret is read only on an explicit action of the operator's that needs it — testing a credential, or handing one to something that will use it. Reading a secret is what makes macOS ask for the login keychain password, and asking for it before the operator has done anything is both alarming and unearned. (KI7MT, 2026-10-08: opening the application prompted him, because the remembered persona was selected and its status read.) | Test | ✓ |
 | `QGD-CRD-0010` | The status display answers from the index and from the existence of the Keychain entry — which the Keychain reports from an item's attributes without unlocking its data — and never from the secret. Which kinds of secret an entry holds is not itself a secret, and is recorded when it is written. | Test | ✓ |
+| `QGD-CRD-0012` | **A secret is stored only if the operator entered it in that action.** Intent is read from the operator's own input, not from what the field holds when the button is pressed — so a value that reached a secret field some other way (a stale value, an autofill, a paste landing late while focus moves) is not written. A blank field still means *keep what is saved*, and `Remove` is still how a secret is deleted; what changed is that untouched now means the same as blank. (KI7MT, 2026-10-09: `packaged-launch` stored a password into an entry whose field the suite had just emptied, and he directed it be treated as a security bug rather than a record entry. It was not reproduced in twelve runs, eight under load, so this removes the product's dependence on that field being correct rather than fixing a known mechanism — which is what every candidate mechanism had in common.) | Test | ✓ |
 | `QGD-PII-0001` | Club rosters are personal data. A real roster never enters this repository, its history, or CI output. Test fixtures are synthetic or anonymized. | Static | ✓ |
 | `QGD-PII-0002` | Round-trip and comparison tests report positions and lengths, never field values, so a failing diff cannot leak a member's details. | Test | ✓ |
 | `QGD-PII-0003` | Roster field values are never written to logs, `report.md`, telemetry, or error messages. | Static, Test | ✓ |
