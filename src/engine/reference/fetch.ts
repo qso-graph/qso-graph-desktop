@@ -105,3 +105,40 @@ export async function openArchive(
     fromCache
   };
 }
+
+// ---------------------------------------------------------------------------
+// The conditional fetch POTA's lists use (QGD-REF-0010).
+//
+// In this module because QGD-SEC-0020 allows one outbound client in the whole
+// product and this is it. The caller passes a URL from the register and
+// nothing else: no host is written here.
+
+export interface Conditional {
+  etag?: string | null;
+  lastModified?: string | null;
+}
+
+export type Fetched =
+  | { status: 'fresh'; body: string; etag: string | null; lastModified: string | null }
+  | { status: 'unchanged' };
+
+export type FetchText = (url: string, conditional: Conditional) => Promise<Fetched>;
+
+export async function downloadText(url: string, conditional: Conditional = {}): Promise<Fetched> {
+  if (!url.startsWith('https://')) throw new Error('reference data is fetched over HTTPS only');
+  const headers: Record<string, string> = {};
+  // Asked with both where both are known: a server that honours either
+  // answers 304 and sends nothing, which is the point of asking.
+  if (conditional.etag) headers['If-None-Match'] = conditional.etag;
+  if (conditional.lastModified) headers['If-Modified-Since'] = conditional.lastModified;
+
+  const response = await fetch(url, { headers });
+  if (response.status === 304) return { status: 'unchanged' };
+  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  return {
+    status: 'fresh',
+    body: await response.text(),
+    etag: response.headers.get('etag'),
+    lastModified: response.headers.get('last-modified')
+  };
+}

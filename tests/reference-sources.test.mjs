@@ -98,11 +98,29 @@ describe('QGD-REF-0009 and QGD-REF-0012 POTA', () => {
     expect(locations.copy).toContain('QGD-REF-0012');
   });
 
-  it('keeps nothing of POTA\u2019s in the repository', async () => {
-    // QGD-REF-0009: fetched at run time, never redistributed. The register
-    // names the URLs; it holds no park, program or location.
+  it('names where POTA’s lists are and holds none of their contents', async () => {
+    // QGD-REF-0009: fetched at run time, never redistributed. Which means the
+    // register must name the URLs — the first version of this test forbade
+    // the park list's URL, confusing POTA's data with the address of it, and
+    // the requirement says the opposite: what ships is where to get it.
     const text = await readFile('data/reference-sources.json', 'utf8');
-    expect(text).not.toContain('all_parks_ext');
-    expect(text.includes('US-0001'), 'no park reference may be committed').toBe(false);
+    const register = JSON.parse(text);
+    const urls = Object.values(register.pota.sources).map(source => source.url);
+    expect(urls).toEqual([
+      'https://pota.app/all_parks_ext.csv',
+      'https://api.pota.app/programs',
+      'https://api.pota.app/locations'
+    ]);
+    for (const url of urls) expect(url.startsWith('https://'), `${url} must be HTTPS`).toBe(true);
+
+    // And no row of POTA's: no park reference, and no park or program name.
+    // The requirement citations are taken out first — QGD-REF-0002 has the
+    // shape of a park reference and is not one.
+    const withoutCitations = text.replaceAll(/QGD-[A-Z]{3}-\d{4}(\.\d+)?/g, '');
+    const references = withoutCitations.match(/\b[A-Z0-9]{1,4}-\d{4,5}\b/g) ?? [];
+    expect(references, "a park reference would be POTA's data, committed").toEqual([]);
+    for (const name of ['Acadia National Park', 'Afghanistan', 'Test Park']) {
+      expect(text.includes(name), `"${name}" is POTA's data, not a source`).toBe(false);
+    }
   });
 });

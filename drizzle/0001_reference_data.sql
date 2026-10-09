@@ -52,6 +52,48 @@ CREATE TABLE "qg_ref"."list" (
 	"row_count" integer
 );
 --> statement-breakpoint
+CREATE TABLE "qg_ref"."pota_location" (
+	"location_id" integer PRIMARY KEY NOT NULL,
+	"entity_id" integer,
+	"entity_name" text,
+	"location_desc" text NOT NULL,
+	"location_name" text,
+	"latitude" double precision,
+	"longitude" double precision,
+	"iso" text
+);
+--> statement-breakpoint
+CREATE TABLE "qg_ref"."pota_park" (
+	"reference" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"active" boolean NOT NULL,
+	"entity_id" integer,
+	"adif_entity" integer,
+	"location_desc" text NOT NULL,
+	"latitude" double precision,
+	"longitude" double precision,
+	"grid" text,
+	"coordinates_usable" boolean NOT NULL,
+	"coordinates_note" text,
+	"is_test" boolean DEFAULT false NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "qg_ref"."pota_park_location" (
+	"reference" text NOT NULL,
+	"location_desc" text NOT NULL,
+	CONSTRAINT "pota_park_location_reference_location_desc_pk" PRIMARY KEY("reference","location_desc")
+);
+--> statement-breakpoint
+CREATE TABLE "qg_ref"."pota_program" (
+	"program_id" integer PRIMARY KEY NOT NULL,
+	"prefix" text NOT NULL,
+	"name" text NOT NULL,
+	"active" boolean NOT NULL,
+	"iso_country" text,
+	"location_unit" text,
+	"iso_language" text
+);
+--> statement-breakpoint
 CREATE TABLE "qg_ref"."source" (
 	"id" text PRIMARY KEY NOT NULL,
 	"what" text NOT NULL,

@@ -105,7 +105,7 @@ try {
     buildFile: resolve('data/postgres-build.json'),
     reference: { register, cacheDirectory: cache, fetchArchive: handOver }
   });
-  expect(started.reference.state, 'the start must have loaded the reference data').toBe('loaded');
+  expect(started.reference.adif.state, 'the start must have loaded the reference data').toBe('loaded');
   expect(await status(paths)).toBe('running');
 
   const archive = await openArchive(release, cache, handOver);
@@ -120,8 +120,9 @@ try {
       'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name',
       [REFERENCE_SCHEMA]);
     expect(tables.rows.map(row => row.table_name)).toEqual([
-      'data_type', 'enumeration', 'enumeration_value', 'field', 'list', 'source',
-      'uninterpreted', 'zone'
+      'data_type', 'enumeration', 'enumeration_value', 'field', 'list',
+      'pota_location', 'pota_park', 'pota_park_location', 'pota_program',
+      'source', 'uninterpreted', 'zone'
     ]);
     notes.push(`the reference data is in ${REFERENCE_SCHEMA}, made by a migration`);
 
@@ -360,8 +361,10 @@ try {
         reference: { register, cacheDirectory: empty, fetchArchive: offline },
         onWarning: (message, fields) => warnings.push([message, fields])
       });
-      expect(up.reference.state, 'a load that cannot happen is unavailable').toBe('unavailable');
-      expect(up.reference.reason).toContain('ENOTFOUND');
+      expect(up.reference.adif.state, 'a load that cannot happen is unavailable').toBe('unavailable');
+      expect(up.reference.adif.reason).toContain('ENOTFOUND');
+      // And POTA was not asked for either, which is said rather than implied.
+      expect(up.reference.pota).toBe('skipped');
       expect(await status(fresh), 'and the engine is up regardless').toBe('running');
       expect(warnings.some(([message]) => message === 'reference data not loaded'),
         'and it is said once, in the log').toBe(true);

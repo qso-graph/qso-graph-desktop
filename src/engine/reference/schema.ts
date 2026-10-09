@@ -174,3 +174,76 @@ export const uninterpreted = reference.table('uninterpreted', {
   cell: text('cell').notNull(),
   note: text('note').notNull()
 }, table => [primaryKey({ columns: [table.relation, table.key, table.column] })]);
+
+// ---------------------------------------------------------------------------
+// POTA's parks, programs and locations (QGD-REF-0009 to QGD-REF-0013).
+//
+// Held like the rest of the reference data and shaped by three facts about
+// POTA's lists that ADIF's do not have:
+//
+// - **The park list changes daily**, so it is not pinned by checksum: the
+//   source row carries an ETag and a Last-Modified instead (QGD-REF-0010).
+// - **A published value is stored as published and never corrected**
+//   (QGD-REF-0011). Four parks publish coordinates that cannot exist — one of
+//   them with the latitude and longitude plainly transposed — and they are
+//   stored exactly as POTA publishes them with a flag beside them. The flag is
+//   this product's opinion; the value stays POTA's record.
+// - **POTA's entity number is POTA's**, not ADIF's DXCC code, however often
+//   the two agree (QGD-REF-0012). So it is a plain column, and the ADIF entity
+//   is a nullable derived link set only where the numbers do agree. As a
+//   foreign key it would have refused 113 parks.
+import { doublePrecision } from 'drizzle-orm/pg-core';
+
+export const potaProgram = reference.table('pota_program', {
+  programId: integer('program_id').primaryKey(),
+  prefix: text('prefix').notNull(),
+  name: text('name').notNull(),
+  active: boolean('active').notNull(),
+  isoCountry: text('iso_country'),
+  // What this program calls its locations: Province, State, Prefecture…
+  locationUnit: text('location_unit'),
+  isoLanguage: text('iso_language')
+});
+
+export const potaLocation = reference.table('pota_location', {
+  locationId: integer('location_id').primaryKey(),
+  // POTA's own entity number, as on the parks (QGD-REF-0012).
+  entityId: integer('entity_id'),
+  entityName: text('entity_name'),
+  // "US-ME" and the like: what a park's locationDesc holds.
+  locationDesc: text('location_desc').notNull(),
+  locationName: text('location_name'),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  iso: text('iso')
+});
+
+export const potaPark = reference.table('pota_park', {
+  reference: text('reference').primaryKey(),
+  name: text('name').notNull(),
+  // Retired parks are kept, so a QSO from 2019 still resolves (QGD-REF-0011).
+  active: boolean('active').notNull(),
+  entityId: integer('entity_id'),
+  // The derived link: equal to entityId where that number is also an ADIF
+  // DXCC entity code, and null where POTA numbers the world differently.
+  adifEntity: integer('adif_entity'),
+  // Exactly as published, comma-separated list and all. The split-out rows
+  // are in pota_park_location (QGD-REF-0013).
+  locationDesc: text('location_desc').notNull(),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  grid: text('grid'),
+  // This product's opinions about the row, never changes to it:
+  // whether the coordinates can be used to measure or map with, and whether
+  // this is POTA's own test park rather than a place.
+  coordinatesUsable: boolean('coordinates_usable').notNull(),
+  coordinatesNote: text('coordinates_note'),
+  isTest: boolean('is_test').notNull().default(false)
+});
+
+// One row per park per location: 1,618 parks publish more than one
+// (QGD-REF-0013). A column holding a list cannot be joined on.
+export const potaParkLocation = reference.table('pota_park_location', {
+  reference: text('reference').notNull(),
+  locationDesc: text('location_desc').notNull()
+}, table => [primaryKey({ columns: [table.reference, table.locationDesc] })]);

@@ -18,6 +18,7 @@
 // that parsed but arrived empty is refused rather than loaded.
 import type { Client } from 'pg';
 import { REFERENCE_SCHEMA } from './schema.js';
+import type { PotaRegister } from './pota-load.js';
 import {
   type Definitions, dataTypes, derive, enumerations, fields, values
 } from './adif.js';
@@ -27,6 +28,7 @@ export interface Register {
     version: string;
     source: { what: string; url: string; sha256: string; published: string; definitions: string; testQsos: string };
   };
+  pota: PotaRegister;
   lists: {
     id: string; what: string; authority: string; copy: string;
     source: string | null; supplied: boolean; derived: boolean; holds?: string;

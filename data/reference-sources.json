@@ -118,7 +118,8 @@
       "copy": "fetched from POTA at run time and never redistributed; not pinned, because the list changes daily (QGD-REF-0009, QGD-REF-0010)",
       "source": "pota",
       "supplied": true,
-      "derived": false
+      "derived": false,
+      "holds": "parks"
     },
     {
       "id": "pota-programs",
@@ -127,7 +128,8 @@
       "copy": "fetched from POTA at run time; never redistributed",
       "source": "pota",
       "supplied": true,
-      "derived": false
+      "derived": false,
+      "holds": "programs"
     },
     {
       "id": "pota-locations",
@@ -136,7 +138,61 @@
       "copy": "fetched from POTA at run time and never redistributed; its entity numbering is POTA's own and is not ADIF's DXCC code (QGD-REF-0012)",
       "source": "pota",
       "supplied": true,
-      "derived": false
+      "derived": false,
+      "holds": "locations"
     }
-  ]
+  ],
+  "pota": {
+    "what": "POTA's own park, program and location lists, fetched at run time and never redistributed (QGD-REF-0009). Not pinned by checksum: the park list changes daily, so a checksum would make every load a refusal (QGD-REF-0010).",
+    "refreshAfterHours": 24,
+    "sources": {
+      "parks": {
+        "url": "https://pota.app/all_parks_ext.csv",
+        "what": "Every park reference with its name, whether it is active, POTA's entity number, its location or locations, and coordinates",
+        "format": "csv",
+        "columns": [
+          "reference",
+          "name",
+          "active",
+          "entityId",
+          "locationDesc",
+          "latitude",
+          "longitude",
+          "grid"
+        ],
+        "conditional": "etag and last-modified, both offered"
+      },
+      "programs": {
+        "url": "https://api.pota.app/programs",
+        "what": "POTA's national programs, their prefixes and what each calls its locations",
+        "format": "json",
+        "columns": [
+          "programId",
+          "programPrefix",
+          "programName",
+          "isActive",
+          "isocc",
+          "location_unit",
+          "isolang"
+        ],
+        "conditional": "neither etag nor last-modified is offered, so the daily limit is what prevents a refetch"
+      },
+      "locations": {
+        "url": "https://api.pota.app/locations",
+        "what": "POTA's locations, each with POTA's own entity number and the location's coordinates",
+        "format": "json",
+        "columns": [
+          "locationId",
+          "entityId",
+          "entityName",
+          "locationDesc",
+          "locationName",
+          "latitude",
+          "longitude",
+          "iso"
+        ],
+        "conditional": "neither etag nor last-modified is offered"
+      }
+    }
+  }
 }

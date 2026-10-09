@@ -55,6 +55,14 @@ const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 
+// Note on what this run costs POTA: the engine fetches POTA's three lists
+// here, because that is what a first start does and seeding them is not
+// possible — the loader keeps them in the database, not in a cache directory.
+// The park list is a nightly-generated static file on a CDN rather than a
+// volunteer-run API, and the daily limit in QGD-REF-0010 is what keeps a real
+// user from asking twice. If POTA cannot be reached the engine still starts
+// and this suite still passes, with no external endpoint to check.
+//
 // The reference archive, put where the product looks for it before it starts.
 //
 // This makes the run below an installed product whose reference data is
@@ -308,22 +316,43 @@ try {
     expect(kinds.length, `${taken.label}: tree too small to be the application`).toBeGreaterThanOrEqual(4);
   }
 
-  stage = 'no external connection anywhere, in any sample or poll';
-  // What this proves, exactly: an installed product whose reference data is
-  // already on the machine connects to nothing at all. That is the state a
-  // user's machine is in every run after the first, and it is run here with
-  // the archive seeded into the cache directory (above) so it is that state
-  // and not a first run.
+  stage = 'every external connection is the engine fetching reference data';
+  // QGD-SEC-0020. The product does reach the network: it fetches ADIF's
+  // archive and POTA's three lists, which QGD-REF-0001 and QGD-REF-0009
+  // require it to do rather than ship them. So this is not a zero any more,
+  // and pretending it were would mean either a false claim in the footer or a
+  // suite that only passes offline.
   //
-  // It is NOT a claim that the product never reaches the network. It fetches
-  // the reference data once (QGD-REF-0001, QGD-SEC-0020), and reading this
-  // zero as "never" is the misreading to avoid. That one connection is held
-  // to the register statically, by the gate below and by
-  // tests/network-static.test.mjs: one module, HTTPS only, destination read
-  // from data/reference-sources.json rather than written into the source.
+  // What is asserted instead is the whole of what QGD-SEC-0020 allows: the
+  // engine's own process, TCP, port 443. No other process may hold an
+  // external endpoint and no other port may be reached — no telemetry, no
+  // update check, nothing from the renderer or the credential core.
+  //
+  // Which hosts is held statically rather than here: the fetcher contains no
+  // host at all and takes every URL from data/reference-sources.json, which
+  // tests/network-static.test.mjs proves. Resolving the register's hostnames
+  // in this suite would make it depend on a CDN answering with the same
+  // addresses twice, which is a flake rather than a check.
   const everyEndpoint = [...observed.values(), ...labelled.flatMap(taken => taken.endpoints)];
   const external = everyEndpoint.filter(endpoint => endpoint.external);
-  expect(external, external.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ')).toEqual([]);
+  const describe = list => list.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ');
+  const unexpected = external.filter(endpoint =>
+    endpoint.process !== 'utility:engine'
+    || endpoint.protocol !== 'TCP'
+    || !String(endpoint.remote).endsWith(':443'));
+  expect(unexpected, `external connection(s) QGD-SEC-0020 does not allow: ${describe(unexpected)}`).toEqual([]);
+  if (external.length) {
+    console.log(`  the engine reached ${new Set(external.map(e => e.remote)).size} address(es) on 443: ` +
+      `${[...new Set(external.map(e => e.remote))].join(', ')}`);
+  }
+
+  // And the run said what happened to the reference load, either way. Without
+  // this the rule above passes on a run where nothing was ever fetched — on a
+  // machine with no network, which is a legitimate state and not a pass.
+  stage = 'the run said what happened to the reference data';
+  const engineLog = (await Promise.all((await readdir(logs).catch(() => []))
+    .map(name => readFile(join(logs, name), 'utf8').catch(() => '')))).join('\n');
+  expect(engineLog, 'the engine must say what became of the reference data').toContain('reference data');
 
   stage = 'the renderer and the credential core hold no socket at all';
   for (const kind of ['renderer', 'utility:node.mojom.NodeService']) {
@@ -347,7 +376,7 @@ try {
   expect([...everyLabel].includes('utility:node.mojom.NodeService'),
     `the credential core was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
 
-  stage = 'the engine holds no TCP port and reaches nothing';
+  stage = 'the engine holds no TCP port of its own';
   // A different rule, deliberately. The engine talks to PostgreSQL over a Unix
   // socket, which is not an internet socket and does not appear here at all —
   // so it should hold nothing either. But it is a database supervisor rather
@@ -356,9 +385,14 @@ try {
   // output of every run rather than passed over, because something that opens
   // a socket here is something to understand.
   const engineHeld = everyEndpoint.filter(endpoint => endpoint.process === 'utility:engine');
-  const engineTcp = engineHeld.filter(endpoint => endpoint.protocol === 'TCP' || endpoint.external);
-  expect(engineTcp, `the engine held ${engineTcp.length} TCP or external endpoint(s): ` +
-    engineTcp.map(e => `${e.protocol} ${e.local}->${e.remote}`).join(', ')).toEqual([]);
+  // A listener, or a connection to anything but a reference source on 443.
+  // The engine talks to PostgreSQL over a Unix socket, which is not an
+  // internet socket and does not appear here at all — so what it may hold is
+  // the outbound fetch above and nothing else.
+  const engineOther = engineHeld.filter(endpoint =>
+    !(endpoint.external && endpoint.protocol === 'TCP' && String(endpoint.remote).endsWith(':443')));
+  expect(engineOther, `the engine held ${engineOther.length} endpoint(s) that are not the reference fetch: ` +
+    engineOther.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
 
   stage = 'PostgreSQL itself holds no TCP port';
   // QGD-ENG-0009, from outside: the server is on a Unix socket and listens on
@@ -385,7 +419,7 @@ try {
   // workflow that included a credential test.
   stage = 'the footer claim matches what this suite measured';
   const footer = await page.locator('#connection-note').innerText();
-  expect(footer).toBe('Stored locally · Connects only when you test a credential');
+  expect(footer).toBe('Stored locally · Connects to test a credential or update reference data');
   // An absolute claim would be false the moment a user tests a credential.
   expect(footer).not.toContain('No service connection made');
 
@@ -453,10 +487,15 @@ try {
   }, null, 2) + '\n');
 
   await application.close(); application = undefined;
-  const engineNote = engineHeld.length
-  ? `; the engine held ${engineHeld.length} non-TCP endpoint(s): ${engineHeld.map(e => `${e.protocol} ${e.local}`).join(', ')}`
-  : '; the engine and PostgreSQL held none';
-console.log(`Connection capture: ${observed.size} distinct endpoints observed, none external; renderer and credential core held none${engineNote}: PASS`);
+  // What was measured, said in the terms the rules are now written in: the
+  // engine may reach a reference source on 443 and nothing else may reach
+  // anything.
+  const reached = [...new Set(external.map(endpoint => endpoint.remote))];
+  const engineNote = reached.length
+    ? `the engine reached ${reached.length} address(es) on 443 and held nothing else`
+    : 'the engine reached nothing (no network on this run) and held nothing';
+  console.log(`Connection capture: ${observed.size} distinct endpoints observed; ` +
+    `renderer and credential core held none; ${engineNote}: PASS`);
   console.log('Renderer reached nothing by fetch, XHR, WebSocket, EventSource, beacon, image or dynamic import: PASS');
   console.log('Both positive controls observed; the product refused the filtered one; static network gate clean: PASS');
 } catch (error) {

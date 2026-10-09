@@ -26,7 +26,7 @@ export function blockedBy(name, suites) {
   if (name.startsWith('engine-') && name !== 'engine-binaries' && failed('engine-binaries')) return 'engine-binaries';
   // The reference load runs a real engine too, and reads the archive the
   // adif-reference suite is the one that reports as missing.
-  if (name === 'reference-load' || name === 'adif-validation') {
+  if (['reference-load', 'adif-validation', 'pota-load'].includes(name)) {
     if (failed('engine-binaries')) return 'engine-binaries';
     if (failed('adif-reference')) return 'adif-reference';
   }

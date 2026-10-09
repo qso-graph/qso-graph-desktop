@@ -17,12 +17,29 @@ import type { Register } from './engine/reference/load.js';
 import { validateEngineCommand, type EngineReply, type EngineStatus } from './engine-contract.js';
 
 // What is worth logging about each answer. No credential, no path.
+//
+// Said plainly either way, because "nothing in the log about it" is how a
+// reference load that never happened looks exactly like one that did
+// (QGD-REF-0014).
 function describe(reference: ReferenceState): Record<string, unknown> {
-  if (reference.state === 'loaded') {
-    return { adif: reference.loaded.version, values: reference.loaded.values, fromCache: reference.fromCache };
+  const adif = reference.adif;
+  const about: Record<string, unknown> = { adif: adif.state };
+  if (adif.state === 'loaded') {
+    about.version = adif.loaded.version;
+    about.values = adif.loaded.values;
+    about.fromCache = adif.fromCache;
   }
-  if (reference.state === 'unavailable') return { reason: reference.reason };
-  return {};
+  if (adif.state === 'unavailable') about.reason = adif.reason;
+
+  if (reference.pota === 'skipped') about.pota = 'skipped';
+  else {
+    // One word per list, and the reason for any that was not replaced.
+    about.pota = reference.pota.outcomes.map(outcome => `${outcome.list}: ${outcome.state}`).join(', ');
+    const kept = reference.pota.outcomes.filter(outcome => outcome.state === 'kept');
+    if (kept.length) about.potaKept = kept.map(outcome => `${outcome.list}: ${outcome.reason}`);
+    about.potaAdifEntities = `${reference.pota.adifLinked} linked, ${reference.pota.adifUnlinked} not`;
+  }
+  return about;
 }
 
 const [, , binaries, data, logs, sockets, migrations, buildFile, registerFile, referenceCache] = process.argv;
@@ -57,14 +74,14 @@ async function bring(up: boolean): Promise<EngineStatus> {
   const started = await bringUp(paths, endpoint, {
     migrations,
     buildFile,
-    ...(register ? { reference: { register, cacheDirectory: referenceCache } } : {}),
+    ...(register ? { reference: { register, cacheDirectory: referenceCache, pota: true } } : {}),
     onWarning: (message, fields) => log.warn(fields ?? {}, message)
   });
   version = started.version;
   log.info({ migrations: started.migrationsApplied }, 'engine up and migrated');
   // Said plainly either way, because "nothing in the log about it" is how a
   // reference load that never happened looks exactly like one that did.
-  log.info({ reference: started.reference.state, ...describe(started.reference) }, 'reference data');
+  log.info(describe(started.reference), 'reference data');
   return { state: 'running', version };
 }
 

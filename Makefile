@@ -10,6 +10,7 @@ setup:
 	npm ci
 	node scripts/fetch-postgres.mjs
 	node scripts/fetch-adif.mjs
+	node scripts/fetch-pota.mjs
 
 verify:
 	npm run verify

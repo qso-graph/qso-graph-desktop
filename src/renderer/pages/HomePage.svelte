@@ -54,9 +54,17 @@
         {#if engine?.reason}<span class="fact-note">{engine.reason}</span>{/if}
       </dd>
     </dl>
+    <!--
+      Said precisely, because the product now reaches out on its own: it
+      fetches ADIF's definitions and POTA's park list rather than shipping
+      them (QGD-REF-0001, QGD-REF-0009). "Nothing is sent anywhere until you
+      ask for it" stopped being true of the application the day that landed,
+      and a promise that is nearly true is the kind a user finds out about.
+    -->
     <p class="hint">
-      Everything here stays on this Mac. Nothing is sent anywhere until you ask
-      for it.
+      Everything you enter stays on this Mac. Nothing of yours is sent anywhere
+      until you ask. The app fetches the ADIF and park reference lists it needs,
+      and nothing else.
     </p>
   </section>
 
