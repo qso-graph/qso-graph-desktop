@@ -57,11 +57,23 @@ baked-in path that makes a check pass in one place and fail in another.
 ## First time only, in that account
 
 ```
-npm ci
-node scripts/fetch-postgres.mjs      # the pinned build, ~200 MB (QGD-ENG-0004)
+make setup
 ```
 
-Both write inside the checkout. Neither needs a credential.
+That is `npm ci` plus the three fetches — the pinned PostgreSQL build
+(`QGD-ENG-0004`), ADIF's definitions, and POTA's lists. All of it writes inside
+the checkout and none of it needs a credential.
+
+An earlier version of this file said `npm ci && node scripts/fetch-postgres.mjs`,
+which is two of the four steps, and the first run in that account duly failed
+`adif-reference` with *"the definitions are missing… Run: make setup"*. The
+suite said exactly what to do; the instructions here were the thing that was
+wrong.
+
+**Expect a Keychain prompt on the first credential suite.** A binary that has
+not written to that account's keychain before has no access to the items it
+creates, so macOS asks once. Allow it — it is that account's own keychain and
+holds nothing of yours.
 
 ## Setting it up from scratch
 

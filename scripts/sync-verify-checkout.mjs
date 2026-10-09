@@ -64,6 +64,13 @@ export CARGO_HOME=${SHARED_RUST}/cargo
 export PATH="${SHARED_RUST}/cargo/bin:/opt/homebrew/bin:$PATH"
 `);
 
+// The commands to run there, written by the sync rather than kept by hand.
+// The first copy of these was hand-written and listed two of the four setup
+// steps, so the first run failed on missing ADIF definitions. A crib sheet
+// that is generated cannot drift from the procedure.
+const first = `cd ${CHECKOUT}\n. ./verify-env.sh\nmake setup          # first time in this account only\nmake verify\n`;
+await writeFile(`${CHECKOUT}/startup.txt`, first);
+
 // The verification account writes dist/, out/, report/ and target/ here.
 run(['chmod', '-R', 'a+rwX', CHECKOUT]);
 

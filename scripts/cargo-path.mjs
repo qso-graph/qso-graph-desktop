@@ -23,14 +23,26 @@ async function runnable(path) {
 }
 
 export async function cargoPath() {
+  return resolve('cargo');
+}
+
+// rustc lives beside cargo in every rustup install, and crypto-evidence.mjs
+// records its version in the evidence file. It had the same hardcoded
+// ~/.cargo/bin path, and was only not failing yet because the build failed
+// first and blocked that suite.
+export async function rustcPath() {
+  return resolve('rustc');
+}
+
+async function resolve(tool) {
   const tried = [];
   const candidates = [];
 
-  if (process.env.CARGO_HOME) candidates.push(join(process.env.CARGO_HOME, 'bin', 'cargo'));
+  if (process.env.CARGO_HOME) candidates.push(join(process.env.CARGO_HOME, 'bin', tool));
   for (const entry of (process.env.PATH ?? '').split(delimiter)) {
-    if (entry) candidates.push(join(entry, 'cargo'));
+    if (entry) candidates.push(join(entry, tool));
   }
-  candidates.push(join(homedir(), '.cargo', 'bin', 'cargo'));
+  candidates.push(join(homedir(), '.cargo', 'bin', tool));
 
   for (const candidate of candidates) {
     tried.push(candidate);
@@ -39,6 +51,6 @@ export async function cargoPath() {
   // Every place looked in, named. A "cargo not found" that does not say where
   // it looked is the start of an hour's guessing.
   throw new Error(
-    'cargo was not found. Looked in CARGO_HOME, on PATH, and in ~/.cargo/bin:\n  ' +
+    `${tool} was not found. Looked in CARGO_HOME, on PATH, and in ~/.cargo/bin:\n  ` +
     [...new Set(tried)].join('\n  '));
 }

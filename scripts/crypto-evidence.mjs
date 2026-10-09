@@ -18,6 +18,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect } from '@playwright/test';
 import { enableTestKeychain } from './keychain-service.mjs';
+import { rustcPath } from './cargo-path.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003). Called before the core is
@@ -139,7 +140,7 @@ try {
       model: run('/usr/sbin/sysctl', ['-n', 'hw.model']),
       arch: process.arch,
       cpu: run('/usr/sbin/sysctl', ['-n', 'machdep.cpu.brand_string']),
-      rustc: run(join(homedir(), '.cargo/bin/rustc'), ['--version']),
+      rustc: run(await rustcPath(), ['--version']),
       node: process.versions.node,
       electron: JSON.parse(await readFile('package.json', 'utf8')).devDependencies.electron,
       commit: run('git', ['rev-parse', 'HEAD']) || 'uncommitted'
