@@ -110,9 +110,18 @@ export const field = reference.table('field', {
 
 // One row per enumeration, carrying the columns it publishes. The header is
 // what makes a jsonb row below readable without consulting the archive.
+//
+// `valueColumn` is which of those columns holds the value a QSO field carries.
+// It is not always the key: ADIF keys Mode by "AM" and the Region enumeration
+// by "IV.206" — the region code and the DXCC entity together — so a validator
+// that looks a value up by key answers "not in ADIF's Region" for nine of
+// ADIF's own test QSOs, which is what the first version of this did. The
+// second column of the header is the value column in all 25 enumerations, so
+// it is read from the header rather than listed here.
 export const enumeration = reference.table('enumeration', {
   name: text('name').primaryKey(),
   header: text('header').array().notNull(),
+  valueColumn: text('value_column').notNull(),
   rowCount: integer('row_count').notNull()
 });
 

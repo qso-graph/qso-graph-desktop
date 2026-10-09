@@ -13,6 +13,7 @@ CREATE TABLE "qg_ref"."data_type" (
 CREATE TABLE "qg_ref"."enumeration" (
 	"name" text PRIMARY KEY NOT NULL,
 	"header" text[] NOT NULL,
+	"value_column" text NOT NULL,
 	"row_count" integer NOT NULL
 );
 --> statement-breakpoint

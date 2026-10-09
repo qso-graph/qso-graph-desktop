@@ -132,17 +132,31 @@ export function fields(definitions: Definitions): FieldRow[] {
   });
 }
 
-export interface EnumerationRow { name: string; header: string[]; rowCount: number }
+export interface EnumerationRow {
+  name: string; header: string[]; valueColumn: string; rowCount: number;
+}
 export interface ValueRow {
   enumeration: string; key: string; value: Row; deleted: boolean; importOnly: boolean;
 }
 
 export function enumerations(definitions: Definitions): EnumerationRow[] {
-  return Object.entries(definitions.Enumerations).map(([name, enumeration]) => ({
-    name,
-    header: enumeration.Header ?? [],
-    rowCount: Object.keys(enumeration.Records ?? {}).length
-  }));
+  return Object.entries(definitions.Enumerations).map(([name, enumeration]) => {
+    const header = enumeration.Header ?? [];
+    // The first column is "Enumeration Name" in all 25 — the enumeration's own
+    // name, repeated on every row — and the second is the value a QSO field
+    // carries. Read rather than listed, so a 26th enumeration needs no edit
+    // here; refused rather than guessed if the shape ever changes.
+    if (header[0] !== 'Enumeration Name' || !header[1]) {
+      throw new Error(`the ${name} enumeration's columns are ${header.join(', ') || 'missing'}, ` +
+        'which is not the shape every ADIF enumeration has had');
+    }
+    return {
+      name,
+      header,
+      valueColumn: header[1],
+      rowCount: Object.keys(enumeration.Records ?? {}).length
+    };
+  });
 }
 
 export function values(definitions: Definitions): ValueRow[] {

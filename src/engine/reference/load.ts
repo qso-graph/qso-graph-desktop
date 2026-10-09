@@ -155,8 +155,8 @@ export async function loadAdif(
         row.enumerationName, row.enumerationParameter, row.description, row.headerField,
         row.minimumValue, row.maximumValue, row.importOnly, row.comments]));
 
-    await insert(client, 'enumeration', ['name', 'header', 'row_count'],
-      enumerationRows.map(row => [row.name, row.header, row.rowCount]));
+    await insert(client, 'enumeration', ['name', 'header', 'value_column', 'row_count'],
+      enumerationRows.map(row => [row.name, row.header, row.valueColumn, row.rowCount]));
 
     await insert(client, 'enumeration_value',
       ['enumeration', 'key', 'value', 'deleted', 'import_only'],

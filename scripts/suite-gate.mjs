@@ -26,10 +26,12 @@ export function blockedBy(name, suites) {
   if (name.startsWith('engine-') && name !== 'engine-binaries' && failed('engine-binaries')) return 'engine-binaries';
   // The reference load runs a real engine too, and reads the archive the
   // adif-reference suite is the one that reports as missing.
-  if (name === 'reference-load') {
+  if (name === 'reference-load' || name === 'adif-validation') {
     if (failed('engine-binaries')) return 'engine-binaries';
     if (failed('adif-reference')) return 'adif-reference';
   }
+  // The exit gate validates what the load put in the engine.
+  if (name === 'adif-validation' && failed('reference-load')) return 'reference-load';
   // story-themes walks the gallery that storybook built.
   if (name === 'story-themes' && failed('storybook')) return 'storybook';
   // Both of these read what packaging produced.

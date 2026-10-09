@@ -32,6 +32,7 @@ const commands = [
   ['engine-migrations', ['scripts/engine-migrations.mjs']],
   ['engine-backup', ['scripts/engine-backup.mjs']],
   ['reference-load', ['scripts/reference-load.mjs']],
+  ['adif-validation', ['scripts/adif-validation.mjs']],
   ['connection-capture', ['scripts/connection-capture.mjs']],
   ['axe', ['scripts/axe.mjs']],
   ['screenshots', ['scripts/screenshots.mjs']],

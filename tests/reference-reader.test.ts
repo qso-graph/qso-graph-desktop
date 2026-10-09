@@ -11,6 +11,8 @@ import { entries, read } from '../src/engine/reference/zip.js';
 import {
   definitionsOf, dataTypes, derive, fields, parseEnumerationRef, values, type Definitions
 } from '../src/engine/reference/adif.js';
+import { asRecord, parseAdi } from '../src/engine/reference/adi.js';
+import { parameterColumn, rulesetOf, validateRecord } from '../src/engine/reference/validate.js';
 
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const release = register.adif;
@@ -225,5 +227,148 @@ describe('QGD-REF-0015 what the zone derivation reaches', () => {
   it('names the authority, which is never ADIF', () => {
     for (const zone of derived.zones) expect(zone.authority).not.toMatch(/ADIF/);
     expect(derived.zones.find(zone => zone.kind === 'cq')!.authority).toBe('CQ Magazine');
+  });
+});
+
+describe('QGD-REF-0008 reading an ADI file', () => {
+  it('reads a value by its declared length, not by looking for a delimiter', () => {
+    // The length is what makes a value containing < or > or a line break
+    // readable at all. A reader that scanned for the next tag would cut this
+    // comment in half.
+    const value = 'a < b and b > c';
+    const file = parseAdi(`<COMMENT:${value.length}>${value}<EOR>`);
+    expect(file.records).toHaveLength(1);
+    expect(file.records[0][0].value).toBe(value);
+    // And the EOR after it was still found, so the length was respected
+    // rather than the whole rest of the file swallowed.
+    expect(file.records[0]).toHaveLength(1);
+  });
+
+  it('keeps a line break inside a value', () => {
+    const value = 'NAME FRED\r\nQTH ALENCON';
+    const file = parseAdi(`<NOTES:${value.length}:M>${value}<EOR>`);
+    expect(file.records[0][0].value).toBe(value);
+    expect(file.records[0][0].indicator).toBe('M');
+  });
+
+  it('splits the header from the records and ignores free text', () => {
+    const file = parseAdi('a comment nobody asked for\n<ADIF_VER:5>3.1.7\n<EOH>\n<CALL:5>W1AW1<EOR>\n<CALL:5>W1AW2<EOR>');
+    expect(file.preamble).toBe('a comment nobody asked for\n');
+    expect(file.header.map(tag => tag.name)).toEqual(['ADIF_VER']);
+    expect(file.records.map(record => record[0].value)).toEqual(['W1AW1', 'W1AW2']);
+  });
+
+  it('upper-cases a field name, because ADIF files do not agree on case', () => {
+    const file = parseAdi('<eoh><my_field:1>x<eor>');
+    expect(file.records[0][0].name).toBe('MY_FIELD');
+  });
+
+  it('refuses a file that ends in the middle of a value', () => {
+    expect(() => parseAdi('<CALL:20>W1AW')).toThrow(/says 20 bytes and the file ends after 4/);
+  });
+
+  it('refuses a tag with no length', () => {
+    expect(() => parseAdi('<CALL:>W1AW')).toThrow(/has no length/);
+    expect(() => parseAdi('<CALL:x>W1AW')).toThrow(/has no length/);
+  });
+
+  it('keeps tags after the last EOR, rather than hiding a truncated file', () => {
+    const file = parseAdi('<EOH><CALL:5>W1AW1<EOR><CALL:5>W1AW2');
+    expect(file.records).toHaveLength(2);
+  });
+
+  it('reads a user-defined field declaration in each of its three forms', () => {
+    const file = parseAdi(
+      '<USERDEF1:20:B>RCVD_FROM_DX_CLUSTER' +
+      '<USERDEF2:32:E>MY_POWER_CATEGORY,{QRPP,QRP,QRO}' +
+      '<USERDEF3:35:N>MY_TEMPERATURE_FAHRENHEIT,{-50:150}' +
+      '<EOH>');
+    expect(file.userDefined).toEqual([
+      { number: 1, name: 'RCVD_FROM_DX_CLUSTER', indicator: 'B' },
+      { number: 2, name: 'MY_POWER_CATEGORY', indicator: 'E', members: ['QRPP', 'QRP', 'QRO'] },
+      { number: 3, name: 'MY_TEMPERATURE_FAHRENHEIT', indicator: 'N', range: { low: -50, high: 150 } }
+    ]);
+  });
+
+  it('reports a field given twice rather than silently keeping one', () => {
+    const file = parseAdi('<EOH><CALL:5>W1AW1<CALL:5>W1AW2<EOR>');
+    const { fields, duplicated } = asRecord(file.records[0]);
+    expect(duplicated).toEqual(['CALL']);
+    expect(fields.get('CALL')?.value).toBe('W1AW2');
+  });
+});
+
+describe('QGD-REF-0016 a list that does not cover the value', () => {
+  const ruleset = rulesetOf({
+    Version: '3.1.7', Status: 'Released',
+    DataTypes: { Header: ['Data Type Name'], Records: {
+      Enumeration: { 'Data Type Name': 'Enumeration', Description: 'a list' },
+      PositiveInteger: { 'Data Type Name': 'PositiveInteger', Description: 'a number' }
+    } },
+    Enumerations: {
+      DXCC_Entity_Code: {
+        Header: ['Enumeration Name', 'Entity Code', 'Entity Name'],
+        Records: {
+          '6': { 'Enumeration Name': 'DXCC_Entity_Code', 'Entity Code': '6', 'Entity Name': 'ALASKA' },
+          '291': { 'Enumeration Name': 'DXCC_Entity_Code', 'Entity Code': '291', 'Entity Name': 'UNITED STATES' }
+        }
+      },
+      // Alaska only, as ADIF's own enumeration is.
+      Secondary_Administrative_Subdivision: {
+        Header: ['Enumeration Name', 'Code', 'DXCC Entity Code'],
+        Records: {
+          'AK,Aleutians East': {
+            'Enumeration Name': 'Secondary_Administrative_Subdivision',
+            Code: 'AK,Aleutians East', 'DXCC Entity Code': '6'
+          }
+        }
+      }
+    },
+    Fields: { Header: ['Field Name'], Records: {
+      DXCC: { 'Field Name': 'DXCC', 'Data Type': 'Enumeration', Enumeration: 'DXCC_Entity_Code', Description: 'entity' },
+      CNTY: {
+        'Field Name': 'CNTY', 'Data Type': 'Enumeration',
+        Enumeration: 'Secondary_Administrative_Subdivision[DXCC]', Description: 'county'
+      }
+    } }
+  });
+  const of = (value: string, dxcc?: string) => {
+    const tags = [{ name: 'CNTY', length: value.length, value }];
+    if (dxcc) tags.push({ name: 'DXCC', length: dxcc.length, value: dxcc });
+    return validateRecord(ruleset, { tags }).find(result => result.field === 'CNTY')!;
+  };
+
+  it('says "not checked" for an entity the list does not reach', () => {
+    const result = of('MA,Middlesex', '291');
+    expect(result.verdict).toBe('unchecked');
+    expect(result.reason).toContain('does not cover');
+  });
+
+  it('still says "invalid" inside an entity the list does reach', () => {
+    // The control. Without it, the rule above is a way of passing anything.
+    expect(of('AK,Nowhere At All', '6').verdict).toBe('invalid');
+    expect(of('AK,Aleutians East', '6').verdict).toBe('valid');
+  });
+
+  it('derives which column answers the parameter from the data', () => {
+    // DXCC -> the DXCC field's own enumeration, DXCC_Entity_Code -> the
+    // column "DXCC Entity Code". Nothing here names that column.
+    expect(parameterColumn(ruleset, 'DXCC')).toBe('DXCC Entity Code');
+    expect(parameterColumn(ruleset, 'NOT_A_FIELD')).toBeUndefined();
+  });
+
+  it('treats a value in the list for another entity as invalid, not as uncovered', () => {
+    const result = of('AK,Aleutians East', '6');
+    expect(result.verdict).toBe('valid');
+    // Asking for the Alaska county under the USA: the list covers 291 for
+    // nothing, so this is uncovered rather than wrong.
+    expect(of('AK,Aleutians East', '291').verdict).toBe('unchecked');
+  });
+
+  it('asks no coverage question of a plain value', () => {
+    const plain = validateRecord(ruleset, { tags: [{ name: 'DXCC', length: 3, value: '291' }] })[0];
+    expect(plain.verdict).toBe('valid');
+    const wrong = validateRecord(ruleset, { tags: [{ name: 'DXCC', length: 4, value: '9999' }] })[0];
+    expect(wrong.verdict, 'a plain enumeration miss is invalid, with no coverage excuse').toBe('invalid');
   });
 });

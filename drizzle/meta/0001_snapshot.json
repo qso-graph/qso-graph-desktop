@@ -1,5 +1,5 @@
 {
-  "id": "ed27d0b9-7b45-4144-9c67-b0d82e2a59ab",
+  "id": "a8533675-737b-4622-8ec0-f9c0ef57852b",
   "prevId": "dd480a1b-5c9d-476b-a5a8-c9293f3acd43",
   "version": "7",
   "dialect": "postgresql",
@@ -111,6 +111,12 @@
         "header": {
           "name": "header",
           "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_column": {
+          "name": "value_column",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
