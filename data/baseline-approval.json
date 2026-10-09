@@ -8,18 +8,25 @@
       "what": "The six baselines at P3 sign-off — home, personas and settings, light and dark",
       "recordedAtUtc": "2026-10-09T03:52:14Z",
       "files": {}
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-09",
+      "what": "6 baseline(s): home-light.png, personas-light.png, settings-light.png, home-dark.png, personas-dark.png, settings-dark.png",
+      "recordedAtUtc": "2026-10-09T19:45:34.992Z",
+      "files": {
+        "home-light.png": "0f9d141a9fc340f408735c4825d3764c6cb8e6cdb78b3372c6ea68cae9f08eee",
+        "personas-light.png": "3cfa6dba916b7e2f56a80d65a786cb1d31580dc2bc79c042d40acca118ecdfcf",
+        "settings-light.png": "b5e415b24a03651479282ae7200f2a0e0731ae7387e0998368e7a9ecc8a1e1cf",
+        "home-dark.png": "4b93ab686b591c85735438a20a3daeb3420b21a588ba10712a22443406eba8b4",
+        "personas-dark.png": "503ac34a37a17c3eabcc2180cbc3d8cac2eda5989d89d42ae112faa258deb8c7",
+        "settings-dark.png": "b1fe7c404ab072d6cf850fb511fce20ae5b30aa31e3feef03a08ab3f70e0baa9"
+      }
     }
   ],
   "awaiting": {
     "note": "Baselines whose bytes differ from the approved set. Written by an agent as a record of what is pending, never as an approval. KI7MT clears these by looking at them and saying so; the entry then moves into \"approved\".",
-    "files": {
-      "home-dark.png": "4b93ab686b591c85735438a20a3daeb3420b21a588ba10712a22443406eba8b4",
-      "home-light.png": "0f9d141a9fc340f408735c4825d3764c6cb8e6cdb78b3372c6ea68cae9f08eee",
-      "personas-dark.png": "503ac34a37a17c3eabcc2180cbc3d8cac2eda5989d89d42ae112faa258deb8c7",
-      "personas-light.png": "3cfa6dba916b7e2f56a80d65a786cb1d31580dc2bc79c042d40acca118ecdfcf",
-      "settings-dark.png": "b1fe7c404ab072d6cf850fb511fce20ae5b30aa31e3feef03a08ab3f70e0baa9",
-      "settings-light.png": "b5e415b24a03651479282ae7200f2a0e0731ae7387e0998368e7a9ecc8a1e1cf"
-    },
+    "files": {},
     "whyTheyChanged": [
       "The footer: \"Connects only when you test a credential\" became \"Connects to test a credential or update reference data\", because the product now fetches reference data (QGD-REF-0001, QGD-REF-0009) and the old sentence was false.",
       "The Home page: \"Nothing is sent anywhere until you ask for it\" became \"Nothing of yours is sent anywhere until you ask. The app fetches the ADIF and park reference lists it needs, and nothing else.\" Same reason.",

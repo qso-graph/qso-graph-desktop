@@ -64,6 +64,18 @@ try {
   // asks before the answer.
   await expect(page.getByRole('button', { name: 'Skip for now' })).toBeVisible({ timeout: 15_000 });
 
+  // Checked here as well as at the end, to divide the search when this fails.
+  //
+  // Twice this walk has ended with the persona's callsign carrying one extra
+  // trailing uppercase letter — W1AW/4S, W1AW/9T — and it has not happened in
+  // the thirty-odd runs since, instrumented or not. The field holds exactly
+  // the typed value at the moment Create is pressed, so the defect is after
+  // that. This says whether the core already had the wrong callsign the
+  // instant it was made, which separates "the core was given it" from "the
+  // page grew it later" without needing the failure to be caught live.
+  await expect(page.locator('#active-persona'),
+    'the callsign the core stored, the moment it stored it').toContainText(callsign.toUpperCase());
+
   // Now the services, one at a time, every one skipped.
   let steps = 0;
   for (;;) {
