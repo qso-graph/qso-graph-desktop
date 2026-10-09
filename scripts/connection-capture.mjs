@@ -47,6 +47,12 @@ import { classify } from './endpoint.mjs';
 import { violations, NETWORK_EXCEPTIONS, productSources } from './network-static.mjs';
 import { sentinelsIn } from './artifact-scan.mjs';
 import { redact } from './report.mjs';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003). Called before the core is
+// loaded, because the service name is read when an entry is made.
+enableTestKeychain();
 
 const POLL_MS = 40;
 const directory = await mkdtemp(join(tmpdir(), 'qg-connection-capture-'));

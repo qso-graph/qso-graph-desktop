@@ -17,6 +17,12 @@ import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect } from '@playwright/test';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003). Called before the core is
+// loaded, because the service name is read when an entry is made.
+enableTestKeychain();
 
 // Language that would assert validation, certification or an approved mode.
 const COMPLIANCE_CLAIMS = [

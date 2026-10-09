@@ -12,6 +12,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { activeKeychainService } from './keychain-service.mjs';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003). Called before the core is
+// loaded, because the service name is read when an entry is made.
+enableTestKeychain();
 
 const require = createRequire(import.meta.url);
 const { PersonaCore } = require('../dist/native/persona.node');
@@ -42,7 +49,7 @@ try {
 
   // QGD-CRD-0003: the entry is named by the convention, not a library default.
   const name = spawnSync('/usr/bin/security',
-    ['find-generic-password', '-s', 'adif-mcp', '-a', `${persona}:${provider}`],
+    ['find-generic-password', '-s', activeKeychainService(), '-a', `${persona}:${provider}`],
     { encoding: 'utf8', timeout: 30_000 });
   check(name.status === 0, 'Keyring naming convention');
   check(!secrets.some(secret => `${name.stdout || ''}`.includes(secret)), 'No secret in entry metadata');

@@ -28,7 +28,12 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   let nextId = 0;
   let failures = 0;
   const pending = new Map<number, { resolve: (reply: PersonaReply) => void; timer: NodeJS.Timeout }>();
-  const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'adif-mcp');
+  // The desktop's own directory. This was `adif-mcp` until 2026-10-09, which
+  // is the MCP servers' — so personas.json, holding KI7MT's and KE1HA's real
+  // personas, was a file both products wrote. Nothing in the old directory is
+  // migrated, read or removed: it may be the MCP side's, and separating two
+  // products is not the same as taking one's data.
+  const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'qso-graph-desktop');
   // The services a command may name (QGD-PSN-0002). Read once, here, rather
   // than listed in the contract. A register that cannot be read leaves this
   // empty, which refuses every command naming a service while leaving the

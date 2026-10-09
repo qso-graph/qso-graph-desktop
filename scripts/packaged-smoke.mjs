@@ -8,6 +8,12 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { redact } from './report.mjs';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003). Called before the core is
+// loaded, because the service name is read when an entry is made.
+enableTestKeychain();
 const binary = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/MacOS/QSO Graph Desktop');
 const directory = await mkdtemp(join(tmpdir(), 'qg-packaged-smoke-'));
 const profile = join(directory, 'profile');

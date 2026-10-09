@@ -7,7 +7,34 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-const SERVICE: &str = "adif-mcp";
+// The Keychain service this product owns (QGD-CRD-0003: the core owns its
+// entry names and sets them explicitly, never leaving them to a library
+// default).
+//
+// This was "adif-mcp" until 2026-10-09 — the MCP servers' namespace, left from
+// P0 when `qso-graph-auth` interoperability was still the plan. KI7MT ended
+// Python and MCP interop (QGD-CRD-0004) and the constant never moved, so the
+// desktop was reading and writing the MCP servers' own credentials: his real
+// `ki7mt:qrz`, `ke1ha:lotw` and the rest sat in the same namespace the suites
+// wrote synthetic fixtures into. Either side could overwrite the other's entry
+// for the same persona and provider, and nothing would have said so.
+//
+// Nothing under "adif-mcp" is migrated, read or deleted by this product. Those
+// entries may belong to the MCP servers; they are not ours to move.
+const SERVICE: &str = "io.qso-graph.desktop";
+
+// Where the suites put their fixtures, so a test can never write beside a real
+// credential. A separate service rather than a prefix on the account, because
+// "delete everything under this service" is then one sweep that cannot
+// accidentally match something real.
+const TEST_SERVICE: &str = "io.qso-graph.desktop.test";
+
+// The env var only SELECTS between the two names above; it never supplies one.
+// A variable that supplied the service would be a way to point the core back
+// at "adif-mcp", or at any other product's namespace, from outside.
+fn service() -> &'static str {
+    if std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() { TEST_SERVICE } else { SERVICE }
+}
 mod corelog;
 mod portable;
 mod reference;
@@ -165,7 +192,7 @@ impl Store {
     }
     fn entry(&self, persona: &str, provider: &str) -> CoreResult<keyring::Entry> {
         self.lookup(persona)?;
-        keyring::Entry::new(SERVICE, &subject(persona, provider)?).map_err(|_| "Keychain is unavailable.")
+        keyring::Entry::new(service(), &subject(persona, provider)?).map_err(|_| "Keychain is unavailable.")
     }
     // Does the Keychain hold an entry for this, without reading it?
     //
@@ -179,7 +206,7 @@ impl Store {
         let account = subject(persona, provider)?;
         let found = ItemSearchOptions::new()
             .class(ItemClass::generic_password())
-            .service(SERVICE)
+            .service(service())
             .account(&account)
             // Attributes, and never data. This is the whole of the difference.
             .load_attributes(true)
@@ -364,7 +391,7 @@ impl Store {
         for (subject, creds) in &bundle.credentials {
             let (persona, provider) = subject.split_once(':').ok_or("This export holds a credential with no service.")?;
             let raw = Zeroizing::new(serde_json::to_string(creds).map_err(|_| "This export could not be read.")?);
-            keyring::Entry::new(SERVICE, subject).map_err(|_| "Keychain is unavailable.")?
+            keyring::Entry::new(service(), subject).map_err(|_| "Keychain is unavailable.")?
                 .set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
             // The index records which kinds arrived, so status answers without
             // reading them back (QGD-CRD-0010).
@@ -390,7 +417,7 @@ impl Store {
     fn delete_credentials(&self, persona: &str, provider: &str) -> CoreResult<bool> {
         self.lookup(persona)?;
         #[cfg(target_os = "macos")]
-        match security_framework::passwords::delete_generic_password(SERVICE, &subject(persona, provider)?) {
+        match security_framework::passwords::delete_generic_password(service(), &subject(persona, provider)?) {
             Ok(()) => {
                 tracing::info!(provider = %provider, "credential removed");
                 // The index must not go on describing an entry that is gone.
@@ -761,6 +788,47 @@ mod addon {
 
 #[cfg(test)]
 mod tests {
+    // QGD-CRD-0003, and the defect it failed to catch for nine Parts.
+    //
+    // The service constant said "adif-mcp" — the MCP servers' namespace — long
+    // after KI7MT ended MCP interoperability (QGD-CRD-0004). The requirement
+    // said the core owns its entry names; the code named someone else's; and
+    // no test compared them. A requirement whose Verify column says Test needs
+    // a test that fails when the code disagrees with it.
+    #[test]
+    fn the_core_owns_its_keychain_service_and_never_another_product_s() {
+        // Not merely "not adif-mcp": the names are asserted, so renaming one by
+        // accident is a failure rather than a silent change of namespace.
+        assert_eq!(SERVICE, "io.qso-graph.desktop");
+        assert_eq!(TEST_SERVICE, "io.qso-graph.desktop.test");
+
+        // Neither is any other product's. adif-mcp is written out here, in a
+        // test, because this is the one place naming it is the point.
+        for name in [SERVICE, TEST_SERVICE] {
+            assert_ne!(name, "adif-mcp", "the core is using the MCP servers' namespace");
+            assert!(name.starts_with("io.qso-graph.desktop"),
+                "a service this core writes must be plainly this product's: {name}");
+        }
+        assert_ne!(SERVICE, TEST_SERVICE, "fixtures would land beside real credentials");
+    }
+
+    #[test]
+    fn test_mode_is_selected_but_never_supplied() {
+        // The env var chooses between two compiled-in names. If it supplied a
+        // name, anything outside this process could point the core at
+        // "adif-mcp" — or at any other product's namespace — and the checks
+        // above would be worth nothing.
+        let source = include_str!("lib.rs");
+        let selector = source
+            .lines()
+            .find(|line| line.contains("QG_DESKTOP_TEST_KEYCHAIN"))
+            .expect("the test-mode selector must exist");
+        assert!(selector.contains("var_os"),
+            "the selector must test for presence, not read a value: {selector}");
+        assert!(!selector.contains("unwrap_or") && !selector.contains("var("),
+            "the service name must not come from the environment: {selector}");
+    }
+
     use super::*;
     #[test]
     fn auth_compatible_records_and_dates() {

@@ -15,6 +15,11 @@ import { randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { redact } from './report.mjs';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003).
+enableTestKeychain();
 
 const directory = await mkdtemp(join(tmpdir(), 'qg-process-recovery-'));
 const profile = join(directory, 'profile');

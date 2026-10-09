@@ -20,6 +20,12 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { sentinelsIn } from './artifact-scan.mjs';
 import { classify } from './endpoint.mjs';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003). Called before the core is
+// loaded, because the service name is read when an entry is made.
+enableTestKeychain();
 
 const require = createRequire(import.meta.url);
 const { PersonaCore } = require('../dist/native/persona.node');

@@ -11,6 +11,12 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { redact } from './report.mjs';
 import { entries } from './unzip.mjs';
+import { enableTestKeychain } from './keychain-service.mjs';
+
+// Fixtures go to this product's test Keychain service, never beside a real
+// credential, and are swept on exit (QGD-CRD-0003). Called before the core is
+// loaded, because the service name is read when an entry is made.
+enableTestKeychain();
 
 let application;
 let notesEngine = 'not reached';
