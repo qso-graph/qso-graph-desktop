@@ -12,11 +12,11 @@
 //
 // The direction, from QGD-REP-0006:
 //
-//   persona-core, logging, reference, ui, preload  depend on no package
-//   personas, engine                               depend only on those
-//   main                                           adds personas and engine
-//   renderer                                       may depend on any of them
-//   an application                                 app-api and ui, nothing else
+//   persona-core, logging, reference, ui, preload, app-api   depend on no package
+//   personas, engine                                         depend only on those
+//   main                                                     adds personas, engine, app-api
+//   renderer                                                 may depend on any of them
+//   an application                                           app-api and ui, nothing else
 //
 // Derived, not listed: every file under packages/ is read and every relative
 // specifier that leaves its own package is resolved and judged. A scope that
@@ -33,9 +33,13 @@ export const ALLOWED = {
   'reference': [],
   'ui': [],
   'preload': [],
+  // The contract an application is written against, so it depends on nothing:
+  // a surface that imported the frame's own contracts would hand an
+  // application the frame's internals through its own types, and main would
+  // depend on it while it depended on main (QGD-REP-0006).
+  'app-api': [],
   'personas': ['logging', 'persona-core'],
   'engine': ['logging', 'reference'],
-  'app-api': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'main'],
   'main': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'ui', 'app-api'],
   'renderer': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'ui', 'main', 'app-api']
 };

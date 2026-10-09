@@ -109,6 +109,19 @@ describe('the real tree', () => {
     expect(Object.keys(ALLOWED).sort()).toEqual(onDisk);
   });
 
+  it('describes a direction with no cycle in it', () => {
+    // The table is the policy, so a cycle in the table would permit one in the
+    // code. app-api was briefly written with main on both sides of the arrow.
+    const seen = new Map();
+    const visit = (name, trail) => {
+      if (trail.includes(name)) throw new Error(`cycle: ${[...trail, name].join(' -> ')}`);
+      if (seen.has(name)) return;
+      for (const next of ALLOWED[name] ?? []) visit(next, [...trail, name]);
+      seen.set(name, true);
+    };
+    for (const name of Object.keys(ALLOWED)) expect(() => visit(name, [])).not.toThrow();
+  });
+
   it('holds an application to the app API and the components, and nothing else', () => {
     // QGD-REP-0003, structurally. apps/ is empty until QGD-PRT-0108, so what
     // is asserted here is the rule the first one will meet.
