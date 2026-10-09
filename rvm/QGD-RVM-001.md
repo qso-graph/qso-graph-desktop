@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `6688428e31ace2e63486be0ef7456092ca1aa96c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `03537160fb3160d8d919e91dcde00fdd62180ca2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `6688428e31ace2e63486be0ef7456092ca1aa96c` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `03537160fb3160d8d919e91dcde00fdd62180ca2` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 127 requirements · 12 Parts · 5 Demo · 33 Inspection · 32 Static · 80 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 138 requirements · 12 Parts · 6 Demo · 33 Inspection · 33 Static · 91 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -43,6 +43,17 @@
 | `QGD-PII-0004` | Sharing or exporting a roster is an explicit user action, never a side effect of opening, validating or saving a file. | Test | ✓ |
 | `QGD-PII-0005` | A club customises by **defining lists** — offices, membership classes, net roles, award categories — and by assigning members to them with dates, so history is kept. A club never adds fields: the schema is the same for every club. | Inspection, Test | ✓ |
 | `QGD-PII-0006` | Club data on a user's machine is theirs. Nothing is collected, no telemetry is sent, and no feature pushes another person's details to a shared or public service. | Static, Inspection | ✓ |
+| `QGD-PSN-0001` | **A credential belongs to a persona and a service, never to the application.** A persona is a callsign, a name to tell it by, and the period it was used; an operator has as many as they have callsigns. Nothing is stored against "the user". | Test | ✓ |
+| `QGD-PSN-0002` | **What a service needs is data, not branches.** Each service's profile records the fields it takes, which of them is a secret, how it is tested, and what the operator has to do at the service's own site to get one. A service added to the register appears in setup with its own fields and its own test, with no code change — the same rule `QGD-REF-0005` applies to ADIF's definitions, applied to services. | Test | ✓ |
+| `QGD-PSN-0003` | **The six services P1 hardcoded become register entries.** `qrz`, `qrz_logbook`, `eqsl`, `lotw`, `hamqth` and `clublog` are the Release 1 set and are what the register ships with. A command naming a service the register does not hold is refused before it reaches the core (`QGD-SEC-0006`). | Test | ✓ |
+| `QGD-PSN-0004` | **Guided setup asks for the callsign and nothing else.** On a machine with no personas the application offers to make one; every service after that is optional, can be skipped, and can be returned to. A setup that cannot be left half-done is a setup an operator abandons. | Test, Demo | ✓ |
+| `QGD-PSN-0005` | **Every service either has a test or says it has none**, and which it is is known before the operator presses anything (`QGD-CRD-0011`). A test reports what happened — accepted, rejected, could not be reached, rate-limited, nothing saved to test — and never the secret it used (`QGD-CRD-0006`). | Test | ✓ |
+| `QGD-PSN-0006` | **A credential that expires carries its expiry, read from the credential itself.** LoTW's is a PKCS#12 certificate with a date in it; the core reads that date (`QGD-CRD-0002`) rather than asking the operator to remember it. The application says so while there is still time to act, not after a test has failed. | Test | ✓ |
+| `QGD-PSN-0007` | **An export is encrypted or it is not written.** Personas, their service settings and their secrets leave the machine only as one file, encrypted with a passphrase the operator chooses at the moment of export. The passphrase is not stored, not defaulted, and not derived from anything the machine knows — an export a thief can open by stealing the machine is not an export, it is a copy. | Test | ✓ |
+| `QGD-PSN-0008` | **The export names its algorithms and its version in the clear**, so a file can be read by a later release that has moved on from them: AES-256-GCM over the whole payload, a key from PBKDF2-HMAC-SHA-256 with a random salt and a recorded iteration count, and a random nonce. The wording of any claim about them is `QGD-SEC-0015`'s. | Test, Static | ✓ |
+| `QGD-PSN-0009` | **An import is all of the file or none of it**, and it says what it would overwrite before it does. A file that fails its authentication tag is refused whole. | Test | ✓ |
+| `QGD-PSN-0010` | **A wrong passphrase and an altered file are the same signal, and the product says so rather than guessing.** An AEAD tag fails identically for both, so an import reports "this file could not be opened with that passphrase — it may be the wrong passphrase, or the file may have been altered". Claiming to know which would be a guess presented as a fact. | Test | ✓ |
+| `QGD-PSN-0011` | **Nothing leaves the machine.** An export is written where the operator chooses and sent nowhere, exactly as `QGD-LOG-0012` has it for diagnostics. Exporting is an explicit action and never a side effect of opening or saving anything (`QGD-PII-0004`). | Test | ✓ |
 | `QGD-PRC-0001` | Every risky job runs in its own process, so a crash in one never takes the application down. | Test | ✓ |
 | `QGD-PRC-0002` | The renderer holds screens only — no credentials, no network. | Static, Test | ✓ |
 | `QGD-PRC-0003` | The main process is windows and the IPC broker only. | Inspection |  |
