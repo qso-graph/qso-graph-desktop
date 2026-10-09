@@ -31,6 +31,7 @@ export interface NativeCredentialInput {
 
 export interface NativeCredentialStatus {
   stored: boolean;
+  kindsKnown: boolean;
   hasUsername: boolean;
   hasPassword: boolean;
   hasApiKey: boolean;

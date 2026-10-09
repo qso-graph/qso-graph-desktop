@@ -56,6 +56,7 @@ function toStatus(native: NativeCredentialStatus): CredentialStatus {
   if (!preferred) throw new Error('Credential preference is invalid.');
   return {
     stored: native.stored,
+    kindsKnown: native.kindsKnown,
     hasUsername: native.hasUsername,
     hasPassword: native.hasPassword,
     hasApiKey: native.hasApiKey,

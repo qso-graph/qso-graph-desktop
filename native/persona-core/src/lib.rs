@@ -63,6 +63,14 @@ pub struct Credentials {
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
 pub struct CredentialStatus {
     pub stored: bool,
+    // Whether which kinds are stored is actually known.
+    //
+    // An entry saved before the index recorded kinds has none recorded, and
+    // false would be a lie about it rather than an absence of information.
+    // Reading the secret to find out is the one thing status must not do
+    // (QGD-CRD-0009), so it says it does not know, and the next explicit
+    // action that decrypts the entry records what it finds.
+    pub kinds_known: bool,
     pub has_username: bool,
     pub has_password: bool,
     pub has_api_key: bool,
@@ -225,7 +233,14 @@ impl Store {
                 // fact, never the value (QGD-LOG-0004).
                 tracing::info!(provider = %provider, "credential secret read");
                 let raw = Zeroizing::new(raw);
-                serde_json::from_str(&raw).map(Some).map_err(|_| "Stored credential has an unsupported format. It has not been changed.")
+                let creds: Credentials = serde_json::from_str(&raw)
+                    .map_err(|_| "Stored credential has an unsupported format. It has not been changed.")?;
+                // Self-healing: an entry written before the index recorded
+                // kinds gets them recorded here, the first time something with
+                // a reason to decrypt it does. Nothing decrypts anything in
+                // order to repair this.
+                let _ = self.record_kinds(persona, provider, &creds);
+                Ok(Some(creds))
             }
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(_) => Err("Keychain could not read this credential."),
@@ -368,13 +383,17 @@ impl Store {
         // The index says what kinds were stored; the Keychain says whether the
         // entry is still there. An entry removed outside this application
         // makes the index stale, and the Keychain is believed over it.
-        let has_password = exists && reference.as_ref().is_some_and(|r| r.has_password);
-        let has_api_key = exists && reference.as_ref().is_some_and(|r| r.has_api_key);
+        // Recorded when written. An entry with no saved_at predates the
+        // record, so what it holds is unknown rather than nothing.
+        let known = reference.as_ref().is_some_and(|r| r.saved_at.is_some());
+        let has_password = exists && known && reference.as_ref().is_some_and(|r| r.has_password);
+        let has_api_key = exists && known && reference.as_ref().is_some_and(|r| r.has_api_key);
         let effective = effective_field(&provider, has_password, has_api_key,
             if preferred == "service" { None } else { Some(&preferred) });
 
         Ok(CredentialStatus {
             stored: exists,
+            kinds_known: !exists || known,
             has_username: exists && reference.as_ref().is_some_and(|r| !r.username.is_empty()),
             has_password,
             has_api_key,

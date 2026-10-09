@@ -7,7 +7,7 @@
 // The keyring naming convention (QGD-CRD-0003) is checked by a metadata-only
 // lookup, which needs no authorization and reveals no secret.
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -50,13 +50,38 @@ try {
   check(!core.credentialStatus(other, provider).stored, 'Persona credential isolation');
   const status = core.credentialStatus(persona, provider);
   check(status.stored && status.hasApiKey && status.hasPassword, 'Credential status');
-  check(Object.keys(status).sort().join(',') === 'effective,hasApiKey,hasPassword,hasUsername,preferred,stored', 'No secret in status API');
+  check(Object.keys(status).sort().join(',') === 'effective,hasApiKey,hasPassword,hasUsername,kindsKnown,preferred,stored', 'No secret in status API');
+  check(status.kindsKnown, 'Status knows what it holds when it wrote it');
 
   core.setActive(persona.toUpperCase());
   check(core.active() === persona, 'Case-insensitive active persona');
 
   const index = await readFile(join(directory, 'personas.json'), 'utf8');
   check(!secrets.some(secret => index.includes(secret)), 'No secret in persona index');
+
+  // QGD-CRD-0010: an index written before the kinds were recorded. The entry
+  // is in the Keychain; the index says only who the username is, which is what
+  // every credential saved before this change looks like. Status must not
+  // report that as holding neither secret — that is a claim, not an absence of
+  // information — and must not decrypt the entry to find out.
+  {
+    const before = JSON.parse(await readFile(join(directory, 'personas.json'), 'utf8'));
+    const reference = before.personas[persona].providers[provider];
+    before.personas[persona].providers[provider] = { username: reference.username };
+    await writeFile(join(directory, 'personas.json'), JSON.stringify(before, null, 2));
+
+    const legacy = core.credentialStatus(persona, provider);
+    check(legacy.stored, 'A legacy entry is still reported as stored');
+    check(!legacy.kindsKnown, 'A legacy entry reports that its kinds are unknown');
+    check(!legacy.hasPassword && !legacy.hasApiKey, 'A legacy entry claims neither kind');
+
+    // And it repairs itself the first time something with a reason to decrypt
+    // it does. Nothing decrypts anything in order to repair it.
+    core.requireCredential(persona, provider, null);
+    const repaired = core.credentialStatus(persona, provider);
+    check(repaired.kindsKnown, 'Reading the credential records what it holds');
+    check(repaired.hasPassword && repaired.hasApiKey, 'The repaired status is the true one');
+  }
 
   check(core.deleteCredentials(persona, provider) && !core.credentialStatus(persona, provider).stored, 'Credential deletion');
   console.log('Keychain round-trip, replacement, naming convention and deletion: PASS');

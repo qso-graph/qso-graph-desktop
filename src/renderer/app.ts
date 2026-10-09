@@ -93,11 +93,16 @@ async function credentialStatus() {
 }
 function showCredentialStatus(status: CredentialStatus) {
   element<HTMLButtonElement>('test-credential').disabled = !status.stored;
+  // An entry saved before the index recorded which kinds it holds says so,
+  // rather than being drawn as holding neither (QGD-CRD-0010). Both removal
+  // controls are offered, because each is an explicit action that will read
+  // the entry — and reading it is what records the kinds for next time.
+  const unknown = status.stored && !status.kindsKnown;
   for (const [id, saved] of [['password', status.hasPassword], ['api-key', status.hasApiKey]] as const) {
     // Fixed display marker, independent of the stored value or its length.
-    input(id).placeholder = saved ? '••••••••' : '';
+    input(id).placeholder = saved || unknown ? '••••••••' : '';
     element(`${id}-saved`).hidden = !saved;
-    element(`remove-${id}`).hidden = !saved;
+    element(`remove-${id}`).hidden = !saved && !unknown;
   }
   const preference = element<HTMLSelectElement>('credential-preference');
   preference.value = status.preferred;
@@ -105,7 +110,11 @@ function showCredentialStatus(status: CredentialStatus) {
   const effective = status.effective === 'api_key' ? 'API key' : 'password';
   element('credential-effective').textContent = status.effective ? `Selected for use: ${effective}. If the preferred credential is missing, the other saved credential is used.` : '';
   const parts = [status.hasPassword ? 'password' : '', status.hasApiKey ? 'API key' : ''].filter(Boolean);
-  element('credential-status').textContent = status.stored ? `Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.` : 'No credential saved for this service.';
+  element('credential-status').textContent = !status.stored
+    ? 'No credential saved for this service.'
+    : unknown
+      ? 'Stored in Keychain. Test it or save it again to show what it holds.'
+      : `Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.`;
   element('remove-credential').hidden = !status.stored;
 }
 function select(name: string | null) {
