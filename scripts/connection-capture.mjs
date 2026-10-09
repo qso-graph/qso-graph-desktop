@@ -76,6 +76,21 @@ function tree(root) {
     found.set(pid, sub ? `${type}:${sub}` : type);
     for (const entry of rows) if (Number(entry[2]) === pid) queue.push(Number(entry[1]));
   }
+
+  // Two utility processes now, and `ps` calls them the same thing: the
+  // credential core and the engine supervisor are both
+  // utility:node.mojom.NodeService. They are not held to the same rule — the
+  // credential core must hold no socket of any kind, and conflating them would
+  // let the engine's presence quietly relax that.
+  //
+  // The engine's is the one PostgreSQL is a child of, which is derivable from
+  // the tree we already have and needs nothing added to the application.
+  for (const [pid, row] of rows.map(entry => [Number(entry[1]), entry])) {
+    if (!/\/postgres\b/.test(row[3])) continue;
+    const parent = Number(row[2]);
+    if (found.has(parent)) found.set(parent, 'utility:engine');
+    if (found.has(pid)) found.set(pid, 'engine:postgres');
+  }
   return found;
 }
 
@@ -276,8 +291,45 @@ try {
   stage = 'the renderer and the credential core hold no socket at all';
   for (const kind of ['renderer', 'utility:node.mojom.NodeService']) {
     const held = everyEndpoint.filter(endpoint => endpoint.process === kind);
-    expect(held, `${kind} held ${held.length} endpoint(s)`).toEqual([]);
+    expect(held, `${kind} held ${held.length} endpoint(s): ` +
+      held.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
   }
+
+  stage = 'the engine and PostgreSQL were actually identified';
+  // Without this the two rules below check nothing: if the labelling stopped
+  // matching, every endpoint would simply fail to be one of theirs and both
+  // assertions would pass on an empty array. The labels have to have been
+  // applied to a real process at some point in the run.
+  const everyLabel = new Set(labelled.flatMap(taken => Object.values(taken.processes)));
+  expect([...everyLabel].includes('utility:engine'),
+    `the engine's utility process was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
+  expect([...everyLabel].includes('engine:postgres'),
+    `PostgreSQL was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
+  // And the credential core is still one of them, or the rule above moved off
+  // the process it was written for.
+  expect([...everyLabel].includes('utility:node.mojom.NodeService'),
+    `the credential core was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
+
+  stage = 'the engine holds no TCP port and reaches nothing';
+  // A different rule, deliberately. The engine talks to PostgreSQL over a Unix
+  // socket, which is not an internet socket and does not appear here at all —
+  // so it should hold nothing either. But it is a database supervisor rather
+  // than the credential core, and the thing that must never be true of it is a
+  // TCP port or anything external. Any other endpoint it holds is named in the
+  // output of every run rather than passed over, because something that opens
+  // a socket here is something to understand.
+  const engineHeld = everyEndpoint.filter(endpoint => endpoint.process === 'utility:engine');
+  const engineTcp = engineHeld.filter(endpoint => endpoint.protocol === 'TCP' || endpoint.external);
+  expect(engineTcp, `the engine held ${engineTcp.length} TCP or external endpoint(s): ` +
+    engineTcp.map(e => `${e.protocol} ${e.local}->${e.remote}`).join(', ')).toEqual([]);
+
+  stage = 'PostgreSQL itself holds no TCP port';
+  // QGD-ENG-0009, from outside: the server is on a Unix socket and listens on
+  // no port. scripts/engine-lifecycle.mjs asserts this of a server it started;
+  // this asserts it of the one the application is actually running.
+  const postgresHeld = everyEndpoint.filter(endpoint => endpoint.process === 'engine:postgres');
+  expect(postgresHeld, `PostgreSQL held ${postgresHeld.length} endpoint(s): ` +
+    postgresHeld.map(e => `${e.protocol} ${e.local}`).join(', ')).toEqual([]);
 
   stage = 'the request history is live, and holds nothing but the control off-scheme';
   const requests = await application.evaluate(() => globalThis.__qgRequests ?? []);
@@ -356,7 +408,10 @@ try {
   }, null, 2) + '\n');
 
   await application.close(); application = undefined;
-  console.log(`Connection capture: ${observed.size} distinct endpoints observed, none external; renderer and credential core held none: PASS`);
+  const engineNote = engineHeld.length
+  ? `; the engine held ${engineHeld.length} non-TCP endpoint(s): ${engineHeld.map(e => `${e.protocol} ${e.local}`).join(', ')}`
+  : '; the engine and PostgreSQL held none';
+console.log(`Connection capture: ${observed.size} distinct endpoints observed, none external; renderer and credential core held none${engineNote}: PASS`);
   console.log('Renderer reached nothing by fetch, XHR, WebSocket, EventSource, beacon, image or dynamic import: PASS');
   console.log('Both positive controls observed; the product refused the filtered one; static network gate clean: PASS');
 } catch (error) {
