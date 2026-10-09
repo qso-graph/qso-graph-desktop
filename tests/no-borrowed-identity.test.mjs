@@ -64,16 +64,4 @@ describe('the credential core signs in as nobody else', () => {
       }
     }
   });
-
-  it('has at least one service that needs no credential, and it asks for nothing', () => {
-    // POTA. The alternative to borrowing an identity was not a worse sign-in,
-    // it was no sign-in — which turned out to cost nothing, because
-    // everything this product does with POTA works without one.
-    const free = register.services.filter(service => !service.needsCredential);
-    expect(free.length).toBeGreaterThan(0);
-    for (const service of free) {
-      expect(service.fields).toEqual([]);
-      expect('none' in service.test, `${service.id} must offer no test`).toBe(true);
-    }
-  });
 });

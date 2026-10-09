@@ -71,13 +71,6 @@ export function allowsSender(senderFrame: unknown, mainFrame: unknown, url: stri
 // them in data/service-profiles.json, which is the only place a service is
 // named — so this takes the allowed set from its caller, who read the
 // register. A list kept here as well would be the second list that drifts.
-//
-// It is the set of services that **hold a credential**, not every service in
-// the register. POTA is in the register and holds none: it is identified by
-// the persona's callsign and this product never signs in to it
-// (QGD-PSN-0003, QGD-PSN-0012). A command trying to save or test one for it
-// is refused exactly like a command naming a service that is not there —
-// there is no entry for it to reach, and nothing it could do if there were.
 export type Services = ReadonlySet<string>;
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

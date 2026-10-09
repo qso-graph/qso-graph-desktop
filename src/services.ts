@@ -53,16 +53,8 @@ export function validateRegister(parsed: unknown): ServiceRegister {
     if (seen.has(id)) fail(`"${id}" appears twice`);
     seen.add(id);
 
-    if (typeof service.needsCredential !== 'boolean') {
-      fail(`"${id}" does not say whether it needs a credential`);
-    }
-    const needsCredential = service.needsCredential;
-    if (!Array.isArray(service.fields)) fail(`"${id}" has no fields list`);
-    if (needsCredential && service.fields.length === 0) {
-      fail(`"${id}" needs a credential and asks for no fields`);
-    }
-    if (!needsCredential && service.fields.length > 0) {
-      fail(`"${id}" needs no credential and asks for ${service.fields.length} field(s)`);
+    if (!Array.isArray(service.fields) || service.fields.length === 0) {
+      fail(`"${id}" asks for no fields`);
     }
     const fieldNames = new Set<string>();
     const fields = service.fields.map(raw => {
@@ -90,9 +82,7 @@ export function validateRegister(parsed: unknown): ServiceRegister {
         required: field.required
       };
     });
-    if (needsCredential && !fields.some(field => field.required)) {
-      fail(`"${id}" requires nothing, so there is nothing to save`);
-    }
+    if (!fields.some(field => field.required)) fail(`"${id}" requires nothing, so there is nothing to save`);
 
     if (typeof service.test !== 'object' || service.test === null) {
       fail(`"${id}" does not say whether it can be tested`);
@@ -106,11 +96,6 @@ export function validateRegister(parsed: unknown): ServiceRegister {
     const test = describes
       ? { what: string(testOf.what, `"${id}"'s test description`) }
       : { none: string(testOf.none, `"${id}"'s reason for having no test`) };
-    // Nothing to test when there is nothing saved. A register offering one
-    // would put a button on screen that can only ever say "nothing stored".
-    if (!needsCredential && describes) {
-      fail(`"${id}" needs no credential and describes a test; there is nothing to test`);
-    }
 
     if (typeof service.expiry !== 'object' || service.expiry === null) {
       fail(`"${id}" does not say whether its credential expires`);
@@ -131,7 +116,6 @@ export function validateRegister(parsed: unknown): ServiceRegister {
       what: string(service.what, `"${id}"'s description`),
       site: siteOf(service.site, id),
       howToGet: string(service.howToGet, `"${id}"'s instructions`, 800),
-      needsCredential,
       fields,
       expiry,
       test
@@ -160,16 +144,7 @@ export async function readServices(path: string): Promise<ServiceRegister> {
   return validateRegister(parsed);
 }
 
-// The services a credential command may name: those that hold one. A service
-// needing no credential is in the register and not in this set
-// (QGD-PSN-0003), so `save-credentials` or `test-credential` naming it is
-// refused before it reaches the core.
 export function serviceIds(register: ServiceRegister): Set<string> {
-  return new Set(register.services.filter(service => service.needsCredential).map(service => service.id));
-}
-
-// Every service in the register, credential or not — what a screen draws.
-export function allServiceIds(register: ServiceRegister): Set<string> {
   return new Set(register.services.map(service => service.id));
 }
 

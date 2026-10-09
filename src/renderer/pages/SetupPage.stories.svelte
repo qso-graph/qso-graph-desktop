@@ -12,7 +12,6 @@
       id: 'qrz', name: 'QRZ.com', what: 'Callsign lookup — who a callsign belongs to, and where',
       site: 'https://www.qrz.com/',
       howToGet: 'A QRZ account. Lookup by callsign needs an XML subscription; the account alone will be refused.',
-      needsCredential: true,
       fields: [
         { name: 'username', label: 'QRZ username', secret: false, required: true },
         { name: 'password', label: 'QRZ password', secret: true, required: true }
@@ -24,7 +23,6 @@
       id: 'clublog', name: 'Club Log', what: 'DXCC analysis and log upload',
       site: 'https://clublog.org/',
       howToGet: 'A Club Log account, and an API key the operator asks Club Log for.',
-      needsCredential: true,
       fields: [
         { name: 'username', label: 'Club Log email', secret: false, required: true },
         { name: 'password', label: 'Club Log password', secret: true, required: true },
@@ -34,19 +32,6 @@
       test: { none: 'This product has no test for Club Log yet. The credential is saved and used.' }
     }
   ];
-
-  // In the register and not in setup: POTA needs no credential, so there is
-  // nothing to ask (QGD-PSN-0003). Here to show setup skips it.
-  services.push({
-    id: 'pota', name: 'Parks on the Air',
-    what: 'Park references, spots, self-spotting and public statistics',
-    site: 'https://pota.app/',
-    howToGet: 'Nothing to get. POTA is identified by your callsign and QSO Graph never signs in to it.',
-    needsCredential: false,
-    fields: [],
-    expiry: { known: false, why: 'There is no credential stored for POTA, so there is nothing to expire.' },
-    test: { none: 'There is nothing saved for POTA to test, and QSO Graph does not sign in to it.' }
-  });
 
   const { Story } = defineMeta({
     title: 'pages/SetupPage',

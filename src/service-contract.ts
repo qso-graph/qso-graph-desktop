@@ -26,13 +26,6 @@ export interface ServiceProfile {
   what: string;
   site: string;
   howToGet: string;
-  // What the operator has to give this product for the service. Empty when
-  // the service needs no credential at all — POTA is identified by the
-  // persona's callsign, and everything this product does with it works
-  // without signing in (QGD-PSN-0003). `needsCredential` is the fact the
-  // code acts on; an empty field list without it is a register that forgot
-  // to say which it meant.
-  needsCredential: boolean;
   fields: ServiceField[];
   // QGD-PSN-0006, answered outright by every service. `known: false` with a
   // reason is an answer; a missing key is a register that forgot to answer.
