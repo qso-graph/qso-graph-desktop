@@ -1,0 +1,42 @@
+{
+  "register": "The grants an application may ask for",
+  "note": "QGD-APP-0006. The set is closed: a manifest naming a grant that is not here is refused at load, with the grant named. A capability nobody has written down is not a capability, it is a hole — and an application that could ask for anything would be checked against nothing. Each entry says what the grant permits and, where it matters, what it deliberately does not.",
+  "grants": [
+    {
+      "id": "reference:read",
+      "what": "Read the reference data the frame loaded — ADIF's definitions, the zones, the DOKs, POTA's parks.",
+      "notWhat": "No connection to the engine. The frame answers from the engine on the application's behalf (QGD-APP-0009).",
+      "needsOperator": false
+    },
+    {
+      "id": "engine:own-schema",
+      "what": "Read and write the application's own schema, through its own database role.",
+      "notWhat": "No other application's schema, and not the frame's (QGD-ENG-0010).",
+      "needsOperator": true
+    },
+    {
+      "id": "persona:list",
+      "what": "Which personas exist, their callsigns and their names, so an application can ask the operator which one to act as.",
+      "notWhat": "No credential, no secret, and no indication of what is stored for a service beyond whether one is (QGD-CRD-0010).",
+      "needsOperator": true
+    },
+    {
+      "id": "service:qrz",
+      "what": "Ask the frame to act with the operator's QRZ credential and return the answer.",
+      "notWhat": "The secret itself never crosses the API (QGD-APP-0007).",
+      "needsOperator": true
+    },
+    {
+      "id": "source:solar",
+      "what": "Ask the frame to fetch from the registered space-weather source. The URL comes from the register, never from the application.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "files:chosen",
+      "what": "Read or write the one path the operator chose in a dialog, for that action.",
+      "notWhat": "No ambient filesystem: the path is not kept and nothing else is reachable (QGD-APP-0010).",
+      "needsOperator": true
+    }
+  ]
+}
