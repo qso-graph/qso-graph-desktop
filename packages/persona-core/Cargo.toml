@@ -28,7 +28,7 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 rustls = { version = "0.23", default-features = false, features = ["std", "fips"] }
 webpki-roots = "1"
 roxmltree = "0.21"
-napi = { version = "=3.14.0", default-features = false, features = ["napi8"], optional = true }
+napi = { version = "=3.14.2", default-features = false, features = ["napi8"], optional = true }
 napi-derive = { version = "3", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
