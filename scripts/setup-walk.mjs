@@ -11,7 +11,7 @@
 // nothing in setup is held in limbo — the persona exists the moment it is
 // named — so it is shown by leaving in the middle and returning.
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -86,8 +86,17 @@ try {
     }
     await skip.click();
   }
-  expect(steps, 'every service in the register is a step').toBeGreaterThan(1);
-  notes.push(`${steps} service steps, every one skipped`);
+  // Every service that needs a credential is a step, and only those. POTA is
+  // in the register and needs none — it is identified by the persona's
+  // callsign — so setup never asks about it (QGD-PSN-0003, QGD-PSN-0013).
+  const register = JSON.parse(await readFile('data/service-profiles.json', 'utf8'));
+  const needing = register.services.filter(service => service.needsCredential);
+  const free = register.services.filter(service => !service.needsCredential);
+  expect(free.length, 'the register has a service needing no credential, or this checks nothing')
+    .toBeGreaterThan(0);
+  expect(steps, 'one step per service that needs a credential, and no others').toBe(needing.length);
+  notes.push(`${steps} service steps, every one skipped; ` +
+    `${free.map(service => service.id).join(', ')} asked for nothing and had no step`);
 
   // The end: a persona, and the offer withdrawn because there is one now.
   await expect(page.locator('#setup-done')).toContainText(callsign);

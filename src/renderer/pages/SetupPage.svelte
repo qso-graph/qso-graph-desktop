@@ -53,7 +53,11 @@
   const saved = $state<Record<string, boolean>>({});
   const skipped = $state<Record<string, boolean>>({});
 
-  const service = $derived(step >= 1 && step <= services.length ? services[step - 1] : undefined);
+  // Only the services that need something. POTA is in the register and needs
+  // no credential — it is identified by your callsign — so there is nothing
+  // for setup to ask about it (QGD-PSN-0003, QGD-PSN-0013).
+  const steps = $derived(services.filter(entry => entry.needsCredential));
+  const service = $derived(step >= 1 && step <= steps.length ? steps[step - 1] : undefined);
   const callsignProblem = $derived(callsign.trim() === '' ? 'A callsign is all this needs to start.' : '');
 
   function valueOf(id: string, field: string): string {
@@ -134,7 +138,7 @@
 
   {:else if service}
     <p class="hint" id="setup-progress">
-      Step {step} of {services.length}: {service.name}. You can skip any of these.
+      Step {step} of {steps.length}: {service.name}. You can skip any of these.
     </p>
     <h3>{service.name}</h3>
     <p>{service.what}</p>

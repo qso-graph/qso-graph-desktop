@@ -1,6 +1,6 @@
 {
   "register": "The services a persona can hold a credential for, and what each needs",
-  "note": "QGD-PSN-0002 and QGD-PSN-0003. This is the only place a service is named. The setup screens, the command validation and the per-service test all read it, so a service added here appears with its own fields and its own test and no code change — the rule QGD-REF-0005 applies to ADIF's definitions, applied to services. The credential core names no service at all: it treats a provider as an identifier and stores whatever it is given (QGD-CRD-0003), so there is no second list in Rust for this one to drift from. Every service answers two questions outright: whether it can be tested, and whether its credential expires in a way this product can read (QGD-PSN-0005, QGD-PSN-0006). A missing answer is a register that forgot, and is refused. The credential core is the authority on whether a test exists — it either has an implementation or it does not — and the two are held to each other by the credential-editing suite, so a register describing a test the core cannot run fails the gate.",
+  "note": "QGD-PSN-0002 and QGD-PSN-0003. This is the only place a service is named. The setup screens, the command validation and the per-service test all read it, so a service added here appears with its own fields and its own test and no code change — the rule QGD-REF-0005 applies to ADIF's definitions, applied to services. The credential core names no service at all: it treats a provider as an identifier and stores whatever it is given (QGD-CRD-0003), so there is no second list in Rust for this one to drift from. Every service says whether it needs a credential at all — POTA does not, and is identified by the persona’s callsign (QGD-PSN-0003). Every service also answers two questions outright: whether it can be tested, and whether its credential expires in a way this product can read (QGD-PSN-0005, QGD-PSN-0006). A missing answer is a register that forgot, and is refused. The credential core is the authority on whether a test exists — it either has an implementation or it does not — and the two are held to each other by the credential-editing suite, so a register describing a test the core cannot run fails the gate.",
   "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
   "fieldKinds": {
     "username": "An account name, which is not a secret and is shown",
@@ -14,6 +14,7 @@
       "what": "Callsign lookup — who a callsign belongs to, and where",
       "site": "https://www.qrz.com/",
       "howToGet": "A QRZ account. Lookup by callsign needs an XML subscription; the account alone will be refused by the lookup service.",
+      "needsCredential": true,
       "fields": [
         {
           "name": "username",
@@ -42,6 +43,7 @@
       "what": "QRZ's logbook — uploading and fetching QSOs",
       "site": "https://logbook.qrz.com/",
       "howToGet": "The logbook's own API key, from the logbook's settings. It is not the QRZ account password, and a logbook has one key per book.",
+      "needsCredential": true,
       "fields": [
         {
           "name": "api_key",
@@ -64,6 +66,7 @@
       "what": "Electronic QSL cards — the inbox, and whether a station is Authenticity Guaranteed",
       "site": "https://www.eqsl.cc/",
       "howToGet": "An eQSL account. The callsign the account is registered under has to be the persona's.",
+      "needsCredential": true,
       "fields": [
         {
           "name": "username",
@@ -92,6 +95,7 @@
       "what": "ARRL's confirmation service — QSOs and the credits they count towards",
       "site": "https://lotw.arrl.org/",
       "howToGet": "An ARRL LoTW account, and a certificate ARRL issues after checking the licence. The certificate is a PKCS#12 file with a date in it and has to be renewed.",
+      "needsCredential": true,
       "fields": [
         {
           "name": "username",
@@ -120,6 +124,7 @@
       "what": "Callsign lookup, free — a second opinion to QRZ's",
       "site": "https://www.hamqth.com/",
       "howToGet": "A free HamQTH account. Most of HamQTH answers without one; lookup does not.",
+      "needsCredential": true,
       "fields": [
         {
           "name": "username",
@@ -148,6 +153,7 @@
       "what": "DXCC analysis and log upload",
       "site": "https://clublog.org/",
       "howToGet": "A Club Log account, and an API key the operator asks Club Log for. Both are needed: the key identifies the application and the account identifies the operator.",
+      "needsCredential": true,
       "fields": [
         {
           "name": "username",
@@ -174,6 +180,22 @@
       },
       "test": {
         "none": "This product has no test for Club Log yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
+      }
+    },
+    {
+      "id": "pota",
+      "name": "Parks on the Air",
+      "what": "Park references, spots, self-spotting and public activator and hunter statistics",
+      "site": "https://pota.app/",
+      "howToGet": "Nothing to get. POTA is identified by your callsign, and everything QSO Graph does with POTA works without signing in. Submitting a log is done on POTA’s own upload page: QSO Graph prepares the file and opens the page for you.",
+      "needsCredential": false,
+      "fields": [],
+      "expiry": {
+        "known": false,
+        "why": "There is no credential stored for POTA, so there is nothing to expire."
+      },
+      "test": {
+        "none": "There is nothing saved for POTA to test. What QSO Graph reads from POTA needs no account, and it does not sign in (QGD-PSN-0012)."
       }
     }
   ]

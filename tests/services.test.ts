@@ -12,7 +12,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { validateCommand } from '../src/persona-contract.js';
 import {
-  FIELD_NAMES, RegisterError, serviceIds, validateRegister, type ServiceRegister
+  allServiceIds, FIELD_NAMES, RegisterError, serviceIds, validateRegister, type ServiceRegister
 } from '../src/services.js';
 
 const text = await readFile('data/service-profiles.json', 'utf8');
@@ -24,6 +24,7 @@ const made = (...services: unknown[]) => validateRegister({ services });
 const service = (overrides: Record<string, unknown> = {}) => ({
   id: 'example', name: 'Example', what: 'A service', site: 'https://example.invalid/',
   howToGet: 'Ask them',
+  needsCredential: true,
   fields: [{ name: 'username', label: 'User', secret: false, required: true }],
   expiry: { known: false, why: 'Nothing about this example credential expires on a date' },
   test: { none: 'This example service has no test, and this is why there is none' },
@@ -31,9 +32,33 @@ const service = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('QGD-PSN-0003 what the register ships with', () => {
-  it('holds the six Release 1 services and nothing else', () => {
+  it('holds the seven Release 1 services and nothing else', () => {
     expect(shipped.services.map(entry => entry.id))
-      .toEqual(['qrz', 'qrz_logbook', 'eqsl', 'lotw', 'hamqth', 'clublog']);
+      .toEqual(['qrz', 'qrz_logbook', 'eqsl', 'lotw', 'hamqth', 'clublog', 'pota']);
+  });
+
+  it('says which of them need a credential, and POTA does not', () => {
+    // QGD-PSN-0003. POTA is identified by the persona's callsign, and this
+    // product never signs in to it (QGD-PSN-0012), so it is in the register
+    // and asks for nothing.
+    expect(shipped.services.filter(entry => !entry.needsCredential).map(entry => entry.id))
+      .toEqual(['pota']);
+    const pota = shipped.services.find(entry => entry.id === 'pota')!;
+    expect(pota.fields, 'a service needing no credential asks for no fields').toEqual([]);
+    expect('none' in pota.test, 'and offers no test, because nothing is stored').toBe(true);
+  });
+
+  it('refuses a credential command for a service that holds none', () => {
+    // The set a command is held to is the credential-holding services, so
+    // POTA is refused exactly like a service that is not in the register.
+    const ids = serviceIds(shipped);
+    expect(ids.has('pota')).toBe(false);
+    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'pota' }, ids)).toBe(false);
+    expect(validateCommand(
+      { type: 'save-credentials', persona: 'home', provider: 'pota', credentials: { password: 'x' } },
+      ids)).toBe(false);
+    // And it is still a service the screens know about.
+    expect(allServiceIds(shipped).has('pota')).toBe(true);
   });
 
   it('tells the operator what each service is and how to get a credential', () => {
@@ -57,7 +82,7 @@ describe('QGD-PSN-0003 what the register ships with', () => {
     expect(shipped.services.filter(entry => 'what' in entry.test).map(entry => entry.id))
       .toEqual(['qrz', 'qrz_logbook']);
     expect(shipped.services.filter(entry => 'none' in entry.test).map(entry => entry.id))
-      .toEqual(['eqsl', 'lotw', 'hamqth', 'clublog']);
+      .toEqual(['eqsl', 'lotw', 'hamqth', 'clublog', 'pota']);
   });
 
   it('says of every service whether its credential expires (QGD-PSN-0006)', () => {
@@ -91,6 +116,7 @@ describe('QGD-PSN-0002 a service is a data change, not a code change', () => {
       {
         id: 'newservice', name: 'A New Service', what: 'Something this product has never heard of',
         site: 'https://new.invalid/', howToGet: 'Sign up and ask for a key, which takes a day',
+        needsCredential: true,
         fields: [{ name: 'api_key', label: 'Their key', secret: true, required: true }],
         expiry: { known: false, why: 'Their key is valid until it is replaced, with no date on it' },
         test: { what: 'Asks the service whether the key works' }
@@ -166,6 +192,26 @@ describe('a register that is damaged or hand-edited is refused', () => {
       fields: [{ name: 'username', label: 'User', secret: false, required: false }]
     }))).toThrow(/requires nothing/);
     expect(() => made(service({ fields: [] }))).toThrow(/asks for no fields/);
+  });
+
+  it('refuses a register that cannot say whether a service needs a credential', () => {
+    const { needsCredential, ...without } = service();
+    expect(needsCredential).toBe(true);
+    expect(() => made(without)).toThrow(/does not say whether it needs a credential/);
+  });
+
+  it('refuses a credential-free service that asks for something anyway', () => {
+    // Either it needs a credential or it asks for nothing. A service that
+    // asks for a password it never stores would put a field on screen that
+    // goes nowhere.
+    expect(() => made(service({ needsCredential: false })))
+      .toThrow(/needs no credential and asks for 1 field/);
+  });
+
+  it('refuses a credential-free service that offers a test', () => {
+    expect(() => made(service({
+      needsCredential: false, fields: [], test: { what: 'Asks them whether it works' }
+    }))).toThrow(/there is nothing to test/);
   });
 
   it('refuses a service that does not say whether it can be tested', () => {
