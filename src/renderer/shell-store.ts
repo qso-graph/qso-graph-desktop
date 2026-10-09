@@ -16,6 +16,13 @@ import type { EngineStatus } from '../engine-contract.js';
 // where you go to change how the places you work behave.
 export const PAGES = [
   {
+    id: 'home',
+    label: 'Home',
+    icon: 'home',
+    description: 'What this is, and what it is doing',
+    placement: 'top'
+  },
+  {
     id: 'personas',
     label: 'Personas',
     icon: 'personas',
@@ -39,8 +46,9 @@ export function isPageId(value: unknown): value is PageId {
 
 export interface ShellState {
   page: PageId;
-  // Already formatted for display: the status bar draws what it is given and
-  // decides nothing, so there is one place the wording lives (app.ts).
+  // Who the active persona is — "W1AW · Home station" — and empty when there
+  // is none. Not the sentence: the status bar and Home say it differently, and
+  // a string formatted for one of them read wrong in the other.
   activePersona: string;
   themeChoice: ThemeChoice;
   // Undefined until the main process has answered. The Logs page shows that it
@@ -52,8 +60,10 @@ export interface ShellState {
 }
 
 export const INITIAL_SHELL: ShellState = {
-  page: 'personas',
-  activePersona: 'No active persona',
+  // The application opens on Home. Nothing there reads a credential, which is
+  // half of why it is the right place to open (QGD-CRD-0009).
+  page: 'home',
+  activePersona: '',
   themeChoice: 'system',
   logs: undefined,
   engine: undefined

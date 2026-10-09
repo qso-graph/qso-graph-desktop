@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   interface Props {
+    // Who it is, or empty. The sentence is this component's.
     activePersona: string;
     note?: string;
   }
@@ -15,6 +16,6 @@
 </script>
 
 <footer>
-  <span id="active-persona">{activePersona}</span>
+  <span id="active-persona">{activePersona ? `Active: ${activePersona}` : 'No active persona'}</span>
   <span id="connection-note">{note}</span>
 </footer>

@@ -147,6 +147,8 @@ QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 | `QGD-CRD-0006` | A credential never appears in a log, an error message, an IPC payload rendered to a screen, or a report. | Static |
 | `QGD-CRD-0007` | The renderer never holds a credential and never opens a network connection. | Static, Test |
 | `QGD-CRD-0008` | The OS credential manager is the only store in Release 1. A user's own Vault is a later Part. | Inspection |
+| `QGD-CRD-0009` | **No credential secret is read at startup, by navigation, or to display status.** A secret is read only on an explicit action of the operator's that needs it — testing a credential, or handing one to something that will use it. Reading a secret is what makes macOS ask for the login keychain password, and asking for it before the operator has done anything is both alarming and unearned. (KI7MT, 2026-10-08: opening the application prompted him, because the remembered persona was selected and its status read.) | Test |
+| `QGD-CRD-0010` | The status display answers from the index and from the existence of the Keychain entry — which the Keychain reports from an item's attributes without unlocking its data — and never from the secret. Which kinds of secret an entry holds is not itself a secret, and is recorded when it is written. | Test |
 
 ## 3.1 Club rosters — personal data
 
@@ -307,6 +309,7 @@ README and the documentation **exactly**, and nowhere is it paraphrased.
 | `QGD-FRM-0007` | Every story renders in both light and dark, so a component is seen in each before it is accepted. | Test, Demo |
 | `QGD-FRM-0008` | `make verify` builds the gallery, so a story that no longer builds fails the run rather than waiting for someone to open it. | Test |
 | `QGD-FRM-0009` | The gallery is development-only. It is not in the shipped application, and it is neither hosted nor published. | Static, Test |
+| `QGD-FRM-0011` | The application opens on a Home page: what this is, its version, the active persona, what the database is doing, and the way into each of the other places. It is at the top of the rail, and it reads nothing it does not have to — no credential (`QGD-CRD-0009`) and no engine — so the first thing an operator sees is drawn whatever else is or is not working. (KI7MT, 2026-10-08.) | Test, Demo |
 | `QGD-FRM-0010` | The patterns listed in `data/story-patterns.json` have stories by `QGD-PRT-0103`'s exit gate: the page layout, a form showing its validation errors, a list in each of its empty, loading, error and populated states, a confirmation dialog, and the credential test with its status display. A later application copies the pattern that is there rather than inventing its own. | Inspection, Demo |
 
 ## 5. Test, verification and release

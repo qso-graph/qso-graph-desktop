@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { PAGES, INITIAL_SHELL, createShellStore, isPageId, type ShellState } from '../src/renderer/shell-store.js';
 
 describe('the shell store', () => {
-  it('starts on Personas with no active persona and the system theme', () => {
-    expect(INITIAL_SHELL).toEqual({ page: 'personas', activePersona: 'No active persona', themeChoice: 'system' });
+  it('starts on Home with no active persona and the system theme', () => {
+    expect(INITIAL_SHELL).toEqual({
+      page: 'home', activePersona: '', themeChoice: 'system', logs: undefined, engine: undefined
+    });
     expect(createShellStore().get()).toEqual(INITIAL_SHELL);
   });
 
@@ -24,16 +26,16 @@ describe('the shell store', () => {
     store.subscribe(state => first.push(state.page));
     store.subscribe(state => second.push(state.page));
     store.set({ page: 'settings' });
-    expect(first).toEqual(['personas', 'settings']);
-    expect(second).toEqual(['personas', 'settings']);
+    expect(first).toEqual(['home', 'settings']);
+    expect(second).toEqual(['home', 'settings']);
   });
 
   it('merges rather than replaces, so one writer does not erase another', () => {
     const store = createShellStore();
-    store.set({ activePersona: 'Active: W1AW · Home station' });
+    store.set({ activePersona: 'W1AW · Home station' });
     store.set({ page: 'settings' });
-    expect(store.get()).toEqual({
-      page: 'settings', activePersona: 'Active: W1AW · Home station', themeChoice: 'system'
+    expect(store.get()).toMatchObject({
+      page: 'settings', activePersona: 'W1AW · Home station', themeChoice: 'system'
     });
   });
 
@@ -44,8 +46,8 @@ describe('the shell store', () => {
     let notifications = 0;
     store.subscribe(() => { notifications += 1; });
     expect(notifications).toBe(1);
-    store.set({ page: 'personas' });
-    store.set({ activePersona: 'No active persona' });
+    store.set({ page: 'home' });
+    store.set({ activePersona: '' });
     store.set({});
     expect(notifications).toBe(1);
     store.set({ page: 'settings' });
@@ -58,7 +60,7 @@ describe('the shell store', () => {
     const stop = store.subscribe(state => seen.push(state.page));
     stop();
     store.set({ page: 'settings' });
-    expect(seen).toEqual(['personas']);
+    expect(seen).toEqual(['home']);
   });
 
   it('survives a subscriber that unsubscribes while being notified', () => {
@@ -73,8 +75,8 @@ describe('the shell store', () => {
     store.subscribe(state => seen.push(state.page));
     store.set({ page: 'settings' });
     expect(calls).toBe(2);
-    expect(seen).toEqual(['personas', 'settings']);
-    store.set({ page: 'personas' });
+    expect(seen).toEqual(['home', 'settings']);
+    store.set({ page: 'home' });
     expect(calls).toBe(2);
   });
 
@@ -83,7 +85,7 @@ describe('the shell store', () => {
     const before = store.get();
     store.set({ page: 'settings' });
     expect(store.get()).not.toBe(before);
-    expect(before.page).toBe('personas');
+    expect(before.page).toBe('home');
   });
 });
 
@@ -91,8 +93,12 @@ describe('the rail', () => {
   it('offers Personas and Settings, in that order', () => {
     // QGD-LOG-0013 puts the Logs page inside Settings, so it is not a third
     // rail item and this list is the whole of the navigation.
-    expect(PAGES.map(page => page.id)).toEqual(['personas', 'settings']);
-    expect(PAGES.map(page => page.label)).toEqual(['Personas', 'Settings']);
+    expect(PAGES.map(page => page.id)).toEqual(['home', 'personas', 'settings']);
+    expect(PAGES.map(page => page.label)).toEqual(['Home', 'Personas', 'Settings']);
+    // Home at the top, Settings at the foot: it is where you change how the
+    // places you work behave, not one of them.
+    expect(PAGES[0].placement).toBe('top');
+    expect(PAGES.at(-1)?.placement).toBe('bottom');
   });
 
   it('accepts only a page that exists', () => {

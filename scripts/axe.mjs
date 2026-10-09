@@ -33,7 +33,7 @@ let checked = 0;
 
 // What a run looks at. The inactive page is `hidden`, and axe skips what is
 // not rendered, so each of these is one page's worth of findings and not two.
-const PAGES = ['Personas', 'Settings'];
+const PAGES = ['Home', 'Personas', 'Settings'];
 const THEMES = ['light', 'dark'];
 
 // `collect` is false for the control, whose violation is the point of it.
@@ -62,6 +62,9 @@ try {
     timeout: 30_000
   });
   const page = await application.firstWindow();
+  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   await page.evaluate(axeSource);
   expect(await page.evaluate(() => typeof globalThis.axe?.run)).toBe('function');

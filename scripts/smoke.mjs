@@ -14,6 +14,7 @@ import { entries } from './unzip.mjs';
 
 let application;
 let notesEngine = 'not reached';
+let notesSecrets = 'not reached';
 const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
@@ -21,10 +22,25 @@ const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 const persona = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
+
+// QGD-CRD-0009: the core logs every decryption of a stored credential, and
+// that log is the only honest way to assert that nothing decrypted one. A
+// count rather than a flag, so "no new reads" can be told from "no reads
+// ever".
+const secretReads = async () => {
+  const text = await readFile(join(logs, 'qg-desktop.log'), 'utf8').catch(() => '');
+  return text.split('\n').filter(Boolean)
+    .map(line => { try { return JSON.parse(line); } catch { return undefined; } })
+    .filter(entry => entry?.msg === 'credential secret read').length;
+};
+
 const launch = () => electron.launch({ args: ['.'], cwd: process.cwd(), env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }, timeout: 30_000 });
 try {
   application = await launch();
   let page = await application.firstWindow();
+  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   expect(application.windows()).toHaveLength(1);
   const preferences = await application.evaluate(({ BrowserWindow, session }) => {
@@ -121,12 +137,51 @@ try {
   expect((await page.locator('body').innerText()).includes(fakeCredential)).toBe(false);
   const index = await readFile(join(profile, 'personas.json'), 'utf8');
   expect(index.includes(fakeCredential)).toBe(false);
+  // QGD-CRD-0009 and QGD-CRD-0010. This restart is the exact thing KI7MT hit:
+  // a persona with a saved credential, remembered as active, and the
+  // application opening on it. It used to read the secret to draw the status,
+  // and macOS asked him for his login keychain password before he had done
+  // anything.
+  const readsBefore = await secretReads();
   await application.close(); application = undefined;
   application = await launch(); page = await application.firstWindow();
+  // A restart opens on Home (QGD-FRM-0011), which is the point: the status
+  // below is read after navigating there deliberately, not on the way past.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
+  // The status is drawn, and drawn correctly, from metadata alone.
   await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  await expect(page.locator('#api-key-saved')).toBeVisible();
+
+  {
+    // Every page, and the persona selected again, with nothing decrypted.
+    const railItem = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
+    for (const name of ['Settings', 'Personas', 'Settings', 'Personas']) {
+      await railItem(name).click();
+      await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
+    }
+    await page.locator('.persona-item').first().click();
+    await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+    for (const provider of ['eqsl', 'qrz_logbook']) {
+      await page.getByLabel('Service', { exact: true }).selectOption(provider);
+      await expect(page.locator('#credential-status')).not.toHaveText('Checking saved credentials…', { timeout: 30_000 });
+    }
+
+    const afterNavigating = await secretReads();
+    expect(afterNavigating - readsBefore,
+      'starting, navigating and selecting a persona must decrypt nothing').toBe(0);
+
+    // And the control, so zero means something: an explicit action that needs
+    // the secret does read it.
+    await page.getByRole('button', { name: 'Test credential', exact: true }).click();
+    await expect(page.locator('#credential-test-result')).not.toHaveText('Not tested yet.', { timeout: 30_000 });
+    await expect.poll(secretReads, { message: 'testing a credential must read the secret', timeout: 30_000 })
+      .toBeGreaterThan(afterNavigating);
+    notesSecrets = `${afterNavigating - readsBefore} on startup and navigation, ${await secretReads() - afterNavigating} on an explicit test`;
+  }
   // ---- P3: the shell ----------------------------------------------------
   await mkdir('report', { recursive: true });
   // P3-navigation: the rail moves between pages and the document never does.
@@ -374,6 +429,7 @@ try {
     notesEngine += ', and was asked to stop when the application closed';
   }
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
+  console.log(`No secret read without asking: ${notesSecrets}: PASS`);
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
   console.log(`Database card: the shell is drawn and usable while the engine starts on its own; Settings reports "${notesEngine}": PASS`);
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');

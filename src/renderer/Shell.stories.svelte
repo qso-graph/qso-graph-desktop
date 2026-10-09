@@ -12,6 +12,7 @@
     directory: '/Users/you/Library/Logs/QSO Graph Desktop'
   };
   const settled = {
+    version: '0.0.0-preview.1',
     onChooseTheme: () => Promise.resolve(true),
     onSetLevel: () => Promise.resolve(true),
     onStartEngine: () => Promise.resolve(),
@@ -32,7 +33,7 @@
   args={{
     store: createShellStore({
       page: 'settings',
-      activePersona: 'Active: W1AW · Home station',
+      activePersona: 'W1AW · Home station',
       themeChoice: 'system',
       logs,
       engine: { state: 'running', version: '17.11' }

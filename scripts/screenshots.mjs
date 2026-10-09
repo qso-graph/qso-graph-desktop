@@ -57,7 +57,7 @@ async function stableShot(page, path) {
 const PERSONA = { name: 'qg-baseline-fixture', callsign: 'W1AW', start: '2026-01-01' };
 const VIEW = { width: 1100, height: 740 };
 const THEMES = ['light', 'dark'];
-const PAGES = ['Personas', 'Settings'];
+const PAGES = ['Home', 'Personas', 'Settings'];
 
 const directory = await mkdtemp(join(tmpdir(), 'qg-shots-'));
 const logs = resolve('report/screenshot-logs');
@@ -99,6 +99,9 @@ try {
     timeout: 30_000
   });
   const page = await application.firstWindow();
+  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   await page.setViewportSize(VIEW);
 

@@ -147,6 +147,18 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
 #credential-test-result { font-size: 12px; color: var(--ink-muted); }
 #credential-test-result.success { color: var(--ok); }
 #credential-test-result.error { color: var(--danger); }
+/* Home: the facts, and the ways in. */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; margin: 0 0 18px; font-size: 13px; }
+.facts dt { color: var(--ink-muted); font-weight: 600; }
+.facts dd { margin: 0; }
+.fact-note { display: block; color: var(--danger); font-size: 12px; margin-top: 3px; }
+.destinations { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.destination { display: flex; align-items: flex-start; gap: 13px; width: 100%; text-align: left; padding: 14px 15px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font-weight: 550; }
+.destination:hover { border-color: var(--accent); }
+.destination-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+.destination strong { display: block; margin-bottom: 3px; }
+.destination .hint { display: block; font-weight: 400; }
+
 /* StateList: the three states that are not a list of things. */
 .state-list ul { list-style: none; margin: 0; padding: 0; }
 .state-list li { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--surface); }

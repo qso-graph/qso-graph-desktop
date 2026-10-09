@@ -12,6 +12,7 @@
   import { untrack } from 'svelte';
   import Rail from './ui/Rail.svelte';
   import StatusBar from './ui/StatusBar.svelte';
+  import HomePage from './pages/HomePage.svelte';
   import PersonaPage from './pages/PersonaPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import { PAGES, isPageId, type ShellState, type ShellStore } from './shell-store.js';
@@ -25,8 +26,11 @@
     onExport: () => Promise<string>;
     onStartEngine: () => Promise<void>;
     onStopEngine: () => Promise<void>;
+    version: string;
   }
-  const { store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine }: Props = $props();
+  const {
+    store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine, version
+  }: Props = $props();
 
   // untrack, because reading a prop to seed state is not a reactive read and
   // Svelte is right to ask: the subscription below is what keeps it current.
@@ -42,6 +46,10 @@
   function navigate(id: string): void {
     if (isPageId(id)) store.set({ page: id });
   }
+
+  // Everything the rail offers except Home itself: the page is a way in, not a
+  // way back to where you already are.
+  const destinations = $derived(PAGES.filter(page => page.id !== 'home'));
 </script>
 
 <header>
@@ -71,6 +79,15 @@
 <div class="workspace">
   <Rail pages={PAGES} current={state.page} onNavigate={navigate} />
   <main>
+    <div class="page" hidden={state.page !== 'home'}>
+      <HomePage
+        {version}
+        activePersona={state.activePersona}
+        engine={state.engine}
+        {destinations}
+        onGo={navigate}
+      />
+    </div>
     <div class="page" hidden={state.page !== 'personas'}>
       <PersonaPage />
     </div>

@@ -160,6 +160,9 @@ try {
     } catch { /* a process exiting mid-sample is not a finding */ }
   }, POLL_MS);
 
+  // The application opens on Home now (QGD-FRM-0011).
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
 
   // One whole navigation inside instrumentation. The application's very first
@@ -168,6 +171,9 @@ try {
   // history is asserted to have recorded it.
   stage = 'a full navigation recorded from its first request';
   await page.reload();
+  // A reload is a fresh start, so it lands on Home again.
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   const navigation = await application.evaluate(() => globalThis.__qgRequests ?? []);
   expect(navigation.length, 'the request history recorded no navigation at all').toBeGreaterThan(0);

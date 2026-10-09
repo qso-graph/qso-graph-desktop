@@ -6,9 +6,9 @@
   const { Story } = defineMeta({
     title: 'ui/StatusBar',
     component: StatusBar,
-    args: { activePersona: 'No active persona' }
+    args: { activePersona: '' }
   });
 </script>
 
 <Story name="No active persona" />
-<Story name="Active persona" args={{ activePersona: 'Active: W1AW · Home station' }} />
+<Story name="Active persona" args={{ activePersona: 'W1AW · Home station' }} />

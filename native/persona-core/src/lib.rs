@@ -12,10 +12,24 @@ mod corelog;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
 pub struct ProviderRef {
     pub username: String,
+    // QGD-CRD-0010: what is stored, without reading what is stored.
+    //
+    // Which kinds of secret an entry holds is not itself a secret, and it is
+    // known at the moment it is written. Keeping it here is what lets the
+    // status display answer without decrypting anything — a decryption macOS
+    // puts a password prompt in front of, at startup, before the operator has
+    // asked for anything.
+    #[serde(default)]
+    pub has_password: bool,
+    #[serde(default)]
+    pub has_api_key: bool,
+    // When it was last written, as the operator would want to see it.
+    #[serde(default)]
+    pub saved_at: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -138,10 +152,78 @@ impl Store {
         self.lookup(persona)?;
         keyring::Entry::new(SERVICE, &subject(persona, provider)?).map_err(|_| "Keychain is unavailable.")
     }
+    // Does the Keychain hold an entry for this, without reading it?
+    //
+    // The attributes of an item are not behind its access control; the data is.
+    // Asking for attributes and deliberately not asking for data is what makes
+    // this silent — a read of the secret is what raises the login-keychain
+    // prompt (QGD-CRD-0009).
+    #[cfg(target_os = "macos")]
+    fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
+        use security_framework::item::{ItemClass, ItemSearchOptions};
+        let account = subject(persona, provider)?;
+        let found = ItemSearchOptions::new()
+            .class(ItemClass::generic_password())
+            .service(SERVICE)
+            .account(&account)
+            // Attributes, and never data. This is the whole of the difference.
+            .load_attributes(true)
+            .limit(1)
+            .search();
+        match found {
+            Ok(items) => Ok(!items.is_empty()),
+            // -25300 is errSecItemNotFound: an answer, not a failure.
+            Err(e) if e.code() == -25300 => Ok(false),
+            Err(_) => Err("Keychain could not be asked about this credential."),
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
+        match self.entry(persona, provider)?.get_attributes() {
+            Ok(_) => Ok(true),
+            Err(keyring::Error::NoEntry) => Ok(false),
+            Err(_) => Err("Keychain could not be asked about this credential."),
+        }
+    }
+
+    // Records what was stored, which is not a secret, so the status display
+    // never has to decrypt anything to answer.
+    fn record_kinds(&self, persona: &str, provider: &str, creds: &Credentials) -> CoreResult<()> {
+        let persona = identifier(persona)?;
+        let provider = identifier(provider)?;
+        let mut index = self.load()?;
+        let profile = index.personas.get_mut(&persona).ok_or("Persona not found.")?;
+        let reference = profile.providers.entry(provider).or_insert_with(ProviderRef::default);
+        reference.username = creds.username.clone().unwrap_or_default();
+        reference.has_password = creds.password.as_ref().is_some_and(|s| !s.is_empty());
+        reference.has_api_key = creds.api_key.as_ref().is_some_and(|s| !s.is_empty());
+        reference.saved_at = Some(now_utc());
+        self.save(&index)
+    }
+
+    fn forget_kinds(&self, persona: &str, provider: &str) -> CoreResult<()> {
+        let Ok(persona) = identifier(persona) else { return Ok(()); };
+        let Ok(provider) = identifier(provider) else { return Ok(()); };
+        let mut index = self.load()?;
+        if let Some(profile) = index.personas.get_mut(&persona) {
+            profile.providers.remove(&provider);
+            return self.save(&index);
+        }
+        Ok(())
+    }
+
     fn read_credentials(&self, persona: &str, provider: &str) -> CoreResult<Option<Credentials>> {
         let entry = self.entry(persona, provider)?;
         match entry.get_password() {
             Ok(raw) => {
+                // QGD-CRD-0009: every decryption of a stored credential, as it
+                // happens. This is the only path that decrypts one, so the log
+                // is a complete record of when the operating system was asked
+                // to unlock a secret — which is also what a test can read to
+                // assert that nothing did so at startup. The provider and the
+                // fact, never the value (QGD-LOG-0004).
+                tracing::info!(provider = %provider, "credential secret read");
                 let raw = Zeroizing::new(raw);
                 serde_json::from_str(&raw).map(Some).map_err(|_| "Stored credential has an unsupported format. It has not been changed.")
             }
@@ -162,10 +244,13 @@ impl Store {
         // remain exclusively in Keychain; its payload never enters the index.
         let mut index = self.load()?;
         let profile = index.personas.get_mut(&persona).ok_or("Persona not found.")?;
-        profile.providers.entry(provider.clone()).or_insert(ProviderRef { username: String::new() });
+        profile.providers.entry(provider.clone()).or_default();
         self.save(&index)?;
         let raw = Zeroizing::new(serde_json::to_string(&merged).map_err(|_| "Credential could not be encoded.")?);
         let result = self.entry(&persona, &provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.");
+        // Recorded only once the Keychain has it, so the index never claims a
+        // credential that was not written (QGD-CRD-0010).
+        if result.is_ok() { self.record_kinds(&persona, &provider, &merged)?; }
         // QGD-LOG-0004: the provider and the outcome. Never the value, never
         // the persona's own name.
         match &result {
@@ -199,8 +284,13 @@ impl Store {
         self.lookup(persona)?;
         #[cfg(target_os = "macos")]
         match security_framework::passwords::delete_generic_password(SERVICE, &subject(persona, provider)?) {
-            Ok(()) => { tracing::info!(provider = %provider, "credential removed"); Ok(true) }
-            Err(e) if e.code() == -25300 => Ok(false),
+            Ok(()) => {
+                tracing::info!(provider = %provider, "credential removed");
+                // The index must not go on describing an entry that is gone.
+                self.forget_kinds(persona, provider)?;
+                Ok(true)
+            }
+            Err(e) if e.code() == -25300 => { self.forget_kinds(persona, provider)?; Ok(false) }
             Err(_) => {
                 tracing::warn!(provider = %provider, "keychain refused to remove a credential");
                 Err("Keychain could not remove this credential.")
@@ -222,6 +312,7 @@ impl Store {
         } else {
             let raw = Zeroizing::new(serde_json::to_string(&creds).map_err(|_| "Credential could not be encoded.")?);
             self.entry(persona, provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
+            self.record_kinds(persona, provider, &creds)?;
         }
         Ok(())
     }
@@ -259,18 +350,64 @@ impl Store {
         index.personas.retain(|key, profile| key.to_lowercase() != name && profile.name.to_lowercase() != name);
         self.save(&index)
     }
+    // QGD-CRD-0009: nothing here reads a secret.
+    //
+    // It used to. Opening the application selected the remembered persona,
+    // which asked for this, which decrypted the entry — and macOS asked the
+    // operator for the login keychain password before he had done anything at
+    // all. Everything this reports is either in the index, where it was
+    // written when the credential was saved, or is the existence of the entry,
+    // which the Keychain will answer from attributes without unlocking data.
     fn status(&self, persona: &str, provider: &str) -> CoreResult<CredentialStatus> {
-        let creds = self.read_credentials(persona, provider)?;
-        let preferred = self.preference(persona, provider)?;
-        let effective = creds.as_ref().and_then(|c| selected_field(provider, c, if preferred == "service" { None } else { Some(&preferred) }).ok()).map(str::to_owned);
+        self.lookup(persona)?;
+        let provider = identifier(provider)?;
+        let reference = self.lookup(persona)?.providers.get(&provider).cloned();
+        let exists = self.entry_exists(persona, &provider)?;
+        let preferred = self.preference(persona, &provider)?;
+
+        // The index says what kinds were stored; the Keychain says whether the
+        // entry is still there. An entry removed outside this application
+        // makes the index stale, and the Keychain is believed over it.
+        let has_password = exists && reference.as_ref().is_some_and(|r| r.has_password);
+        let has_api_key = exists && reference.as_ref().is_some_and(|r| r.has_api_key);
+        let effective = effective_field(&provider, has_password, has_api_key,
+            if preferred == "service" { None } else { Some(&preferred) });
+
         Ok(CredentialStatus {
-            stored: creds.is_some(),
-            has_username: creds.as_ref().and_then(|c| c.username.as_ref()).is_some_and(|s| !s.is_empty()),
-            has_password: creds.as_ref().and_then(|c| c.password.as_ref()).is_some_and(|s| !s.is_empty()),
-            has_api_key: creds.as_ref().and_then(|c| c.api_key.as_ref()).is_some_and(|s| !s.is_empty()),
-            preferred, effective,
+            stored: exists,
+            has_username: exists && reference.as_ref().is_some_and(|r| !r.username.is_empty()),
+            has_password,
+            has_api_key,
+            preferred,
+            effective,
         })
     }
+}
+
+// The same choice selected_field makes, from what is stored rather than from
+// the stored values — so the status display can answer it without decrypting
+// anything (QGD-CRD-0010). The two must agree, and a test holds them together.
+// An ISO-8601 instant. chrono is already here for NaiveDate, but without its
+// "clock" feature, so the time comes from std and chrono formats it — rather
+// than widening a dependency for one string.
+fn now_utc() -> String {
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or_default();
+    chrono::DateTime::from_timestamp(seconds, 0)
+        .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+        .unwrap_or_default()
+}
+
+fn effective_field(provider: &str, has_password: bool, has_api_key: bool, prefer: Option<&str>) -> Option<String> {
+    let preferred = prefer.unwrap_or(if provider.to_lowercase() == "qrz_logbook" { "api_key" } else { "password" });
+    let (first, second, first_name, second_name) = match preferred {
+        "api_key" => (has_api_key, has_password, "api_key", "password"),
+        "password" => (has_password, has_api_key, "password", "api_key"),
+        _ => return None,
+    };
+    if first { Some(first_name.to_owned()) } else if second { Some(second_name.to_owned()) } else { None }
 }
 
 fn selected_field(provider: &str, creds: &Credentials, prefer: Option<&str>) -> CoreResult<&'static str> {

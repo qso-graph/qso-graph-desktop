@@ -14,8 +14,14 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+
+// The version on screen is the one that was built. Read here rather than
+// imported, so package.json does not end up in the renderer's bundle.
+const version = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 
 export default defineConfig({
+  define: { __QG_VERSION__: JSON.stringify(version) },
   root: 'src/renderer',
   base: './',
   // configFile is explicit because vite-plugin-svelte looks beside the Vite

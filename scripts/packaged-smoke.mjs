@@ -46,6 +46,9 @@ async function launch() {
 }
 try {
   await launch();
+  // The application opens on Home now (QGD-FRM-0011).
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
   await page.getByLabel('Persona name', { exact: true }).fill(persona);
@@ -99,6 +102,8 @@ try {
   await expect(page.locator('#credential-effective')).toContainText('Selected for use: password');
   await expect(page.locator('#message')).toHaveText('Preferred credential saved.');
   await stop(); await launch();
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
@@ -149,6 +154,8 @@ try {
   await expect(page.locator('#active-persona')).toHaveText('No active persona');
   credentialSaved = false;
   await stop(); await launch();
+  await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
   await page.getByLabel('Persona name', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('W1AW');

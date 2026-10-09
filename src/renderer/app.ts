@@ -8,6 +8,8 @@ import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } fro
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
 import { createShellStore } from './shell-store.js';
+declare const __QG_VERSION__: string;
+
 declare global {
   interface Window {
     personas: { request(command: PersonaCommand): Promise<PersonaReply> };
@@ -26,7 +28,10 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
-    onStartEngine: startEngine, onStopEngine: stopEngine
+    onStartEngine: startEngine, onStopEngine: stopEngine,
+    // Injected at build time from package.json, so the number on screen is the
+    // number that was built rather than one typed twice.
+    version: __QG_VERSION__
   }
 });
 
@@ -63,7 +68,7 @@ function list() {
   }
   if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No personas yet. Start with your station callsign.'; container.append(empty); }
   const active = snapshot.personas.find(p => p.name === snapshot.active);
-  shell.set({ activePersona: active ? `Active: ${active.callsign} · ${active.name}` : 'No active persona' });
+  shell.set({ activePersona: active ? `${active.callsign} · ${active.name}` : '' });
 }
 async function credentialStatus() {
   const persona = selected;
