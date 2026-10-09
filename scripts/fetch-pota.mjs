@@ -16,8 +16,42 @@
 // nothing of POTA's is committed by running it.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { downloadText } from '../dist/reference/fetch.js';
-import { readLocations, readParks, readPrograms } from '../dist/reference/pota.js';
+// Checked before the imports below resolve, so a missing build is one sentence
+// rather than a bare ERR_MODULE_NOT_FOUND naming a file nobody put there.
+import { access } from 'node:fs/promises';
+try {
+  await access('dist/reference/pota.js');
+} catch {
+  console.error('This reads POTA\'s lists with the compiled reference reader, and dist/ is not built.');
+  console.error('Run `npm run build` first, or `make setup`, which does both in the right order.');
+  process.exit(1);
+}
+// Downloaded here with the platform's own fetch, the way fetch-adif.mjs and
+// fetch-postgres.mjs do.
+//
+// This used to import `downloadText` from the reference module, and that
+// function no longer exists: when KI7MT's D-18 and D-31 moved all of the
+// product's outbound HTTPS into the Rust credential core, the module kept only
+// the `FetchText` *type* and the implementation went with it. So this script
+// has been broken since P5 and nothing said so, because the POTA cache was
+// already on disk and nobody re-fetched. The first clean account to run
+// `make setup` found it.
+//
+// A setup script is not the product: QGD-SEC-0020 and the network gate cover
+// packages/, which is what ships. Fetching a registered source here is the
+// same thing its two siblings already do.
+async function downloadText(url) {
+  if (!url.startsWith('https://')) throw new Error('a reference source must be HTTPS');
+  const response = await fetch(url, { redirect: 'error' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return {
+    status: 'fresh',
+    body: await response.text(),
+    etag: response.headers.get('etag'),
+    lastModified: response.headers.get('last-modified')
+  };
+}
+const { readLocations, readParks, readPrograms } = await import('../dist/reference/pota.js');
 
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const pota = register.pota;

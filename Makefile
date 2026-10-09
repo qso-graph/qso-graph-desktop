@@ -8,6 +8,11 @@
 # installs.
 setup:
 	npm ci
+# scripts/fetch-pota.mjs imports the POTA reader from dist/, so the build has to
+# have happened. It always had on a machine that had built before, which is why
+# this ordering was wrong for months without anyone noticing — the first clean
+# account to run `make setup` failed on a missing dist/reference/fetch.js.
+	npm run build
 	node scripts/fetch-postgres.mjs
 	node scripts/fetch-adif.mjs
 	node scripts/fetch-pota.mjs
