@@ -1,0 +1,15 @@
+# Dependabot: security and version updates. Security findings are fixed, not parked.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    target-branch: "develop"
+  - package-ecosystem: "cargo"
+    directory: "/packages/persona-core"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    target-branch: "develop"

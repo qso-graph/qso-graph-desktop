@@ -121,6 +121,26 @@ qso-graph-desktop/
 - **Don't loosen an exact assertion** to make an intermittent failure go away. Instrument it and
   find the cause.
 
+## How work is reviewed: three roles, different models
+
+Every change passes through three separate roles before it reaches `develop`. Using **different
+models** for them is deliberate: a model is poorest at catching its own blind spots.
+
+| Role | Who (typically) | Job |
+|---|---|---|
+| **Coder** | The agent doing the Part (for example Claude, as Watson) | Writes the change and its tests, proves each check can fail, gets `make verify` green |
+| **Checker** | A second agent, ideally a different model (for example Bob) | Checks the change against the spec and the code: cited IDs exist and say what's claimed, the layer is right, nothing restates a requirement, nothing touches another product's data |
+| **Reviewer** | An independent frontier model at high reasoning effort, from a different vendor than the coder (for example `codex review` with Hopper) | An adversarial review of the diff: real defects, gates that check nothing, security and edge cases |
+
+Use **current frontier models at high effort** for the checker and reviewer. As of October 2026
+that means models such as GPT-6.1-astra (high), Claude Fable 5.1 (high) or Google's current Gemini.
+Versions change, so pick the current ones rather than the names here.
+
+- **Findings are adjudicated against the code,** not accepted on authority. A reviewer can be
+  wrong too; say why when a finding is rejected.
+- **Stop at the first clean review** that follows real fixes. Don't polish wording in loops.
+- **Sign-off is still a person's** (`data/part-signoff.json`), whatever the reviews say.
+
 ## Code standards
 
 - **Language:** TypeScript (pinned at 6.0.3 until typescript-eslint supports 7; see
