@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { readFile } from 'node:fs/promises';
-import { describe, expect, it } from 'vitest';
-import { violations, PRODUCT_SOURCES } from '../scripts/network-static.mjs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  hardCodedHosts, violations, NETWORK_EXCEPTIONS, NETWORK_MODULE, productSources
+} from '../scripts/network-static.mjs';
 
 describe('QGD-CRD-0007 static gate', () => {
   // The three that evaded the regex this replaced, plus the rest of the surface.
@@ -69,9 +73,69 @@ describe('QGD-CRD-0007 static gate', () => {
     expect(violations("session.defaultSession.webRequest.onBeforeRequest((d, cb) => cb({ cancel: true }));")).toEqual([]);
   });
 
-  it('reports every product source clean', async () => {
-    for (const file of PRODUCT_SOURCES) {
-      expect(violations(await readFile(file, 'utf8'), file), file).toEqual([]);
+  it('reports every product source clean, except the two that are named', async () => {
+    const files = await productSources();
+    // The product has more than the seven files this gate used to list.
+    expect(files.length).toBeGreaterThan(30);
+    const offenders = {};
+    for (const file of files) {
+      const found = violations(await readFile(file, 'utf8'), file);
+      if (found.length) offenders[file] = found.map(entry => entry.what);
     }
+    // Exactly the named exceptions, and nothing else. A third use of a
+    // networking API shows up here as an unexplained file rather than as a
+    // silence (QGD-SEC-0020).
+    expect(Object.keys(offenders).sort()).toEqual(Object.keys(NETWORK_EXCEPTIONS).sort());
+  });
+});
+
+describe('QGD-SEC-0021 the gate reviews what is there, not what it was told about', () => {
+  // This is the control. The scope was a list of seven file names written at
+  // P2, and it stayed seven while the product grew to thirty-six — so a fetch
+  // added to the engine passed the gate. A file placed in the tree has to fail
+  // it, or the scope has gone back to being a list.
+  let root;
+  beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'qg-scope-')); });
+  afterEach(async () => { await rm(root, { recursive: true, force: true }); });
+
+  it('finds a file nobody listed, however deep', async () => {
+    const deep = join(root, 'engine', 'reference', 'new');
+    await mkdir(deep, { recursive: true });
+    await writeFile(join(deep, 'telemetry.ts'), "fetch('https://example.invalid/ping');\n");
+    await writeFile(join(root, 'shallow.cts'), "const net = require('net');\n");
+    const files = await productSources(root);
+    expect(files).toEqual([join(root, 'engine/reference/new/telemetry.ts'), join(root, 'shallow.cts')]);
+    for (const file of files) {
+      expect(violations(await readFile(file, 'utf8'), file).length, file).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not scan a declaration file, which declares and does not call', async () => {
+    await writeFile(join(root, 'native.d.ts'), 'export declare function fetch(url: string): void;\n');
+    expect(await productSources(root)).toEqual([]);
+  });
+});
+
+describe('QGD-SEC-0020 the one outbound client', () => {
+  it('is the only module with a client, and the engine listener is the other exception', () => {
+    expect(Object.keys(NETWORK_EXCEPTIONS)).toContain(NETWORK_MODULE);
+    expect(Object.keys(NETWORK_EXCEPTIONS)).toHaveLength(2);
+    for (const reason of Object.values(NETWORK_EXCEPTIONS)) expect(reason.length).toBeGreaterThan(20);
+  });
+
+  it('takes its destination from the register, not from its own source', async () => {
+    expect(hardCodedHosts(await readFile(NETWORK_MODULE, 'utf8'))).toEqual([]);
+  });
+
+  it('would notice a host written into it', () => {
+    expect(hardCodedHosts("await fetch('https://adif.org.uk/317/x.zip');")).toEqual([
+      { line: 1, file: NETWORK_MODULE, what: 'names https://adif.org.uk rather than reading it from the register' }
+    ]);
+  });
+
+  it('refuses a URL that is not https', async () => {
+    const { download } = await import('../src/engine/reference/fetch.js');
+    await expect(download('http://adif.org.uk/317/x.zip')).rejects.toThrow(/HTTPS only/);
+    await expect(download('file:///etc/passwd')).rejects.toThrow(/HTTPS only/);
   });
 });

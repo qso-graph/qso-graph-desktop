@@ -8,6 +8,13 @@
       "when": 1791494297765,
       "tag": "0000_frame_installation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791520786567,
+      "tag": "0001_reference_data",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,9 @@ import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
   dialect: 'postgresql',
-  schema: './src/engine/schema.ts',
+  // Every schema the frame brings: its own, and the reference data's
+  // (QGD-ENG-0001 gives reference data its own schema, still frame-owned).
+  schema: ['./src/engine/schema.ts', './src/engine/reference/schema.ts'],
   out: './drizzle',
   // Drizzle's own bookkeeping, in a schema of its own rather than in the one
   // the migrations build: the migrator creates this schema before it runs

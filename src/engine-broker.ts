@@ -26,6 +26,10 @@ export interface EngineBrokerOptions {
   sockets: string;
   buildFile: string;
   migrations: string;
+  // data/reference-sources.json, and where the fetched ADIF archive is kept
+  // between starts (QGD-REF-0001).
+  registerFile: string;
+  referenceCache: string;
   // Off by default in tests that only want the shell.
   startAtLaunch?: boolean;
 }
@@ -50,7 +54,8 @@ export function startEngineBroker(options: EngineBrokerOptions): () => Promise<v
   function spawn() {
     if (stopped) return;
     worker = utilityProcess.fork(join(options.compiledDirectory, 'engine-service.js'), [
-      options.binaries, options.data, logDirectory(), options.sockets, options.migrations, options.buildFile
+      options.binaries, options.data, logDirectory(), options.sockets, options.migrations,
+      options.buildFile, options.registerFile, options.referenceCache
     ], { serviceName: 'QG Engine', stdio: 'ignore' });
 
     worker.on('message', (message: unknown) => {
@@ -145,7 +150,13 @@ export function startEngineBroker(options: EngineBrokerOptions): () => Promise<v
 }
 
 // Where the engine's files live, beside everything else the application owns.
-export function enginePaths(): { data: string; sockets: string } {
+export function enginePaths(): { data: string; sockets: string; referenceCache: string } {
   const base = app.getPath('userData');
-  return { data: join(base, 'engine', 'data'), sockets: join(base, 'engine', 'sockets') };
+  return {
+    data: join(base, 'engine', 'data'),
+    sockets: join(base, 'engine', 'sockets'),
+    // Not beside the data: the data directory belongs to PostgreSQL, and a
+    // file of ours in it is a file initdb and pg_upgrade did not expect.
+    referenceCache: join(base, 'reference')
+  };
 }

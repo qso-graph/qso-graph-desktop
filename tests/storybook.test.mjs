@@ -58,9 +58,13 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
     const files = manifest.build.files.join(' ');
     expect(files).not.toContain('storybook');
     // What is packaged is the compiled application, its manifest, the register
-    // the engine reads its version from, and the migrations it applies.
+    // the engine reads its version from, the register of reference sources it
+    // fetches from, and the migrations it applies. Nothing of ADIF's or POTA's
+    // own data is in that list: QGD-REF-0001 and QGD-REF-0009 have it fetched
+    // at run time, so what ships is where to get it and nothing more.
     expect(manifest.build.files).toEqual([
-      'dist/**/*', 'package.json', 'LICENSE', 'data/postgres-build.json', 'drizzle/**/*'
+      'dist/**/*', 'package.json', 'LICENSE',
+      'data/postgres-build.json', 'data/reference-sources.json', 'drizzle/**/*'
     ]);
   });
 

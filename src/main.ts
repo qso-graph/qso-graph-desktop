@@ -151,6 +151,11 @@ if (!app.requestSingleInstanceLock()) {
       sockets: engine.sockets,
       buildFile: join(app.getAppPath(), 'data', 'postgres-build.json'),
       migrations: join(app.getAppPath(), 'drizzle'),
+      // The register ships; what it points at is fetched (QGD-REF-0001).
+      registerFile: join(app.getAppPath(), 'data', 'reference-sources.json'),
+      // Overridable for the same reason QG_DESKTOP_POSTGRES_BIN is: a suite
+      // needs to run the product against an archive that is already there.
+      referenceCache: process.env.QG_DESKTOP_REFERENCE_CACHE ?? engine.referenceCache,
       startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
     });
     // Stopping the engine is the one thing here that takes time, and it has

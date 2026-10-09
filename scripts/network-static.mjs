@@ -21,6 +21,8 @@
 // token and `from` in the next statement is not in this one.
 //
 // The guarantee is tests/network-static.test.mjs.
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 // Node's networking, with or without the node: prefix.
 const MODULES = /^(?:node:)?(?:http|https|http2|net|tls|dgram)$/;
@@ -262,8 +264,74 @@ export function violations(source, fileName = 'input.ts') {
   return found;
 }
 
-// The product files this gate covers.
-export const PRODUCT_SOURCES = [
-  'src/main.ts', 'src/persona-broker.ts', 'src/persona-contract.ts',
-  'src/persona-service.ts', 'src/policy.ts', 'src/preload.cts', 'src/renderer/app.ts'
-];
+// The product files this gate covers: every TypeScript file under src/,
+// found by walking the tree.
+//
+// It was a list of seven file names, written when the product had seven, and
+// it stayed seven while the product grew to thirty-six. Everything added after
+// P2 — the engine, the logs, the settings, the diagnostics — was never looked
+// at by this gate, and a `fetch` added to src/engine/reference/fetch.ts passed
+// it. That is the third gate in this project to go quiet because its scope was
+// a list somebody had to remember to extend: ESLint reviewed no Svelte,
+// svelte-check excluded every story, and now this. A derived scope cannot
+// drift, and the control below proves it is derived.
+export async function productSources(root = 'src') {
+  const found = [];
+  const walk = async directory => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      // .d.ts files declare, they do not call.
+      else if (/\.(ts|cts|mts)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) found.push(path);
+    }
+  };
+  await walk(root);
+  return found.sort();
+}
+
+// The exceptions, each named with what makes it one.
+//
+// QGD-SEC-0010. A derived scope found two uses of a networking API in the
+// product, and they are different kinds of thing:
+//
+// - src/engine/reference/fetch.ts holds the one outbound client there is.
+//   Reference data is fetched at run time (QGD-REF-0001, QGD-REF-0009), and
+//   this is where. The destination is not in its source: it comes from the
+//   register, which is what the URL check below proves.
+// - src/engine/endpoint.ts imports node:net to ask the operating system for a
+//   free TCP port, which is what the engine listens on where there are no Unix
+//   sockets (QGD-ENG-0009). A listener is not a client: it opens nothing.
+//
+// Listed rather than inferred, because an exception that a rule works out for
+// itself is not an exception, it is a hole. A third entry here is a decision
+// somebody has to make on purpose.
+export const NETWORK_EXCEPTIONS = {
+  'src/engine/reference/fetch.ts': 'the one outbound client: the reference fetch (QGD-SEC-0010)',
+  'src/engine/endpoint.ts': 'node:net, to ask the OS for a free port to listen on (QGD-ENG-0009)'
+};
+
+// The module that holds the outbound client, whose destination must come from
+// the register rather than from its own source.
+export const NETWORK_MODULE = 'src/engine/reference/fetch.ts';
+
+// A host written into the fetcher instead of read from the register.
+// QGD-SEC-0010 allows the hosts the register names and no others, so a literal
+// host in the module that does the fetching is a destination nobody
+// registered. The bare scheme is not a destination: the fetcher tests for
+// https:// before it will fetch anything at all.
+//
+// This is deliberately not applied to the rest of the product, where a URL is
+// ordinarily attribution — the Font Awesome and Creative Commons links the
+// licence requires the About panel to show — or an entry in the
+// shell.openExternal allowlist, which QGD-SEC-0009 governs instead.
+export function hardCodedHosts(source, file = NETWORK_MODULE) {
+  const found = [];
+  let line = 1;
+  for (const part of source.split('\n')) {
+    for (const match of part.matchAll(/https?:\/\/[A-Za-z0-9][A-Za-z0-9.-]*/g)) {
+      found.push({ line, file, what: `names ${match[0]} rather than reading it from the register` });
+    }
+    line += 1;
+  }
+  return found;
+}

@@ -53,6 +53,7 @@
       "package.json",
       "LICENSE",
       "data/postgres-build.json",
+      "data/reference-sources.json",
       "drizzle/**/*"
     ],
     "asar": true,

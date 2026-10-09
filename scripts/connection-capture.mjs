@@ -37,14 +37,14 @@
 // without connecting. A real external request happens only when a user presses
 // Test credential with a real credential, which no automated suite does.
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, readdir, rm, writeFile, readFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { classify } from './endpoint.mjs';
-import { violations, PRODUCT_SOURCES } from './network-static.mjs';
+import { violations, NETWORK_EXCEPTIONS, productSources } from './network-static.mjs';
 import { sentinelsIn } from './artifact-scan.mjs';
 import { redact } from './report.mjs';
 
@@ -54,6 +54,21 @@ const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
+
+// The reference archive, put where the product looks for it before it starts.
+//
+// This makes the run below an installed product whose reference data is
+// already on the machine, which is what every run after the first looks like —
+// and what the "no external connection" rule further down is a statement
+// about. Without this the product would correctly fetch the archive from
+// adif.org (QGD-REF-0001), and this suite would be measuring a first run while
+// also making `make verify` depend on someone else's web server being up.
+const referenceCache = join(directory, 'reference');
+await mkdir(referenceCache, { recursive: true });
+const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
+const archive = join('vendor', '.cache', `adif-${register.adif.version}.zip`);
+await cp(archive, join(referenceCache, `adif-${register.adif.version}.zip`))
+  .catch(() => { throw new Error(`${archive} is not there. Fetch it with: make setup`); });
 const persona = `qg-test-${randomUUID()}`;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 let application;
@@ -133,7 +148,11 @@ try {
   stage = 'launch';
   application = await electron.launch({
     args: ['.'], cwd: process.cwd(),
-    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs },
+    env: {
+      ...process.env,
+      QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs,
+      QG_DESKTOP_REFERENCE_CACHE: referenceCache
+    },
     timeout: 30_000
   });
   // Recording goes in before anything else is awaited. The product calls
@@ -290,6 +309,18 @@ try {
   }
 
   stage = 'no external connection anywhere, in any sample or poll';
+  // What this proves, exactly: an installed product whose reference data is
+  // already on the machine connects to nothing at all. That is the state a
+  // user's machine is in every run after the first, and it is run here with
+  // the archive seeded into the cache directory (above) so it is that state
+  // and not a first run.
+  //
+  // It is NOT a claim that the product never reaches the network. It fetches
+  // the reference data once (QGD-REF-0001, QGD-SEC-0020), and reading this
+  // zero as "never" is the misreading to avoid. That one connection is held
+  // to the register statically, by the gate below and by
+  // tests/network-static.test.mjs: one module, HTTPS only, destination read
+  // from data/reference-sources.json rather than written into the source.
   const everyEndpoint = [...observed.values(), ...labelled.flatMap(taken => taken.endpoints)];
   const external = everyEndpoint.filter(endpoint => endpoint.external);
   expect(external, external.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ')).toEqual([]);
@@ -358,10 +389,18 @@ try {
   // An absolute claim would be false the moment a user tests a credential.
   expect(footer).not.toContain('No service connection made');
 
-  stage = 'no outbound-network API in the product TypeScript';
-  for (const file of PRODUCT_SOURCES) {
-    expect(violations(await readFile(file, 'utf8'), file), file).toEqual([]);
+  stage = 'no outbound-network API in the product TypeScript but the two named';
+  // The scope is walked, not listed (QGD-SEC-0021): this gate scanned seven
+  // files while the product grew to thirty-six, and a fetch added to the
+  // engine passed it.
+  const sources = await productSources();
+  const offenders = [];
+  for (const file of sources) {
+    const found = violations(await readFile(file, 'utf8'), file);
+    if (found.length) offenders.push(file);
   }
+  expect(offenders.sort(), 'an unexplained use of a networking API')
+    .toEqual(Object.keys(NETWORK_EXCEPTIONS).sort());
 
   // QGD-LOG-0003 to QGD-LOG-0005: this run wrote a synthetic credential, so its
   // own log folder is where a redaction failure would show first. Asserted to

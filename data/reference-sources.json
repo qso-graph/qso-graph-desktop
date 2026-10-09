@@ -1,6 +1,6 @@
 {
   "register": "Where the reference data comes from, and who owns what is in it",
-  "note": "QGD-REF-0002, QGD-REF-0003 and QGD-REF-0009. Two different facts about every list: who issues it, and where this copy came from. ADIF issues almost none of what it reproduces \u2014 the award sponsor does, or the national society, or the ITU \u2014 and POTA issues its own. Some sources are pinned by checksum because they are releases; POTA's park list is not, because it changes daily (QGD-REF-0010).",
+  "note": "QGD-REF-0002, QGD-REF-0003 and QGD-REF-0009. Two different facts about every list: who issues it, and where this copy came from. ADIF issues almost none of what it reproduces — the award sponsor does, or the national society, or the ITU — and POTA issues its own. Some sources are pinned by checksum because they are releases; POTA's park list is not, because it changes daily (QGD-REF-0010). \"supplied\" says whether the copy named above actually ships the list, and \"derived\" whether this product builds it out of columns on another one — both machine-readable, because the loader has to act on them and reading a prefix off an English sentence is not a fact.",
   "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
   "adif": {
     "version": "3.1.7",
@@ -18,79 +18,125 @@
       "id": "fields",
       "what": "The 186 fields a QSO record may carry, with the data type and enumeration of each",
       "authority": "ADIF Development Group",
-      "copy": "the same \u2014 this is ADIF's own, not a reproduction"
+      "copy": "the same — this is ADIF's own, not a reproduction",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Fields"
     },
     {
       "id": "datatypes",
       "what": "The data types a field may have, and what each admits",
       "authority": "ADIF Development Group",
-      "copy": "the same"
+      "copy": "the same",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "DataTypes"
     },
     {
       "id": "modes",
       "what": "Mode and Submode",
       "authority": "ADIF Development Group",
-      "copy": "the same"
+      "copy": "the same",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Mode"
     },
     {
       "id": "bands",
       "what": "Band names and their frequency ranges",
       "authority": "ADIF Development Group, over allocations made by the ITU and national regulators",
-      "copy": "the same, but the allocations underneath it are not ADIF's"
+      "copy": "the same, but the allocations underneath it are not ADIF's",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Band"
     },
     {
       "id": "dxcc-entities",
       "what": "The 403 DXCC entity codes",
-      "authority": "ARRL \u2014 DXCC is ARRL's award and ARRL adjudicates it",
-      "copy": "reproduced by ADIF"
+      "authority": "ARRL — DXCC is ARRL's award and ARRL adjudicates it",
+      "copy": "reproduced by ADIF",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "DXCC_Entity_Code"
     },
     {
       "id": "arrl-sections",
       "what": "ARRL and RAC sections",
       "authority": "ARRL",
-      "copy": "reproduced by ADIF"
+      "copy": "reproduced by ADIF",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "ARRL_Section"
     },
     {
       "id": "primary-administrative-subdivisions",
-      "what": "1,965 subdivisions \u2014 states, provinces, oblasts \u2014 each with its DXCC entity, CQ zone and ITU zone",
+      "what": "1,965 subdivisions — states, provinces, oblasts — each with its DXCC entity, CQ zone and ITU zone",
       "authority": "the national authority of each entity, collected by ADIF",
-      "copy": "reproduced by ADIF"
+      "copy": "reproduced by ADIF",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Primary_Administrative_Subdivision"
     },
     {
       "id": "cq-zones",
-      "what": "CQ zones 1 to 40",
-      "authority": "CQ Magazine \u2014 it defines the zones and adjudicates WAZ",
-      "copy": "NOT a list in ADIF. ADIF carries a CQ zone per administrative subdivision and nothing more, so a list of zones is derived from those columns and is a derivation from a copy."
+      "what": "The CQ zones that appear in ADIF's subdivision columns — 11 of CQ's 40. The list of 40 is CQ Magazine's and ADIF does not carry it (QGD-REF-0015)",
+      "authority": "CQ Magazine — it defines the zones and adjudicates WAZ",
+      "copy": "NOT a list in ADIF. ADIF carries a CQ zone on 152 of its 1,965 administrative subdivisions, for five DXCC entities, so what is derived from those columns covers 11 zones and is not the zone list. A zone is reported as not checked against a list (QGD-REF-0006, QGD-REF-0015).",
+      "source": "adif",
+      "supplied": false,
+      "derived": true
     },
     {
       "id": "itu-zones",
-      "what": "ITU zones 1 to 90",
+      "what": "The ITU zones that appear in ADIF's subdivision columns — 22 of the ITU's 90. The list of 90 is the ITU's and ADIF does not carry it (QGD-REF-0015)",
       "authority": "the International Telecommunication Union",
-      "copy": "NOT a list in ADIF, as with CQ zones: derived from the per-subdivision columns."
+      "copy": "NOT a list in ADIF, as with CQ zones: derived from the same 152 per-subdivision cells, covering 22 zones. Three of those cells are not zone numbers and are kept as published and flagged uninterpreted rather than guessed at (QGD-REF-0015).",
+      "source": "adif",
+      "supplied": false,
+      "derived": true
     },
     {
       "id": "darc-dok",
       "what": "DARC district location codes, and special DOKs",
-      "authority": "DARC \u2014 Deutscher Amateur-Radio-Club",
-      "copy": "NOT SUPPLIED. ADIF types DARC_DOK and MY_DARC_DOK as Enumeration and ships no enumeration for either; its own note is that DARC publishes two lists. A value for these fields is checked for format and reported as not checked against a list (QGD-REF-0006)."
+      "authority": "DARC — Deutscher Amateur-Radio-Club",
+      "copy": "NOT SUPPLIED. ADIF types DARC_DOK and MY_DARC_DOK as Enumeration and ships no enumeration for either; its own note is that DARC publishes two lists. A value for these fields is checked for format and reported as not checked against a list (QGD-REF-0006).",
+      "source": null,
+      "supplied": false,
+      "derived": false
     },
     {
       "id": "pota-parks",
       "what": "POTA park references, names, entity, locations and coordinates",
-      "authority": "Parks on the Air \u2014 POTA issues park references and adjudicates its own award",
-      "copy": "fetched from POTA at run time and never redistributed; not pinned, because the list changes daily (QGD-REF-0009, QGD-REF-0010)"
+      "authority": "Parks on the Air — POTA issues park references and adjudicates its own award",
+      "copy": "fetched from POTA at run time and never redistributed; not pinned, because the list changes daily (QGD-REF-0009, QGD-REF-0010)",
+      "source": "pota",
+      "supplied": true,
+      "derived": false
     },
     {
       "id": "pota-programs",
       "what": "POTA's national programs and their prefixes",
       "authority": "Parks on the Air",
-      "copy": "fetched from POTA at run time; never redistributed"
+      "copy": "fetched from POTA at run time; never redistributed",
+      "source": "pota",
+      "supplied": true,
+      "derived": false
     },
     {
       "id": "pota-locations",
       "what": "POTA's locations, each with POTA's own entity number",
       "authority": "Parks on the Air",
-      "copy": "fetched from POTA at run time and never redistributed; its entity numbering is POTA's own and is not ADIF's DXCC code (QGD-REF-0012)"
+      "copy": "fetched from POTA at run time and never redistributed; its entity numbering is POTA's own and is not ADIF's DXCC code (QGD-REF-0012)",
+      "source": "pota",
+      "supplied": true,
+      "derived": false
     }
   ]
 }

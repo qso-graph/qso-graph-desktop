@@ -7,13 +7,25 @@
 //
 // It is given its paths on the command line by the broker. Nothing it does
 // takes a path from a message.
+import { readFile } from 'node:fs/promises';
 import { createForwardingLogger } from './logger.js';
 import { chooseSocketDirectory, socketCandidates, type Endpoint } from './engine/endpoint.js';
 import { status, stop, type EnginePaths } from './engine/supervisor.js';
 import { bringUp } from './engine/start.js';
+import type { ReferenceState } from './engine/start.js';
+import type { Register } from './engine/reference/load.js';
 import { validateEngineCommand, type EngineReply, type EngineStatus } from './engine-contract.js';
 
-const [, , binaries, data, logs, sockets, migrations, buildFile] = process.argv;
+// What is worth logging about each answer. No credential, no path.
+function describe(reference: ReferenceState): Record<string, unknown> {
+  if (reference.state === 'loaded') {
+    return { adif: reference.loaded.version, values: reference.loaded.values, fromCache: reference.fromCache };
+  }
+  if (reference.state === 'unavailable') return { reason: reference.reason };
+  return {};
+}
+
+const [, , binaries, data, logs, sockets, migrations, buildFile, registerFile, referenceCache] = process.argv;
 const log = createForwardingLogger('engine', line => process.parentPort.postMessage({ log: line }));
 
 const paths: EnginePaths = {
@@ -33,13 +45,26 @@ async function bring(up: boolean): Promise<EngineStatus> {
     return { state: 'stopped', version };
   }
   current = { state: 'starting', version };
+  // Read here rather than at module load: a register that cannot be read is
+  // a reference load that cannot happen, which QGD-REF-0014 says is reported
+  // and does not stop the engine.
+  const register = await readFile(registerFile, 'utf8')
+    .then(text => JSON.parse(text) as Register)
+    .catch(error => {
+      log.warn({ reason: String(error instanceof Error ? error.message : error) }, 'the reference register could not be read');
+      return undefined;
+    });
   const started = await bringUp(paths, endpoint, {
     migrations,
     buildFile,
+    ...(register ? { reference: { register, cacheDirectory: referenceCache } } : {}),
     onWarning: (message, fields) => log.warn(fields ?? {}, message)
   });
   version = started.version;
   log.info({ migrations: started.migrationsApplied }, 'engine up and migrated');
+  // Said plainly either way, because "nothing in the log about it" is how a
+  // reference load that never happened looks exactly like one that did.
+  log.info({ reference: started.reference.state, ...describe(started.reference) }, 'reference data');
   return { state: 'running', version };
 }
 

@@ -58,14 +58,34 @@ if (!check.ok) {
     for (const field of ['id', 'what', 'authority', 'copy']) {
       if (!list[field]) failures.push(`the "${list.id ?? '?'}" list has no ${field}`);
     }
+    for (const field of ['supplied', 'derived']) {
+      if (typeof list[field] !== 'boolean') {
+        failures.push(`the "${list.id}" list's ${field} is not a boolean; the loader acts on it`);
+      }
+    }
     if (list.authority === list.copy) {
       failures.push(`the "${list.id}" list gives the same answer for who owns it and where it came from; they are different questions`);
     }
+    // The flag and the sentence have to say the same thing. The loader reads
+    // the flag and a person reads the sentence, so a register where they
+    // disagree misleads one of them — and before the flags existed, the
+    // loader read the sentence's first word, which is not a fact.
+    const saysNot = list.copy.startsWith('NOT');
+    if (saysNot === list.supplied) {
+      failures.push(`the "${list.id}" list says "${list.copy.slice(0, 24)}…" and has supplied: ${list.supplied}; those disagree`);
+    }
   }
 
-  const unsupplied = sources.lists.filter(list => list.copy.startsWith('NOT'));
+  const unsupplied = sources.lists.filter(list => !list.supplied);
   if (unsupplied.length < 3) {
     failures.push('the register no longer records the lists ADIF does not supply; CQ zones, ITU zones and DARC DOKs were three of them');
+  }
+  // QGD-REF-0015: a derived list is derived from something that is there.
+  for (const list of sources.lists.filter(entry => entry.derived)) {
+    if (list.supplied) failures.push(`the "${list.id}" list is marked both derived and supplied`);
+    if (!/QGD-REF-0015/.test(list.copy)) {
+      failures.push(`the "${list.id}" list is derived and does not say how far the derivation reaches (QGD-REF-0015)`);
+    }
   }
 
   const qsos = (await readFile(testQsosPath(release), 'utf8'));
@@ -80,5 +100,6 @@ if (failures.length) {
   const definitions = JSON.parse(await readFile(definitionsPath(release), 'utf8')).Adif;
   console.log(`ADIF reference: ${check.version} from ${releaseDirectory(release)} — ` +
     `${Object.keys(definitions.Fields.Records).length} fields, ${Object.keys(definitions.Enumerations).length} enumerations, ` +
-    `${sources.lists.length} lists with their owners recorded (${sources.lists.filter(l => l.copy.startsWith('NOT')).length} ADIF does not supply): PASS`);
+    `${sources.lists.length} lists with their owners recorded (${sources.lists.filter(l => !l.supplied).length} not supplied, ` +
+    `${sources.lists.filter(l => l.derived).length} derived): PASS`);
 }
