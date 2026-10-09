@@ -10,8 +10,9 @@ export const CREDENTIAL_SUITES = ['credential-editing', 'electron-smoke', 'conne
 
 // Suites that report their own result regardless of the credential proof.
 // rust-unit depends on neither the TypeScript build nor the credential store,
-// and icons and engine-binaries compare what is on disk against a register.
-const ALWAYS_RUN = ['spec-rvm', 'icons', 'engine-binaries', 'build', 'unit', 'rust-unit'];
+// and icons, engine-binaries and adif-reference compare what is on disk
+// against a register.
+const ALWAYS_RUN = ['spec-rvm', 'icons', 'engine-binaries', 'adif-reference', 'build', 'unit', 'rust-unit'];
 
 // Returns the name of the failed suite that stops `name`, or undefined to run it.
 export function blockedBy(name, suites) {
