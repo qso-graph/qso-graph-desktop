@@ -47,7 +47,7 @@ export async function verifyRelease(release, root = resolve('.')) {
     // The archive says which release it is. A file that says something else is
     // not the release we pinned, whatever the name of the directory says.
     if (version !== release.version) {
-      problems.push(`the definitions report ADIF ${version ?? 'no version'}; data/adif-release.json pins ${release.version}`);
+      problems.push(`the definitions report ADIF ${version ?? 'no version'}; data/reference-sources.json pins ${release.version}`);
     }
     if (definitions?.Adif?.Status !== 'Released') {
       problems.push(`the definitions report status "${definitions?.Adif?.Status}", not Released`);

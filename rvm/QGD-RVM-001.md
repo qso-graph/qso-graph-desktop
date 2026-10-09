@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `55c853d474cfabc46672d677a47ccf3366943398` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `76bd55cde4c0a61608fb65c426793553b9b71b39` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `55c853d474cfabc46672d677a47ccf3366943398` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `76bd55cde4c0a61608fb65c426793553b9b71b39` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 117 requirements · 12 Parts · 5 Demo · 32 Inspection · 30 Static · 70 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 122 requirements · 12 Parts · 5 Demo · 33 Inspection · 30 Static · 75 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -90,6 +90,11 @@
 | `QGD-REF-0006` | **Where ADIF names an enumeration it does not supply, the validator says so.** `DARC_DOK` and `MY_DARC_DOK` are typed `Enumeration` and ADIF ships no list for either — its own note is that DARC publishes two. Such a value is checked for format and reported as *not checked against a list*, which is neither a pass nor a failure and must not be recorded as one. | Test | ✓ |
 | `QGD-REF-0007` | CQ and ITU zones are carried by ADIF only as columns on `Primary_Administrative_Subdivision`, never as lists of their own. The lists belong to CQ Magazine and to the ITU. What is derived from ADIF's columns is recorded as derived, with ADIF named as the copy and the owner named as the authority (`QGD-REF-0002`). | Test | ✓ |
 | `QGD-REF-0008` | The validation answers ADIF's own test QSOs, which ship in the same archive as the definitions. A case this product disagrees with ADIF about is a finding against this product until shown otherwise. | Test | ✓ |
+| `QGD-REF-0009` | POTA's parks, programs and locations are core reference data (KI7MT, 2026-10-09), held like the rest of it. They are fetched from POTA at run time and **never redistributed**: nothing of POTA's is in this repository or in a release. POTA is credited where the data is used, under `QGD-REP-0005`. | Test, Inspection | ✓ |
+| `QGD-REF-0010` | The park list changes daily, so it is **not pinned by checksum** — `QGD-REF-0003`'s treatment would be wrong for it. Instead every load records where it came from, its `ETag`, its `Last-Modified`, when it was fetched and how many rows arrived; a refresh asks conditionally and at most once a day; the shape is checked before the previous load is replaced; and a fetch that fails or arrives malformed **keeps the last good data**. Reference data that is briefly stale is worth more than reference data that is briefly wrong. | Test | ✓ |
+| `QGD-REF-0011` | **Published values are stored exactly as published and never corrected** (KI7MT). A row that is wrong is stored as it is and flagged, so the flag is this product's opinion and the value stays POTA's record. Four parks publish coordinates outside the possible range: they are flagged, kept out of anything that measures or maps, and still found by reference. Retired parks are kept, so an old QSO still resolves. POTA's own test park is flagged as a test and kept out of what a user sees. | Test | ✓ |
+| `QGD-REF-0012` | **POTA's `entityId` is POTA's, not ADIF's DXCC entity code**, however often the two agree. Of 311 entity numbers observed in the park list, 298 are also ADIF DXCC codes and 13 are not: POTA numbers Bonaire 524 where ADIF has 520, Crete 536 where ADIF has 40, Mount Athos 534 where ADIF has 180, and lists India under two of its own numbers. The ADIF entity is therefore recorded as a **derived, nullable link where the numbers agree**, never as a key — a foreign key would have refused 113 parks, and dropping a park because two organisations number the world differently is the product deciding one of them is wrong. | Test | ✓ |
+| `QGD-REF-0013` | A park can be in more than one location: 1,618 of them publish `locationDesc` as a comma-separated list. Locations are therefore a table of their own, one row per park per location, rather than a column holding a list. | Test | ✓ |
 | `QGD-SEC-0001` | No `eval`, no `new Function`, and no string-form timer. | Static | ✓ |
 | `QGD-SEC-0002` | No `child_process.exec` and no `shell: true`. A child process is started with `spawn` or `execFile` and an argument array. | Static | ✓ |
 | `QGD-SEC-0003` | No dynamic `require` or `import` of a path built from input. | Static | ✓ |

@@ -2,7 +2,7 @@
 // Fetches ADIF's published resources archive, and verifies it.
 //
 // QGD-REF-0003. Run by `make setup`. The hash is checked against
-// data/adif-release.json before anything is unpacked, so a changed or
+// data/reference-sources.json before anything is unpacked, so a changed or
 // substituted archive never reaches the disk as data this product will build a
 // validator out of.
 //
@@ -16,7 +16,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { releaseDirectory, verifyRelease } from './adif-release.mjs';
 
-const release = JSON.parse(await readFile('data/adif-release.json', 'utf8'));
+const sources = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
+const release = sources.adif;
 const target = releaseDirectory(release);
 
 const already = await verifyRelease(release).catch(() => undefined);

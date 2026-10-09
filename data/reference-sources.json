@@ -1,0 +1,96 @@
+{
+  "register": "Where the reference data comes from, and who owns what is in it",
+  "note": "QGD-REF-0002, QGD-REF-0003 and QGD-REF-0009. Two different facts about every list: who issues it, and where this copy came from. ADIF issues almost none of what it reproduces \u2014 the award sponsor does, or the national society, or the ITU \u2014 and POTA issues its own. Some sources are pinned by checksum because they are releases; POTA's park list is not, because it changes daily (QGD-REF-0010).",
+  "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
+  "adif": {
+    "version": "3.1.7",
+    "source": {
+      "what": "ADIF's published resources archive: the specification exported as JSON, CSV, TSV and XML, together with ADIF's own test QSOs.",
+      "url": "https://adif.org.uk/317/ADIF_317_resources_2026_03_22.zip",
+      "sha256": "1a70caf3a152c67c23ce9c4681f24b8e5f814862d8153d9a72e741375358e6d9",
+      "published": "2026-03-22",
+      "definitions": "317/exports/json/all.json",
+      "testQsos": "317/tests/ADIF_317_test_QSOs_2026_03_22.adi"
+    }
+  },
+  "lists": [
+    {
+      "id": "fields",
+      "what": "The 186 fields a QSO record may carry, with the data type and enumeration of each",
+      "authority": "ADIF Development Group",
+      "copy": "the same \u2014 this is ADIF's own, not a reproduction"
+    },
+    {
+      "id": "datatypes",
+      "what": "The data types a field may have, and what each admits",
+      "authority": "ADIF Development Group",
+      "copy": "the same"
+    },
+    {
+      "id": "modes",
+      "what": "Mode and Submode",
+      "authority": "ADIF Development Group",
+      "copy": "the same"
+    },
+    {
+      "id": "bands",
+      "what": "Band names and their frequency ranges",
+      "authority": "ADIF Development Group, over allocations made by the ITU and national regulators",
+      "copy": "the same, but the allocations underneath it are not ADIF's"
+    },
+    {
+      "id": "dxcc-entities",
+      "what": "The 403 DXCC entity codes",
+      "authority": "ARRL \u2014 DXCC is ARRL's award and ARRL adjudicates it",
+      "copy": "reproduced by ADIF"
+    },
+    {
+      "id": "arrl-sections",
+      "what": "ARRL and RAC sections",
+      "authority": "ARRL",
+      "copy": "reproduced by ADIF"
+    },
+    {
+      "id": "primary-administrative-subdivisions",
+      "what": "1,965 subdivisions \u2014 states, provinces, oblasts \u2014 each with its DXCC entity, CQ zone and ITU zone",
+      "authority": "the national authority of each entity, collected by ADIF",
+      "copy": "reproduced by ADIF"
+    },
+    {
+      "id": "cq-zones",
+      "what": "CQ zones 1 to 40",
+      "authority": "CQ Magazine \u2014 it defines the zones and adjudicates WAZ",
+      "copy": "NOT a list in ADIF. ADIF carries a CQ zone per administrative subdivision and nothing more, so a list of zones is derived from those columns and is a derivation from a copy."
+    },
+    {
+      "id": "itu-zones",
+      "what": "ITU zones 1 to 90",
+      "authority": "the International Telecommunication Union",
+      "copy": "NOT a list in ADIF, as with CQ zones: derived from the per-subdivision columns."
+    },
+    {
+      "id": "darc-dok",
+      "what": "DARC district location codes, and special DOKs",
+      "authority": "DARC \u2014 Deutscher Amateur-Radio-Club",
+      "copy": "NOT SUPPLIED. ADIF types DARC_DOK and MY_DARC_DOK as Enumeration and ships no enumeration for either; its own note is that DARC publishes two lists. A value for these fields is checked for format and reported as not checked against a list (QGD-REF-0006)."
+    },
+    {
+      "id": "pota-parks",
+      "what": "POTA park references, names, entity, locations and coordinates",
+      "authority": "Parks on the Air \u2014 POTA issues park references and adjudicates its own award",
+      "copy": "fetched from POTA at run time and never redistributed; not pinned, because the list changes daily (QGD-REF-0009, QGD-REF-0010)"
+    },
+    {
+      "id": "pota-programs",
+      "what": "POTA's national programs and their prefixes",
+      "authority": "Parks on the Air",
+      "copy": "fetched from POTA at run time; never redistributed"
+    },
+    {
+      "id": "pota-locations",
+      "what": "POTA's locations, each with POTA's own entity number",
+      "authority": "Parks on the Air",
+      "copy": "fetched from POTA at run time and never redistributed; its entity numbering is POTA's own and is not ADIF's DXCC code (QGD-REF-0012)"
+    }
+  ]
+}

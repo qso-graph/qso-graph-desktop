@@ -8,7 +8,8 @@
 import { readFile } from 'node:fs/promises';
 import { definitionsPath, releaseDirectory, testQsosPath, verifyRelease } from './adif-release.mjs';
 
-const release = JSON.parse(await readFile('data/adif-release.json', 'utf8'));
+const sources = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
+const release = sources.adif;
 const check = await verifyRelease(release);
 const failures = [];
 
@@ -35,7 +36,7 @@ if (!check.ok) {
     }
     const supplied = field.Enumeration && definitions.Enumerations?.[field.Enumeration];
     if (supplied) {
-      failures.push(`${name} now has an enumeration in the archive; QGD-REF-0006 and data/adif-release.json say ADIF supplies none`);
+      failures.push(`${name} now has an enumeration in the archive; QGD-REF-0006 and data/reference-sources.json say ADIF supplies none`);
     }
   }
 
@@ -53,7 +54,7 @@ if (!check.ok) {
   }
 
   // QGD-REF-0002: who owns it, and where this copy came from, as two facts.
-  for (const list of release.lists) {
+  for (const list of sources.lists) {
     for (const field of ['id', 'what', 'authority', 'copy']) {
       if (!list[field]) failures.push(`the "${list.id ?? '?'}" list has no ${field}`);
     }
@@ -62,7 +63,7 @@ if (!check.ok) {
     }
   }
 
-  const unsupplied = release.lists.filter(list => list.copy.startsWith('NOT'));
+  const unsupplied = sources.lists.filter(list => list.copy.startsWith('NOT'));
   if (unsupplied.length < 3) {
     failures.push('the register no longer records the lists ADIF does not supply; CQ zones, ITU zones and DARC DOKs were three of them');
   }
@@ -79,5 +80,5 @@ if (failures.length) {
   const definitions = JSON.parse(await readFile(definitionsPath(release), 'utf8')).Adif;
   console.log(`ADIF reference: ${check.version} from ${releaseDirectory(release)} — ` +
     `${Object.keys(definitions.Fields.Records).length} fields, ${Object.keys(definitions.Enumerations).length} enumerations, ` +
-    `${release.lists.length} lists with their owners recorded (${release.lists.filter(l => l.copy.startsWith('NOT')).length} ADIF does not supply): PASS`);
+    `${sources.lists.length} lists with their owners recorded (${sources.lists.filter(l => l.copy.startsWith('NOT')).length} ADIF does not supply): PASS`);
 }
