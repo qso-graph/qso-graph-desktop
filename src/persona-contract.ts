@@ -46,13 +46,13 @@ export type PersonaCommand =
   | { type: 'remove-secret'; persona: string; provider: string; field: 'password' | 'api_key' }
   | { type: 'set-preference'; persona: string; provider: string; preferred: 'service' | 'password' | 'api_key' }
   | { type: 'save-credentials'; persona: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } }
-  // Moving a profile between machines (QGD-PSN-0007 to QGD-PSN-0011). The
+  // Moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011). The
   // passphrase travels the same path a credential already does — collected by
   // the renderer, held by nothing, forwarded to the core. The file itself does
   // not: the main process shows the dialog and reads or writes the bytes, so
   // the renderer never touches an export.
-  | { type: 'export-profile'; passphrase: string }
-  | { type: 'import-profile'; passphrase: string; apply: boolean };
+  | { type: 'export-personas'; passphrase: string }
+  | { type: 'import-personas'; passphrase: string; apply: boolean };
 export type PersonaReply =
   | {
       ok: true;
@@ -103,9 +103,9 @@ export function validateCommand(value: unknown, providers: Services): value is P
     case 'set-preference': return keys(value, ['type', 'persona', 'provider', 'preferred']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider) && ['service', 'password', 'api_key'].includes(value.preferred as string);
     // A passphrase is a secret the operator types, so it is bounded the way
     // the other secrets are and nothing else travels with it.
-    case 'export-profile':
+    case 'export-personas':
       return keys(value, ['type', 'passphrase']) && passphrase(value.passphrase);
-    case 'import-profile':
+    case 'import-personas':
       return keys(value, ['type', 'passphrase', 'apply'])
         && passphrase(value.passphrase) && typeof value.apply === 'boolean';
     case 'save-credentials': {
@@ -135,8 +135,8 @@ export function isReply(value: unknown): value is PersonaReply {
 // they actually receive rather than trusting the one before them
 // (QGD-SEC-0006).
 export type ServiceCommand =
-  | Exclude<PersonaCommand, { type: 'import-profile' }>
-  | { type: 'import-profile'; passphrase: string; apply: boolean; file: Uint8Array }
+  | Exclude<PersonaCommand, { type: 'import-personas' }>
+  | { type: 'import-personas'; passphrase: string; apply: boolean; file: Uint8Array }
   // Fetching reference data, which the credential core does because KI7MT
   // decided all outbound HTTPS goes through it (D-18, D-31). It is not a
   // PersonaCommand: a renderer may not ask this product to fetch a URL, and
@@ -155,7 +155,7 @@ export function validateServiceCommand(value: unknown, providers: Services): val
       && (value.lastModified === undefined
         || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));
   }
-  if (value.type === 'import-profile') {
+  if (value.type === 'import-personas') {
     return keys(value, ['type', 'passphrase', 'apply', 'file'])
       && passphrase(value.passphrase)
       && typeof value.apply === 'boolean'

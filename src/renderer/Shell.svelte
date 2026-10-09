@@ -36,7 +36,7 @@
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
-    onExportProfile: (passphrase: string) => Promise<ExportResult | string>;
+    onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
     onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
     version: string;
@@ -44,7 +44,7 @@
   const {
     store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine,
     onCreatePersona, onSaveCredential, onFinishSetup,
-    onExportProfile, onInspectImport, onApplyImport, version
+    onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
 
   // untrack, because reading a prop to seed state is not a reactive read and
@@ -108,14 +108,27 @@
            underneath is the one P1 built and P3 was signed off with; a
            machine with no personas gets an offer above it, and the offer is
            what opens the flow. -->
+      <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
+           underneath is the one P1 built and P3 was signed off with.
+
+           Three things this structure is load-bearing for, all found on a
+           clean account by KI7MT:
+
+           1. .page is a ROW. An offer placed as a sibling of PersonaPage
+              became a third column and crushed the persona form to a sliver.
+              Hence the stack.
+           2. PersonaPage stays mounted and is hidden, never put inside an
+              {#if}. That is this file's own rule, stated at the top, and it
+              exists because app.ts drives P1's markup by hand: a component
+              rebuilt under it loses that work silently. Toggling the offer
+              rebuilt it once and took the "No personas yet" line with it.
+           3. Hidden rather than destroyed also means select() can draw into
+              the page the moment setup finishes, with no waiting for Svelte
+              to put the markup back. -->
       {#if state.setup}
         <SetupPage services={state.services} {onCreatePersona} {onSaveCredential} onDone={onFinishSetup} />
-      {:else}
-        <PersonaPage />
-        <!-- Offered only once the services are known. Setup with none of
-             them is a callsign box, which the page below already has — and
-             opening it before the register has answered showed the operator
-             a finished setup they never walked. -->
+      {/if}
+      <div class="page-stack" hidden={state.setup}>
         {#if state.firstRun && state.services.length > 0}
           <section class="card offer" aria-labelledby="setup-offer-title">
             <h2 id="setup-offer-title">New to QSO Graph Desktop?</h2>
@@ -126,12 +139,13 @@
             <button type="button" id="begin-setup" onclick={() => store.beginSetup()}>Set up step by step</button>
           </section>
         {/if}
-      {/if}
+        <div class="page-row"><PersonaPage /></div>
+      </div>
     </div>
     <div class="page" hidden={state.page !== 'settings'}>
       <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport}
                     engine={state.engine} {onStartEngine} {onStopEngine}
-                    {onExportProfile} {onInspectImport} {onApplyImport} />
+                    {onExportPersonas} {onInspectImport} {onApplyImport} />
     </div>
   </main>
 </div>

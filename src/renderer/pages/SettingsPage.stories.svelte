@@ -23,7 +23,7 @@
       onStartEngine: () => Promise.resolve(),
       onStopEngine: () => Promise.resolve(),
       onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
-      onExportProfile: () => Promise.resolve({ written: 'qso-graph-personas.qgp', bytes: 1195 }),
+      onExportPersonas: () => Promise.resolve({ written: 'qso-graph-personas.qgp', bytes: 1195 }),
       onInspectImport: () => Promise.resolve({
         created: '2026-10-09T06:13:30Z', personas: 2, credentials: 2,
         arriving: ['home'], overwritten: ['portable']

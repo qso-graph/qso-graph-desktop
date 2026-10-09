@@ -406,14 +406,21 @@ try {
   // TCP port or anything external. Any other endpoint it holds is named in the
   // output of every run rather than passed over, because something that opens
   // a socket here is something to understand.
-  // Nothing at all. The engine talks to PostgreSQL over a Unix socket, which
-  // is not an internet socket and does not appear here — and it no longer
-  // fetches anything: it asks the credential core and receives bytes (D-18,
-  // D-31). This rule allowed the engine an outbound connection on 443 until
-  // that moved; now any endpoint it holds is a finding.
+  // No connection and no listener. The engine talks to PostgreSQL over a Unix
+  // socket, which is not an internet socket and does not appear here — and it
+  // no longer fetches anything: it asks the credential core and receives
+  // bytes (D-18, D-31). This rule allowed the engine an outbound connection
+  // on 443 until that moved.
+  //
+  // An *unbound* socket is not either of those and is not a finding. That is
+  // the distinction scripts/endpoint.mjs was extracted to draw: Chromium
+  // opens a UDP socket bound to `*:*` — no port, no peer — whenever it feels
+  // like it, and calling that a connection made this suite fail at random.
+  // Tightening this to "nothing at all" walked straight back into it.
   const engineHeld = everyEndpoint.filter(endpoint => endpoint.process === 'utility:engine');
-  expect(engineHeld, `the engine held ${engineHeld.length} endpoint(s): ` +
-    engineHeld.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
+  const engineReal = engineHeld.filter(endpoint => endpoint.kind !== 'unbound');
+  expect(engineReal, `the engine held ${engineReal.length} connection(s) or listener(s): ` +
+    engineReal.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
 
   stage = 'PostgreSQL itself holds no TCP port';
   // QGD-ENG-0009, from outside: the server is on a Unix socket and listens on

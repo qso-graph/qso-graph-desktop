@@ -32,7 +32,7 @@ mount(Shell, {
   props: {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onStartEngine: startEngine, onStopEngine: stopEngine,
-    onExportProfile: exportProfile, onInspectImport: inspectImport, onApplyImport: applyImport,
+    onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
     // Injected at build time from package.json, so the number on screen is the
@@ -51,7 +51,13 @@ export async function createPersona(callsign: string, name: string): Promise<str
   });
   if (!reply.ok) return reply.error;
   snapshot = reply.data as Snapshot;
-  const made = name || callsign;
+  // The name the core stored, not the one that was sent. `identifier()`
+  // lowercases it, so asking for "W1AW/9" back by that spelling finds
+  // nothing — and the Personas page then drew itself as if no persona had
+  // been made, with the status bar saying otherwise. Matched the way the core
+  // matches: case-insensitively, on the name.
+  const asked = name || callsign;
+  const made = snapshot.personas.find(entry => entry.name.toLowerCase() === asked.toLowerCase())?.name ?? asked;
   const activated = await window.personas.request({ type: 'set-active', name: made });
   if (activated.ok) snapshot = activated.data as Snapshot;
   // Remembered, not drawn. The Personas screen's markup is not mounted while
@@ -413,22 +419,22 @@ export async function exportDiagnostics(): Promise<string> {
 // rather than thrown, because every one of them is something the operator can
 // act on — most of all the one that says a file could not be opened and that
 // it cannot tell whether the passphrase or the file is at fault.
-export async function exportProfile(passphrase: string): Promise<ExportResult | string> {
-  const reply = await window.personas.request({ type: 'export-profile', passphrase });
+export async function exportPersonas(passphrase: string): Promise<ExportResult | string> {
+  const reply = await window.personas.request({ type: 'export-personas', passphrase });
   if (!reply.ok) return reply.error;
   const data = reply.data as ExportResult | null;
   return data && typeof data.written === 'string' ? data : 'The export could not be written.';
 }
 
 export async function inspectImport(passphrase: string): Promise<ImportPreview | string> {
-  const reply = await window.personas.request({ type: 'import-profile', passphrase, apply: false });
+  const reply = await window.personas.request({ type: 'import-personas', passphrase, apply: false });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportPreview | null;
   return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
 }
 
 export async function applyImport(passphrase: string): Promise<ImportResult | string> {
-  const reply = await window.personas.request({ type: 'import-profile', passphrase, apply: true });
+  const reply = await window.personas.request({ type: 'import-personas', passphrase, apply: true });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportResult | null;
   if (!data || typeof data.personas !== 'number') return 'The import did not finish.';

@@ -116,8 +116,8 @@ function execute(command: ServiceCommand): PersonaReply {
           etag: fetched.etag, lastModified: fetched.lastModified
         } };
       }
-      case 'export-profile': return { ok: true, data: { bytes: core.exportProfile(command.passphrase) } };
-      case 'import-profile': {
+      case 'export-personas': return { ok: true, data: { bytes: core.exportPersonas(command.passphrase) } };
+      case 'import-personas': {
         const file = Buffer.from(command.file);
         if (!command.apply) {
           const preview = core.inspectImport(file, command.passphrase);
@@ -140,7 +140,7 @@ function execute(command: ServiceCommand): PersonaReply {
       'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
       'Persona was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
       'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
-      // Moving a profile between machines. Each is a fixed sentence from the
+      // Moving personas between machines. Each is a fixed sentence from the
       // core, carrying no value (QGD-PSN-0010's is the one that must reach the
       // operator intact, because it is the one that says what it cannot tell).
       'Choose a passphrase. An export is encrypted or it is not written.',

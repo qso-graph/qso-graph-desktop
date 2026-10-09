@@ -49,8 +49,15 @@ try {
   await page.getByRole('button', { name: 'Set up step by step' }).click();
   await expect(page.getByRole('heading', { name: 'Set up QSO Graph Desktop' })).toBeVisible();
 
+  // Scoped to the setup card. The Personas page stays mounted and hidden
+  // while setup shows — this file's own rule, so the markup app.ts drives by
+  // hand is never rebuilt under it — which means its Callsign field is in the
+  // DOM too. Hidden from a user and from a screen reader; not from a locator.
+  const card = page.locator('section.card',
+    { has: page.getByRole('heading', { name: 'Set up QSO Graph Desktop' }) });
+
   // A callsign and nothing else. The name is left empty on purpose.
-  await page.getByLabel('Callsign', { exact: true }).fill(callsign);
+  await card.getByLabel('Callsign', { exact: true }).fill(callsign);
   await page.getByRole('button', { name: 'Create this persona' }).click();
   // Waited for, not polled: creating the persona is a round trip to the
   // credential core, and asking what is on screen the instant after the click
@@ -69,7 +76,7 @@ try {
     // is the whole reason the register carries those sentences.
     // The setup card, by its heading: every page is in the DOM at once and
     // only one is shown, so the first card on the page is Home's.
-    const text = await page.locator('section.card', { has: page.getByRole('heading', { name: 'Set up QSO Graph Desktop' }) }).innerText();
+    const text = await card.innerText();
     expect(text.length, 'a service step says what the service is').toBeGreaterThan(80);
 
     // Leaving in the middle and coming back: the persona is already made, so
@@ -89,13 +96,41 @@ try {
   expect(steps, 'every service in the register is a step').toBeGreaterThan(1);
   notes.push(`${steps} service steps, every one skipped`);
 
-  // The end: a persona, and the offer withdrawn because there is one now.
+  // The end: the persona is on the page, not just in the status bar.
+  //
+  // This asserted that "Create a persona" was still the heading after
+  // finishing — which was the broken state written down as the expected one.
+  // Setup made the persona, the status bar said so, and the page behind it
+  // showed an empty form as though nothing had happened: the core lowercases
+  // a persona's name, and this remembered the spelling it sent rather than
+  // the one that came back, so the page could not find what it had just made.
   await expect(page.locator('#setup-done')).toContainText(callsign);
   await page.getByRole('button', { name: 'Finish' }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+  await expect(page.locator('#page-title')).toHaveText(callsign.toUpperCase());
+  await expect(page.locator('#persona-list')).toContainText(callsign.toUpperCase());
+  await expect(page.locator('#callsign')).toHaveValue(callsign.toUpperCase());
+  await expect(page.locator('#credential-card')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'New to QSO Graph Desktop?' })).toHaveCount(0);
   await expect(page.locator('#active-persona')).toContainText(callsign);
-  notes.push('the offer is withdrawn once there is a persona, and the persona is the active one');
+  notes.push('the persona setup made is on the page afterwards, selected, not only in the status bar');
+
+  // And the page is usable at the window the product opens at. The offer was
+  // a sibling of the persona page in a row layout, which left the form 75
+  // pixels wide — KI7MT found that on a clean account, and no baseline could
+  // have, because the screenshot fixture makes a persona and that withdraws
+  // the offer.
+  await page.setViewportSize({ width: 1100, height: 740 });
+  const widths = await page.evaluate(() => {
+    const shown = [...document.querySelectorAll('.page')].find(entry => !entry.hidden);
+    return {
+      form: Math.round(shown.querySelector('.page-main').getBoundingClientRect().width),
+      sidebar: Math.round(shown.querySelector('aside').getBoundingClientRect().width)
+    };
+  });
+  expect(widths.form, `the persona form was ${widths.form}px wide at the default window size`)
+    .toBeGreaterThan(600);
+  expect(widths.sidebar).toBeGreaterThan(150);
+  notes.push(`at the window the product opens at, the form is ${widths.form}px and the list ${widths.sidebar}px`);
 
   // And what is actually in the profile: one persona, with the callsign as
   // its name because none was given, and nothing stored for any service.

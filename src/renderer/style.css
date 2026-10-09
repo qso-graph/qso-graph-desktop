@@ -112,6 +112,12 @@ h2 { margin: 0; font-size: 15px; font-weight: 650; }
 .sidebar-note { font-size: 12px; line-height: 1.6; margin-top: 25px; }
 main { flex: 1; min-height: 0; display: flex; }
 .page { flex: 1; display: flex; min-height: 0; }
+/* A page that stacks something above the page's own columns — the setup offer
+   over the persona list and form. .page is a row, so without this the thing
+   above becomes another column and squeezes what it was meant to introduce. */
+.page-stack { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.page-stack > .offer { margin: 24px 36px 0; flex-shrink: 0; }
+.page-row { flex: 1; display: flex; min-height: 0; }
 .page-main { flex: 1; padding: 30px 36px 40px; overflow-y: auto; }
 .page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: 1.4px; margin: 0 0 6px; color: var(--ink-muted); }

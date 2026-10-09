@@ -90,11 +90,11 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
   // The two commands the main process has to finish itself, because they
   // touch the file system and a renderer must not (QGD-PSN-0011). The
   // operator chooses the place; the bytes never reach a screen.
-  async function moveProfile(
+  async function movePersonas(
     window: BrowserWindow | null,
-    command: Extract<PersonaCommand, { type: 'export-profile' | 'import-profile' }>
+    command: Extract<PersonaCommand, { type: 'export-personas' | 'import-personas' }>
   ): Promise<PersonaReply> {
-    if (command.type === 'export-profile') {
+    if (command.type === 'export-personas') {
       const chosen = window
         ? await dialog.showSaveDialog(window, {
             title: 'Export personas',
@@ -118,7 +118,7 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
       } catch {
         return { ok: false, error: 'That file could not be written. Choose another place.' };
       }
-      log.info({ bytes: bytes.length }, 'profile exported');
+      log.info({ bytes: bytes.length }, 'personas exported');
       return { ok: true, data: { written: basename(chosen.filePath), bytes: bytes.length } };
     }
 
@@ -151,7 +151,7 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
       inspected = undefined;
       return { ok: false, error: 'That file is not an export this product wrote.' };
     }
-    const answer = await ask({ type: 'import-profile', passphrase: command.passphrase, apply: command.apply, file });
+    const answer = await ask({ type: 'import-personas', passphrase: command.passphrase, apply: command.apply, file });
     // Remembered only while there is something to confirm: a look that
     // succeeded. Forgotten the moment it is used, refused, or cancelled.
     inspected = !command.apply && answer.ok ? path : undefined;
@@ -163,8 +163,8 @@ export function startPersonaBroker(compiledDirectory: string, registerFile: stri
       log.warn({ accepted: false }, 'persona request refused');
       return { ok: false, error: 'Invalid persona request.' };
     }
-    if (command.type === 'export-profile' || command.type === 'import-profile') {
-      return moveProfile(BrowserWindow.fromWebContents(event.sender), command);
+    if (command.type === 'export-personas' || command.type === 'import-personas') {
+      return movePersonas(BrowserWindow.fromWebContents(event.sender), command);
     }
     return ask(command);
   });

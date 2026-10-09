@@ -123,7 +123,7 @@
   <Field id="export-passphrase-again" label="Passphrase again" error={exportWhy} control={exportKeyAgain} />
   <button type="button" class:working={exporting} disabled={!canExport} onclick={runExport}
   >{exporting ? 'Exporting…' : 'Export…'}</button>
-  <p id="export-profile-result" role="status">{exportResult}</p>
+  <p id="export-personas-result" role="status">{exportResult}</p>
 
   <h3>Import</h3>
   <Field
@@ -163,7 +163,7 @@
       <button type="button" disabled={importing} onclick={() => { preview = undefined; }}>Cancel</button>
     </div>
   {/if}
-  <p id="import-profile-result" role="status">{importResult}</p>
+  <p id="import-personas-result" role="status">{importResult}</p>
 </section>
 
 <style>

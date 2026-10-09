@@ -303,7 +303,7 @@ impl Store {
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)
     }
 
-    // ---- moving a profile between machines (QGD-PSN-0007 to QGD-PSN-0011) --
+    // ---- moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011) --
 
     // Everything an export carries, read in one go.
     //
@@ -675,7 +675,7 @@ mod addon {
             self.store.remove_persona(&name).map_err(error)
         }
 
-        // ---- moving a profile between machines --------------------------
+        // ---- moving personas between machines --------------------------
         //
         // What crosses this boundary is ciphertext. The bundle is built,
         // sealed and dropped inside the core, so the plaintext never reaches a
@@ -708,10 +708,10 @@ mod addon {
         }
 
         #[napi]
-        pub fn export_profile(&self, passphrase: String) -> Result<Buffer> {
+        pub fn export_personas(&self, passphrase: String) -> Result<Buffer> {
             let bundle = self.store.gather().map_err(error)?;
             let sealed = crate::portable::seal(&bundle, &passphrase, now_utc()).map_err(error)?;
-            tracing::info!(personas = bundle.personas.len(), "profile exported");
+            tracing::info!(personas = bundle.personas.len(), "personas exported");
             Ok(sealed.into())
         }
 
@@ -740,7 +740,7 @@ mod addon {
             // right to — the number is a count of Keychain entries written,
             // and naming a log field after the thing it counts is how one
             // that does hold a secret slips past later. The gate caught this.
-            tracing::info!(personas, entries, "profile imported");
+            tracing::info!(personas, entries, "personas imported");
             Ok(ImportSummary { personas: personas as u32, credentials: entries as u32 })
         }
         // Available to the trusted native owner for future grant enforcement and

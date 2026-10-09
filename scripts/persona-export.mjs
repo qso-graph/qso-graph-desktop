@@ -69,7 +69,7 @@ try {
   }
 
   // ---- P6-export-encrypted --------------------------------------------
-  const file = from.exportProfile(passphrase);
+  const file = from.exportPersonas(passphrase);
   check(Buffer.isBuffer(file) && file.length > 100, 'Export produced a file');
 
   // Every value that went in, searched for in the bytes that came out. The
@@ -85,7 +85,7 @@ try {
   // QGD-PSN-0007: without a passphrase there is no file, rather than a file
   // anyone can read.
   for (const empty of ['', '   ']) {
-    const message = refusal(() => from.exportProfile(empty), 'An export with no passphrase');
+    const message = refusal(() => from.exportPersonas(empty), 'An export with no passphrase');
     check(/passphrase/i.test(message), 'Refusal says a passphrase is needed');
   }
   notes.push('an export with no passphrase is refused rather than written in the clear');
@@ -108,7 +108,7 @@ try {
   // Two exports of the same profile share nothing: a salt and a nonce that
   // repeated would be the defect that makes the second file readable from
   // the first.
-  const again = from.exportProfile(passphrase);
+  const again = from.exportPersonas(passphrase);
   const headerAgain = JSON.parse(again.toString('utf8', again.indexOf(0x0a) + 1, again.indexOf(0x0a, again.indexOf(0x0a) + 1)));
   check(headerAgain.salt !== header.salt, 'A second export draws a new salt');
   check(headerAgain.nonce !== header.nonce, 'A second export draws a new nonce');
@@ -217,7 +217,7 @@ try {
     await new Promise(done => listener.close(done));
 
     // Then the thing being measured, inside the sampler's window.
-    const during = from.exportProfile(passphrase);
+    const during = from.exportPersonas(passphrase);
     const opened = to.inspectImport(during, passphrase);
     check(during.length > 100 && opened.personas === 2, 'The sampled export and open worked');
 
