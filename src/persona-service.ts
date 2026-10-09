@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateCommand, type PersonaCommand, type PersonaReply } from './persona-contract.js';
+import { serviceIds, validateRegister } from './services.js';
 import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from './native.js';
 import type { CredentialStatus, CredentialTest } from './persona-contract.js';
 import { createForwardingLogger } from './logger.js';
@@ -13,7 +15,22 @@ const require = createRequire(import.meta.url);
 const native = require(join(dirname(fileURLToPath(import.meta.url)), 'native/persona.node')) as NativeModule;
 const { PersonaCore, initCoreLogging, drainCoreLogs } = native;
 const core = new PersonaCore(process.argv[2]);
+// The same register the broker read, checked again here (QGD-SEC-0006: this
+// process validates what reaches it rather than trusting the one before it).
+// Read synchronously at start because nothing can be served without it.
+let services: ReadonlySet<string> = new Set();
+let registerProblem: string | undefined;
+try {
+  services = serviceIds(validateRegister(JSON.parse(readFileSync(process.argv[3], 'utf8'))));
+} catch (error) {
+  registerProblem = error instanceof Error ? error.message : String(error);
+}
 const log = createForwardingLogger('persona', line => process.parentPort.postMessage({ log: line }));
+if (registerProblem !== undefined) {
+  // Said once, loudly: every command naming a service will be refused, and a
+  // refusal with no reason anywhere is the thing nobody can diagnose.
+  log.error({ reason: registerProblem }, 'the service register could not be read');
+}
 
 // QGD-LOG-0001: the core raises events through `tracing`; they are drained here
 // and emitted through this process's logger, so they reach the one stream and
@@ -112,7 +129,7 @@ process.parentPort.on('message', (event: { data?: unknown }) => {
   const data: unknown = event.data;
   const envelope = data !== null && typeof data === 'object' ? data as { id?: unknown; command?: unknown } : {};
   const { id, command } = envelope;
-  if (!Number.isSafeInteger(id) || !validateCommand(command)) {
+  if (!Number.isSafeInteger(id) || !validateCommand(command, services)) {
     process.parentPort.postMessage({ id: typeof id === 'number' ? id : null, reply: { ok: false, error: 'Invalid persona request.' } });
     return;
   }

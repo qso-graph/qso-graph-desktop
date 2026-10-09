@@ -63,8 +63,8 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
     // own data is in that list: QGD-REF-0001 and QGD-REF-0009 have it fetched
     // at run time, so what ships is where to get it and nothing more.
     expect(manifest.build.files).toEqual([
-      'dist/**/*', 'package.json', 'LICENSE',
-      'data/postgres-build.json', 'data/reference-sources.json', 'drizzle/**/*'
+      'dist/**/*', 'package.json', 'LICENSE', 'data/postgres-build.json',
+      'data/reference-sources.json', 'data/service-profiles.json', 'drizzle/**/*'
     ]);
   });
 

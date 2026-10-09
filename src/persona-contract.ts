@@ -28,7 +28,11 @@ export function allowsSender(senderFrame: unknown, mainFrame: unknown, url: stri
   return senderFrame !== undefined && senderFrame !== null && senderFrame === mainFrame && url === RENDERER_URL;
 }
 
-const providers = new Set(['qrz', 'qrz_logbook', 'eqsl', 'lotw', 'hamqth', 'clublog']);
+// The services are no longer named here. QGD-PSN-0002 and QGD-PSN-0003 put
+// them in data/service-profiles.json, which is the only place a service is
+// named — so this takes the allowed set from its caller, who read the
+// register. A list kept here as well would be the second list that drifts.
+export type Services = ReadonlySet<string>;
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -39,7 +43,7 @@ const CONTROL = /[\u0000-\u001f]/;
 function text(value: unknown, maximum = 128): value is string { return typeof value === 'string' && value.length > 0 && value.length <= maximum && !CONTROL.test(value); }
 function date(value: unknown): boolean { return value === undefined || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)); }
 
-export function validateCommand(value: unknown): value is PersonaCommand {
+export function validateCommand(value: unknown, providers: Services): value is PersonaCommand {
   if (!record(value)) return false;
   switch (value.type) {
     case 'list': return keys(value, ['type']);

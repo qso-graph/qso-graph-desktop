@@ -54,6 +54,7 @@
       "LICENSE",
       "data/postgres-build.json",
       "data/reference-sources.json",
+      "data/service-profiles.json",
       "drizzle/**/*"
     ],
     "asar": true,

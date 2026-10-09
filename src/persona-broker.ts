@@ -3,11 +3,12 @@ import { ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { allowsSender, isReply, validateCommand, type PersonaReply } from './persona-contract.js';
+import { readServices, serviceIds } from './services.js';
 import { createLogger, writeForwarded } from './logger.js';
 
 const log = createLogger('broker');
 
-export function startPersonaBroker(compiledDirectory: string): () => void {
+export function startPersonaBroker(compiledDirectory: string, registerFile: string): () => void {
   let worker: UtilityProcess | undefined;
   let ready = false;
   let stopped = false;
@@ -15,6 +16,16 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
   let failures = 0;
   const pending = new Map<number, { resolve: (reply: PersonaReply) => void; timer: NodeJS.Timeout }>();
   const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'adif-mcp');
+  // The services a command may name (QGD-PSN-0002). Read once, here, rather
+  // than listed in the contract. A register that cannot be read leaves this
+  // empty, which refuses every command naming a service while leaving the
+  // persona commands — list, upsert, set-active — working: an unreadable
+  // register is not a reason to lose the personas too.
+  let services: ReadonlySet<string> = new Set();
+  void readServices(registerFile)
+    .then(register => { services = serviceIds(register); })
+    .catch(error => log.error({ reason: String(error instanceof Error ? error.message : error) },
+      'the service register could not be read; no service credential can be reached'));
   function failPending() {
     for (const item of pending.values()) { clearTimeout(item.timer); item.resolve({ ok: false, error: 'The persona service is restarting. Try again.' }); }
     pending.clear();
@@ -22,7 +33,7 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
   function start() {
     if (stopped) return;
     ready = false;
-    worker = utilityProcess.fork(join(compiledDirectory, 'persona-service.js'), [profileDirectory], {
+    worker = utilityProcess.fork(join(compiledDirectory, 'persona-service.js'), [profileDirectory, registerFile], {
       serviceName: 'QG Personas', stdio: 'ignore', allowLoadingUnsignedLibraries: true
     });
     worker.on('message', (message: unknown) => {
@@ -48,7 +59,7 @@ export function startPersonaBroker(compiledDirectory: string): () => void {
   }
   start();
   ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
-    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command)) {
+    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command, services)) {
       log.warn({ accepted: false }, 'persona request refused');
       return { ok: false, error: 'Invalid persona request.' };
     }

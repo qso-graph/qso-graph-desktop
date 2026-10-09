@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// P6-services-are-data and P6-register-matches-core (QGD-PSN-0002,
+// QGD-PSN-0003, QGD-PSN-0005).
+//
+// The point of the register is that adding a service is a data change. The
+// tests that matter here are therefore the two directions of that: a service
+// added to the register is accepted with no code change, and a service taken
+// out of it stops being accepted. Everything else is the shape checks that
+// stop a damaged or hand-edited register from reaching an operator as a form
+// with the wrong fields in it.
+import { readFile } from 'node:fs/promises';
+import { describe, expect, it } from 'vitest';
+import { validateCommand } from '../src/persona-contract.js';
+import {
+  FIELD_NAMES, RegisterError, serviceIds, validateRegister, type ServiceRegister
+} from '../src/services.js';
+
+const text = await readFile('data/service-profiles.json', 'utf8');
+const shipped = validateRegister(JSON.parse(text));
+
+// A register built here, so a case can be made that the shipped one does not
+// happen to have.
+const made = (...services: unknown[]) => validateRegister({ services });
+const service = (overrides: Record<string, unknown> = {}) => ({
+  id: 'example', name: 'Example', what: 'A service', site: 'https://example.invalid/',
+  howToGet: 'Ask them',
+  fields: [{ name: 'username', label: 'User', secret: false, required: true }],
+  test: null,
+  ...overrides
+});
+
+describe('QGD-PSN-0003 what the register ships with', () => {
+  it('holds the six Release 1 services and nothing else', () => {
+    expect(shipped.services.map(entry => entry.id))
+      .toEqual(['qrz', 'qrz_logbook', 'eqsl', 'lotw', 'hamqth', 'clublog']);
+  });
+
+  it('tells the operator what each service is and how to get a credential', () => {
+    for (const entry of shipped.services) {
+      expect(entry.name.length, entry.id).toBeGreaterThan(2);
+      expect(entry.what.length, entry.id).toBeGreaterThan(10);
+      // Shown, and possibly opened with shell.openExternal (QGD-SEC-0009).
+      expect(entry.site.startsWith('https://'), entry.id).toBe(true);
+      expect(entry.howToGet.length, entry.id).toBeGreaterThan(20);
+    }
+  });
+
+  it('says of every service whether it can be tested (QGD-PSN-0005)', () => {
+    for (const entry of shipped.services) {
+      // null is an answer; undefined is a register that forgot to answer, and
+      // validateRegister refuses that — asserted below.
+      expect(entry.test === null || typeof entry.test.what === 'string', entry.id).toBe(true);
+      if (entry.test) expect(entry.test.what.length).toBeGreaterThan(10);
+    }
+    // All six are testable today. If one ever is not, this says so rather
+    // than the fact disappearing into a null nobody notices.
+    expect(shipped.services.filter(entry => entry.test === null).map(entry => entry.id)).toEqual([]);
+  });
+
+  it('says how an expiring credential expires, for the one that has one', () => {
+    const expiring = shipped.services.filter(entry => entry.expires);
+    expect(expiring.map(entry => entry.id), 'LoTW is the credential that expires (QGD-PSN-0006)')
+      .toEqual(['lotw']);
+    expect(expiring[0].expires?.kind).toBe('pkcs12');
+  });
+
+  it('asks only for things the credential core can store', () => {
+    for (const entry of shipped.services) {
+      for (const field of entry.fields) {
+        expect(FIELD_NAMES).toContain(field.name);
+        // The core shows a username and never shows the other two.
+        expect(field.secret, `${entry.id}.${field.name}`).toBe(field.name !== 'username');
+      }
+    }
+  });
+});
+
+describe('QGD-PSN-0002 a service is a data change, not a code change', () => {
+  const extended: ServiceRegister = validateRegister({
+    services: [
+      ...JSON.parse(text).services,
+      {
+        id: 'newservice', name: 'A New Service', what: 'Something this product has never heard of',
+        site: 'https://new.invalid/', howToGet: 'Sign up and ask for a key, which takes a day',
+        fields: [{ name: 'api_key', label: 'Their key', secret: true, required: true }],
+        test: { what: 'Asks the service whether the key works' }
+      }
+    ]
+  });
+
+  it('accepts a command for a service the register gained, with no code change', () => {
+    const ids = serviceIds(extended);
+    expect(validateCommand(
+      { type: 'save-credentials', persona: 'home', provider: 'newservice', credentials: { apiKey: 'x' } },
+      ids)).toBe(true);
+    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'newservice' }, ids)).toBe(true);
+  });
+
+  it('refuses the same command against the register that does not hold it', () => {
+    // The other direction, which is what makes the first mean something: the
+    // acceptance above came from the register and not from the code.
+    expect(validateCommand(
+      { type: 'save-credentials', persona: 'home', provider: 'newservice', credentials: { apiKey: 'x' } },
+      serviceIds(shipped))).toBe(false);
+  });
+
+  it('refuses a service the register has lost', () => {
+    const without = validateRegister({
+      services: JSON.parse(text).services.filter((entry: { id: string }) => entry.id !== 'clublog')
+    });
+    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'clublog' }, serviceIds(shipped)))
+      .toBe(true);
+    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'clublog' }, serviceIds(without)))
+      .toBe(false);
+  });
+
+  it('carries the new service’s own fields and test, not the shipped ones', () => {
+    const added = extended.services.find(entry => entry.id === 'newservice')!;
+    expect(added.fields.map(field => field.name)).toEqual(['api_key']);
+    expect(added.test?.what).toContain('key works');
+  });
+});
+
+describe('a register that is damaged or hand-edited is refused', () => {
+  it('refuses a register with no services', () => {
+    expect(() => validateRegister({ services: [] })).toThrow(RegisterError);
+    expect(() => validateRegister({})).toThrow(/holds no services/);
+    expect(() => validateRegister(null)).toThrow(/not an object/);
+  });
+
+  it('refuses a service with no id, a bad id, or an id twice', () => {
+    expect(() => made(service({ id: '' }))).toThrow(/id is missing/);
+    expect(() => made(service({ id: 'Not An Id' }))).toThrow(/not a service id/);
+    expect(() => made(service(), service())).toThrow(/appears twice/);
+  });
+
+  it('refuses a field the credential core cannot store', () => {
+    expect(() => made(service({
+      fields: [{ name: 'certificate', label: 'A file', secret: true, required: true }]
+    }))).toThrow(/not something the credential core stores/);
+  });
+
+  it('refuses a field that lies about being a secret', () => {
+    // The register decides what is drawn on screen. A password marked
+    // "secret: false" would be shown (QGD-CRD-0006).
+    expect(() => made(service({
+      fields: [{ name: 'password', label: 'Password', secret: false, required: true }]
+    }))).toThrow(/password is a secret/);
+    expect(() => made(service({
+      fields: [{ name: 'username', label: 'User', secret: true, required: true }]
+    }))).toThrow(/username is not a secret/);
+  });
+
+  it('refuses a service that requires nothing, or asks for nothing', () => {
+    expect(() => made(service({
+      fields: [{ name: 'username', label: 'User', secret: false, required: false }]
+    }))).toThrow(/requires nothing/);
+    expect(() => made(service({ fields: [] }))).toThrow(/asks for no fields/);
+  });
+
+  it('refuses a service that does not say whether it can be tested', () => {
+    const { test, ...withoutTest } = service();
+    expect(test).toBeNull();
+    expect(() => made(withoutTest)).toThrow(/does not say whether it can be tested/);
+  });
+
+  it('refuses a site that is not https', () => {
+    expect(() => made(service({ site: 'http://example.invalid/' }))).toThrow(/not https/);
+    expect(() => made(service({ site: 'javascript:alert(1)' }))).toThrow(/not https/);
+  });
+
+  it('refuses an expiry this product cannot read', () => {
+    expect(() => made(service({ expires: { kind: 'guess', what: 'somehow' } })))
+      .toThrow(/cannot read/);
+  });
+
+  it('refuses the same field asked for twice', () => {
+    expect(() => made(service({
+      fields: [
+        { name: 'password', label: 'One', secret: true, required: true },
+        { name: 'password', label: 'Two', secret: true, required: false }
+      ]
+    }))).toThrow(/twice/);
+  });
+});

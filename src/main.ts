@@ -135,7 +135,9 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
     log.info({ electron: process.versions.electron, platform: process.platform }, 'application ready');
-    const stopPersonaBroker = startPersonaBroker(dirname(fileURLToPath(import.meta.url)));
+    const stopPersonaBroker = startPersonaBroker(
+      dirname(fileURLToPath(import.meta.url)),
+      join(app.getAppPath(), 'data', 'service-profiles.json'));
     const stopSettingsBroker = startSettingsBroker();
     const stopAppearanceBroker = startAppearanceBroker();
     const stopLogsBroker = startLogsBroker();

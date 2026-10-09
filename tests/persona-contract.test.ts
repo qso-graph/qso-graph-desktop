@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
-import { allowsSender, RENDERER_URL, validateCommand } from '../src/persona-contract.js';
+import { readFile } from 'node:fs/promises';
+import { allowsSender, RENDERER_URL, validateCommand as check } from '../src/persona-contract.js';
+import { serviceIds, validateRegister } from '../src/services.js';
+
+// The services come from the register the product ships, not from a list here
+// (QGD-PSN-0002). A service dropped from it must stop being accepted, which is
+// what tests/services.test.ts drives from the other side.
+const services = serviceIds(validateRegister(JSON.parse(await readFile('data/service-profiles.json', 'utf8'))));
+const validateCommand = (value: unknown) => check(value, services);
 it('accepts intended persona and credential commands', () => {
   expect(validateCommand({ type: 'upsert', name: 'home', callsign: 'W1AW', start: '2026-01-01' })).toBe(true);
   expect(validateCommand({ type: 'save-credentials', persona: 'home', provider: 'qrz_logbook', credentials: { username: 'W1AW', apiKey: 'fake' } })).toBe(true);
