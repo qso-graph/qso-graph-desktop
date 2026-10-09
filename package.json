@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@doyensec/electronegativity": "1.10.3",
-    "@electron/asar": "3.4.1",
+    "@electron/asar": "4.3.1",
     "@eslint/js": "10.0.1",
     "@fortawesome/fontawesome-free": "7.3.1",
     "@playwright/test": "1.63.0",
