@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { spawnSync } from 'node:child_process';
 import { access, mkdir, copyFile, readdir } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
-const cargo = join(homedir(), '.cargo', 'bin', 'cargo');
-await access(cargo);
+import { cargoPath } from './cargo-path.mjs';
+const cargo = await cargoPath();
 const run = spawnSync(cargo, ['build', '--release', '--manifest-path', 'packages/persona-core/Cargo.toml'], { stdio: 'inherit' });
 if (run.status !== 0) process.exit(run.status || 1);
 await mkdir('dist/native', { recursive: true });
