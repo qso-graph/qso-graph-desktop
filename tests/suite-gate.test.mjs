@@ -71,6 +71,16 @@ describe('QGD-FRM-0007 story-themes reads what storybook builds', () => {
   });
 });
 
+describe('the reference suites need the archive, not the engine (QGD-ENG-0015)', () => {
+  it('blocks them on a missing archive, and no longer on the PostgreSQL build', () => {
+    for (const name of ['reference-load', 'adif-validation', 'pota-load']) {
+      expect(blockedBy(name, [{ name: 'adif-reference', result: 'FAIL' }])).toBe('adif-reference');
+      expect(blockedBy(name, [{ name: 'engine-binaries', result: 'FAIL' }])).toBeUndefined();
+    }
+    expect(blockedBy('adif-validation', [{ name: 'reference-load', result: 'FAIL' }])).toBe('reference-load');
+  });
+});
+
 describe('QGD-ENG-0004 the engine suites need the pinned build', () => {
   it('stops them when the build is not there, rather than failing each for the same reason', () => {
     expect(blockedBy('engine-lifecycle', [{ name: 'engine-binaries', result: 'FAIL' }])).toBe('engine-binaries');

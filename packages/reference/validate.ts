@@ -145,37 +145,55 @@ export async function readRuleset(client: Client): Promise<Ruleset> {
     enumeration: string; key: string; value: Record<string, string>; deleted: boolean; import_only: boolean;
   }>(`SELECT enumeration, key, value, deleted, import_only FROM ${REFERENCE_SCHEMA}.enumeration_value`);
 
+  return rulesetFromRows({
+    version: source.rows[0].version,
+    fields: fieldRows.rows.map(row => ({
+      name: row.name, dataTypes: row.data_types, enumerationName: row.enumeration_name,
+      enumerationParameter: row.enumeration_parameter, importOnly: row.import_only
+    })),
+    dataTypes: typeRows.rows.map(row => row.name),
+    enumerations: enumerationRows.rows.map(row => ({ name: row.name, valueColumn: row.value_column })),
+    values: valueRows.rows.map(row => ({
+      enumeration: row.enumeration, key: row.key, value: row.value, deleted: row.deleted, importOnly: row.import_only
+    }))
+  });
+}
+
+// The rows a ruleset is made from, whichever store they were read out of. The
+// engine's reader above and reference.sqlite's (packages/storage) both hand
+// their rows here, so there is one way rows become rules.
+export interface RulesetRows {
+  version: string;
+  fields: { name: string; dataTypes: string[]; enumerationName: string | null;
+    enumerationParameter: string | null; importOnly: boolean }[];
+  dataTypes: string[];
+  enumerations: { name: string; valueColumn: string }[];
+  values: { enumeration: string; key: string; value: Record<string, string>; deleted: boolean; importOnly: boolean }[];
+}
+
+export function rulesetFromRows(rows: RulesetRows): Ruleset {
   // Every enumeration, including one that is in the archive with no values:
   // "empty" and "absent" are different answers and QGD-REF-0006 turns on it.
-  const enumerations = new Map(enumerationRows.rows.map(
-    row => [row.name, index(row.name, row.value_column)]));
-  for (const row of valueRows.rows) {
+  const enumerations = new Map(rows.enumerations.map(row => [row.name, index(row.name, row.valueColumn)]));
+  for (const row of rows.values) {
     const into = enumerations.get(row.enumeration);
     if (!into) throw new Error(`${row.enumeration} has values and is not an enumeration`);
-    add(into, { key: row.key, row: row.value, deleted: row.deleted, importOnly: row.import_only });
+    add(into, { key: row.key, row: row.value, deleted: row.deleted, importOnly: row.importOnly });
   }
-
   return {
-    version: source.rows[0].version,
-    fields: new Map(fieldRows.rows.map(row => [row.name, {
+    version: rows.version,
+    fields: new Map(rows.fields.map(row => [row.name, {
       name: row.name,
-      dataTypes: row.data_types,
-      enumerationName: row.enumeration_name,
-      enumerationParameter: row.enumeration_parameter,
-      importOnly: row.import_only
+      dataTypes: row.dataTypes,
+      enumerationName: row.enumerationName,
+      enumerationParameter: row.enumerationParameter,
+      importOnly: row.importOnly
     }])),
-    dataTypes: new Set(typeRows.rows.map(row => row.name)),
+    dataTypes: new Set(rows.dataTypes),
     enumerations
   };
 }
 
-// The same ruleset built straight from the archive, without a database.
-//
-// Not a second implementation of the rules: the rules are the data, and this
-// is the same data from the other side of the load. It exists so the suite can
-// hold the two against each other — a ruleset read back from PostgreSQL must
-// be the one the archive describes, or the load lost something on the way
-// through — and so the pure tests need no engine.
 export function rulesetOf(definitions: Definitions): Ruleset {
   const enumerations = new Map(enumerationsOf(definitions).map(
     row => [row.name, index(row.name, row.valueColumn)]));

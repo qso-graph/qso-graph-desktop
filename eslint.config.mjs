@@ -54,7 +54,8 @@ const NO_ERROR_MESSAGE = {
   message: 'QGD-ENG-0016: storage code never reads an error\'s message; it carries bound values. Use reduce() from packages/storage/errors.ts.'
 };
 const NO_NON_LITERAL_SQL = {
-  selector: "CallExpression[callee.property.name=/^(prepare|exec)$/][arguments.0.type!='Literal']",
+  // A regular expression literal's .exec() is not SQL, so it is excluded.
+  selector: "CallExpression[callee.property.name=/^(prepare|exec)$/]:not([callee.object.regex])[arguments.0.type!='Literal']",
   message: 'QGD-ENG-0002: SQL text reaches SQLite only through the adapter (sqlite.ts) and the migrator (migrate.ts); elsewhere prepare() and exec() take a fixed literal.'
 };
 // The storage package, and the control fixtures that prove these rules run.

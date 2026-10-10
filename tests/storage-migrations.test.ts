@@ -13,6 +13,8 @@ import { applyMigrations, read } from '../packages/storage/migrate.js';
 import { openStore } from '../packages/storage/sqlite.js';
 
 const SHIPPED = resolve('drizzle/state');
+// How many migrations ship, read from their journal rather than written here.
+const SHIPPED_COUNT = (JSON.parse(readFileSync(join(SHIPPED, 'meta', '_journal.json'), 'utf8')) as { entries: unknown[] }).entries.length;
 let root: string;
 
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'qg-migrations-')); });
@@ -52,7 +54,7 @@ describe('P4-migrations (QGD-ENG-0013)', () => {
     const store = openStore(path);
     try {
       const applied = await applyMigrations(store, SHIPPED);
-      expect(applied.count).toBe(1);
+      expect(applied.count).toBe(SHIPPED_COUNT);
       // A second application finds nothing pending and changes nothing.
       expect(await applyMigrations(store, SHIPPED)).toEqual(applied);
     } finally { store.close(); }
@@ -81,7 +83,7 @@ describe('P4-migrations (QGD-ENG-0013)', () => {
       await store.unit((db) => db.run(sql`INSERT INTO installation VALUES ('this', 'then', 'v1')`));
       const error = await applyMigrations(store, folderWith([GOOD, BAD])).then(() => undefined, (e: unknown) => e);
       expect(error).toBeInstanceOf(StorageFailure);
-      expect((await read(store)).count).toBe(1);
+      expect((await read(store)).count).toBe(SHIPPED_COUNT);
       const row = await store.unit((db) => db.values(sql`SELECT created_by_version FROM installation`));
       expect(row).toEqual([['v1']]);
     } finally { store.close(); }
@@ -95,7 +97,7 @@ describe('P4-migrations (QGD-ENG-0013)', () => {
     const store = openStore(path);
     try {
       const applied = await applyMigrations(store, folderWith([GOOD]));
-      expect(applied.count).toBe(2);
+      expect(applied.count).toBe(SHIPPED_COUNT + 1);
       // The latest is the one applied last, not the largest hash.
       const newest = await store.unit((db) =>
         db.values<[string]>(sql`SELECT hash FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1`));

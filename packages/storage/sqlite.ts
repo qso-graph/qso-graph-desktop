@@ -28,6 +28,10 @@ export interface StoreOptions {
   // Everything except a reference build opens reference.sqlite read-only
   // (QGD-ENG-0015). A read-only open never creates the file.
   readOnly?: boolean;
+  // 'wal' for a store written while it is read (the default). 'delete' for a
+  // file built once and then only read: a reference build writes in
+  // rollback-journal mode, so no -wal or -shm is left beside it (QGD-ENG-0015).
+  journal?: 'wal' | 'delete';
 }
 
 export interface Store<TSchema extends Record<string, unknown> = Record<string, never>> {
@@ -83,10 +87,7 @@ export function openStore<TSchema extends Record<string, unknown> = Record<strin
     // default, and it is said here so that nobody turns it off by accident.
     connection = new DatabaseSync(path, { readOnly, enableForeignKeyConstraints: true });
     if (!readOnly) {
-      // WAL for a store that is written while it is read. A reference build
-      // writes in rollback-journal mode instead (QGD-ENG-0015), so it never
-      // reaches here as a writable store.
-      connection.exec('PRAGMA journal_mode = WAL');
+      connection.exec(options.journal === 'delete' ? 'PRAGMA journal_mode = DELETE' : 'PRAGMA journal_mode = WAL');
     }
   } catch (error) {
     throw failure(error, 'open');

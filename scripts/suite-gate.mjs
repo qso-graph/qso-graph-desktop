@@ -26,13 +26,13 @@ export function blockedBy(name, suites) {
   // The engine suites run a real PostgreSQL from the pinned build, so there is
   // nothing for them to run if the build is not there.
   if (name.startsWith('engine-') && name !== 'engine-binaries' && failed('engine-binaries')) return 'engine-binaries';
-  // The reference load runs a real engine too, and reads the archive the
-  // adif-reference suite is the one that reports as missing.
+  // The reference suites build reference.sqlite (QGD-ENG-0015) and need no
+  // engine, but they read the archive the adif-reference suite is the one that
+  // reports as missing.
   if (['reference-load', 'adif-validation', 'pota-load'].includes(name)) {
-    if (failed('engine-binaries')) return 'engine-binaries';
     if (failed('adif-reference')) return 'adif-reference';
   }
-  // The exit gate validates what the load put in the engine.
+  // The exit gate validates what the build put in reference.sqlite.
   if (name === 'adif-validation' && failed('reference-load')) return 'reference-load';
   // story-themes walks the gallery that storybook built.
   if (name === 'story-themes' && failed('storybook')) return 'storybook';

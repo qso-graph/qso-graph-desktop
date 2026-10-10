@@ -252,10 +252,22 @@ export const PROGRAM_FIELDS = [
   'programId', 'programPrefix', 'programName', 'isActive', 'isocc', 'location_unit', 'isolang'
 ] as const;
 
+// Each id once. The stores key on it, so a list repeating one could be cached
+// and then fail to build; it is refused here, as its shape, instead.
+function unique<T>(rows: T[], id: (row: T) => number, what: string): T[] {
+  const seen = new Set<number>();
+  for (const row of rows) {
+    const value = id(row);
+    if (seen.has(value)) throw new ShapeError(`the ${what} list repeats an id`);
+    seen.add(value);
+  }
+  return rows;
+}
+
 export function readPrograms(json: string): Program[] {
   const rows = asArray(json, 'program') as Record<string, unknown>[];
   requireFields(rows[0], PROGRAM_FIELDS, 'program');
-  return rows.map((row, at) => {
+  return unique(rows.map((row, at) => {
     const programId = integerOf(row.programId);
     if (programId === null) throw new ShapeError(`program ${at + 1} has no programId`);
     const prefix = String(row.programPrefix ?? '').trim();
@@ -271,7 +283,7 @@ export function readPrograms(json: string): Program[] {
         ? null : String(row.location_unit),
       isoLanguage: row.isolang === null || row.isolang === undefined ? null : String(row.isolang)
     };
-  });
+  }), (program) => program.programId, 'program');
 }
 
 export const LOCATION_FIELDS = [
@@ -281,7 +293,7 @@ export const LOCATION_FIELDS = [
 export function readLocations(json: string): Location[] {
   const rows = asArray(json, 'location') as Record<string, unknown>[];
   requireFields(rows[0], LOCATION_FIELDS, 'location');
-  return rows.map((row, at) => {
+  return unique(rows.map((row, at) => {
     const locationId = integerOf(row.locationId);
     if (locationId === null) throw new ShapeError(`location ${at + 1} has no locationId`);
     const locationDesc = String(row.locationDesc ?? '').trim();
@@ -297,7 +309,7 @@ export function readLocations(json: string): Location[] {
       longitude: typeof row.longitude === 'number' && Number.isFinite(row.longitude) ? row.longitude : null,
       iso: row.iso === null || row.iso === undefined ? null : String(row.iso)
     };
-  });
+  }), (location) => location.locationId, 'location');
 }
 
 // A load that arrives a fraction of the size of the one before it is a

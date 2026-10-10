@@ -1,32 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // P5-archive, P5-structure, P5-provenance, P5-zones and P5-loads: ADIF's
-// definitions are in the engine, in the frame's schema, after a migration,
-// counted against the archive rather than against a list kept here — and the
-// archive they came out of was the pinned one (QGD-REF-0001 to 0004, 0007,
-// 0014).
+// definitions are in reference.sqlite, built by the frame from the pinned
+// archive, counted against the archive rather than against a list kept here
+// (QGD-REF-0001 to 0004, 0007, 0014; QGD-ENG-0015).
 //
-// It loads through the same functions the shipped product uses, with one
-// substitution: the archive bytes are handed over from the cache `make setup`
-// wrote instead of fetched from adif.org. The checksum, the zip reading, the
-// version check and the load are all the real ones — what is skipped is the
-// network, which is not what any of these tests are about.
+// It builds through the same code the shipped product uses (Reference, the
+// build, the checks), with one substitution: the archive bytes are handed over
+// from the cache `make setup` wrote instead of fetched from adif.org. The
+// checksum, the zip reading, the version check and the build are all the real
+// ones. What is skipped is the network, which none of these tests are about.
+// POTA is refused here so this suite is ADIF's alone; POTA is pota-load's.
 import { expect } from '@playwright/test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { redact } from './report.mjs';
-import { binariesDirectory } from './postgres-build.mjs';
-import { initialise, start, status, stop } from '../dist/engine/supervisor.js';
-import { bringUp } from '../dist/engine/start.js';
-import { chooseSocketDirectory, socketCandidates } from '../dist/engine/endpoint.js';
-import { connectAs, connectAsSuperuser, provision } from '../dist/engine/roles.js';
-import { REFERENCE_SCHEMA } from '../dist/reference/schema.js';
-import { counts, ensureAdif, grantRead, loadedSource } from '../dist/reference/load.js';
 import { cachePath, obtain, openArchive } from '../dist/reference/fetch.js';
 import { entries, read } from '../dist/reference/zip.js';
 import { definitionsOf, derive } from '../dist/reference/adif.js';
+import { layout, openState } from '../dist/storage/layout.js';
+import { Reference } from '../dist/storage/reference.js';
+import { buildReference } from '../dist/storage/reference-build.js';
 
-const build = JSON.parse(await readFile('data/postgres-build.json', 'utf8'));
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const release = register.adif;
 
@@ -40,19 +36,21 @@ if (!archiveBytes) {
 // and silently went to the network instead would be visible.
 let fetches = 0;
 const handOver = async () => { fetches += 1; return archiveBytes; };
+const noPota = async () => { throw new Error('POTA is not part of this suite'); };
+const build = (target, ddl, inputs) => buildReference(target, ddl, inputs);
 
 const root = await mkdtemp(join(tmpdir(), 'qg-reference-'));
-const base = join(root, 'Application Support', 'QSO Graph Desktop');
-const paths = {
-  binaries: join(binariesDirectory(build), 'bin'),
-  data: join(base, 'data'),
-  sockets: chooseSocketDirectory(socketCandidates(join(base, 'data'), join(base, 'sockets'))),
-  logs: join(base, 'logs')
-};
-const endpoint = { kind: 'socket', directory: paths.sockets };
-const cache = join(base, 'reference');
-const migrations = resolve('drizzle');
+const paths = layout(join(root, 'QSO Graph Desktop'));
+const DDL = resolve('drizzle/reference');
+const STATE = resolve('drizzle/state');
 const notes = [];
+const opened = [];
+
+// Rows as objects, from the read-only handle on the built file. The SQL is
+// written here in full; nothing is interpolated into it.
+const rows = (store, text, ...params) => store.connection.prepare(text).all(...params);
+const json = (cell) => JSON.parse(cell);
+
 
 try {
   // ---- P5-archive: the pinned archive, and nothing else -------------------
@@ -98,290 +96,207 @@ try {
     expect(mismatch, 'an archive reporting another version must be refused').toBeDefined();
   }
 
-  // ---- the engine, up and migrated, then loaded --------------------------
-  await initialise(paths);
-  const started = await bringUp(paths, endpoint, {
-    migrations,
-    buildFile: resolve('data/postgres-build.json'),
-    reference: { register, cacheDirectory: cache, fetchArchive: handOver }
-  });
-  expect(started.reference.adif.state, 'the start must have loaded the reference data').toBe('loaded');
-  expect(await status(paths)).toBe('running');
 
-  const archive = await openArchive(release, cache, handOver);
+  // ---- the file, built by a first refresh ---------------------------------
+  const state = await openState(paths, STATE, 'reference-load');
+  opened.push(state);
+  const reference = new Reference({ paths, ddl: DDL, register, state, fetchArchive: handOver, fetchText: noPota, build });
+  opened.push(reference);
+  const first = await reference.refresh();
+  expect(first.built, 'the first refresh must have built the file').toBe(true);
+  expect(first.status.adif.state, 'and loaded ADIF into it').toBe('loaded');
+
+  const archive = await openArchive(release, paths.referenceCache, handOver);
   const definitions = archive.definitions;
-  const client = await connectAsSuperuser(endpoint);
-  try {
-    // ---- P5-loads: in the engine, in the frame's schema -------------------
-    const schema = await client.query(
-      'SELECT 1 FROM information_schema.schemata WHERE schema_name = $1', [REFERENCE_SCHEMA]);
-    expect(schema.rowCount, 'the migration must have made the reference schema').toBe(1);
-    const tables = await client.query(
-      'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name',
-      [REFERENCE_SCHEMA]);
-    expect(tables.rows.map(row => row.table_name)).toEqual([
-      'data_type', 'enumeration', 'enumeration_value', 'field', 'list',
-      'pota_location', 'pota_park', 'pota_park_location', 'pota_program',
-      'source', 'uninterpreted', 'zone'
-    ]);
-    notes.push(`the reference data is in ${REFERENCE_SCHEMA}, made by a migration`);
+  const store = reference.reader();
+  expect(store, 'the built file must open read-only').toBeDefined();
+  expect(store.readOnly).toBe(true);
 
-    // ---- P5-structure: counted against the archive ------------------------
-    const held = await counts(client);
-    const inArchive = {
-      data_types: Object.keys(definitions.DataTypes.Records).length,
-      fields: Object.keys(definitions.Fields.Records).length,
-      enumerations: Object.keys(definitions.Enumerations).length,
-      values: Object.values(definitions.Enumerations)
-        .reduce((total, enumeration) => total + Object.keys(enumeration.Records ?? {}).length, 0)
-    };
-    for (const [what, expected] of Object.entries(inArchive)) {
-      expect(held[what], `${what}: the engine must hold what the archive holds`).toBe(expected);
-    }
-    notes.push(`${inArchive.fields} fields, ${inArchive.data_types} data types, ` +
-      `${inArchive.enumerations} enumerations and ${inArchive.values} values, each counted from the archive`);
+  // ---- P5-loads: in reference.sqlite, from the declared schema -----------
+  const tables = rows(store, "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").map(row => row.name);
+  expect(tables).toEqual([
+    'data_type', 'enumeration', 'enumeration_value', 'field', 'list',
+    'pota_location', 'pota_park', 'pota_park_location', 'pota_program',
+    'source', 'uninterpreted', 'zone'
+  ]);
+  notes.push('the reference data is in reference.sqlite, built from the declared schema');
 
-    // A field ADIF defines and this product has never heard of is loaded too
-    // (QGD-REF-0004). Picked by asking which fields are not named anywhere in
-    // this product's own source, rather than by naming one here.
-    const sample = await client.query(
-      `SELECT name, data_type, data_types FROM ${REFERENCE_SCHEMA}.field ORDER BY name`);
-    expect(sample.rowCount).toBe(inArchive.fields);
-
-    // The two fields whose published data type names two types. A foreign key
-    // would have refused both; the cell is kept as published and the
-    // resolution recorded beside it (QGD-REF-0011).
-    const twoTypes = sample.rows.filter(row => row.data_types.length > 1);
-    expect(twoTypes.map(row => row.name).sort()).toEqual(['CREDIT_GRANTED', 'CREDIT_SUBMITTED']);
-    for (const row of twoTypes) {
-      expect(row.data_type, 'the published cell is kept as published').toBe('CreditList,AwardList');
-      expect(row.data_types).toEqual(['CreditList', 'AwardList']);
-    }
-    const names = new Set((await client.query(
-      `SELECT name FROM ${REFERENCE_SCHEMA}.data_type`)).rows.map(row => row.name));
-    for (const row of sample.rows) {
-      for (const type of row.data_types) {
-        expect(names.has(type), `${row.name}'s data type ${type} must be one ADIF defines`).toBe(true);
-      }
-    }
-    notes.push('the two fields publishing two data types in one cell are both loaded, cell intact');
-
-    // ---- P5-unsupplied-enumeration: the DARC fields ----------------------
-    const darc = await client.query(
-      `SELECT name, data_type, enumeration_ref, enumeration_name FROM ${REFERENCE_SCHEMA}.field
-       WHERE name IN ('DARC_DOK', 'MY_DARC_DOK') ORDER BY name`);
-    expect(darc.rowCount).toBe(2);
-    for (const row of darc.rows) {
-      expect(row.data_type).toBe('Enumeration');
-      expect(row.enumeration_ref, `${row.name} names no enumeration`).toBeNull();
-      expect(row.enumeration_name).toBeNull();
-    }
-    notes.push('DARC_DOK and MY_DARC_DOK are loaded as Enumeration fields naming no enumeration');
-
-    // And the parameterised references are kept whole and split.
-    const state = await client.query(
-      `SELECT enumeration_ref, enumeration_name, enumeration_parameter FROM ${REFERENCE_SCHEMA}.field
-       WHERE name = 'STATE'`);
-    expect(state.rows[0].enumeration_ref).toBe('Primary_Administrative_Subdivision[DXCC]');
-    expect(state.rows[0].enumeration_name).toBe('Primary_Administrative_Subdivision');
-    expect(state.rows[0].enumeration_parameter).toBe('DXCC');
-
-    // ---- P5-zones: derived, recorded as derived, and partial -------------
-    const derived = derive(definitions);
-    const stored = await client.query(
-      `SELECT kind, count(*)::int AS held, min(number)::int AS lowest, max(number)::int AS highest,
-              min(authority) AS authority, min(derived_from) AS derived_from
-       FROM ${REFERENCE_SCHEMA}.zone GROUP BY kind ORDER BY kind`);
-    expect(stored.rows.map(row => row.kind)).toEqual(['cq', 'itu']);
-    for (const row of stored.rows) {
-      const expected = derived.zones.filter(zone => zone.kind === row.kind);
-      expect(row.held, `${row.kind}: the stored zones must be the derived ones`).toBe(expected.length);
-      expect(row.derived_from).toContain('Primary_Administrative_Subdivision.');
-      // The authority is the owner, never ADIF.
-      expect(row.authority).not.toContain('ADIF');
-    }
-    const cq = stored.rows.find(row => row.kind === 'cq');
-    const itu = stored.rows.find(row => row.kind === 'itu');
-    expect(cq.authority).toBe('CQ Magazine');
-    expect(itu.authority).toBe('International Telecommunication Union');
-    expect(cq.lowest).toBeGreaterThanOrEqual(1);
-    expect(cq.highest).toBeLessThanOrEqual(40);
-    expect(itu.highest).toBeLessThanOrEqual(90);
-    // And ADIF publishes no such enumeration, which is why they are derived.
-    const asList = await client.query(
-      `SELECT name FROM ${REFERENCE_SCHEMA}.enumeration WHERE name ~* '^(CQ|ITU)_?Zone'`);
-    expect(asList.rowCount, 'ADIF publishes no zone enumeration; one would make the derivation wrong').toBe(0);
-
-    // QGD-REF-0015. The derivation reaches 152 of the 1,965 subdivisions, so
-    // what it yields is a coverage list: it must stay plainly short of CQ's
-    // 40 and the ITU's 90. A later change that "completed" either list would
-    // mean this product had written another organisation's list by hand.
-    expect(derived.coverage.subdivisions).toBe(
-      Object.keys(definitions.Enumerations.Primary_Administrative_Subdivision.Records).length);
-    expect(derived.coverage.withZone, 'ADIF fills the zone columns for a small minority of subdivisions')
-      .toBeLessThan(derived.coverage.subdivisions / 4);
-    expect(cq.held, 'the derivation cannot yield all 40 CQ zones, and must not pretend to').toBeLessThan(40);
-    expect(itu.held, 'nor all 90 ITU zones').toBeLessThan(90);
-    notes.push(`${cq.held} of CQ's 40 zones and ${itu.held} of the ITU's 90, derived from ` +
-      `${derived.coverage.withZone} of ${derived.coverage.subdivisions} subdivisions in ` +
-      `${derived.coverage.entities} entities — a coverage list, recorded as derived`);
-
-    // The cells the derivation could not read are kept as published and
-    // flagged, not skipped. The first version of this derivation dropped all
-    // three in silence, which is the whole reason the table exists.
-    const unread = await client.query(
-      `SELECT relation, key, "column", cell, note FROM ${REFERENCE_SCHEMA}.uninterpreted ORDER BY key, "column"`);
-    // Counted from the archive, not written here: every subdivision cell with
-    // a part that is not a zone number, in either column. Three distinct cell
-    // values across however many subdivisions carry them.
-    const expectedUnread = [];
-    for (const [key, row] of Object.entries(
-      definitions.Enumerations.Primary_Administrative_Subdivision.Records)) {
-      for (const column of ['CQ Zone', 'ITU Zone']) {
-        const cell = row[column];
-        if (!cell) continue;
-        if (cell.split(',').some(part => !/^\d+$/.test(part.trim()))) expectedUnread.push([key, column, cell]);
-      }
-    }
-    expect(unread.rowCount, 'every unreadable cell must be recorded, and only those')
-      .toBe(expectedUnread.length);
-    expect([...new Set(unread.rows.map(row => row.cell))].sort())
-      .toEqual(['06/07', '07/08', 'S=16 T=17']);
-    for (const row of unread.rows) {
-      expect(row.relation).toBe('Primary_Administrative_Subdivision');
-      expect(['CQ Zone', 'ITU Zone']).toContain(row.column);
-      expect(row.note).toBeTruthy();
-      // Stored exactly as published: the cell is in the archive, unchanged.
-      const published =
-        definitions.Enumerations.Primary_Administrative_Subdivision.Records[row.key][row.column];
-      expect(row.cell, 'the cell must be stored exactly as published').toBe(published);
-    }
-    // And nothing was derived from them: no zone's count includes a cell that
-    // could not be read.
-    expect(derived.zones.some(zone => zone.number === 0)).toBe(false);
-    notes.push(`${unread.rowCount} zone cells holding one of 3 notations that are not zone numbers ` +
-      'are stored as published and flagged uninterpreted');
-
-    // ---- P5-provenance: the owner and the copy, as two facts -------------
-    const source = await loadedSource(client, 'adif');
-    expect(source.version).toBe(release.version);
-    expect(source.sha256).toBe(release.source.sha256);
-    expect(source.fetchedAt instanceof Date).toBe(true);
-    expect(source.rowCount).toBe(inArchive.values);
-
-    const lists = await client.query(
-      `SELECT id, authority, copy, source_id, supplied, derived, row_count FROM ${REFERENCE_SCHEMA}.list ORDER BY id`);
-    expect(lists.rowCount, 'every ADIF list in the register must be in the database').toBe(
-      register.lists.filter(list => list.source === 'adif' || list.source === null).length);
-    for (const row of lists.rows) {
-      expect(row.authority, `${row.id} must record who owns it`).toBeTruthy();
-      expect(row.copy, `${row.id} must record where this copy came from`).toBeTruthy();
-      expect(row.authority).not.toBe(row.copy);
-      // A list ADIF does not supply holds nothing, and says so with null
-      // rather than with 0: not supplied and supplied-but-empty are
-      // different answers (QGD-REF-0006).
-      if (!row.supplied && !row.derived) expect(row.row_count).toBeNull();
-      else expect(row.row_count).toBeGreaterThan(0);
-    }
-    const dxcc = lists.rows.find(row => row.id === 'dxcc-entities');
-    expect(dxcc.authority).toContain('ARRL');
-    expect(dxcc.row_count).toBe(Object.keys(definitions.Enumerations.DXCC_Entity_Code.Records).length);
-    const dok = lists.rows.find(row => row.id === 'darc-dok');
-    expect(dok.supplied).toBe(false);
-    expect(dok.row_count).toBeNull();
-    notes.push(`${lists.rowCount} lists recorded with their owner and their copy as separate facts`);
-
-    // Deleted and import-only are lifted out where validation turns on them,
-    // and the published row is still whole underneath.
-    const deleted = await client.query(
-      `SELECT value FROM ${REFERENCE_SCHEMA}.enumeration_value
-       WHERE enumeration = 'DXCC_Entity_Code' AND deleted LIMIT 1`);
-    expect(deleted.rowCount, 'ADIF marks some DXCC entities deleted').toBe(1);
-    expect(deleted.rows[0].value.Deleted).toBe('true');
-    expect(deleted.rows[0].value['Entity Name']).toBeTruthy();
-    const importOnly = await client.query(
-      `SELECT count(*)::int AS held FROM ${REFERENCE_SCHEMA}.enumeration_value
-       WHERE enumeration = 'Mode' AND import_only`);
-    expect(importOnly.rows[0].held).toBe(
-      Object.values(definitions.Enumerations.Mode.Records).filter(row => row['Import-only']).length);
-    notes.push('deleted and import-only values are kept, flagged, with the published row whole');
-
-    // ---- loading again, and a torn load ----------------------------------
-    expect(await ensureAdif(client, definitions, register), 'the same release must not be reloaded').toBe('current');
-    // A source row with no data behind it is what a torn load would leave.
-    // It is reloaded rather than believed.
-    await client.query(`DELETE FROM ${REFERENCE_SCHEMA}.enumeration_value WHERE enumeration = 'Mode'`);
-    const again = await ensureAdif(client, definitions, register);
-    expect(again, 'a load whose rows are gone must happen again').not.toBe('current');
-    expect((await counts(client)).values).toBe(inArchive.values);
-    notes.push('the same release is not reloaded, and a load whose rows are missing is');
-
-    // ---- QGD-ENG-0010: an application reads it through a grant -----------
-    const grant = await provision(client, 'adif');
-    await grantRead(client, grant.role);
-    const asApplication = await connectAs(endpoint, grant);
-    try {
-      const modes = await asApplication.query(
-        `SELECT count(*)::int AS held FROM ${REFERENCE_SCHEMA}.enumeration_value WHERE enumeration = 'Mode'`);
-      expect(modes.rows[0].held).toBe(Object.keys(definitions.Enumerations.Mode.Records).length);
-      // Read, and nothing more: the reference data is the frame's.
-      let refused;
-      try {
-        await asApplication.query(`DELETE FROM ${REFERENCE_SCHEMA}.enumeration_value WHERE enumeration = 'Mode'`);
-      } catch (error) { refused = error; }
-      expect(refused, 'an application must not be able to change the reference data').toBeDefined();
-      expect(refused.code, 'refused for want of privilege').toBe('42501');
-    } finally {
-      await asApplication.end();
-    }
-    notes.push('an application reads the reference data through a grant and cannot change it');
-  } finally {
-    await client.end();
+  // ---- P5-structure: counted against the archive ------------------------
+  const counted = rows(store, `
+    SELECT (SELECT count(*) FROM data_type) AS data_types, (SELECT count(*) FROM field) AS fields,
+           (SELECT count(*) FROM enumeration) AS enumerations, (SELECT count(*) FROM enumeration_value) AS "values"`)[0];
+  const inArchive = {
+    data_types: Object.keys(definitions.DataTypes.Records).length,
+    fields: Object.keys(definitions.Fields.Records).length,
+    enumerations: Object.keys(definitions.Enumerations).length,
+    values: Object.values(definitions.Enumerations)
+      .reduce((total, enumeration) => total + Object.keys(enumeration.Records ?? {}).length, 0)
+  };
+  for (const [what, expected] of Object.entries(inArchive)) {
+    expect(counted[what], `${what}: the file must hold what the archive holds`).toBe(expected);
   }
+  notes.push(`${inArchive.fields} fields, ${inArchive.data_types} data types, ` +
+    `${inArchive.enumerations} enumerations and ${inArchive.values} values, each counted from the archive`);
 
-  // ---- QGD-REF-0014: a load that cannot happen does not stop the engine ---
-  {
-    await stop(paths);
-    const empty = join(root, 'no-cache-at-all');
-    const offline = async () => { throw new Error('getaddrinfo ENOTFOUND adif.org.uk'); };
-    const warnings = [];
-    // A second data directory, so this is a first run with no network rather
-    // than a restart of a database that already has the data.
-    const fresh = {
-      ...paths,
-      data: join(root, 'offline', 'data'),
-      logs: join(root, 'offline', 'logs')
-    };
-    fresh.sockets = chooseSocketDirectory(socketCandidates(fresh.data, join(root, 'offline', 'sockets')));
-    const freshEndpoint = { kind: 'socket', directory: fresh.sockets };
-    try {
-      const up = await bringUp(fresh, freshEndpoint, {
-        migrations,
-        buildFile: resolve('data/postgres-build.json'),
-        reference: { register, cacheDirectory: empty, fetchArchive: offline },
-        onWarning: (message, fields) => warnings.push([message, fields])
-      });
-      expect(up.reference.adif.state, 'a load that cannot happen is unavailable').toBe('unavailable');
-      expect(up.reference.adif.reason).toContain('ENOTFOUND');
-      // And POTA was not asked for either, which is said rather than implied.
-      expect(up.reference.pota).toBe('skipped');
-      expect(await status(fresh), 'and the engine is up regardless').toBe('running');
-      expect(warnings.some(([message]) => message === 'reference data not loaded'),
-        'and it is said once, in the log').toBe(true);
+  const sample = rows(store, 'SELECT name, data_type, data_types FROM field ORDER BY name')
+    .map(row => ({ ...row, data_types: json(row.data_types) }));
+  expect(sample.length).toBe(inArchive.fields);
 
-      // Not loaded is an answer the database can give, not a silence.
-      const offlineClient = await connectAsSuperuser(freshEndpoint);
-      try {
-        expect(await loadedSource(offlineClient, 'adif')).toBeUndefined();
-        expect((await counts(offlineClient)).values).toBe(0);
-      } finally {
-        await offlineClient.end();
-      }
-      notes.push('a first run with no network reaches a migrated engine whose reference data is reported not loaded');
-    } finally {
-      await stop(fresh).catch(() => {});
-      await rm(fresh.sockets, { recursive: true, force: true });
+  // The two fields whose published data type names two types (QGD-REF-0011).
+  const twoTypes = sample.filter(row => row.data_types.length > 1);
+  expect(twoTypes.map(row => row.name).sort()).toEqual(['CREDIT_GRANTED', 'CREDIT_SUBMITTED']);
+  for (const row of twoTypes) {
+    expect(row.data_type, 'the published cell is kept as published').toBe('CreditList,AwardList');
+    expect(row.data_types).toEqual(['CreditList', 'AwardList']);
+  }
+  const names = new Set(rows(store, 'SELECT name FROM data_type').map(row => row.name));
+  for (const row of sample) {
+    for (const type of row.data_types) {
+      expect(names.has(type), `${row.name}'s data type ${type} must be one ADIF defines`).toBe(true);
     }
+  }
+  notes.push('the two fields publishing two data types in one cell are both loaded, cell intact');
+
+  // ---- P5-unsupplied-enumeration: the DARC fields ----------------------
+  const darc = rows(store, `SELECT name, data_type, enumeration_ref, enumeration_name FROM field
+     WHERE name IN ('DARC_DOK', 'MY_DARC_DOK') ORDER BY name`);
+  expect(darc.length).toBe(2);
+  for (const row of darc) {
+    expect(row.data_type).toBe('Enumeration');
+    expect(row.enumeration_ref, `${row.name} names no enumeration`).toBeNull();
+    expect(row.enumeration_name).toBeNull();
+  }
+  notes.push('DARC_DOK and MY_DARC_DOK are loaded as Enumeration fields naming no enumeration');
+
+  const stateField = rows(store, "SELECT enumeration_ref, enumeration_name, enumeration_parameter FROM field WHERE name = 'STATE'")[0];
+  expect(stateField.enumeration_ref).toBe('Primary_Administrative_Subdivision[DXCC]');
+  expect(stateField.enumeration_name).toBe('Primary_Administrative_Subdivision');
+  expect(stateField.enumeration_parameter).toBe('DXCC');
+
+  // ---- P5-zones: derived, recorded as derived, and partial -------------
+  const derived = derive(definitions);
+  const stored = rows(store, `
+    SELECT kind, count(*) AS held, min(number) AS lowest, max(number) AS highest,
+           min(authority) AS authority, min(derived_from) AS derived_from
+      FROM zone GROUP BY kind ORDER BY kind`);
+  expect(stored.map(row => row.kind)).toEqual(['cq', 'itu']);
+  for (const row of stored) {
+    const expected = derived.zones.filter(zone => zone.kind === row.kind);
+    expect(row.held, `${row.kind}: the stored zones must be the derived ones`).toBe(expected.length);
+    expect(row.derived_from).toContain('Primary_Administrative_Subdivision.');
+    expect(row.authority).not.toContain('ADIF');
+  }
+  const cq = stored.find(row => row.kind === 'cq');
+  const itu = stored.find(row => row.kind === 'itu');
+  expect(cq.authority).toBe('CQ Magazine');
+  expect(itu.authority).toBe('International Telecommunication Union');
+  expect(cq.lowest).toBeGreaterThanOrEqual(1);
+  expect(cq.highest).toBeLessThanOrEqual(40);
+  expect(itu.highest).toBeLessThanOrEqual(90);
+  // ADIF publishes no zone enumeration, which is why they are derived.
+  const asList = rows(store, 'SELECT name FROM enumeration').filter(row => /^(CQ|ITU)_?Zone/i.test(row.name));
+  expect(asList.length, 'ADIF publishes no zone enumeration; one would make the derivation wrong').toBe(0);
+
+  // QGD-REF-0015: a coverage list, plainly short of CQ's 40 and the ITU's 90.
+  expect(derived.coverage.subdivisions).toBe(
+    Object.keys(definitions.Enumerations.Primary_Administrative_Subdivision.Records).length);
+  expect(derived.coverage.withZone, 'ADIF fills the zone columns for a small minority of subdivisions')
+    .toBeLessThan(derived.coverage.subdivisions / 4);
+  expect(cq.held, 'the derivation cannot yield all 40 CQ zones, and must not pretend to').toBeLessThan(40);
+  expect(itu.held, 'nor all 90 ITU zones').toBeLessThan(90);
+  notes.push(`${cq.held} of CQ's 40 zones and ${itu.held} of the ITU's 90, derived from ` +
+    `${derived.coverage.withZone} of ${derived.coverage.subdivisions} subdivisions in ` +
+    `${derived.coverage.entities} entities — a coverage list, recorded as derived`);
+
+  // The cells the derivation could not read are kept as published and flagged.
+  const unread = rows(store, 'SELECT relation, key, "column", cell, note FROM uninterpreted ORDER BY key, "column"');
+  const expectedUnread = [];
+  for (const [key, row] of Object.entries(definitions.Enumerations.Primary_Administrative_Subdivision.Records)) {
+    for (const column of ['CQ Zone', 'ITU Zone']) {
+      const cell = row[column];
+      if (!cell) continue;
+      if (cell.split(',').some(part => !/^\d+$/.test(part.trim()))) expectedUnread.push([key, column, cell]);
+    }
+  }
+  expect(unread.length, 'every unreadable cell must be recorded, and only those').toBe(expectedUnread.length);
+  expect([...new Set(unread.map(row => row.cell))].sort()).toEqual(['06/07', '07/08', 'S=16 T=17']);
+  for (const row of unread) {
+    expect(row.relation).toBe('Primary_Administrative_Subdivision');
+    expect(['CQ Zone', 'ITU Zone']).toContain(row.column);
+    expect(row.note).toBeTruthy();
+    const published = definitions.Enumerations.Primary_Administrative_Subdivision.Records[row.key][row.column];
+    expect(row.cell, 'the cell must be stored exactly as published').toBe(published);
+  }
+  expect(derived.zones.some(zone => zone.number === 0)).toBe(false);
+  notes.push(`${unread.length} zone cells holding one of 3 notations that are not zone numbers ` +
+    'are stored as published and flagged uninterpreted');
+
+  // ---- P5-provenance: the owner and the copy, as two facts -------------
+  const source = rows(store, "SELECT version, sha256, fetched_at, row_count FROM source WHERE id = 'adif'")[0];
+  expect(source.version).toBe(release.version);
+  expect(source.sha256).toBe(release.source.sha256);
+  expect(Number.isNaN(Date.parse(source.fetched_at)), 'the fetch time is a time').toBe(false);
+  expect(source.row_count).toBe(inArchive.values);
+
+  const lists = rows(store, 'SELECT id, authority, copy, source_id, supplied, derived, row_count FROM list ORDER BY id');
+  expect(lists.length, 'every ADIF list in the register must be in the file').toBe(
+    register.lists.filter(list => list.source === 'adif' || list.source === null).length);
+  for (const row of lists) {
+    expect(row.authority, `${row.id} must record who owns it`).toBeTruthy();
+    expect(row.copy, `${row.id} must record where this copy came from`).toBeTruthy();
+    expect(row.authority).not.toBe(row.copy);
+    // Not supplied is null, never 0 (QGD-REF-0006).
+    if (!row.supplied && !row.derived) expect(row.row_count).toBeNull();
+    else expect(row.row_count).toBeGreaterThan(0);
+  }
+  const dxcc = lists.find(row => row.id === 'dxcc-entities');
+  expect(dxcc.authority).toContain('ARRL');
+  expect(dxcc.row_count).toBe(Object.keys(definitions.Enumerations.DXCC_Entity_Code.Records).length);
+  const dok = lists.find(row => row.id === 'darc-dok');
+  expect(dok.supplied).toBe(0);
+  expect(dok.row_count).toBeNull();
+  notes.push(`${lists.length} lists recorded with their owner and their copy as separate facts`);
+
+  // Deleted and import-only are lifted out, and the published row is whole.
+  const deleted = rows(store, "SELECT value FROM enumeration_value WHERE enumeration = 'DXCC_Entity_Code' AND deleted LIMIT 1");
+  expect(deleted.length, 'ADIF marks some DXCC entities deleted').toBe(1);
+  const deletedRow = json(deleted[0].value);
+  expect(deletedRow.Deleted).toBe('true');
+  expect(deletedRow['Entity Name']).toBeTruthy();
+  const importOnly = rows(store, "SELECT count(*) AS held FROM enumeration_value WHERE enumeration = 'Mode' AND import_only")[0];
+  expect(importOnly.held).toBe(
+    Object.values(definitions.Enumerations.Mode.Records).filter(row => row['Import-only']).length);
+  notes.push('deleted and import-only values are kept, flagged, with the published row whole');
+
+  // ---- refreshing again: the same release is not rebuilt ----------------
+  const again = await reference.refresh();
+  expect(again.built, 'the same release, already in the file, must not cause a rebuild').toBe(false);
+  expect(again.status.adif).toEqual(first.status.adif);
+  notes.push('the same release is not rebuilt; the file is the record of what is loaded');
+
+  // ---- an application cannot change it: the file is opened read-only ----
+  let refused;
+  try { store.connection.exec("DELETE FROM enumeration_value WHERE enumeration = 'Mode'"); } catch (error) { refused = error; }
+  expect(refused, 'nothing but a build may change the reference data').toBeDefined();
+  expect(refused.errcode & 0xff, 'refused as read-only (SQLITE_READONLY)').toBe(8);
+  notes.push('the reference data is opened read-only by everything but a build');
+
+  // ---- QGD-REF-0014: a build that cannot happen does not stop anything ----
+  {
+    const offlinePaths = layout(join(root, 'offline profile'));
+    const offlineState = await openState(offlinePaths, STATE, 'reference-load');
+    opened.push(offlineState);
+    const offline = async () => { throw new Error('getaddrinfo ENOTFOUND adif.org.uk'); };
+    const empty = new Reference({ paths: offlinePaths, ddl: DDL, register, state: offlineState,
+      fetchArchive: offline, fetchText: noPota, build });
+    opened.push(empty);
+    const outcome = await empty.refresh();
+    expect(outcome.adif.state, 'a build that cannot happen keeps what there is: nothing').toBe('kept');
+    expect(outcome.adif.failure, 'and says why only as a kind, never with the message').toEqual({ kind: 'fetch' });
+    expect(outcome.built).toBe(false);
+    expect(existsSync(offlinePaths.reference), 'no file is made from nothing').toBe(false);
+    expect(outcome.status.adif.state, 'not loaded is an answer, not a silence').toBe('not loaded');
+    notes.push('a first run with no network has no reference file, and reports it not loaded');
   }
 
   expect(fetches, 'every archive in this run came from the handed-over bytes').toBeGreaterThan(0);
@@ -389,11 +304,9 @@ try {
   for (const note of notes) console.log(`  ${note}`);
 } catch (error) {
   console.error('Reference load failed.');
-  console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
-  if (error.detail) console.error(redact(String(error.detail)).split('\n').slice(0, 10).join('\n'));
+  console.error(redact(String(error?.message ?? error)).split('\n').slice(0, 20).join('\n'));
   process.exitCode = 1;
 } finally {
-  await stop(paths).catch(() => {});
+  for (const handle of opened.reverse()) { try { handle.close(); } catch { /* closing what is left */ } }
   await rm(root, { recursive: true, force: true });
-  await rm(paths.sockets, { recursive: true, force: true });
 }

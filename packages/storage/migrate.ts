@@ -9,7 +9,7 @@
 // migration in it. The store is then exactly as it was before the run.
 import { migrate } from 'drizzle-orm/sqlite-proxy/migrator';
 import { sql } from 'drizzle-orm';
-import { failure } from './errors.js';
+import { StorageFailure, failure } from './errors.js';
 import type { Store } from './sqlite.js';
 
 export const MIGRATIONS_TABLE = '__drizzle_migrations';
@@ -54,4 +54,18 @@ export async function read<TSchema extends Record<string, unknown>>(store: Store
       .catch(() => undefined);
     return { count: Number(count?.[0] ?? 0), latest: latest?.[0] ?? undefined };
   });
+}
+
+// reference.sqlite's DDL (QGD-ENG-0015): run here, beside the migrator, as the
+// other place SQL text the frame ships reaches SQLite. The statements are the
+// rendered file in drizzle/reference/. The caller holds the transaction.
+export function applyDdl<TSchema extends Record<string, unknown>>(store: Store<TSchema>, statements: string[]): void {
+  for (const statement of statements) store.connection.exec(statement);
+}
+
+// The schema version a derived file carries. An integer, checked, because it
+// is written into a PRAGMA that cannot take a bound value.
+export function stampVersion<TSchema extends Record<string, unknown>>(store: Store<TSchema>, version: number): void {
+  if (!Number.isInteger(version) || version < 0 || version > 2 ** 31 - 1) throw new StorageFailure({ kind: 'build' });
+  store.connection.exec(`PRAGMA user_version = ${version}`);
 }

@@ -79,7 +79,9 @@ const CONTROLS = [
   { name: 'no-restricted-syntax', match: 'QGD-SEC-0005', label: 'sql.raw ban', path: 'scripts/__control__.mjs', code: 'sql.raw(value);\n' },
   { name: 'no-restricted-syntax', match: 'QGD-ENG-0016', label: 'storage error-message ban', path: 'packages/storage/__control__.mjs', code: 'try { run(); } catch (error) { report(error.message); }\n' },
   { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage non-literal SQL ban', path: 'packages/storage/__control__.mjs', code: 'connection.prepare(query);\n' },
-  { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage literal SQL', path: 'packages/storage/__control__.mjs', code: "connection.exec('PRAGMA journal_mode = DELETE');\n", expect: false }
+  { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage literal SQL', path: 'packages/storage/__control__.mjs', code: "connection.exec('PRAGMA journal_mode = DELETE');\n", expect: false },
+  { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage regex exec', path: 'packages/storage/__control__.mjs', code: 'const found = /^x$/.exec(name);\n', expect: false },
+  { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage non-literal exec', path: 'packages/storage/__control__.mjs', code: 'store.connection.exec(statement);\n' }
 ];
 
 // Some rules cannot be fixture-tested where they matter: a fixture under packages/

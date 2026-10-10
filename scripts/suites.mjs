@@ -62,6 +62,7 @@ export function suiteCommands(npmCli) {
   // node:sqlite loads under plain Node, so they need no window or engine.
   ['storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage.test.ts']],
   ['storage-migrations', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage-migrations.test.ts']],
+  ['reference-build', ['node_modules/vitest/vitest.mjs', 'run', 'tests/reference-build.test.ts']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],

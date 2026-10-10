@@ -31,4 +31,15 @@ export const appState = sqliteTable(
   (table) => [primaryKey({ columns: [table.appId, table.key] })]
 );
 
-export const stateSchema = { installation, appState };
+// The outcome of reference refreshes, per source (QGD-ENG-0015.1). What is
+// loaded is not recorded here: reference.sqlite's own source table is the
+// record of that, and this table is written after the swap. A failure is
+// recorded as an error kind only (QGD-ENG-0016).
+export const referenceRefresh = sqliteTable('reference_refresh', {
+  sourceId: text('source_id').primaryKey(),
+  lastAttempt: text('last_attempt'),
+  lastCheck: text('last_check'),
+  lastFailure: text('last_failure')
+});
+
+export const stateSchema = { installation, appState, referenceRefresh };

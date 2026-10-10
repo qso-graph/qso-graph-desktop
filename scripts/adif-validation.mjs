@@ -3,37 +3,35 @@
 // exit gate (QGD-PRT-0105, QGD-REF-0005, QGD-REF-0006, QGD-REF-0008,
 // QGD-REF-0016).
 //
-// The validator answers from the loaded data, so this runs a real engine,
-// loads ADIF's definitions into it, reads the rules back out of PostgreSQL and
-// validates ADIF's own 6,197 test QSOs with them. A field this product calls
+// The validator answers from the loaded data, so this builds a real
+// reference.sqlite, reads the rules back out of it and validates ADIF's own
+// 6,197 test QSOs with them. A field this product calls
 // invalid is a finding against this product until shown otherwise, which is
 // what QGD-REF-0008 says and what the run below holds to.
 //
 // Three properties, and the controls that stop each from passing vacuously:
 //
-// - the rules come from the database, not from this repository. Proved by
-//   adding a mode to the database and seeing a QSO using it accepted with no
-//   code change — and by removing one and seeing it refused.
+// - the rules come from the data, not from this repository. Proved by adding
+//   a mode to a writable copy of the file and seeing a QSO using it accepted
+//   with no code change — and by removing one and seeing it refused.
 // - "not checked against a list" is a third answer. Proved by the count of
 //   them being what ADIF's archive accounts for, each with its reason.
 // - a value the lists do cover and do not hold is still invalid. Without this,
 //   QGD-REF-0016's coverage rule would be a way of passing everything.
 import { expect } from '@playwright/test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { redact } from './report.mjs';
-import { binariesDirectory } from './postgres-build.mjs';
-import { initialise, stop } from '../dist/engine/supervisor.js';
-import { bringUp } from '../dist/engine/start.js';
-import { chooseSocketDirectory, socketCandidates } from '../dist/engine/endpoint.js';
-import { connectAsSuperuser } from '../dist/engine/roles.js';
-import { REFERENCE_SCHEMA } from '../dist/reference/schema.js';
 import { openArchive } from '../dist/reference/fetch.js';
 import { parseAdi } from '../dist/reference/adi.js';
-import { readRuleset, rulesetOf, validateRecord } from '../dist/reference/validate.js';
+import { rulesetOf, validateRecord } from '../dist/reference/validate.js';
+import { layout, openState } from '../dist/storage/layout.js';
+import { Reference } from '../dist/storage/reference.js';
+import { buildReference } from '../dist/storage/reference-build.js';
+import { readReferenceRuleset } from '../dist/storage/reference-read.js';
+import { openStore } from '../dist/storage/sqlite.js';
 
-const build = JSON.parse(await readFile('data/postgres-build.json', 'utf8'));
 const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const release = register.adif;
 const cached = resolve('vendor', '.cache', `adif-${release.version}.zip`);
@@ -45,16 +43,10 @@ if (!archiveBytes) {
 const handOver = async () => archiveBytes;
 
 const root = await mkdtemp(join(tmpdir(), 'qg-adif-cases-'));
-const base = join(root, 'Application Support', 'QSO Graph Desktop');
-const paths = {
-  binaries: join(binariesDirectory(build), 'bin'),
-  data: join(base, 'data'),
-  sockets: chooseSocketDirectory(socketCandidates(join(base, 'data'), join(base, 'sockets'))),
-  logs: join(base, 'logs')
-};
-const endpoint = { kind: 'socket', directory: paths.sockets };
-const cache = join(base, 'reference');
+const paths = layout(join(root, 'QSO Graph Desktop'));
 const notes = [];
+const opened = [];
+const noPota = async () => { throw new Error('POTA is not part of this suite'); };
 
 // One tag, as the ADI reader would have produced it.
 const tag = (name, value, indicator) => ({
@@ -66,21 +58,32 @@ const verdictOf = (ruleset, tags, field) => {
 };
 
 try {
-  await initialise(paths);
-  await bringUp(paths, endpoint, {
-    migrations: resolve('drizzle'),
-    buildFile: resolve('data/postgres-build.json'),
-    reference: { register, cacheDirectory: cache, fetchArchive: handOver }
+  const state = await openState(paths, resolve('drizzle/state'), 'adif-validation');
+  opened.push(state);
+  const reference = new Reference({
+    paths, ddl: resolve('drizzle/reference'), register, state, fetchArchive: handOver, fetchText: noPota,
+    build: (target, ddl, inputs) => buildReference(target, ddl, inputs)
   });
-  const archive = await openArchive(release, cache, handOver);
-  const client = await connectAsSuperuser(endpoint);
+  opened.push(reference);
+  const built = await reference.refresh();
+  expect(built.status.adif.state, 'the reference file must hold ADIF').toBe('loaded');
+  const archive = await openArchive(release, paths.referenceCache, handOver);
+  const live = reference.reader();
+  // A writable copy for the controls that change the data; the live file is
+  // read-only to everything but a build (QGD-ENG-0015).
+  const scratchPath = join(root, 'scratch.sqlite');
+  await copyFile(paths.reference, scratchPath);
+  const scratch = openStore(scratchPath, { journal: 'delete' });
+  opened.push(scratch);
+  const run = (text, ...params) => scratch.connection.prepare(text).run(...params);
+  const all = (store, text, ...params) => store.connection.prepare(text).all(...params);
 
   try {
-    // ---- the rules come out of the database ------------------------------
-    const ruleset = await readRuleset(client);
+    // ---- the rules come out of reference.sqlite --------------------------
+    const ruleset = await readReferenceRuleset(live);
     expect(ruleset.version).toBe(release.version);
     const fromArchive = rulesetOf(archive.definitions);
-    // The load must lose nothing: the ruleset read back from PostgreSQL is
+    // The load must lose nothing: the ruleset read back from reference.sqlite is
     // the one the archive describes, field for field and value for value.
     expect([...ruleset.fields.keys()].sort()).toEqual([...fromArchive.fields.keys()].sort());
     expect([...ruleset.enumerations.keys()].sort()).toEqual([...fromArchive.enumerations.keys()].sort());
@@ -92,7 +95,7 @@ try {
     for (const [name, rule] of ruleset.fields) {
       expect(rule, name).toEqual(fromArchive.fields.get(name));
     }
-    notes.push(`the ruleset read back from PostgreSQL is the archive's, for all ${ruleset.fields.size} fields ` +
+    notes.push(`the ruleset read back from reference.sqlite is the archive's, for all ${ruleset.fields.size} fields ` +
       `and ${ruleset.enumerations.size} enumerations`);
 
     // ---- P5-adif-cases: ADIF's own test QSOs -----------------------------
@@ -197,46 +200,36 @@ try {
       expect(verdictOf(ruleset, [tag('MODE', mode)], 'MODE').verdict).toBe('invalid');
       // A mode added to the data is accepted, with nothing recompiled and no
       // code aware of it (QGD-REF-0005).
-      await client.query(
-        `INSERT INTO ${REFERENCE_SCHEMA}.enumeration_value (enumeration, key, value) VALUES ($1, $2, $3)`,
-        ['Mode', mode, JSON.stringify({ 'Enumeration Name': 'Mode', Mode: mode })]);
-      const afterAdding = await readRuleset(client);
+      run('INSERT INTO enumeration_value (enumeration, key, value) VALUES (?, ?, ?)',
+        'Mode', mode, JSON.stringify({ 'Enumeration Name': 'Mode', Mode: mode }));
+      const afterAdding = await readReferenceRuleset(scratch);
       expect(verdictOf(afterAdding, [tag('MODE', mode)], 'MODE').verdict,
         'a mode added to the data must be accepted without a code change').toBe('valid');
 
       // And the reverse, which is the control: removing a real one refuses it.
-      await client.query(
-        `DELETE FROM ${REFERENCE_SCHEMA}.enumeration_value WHERE enumeration = 'Mode' AND key = 'SSB'`);
-      const afterRemoving = await readRuleset(client);
+      run("DELETE FROM enumeration_value WHERE enumeration = 'Mode' AND key = 'SSB'");
+      const afterRemoving = await readReferenceRuleset(scratch);
       expect(verdictOf(afterRemoving, [tag('MODE', 'SSB')], 'MODE').verdict,
         'and a mode taken out of the data must stop being accepted').toBe('invalid');
 
-      // Put the data back as it was, so what follows reads the real thing.
-      await client.query(
-        `DELETE FROM ${REFERENCE_SCHEMA}.enumeration_value WHERE enumeration = 'Mode' AND key = $1`, [mode]);
-      await client.query(
-        `INSERT INTO ${REFERENCE_SCHEMA}.enumeration_value (enumeration, key, value) VALUES ($1, $2, $3)`,
-        ['Mode', 'SSB', JSON.stringify({ 'Enumeration Name': 'Mode', Mode: 'SSB' })]);
-      const restored = await readRuleset(client);
-      expect(verdictOf(restored, [tag('MODE', 'SSB')], 'MODE').verdict).toBe('valid');
+      // And the live file was never touched: it still accepts SSB.
+      const unchanged = await readReferenceRuleset(live);
+      expect(verdictOf(unchanged, [tag('MODE', 'SSB')], 'MODE').verdict).toBe('valid');
+      expect(verdictOf(unchanged, [tag('MODE', mode)], 'MODE').verdict).toBe('invalid');
       notes.push('a mode added to the data is accepted and one removed is refused, with no code change');
     }
 
     // ---- an import-only value, and a deleted one -------------------------
     {
       // ADIF marks some modes import-only: they may be read, not written.
-      const importOnly = await client.query(
-        `SELECT key FROM ${REFERENCE_SCHEMA}.enumeration_value
-         WHERE enumeration = 'Mode' AND import_only LIMIT 1`);
-      const result = verdictOf(ruleset, [tag('MODE', importOnly.rows[0].key)], 'MODE');
+      const importOnly = all(live, "SELECT key FROM enumeration_value WHERE enumeration = 'Mode' AND import_only LIMIT 1");
+      const result = verdictOf(ruleset, [tag('MODE', importOnly[0].key)], 'MODE');
       expect(result.verdict, 'an import-only value is valid to read').toBe('valid');
       expect(result.importOnly, 'and is marked as one, so nothing writes it back').toBe(true);
 
       // A deleted DXCC entity is still right in a QSO from 1991.
-      const deleted = await client.query(
-        `SELECT key FROM ${REFERENCE_SCHEMA}.enumeration_value
-         WHERE enumeration = 'DXCC_Entity_Code' AND deleted LIMIT 1`);
-      const old = verdictOf(ruleset, [tag('DXCC', deleted.rows[0].key)], 'DXCC');
+      const deleted = all(live, "SELECT key FROM enumeration_value WHERE enumeration = 'DXCC_Entity_Code' AND deleted LIMIT 1");
+      const old = verdictOf(ruleset, [tag('DXCC', deleted[0].key)], 'DXCC');
       expect(old.verdict).toBe('valid');
       expect(old.deleted).toBe(true);
       notes.push('an import-only value is valid and marked; a deleted entity is valid and marked');
@@ -291,18 +284,15 @@ try {
       notes.push("a user-defined field is checked against the type, enumeration or range its header declared");
     }
   } finally {
-    await client.end();
+    for (const handle of opened.reverse()) { try { handle.close(); } catch { /* closing what is left */ } }
   }
 
   console.log(`ADIF validation: ${notes.length} checks: PASS`);
   for (const note of notes) console.log(`  ${note}`);
 } catch (error) {
   console.error('ADIF validation failed.');
-  console.error(redact(error.message).split('\n').slice(0, 24).join('\n'));
-  if (error.detail) console.error(redact(String(error.detail)).split('\n').slice(0, 10).join('\n'));
+  console.error(redact(String(error?.message ?? error)).split('\n').slice(0, 24).join('\n'));
   process.exitCode = 1;
 } finally {
-  await stop(paths).catch(() => {});
   await rm(root, { recursive: true, force: true });
-  await rm(paths.sockets, { recursive: true, force: true });
 }
