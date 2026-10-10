@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { redact } from './report.mjs';
+import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 const require = createRequire(import.meta.url);
 const axeSource = await readFile(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -62,6 +63,7 @@ try {
     timeout: 30_000
   });
   const page = await application.firstWindow();
+  await assertNoVisibleWindow(application, page, 'axe');
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Personas', exact: true }).click();

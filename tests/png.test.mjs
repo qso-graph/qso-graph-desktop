@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { compare, decode, describeDiff } from '../scripts/png.mjs';
+import { colourCount, compare, decode, describeDiff } from '../scripts/png.mjs';
 
 // The committed baselines are the real input this decoder exists to read, so
 // they are what it is tested against rather than something synthesised.
@@ -153,5 +153,36 @@ describe('describing a difference', () => {
     // a region from Infinity.
     const same = describeDiff(image(4, 4, [1, 2, 3, 4]), image(4, 4, [1, 2, 3, 4]));
     expect(same).toBe('no differing pixel found on the second pass');
+  });
+});
+
+describe('colourCount', () => {
+  const image = (colours) => {
+    const pixels = Buffer.alloc(colours.length * 4);
+    colours.forEach(([r, g, b, a], i) => {
+      pixels[i * 4] = r; pixels[i * 4 + 1] = g; pixels[i * 4 + 2] = b; pixels[i * 4 + 3] = a;
+    });
+    return { width: colours.length, height: 1, pixels };
+  };
+
+  it('is 1 for a blank frame, which is what it exists to catch', () => {
+    // The failure it guards: a window hidden for a suite run hands back an
+    // empty frame, `stableShot` finds it perfectly stable, and it becomes the
+    // baseline KI7MT approves (KI7MT, 2026-10-10).
+    expect(colourCount(image(Array(64).fill([0, 0, 0, 255])))).toBe(1);
+    expect(colourCount(image(Array(64).fill([255, 255, 255, 255])))).toBe(1);
+    // Fully transparent is blank too, and differs from black only in alpha.
+    expect(colourCount(image(Array(64).fill([0, 0, 0, 0])))).toBe(1);
+  });
+
+  it('counts a real range and stops at the cap', () => {
+    const many = Array.from({ length: 200 }, (_, i) => [i, 255 - i, i % 7, 255]);
+    expect(colourCount(many.length ? image(many) : image([]))).toBe(64);
+    expect(colourCount(image(many), 8)).toBe(8);
+  });
+
+  it('separates two colours that differ in one channel only', () => {
+    expect(colourCount(image([[10, 10, 10, 255], [10, 10, 11, 255]]))).toBe(2);
+    expect(colourCount(image([[10, 10, 10, 255], [10, 10, 10, 254]]))).toBe(2);
   });
 });

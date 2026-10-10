@@ -154,3 +154,21 @@ export function describeDiff(a, b) {
     ...samples.map(line => `      ${line}`)
   ].join('\n');
 }
+
+// How many distinct colours an image holds, capped so a large image costs no
+// more than a small one to judge.
+//
+// This exists because of how the windows were hidden (KI7MT, 2026-10-10).
+// A window that never appears can still hand back an empty frame on macOS,
+// and `stableShot` cannot tell: a blank capture is perfectly stable, so it
+// would compare equal to itself and be written as the baseline. All eight
+// baselines change in this round anyway (D9), so a comparison failure proves
+// nothing either way — the blankness has to be asserted directly.
+export function colourCount({ pixels }, cap = 64) {
+  const seen = new Set();
+  for (let i = 0; i + 3 < pixels.length; i += 4) {
+    seen.add((pixels[i] << 24) | (pixels[i + 1] << 16) | (pixels[i + 2] << 8) | pixels[i + 3]);
+    if (seen.size >= cap) return seen.size;
+  }
+  return seen.size;
+}

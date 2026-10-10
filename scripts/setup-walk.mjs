@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { redact } from './report.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
+import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003). Called before the core is
@@ -43,6 +44,7 @@ try {
     timeout: 30_000
   });
   const page = await application.firstWindow();
+  await assertNoVisibleWindow(application, page, 'setup-walk');
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Personas', exact: true }).click();
 

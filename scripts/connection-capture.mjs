@@ -50,6 +50,7 @@ import { violations, NETWORK_EXCEPTIONS, productSources } from './network-static
 import { sentinelsIn } from './artifact-scan.mjs';
 import { redact } from './report.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
+import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003). Called before the core is
@@ -214,6 +215,7 @@ try {
     session.defaultSession.webRequest.onErrorOccurred(record('error'));
   });
   const page = await application.firstWindow();
+  await assertNoVisibleWindow(application, page, 'connection-capture');
   const mainPid = await application.evaluate(() => process.pid);
 
   poller = setInterval(() => {

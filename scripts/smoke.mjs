@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { redact } from './report.mjs';
 import { entries } from './unzip.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
+import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003). Called before the core is
@@ -45,6 +46,7 @@ const launch = () => electron.launch({ args: ['.'], cwd: process.cwd(), env: { .
 try {
   application = await launch();
   let page = await application.firstWindow();
+  await assertNoVisibleWindow(application, page, 'smoke');
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Personas', exact: true }).click();

@@ -29,7 +29,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { redact } from './report.mjs';
-import { compare, decode, describeDiff } from './png.mjs';
+import { colourCount, compare, decode, describeDiff } from './png.mjs';
+import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 // Who is approving. An agent passing --approve has to say so, and what it
 // writes lands in "awaiting" rather than in "approved": the register is the
@@ -62,7 +63,20 @@ async function stableShot(page, path) {
     const shot = await page.screenshot({ path, mask: VOLATILE.map(selector => page.locator(selector)), maskColor: '#888888' });
     if (previous) {
       last = compare(decode(previous), decode(shot));
-      if (last.same) return shot;
+      if (last.same) {
+        // A window that is never shown can hand back an empty frame, and an
+        // empty frame is stable — so settling is not evidence of a picture.
+        const colours = colourCount(decode(shot));
+        if (colours < 16) {
+          throw new Error(
+            `${path}: the capture holds ${colours} colour(s), which is a blank `
+            + 'frame rather than a screen. The window is hidden during a suite '
+            + 'run (packages/main/window-visibility.ts); capture has to keep '
+            + 'working with it hidden.'
+          );
+        }
+        return shot;
+      }
     }
     previous = shot;
     await page.waitForTimeout(250);
@@ -208,6 +222,7 @@ try {
     timeout: 30_000
   });
   const page = await application.firstWindow();
+  await assertNoVisibleWindow(application, page, 'screenshots');
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Personas', exact: true }).click();

@@ -17,6 +17,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { redact } from './report.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
+import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003).
@@ -95,6 +96,7 @@ try {
     timeout: 30_000
   });
   const page = await application.firstWindow();
+  await assertNoVisibleWindow(application, page, 'process-recovery');
   const mainPid = await application.evaluate(() => process.pid);
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })

@@ -8,6 +8,7 @@ import { startPersonaBroker } from './persona-broker.js';
 import { createLogger } from '../logging/logger.js';
 import { load, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
+import { windowVisibility } from './window-visibility.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
@@ -44,6 +45,8 @@ app.commandLine.appendSwitch('no-pings');
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,AutofillServerCommunication');
 
 function createWindow(): void {
+  // A suite run never puts a window on screen (KI7MT, 2026-10-10).
+  const visibility = windowVisibility();
   const window = new BrowserWindow({
     width: 1100,
     height: 740,
@@ -53,7 +56,11 @@ function createWindow(): void {
     // Read here rather than fixed: the renderer themes itself a moment later,
     // and this is the frame before that (QGD-FRM-0001).
     backgroundColor: windowBackground(load().theme, nativeTheme.shouldUseDarkColors),
-    show: false,
+    show: visibility.show,
+    // Stated rather than left to the default: a window that is never shown
+    // still has to paint, or `ready-to-show` never fires and a suite has
+    // nothing to capture.
+    paintWhenInitiallyHidden: visibility.paintWhenInitiallyHidden,
     webPreferences: {
       sandbox: true,
       preload: join(distDirectory, 'preload', 'preload.cjs'),
@@ -80,7 +87,9 @@ function createWindow(): void {
   });
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.on('will-attach-webview', event => event.preventDefault());
-  window.once('ready-to-show', () => window.show());
+  // `show: false` above only avoids the white frame at startup; this is what
+  // decides whether the window is ever seen.
+  window.once('ready-to-show', () => { if (visibility.reveal) window.show(); });
   void window.loadURL('qg://desktop/index.html').catch(() => {
     // Deliberately exclude exception payloads and paths from diagnostics.
     log.error({}, 'the bundled page could not be loaded');
