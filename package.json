@@ -13,7 +13,8 @@
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir --publish never",
     "installer": "npm run build && electron-builder --publish never",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "check": "node scripts/verify.mjs --fast"
   },
   "devDependencies": {
     "@doyensec/electronegativity": "1.10.3",

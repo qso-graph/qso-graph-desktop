@@ -57,7 +57,7 @@ export function suiteCommands(npmCli) {
   ['adif-reference', ['scripts/adif-reference.mjs']],
   ['package-boundaries', ['scripts/package-boundaries.mjs']],
   ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/engine-binaries.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/app-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/app-broker.test.mjs', 'tests/app-serve.test.ts', 'tests/deadlines.test.mjs', 'tests/suite-timeouts.test.mjs']],
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/engine-binaries.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/app-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/app-broker.test.mjs', 'tests/app-serve.test.ts', 'tests/deadlines.test.mjs', 'tests/suite-timeouts.test.mjs', 'tests/suite-speed.test.mjs']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
@@ -83,6 +83,60 @@ export function suiteCommands(npmCli) {
   ['electron-audit', ['scripts/electron-audit.mjs']],
   ['package-contents', ['scripts/package-contents.mjs']]
 ];
+}
+
+// Which suites a development run skips, and why they are derived rather than
+// listed.
+//
+// Podman Desktop and VS Code both run lint, typecheck and unit tests on every
+// change and push the expensive end-to-end set to main or a nightly schedule
+// (podman-desktop/.github/workflows/pr-check.yaml against e2e-main.yaml;
+// microsoft/vscode/.github/workflows/pr.yml against the per-platform
+// pr-*-test.yml). The content is all still there — it is simply not in the way
+// of every edit.
+//
+// `make verify` is unchanged and still runs every check (`QGD-TST-0001`). This
+// is a second, narrower command for development, and it changes no gate.
+//
+// A suite is slow if its own script launches Electron or Playwright, or if it
+// reads the packaged artifact — both read off the script rather than written
+// down here, because a list of names is a thing somebody has to remember to
+// extend and this project has four gates that went quiet exactly that way
+// (`QGD-SEC-0021` is the same rule for the network scan's scope).
+import { readFileSync } from 'node:fs';
+
+// Three signals, all read off the suite's own script.
+//
+//   - it drives a window, or builds or audits a package
+//   - it reads the operator's real credential store, so it can raise a
+//     Keychain prompt and is not something to run on every save
+//   - it builds the component gallery, which is a Storybook build
+const LAUNCHES = /@playwright\/test|_electron|electron-builder|electronegativity/;
+const TOUCHES_KEYCHAIN = /keychain-service\.mjs|QG_DESKTOP_TEST_KEYCHAIN/;
+const BUILDS_GALLERY = /node_modules\/\.bin\/storybook/;
+
+// The packaging chain: these need an artifact that only `package` produces, so
+// they cannot run in a development pass whatever their script imports.
+const NEEDS_PACKAGE = ['package', 'packaged-launch', 'electron-audit', 'package-contents'];
+
+export function isSlowSuite(name, args) {
+  if (NEEDS_PACKAGE.includes(name)) return true;
+  const script = args.find(arg => typeof arg === 'string' && arg.startsWith('scripts/'));
+  if (!script) return false;
+  try {
+    const text = readFileSync(script, 'utf8');
+    return LAUNCHES.test(text) || TOUCHES_KEYCHAIN.test(text) || BUILDS_GALLERY.test(text);
+  } catch {
+    // A suite whose script cannot be read is treated as slow: running it in a
+    // development pass and having it fail for a missing file would be a
+    // development gate reporting a problem it cannot explain.
+    return true;
+  }
+}
+
+// The development pass: everything that needs no window and no package.
+export function fastSuiteCommands(npmCli) {
+  return suiteCommands(npmCli).filter(([name, args]) => !isSlowSuite(name, args));
 }
 
 export function suiteNames() {

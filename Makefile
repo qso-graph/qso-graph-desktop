@@ -1,4 +1,4 @@
-.PHONY: setup verify build start package installer
+.PHONY: setup check verify build start package installer
 
 # Everything a clean machine needs before `make verify` will run: the npm
 # dependencies, the pinned PostgreSQL build (QGD-ENG-0004) and the pinned ADIF
@@ -16,6 +16,12 @@ setup:
 	node scripts/fetch-postgres.mjs
 	node scripts/fetch-adif.mjs
 	node scripts/fetch-pota.mjs
+
+# The development pass: the suites that need no window, no package and no
+# credential store. Seconds, not the better part of an hour, and it writes no
+# report — make verify is still the only thing that does (QGD-TST-0001).
+check:
+	npm run check
 
 verify:
 	npm run verify

@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { markdown, redact } from './report.mjs';
 import { blockedBy } from './suite-gate.mjs';
 import { artifactScan, sentinelsIn } from './artifact-scan.mjs';
-import { suiteCommands, suiteTimeout } from './suites.mjs';
+import { fastSuiteCommands, suiteCommands, suiteTimeout } from './suites.mjs';
 
 await mkdir('report', { recursive: true });
 let previous;
@@ -15,7 +15,17 @@ try { signedOff = JSON.parse(await readFile('data/part-signoff.json', 'utf8')).s
 catch { signedOff = []; }
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run verification with make verify or npm run verify.');
-const commands = suiteCommands(npmCli);
+// --fast: the development pass. Everything that needs no window, no package
+// and no credential store — nine of the suites, which is roughly the shape of
+// Podman Desktop's pr-check and VS Code's pr.yml.
+//
+// It writes NO report, deliberately. report/report.md and report/summary.json
+// are the evidence a Part is signed off against (`QGD-TST-0001` has one
+// command run every check), and a fast run that produced them would be a
+// partial run wearing a full run's clothes. So a development pass prints and
+// exits, and `make verify` remains the only thing that reports.
+const fast = process.argv.includes('--fast');
+const commands = fast ? fastSuiteCommands(npmCli) : suiteCommands(npmCli);
 const suites = [];
 for (const [name, args] of commands) {
   // QGD-TST-0007: stop only the suites whose result depends on what failed.
@@ -58,6 +68,19 @@ const write = async () => {
   await writeFile('report/summary.json', JSON.stringify(report, null, 2) + '\n');
   await writeFile('report/report.md', markdown(report));
 };
+if (fast) {
+  const failed = suites.filter(suite => suite.result !== 'PASS');
+  for (const suite of failed) {
+    console.error(`${suite.name}: ${suite.result}`);
+    if (suite.failure) console.error(suite.failure.split('\n').slice(0, 12).map(line => `  ${line}`).join('\n'));
+  }
+  console.log(failed.length === 0
+    ? `Development pass: ${suites.length} of ${suiteCommands(npmCli).length} suites PASS. `
+      + 'No report written; run make verify before a sign-off.'
+    : `Development pass: ${failed.length} of ${suites.length} FAILED.`);
+  process.exitCode = failed.length === 0 ? 0 : 1;
+} else {
+
 // Written once so the artifact scan has this run's report and summary to read —
 // no suite can scan them, because they do not exist until every suite is done.
 await write();
@@ -76,3 +99,4 @@ await write();
 
 console.log(`Local verification: ${report.result}. See report/report.md.`);
 process.exitCode = report.result === 'PASS' ? 0 : 1;
+}

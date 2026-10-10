@@ -221,8 +221,27 @@ Versions change, so pick the current ones rather than the names here.
 ## Essential commands
 
 ```bash
-make verify                          # the full gate
+make check                           # the development pass: 9 suites, ~10 seconds
+make verify                          # the full gate: every suite, and the only thing that reports
 node scripts/gen-rvm.mjs             # regenerate the RVM after a spec change
-node scripts/gen-rvm.mjs --check     # confirm the RVM matches the spec
+node scripts/gen-rvm.mjs --check     # confirm the RVM matches the spec — the whole gate for a prose spec edit
 grep -n "QGD-CRD-0009" spec/QGD-SPEC-001.md   # read a requirement by ID
 ```
+
+**Use `make check` while working and `make verify` before a sign-off.** The split
+follows Podman Desktop and VS Code, which run lint, typecheck and unit tests on every
+change and push the expensive end-to-end set to `main` or a nightly schedule
+(`podman-desktop/.github/workflows/pr-check.yaml` against `e2e-main.yaml`;
+`microsoft/vscode/.github/workflows/pr.yml` against the per-platform `pr-*-test.yml`).
+Nothing was removed — `make verify` still runs every check (`QGD-TST-0001`), and it is
+still the only command that writes `report/`, so a development pass cannot be mistaken
+for a verification.
+
+Which half a suite falls in is derived from its own script, never listed: a suite is
+slow if it drives a window, builds or audits a package, reads the operator's credential
+store, or builds the gallery. `tests/suite-speed.test.mjs` holds the derivation to known
+cases, because the way two sets fail is by quietly stopping adding up.
+
+And match the gate to the change. A prose edit to the spec needs
+`node scripts/gen-rvm.mjs --check` and nothing else — nothing in `tests/` reads the
+spec. Running thirty-one suites to check a paragraph is how an afternoon disappears.
