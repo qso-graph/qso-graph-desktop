@@ -1,6 +1,6 @@
-# Rust persona core — local Mac build
+# Rust credential core — local Mac build
 
-The core owns its entry names and stored formats (`QGD-CRD-0003`). They began as
+The credential core owns its entry names and stored formats (`QGD-CRD-0003`). They began as
 `qso-graph-auth`'s and are kept because they work, not because anything else reads
 them — `QGD-CRD-0004` rules out Python and MCP interoperability in any Part:
 
@@ -38,11 +38,11 @@ Registered before implementation:
 | persona-records | create, update, list and case-insensitive lookup preserve the stored record format; date ordering is validated |
 | persona-active | a known persona can be selected; missing names are refused |
 | credential-selection | QRZ logbook uses the key when both values exist; other providers retain password-first behavior |
-| rust-unit | the core's own unit tests, including the simulated Keychain refusal and retry, run under `make verify` |
+| rust-unit | the credential core's own unit tests, including the simulated Keychain refusal and retry, run under `make verify` |
 | keychain-roundtrip | the writing process round-trips, replaces, selects and deletes its own unique synthetic entry; a metadata-only lookup confirms the convention name; cleanup in all exit paths |
 | credential-isolation | two synthetic personas cannot read one another's entries |
 | secret-containment | public display/status APIs return presence flags, never secrets; non-secret files and captured output contain no fixture secret |
-| ipc-boundary | wrong frame, malformed commands and extra fields are refused; core lives in a utility process |
+| ipc-boundary | wrong frame, malformed commands and extra fields are refused; the credential core lives in a utility process |
 | usable-mac | create and select a persona, save and remove a synthetic service credential through the UI; state survives restart |
 | process-recovery | killing the persona utility process leaves the window present and answering; a request in the held-open outage is refused with a static message, not queued; the service restarts unaided as a different pid and the record is unchanged; thirteen malformed commands are refused; a subframe can be created but holds no persona bridge and is unreachable from the main frame |
 | connection-capture | across a full credential workflow no process in the tree holds an endpoint outside loopback, and the renderer and credential core hold none; the renderer reaches a listener by none of its seven outbound routes; no outbound-network API appears in the product TypeScript; three detectors each carry a positive control |
@@ -91,7 +91,7 @@ Password and API key can be removed independently. Saving only one field keeps
 the other saved field; empty inputs are not deletion requests. Removing the last
 secret removes the Keychain entry. The service default keeps the original
 selection order; a desktop override prefers password or API key and falls back
-to the other if the preferred value is missing. The core enforces that choice.
+to the other if the preferred value is missing. The credential core enforces that choice.
 Overrides are non-secret, stored in `desktop-preferences.json` per persona and
 provider. Nothing outside this application reads them.
 

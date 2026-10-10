@@ -4,7 +4,20 @@
 
 # QSO Graph Desktop
 
-A local macOS preview of QSO Graph Desktop with a Rust persona core. Create or
+**QSO Graph Desktop is an extensible desktop platform for amateur radio: a secure core that ham
+radio extensions build on.** One app for your station, with the tools you choose.
+
+The core gives every extension, for free:
+
+- **your identities and credentials**, kept safely, with no extension ever seeing a password
+- **reference data** (ADIF's definitions, POTA's parks), fetched, verified and kept current
+- **storage**: each extension's own database, with nothing to set up
+- **one look and one way of working** across every extension
+
+An extension author writes only the ham part. Our own code, built from the ground up on proven
+open-source practice.
+
+**Status:** a local macOS preview of QSO Graph Desktop with a Rust credential core. Create or
 edit station personas, select the active persona, and save or remove service
 credentials in macOS Keychain. Saved passwords and API keys are never displayed.
 Remove password and API key independently, choose which to prefer, or remove a

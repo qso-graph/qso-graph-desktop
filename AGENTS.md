@@ -20,12 +20,22 @@ has a bug.
 
 ## The product, in one paragraph
 
-QSO Graph Desktop is an Electron desktop application for hams, built as a **frame plus apps**,
-modelled on Podman Desktop. The **frame** (Parts P0–P7) holds only what every app needs and what
-protects the user: the Rust credential core, the process map, the shell, storage (SQLite files the
-frame opens in one utility process), reference data, personas, and the app API with its grants. **Apps** (P8 onward) do the
-ham work and reach the frame only through the app API, exactly as a contributed app would
-(`QGD-PRT-0005`, `QGD-REP-0003`). The build order is the catalogue in spec §2.1 and nowhere else.
+QSO Graph Desktop is an extensible Electron desktop platform for hams: a **core** that
+**extensions** build on, layered and named the way Podman Desktop and VS Code are. The **core**
+(Parts P0–P7) holds only what every extension needs and what protects the user: the Rust
+**credential core**, the process map, the shell, storage (SQLite files the core opens in one utility
+process), reference data, personas, and the **extension API** with its grants. **Extensions** (P8
+onward) do the ham work and reach the core only through the extension API, exactly as a third-party
+extension would (`QGD-PRT-0005`, `QGD-REP-0003`). They come as **built-in**, **official** (ours,
+installed by choice) or **third-party**: spec §4.5 has the table, `QGD-HDBK-001` §14 the reasons.
+The build order is the catalogue in spec §2.1 and nowhere else.
+
+Two words to keep apart: **the core** is the platform; **the credential core** is the Rust addon
+in `packages/persona-core`. Never call the second one "the core".
+
+The code still uses the earlier names (`packages/app-api`, `apps/`, the app broker, "app" in
+manifests and grants) until the one-pass rename in `qso-graph-desktop#34`. Write new prose in the
+new words, and name code by what it is called today.
 
 ## Mental model for any change
 
@@ -40,7 +50,7 @@ This section is navigation; the requirements themselves are in the spec.
 | Storage, schema, migrations, reference data files | `storage` | `QGD-ENG-*` |
 | Reference data (ADIF, POTA…) | `reference` | `QGD-REF-*` |
 | Personas and services | `personas` | `QGD-PSN-*` |
-| Anything a ham *does* | an app in `apps/`, through `app-api` only | `QGD-APP-*`, `QGD-REP-0003` |
+| Anything a ham *does* | an extension in `apps/`, through `app-api` only | `QGD-APP-*`, `QGD-REP-0003` |
 
 Four things are easy to get wrong, so check them on every change:
 
@@ -67,7 +77,7 @@ macOS on Apple silicon is the only platform before Release 1 (`QGD-SCP-0002`).
 
 ```text
 qso-graph-desktop/
-├── packages/            the frame (P0–P7); apps may depend only on app-api and ui
+├── packages/            the core (P0–P7); extensions may depend only on app-api and ui
 │   ├── persona-core/    Rust (napi-rs): OS credential store, outbound HTTPS, crypto
 │   ├── main/            Electron main: windows, IPC brokers, process supervision
 │   ├── preload/         the only bridge to the renderer: named, typed functions
@@ -77,9 +87,8 @@ qso-graph-desktop/
 │   ├── reference/       reference data: ADIF definitions, POTA parks, loaders
 │   ├── personas/        personas and the service register
 │   ├── logging/         the structured, redacted log stream
-│   └── app-api/         the public contract for apps: manifest, grants, messages
-├── apps/                built-in apps (P8 onward), each self-contained
-├── proofs/              the three apps that demonstrate the grant model (dev only, never shipped)
+│   └── app-api/         the extension API: manifest, grants, messages
+├── apps/                built-in extensions (P8 onward), each self-contained
 ├── storybook/           the component and pattern gallery (dev only, never shipped)
 ├── spec/ hdbk/ rvm/     specification, handbook, generated verification matrix
 ├── docs/                per-Part acceptance registrations (P0.md …) and design notes
@@ -92,7 +101,7 @@ qso-graph-desktop/
 
 ### Reference check first
 
-**Before designing any application, extension or frame feature, read how Podman Desktop, VS Code
+**Before designing any extension or core feature, read how Podman Desktop, VS Code
 and Bitwarden desktop do something similar, and design from that evidence** (KI7MT, 2026-10-10).
 Open-source references only — a closed-source product's behaviour cannot be read, only guessed at.
 
@@ -133,7 +142,7 @@ and no demonstration extension, which is why this repository now has none either
   adapter (`packages/storage/sqlite.ts`). SQL text reaches SQLite only there and in
   `migrate.ts`; everywhere else `prepare()`/`exec()` take a fixed literal and `sql.raw()` is not
   used (`QGD-SEC-0005`). A caught error goes through `reduce()` before it is used anywhere, and
-  `.message` is never read in storage code (`QGD-ENG-0016`). Apps get their own folder and
+  `.message` is never read in storage code (`QGD-ENG-0016`). Extensions get their own folder and
   database, reached only through the API (`QGD-ENG-0018`, `QGD-APP-0009`). `reference.sqlite` is
   derived, never migrated: change its schema and raise `REFERENCE_SCHEMA_VERSION`
   (`QGD-ENG-0015`).
@@ -202,7 +211,7 @@ Versions change, so pick the current ones rather than the names here.
 - **[SQLite](https://sqlite.org/)** through Node's **`node:sqlite`**, as Electron carries it: storage, with no server
 - **[pino](https://getpino.io/):** structured logging
 - **[napi-rs](https://napi.rs/):** the Rust native addon bridge
-- **[rustls](https://github.com/rustls/rustls)** on **[aws-lc-rs](https://github.com/aws/aws-lc-rs)** (FIPS feature): TLS and cryptography in the core
+- **[rustls](https://github.com/rustls/rustls)** on **[aws-lc-rs](https://github.com/aws/aws-lc-rs)** (FIPS feature): TLS and cryptography in the credential core
 - **[keyring](https://crates.io/crates/keyring):** the OS credential store
 - **[Playwright](https://playwright.dev/), [Vitest](https://vitest.dev/), [axe-core](https://github.com/dequelabs/axe-core), [Storybook](https://storybook.js.org/), [Electronegativity](https://github.com/doyensec/electronegativity):** verification
 

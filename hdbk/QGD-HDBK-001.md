@@ -185,12 +185,13 @@ Parts it re-numbers are all ahead of the build rather than behind it. Re-cutting
 under work already done is the failure §1 describes; re-cutting it ahead of the work is just
 planning.
 
-**P0 to P7 are the frame and P8 onward are applications on its API** (`QGD-PRT-0005`). That line
-is what the rest follows from. Reference data moves to P5 and depends on P4 alone, because
+**P0 to P7 are the core and P8 onward are extensions on its API** (`QGD-PRT-0005`). That line
+is what the rest follows from. (The core was called the frame, and an extension an application,
+until 2026-10-10; §14 says why the words changed.) Reference data moves to P5 and depends on P4 alone, because
 definitions and zone tables are stored data and need nothing else. Personas becomes P6
-and the app runtime P7. P7 was first to be signed off on a test application that used the API
-and nothing else. On 2026-10-10 KI7MT replaced that test application with unit tests over the
-runtime and the first real application (`QGD-APP-0014`), because an application that exists only
+and the extension runtime P7. P7 was first to be signed off on a test extension that used the API
+and nothing else. On 2026-10-10 KI7MT replaced that test extension with unit tests over the
+runtime and the first real extension (`QGD-APP-0014`), because an extension that exists only
 to be demonstrated proves less than one that does ham work.
 QG Club moves off ADIF and onto P7, because a roster is people, not contacts, and never needed
 ADIF to describe it.
@@ -294,7 +295,7 @@ type information found that every call into the Rust credential core was `any` �
 the addon arrives through `createRequire` untyped, so `saveCredentials`,
 `requireCredential` and `deleteCredentials` were all unchecked at the one
 boundary `QGD-CRD-0002` makes responsible for the OS credential stores. Typing it
-then found that the core's shapes and the IPC contract's shapes are not the same,
+then found that the credential core's shapes and the IPC contract's shapes are not the same,
 and that one was being handed to the renderer as the other. Neither would have
 been visible from compiled output.
 
@@ -303,30 +304,30 @@ which is only safe as a dated decision with a trigger rather than as drift. The
 trigger is in the requirement: `typescript-eslint` supporting 7. That one gates
 the others in practice.
 
-## 12. The app API's one irreversible choice
+## 12. The extension API's one irreversible choice
 
-`QGD-APP-0003` — that an application reaches the frame by message and not by function call — is
+`QGD-APP-0003` — that an extension reaches the core by message and not by function call — is
 the load-bearing requirement of that area. Everything else in it can be changed later. An API
-written as function calls could not be sandboxed afterwards without breaking every application
-already written against it, and D-2 commits this project to sandboxing two of its three tiers.
+written as function calls could not be sandboxed afterwards without breaking every extension
+already written against it, and D-2 commits this project to sandboxing third-party extensions.
 
 So the message boundary is not a style preference deferred to taste: it is the decision that
-has to be right before the first application exists, because the second one cannot be written
+has to be right before the first extension exists, because the second one cannot be written
 against a different shape without discarding the first.
 
 ## 13. Why storage is SQLite and not a database server
 
 Until 2026-10-10 the frame bundled PostgreSQL 17 and ran it as a supervised server: 121 MB in the
 package, a pinned and trimmed binary set, a Unix socket (and a loopback port on Windows), peer
-authentication, a role and schema per application, and backups taken with the engine stopped.
-`QGD-ENG-0001` gave two reasons: per-application roles are how the grant model reaches the data,
+authentication, a role and schema per extension, and backups taken with the engine stopped.
+`QGD-ENG-0001` gave two reasons: per-extension roles are how the grant model reaches the data,
 and several processes connect at once.
 
 **Neither reason needed a server.**
 - **Roles do restrict what a database connection may do.** They do not protect the files from a
   process running as the same operating-system user, and every process of this product runs as
-  that user. Only the frame is ever offered a connection; an application never is
-  (`QGD-APP-0009`). The boundary that counts is therefore the brokered app API, which already
+  that user. Only the core is ever offered a connection; an extension never is
+  (`QGD-APP-0009`). The boundary that counts is therefore the brokered extension API, which already
   carries credentials and sources, and roles duplicated it.
 - **"Several processes" turned out to mean one owning process per file.**
 - **Most of the server went unused by the shipping product.** It started the server, applied two
@@ -370,8 +371,8 @@ None of the four runs a database server.
 
 **What it is instead** (`QGD-ENG-0001`):
 - `settings.json` for preferences and grants
-- `state.sqlite` for what the frame keeps
-- a folder per application
+- `state.sqlite` for what the core keeps
+- a folder per extension
 - one derived `reference.sqlite`, rebuilt and swapped rather than migrated, because it can be
   remade from its sources
 
@@ -380,6 +381,60 @@ Main reads `settings.json`. The SQLite stores are opened by one utility process,
 
 **What it cost.** P4's sign-off, and the parts of P5's and P7's evidence that named PostgreSQL,
 are re-earned against rewritten tests (`QGD-PRT-0104`). It was cheapest now. The frame held one
-row, reference data rebuilds itself, and no operator data existed anywhere. Every application
+row, reference data rebuilds itself, and no operator data existed anywhere. Every extension
 built on the server would have made the move dearer, and the first one to keep operator data would
 have made it a migration rather than a decision.
+
+## 14. Core and extensions: the words developers already know
+
+Until 2026-10-10 this product called its layers the **frame** and its **applications**. KI7MT
+found that confusing, and said that others would too. The structure was the one the open-source
+desktop applications use, but it was described in words of its own, which needed a translation
+table. The rule since: **model the layers, and name them, the way the reference projects do,
+unless there is a very good reason not to.**
+
+| Here | Podman Desktop | VS Code |
+|---|---|---|
+| **Core** (P0–P7) | the application core: the shell, navigation, status bar, settings, Troubleshooting, the generic pages | the workbench: the editor, explorer, terminal, settings, keybindings |
+| **Built-in extension** | the extensions in its own repository's `extensions/` folder (Podman, Docker, Kind, Compose) | built-in extensions (Git, the TypeScript, JSON and Markdown language features) |
+| **Official extension** | its makers' own catalogue extensions (such as AI Lab) | Microsoft's own Marketplace extensions (Python, C#, Remote) |
+| **Third-party extension** | other authors' catalogue extensions | other authors' Marketplace extensions |
+
+The vocabulary table and how it maps onto manifest tiers are in the specification (§4.5). This
+section records why.
+
+**What differs, and why it keeps the same words.** This core holds more than VS Code's does:
+personas, the credential core, storage and reference data. That is why shared concerns such as HCL
+configuration belong to the core, the way VS Code's own settings and keybindings are core and not
+an extension. Extensions here are also fenced in. A VS Code extension runs with full access to the
+machine; an extension here reaches the core only by message, with grants, because the core holds
+credentials. Those are behaviours. The vocabulary stays the same.
+
+**Two audiences.** *Developers*, the contributors, get the vocabulary above: in the specification,
+the code, the documentation and the contribution guide. *Hams* see each extension named for what it
+does ("Club", "Net Control", "Log"). The word "extension" appears only where extensions are added
+and removed, which is the word the reference projects show their own users. The ideal contributor
+is both: a ham who builds an extension, then proposes it as an official extension (reviewed,
+verified as fully compatible, and maintained by this project from then on) or publishes it as a
+third-party extension under their own name.
+
+**A proven lifecycle, not an invented one.** The path an extension author follows mirrors the
+references': a template and an example, a development harness, a compatibility version in the
+manifest, one signed package, review into a catalogue, per-extension updates, and retirement. What
+retirement owes the operator (notice, and a way to take their data first) is to be specified with the
+lifecycle. Today the specification says only that an extension's folder is removed with it
+(`QGD-ENG-0018`). Each step is checked against the references' current documentation when
+it is designed (`qso-graph-desktop#34`).
+
+**Credit, and where names appear.** This is the project's own code, built from the ground up. It
+follows the references' design and vocabulary and copies none of their code. Were code ever copied,
+its notice would go in `NOTICE` (VS Code is MIT, Podman Desktop Apache-2.0). Public copy names no
+other project, so that it cannot read as an endorsement; it uses the open-source framing
+(*"Our own code, built from the ground up on proven open-source practice."*). The developer
+documentation names Podman Desktop, VS Code and Bitwarden, because that is where a contributor
+learns the patterns, and it is the credit.
+
+**The code follows in one pass.** The specification and documentation use these words now. The code
+(`packages/app-api`, `apps/`, the app broker, manifest fields and grant names) takes them in a
+single rename before any extension is built, while the rename is still cheap.
+

@@ -3,6 +3,16 @@
 Thanks for your interest. QSO Graph Desktop is a free, open-source desktop application for amateur
 radio operators, licensed GPL-3.0-only. This page explains how work gets done here.
 
+## Writing an extension
+
+If you've written an extension for a modern open-source desktop app, you already know how to write
+one for QSO Graph Desktop: a core, extensions on its API, and the same lifecycle (`QGD-HDBK-001`
+§14). Hams who are also developers are exactly who we hope to hear from. Build an extension, then
+either propose it as an **official** extension (we review it, verify it is fully compatible, and
+maintain it from then on) or, once third-party extensions arrive, publish it under your own name.
+The template, the extension API's documentation and an example extension are on the way
+(`qso-graph-desktop#34`).
+
 ## Before you start
 
 - **Read [AGENTS.md](AGENTS.md).** It's the orientation guide for anyone changing the code, human
@@ -31,8 +41,8 @@ make verify    # the full gate; must be green before anything is committed
    `node scripts/gen-rvm.mjs` (`QGD-TST-0004`).
 2. **Write or update the tests first,** and prove each new check can fail: plant the defect it
    is meant to catch and watch it go red.
-3. **Keep to the layer.** Credentials, network and cryptography stay in the Rust core; apps use
-   only the app API. See the layer table in [AGENTS.md](AGENTS.md).
+3. **Keep to the layer.** Credentials, network and cryptography stay in the Rust credential core;
+   extensions use only the extension API. See the layer table in [AGENTS.md](AGENTS.md).
 4. **Run `make verify`.** Green is evidence, not sign-off.
 5. **Get an independent review** before committing (see below).
 
@@ -49,7 +59,7 @@ make verify    # the full gate; must be green before anything is committed
 
 ## Coding conventions
 
-- **TypeScript** for the frame and apps (pinned version in `package.json`), **Svelte** for
+- **TypeScript** for the core and extensions (pinned version in `package.json`), **Svelte** for
   screens, **Rust** only in `packages/persona-core`. No Python.
 - **Dependencies:** each new runtime dependency is a reviewed decision, pinned exactly
   (`QGD-SEC-0012`). Prefer none.
