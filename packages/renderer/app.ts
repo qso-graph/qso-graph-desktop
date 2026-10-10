@@ -377,6 +377,15 @@ element('credential-preference').addEventListener('change', () => void busy('cre
     invalidateTest();
   }
 }));
+// What to call a service on screen: the label its own option carries, so the
+// name a message uses is the name the operator just chose from. Falls back to
+// the identifier, which is better than naming the wrong service.
+function serviceName(provider: string): string {
+  const select = element<HTMLSelectElement>('provider');
+  for (const option of select.options) if (option.value === provider) return option.text;
+  return provider;
+}
+
 element('test-credential').addEventListener('click', () => void busy('test-credential', async () => {
   if (!selected) return;
   const persona = selected;
@@ -384,12 +393,20 @@ element('test-credential').addEventListener('click', () => void busy('test-crede
   const key = testKey();
   setTestResult('Testing saved credential…');
   const result = await request({ type: 'test-credential', persona, provider }) as CredentialTest;
+  // The service this result is about, named from the register's own label
+  // rather than written into the sentence.
+  //
+  // Four of these said "QRZ" whatever was being tested, so testing eQSL
+  // reported that QRZ had rejected the credential. The provider being tested
+  // is read here rather than taken from the select, because a result can
+  // arrive after the operator has moved to a different service.
+  const service = serviceName(provider);
   const messages: Record<CredentialTest['outcome'], string> = {
-    success: 'Success — QRZ accepted the saved credential.',
-    rejected: 'Failed — QRZ rejected the credential or denied API access.',
-    'network-error': 'Could not connect securely to QRZ. Check your connection and try again.',
-    'rate-limited': 'Please wait before testing again: 30 seconds normally, five minutes after a rejected login or service limit.',
-    'invalid-response': 'QRZ returned an unexpected response. Credential validity could not be confirmed.',
+    success: `Success — ${service} accepted the saved credential.`,
+    rejected: `Failed — ${service} rejected the credential or denied API access.`,
+    'network-error': `Could not connect securely to ${service}. Check your connection and try again.`,
+    'rate-limited': `${service} is limiting requests from this account at the moment. Try again shortly.`,
+    'invalid-response': `${service} returned an unexpected response. Credential validity could not be confirmed.`,
     missing: 'No usable credential is saved. Save a username and password or API key first.',
     unsupported: 'Testing for this service is not implemented yet.'
   };

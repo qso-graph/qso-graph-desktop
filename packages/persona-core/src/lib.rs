@@ -612,7 +612,7 @@ mod addon {
     pub fn drain_core_logs() -> Vec<String> { crate::corelog::drain() }
 
     #[napi]
-    pub struct PersonaCore { store: Store, tests: std::collections::BTreeMap<String, std::time::Instant> }
+    pub struct PersonaCore { store: Store }
 
     #[napi(object)]
     pub struct CredentialTest { pub outcome: String }
@@ -648,24 +648,34 @@ mod addon {
     #[napi]
     impl PersonaCore {
         #[napi(constructor)]
-        pub fn new(directory: String) -> Result<Self> { Ok(Self { store: Store::new(directory.into()).map_err(error)?, tests: Default::default() }) }
+        pub fn new(directory: String) -> Result<Self> { Ok(Self { store: Store::new(directory.into()).map_err(error)? }) }
+        /// Tests the saved credential, every time it is asked.
+        ///
+        /// This product does not limit the operator. It held a cooldown of its
+        /// own until 2026-10-10 — thirty seconds after any test and five
+        /// minutes after a rejected one — and the effect was that a ham who
+        /// had just corrected a password was told to wait, by us, for a
+        /// service that was willing to answer. KI7MT's direction: do not
+        /// intentionally limit users.
+        ///
+        /// `rate-limited` stays as an outcome, because the service itself can
+        /// say it (`QGD-PSN-0005`). The difference is whose answer it is.
+        ///
+        /// Pressing the button twice at once is prevented by the button, which
+        /// is disabled while a test is in flight — not a limit, just not
+        /// firing the same action twice.
         #[napi]
         pub fn test_credential(&mut self, persona: String, provider: String) -> Result<CredentialTest> {
             self.store.lookup(&persona).map_err(error)?;
             let provider = identifier(&provider).map_err(error)?;
             let outcome = if !validation::supported(&provider) { "unsupported" }
-            else if self.tests.get(&provider).is_some_and(|until| std::time::Instant::now() < *until) { "rate-limited" }
             else {
                 let preference = self.store.preference(&persona, &provider).map_err(error)?;
                 let creds = self.store.read_credentials(&persona, &provider).map_err(error)?;
                 match creds {
                     Some(creds) if creds.username.as_ref().is_some_and(|s| !s.is_empty()) => {
-                        self.tests.insert(provider.clone(), std::time::Instant::now() + std::time::Duration::from_secs(30));
                         let result = validation::test(&provider, &creds, if preference == "service" { None } else { Some(&preference) }).map_err(error)?;
                         tracing::info!(provider = %provider, outcome = %result, "credential tested");
-                        if matches!(result, "rejected" | "rate-limited") {
-                            self.tests.insert(provider.clone(), std::time::Instant::now() + std::time::Duration::from_secs(300));
-                        }
                         result
                     }
                     _ => "missing",
