@@ -77,7 +77,8 @@ describe('QGD-LOG-0012 redaction before export', () => {
   });
 
   it('removes a secret from a plain-text line, which the logger never wrote', () => {
-    // The engine's own log, from P4, does not come through our logger.
+    // A file in the log folder that our logger did not write: the export
+    // still redacts it. (It was the database engine's own log until 2026-10-10.)
     expect(redactForExport('connection failed password=s3cret host=localhost')).not.toContain('s3cret');
     expect(redactForExport('connection failed password=s3cret host=localhost')).toContain('localhost');
   });
@@ -101,7 +102,7 @@ describe('QGD-LOG-0012 the export', () => {
       await writeFile(join(logs, 'qg-desktop.log'),
         '{"level":30,"process":"persona","command":"list","msg":"handled"}\n' +
         '{"level":40,"password":"QG_FAKE_CREDENTIAL_slipped","msg":"something"}\n');
-      await writeFile(join(logs, 'postgresql.log'), 'FATAL password=s3cret for user qg\n');
+      await writeFile(join(logs, 'foreign.log'), 'FATAL password=s3cret for user qg\n');
 
       const destination = join(directory, 'diagnostics.zip');
       const summary = await exportDiagnostics(logs, destination);
@@ -117,12 +118,12 @@ describe('QGD-LOG-0012 the export', () => {
       // What a reader needs is still there.
       expect(exported).toContain('"command":"list"');
 
-      const engine = await readFile(join(directory, 'out', 'postgresql.log'), 'utf8');
-      expect(engine).not.toContain('s3cret');
-      expect(engine).toContain('for user qg');
+      const foreign = await readFile(join(directory, 'out', 'foreign.log'), 'utf8');
+      expect(foreign).not.toContain('s3cret');
+      expect(foreign).toContain('for user qg');
 
       // The export reads; it does not rewrite the logs it came from.
-      expect(await readFile(join(logs, 'postgresql.log'), 'utf8')).toContain('s3cret');
+      expect(await readFile(join(logs, 'foreign.log'), 'utf8')).toContain('s3cret');
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

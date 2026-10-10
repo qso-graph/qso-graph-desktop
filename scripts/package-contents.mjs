@@ -8,7 +8,7 @@
 // in the thing we hand people?
 //
 // An allowlist is what makes the answer small. `build.files` names `dist/**`,
-// `package.json`, `LICENSE`, four data files and the migrations — so the
+// `package.json`, `LICENSE`, four data files and the SQL storage applies — so the
 // gallery, the suites, the fixtures, the spec and anything added later are
 // absent by construction rather than by anybody remembering. The one way that
 // stops being true is somebody widening the list, which is why the list itself
@@ -112,7 +112,34 @@ if (scanned.length === 0) failures.push('no dist entry in the archive could be r
 else notes.push(`${scanned.length} dist entr(ies) read, including every source map`);
 
 // --------------------------------------------------------------------------
-// 4. The control for the control: the bundle has to hold the shell's own
+// 4. The PostgreSQL engine is gone, from the package as well as the source
+// (QGD-HDBK-001 §13). Source deletion is not enough on its own: the compiler
+// only adds to dist/, and build.files ships all of dist/, so a stale
+// dist/engine/ from an earlier build could ship. The build now starts from an
+// empty dist/ (scripts/clean-dist.mjs); this is the check that it did.
+{
+  const stale = entries.filter(entry => /^\/?dist\/engine(\/|$)/.test(entry)
+    || /^\/?data\/postgres-build\.json$/.test(entry)
+    || /^\/?node_modules\/pg(\/|$)/.test(entry));
+  if (stale.length > 0) failures.push(`the archive still holds the PostgreSQL engine: ${stale.slice(0, 3).join(', ')}`);
+  let resources = [];
+  try {
+    const { readdirSync } = await import('node:fs');
+    resources = readdirSync(resolve(archive, '..'));
+  } catch { failures.push('the Resources folder beside the archive could not be read; this check saw nothing'); }
+  if (resources.includes('postgres')) failures.push('Resources/postgres is still bundled beside the application');
+  // And what replaced it is there: the storage process and the SQL it applies.
+  for (const wanted of ['dist/storage/storage-service.js', 'dist/storage/reference-worker.js',
+    'drizzle/state/meta/_journal.json', 'drizzle/reference/meta/_journal.json']) {
+    if (!entries.some(entry => entry.replace(/^\//, '') === wanted)) failures.push(`${wanted} is not in the archive`);
+  }
+  if (stale.length === 0 && !resources.includes('postgres')) {
+    notes.push('no PostgreSQL in the package: no dist/engine, no build register, no pg, no Resources/postgres; the storage process and its SQL are there');
+  }
+}
+
+// --------------------------------------------------------------------------
+// 5. The control for the control: the bundle has to hold the shell's own
 // words, or a bundle that failed to build would look clean.
 let bundle;
 try {

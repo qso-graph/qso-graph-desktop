@@ -3,7 +3,7 @@
 // this product is allowed to say about a row it thinks is wrong
 // (QGD-REF-0010, QGD-REF-0011, QGD-REF-0013).
 //
-// The engine suite proves the whole path against a real database and POTA's
+// The reference-load suite proves the whole path against a real database and POTA's
 // real lists. These are the cases that are awkward to reach from there: a
 // column renamed, a reference repeated, an `active` that is neither 0 nor 1,
 // and the quoted comma that is the whole reason this reader is written out

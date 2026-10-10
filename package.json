@@ -3,13 +3,13 @@
   "productName": "QSO Graph Desktop",
   "version": "0.0.0-preview.1",
   "private": true,
-  "description": "QSO Graph Desktop \u2014 local P0 preview",
+  "description": "QSO Graph Desktop — local P0 preview",
   "license": "GPL-3.0-only",
   "author": "QSO Graph contributors",
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "node scripts/build-native.mjs && tsc && tsc -p tsconfig.renderer.json && node scripts/svelte-check.mjs && vite build",
+    "build": "node scripts/clean-dist.mjs && node scripts/build-native.mjs && tsc && tsc -p tsconfig.renderer.json && node scripts/svelte-check.mjs && vite build",
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir --publish never",
     "installer": "npm run build && electron-builder --publish never",
@@ -27,7 +27,6 @@
     "@storybook/svelte-vite": "10.6.1",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "26.6.4",
-    "@types/pg": "8.23.1",
     "axe-core": "4.14.0",
     "drizzle-kit": "0.31.11",
     "electron": "44.6.0",
@@ -54,7 +53,6 @@
       "!dist/renderer/*.map",
       "package.json",
       "LICENSE",
-      "data/postgres-build.json",
       "data/reference-sources.json",
       "data/service-profiles.json",
       "data/app-grants.json",
@@ -97,20 +95,10 @@
       "target": "AppImage",
       "category": "Utility",
       "icon": "build/icon.png"
-    },
-    "extraResources": [
-      {
-        "from": "vendor/postgres",
-        "to": "postgres",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ]
+    }
   },
   "dependencies": {
     "drizzle-orm": "0.45.4",
-    "pg": "8.23.1",
     "pino": "10.4.0"
   }
 }

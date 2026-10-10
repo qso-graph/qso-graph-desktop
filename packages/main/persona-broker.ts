@@ -12,6 +12,12 @@ import { createLogger, writeForwarded } from '../logging/logger.js';
 
 const log = createLogger('broker');
 
+
+// The answer while the credential core is not up yet. Nothing was sent
+// anywhere, so a caller may ask again soon (QG Storage does, for reference
+// data). Any other failure may have reached a server.
+export const PERSONA_STARTING = 'The persona service is starting. Try again.';
+
 export interface PersonaBroker {
   stop: () => void;
   // Reference data, fetched by the credential core because that is where all
@@ -102,7 +108,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
 
   // One command to the service, awaited.
   function ask(command: ServiceCommand): Promise<PersonaReply> {
-    if (!ready || !worker) return Promise.resolve({ ok: false, error: 'The persona service is starting. Try again.' });
+    if (!ready || !worker) return Promise.resolve({ ok: false, error: PERSONA_STARTING });
     if (pending.size >= 16) return Promise.resolve({ ok: false, error: 'A persona operation is still running. Try again shortly.' });
     const id = ++nextId;
     return new Promise(resolve => {

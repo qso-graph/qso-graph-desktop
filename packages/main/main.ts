@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { app, BrowserWindow, Menu, nativeTheme, protocol, session } from 'electron';
 import { readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
@@ -11,7 +10,7 @@ import { load, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
-import { enginePaths, startEngineBroker } from './engine-broker.js';
+import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startAppBroker } from './app-broker.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
 
@@ -21,27 +20,6 @@ import { FONT_AWESOME_CREDIT } from './attribution.js';
 const distDirectory = dirname(dirname(fileURLToPath(import.meta.url)));
 const rendererDirectory = join(distDirectory, 'renderer');
 
-// Read from the register rather than written twice. A version in two places is
-// a version that will disagree with itself.
-function postgresVersion(): string {
-  try {
-    const file = join(app.getAppPath(), 'data', 'postgres-build.json');
-    return (JSON.parse(readFileSync(file, 'utf8')) as { version: string }).version;
-  } catch {
-    return 'unknown';
-  }
-}
-
-// Packaged, the build is in Contents/Resources: programs have to be executed
-// and an asar is not a filesystem, so it is an extraResource rather than part
-// of the application archive. Running from the repository, it is in vendor/
-// where make setup put it.
-function postgresBin(): string {
-  const root = app.isPackaged
-    ? join(process.resourcesPath, 'postgres')
-    : join(app.getAppPath(), 'vendor', 'postgres');
-  return join(root, postgresVersion(), 'bin');
-}
 const log = createLogger('main');
 
 app.setName('QSO Graph Desktop');
@@ -148,26 +126,22 @@ if (!app.requestSingleInstanceLock()) {
     const stopAppearanceBroker = startAppearanceBroker();
     const stopLogsBroker = startLogsBroker();
     // QGD-ENG-0003: started in the background and waited on by nothing. The
-    // window below appears whether or not the engine ever comes up.
-    const engine = enginePaths();
-    const stopEngineBroker = startEngineBroker({
+    // window below appears whether or not storage ever comes up.
+    const storage = storageRoot();
+    const stopStorageBroker = startStorageBroker({
       distDirectory,
-      // The pinned, trimmed build (QGD-ENG-0004, QGD-ENG-0004.1).
-      binaries: process.env.QG_DESKTOP_POSTGRES_BIN ?? postgresBin(),
-      data: engine.data,
-      sockets: engine.sockets,
-      buildFile: join(app.getAppPath(), 'data', 'postgres-build.json'),
-      migrations: join(app.getAppPath(), 'drizzle'),
+      root: storage.root,
+      stateMigrations: join(app.getAppPath(), 'drizzle', 'state'),
+      referenceDdl: join(app.getAppPath(), 'drizzle', 'reference'),
       // The register ships; what it points at is fetched (QGD-REF-0001).
       registerFile: join(app.getAppPath(), 'data', 'reference-sources.json'),
-      // Overridable for the same reason QG_DESKTOP_POSTGRES_BIN is: a suite
-      // needs to run the product against an archive that is already there.
-      referenceCache: process.env.QG_DESKTOP_REFERENCE_CACHE ?? engine.referenceCache,
-      // The engine never opens a connection of its own: it asks the
-      // credential core, which is the one process that reaches the network
-      // (D-18, D-31).
-      fetchReference: personas.fetchReference,
-      startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
+      // Overridable so a suite can run the product against sources that are
+      // already there, rather than reaching the network on every run.
+      referenceCache: process.env.QG_DESKTOP_REFERENCE_CACHE ?? storage.referenceCache,
+      appVersion: app.getVersion(),
+      // QG Storage never opens a connection of its own: it asks the
+      // credential core, the one process that reaches the network (QGD-SEC-0020).
+      fetchReference: personas.fetchReference
     });
     // The app API (QGD-APP-0002). Started after the brokers it reaches
     // through, because its ports are their methods.
@@ -176,8 +150,7 @@ if (!app.requestSingleInstanceLock()) {
     // applications at all. That is the correct result, not a failure: the
     // broker still enforces, and there is nothing yet to enforce against.
     const appBroker = await startAppBroker({
-      // Overridable for the same reason QG_DESKTOP_POSTGRES_BIN is: a suite
-      // can point the product at manifests of its own rather than editing a
+      // Overridable so a suite can point the product at manifests of its own rather than editing a
       // tracked one, which an interrupted run would leave behind.
       directories: process.env.QG_DESKTOP_APP_DIRS
         ? process.env.QG_DESKTOP_APP_DIRS.split(':').filter(Boolean)
@@ -214,10 +187,10 @@ if (!app.requestSingleInstanceLock()) {
       return undefined;
     });
 
-    // Stopping the engine is the one thing here that takes time, and it has
-    // to finish: a postmaster that outlives the application refuses the next
-    // launch (QGD-ENG-0008). So the first quit is held, the engine is stopped,
-    // and the quit is asked for again — the second one is let through.
+    // Closing the stores is the one thing here worth waiting for: a clean
+    // close checkpoints the WAL, so the next start has nothing to replay. So
+    // the first quit is held while QG Storage closes, and the quit is asked
+    // for again; the second one is let through.
     let quitting = false;
     app.on('before-quit', event => {
       appBroker?.stop();
@@ -225,8 +198,8 @@ if (!app.requestSingleInstanceLock()) {
       if (quitting) return;
       quitting = true;
       event.preventDefault();
-      void stopEngineBroker()
-        .catch(error => log.warn({ reason: String(error) }, 'the engine did not stop cleanly'))
+      void stopStorageBroker()
+        .catch(() => log.warn({}, 'storage did not close cleanly'))
         .finally(() => app.quit());
     });
     localSession.webRequest.onBeforeRequest((details, callback) => {

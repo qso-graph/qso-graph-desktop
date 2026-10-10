@@ -7,7 +7,7 @@
 // the one subscriber; app.ts is the one writer.
 import type { ThemeChoice } from '../main/settings-contract.js';
 import type { LogsStatus } from '../main/logs-contract.js';
-import type { EngineStatus } from '../engine/engine-contract.js';
+import type { StorageStatus } from '../storage/storage-contract.js';
 import type { ServiceSummary } from '../personas/service-contract.js';
 
 // The rail's items. Each carries the Font Awesome icon key it draws, the
@@ -63,14 +63,13 @@ export interface ShellState {
   // Undefined until the main process has answered. The Logs page shows that it
   // is still reading rather than a level that might be wrong.
   logs: LogsStatus | undefined;
-  // Undefined until the engine has been asked. It is started in the background
-  // and the shell never waits for it (QGD-ENG-0003).
-  engine: EngineStatus | undefined;
+  // Undefined until storage has answered or pushed its first status. It is
+  // started in the background and the shell never waits for it (QGD-ENG-0003).
+  storage: StorageStatus | undefined;
   // Whether Troubleshooting is open (QGD-LOG-0013, QGD-FRM-0012).
   //
   // In the store rather than local to the shell, because what it shows is
-  // fetched: the logs are read while it is open and the engine is asked again
-  // when it opens, and app.ts owns both of those lifecycles by reading this
+  // fetched: the logs are read while it is open, and app.ts owns that lifecycle by reading this
   // store. Kept local, the panel showed "Reading the log settings…" for ever
   // unless Settings happened to have been visited first — the logs were polled
   // while `page === 'settings'`, which is where they used to be shown. Found
@@ -101,7 +100,7 @@ export const INITIAL_SHELL: ShellState = {
   activePersona: '',
   themeChoice: 'system',
   logs: undefined,
-  engine: undefined,
+  storage: undefined,
   // Both decided once the personas have been read, not before: a shell that
   // opened on an offer and then withdrew it would flash it at somebody who
   // already has personas.

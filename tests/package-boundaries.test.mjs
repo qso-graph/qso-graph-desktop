@@ -131,7 +131,7 @@ describe('the real tree', () => {
     for (const reachable of ALLOWED_FOR_APPS) {
       expect(Object.keys(ALLOWED), `${reachable} is a real package`).toContain(reachable);
     }
-    for (const frame of ['engine', 'storage', 'personas', 'persona-core', 'main', 'reference']) {
+    for (const frame of ['storage', 'personas', 'persona-core', 'main', 'reference']) {
       expect(ALLOWED_FOR_APPS, `an application must not reach ${frame} directly`).not.toContain(frame);
     }
   });

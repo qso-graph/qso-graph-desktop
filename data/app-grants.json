@@ -5,13 +5,13 @@
     {
       "id": "reference:read",
       "what": "Read the reference data the frame loaded — ADIF's definitions, the zones, the DOKs, POTA's parks.",
-      "notWhat": "No connection to the engine. The frame answers from the engine on the application's behalf (QGD-APP-0009).",
+      "notWhat": "No path and no connection: the frame answers from reference.sqlite on the application's behalf (QGD-APP-0009).",
       "needsOperator": false
     },
     {
-      "id": "engine:own-schema",
-      "what": "Read and write the application's own schema, through its own database role.",
-      "notWhat": "No other application's schema, and not the frame's (QGD-ENG-0010).",
+      "id": "storage:own",
+      "what": "Read and write the application's own data, which the frame keeps in the application's own folder and database.",
+      "notWhat": "No path and no connection, no other application's data, and not the frame's (QGD-APP-0009, QGD-ENG-0018).",
       "needsOperator": true
     },
     {

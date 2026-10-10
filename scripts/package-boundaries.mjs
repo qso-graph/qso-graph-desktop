@@ -15,8 +15,6 @@
 //   persona-core, logging, reference, ui, preload, app-api   depend on no package
 //   personas, storage                                        depend only on those
 //   main                                                     adds personas, storage, app-api
-//   (engine is the PostgreSQL package, kept beside storage until it is
-//   deleted in stage 5 of docs/STORAGE-PLAN.md)
 //   renderer                                                 may depend on any of them
 //   an application                                           app-api and ui, nothing else
 //
@@ -41,12 +39,11 @@ export const ALLOWED = {
   // depend on it while it depended on main (QGD-REP-0006).
   'app-api': [],
   'personas': ['logging', 'persona-core'],
-  'engine': ['logging', 'reference'],
   // The SQLite stores (QGD-ENG-0001). app-api only for the shape of an
   // application id, which names a folder (QGD-ENG-0018).
   'storage': ['app-api', 'logging', 'reference'],
-  'main': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'ui', 'app-api'],
-  'renderer': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'ui', 'main', 'app-api']
+  'main': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'app-api'],
+  'renderer': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'main', 'app-api']
 };
 
 // An application is not a package: QGD-REP-0003 says a built-in application
@@ -106,7 +103,7 @@ export async function crossings(root = 'packages') {
 // rule the first application will meet, not a rule being enforced on code
 // that exists.
 //
-// An application reaching into `personas`, `engine`, `reference` or `main`
+// An application reaching into `personas`, `storage`, `reference` or `main`
 // would be using the frame directly, which is the thing the app API exists to
 // prevent. A built-in application gets no shortcut a contributed one lacks
 // (D-33).

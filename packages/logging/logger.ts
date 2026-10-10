@@ -17,7 +17,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import pino from 'pino';
 import {
-  DEFAULT_LEVEL, effectiveLevel, isEngineLog, plan, redactionPaths,
+  DEFAULT_LEVEL, effectiveLevel, plan, redactionPaths,
   type Level, type LogFile, type LevelState
 } from './logging.js';
 
@@ -49,13 +49,12 @@ function listing(directory: string): LogFile[] {
   return files;
 }
 
-// QGD-LOG-0006 to QGD-LOG-0008, and QGD-LOG-0011 for the engine's files, which
-// sit in this folder and are therefore under the same caps.
+// QGD-LOG-0006 to QGD-LOG-0008.
 export function enforceCaps(directory: string, nowMs = Date.now()): { rotated: boolean; removed: string[] } {
   let decision;
   try {
     const files = listing(directory);
-    decision = plan(files, { active: [ACTIVE_LOG, ...liveEngineLogs(files)], nowMs });
+    decision = plan(files, { active: [ACTIVE_LOG], nowMs });
   }
   catch { return { rotated: false, removed: [] }; }
   const removed: string[] = [];
@@ -139,17 +138,6 @@ function options(directory: string): pino.LoggerOptions {
     redact: { paths: redactionPaths(), censor: '[redacted]' },
     timestamp: pino.stdTimeFunctions.isoTime
   };
-}
-
-// QGD-LOG-0011: the engine's logs are in this directory and under these caps,
-// but the one PostgreSQL has open is not ours to delete — the records would go
-// and the space would not be freed until the collector let go of it. The
-// newest is treated as in use; the rest age out like any other archive.
-export function liveEngineLogs(files: readonly LogFile[]): string[] {
-  const engine = files.filter(file => isEngineLog(file.name));
-  if (engine.length === 0) return [];
-  const newest = engine.reduce((a, b) => (b.modifiedMs > a.modifiedMs ? b : a));
-  return [newest.name];
 }
 
 // QGD-LOG-0010: the level is re-read while the process runs, so a raise expires

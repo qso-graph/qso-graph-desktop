@@ -38,10 +38,12 @@
 // Test credential with a real credential, which no automated suite does.
 import { _electron as electron, expect } from '@playwright/test';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile, readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { classify } from './endpoint.mjs';
 import { violations, NETWORK_EXCEPTIONS, productSources } from './network-static.mjs';
@@ -61,13 +63,12 @@ const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
 
-// Note on what this run costs POTA: the engine fetches POTA's three lists
-// here, because that is what a first start does and seeding them is not
-// possible — the loader keeps them in the database, not in a cache directory.
-// The park list is a nightly-generated static file on a CDN rather than a
-// volunteer-run API, and the daily limit in QGD-REF-0010 is what keeps a real
-// user from asking twice. If POTA cannot be reached the engine still starts
-// and this suite still passes, with no external endpoint to check.
+// Note on what this run costs POTA: QG Storage fetches POTA's three lists
+// here, because that is what a first start does. The park list is a
+// nightly-generated static file on a CDN rather than a volunteer-run API, and
+// the daily limit in QGD-REF-0010 is what keeps a real user from asking twice.
+// If POTA cannot be reached, storage still opens and this suite still passes,
+// with no external endpoint to check.
 //
 // The reference archive, put where the product looks for it before it starts.
 //
@@ -106,21 +107,51 @@ function tree(root) {
     for (const entry of rows) if (Number(entry[2]) === pid) queue.push(Number(entry[1]));
   }
 
-  // Two utility processes now, and `ps` calls them the same thing: the
-  // credential core and the engine supervisor are both
-  // utility:node.mojom.NodeService. They are not held to the same rule — the
-  // credential core must hold no socket of any kind, and conflating them would
-  // let the engine's presence quietly relax that.
-  //
-  // The engine's is the one PostgreSQL is a child of, which is derivable from
-  // the tree we already have and needs nothing added to the application.
-  for (const [pid, row] of rows.map(entry => [Number(entry[1]), entry])) {
-    if (!/\/postgres\b/.test(row[3])) continue;
-    const parent = Number(row[2]);
-    if (found.has(parent)) found.set(parent, 'utility:engine');
-    if (found.has(pid)) found.set(pid, 'engine:postgres');
-  }
+  // Two utility processes, and `ps` calls them the same thing: the credential
+  // core and QG Storage are both utility:node.mojom.NodeService. They are not
+  // held to the same rule, and conflating them would let one relax the other.
+  // QG Storage is the one whose pid the storage broker logged when it started
+  // it, every time it started it (QGD-ENG-0017).
+  for (const pid of storagePids()) if (found.has(pid)) found.set(pid, 'utility:storage');
   return found;
+}
+
+function storagePids() {
+  const pids = new Set();
+  let text = '';
+  try { text = readFileSync(join(logs, 'qg-desktop.log'), 'utf8'); } catch { return pids; }
+  for (const line of text.split('\n')) {
+    let entry;
+    try { entry = JSON.parse(line); } catch { continue; }
+    if (entry?.msg === 'storage service started' && Number.isInteger(entry.storagePid)) pids.add(entry.storagePid);
+  }
+  return pids;
+}
+
+// Unix-domain sockets, which `lsof -i` does not show. Electron's own channels
+// between its processes are unnamed socket pairs, which every process has; what
+// QGD-ENG-0017 forbids is a socket bound to a path, which something else on the
+// machine could reach. So the ones with a filesystem path are what is returned.
+function unixSockets(pids) {
+  if (pids.length === 0) return [];
+  const run = spawnSync('/usr/sbin/lsof', ['-nP', '-w', '-U', '-a', '-p', pids.join(',')], { encoding: 'utf8' });
+  const named = [];
+  for (const line of (run.stdout || '').split('\n').slice(1)) {
+    const columns = line.trim().split(/\s+/);
+    if (columns.length < 8) continue;
+    const name = columns.slice(7).join(' ').trim();
+    const path = name.split(/\s+/).find(part => part.startsWith('/'));
+    if (path) named.push({ pid: Number(columns[1]), path });
+  }
+  return named;
+}
+
+// QGD-ENG-0017: storage holds no listener and no connection of any kind,
+// loopback included. The external-endpoint rule ignores loopback by design, so
+// it would not catch a local listener; this one does. An *unbound* socket is
+// not a finding (see the credential core's rule below on Chromium's).
+function storageEndpoints(endpoints) {
+  return endpoints.filter(endpoint => endpoint.process === 'utility:storage' && endpoint.kind !== 'unbound');
 }
 
 function sample(label, processes) {
@@ -336,9 +367,9 @@ try {
   // the validated module.
   //
   // This rule said "the engine's own process" until Bob checked P5 against
-  // the decisions. The reference loader was using Node's fetch from the
-  // engine, and this suite was asserting that was correct. It is now the
-  // other way round: an external endpoint held by the engine is a finding.
+  // the decisions: the reference loader was using Node's fetch from the
+  // database engine of the time, and this suite was asserting that was
+  // correct. It is the other way round: only the credential core connects.
   //
   // Which hosts is held statically rather than here: no product source names
   // one, every URL comes from a register, and tests/network-static.test.mjs
@@ -363,9 +394,9 @@ try {
   // this the rule above passes on a run where nothing was ever fetched — on a
   // machine with no network, which is a legitimate state and not a pass.
   stage = 'the run said what happened to the reference data';
-  const engineLog = (await Promise.all((await readdir(logs).catch(() => []))
+  const storageLog = (await Promise.all((await readdir(logs).catch(() => []))
     .map(name => readFile(join(logs, name), 'utf8').catch(() => '')))).join('\n');
-  expect(engineLog, 'the engine must say what became of the reference data').toContain('reference data');
+  expect(storageLog, 'storage must say what became of the reference data').toContain('reference data');
 
   stage = 'the renderer holds no socket at all';
   {
@@ -389,52 +420,61 @@ try {
       describe(wrongPort)).toEqual([]);
   }
 
-  stage = 'the engine and PostgreSQL were actually identified';
-  // Without this the two rules below check nothing: if the labelling stopped
-  // matching, every endpoint would simply fail to be one of theirs and both
-  // assertions would pass on an empty array. The labels have to have been
-  // applied to a real process at some point in the run.
+  stage = 'QG Storage was actually identified';
+  // Without this the rule below checks nothing: if the labelling stopped
+  // matching, no endpoint would be storage's and the assertion would pass on
+  // an empty array. The label has to have been applied to a real process.
   const everyLabel = new Set(labelled.flatMap(taken => Object.values(taken.processes)));
-  expect([...everyLabel].includes('utility:engine'),
-    `the engine's utility process was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
-  expect([...everyLabel].includes('engine:postgres'),
-    `PostgreSQL was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
-  // And the credential core is still one of them, or the rule above moved off
-  // the process it was written for.
+  expect([...everyLabel].includes('utility:storage'),
+    `QG Storage's utility process was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
+  // And the credential core is still one of them, or its rule moved off the
+  // process it was written for.
   expect([...everyLabel].includes('utility:node.mojom.NodeService'),
     `the credential core was never identified; labels seen: ${[...everyLabel].join(', ')}`).toBe(true);
 
-  stage = 'the engine holds no socket at all';
-  // A different rule, deliberately. The engine talks to PostgreSQL over a Unix
-  // socket, which is not an internet socket and does not appear here at all —
-  // so it should hold nothing either. But it is a database supervisor rather
-  // than the credential core, and the thing that must never be true of it is a
-  // TCP port or anything external. Any other endpoint it holds is named in the
-  // output of every run rather than passed over, because something that opens
-  // a socket here is something to understand.
-  // No connection and no listener. The engine talks to PostgreSQL over a Unix
-  // socket, which is not an internet socket and does not appear here — and it
-  // no longer fetches anything: it asks the credential core and receives
-  // bytes (D-18, D-31). This rule allowed the engine an outbound connection
-  // on 443 until that moved.
-  //
-  // An *unbound* socket is not either of those and is not a finding. That is
-  // the distinction scripts/endpoint.mjs was extracted to draw: Chromium
-  // opens a UDP socket bound to `*:*` — no port, no peer — whenever it feels
-  // like it, and calling that a connection made this suite fail at random.
-  // Tightening this to "nothing at all" walked straight back into it.
-  const engineHeld = everyEndpoint.filter(endpoint => endpoint.process === 'utility:engine');
-  const engineReal = engineHeld.filter(endpoint => endpoint.kind !== 'unbound');
-  expect(engineReal, `the engine held ${engineReal.length} connection(s) or listener(s): ` +
-    engineReal.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
-
-  stage = 'PostgreSQL itself holds no TCP port';
-  // QGD-ENG-0009, from outside: the server is on a Unix socket and listens on
-  // no port. scripts/engine-lifecycle.mjs asserts this of a server it started;
-  // this asserts it of the one the application is actually running.
-  const postgresHeld = everyEndpoint.filter(endpoint => endpoint.process === 'engine:postgres');
-  expect(postgresHeld, `PostgreSQL held ${postgresHeld.length} endpoint(s): ` +
-    postgresHeld.map(e => `${e.protocol} ${e.local}`).join(', ')).toEqual([]);
+  stage = 'QG Storage holds no socket at all, loopback included';
+  // The control first, on the capture and not only the filter: a real process
+  // listening on loopback TCP and on a Unix socket path, sampled exactly as
+  // the application's processes are, must be caught by both checks. Without
+  // it, a capture that saw nothing would pass this rule.
+  {
+    const socketPath = join(directory, 'planted.sock');
+    const helper = spawn(process.execPath, ['-e', [
+      "const net = require('node:net');",
+      "net.createServer().listen(0, '127.0.0.1');",
+      `net.createServer().listen(${JSON.stringify(socketPath)});`,
+      "setInterval(() => {}, 1000);"
+    ].join(' ')], { stdio: 'ignore' });
+    try {
+      let caughtTcp = [];
+      let caughtUnix = [];
+      for (let attempt = 0; attempt < 50 && (caughtTcp.length === 0 || caughtUnix.length === 0); attempt++) {
+        await new Promise(settle => setTimeout(settle, 100));
+        const planted = sample('planted', new Map([[helper.pid, 'utility:storage']]));
+        caughtTcp = storageEndpoints(planted.endpoints);
+        caughtUnix = unixSockets([helper.pid]);
+      }
+      expect(caughtTcp.some(endpoint => endpoint.kind === 'listening'),
+        'the capture must catch a real loopback listener in a process labelled QG Storage').toBe(true);
+      expect(caughtUnix.some(entry => entry.path === socketPath),
+        'the capture must catch a real Unix socket bound to a path').toBe(true);
+    } finally {
+      // Only waited for if it has not already gone: an 'exit' already emitted
+      // is never emitted again.
+      if (helper.exitCode === null && helper.signalCode === null) {
+        const exited = once(helper, 'exit');
+        helper.kill('SIGKILL');
+        await exited.catch(() => {});
+      }
+    }
+  }
+  const storageReal = storageEndpoints(everyEndpoint);
+  expect(storageReal, `QG Storage held ${storageReal.length} connection(s) or listener(s): ` +
+    storageReal.map(e => `${e.protocol} ${e.local}->${e.remote} ${e.state}`).join(', ')).toEqual([]);
+  // Sampled while the application is still running: every pid it ever had.
+  const storageUnix = unixSockets([...storagePids()]);
+  expect(storageUnix, `QG Storage held ${storageUnix.length} Unix socket(s) bound to a path: ` +
+    storageUnix.map(entry => entry.path).join(', ')).toEqual([]);
 
   stage = 'the request history is live, and holds nothing but the control off-scheme';
   const requests = await application.evaluate(() => globalThis.__qgRequests ?? []);
@@ -460,7 +500,7 @@ try {
   stage = 'no outbound-network API in the product TypeScript but the two named';
   // The scope is walked, not listed (QGD-SEC-0021): this gate scanned seven
   // files while the product grew to thirty-six, and a fetch added to the
-  // engine passed it.
+  // engine of the time passed it.
   const sources = await productSources();
   const offenders = [];
   for (const file of sources) {
@@ -522,14 +562,14 @@ try {
 
   await application.close(); application = undefined;
   // What was measured, said in the terms the rules are now written in: the
-  // engine may reach a reference source on 443 and nothing else may reach
-  // anything.
+  // credential core may reach a reference source on 443 and nothing else may
+  // reach anything.
   const reached = [...new Set(external.map(endpoint => endpoint.remote))];
   const coreNote = reached.length
     ? `the credential core reached ${reached.length} address(es) on 443 and listened on none`
     : 'the credential core reached nothing (no network on this run) and listened on none';
   console.log(`Connection capture: ${observed.size} distinct endpoints observed; ` +
-    `renderer and engine held none; ${coreNote}: PASS`);
+    `renderer and QG Storage held none; ${coreNote}: PASS`);
   console.log('Renderer reached nothing by fetch, XHR, WebSocket, EventSource, beacon, image or dynamic import: PASS');
   console.log('Both positive controls observed; the product refused the filtered one; static network gate clean: PASS');
 } catch (error) {

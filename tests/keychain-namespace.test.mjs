@@ -97,9 +97,7 @@ describe('the credential core owns its namespace', () => {
     // exception, it is a hole (the same shape as NETWORK_EXCEPTIONS).
     const allowed = {
       'packages/logging/logger.ts':
-        'the log folder is per platform by definition — Library/Logs on macOS, LOCALAPPDATA on Windows, XDG_STATE_HOME on Linux (QGD-LOG-0002)',
-      'packages/engine/endpoint.ts':
-        'a Unix socket path is bounded at 104 bytes, so a short directory of the user’s own is measured against the home path (QGD-ENG-0009.1)'
+        'the log folder is per platform by definition — Library/Logs on macOS, LOCALAPPDATA on Windows, XDG_STATE_HOME on Linux (QGD-LOG-0002)'
     };
     const files = await sources('packages', ['.ts', '.cts', '.svelte']);
     const offenders = [];

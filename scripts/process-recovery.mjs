@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { redact } from './report.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
 
@@ -38,23 +39,52 @@ const application_directory = join(directory, 'app');
 const service = join(application_directory, 'dist/personas/persona-service.js');
 const disabled = `${service}.disabled`;
 
-// The persona core runs as an Electron utility process, a child of main.
-function personaUtility(mainPid) {
+// Two utility processes are children of main and `ps` names them the same:
+// the persona core and QG Storage. QG Storage is the one whose pid the storage
+// broker logged when it started it (QGD-ENG-0017); the persona core is the
+// other one.
+function storagePids() {
+  const pids = [];
+  let text = '';
+  try { text = readFileSync(join(logs, 'qg-desktop.log'), 'utf8'); } catch { return pids; }
+  for (const line of text.split('\n')) {
+    let entry;
+    try { entry = JSON.parse(line); } catch { continue; }
+    if (entry?.msg === 'storage service started' && Number.isInteger(entry.storagePid)) pids.push(entry.storagePid);
+  }
+  return pids;
+}
+function utilities(mainPid) {
   const ps = spawnSync('/bin/ps', ['-ax', '-o', 'pid=,ppid=,command='], { encoding: 'utf8' });
+  const found = [];
   for (const line of (ps.stdout || '').split('\n')) {
     const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/);
     if (!match) continue;
     const [, pid, parent, command] = match;
-    if (Number(parent) === mainPid && command.includes('--utility-sub-type=node.mojom.NodeService')) return Number(pid);
+    if (Number(parent) === mainPid && command.includes('--utility-sub-type=node.mojom.NodeService')) found.push(Number(pid));
   }
-  return undefined;
+  return found;
 }
+function personaUtility(mainPid) {
+  const storage = new Set(storagePids());
+  return utilities(mainPid).find(pid => !storage.has(pid));
+}
+function storageUtility(mainPid) {
+  const running = new Set(utilities(mainPid));
+  return storagePids().reverse().find(pid => running.has(pid));
+}
+const storageState = page => page.evaluate(() => window.storage.request({ type: 'status' }))
+  .then(reply => (reply.ok ? reply.status.state : 'refused'));
 const ask = (page, command) => page.evaluate(sent => window.personas.request(sent), command);
 
 try {
   await mkdir(application_directory, { recursive: true });
   await cp('dist', join(application_directory, 'dist'), { recursive: true });
   await cp('package.json', join(application_directory, 'package.json'));
+  // What QG Storage reads from the application path: its SQL and the
+  // reference register (QGD-ENG-0013, QGD-ENG-0015, QGD-REF-0001).
+  await cp('drizzle', join(application_directory, 'drizzle'), { recursive: true });
+  await cp('data', join(application_directory, 'data'), { recursive: true });
   // The application has runtime dependencies now, so the copy needs them on its
   // resolution path. Linked rather than copied: this suite only reads them.
   await symlink(resolve('node_modules'), join(application_directory, 'node_modules'), 'dir');
@@ -198,8 +228,25 @@ try {
   expect(afterPlainCrash).not.toBe(replacement);
   expect((await ask(page, { type: 'list' })).data.personas.some(entry => entry.name === persona)).toBe(true);
 
+  // QGD-ENG-0006 and QGD-PRC-0001: QG Storage, killed, is restarted while
+  // the window keeps running, and its stores open again.
+  stage = 'QG Storage recovers when killed';
+  await expect.poll(() => storageState(page), { timeout: 60_000 }).toBe('ready');
+  const storageVictim = storageUtility(mainPid);
+  expect(storageVictim, 'QG Storage was not identified, so this proves nothing').toBeTruthy();
+  expect(storageVictim, 'the storage process and the persona core must be told apart').not.toBe(personaUtility(mainPid));
+  process.kill(storageVictim, 'SIGKILL');
+  expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+  await expect.poll(() => storageState(page), { timeout: 60_000 }).toBe('ready');
+  const storageReplacement = storageUtility(mainPid);
+  expect(storageReplacement).toBeTruthy();
+  expect(storageReplacement).not.toBe(storageVictim);
+  // And the persona core was not touched by it.
+  expect((await ask(page, { type: 'list' })).ok).toBe(true);
+
   await application.close(); application = undefined;
   console.log('Utility-process crash and recovery, window survival and malformed IPC refusal: PASS');
+  console.log('QG Storage killed and restarted with the window running, its stores opened again: PASS');
 } catch (error) {
   console.error(`Process recovery test failed at: ${stage}`);
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));

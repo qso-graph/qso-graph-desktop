@@ -27,8 +27,6 @@
     onChooseTheme: (choice: ThemeChoice) => Promise<boolean>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
-    onStartEngine: () => Promise<void>;
-    onStopEngine: () => Promise<void>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
     // they are read after the shell is mounted; the two actions are the real
     // ones, so nothing in setup is held in limbo.
@@ -43,7 +41,7 @@
     version: string;
   }
   const {
-    store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine,
+    store, onChooseTheme, onSetLevel, onExport,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -103,7 +101,7 @@
       <HomePage
         {version}
         activePersona={shell.activePersona}
-        engine={shell.engine}
+        storage={shell.storage}
         {destinations}
         onGo={navigate}
       />
@@ -154,10 +152,10 @@
     </div>
   </main>
 </div>
-<StatusBar activePersona={shell.activePersona} engineState={shell.engine?.state}
+<StatusBar activePersona={shell.activePersona}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
 {#if shell.troubleshooting}
-  <TroubleshootingPanel engine={shell.engine} {onStartEngine} {onStopEngine}
+  <TroubleshootingPanel storage={shell.storage}
                         logs={shell.logs} {onSetLevel} {onExport}
                         onClose={() => store.set({ troubleshooting: false })} />
 {/if}

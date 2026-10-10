@@ -3,7 +3,7 @@ import { _electron as electron, expect } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createRequire as createElectronRequire } from 'node:module';
-import { mkdir, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -19,7 +19,7 @@ import { enableTestKeychain } from './keychain-service.mjs';
 enableTestKeychain();
 
 let application;
-let notesEngine = 'not reached';
+let notesStorage = 'not reached';
 let notesSecrets = 'not reached';
 let notesServices = 'not reached';
 const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
@@ -436,30 +436,34 @@ try {
     await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   }
 
-  // ---- P4-shell-starts-without-it (QGD-ENG-0003) -------------------------
-  // This suite runs from the repository, where the pinned build exists — but
-  // nothing here waits for the engine, and the point of the requirement is
-  // that the shell is drawn and usable regardless. Everything above has
-  // already happened; Settings must report a state rather than hanging or
-  // showing nothing.
-  // The status bar says it, on every page, so nothing is navigated to first
-  // (QGD-FRM-0012). Its detail is behind Troubleshooting, which is where this
-  // suite goes for the version and the hint below (QGD-LOG-0013).
-  await expect(page.locator('#engine-indicator')).toBeVisible();
+  // ---- P4-screens and P4-shell-starts-without-it -------------------------
+  // QGD-FRM-0012: storage has no indicator of its own. The status bar holds
+  // the data-context slot instead, empty until an application holds data.
+  await expect(page.locator('#engine-indicator'), 'the database indicator is gone').toHaveCount(0);
+  await expect(page.locator('#data-context')).toHaveAttribute('data-empty', 'true');
+  await expect(page.locator('#data-context')).toHaveText('');
+  // QGD-ENG-0003: nothing above waited for storage, and the shell was usable
+  // throughout. Its detail is behind Troubleshooting (QGD-LOG-0013).
   await page.locator('#open-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
-  // Running, not merely "some state": this suite launches the real
-  // application from the repository, where the pinned build is, so the whole
-  // path — utility process, initdb, postmaster, migrations — has to work. The
-  // shell was drawn and fully usable throughout, which is the requirement; the
-  // engine arriving is what says the wiring is real.
+  await expect(page.getByRole('heading', { name: 'Storage', exact: true })).toBeVisible();
+  // Ready, not merely "some state": the real application, so the whole path
+  // (utility process, state.sqlite, its migrations) has to work.
   await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
-    { message: 'the engine must come up on its own, in the background', timeout: 180_000 })
-    .toBe('Running');
-  notesEngine = await page.getByLabel('State', { exact: true }).inputValue();
-  // And it is the bundled one, not something that was already on the machine.
-  await expect(page.locator('#engine-state-hint')).toContainText('PostgreSQL');
+    { message: 'storage must open on its own, in the background', timeout: 60_000 })
+    .toBe('Ready');
+  notesStorage = await page.getByLabel('State', { exact: true }).inputValue();
+  // Nothing to start or stop: storage is files the application opens.
+  await expect(page.locator('#troubleshooting').getByRole('button', { name: /^(Start|Stop)$/ })).toHaveCount(0);
+  await expect(page.locator('#reference-datasets')).toBeVisible();
+  await page.locator('#close-troubleshooting').click();
+  // QGD-FRM-0011: Home says whether reference data is loaded. Which answer
+  // depends on the network this run has; that it is one of the answers, and
+  // not "not available", is what is asserted.
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Home', exact: true }).click();
+  await expect.poll(() => page.locator('#home-reference').innerText(), { timeout: 10_000 })
+    .toMatch(/^(loaded|not loaded|being fetched|loaded, updating|being checked)/);
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Personas', exact: true }).click();
 
   // ---- P3-logs-page (QGD-LOG-0013) --------------------------------------
   // The switch writes the level the running process then uses. Read back from
@@ -540,48 +544,78 @@ try {
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Remove saved credential', exact: true }).click();
   await expect(page.locator('#credential-status')).toContainText('No credential saved', { timeout: 30_000 });
-  // QGD-ENG-0008 and the shutdown path: closing the application must leave no
-  // postmaster behind. One that outlives it holds the data directory and
-  // refuses the next launch — and the stop request used to cancel itself, so
-  // the worker was killed before it had stopped anything.
-  const engineData = join(userData, 'engine', 'data');
+  // QGD-ENG-0006 and QGD-ENG-0016 on the way out: closing the application
+  // closes the stores cleanly, and nothing secret was ever written into one.
+  // The broker logs "storage closed" only when QG Storage acknowledges the
+  // close, and "did not close in time; killed" when it does not. The control:
+  // neither is in the log before the quit, so finding the first after it is
+  // something the quit did.
+  const logLines = async () => (await readFile(join(logs, 'qg-desktop.log'), 'utf8').catch(() => '')).split('\n').filter(Boolean)
+    .map(line => { try { return JSON.parse(line); } catch { return undefined; } }).filter(Boolean);
+  expect((await logLines()).some(entry => entry.msg === 'storage closed'), 'nothing has closed storage yet').toBe(false);
   await application.close();
   application = undefined;
   {
-    // It ran here, so there is something to have stopped.
-    expect(await readFile(join(engineData, 'PG_VERSION'), 'utf8').catch(() => ''),
-      'the engine must have run in the application for this to mean anything').not.toBe('');
-
-    // No postmaster survives.
-    const pid = Number.parseInt(
-      (await readFile(join(engineData, 'postmaster.pid'), 'utf8').catch(() => '')).split('\n')[0] ?? '', 10);
-    if (Number.isInteger(pid) && pid > 0) {
-      let alive = true;
-      for (let attempt = 0; attempt < 50 && alive; attempt++) {
-        try { process.kill(pid, 0); await new Promise(resolve => setTimeout(resolve, 200)); }
-        catch { alive = false; }
-      }
-      expect(alive, `a postmaster (${pid}) outlived the application and would refuse the next launch`).toBe(false);
+    const state = join(userData, 'state.sqlite');
+    expect(await readFile(state).then(bytes => bytes.length, () => 0),
+      'storage must have run in the application for this to mean anything').toBeGreaterThan(0);
+    // A clean close checkpoints and removes the write-ahead log. A WAL left
+    // with data in it means the stores were killed, not closed.
+    const wal = await readFile(`${state}-wal`).then(bytes => bytes.length, () => 0);
+    expect(wal, 'the stores must be closed, not killed, when the application quits').toBe(0);
+    // And the file reopens whole.
+    const { DatabaseSync } = await import('node:sqlite');
+    const reopened = new DatabaseSync(state, { readOnly: true });
+    try {
+      expect(reopened.prepare('PRAGMA integrity_check').get().integrity_check).toBe('ok');
+    } finally { reopened.close(); }
+    // No store holds the credential this run saved and removed.
+    for (const name of await readdir(userData, { recursive: true })) {
+      if (!/\.sqlite(-wal|-shm|-journal)?$/.test(name)) continue;
+      const bytes = await readFile(join(userData, name)).catch(() => Buffer.alloc(0));
+      expect(bytes.includes(Buffer.from(fakeCredential)), `${name} must not hold the credential`).toBe(false);
     }
-
-    // And it was asked to stop rather than being killed on the way out. This
-    // is the part that distinguishes the two: a killed postmaster also leaves
-    // nothing running, but it leaves a database that needs crash recovery at
-    // the next start — and the request never reached the supervisor at all,
-    // so it never recorded stopping.
-    const application_log = await readFile(join(logs, 'qg-desktop.log'), 'utf8').catch(() => '');
-    const stopped = application_log.split('\n').filter(Boolean)
-      .map(line => { try { return JSON.parse(line); } catch { return undefined; } })
-      .filter(Boolean)
-      .some(entry => entry.msg === 'engine state changed' && entry.state === 'stopped');
-    expect(stopped, 'the engine must have been asked to stop, and recorded doing it').toBe(true);
-    notesEngine += ', and was asked to stop when the application closed';
+    const lines = await logLines();
+    expect(lines.some(entry => entry.msg === 'storage ready'), 'storage must have said it was ready').toBe(true);
+    expect(lines.some(entry => entry.msg === 'storage closed'), 'QG Storage must have acknowledged the close').toBe(true);
+    expect(lines.some(entry => entry.msg === 'storage did not close in time; killed'), 'storage must close within its time').toBe(false);
+    notesStorage += ', closed cleanly when the application quit, and holding no credential';
+  }
+  // The control for the close check, planted from this harness and not from
+  // the product: QG Storage is frozen (SIGSTOP) so it cannot acknowledge, and
+  // the application is quit. The broker must then wait out its time, kill it
+  // and say so, and must not say "storage closed". Without this, the check
+  // above could pass on a broker that logged success whatever happened.
+  {
+    const before = await logLines();
+    const closedBefore = before.filter(entry => entry.msg === 'storage closed').length;
+    const timedOutBefore = before.filter(entry => entry.msg === 'storage did not close in time; killed').length;
+    application = await launch();
+    const controlPage = await application.firstWindow();
+    await expect.poll(() => controlPage.evaluate(() => window.storage.request({ type: 'status' }))
+      .then(reply => (reply.ok ? reply.status.state : 'refused')), { timeout: 60_000 }).toBe('ready');
+    const started = (await logLines()).filter(entry => entry.msg === 'storage service started' && Number.isInteger(entry.storagePid));
+    const frozen = started.at(-1)?.storagePid;
+    expect(frozen, 'QG Storage must be identified to freeze it').toBeTruthy();
+    process.kill(frozen, 'SIGSTOP');
+    try {
+      await application.close();
+      application = undefined;
+    } finally {
+      try { process.kill(frozen, 'SIGKILL'); } catch { /* the broker already killed it */ }
+    }
+    const after = await logLines();
+    expect(after.filter(entry => entry.msg === 'storage closed').length,
+      'a frozen QG Storage cannot have acknowledged the close').toBe(closedBefore);
+    expect(after.filter(entry => entry.msg === 'storage did not close in time; killed').length,
+      'the broker must say it waited out its time and killed it').toBe(timedOutBefore + 1);
+    notesStorage += '; a frozen QG Storage was reported killed, not closed (the control)';
   }
   console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
   console.log(`No secret read without asking: ${notesSecrets}: PASS`);
   console.log(`Every Test button explains itself and none looks busy: ${notesServices}: PASS`);
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
-  console.log(`Database card: the shell is drawn and usable while the engine starts on its own; Settings reports "${notesEngine}": PASS`);
+  console.log(`Storage: no indicator, an empty data-context slot, the shell usable while storage opens; Troubleshooting reports "${notesStorage}": PASS`);
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');
   console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {

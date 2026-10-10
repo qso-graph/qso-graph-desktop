@@ -10,11 +10,11 @@ export const CREDENTIAL_SUITES = ['credential-editing', 'persona-export', 'elect
 
 // Suites that report their own result regardless of the credential proof.
 // rust-unit depends on neither the TypeScript build nor the credential store,
-// and icons, engine-binaries and adif-reference compare what is on disk
+// and icons and adif-reference compare what is on disk
 // against a register. package-boundaries reads the imports as written, so it
 // does not need the build either — and is most useful when the build is what
 // broke, since a wrong-direction import is one reason it would.
-const ALWAYS_RUN = ['spec-rvm', 'icons', 'engine-binaries', 'adif-reference', 'package-boundaries', 'build', 'unit', 'rust-unit'];
+const ALWAYS_RUN = ['spec-rvm', 'icons', 'adif-reference', 'package-boundaries', 'build', 'unit', 'rust-unit'];
 
 // Returns the name of the failed suite that stops `name`, or undefined to run it.
 export function blockedBy(name, suites) {
@@ -23,11 +23,7 @@ export function blockedBy(name, suites) {
   // Nothing downstream can be built, packaged or launched without a build.
   if (failed('build')) return 'build';
   if (CREDENTIAL_SUITES.includes(name) && failed('keychain-roundtrip')) return 'keychain-roundtrip';
-  // The engine suites run a real PostgreSQL from the pinned build, so there is
-  // nothing for them to run if the build is not there.
-  if (name.startsWith('engine-') && name !== 'engine-binaries' && failed('engine-binaries')) return 'engine-binaries';
-  // The reference suites build reference.sqlite (QGD-ENG-0015) and need no
-  // engine, but they read the archive the adif-reference suite is the one that
+  // The reference suites build reference.sqlite (QGD-ENG-0015) and read the archive the adif-reference suite is the one that
   // reports as missing.
   if (['reference-load', 'adif-validation', 'pota-load'].includes(name)) {
     if (failed('adif-reference')) return 'adif-reference';

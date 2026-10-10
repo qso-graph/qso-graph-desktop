@@ -8,8 +8,18 @@ contextBridge.exposeInMainWorld('personas', Object.freeze({
 contextBridge.exposeInMainWorld('settings', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('settings:request', command)
 }));
-contextBridge.exposeInMainWorld('engine', Object.freeze({
-  request: (command: unknown) => ipcRenderer.invoke('engine:request', command)
+// Storage's status: asked for once, then pushed when it changes (QGD-ENG-0006).
+// onStatus hands back the function that removes the listener, so a screen
+// that stops listening leaves nothing behind. The listener receives the
+// status only, never the event, which would carry the sender.
+contextBridge.exposeInMainWorld('storage', Object.freeze({
+  request: (command: unknown) => ipcRenderer.invoke('storage:request', command),
+  onStatus: (listener: (status: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, status: unknown) => listener(status);
+    ipcRenderer.on('storage:status', handler);
+    return () => { ipcRenderer.removeListener('storage:status', handler); };
+  }
 }));
 // QGD-APP-0002: one path, and this is it. The application names itself and
 // passes a command; the frame decides (see app-broker.ts on why that claim is

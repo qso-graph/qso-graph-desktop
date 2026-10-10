@@ -28,7 +28,7 @@ import { Worker } from 'node:worker_threads';
 import { eq, sql } from 'drizzle-orm';
 import { openArchive, type FetchArchive, type FetchText } from '../reference/fetch.js';
 import type { Definitions } from '../reference/adif.js';
-import type { Register } from '../reference/load.js';
+import type { Register } from '../reference/register.js';
 import { ShapeError, readLocations, readParks, readPrograms, refuseIfShrunk } from '../reference/pota.js';
 import { type StorageError, StorageFailure, failure, reduce } from './errors.js';
 import type { Layout } from './layout.js';

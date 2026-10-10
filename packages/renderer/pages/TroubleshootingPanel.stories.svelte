@@ -15,9 +15,17 @@
     title: 'pages/TroubleshootingPanel',
     component: TroubleshootingPanel,
     args: {
-      engine: { state: 'running', version: '17.11' },
-      onStartEngine: () => Promise.resolve(),
-      onStopEngine: () => Promise.resolve(),
+      storage: {
+        state: 'ready', folder: '/Users/you/Library/Application Support/QSO Graph Desktop',
+        sizes: { state: 98_304, reference: 17_539_072 },
+        reference: {
+          adif: { state: 'loaded', version: '3.1.7', rows: 3345, fetchedAt: '2026-10-10T12:00:00.000Z' },
+          parks: { state: 'loaded', rows: 96532, fetchedAt: '2026-10-10T12:00:00.000Z' },
+          programs: { state: 'loaded', rows: 249, fetchedAt: '2026-10-10T12:00:00.000Z' },
+          locations: { state: 'loaded', rows: 4006, fetchedAt: '2026-10-10T12:00:00.000Z' },
+          refreshing: false
+        }
+      },
       logs,
       onSetLevel: () => Promise.resolve(true),
       onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
@@ -26,10 +34,8 @@
   });
 </script>
 
-<Story name="Running" />
-<!-- The two states an operator opens this for: it will not start, and it is
-     still coming up. Both in both themes (QGD-FRM-0007). -->
-<Story name="Stopped with a reason" args={{
-  engine: { state: 'stopped', reason: 'The data directory is from PostgreSQL 16 and this release carries 17.' }
-}} />
-<Story name="Starting" args={{ engine: { state: 'starting' } }} />
+<Story name="Ready" />
+<!-- The two states an operator opens this for: it could not open, and it is
+     still opening. Both in both themes (QGD-FRM-0007). -->
+<Story name="Could not open" args={{ storage: { state: 'failed', reason: 'Storage could not be opened.' } }} />
+<Story name="Opening" args={{ storage: { state: 'starting' } }} />

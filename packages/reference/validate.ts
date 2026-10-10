@@ -21,8 +21,6 @@
 //   `Sponsored_Award` among the 25 — found by building this, not by reading.
 // - This product has no checker for a data type ADIF defines, which keeps the
 //   gap visible instead of letting it pass as a success.
-import type { Client } from 'pg';
-import { REFERENCE_SCHEMA } from './schema.js';
 import type { Tag, UserDefined } from './adi.js';
 import { type Definitions, enumerations as enumerationsOf, fields as fieldsOf, values as valuesOf } from './adif.js';
 
@@ -125,43 +123,9 @@ function add(into: EnumerationIndex, value: EnumerationValue): void {
   else into.byValue.set(key, [value]);
 }
 
-// Read from the database, which is the point: nothing below knows a field name
-// or an enumeration member.
-export async function readRuleset(client: Client): Promise<Ruleset> {
-  const source = await client.query<{ version: string }>(
-    `SELECT version FROM ${REFERENCE_SCHEMA}.source WHERE id = 'adif'`);
-  if (source.rowCount === 0) {
-    throw new Error('the reference data is not loaded, so nothing can be validated against it');
-  }
-  const fieldRows = await client.query<{
-    name: string; data_types: string[]; enumeration_name: string | null;
-    enumeration_parameter: string | null; import_only: boolean;
-  }>(`SELECT name, data_types, enumeration_name, enumeration_parameter, import_only
-      FROM ${REFERENCE_SCHEMA}.field`);
-  const typeRows = await client.query<{ name: string }>(`SELECT name FROM ${REFERENCE_SCHEMA}.data_type`);
-  const enumerationRows = await client.query<{ name: string; value_column: string }>(
-    `SELECT name, value_column FROM ${REFERENCE_SCHEMA}.enumeration`);
-  const valueRows = await client.query<{
-    enumeration: string; key: string; value: Record<string, string>; deleted: boolean; import_only: boolean;
-  }>(`SELECT enumeration, key, value, deleted, import_only FROM ${REFERENCE_SCHEMA}.enumeration_value`);
-
-  return rulesetFromRows({
-    version: source.rows[0].version,
-    fields: fieldRows.rows.map(row => ({
-      name: row.name, dataTypes: row.data_types, enumerationName: row.enumeration_name,
-      enumerationParameter: row.enumeration_parameter, importOnly: row.import_only
-    })),
-    dataTypes: typeRows.rows.map(row => row.name),
-    enumerations: enumerationRows.rows.map(row => ({ name: row.name, valueColumn: row.value_column })),
-    values: valueRows.rows.map(row => ({
-      enumeration: row.enumeration, key: row.key, value: row.value, deleted: row.deleted, importOnly: row.import_only
-    }))
-  });
-}
-
-// The rows a ruleset is made from, whichever store they were read out of. The
-// engine's reader above and reference.sqlite's (packages/storage) both hand
-// their rows here, so there is one way rows become rules.
+// The rows a ruleset is made from. reference.sqlite's reader
+// (packages/storage/reference-read.ts) hands its rows here, and nothing below
+// knows a field name or an enumeration member: the data decides (QGD-REF-0005).
 export interface RulesetRows {
   version: string;
   fields: { name: string; dataTypes: string[]; enumerationName: string | null;

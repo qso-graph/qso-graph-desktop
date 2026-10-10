@@ -19,8 +19,8 @@ import {
   type Definitions, dataTypes, derive, enumerations, fields, values
 } from '../reference/adif.js';
 import { type Location, type Park, type Program, ShapeError, readLocations, readParks, readPrograms } from '../reference/pota.js';
-import type { Register } from '../reference/load.js';
-import type { PotaRegister } from '../reference/pota-load.js';
+import type { Register } from '../reference/register.js';
+import type { PotaRegister } from '../reference/register.js';
 import { StorageFailure, failure } from './errors.js';
 import { type PotaList, type PotaRecord, POTA_LISTS } from './reference-cache.js';
 import {

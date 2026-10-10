@@ -4,33 +4,31 @@
   `QGD-FRM-0012`).
 
   Podman Desktop's model: one place, reached from the status bar, holding the
-  logs, a way to gather them as a .zip, and the engine's own state and repair
-  actions. Not a destination in the navigation and not a section of Settings,
+  logs, a way to gather them as a .zip, and the state of what the application
+  keeps. Not a destination in the navigation and not a section of Settings,
   because an operator comes here on one occasion — something is wrong and they
   are about to tell somebody about it.
 
   It composes the two pages that used to be embedded in Settings rather than
-  reimplementing them: the engine's detail and the logs with their level switch
+  reimplementing them: the storage detail and the logs with their level switch
   and export. Those components are unchanged, which is why this move costs no
   behaviour.
 -->
 <script lang="ts">
-  import EnginePage from './EnginePage.svelte';
+  import StoragePage from './StoragePage.svelte';
   import LogsPage from './LogsPage.svelte';
   import type { LogsStatus } from '../../main/logs-contract.js';
   import type { Level } from '../../logging/logging.js';
-  import type { EngineStatus } from '../../engine/engine-contract.js';
+  import type { StorageStatus } from '../../storage/storage-contract.js';
 
   interface Props {
-    engine: EngineStatus | undefined;
-    onStartEngine: () => Promise<void>;
-    onStopEngine: () => Promise<void>;
+    storage: StorageStatus | undefined;
     logs: LogsStatus | undefined;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     onClose: () => void;
   }
-  const { engine, onStartEngine, onStopEngine, logs, onSetLevel, onExport, onClose }: Props = $props();
+  const { storage, logs, onSetLevel, onExport, onClose }: Props = $props();
 
   // Escape closes it, which is what every overlay on this platform does and
   // what a keyboard-only operator will try first (QGD-FRM-0010's keyboard
@@ -48,10 +46,10 @@
     <button type="button" id="close-troubleshooting" onclick={onClose}>Close</button>
   </header>
   <p class="hint">
-    What the database is doing, and the logs this machine keeps. Nothing here
+    Where your data is kept, and the logs this machine keeps. Nothing here
     leaves the machine unless you save it and send it.
   </p>
-  <EnginePage status={engine} onStart={onStartEngine} onStop={onStopEngine} />
+  <StoragePage status={storage} />
   <LogsPage status={logs} {onSetLevel} {onExport} />
 </section>
 

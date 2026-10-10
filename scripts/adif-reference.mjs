@@ -3,7 +3,7 @@
 // and every list it carries records who owns it separately from where this
 // copy came from (QGD-REF-0002, QGD-REF-0003).
 //
-// Its own suite, like engine-binaries, so a missing archive says "run make
+// Its own suite, so a missing archive says "run make
 // setup" once rather than failing everything built on it for the same reason.
 import { readFile } from 'node:fs/promises';
 import { definitionsPath, releaseDirectory, testQsosPath, verifyRelease } from './adif-release.mjs';

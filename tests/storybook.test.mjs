@@ -58,8 +58,8 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
     const files = manifest.build.files.join(' ');
     expect(files).not.toContain('storybook');
     // What is packaged is the compiled application, its manifest, the register
-    // the engine reads its version from, the register of reference sources it
-    // fetches from, and the migrations it applies. Nothing of ADIF's or POTA's
+    // of reference sources it fetches from, and the SQL it applies: state.sqlite's
+    // migrations and reference.sqlite's rendered DDL (QGD-ENG-0013, QGD-ENG-0015). Nothing of ADIF's or POTA's
     // own data is in that list: QGD-REF-0001 and QGD-REF-0009 have it fetched
     // at run time, so what ships is where to get it and nothing more.
     // The app API's two registers ship as well: the broker reads the grants
@@ -74,7 +74,7 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
       // `sourcesContent`, so a bundle with code removed still ships that code
       // as source. Found in review, when a release carried three whole
       // components that way while the executable JavaScript was clean.
-      'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE', 'data/postgres-build.json',
+      'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE',
       'data/reference-sources.json', 'data/service-profiles.json',
       'data/app-grants.json', 'data/app-sources.json', 'drizzle/**/*'
     ]);

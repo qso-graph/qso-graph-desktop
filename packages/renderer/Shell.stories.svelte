@@ -15,8 +15,6 @@
     version: '0.0.0-preview.1',
     onChooseTheme: () => Promise.resolve(true),
     onSetLevel: () => Promise.resolve(true),
-    onStartEngine: () => Promise.resolve(),
-    onStopEngine: () => Promise.resolve(),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
     onCreatePersona: () => Promise.resolve(undefined),
     onSaveCredential: () => Promise.resolve(undefined),
@@ -44,7 +42,7 @@
       activePersona: 'W1AW · Home station',
       themeChoice: 'system',
       logs,
-      engine: { state: 'running', version: '17.11' },
+      storage: { state: 'ready' },
       troubleshooting: false, setup: false,
       firstRun: false,
       services: []

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -20,6 +20,14 @@ const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
+// The verified ADIF archive, seeded where the packaged application keeps its
+// reference sources, so it builds reference.sqlite from it whatever the network
+// does. That build runs on a worker inside the packaged QG Storage process,
+// which is half of what this suite exists to prove (P4-node-sqlite).
+const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
+const referenceCache = join(directory, 'reference');
+await mkdir(referenceCache, { recursive: true });
+await copyFile(resolve('vendor', '.cache', `adif-${register.adif.version}.zip`), join(referenceCache, `adif-${register.adif.version}.zip`));
 const persona = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 let child, browser, page;
@@ -36,7 +44,7 @@ async function launch() {
   await rm(join(userData, 'DevToolsActivePort'), { force: true });
   // Chromium inspection is enabled only by this isolated test invocation.
   child = spawn(binary, ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1'], {
-    stdio: 'ignore', env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }
+    stdio: 'ignore', env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs, QG_DESKTOP_REFERENCE_CACHE: referenceCache }
   });
   let failed = false; child.on('error', () => { failed = true; });
   let port;
@@ -173,21 +181,21 @@ try {
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
   await page.getByLabel('Service', { exact: true }).selectOption('eqsl');
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
-  // QGD-ENG-0004.1: the trimmed PostgreSQL is in the bundle and the packaged
-  // application runs it. Nothing here points at the repository — the binaries
-  // come from Contents/Resources, which is the only copy a user would have.
-  // The status bar says it, on every page, so nothing is navigated to first
-  // (QGD-FRM-0012). Its detail is behind Troubleshooting, which is where this
-  // suite goes for the version and the hint below (QGD-LOG-0013).
-  await expect(page.locator('#engine-indicator')).toBeVisible();
+  // P4-node-sqlite, in the package a user would have: node:sqlite opens
+  // state.sqlite in the packaged QG Storage process, loaded from the ASAR, and
+  // the reference build runs on its worker there. Nothing here points at the
+  // repository. Its detail is behind Troubleshooting (QGD-LOG-0013).
+  await expect(page.locator('#engine-indicator'), 'no database indicator ships').toHaveCount(0);
   await page.locator('#open-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Storage', exact: true })).toBeVisible();
   await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
-    { message: 'the packaged application must run its own bundled engine', timeout: 180_000 })
-    .toBe('Running');
-  await expect(page.locator('#engine-state-hint')).toContainText('PostgreSQL');
-  console.log('Packaged engine: the bundled PostgreSQL started from inside the application: PASS');
+    { message: 'the packaged application must open its own stores', timeout: 60_000 })
+    .toBe('Ready');
+  await expect.poll(() => page.locator('#reference-datasets').innerText(),
+    { message: 'the packaged application must build reference.sqlite on its worker', timeout: 120_000 })
+    .toContain(`ADIF definitions, ${register.adif.version}`);
+  console.log('Packaged storage: node:sqlite opened the stores from the ASAR, and the reference build ran on its worker: PASS');
 
   console.log('Packaged Rust personas: create, activate, Keychain save, restart and delete: PASS');
 } catch (error) {

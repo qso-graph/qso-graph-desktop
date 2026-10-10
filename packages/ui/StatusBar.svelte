@@ -3,19 +3,15 @@
   The status bar. P3-status-bar requires the active persona to be visible on
   every page, which is why it sits outside the pages rather than in one.
 
-  It carries two more things as of 2026-10-10, both of which were pages in
-  Settings (`QGD-FRM-0012`, `QGD-LOG-0013`):
+  It also carries, as of 2026-10-10 (`QGD-FRM-0012`, `QGD-LOG-0013`):
 
-    - what the database is doing, as an indicator. A glance answers it; the
-      detail, and starting and stopping, are a click away.
-    - Troubleshooting, which is where the logs, the level switch and the
-      support bundle live.
-
-  Both follow Podman Desktop, which shows engine and provider state on its own
-  status bar and puts Troubleshooting there with a Logs tab and a "collect logs
-  as .zip". A log viewer is something an operator needs on one occasion — they
-  are reporting a fault — so it is reachable from everywhere and in the way of
-  nothing.
+    - the data the operator is working in, named the way VS Code's status bar
+      names the repository and branch. It names the active application's data,
+      and it is empty until an application holds data (P8). Storage has no
+      indicator of its own: there is no engine to start or stop.
+    - Troubleshooting, which is where the stores, the logs, the level switch
+      and the support bundle live. Podman Desktop puts Troubleshooting on its
+      status bar the same way, with a Logs tab and a "collect logs as .zip".
 
   This component stays dumb: it is in `ui`, so it takes words and callbacks and
   owns no state. What the panel contains is the renderer's business.
@@ -24,18 +20,16 @@
   interface Props {
     // Who it is, or empty. The sentence is this component's.
     activePersona: string;
-    // What the database is doing, already turned into a word by the caller,
-    // and undefined until the main process has answered.
-    engineState?: string;
-    // Opens the Troubleshooting panel. The engine indicator opens the same
-    // panel rather than a second one, which is what Podman does and what
-    // keeps one overlay in this application rather than two.
+    // The data the operator is working in, named by the caller. Undefined
+    // until an application holds data, and the slot is then empty.
+    dataContext?: string;
+    // Opens the Troubleshooting panel.
     onOpenTroubleshooting?: () => void;
     note?: string;
   }
   const {
     activePersona,
-    engineState,
+    dataContext,
     onOpenTroubleshooting,
     // What the product actually does, which is now two things: a credential
     // test, and fetching the reference data POTA and ADIF publish
@@ -43,20 +37,12 @@
     // a credential" until the reference load made that false.
     note = 'Stored locally · Connects to test a credential or update reference data'
   }: Props = $props();
-
-  // A word, not a colour, carries the state: a colour alone is not something
-  // a screen reader reaches, and not something everyone can tell apart
-  // (QGD-CRD-0011 is the same rule for a control that cannot be used).
-  const engineLabel = $derived(engineState === undefined
-    ? 'Database: asking…'
-    : `Database: ${engineState.charAt(0).toUpperCase()}${engineState.slice(1)}`);
 </script>
 
 <footer>
   <span id="active-persona">{activePersona ? `Active: ${activePersona}` : 'No active persona'}</span>
+  <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}
-    <button type="button" id="engine-indicator" class="bar-button" onclick={onOpenTroubleshooting}
-            data-state={engineState ?? 'unknown'}>{engineLabel}</button>
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}
     >Troubleshooting</button>
   {/if}

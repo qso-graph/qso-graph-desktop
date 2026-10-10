@@ -3,13 +3,13 @@
   What the application opens on.
 
   Deliberately the page that asks nothing of anything: no credential is read
-  to draw it (QGD-CRD-0009), and it is readable with the engine down. What it
+  to draw it (QGD-CRD-0009), and it is readable whatever storage is doing. What it
   says is what this is, what it is doing, and where to go next.
 -->
 <script lang="ts">
   import PageLayout from '../../ui/PageLayout.svelte';
   import { ICONS } from '../../ui/icons.js';
-  import type { EngineStatus } from '../../engine/engine-contract.js';
+  import { referenceLoaded, type StorageStatus } from '../../storage/storage-contract.js';
 
   interface Destination {
     readonly id: string;
@@ -21,23 +21,22 @@
   interface Props {
     version: string;
     activePersona: string;
-    engine: EngineStatus | undefined;
+    storage: StorageStatus | undefined;
     destinations: readonly Destination[];
     onGo: (id: string) => void;
   }
-  const { version, activePersona, engine, destinations, onGo }: Props = $props();
+  const { version, activePersona, storage, destinations, onGo }: Props = $props();
 
-  const ENGINE_WORDS: Record<string, string> = {
-    starting: 'starting',
-    running: 'running',
-    stopped: 'stopped',
-    failed: 'could not start',
-    unavailable: 'not available'
-  };
-
-  const engineWords = $derived(
-    engine ? (ENGINE_WORDS[engine.state] ?? engine.state) : 'being asked'
-  );
+  // Whether reference data is loaded (QGD-FRM-0011), read from the status
+  // storage pushes. A first run with no network says "not loaded", which is
+  // an answer, not a fault (QGD-REF-0014).
+  const referenceWords = $derived.by(() => {
+    if (storage?.state === 'failed' || storage?.state === 'unavailable') return 'not available';
+    const loaded = referenceLoaded(storage);
+    if (loaded === undefined) return 'being checked';
+    if (storage?.reference?.refreshing) return loaded ? 'loaded, updating' : 'being fetched';
+    return loaded ? 'loaded' : 'not loaded';
+  });
 </script>
 
 <PageLayout title="QSO Graph Desktop" eyebrow="HOME">
@@ -48,10 +47,10 @@
       <dd>{version}</dd>
       <dt>Active persona</dt>
       <dd>{activePersona || 'None yet'}</dd>
-      <dt>Database</dt>
-      <dd>
-        {engineWords}{#if engine?.version}, PostgreSQL {engine.version}{/if}
-        {#if engine?.reason}<span class="fact-note">{engine.reason}</span>{/if}
+      <dt>Reference data</dt>
+      <dd id="home-reference">
+        {referenceWords}
+        {#if storage?.reason}<span class="fact-note">{storage.reason}</span>{/if}
       </dd>
     </dl>
     <!--
@@ -62,7 +61,7 @@
       and a promise that is nearly true is the kind a user finds out about.
     -->
     <p class="hint">
-      Everything you enter stays on this Mac. Nothing of yours is sent anywhere
+      Everything you enter stays on this computer. Nothing of yours is sent anywhere
       until you ask. The app fetches the ADIF and park reference lists it needs,
       and nothing else.
     </p>

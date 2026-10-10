@@ -299,18 +299,15 @@ export async function productSources(root = 'packages') {
 // all**. KI7MT decided that all of the app's outbound HTTPS goes through the
 // Rust credential core (D-18, D-31), because Electron's networking is
 // BoringSSL and not the validated module — "without that, the FIPS claim
-// would be false for most traffic". So what is left here is one listener:
+// would be false for most traffic". So there is nothing left here at all.
 //
-// - packages/engine/endpoint.ts imports node:net to ask the operating system for a
-//   free TCP port, which is what the engine listens on where there are no
-//   Unix sockets (QGD-ENG-0009). A listener is not a client: it opens nothing.
-//
-// This list was two entries until the reference fetch moved into the core.
-// Listed rather than inferred, because an exception a rule works out for
-// itself is not an exception, it is a hole.
-export const NETWORK_EXCEPTIONS = {
-  'packages/engine/endpoint.ts': 'node:net, to ask the OS for a free port to listen on (QGD-ENG-0009)'
-};
+// The list was two entries until the reference fetch moved into the core, and
+// one until 2026-10-10: the PostgreSQL engine's endpoint, which used node:net
+// to find a free port to listen on. Storage is SQLite files now and opens no
+// listener of any kind (QGD-ENG-0017), so the list is empty, and anything that
+// needs an entry needs a reason written here first. Listed rather than
+// inferred, because an exception a rule works out for itself is a hole.
+export const NETWORK_EXCEPTIONS = {};
 
 // Hosts are not written into this product's TypeScript at all: every URL comes
 // from a register, and the one process that connects is the Rust core. This

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The pure half of the reference load: reading a zip, and reading ADIF's
-// definitions out of it. The engine suite proves the whole path against a
+// definitions out of it. The reference-load suite proves the whole path against a
 // running database; these are the cases that are awkward to reach from there
 // — a truncated archive, a cell that is neither true nor false, a field
 // naming a data type that does not exist.
@@ -19,7 +19,7 @@ const release = register.adif;
 const archive = await readFile(`vendor/.cache/adif-${release.version}.zip`).catch(() => undefined);
 const unpacked = await readFile(`vendor/adif/${release.version}/${release.source.definitions}`, 'utf8')
   .catch(() => undefined);
-// Both come from `make setup`. The engine suite is the one that fails loudly
+// Both come from `make setup`. The reference-load suite is the one that fails loudly
 // when they are missing; here the archive cases are skipped rather than
 // turning every run without a checkout's vendor directory red.
 const withArchive = archive && unpacked ? describe : describe.skip;

@@ -522,6 +522,24 @@ withData('POTA refreshes (QGD-REF-0010)', () => {
     expect(bodies.length).toBe(3);
   });
 
+  it('a source not asked at all is kept as pending, distinct from a request that failed', async () => {
+    // Pending is what QG Storage retries soon; fetch waits for the daily rule
+    // (QGD-REF-0010), because that request did reach a server.
+    const notReady = async (): Promise<never> => { throw new StorageFailure({ kind: 'pending' }); };
+    const { ref, done } = await reference({ fetchArchive: notReady, fetchText: notReady });
+    try {
+      const outcome = await ref.refresh();
+      expect(outcome.adif).toEqual({ state: 'kept', failure: { kind: 'pending' } });
+      for (const list of POTA_LISTS) expect(outcome.pota[list]).toEqual({ state: 'kept', failure: { kind: 'pending' } });
+    } finally { done(); }
+    const failing = await reference({ fetchArchive: offline, fetchText: pota(BODIES, Object.keys(BODIES)) });
+    try {
+      const outcome = await failing.ref.refresh();
+      expect(outcome.adif).toEqual({ state: 'kept', failure: { kind: 'fetch' } });
+      expect(outcome.pota.parks).toEqual({ state: 'kept', failure: { kind: 'fetch' } });
+    } finally { failing.done(); }
+  });
+
   it('P5-errors-kept-path: a failure that is caught and kept carries no value (QGD-ENG-0016)', async () => {
     const first = await reference();
     await first.ref.refresh();

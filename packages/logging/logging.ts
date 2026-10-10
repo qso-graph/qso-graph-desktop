@@ -47,13 +47,9 @@ export interface LogFile {
 
 export interface PlanOptions {
   // The files that are being written to right now and must not be removed.
-  // More than one since QGD-LOG-0011: the engine writes its own, in this same
-  // directory, through a process we do not control — deleting the file it has
-  // open would lose the records and free nothing.
-  //
-  // The first is the application's own, and the only one rotation applies to:
-  // renaming a file out from under PostgreSQL's collector would leave it
-  // writing into the archive, so the engine rotates its own by configuration.
+  // A list, though today it holds one: the application's own, which is also
+  // the only one rotation applies to. It held the database engine's log too
+  // until the engine went on 2026-10-10 (QGD-LOG-0011, retired).
   active: string | readonly string[];
   nowMs: number;
   maxFileBytes?: number;
@@ -66,8 +62,7 @@ export interface Plan {
   remove: string[];
 }
 
-// QGD-LOG-0006 to QGD-LOG-0008, and QGD-LOG-0011 for the engine's own files,
-// which live in the same folder and are therefore under the same caps.
+// QGD-LOG-0006 to QGD-LOG-0008.
 //
 // Age first, then the total cap, oldest first. The active file is never
 // removed: it is the one being written, and removing it loses the record of
@@ -131,14 +126,3 @@ export function effectiveLevel(
   return state.level;
 }
 
-// QGD-LOG-0011: the engine's log is held inside the same size, total and
-// retention caps as the application's own, so the log directory has to tell
-// the two apart. The naming is therefore a logging concern and lives here,
-// even though it is the engine that writes the files — it was in the engine's
-// endpoint module, which made the logger depend on the engine to sweep its
-// own directory.
-export const ENGINE_LOG_PREFIX = 'engine';
-
-export function isEngineLog(name: string): boolean {
-  return name.startsWith(`${ENGINE_LOG_PREFIX}-`) && name.endsWith('.log');
-}

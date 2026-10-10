@@ -117,13 +117,12 @@ describe('QGD-SEC-0021 the gate reviews what is there, not what it was told abou
 });
 
 describe('QGD-SEC-0020 no outbound client in the product\u2019s TypeScript', () => {
-  it('has one exception, and it is a listener rather than a client', () => {
+  it('has no exception: nothing in the TypeScript connects or listens', () => {
     // KI7MT decided all of the app's outbound HTTPS goes through the Rust
-    // credential core (D-18, D-31), so there is nothing here that connects.
-    // node:net in the engine's endpoint asks the OS for a free port to listen
-    // on; it opens nothing.
-    expect(Object.keys(NETWORK_EXCEPTIONS)).toEqual(['packages/engine/endpoint.ts']);
-    for (const reason of Object.values(NETWORK_EXCEPTIONS)) expect(reason.length).toBeGreaterThan(20);
+    // credential core (D-18, D-31), so there is nothing here that connects,
+    // and storage opens no listener (QGD-ENG-0017). The engine's endpoint was
+    // the last entry, and it went with the engine on 2026-10-10.
+    expect(Object.keys(NETWORK_EXCEPTIONS)).toEqual([]);
   });
 
   it('finds no host written into any product source', async () => {

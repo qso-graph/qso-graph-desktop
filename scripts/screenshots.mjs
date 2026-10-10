@@ -46,11 +46,20 @@ const captures = resolve('report/screenshots');
 // renders from a cold cache and was producing a handful of differing
 // antialiased pixels; the answer to that is to wait for the page to stop
 // moving, not to widen the comparison until it stops noticing.
+// What varies by nature from one run to the next, and is masked: the
+// operator's own folder (a temporary one here), the sizes of the stores, the
+// dates the reference data was fetched, and whether a fetch is still running.
+// The layout, labels and themes around them are still compared pixel for
+// pixel; the values themselves are the smoke suite's to assert. A mask is a
+// box drawn over the element in the capture, so it hides content and nothing
+// else.
+const VOLATILE = ['#storage-state-hint', '#storage-sizes', '#reference-title', '#reference-datasets', '#home-reference'];
+
 async function stableShot(page, path) {
   let previous;
   let last;
   for (let attempt = 0; attempt < 24; attempt++) {
-    const shot = await page.screenshot({ path });
+    const shot = await page.screenshot({ path, mask: VOLATILE.map(selector => page.locator(selector)), maskColor: '#888888' });
     if (previous) {
       last = compare(decode(previous), decode(shot));
       if (last.same) return shot;
@@ -246,17 +255,12 @@ try {
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 
-  // The status bar says what the database is doing, and "starting" becomes
-  // "running" a few seconds in. Waited for rather than captured mid-flight, or
-  // every baseline would differ from one run to the next — the indicator is on
-  // the status bar, so it is in all of them (QGD-FRM-0012).
-  //
-  // Read from the bar rather than from a page, which is also why this no
-  // longer needs to navigate to Settings first: the engine's detail moved into
-  // Troubleshooting on 2026-10-10.
-  await expect.poll(() => page.locator('#engine-indicator').innerText(),
-    { message: 'the engine must settle before anything is captured', timeout: 180_000 })
-    .toBe('Database: Running');
+  // Storage has no indicator on the status bar (QGD-FRM-0012), so nothing on
+  // it moves while storage opens. Home's reference line does, and it is
+  // masked; what is waited for is that Home has an answer at all.
+  await expect.poll(() => page.locator('#home-reference').innerText(),
+    { message: 'Home must have an answer about reference data before anything is captured', timeout: 60_000 })
+    .not.toBe('');
 
   for (const theme of THEMES) {
     await rail('Settings').click();
@@ -273,15 +277,15 @@ try {
       // installed…" was a different page from the baseline — the failure this
       // suite had 4 runs in 8. That section is gone (QGD-APP-0012.1), and
       // with it the precondition. Nothing on these three pages now waits on
-      // an answer from the main process except the engine, which is settled
-      // above before anything is captured.
+      // an answer from the main process except Home's reference line, which
+      // is masked.
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
     }
 
     // Troubleshooting, opened from the status bar rather than navigated to.
     //
     // Captured because it is where the logs, the level switch and the support
-    // bundle live now (QGD-LOG-0013) and where the database's detail is
+    // bundle live now (QGD-LOG-0013) and where storage's detail is
     // (QGD-FRM-0012) — none of which any other baseline shows. Opened from
     // the Home page so the panel is over the same backdrop every run, and
     // closed afterwards so the next theme starts from the same place.
@@ -293,6 +297,9 @@ try {
     // section taught: markup is drawn before the answer arrives, and two
     // identical frames can both land inside that wait.
     await expect(page.locator('#log-level')).toBeVisible({ timeout: 30_000 });
+    // And storage's own answer: Ready, with its sections drawn.
+    await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(), { timeout: 60_000 }).toBe('Ready');
+    await expect(page.locator('#reference-datasets')).toBeVisible();
     await record(page, `troubleshooting-${theme}.png`, theme);
     await page.locator('#close-troubleshooting').click();
     await expect(page.locator('#troubleshooting')).toHaveCount(0);

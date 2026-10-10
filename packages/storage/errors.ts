@@ -19,6 +19,7 @@ export const STORAGE_ERROR_KINDS = [
   'path',        // an application folder would leave apps/ (QGD-ENG-0018)
   'build',       // a reference build failed and the live file is untouched (QGD-ENG-0015)
   'fetch',       // a source could not be fetched; the last good copy stands (QGD-REF-0010)
+  'pending',     // not asked at all: the credential core was not up yet
   'shape',       // a source arrived the wrong shape and was refused (QGD-REF-0010)
   'internal'     // anything else; never more specific than this
 ] as const;

@@ -5,7 +5,7 @@ import type {
 } from '../personas/persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
-import type { EngineCommand, EngineReply } from '../engine/engine-contract.js';
+import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
 import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
@@ -19,7 +19,10 @@ declare global {
     personas: { request(command: PersonaCommand): Promise<PersonaReply> };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
-    engine: { request(command: EngineCommand): Promise<EngineReply> };
+    storage: {
+      request(command: StorageCommand): Promise<StorageReply>;
+      onStatus(listener: (status: unknown) => void): () => void;
+    };
     apps?: {
       request(app: unknown, command: unknown): Promise<unknown>;
       inventory(command: AppsCommand): Promise<AppsReply>;
@@ -43,7 +46,6 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
-    onStartEngine: startEngine, onStopEngine: stopEngine,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
@@ -557,59 +559,20 @@ shell.subscribe(state => {
 });
 
 
-// QGD-ENG-0003. The engine is asked how it is, and nothing waits for the
-// answer: this file has already mounted the shell by the time any of it runs.
+// QGD-ENG-0003 and QGD-ENG-0006. Storage is asked how it is once, and after
+// that it says so itself: the broker pushes its status whenever it changes (an
+// exit, a restart, a finished reference build). Nothing polls. The engine this
+// replaced had to be polled, because there was no push and a postmaster could
+// exit without telling anyone; a status pushed on every change cannot go stale
+// that way. Each status is checked before it is used (QGD-SEC-0006).
 //
-// It used to be asked only while Settings was open, because that is where its
-// state was shown. The indicator is on the status bar now (QGD-FRM-0012),
-// which is every page — so asked once at startup and then again only while
-// the answer is still moving. A database that is starting becomes a database
-// that has started without telling anyone; one that is running stays running
-// until something in this window asks it to stop, and start and stop ask for
-// the status themselves.
-async function askEngine(command: EngineCommand): Promise<void> {
-  const reply = await window.engine.request(command);
-  if (reply.ok) shell.set({ engine: reply.status });
+// A pushed status is always newer than the answer to the first request, which
+// may have been composed before it (or be the broker's own "did not answer in
+// time"). So once anything has been pushed, that first answer is ignored.
+let pushed = false;
+function takeStatus(status: unknown): void {
+  if (isStorageStatus(status)) shell.set({ storage: status });
 }
-
-export async function startEngine(): Promise<void> { await askEngine({ type: 'start' }); }
-export async function stopEngine(): Promise<void> { await askEngine({ type: 'stop' }); }
-
-// Two rates, and never nothing.
-//
-// A first version stopped polling once the answer settled, on the reasoning
-// that a running database stays running. It does not: the postmaster can exit
-// on its own and the utility process can crash and be restarted, which is why
-// engine-service.ts checks the postmaster on every status request rather than
-// remembering. There is no push from the main process, so an indicator that
-// stopped asking would keep saying "Running" over a database that had gone —
-// worse than saying nothing, because it also hides the Start button behind a
-// state that looks fine. Found in review.
-//
-// So it is always watched, slowly, and quickly while the answer is moving or
-// while somebody is looking at the detail.
-const ENGINE_SETTLING_MS = 2_000;
-const ENGINE_WATCHING_MS = 15_000;
-const SETTLING = new Set([undefined, 'starting']);
-let engineRefresh: ReturnType<typeof setInterval> | undefined;
-let engineRate = 0;
-shell.subscribe(state => {
-  const wanted = SETTLING.has(state.engine?.state) || state.troubleshooting
-    ? ENGINE_SETTLING_MS
-    : ENGINE_WATCHING_MS;
-  if (engineRate === wanted && engineRefresh !== undefined) return;
-  if (engineRefresh !== undefined) clearInterval(engineRefresh);
-  engineRate = wanted;
-  engineRefresh = setInterval(() => { void askEngine({ type: 'status' }); }, wanted);
-});
-// Asked the moment Troubleshooting opens, so the detail is current when it is
-// read rather than up to a tick stale.
-let panelWasOpen = false;
-shell.subscribe(state => {
-  if (state.troubleshooting && !panelWasOpen) void askEngine({ type: 'status' });
-  panelWasOpen = state.troubleshooting;
-});
-
-// Asked once, straight away, so the bar says something true on the first frame
-// rather than "asking…" until a timer fires.
-void askEngine({ type: 'status' });
+const stopListening = window.storage.onStatus(status => { pushed = true; takeStatus(status); });
+window.addEventListener('pagehide', () => { stopListening(); }, { once: true });
+void window.storage.request({ type: 'status' }).then(reply => { if (reply.ok && !pushed) takeStatus(reply.status); });

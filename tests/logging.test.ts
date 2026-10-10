@@ -4,7 +4,6 @@ import {
   DEFAULT_LEVEL, MAX_AGE_MS, RAISED_LEVEL_MS, REDACTED_FIELDS,
   effectiveLevel, plan, redactionPaths, type LogFile
 } from '../packages/logging/logging.js';
-import { liveEngineLogs } from '../packages/logging/logger.js';
 
 const file = (name: string, bytes: number, modifiedMs: number): LogFile => ({ name, bytes, modifiedMs });
 const NOW = 1_800_000_000_000;
@@ -66,9 +65,9 @@ describe('QGD-LOG-0007 a hard total cap, oldest first', () => {
     const files = [file('qg.log', 100, NOW), file('a.log', 100, NOW - 2000), file('b.log', 100, NOW - 1000)];
     expect(plan(files, { active: 'qg.log', nowMs: NOW, maxTotalBytes: 250 }).remove).toEqual(['a.log']);
   });
-  it('counts the engine\'s files in the same folder against the same cap', () => {
-    const files = [file('qg.log', 100, NOW), file('postgresql-1.log', 400, NOW - 1000)];
-    expect(plan(files, { active: 'qg.log', nowMs: NOW, maxTotalBytes: 250 }).remove).toEqual(['postgresql-1.log']);
+  it('counts any other file in the folder against the same cap', () => {
+    const files = [file('qg.log', 100, NOW), file('other-1.log', 400, NOW - 1000)];
+    expect(plan(files, { active: 'qg.log', nowMs: NOW, maxTotalBytes: 250 }).remove).toEqual(['other-1.log']);
   });
   it('does not name a file twice when age and the cap both catch it', () => {
     const files = [file('qg.log', 100, NOW), file('old.log', 400, NOW - MAX_AGE_MS - 1)];
@@ -332,60 +331,17 @@ describe('one writer per process', () => {
   });
 });
 
-describe('QGD-LOG-0011 the engine is logging into this directory too', () => {
+describe('the active list', () => {
   const file = (name: string, bytes: number, modifiedMs: number) => ({ name, bytes, modifiedMs });
   const now = Date.UTC(2026, 9, 8, 12, 0, 0);
   const day = 24 * 60 * 60 * 1000;
 
-  it('never removes the engine log PostgreSQL has open', () => {
-    // Deleting it would lose the records and free nothing: the collector holds
-    // the descriptor until it rotates on its own.
-    const files = [
-      file('qg-desktop.log', 1000, now),
-      file('engine-2026-10-08_120000.log', 40 * 1024 * 1024, now),
-      file('engine-2026-09-01_120000.log', 20 * 1024 * 1024, now - 40 * day)
-    ];
-    const decision = plan(files, { active: ['qg-desktop.log', 'engine-2026-10-08_120000.log'], nowMs: now });
-    expect(decision.remove).toContain('engine-2026-09-01_120000.log');
-    expect(decision.remove).not.toContain('engine-2026-10-08_120000.log');
-    expect(decision.remove).not.toContain('qg-desktop.log');
-  });
-
-  it('ages out an engine log that is no longer the one being written', () => {
-    const files = [
-      file('qg-desktop.log', 10, now),
-      file('engine-2026-08-01_120000.log', 10, now - 30 * day)
-    ];
-    expect(plan(files, { active: ['qg-desktop.log'], nowMs: now }).remove)
-      .toEqual(['engine-2026-08-01_120000.log']);
-  });
-
-  it('counts the engine logs toward the total, and still frees space', () => {
-    const files = [
-      file('qg-desktop.log', 1024, now),
-      file('engine-2026-10-08_120000.log', 49 * 1024 * 1024, now),
-      file('engine-2026-10-07_120000.log', 40 * 1024 * 1024, now - day)
-    ];
-    const decision = plan(files, { active: ['qg-desktop.log', 'engine-2026-10-08_120000.log'], nowMs: now });
-    // Over the fifty-megabyte total, so the one that can go, goes.
-    expect(decision.remove).toEqual(['engine-2026-10-07_120000.log']);
-  });
-
-  it('takes a single name as it always did', () => {
-    const files = [file('qg-desktop.log', 10, now), file('old.log', 10, now - 30 * day)];
-    expect(plan(files, { active: 'qg-desktop.log', nowMs: now }).remove).toEqual(['old.log']);
+  it('never removes a file named active, and takes a single name as it always did', () => {
+    // A list, though today it holds one name: it held the database engine's
+    // log too until the engine went on 2026-10-10 (QGD-LOG-0011, retired).
+    const files = [file('qg-desktop.log', 10, now), file('kept.log', 10, now - 30 * day), file('old.log', 10, now - 30 * day)];
+    expect(plan(files, { active: ['qg-desktop.log', 'kept.log'], nowMs: now }).remove).toEqual(['old.log']);
+    expect(plan(files, { active: 'qg-desktop.log', nowMs: now }).remove.sort()).toEqual(['kept.log', 'old.log']);
   });
 });
 
-describe('QGD-LOG-0011 which engine log is in use', () => {
-  it('is the newest, and none when the engine has not run', () => {
-    const files = [
-      { name: 'qg-desktop.log', bytes: 1, modifiedMs: 100 },
-      { name: 'engine-a.log', bytes: 1, modifiedMs: 200 },
-      { name: 'engine-b.log', bytes: 1, modifiedMs: 300 }
-    ];
-    expect(liveEngineLogs(files)).toEqual(['engine-b.log']);
-    expect(liveEngineLogs([{ name: 'qg-desktop.log', bytes: 1, modifiedMs: 1 }])).toEqual([]);
-    expect(liveEngineLogs([])).toEqual([]);
-  });
-});
