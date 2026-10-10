@@ -46,6 +46,22 @@ const FORBIDDEN_SYNTAX = [
   }
 ];
 
+// Storage (QGD-ENG-0016, QGD-ENG-0002). Added to FORBIDDEN_SYNTAX for those
+// files only, because a later block's no-restricted-syntax replaces the earlier
+// one rather than adding to it.
+const NO_ERROR_MESSAGE = {
+  selector: "MemberExpression[property.name='message']",
+  message: 'QGD-ENG-0016: storage code never reads an error\'s message; it carries bound values. Use reduce() from packages/storage/errors.ts.'
+};
+const NO_NON_LITERAL_SQL = {
+  selector: "CallExpression[callee.property.name=/^(prepare|exec)$/][arguments.0.type!='Literal']",
+  message: 'QGD-ENG-0002: SQL text reaches SQLite only through the adapter (sqlite.ts) and the migrator (migrate.ts); elsewhere prepare() and exec() take a fixed literal.'
+};
+// The storage package, and the control fixtures that prove these rules run.
+// Its two files that must execute generated SQL are exempt from the second rule.
+const STORAGE_FILES = ['packages/storage/**/*.ts', 'packages/storage/**/*.mjs'];
+const STORAGE_SQL_EXEMPT = ['packages/storage/sqlite.ts', 'packages/storage/migrate.ts'];
+
 const SECURITY_AS_ERRORS = Object.fromEntries(
   // The plugin ships its rules as warnings. A warning is not a gate.
   Object.keys(security.configs.recommended.rules).map(rule => [rule, 'error'])
@@ -91,6 +107,19 @@ export default [
     plugins: { security },
     rules: { ...SECURITY_AS_ERRORS, ...SHARED, ...TYPE_AWARE, 'security/detect-object-injection': 'off', 'security/detect-non-literal-fs-filename': 'off' }
   }),
+
+  // Storage: the two rules above, after the product's block so they apply
+  // on top of it. .mjs is listed so the controls in scripts/lint.mjs can be
+  // linted without the TypeScript project.
+  {
+    files: STORAGE_FILES,
+    ignores: STORAGE_SQL_EXEMPT,
+    rules: { 'no-restricted-syntax': ['error', ...FORBIDDEN_SYNTAX, NO_ERROR_MESSAGE, NO_NON_LITERAL_SQL] }
+  },
+  {
+    files: STORAGE_SQL_EXEMPT,
+    rules: { 'no-restricted-syntax': ['error', ...FORBIDDEN_SYNTAX, NO_ERROR_MESSAGE] }
+  },
 
   // QGD-SEC-0011, on the source. A compiled component is an innerHTML
   // assignment that cannot be tied back to the tag that produced it.

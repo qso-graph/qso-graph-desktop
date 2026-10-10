@@ -13,8 +13,10 @@
 // The direction, from QGD-REP-0006:
 //
 //   persona-core, logging, reference, ui, preload, app-api   depend on no package
-//   personas, engine                                         depend only on those
-//   main                                                     adds personas, engine, app-api
+//   personas, storage                                        depend only on those
+//   main                                                     adds personas, storage, app-api
+//   (engine is the PostgreSQL package, kept beside storage until it is
+//   deleted in stage 5 of docs/STORAGE-PLAN.md)
 //   renderer                                                 may depend on any of them
 //   an application                                           app-api and ui, nothing else
 //
@@ -40,6 +42,9 @@ export const ALLOWED = {
   'app-api': [],
   'personas': ['logging', 'persona-core'],
   'engine': ['logging', 'reference'],
+  // The SQLite stores (QGD-ENG-0001). app-api only for the shape of an
+  // application id, which names a folder (QGD-ENG-0018).
+  'storage': ['app-api', 'logging', 'reference'],
   'main': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'ui', 'app-api'],
   'renderer': ['logging', 'personas', 'engine', 'reference', 'persona-core', 'ui', 'main', 'app-api']
 };

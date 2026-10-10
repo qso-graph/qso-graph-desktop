@@ -58,6 +58,10 @@ export function suiteCommands(npmCli) {
   ['package-boundaries', ['scripts/package-boundaries.mjs']],
   ['build', [npmCli, 'run', 'build']],
   ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/engine-binaries.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/app-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/app-broker.test.mjs', 'tests/app-serve.test.ts', 'tests/deadlines.test.mjs', 'tests/suite-timeouts.test.mjs', 'tests/suite-speed.test.mjs']],
+  // The SQLite stores (docs/STORAGE-PLAN.md stage 3). Unit-shaped and fast:
+  // node:sqlite loads under plain Node, so they need no window or engine.
+  ['storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage.test.ts']],
+  ['storage-migrations', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage-migrations.test.ts']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],

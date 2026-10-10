@@ -72,7 +72,14 @@ const CONTROLS = [
   { name: 'no-eval', path: 'scripts/__control__.mjs', code: 'eval("1");\n' },
   { name: 'no-restricted-syntax', path: 'scripts/__control__.mjs', code: 'spawn("x", { shell: true });\n' },
   { name: 'security/detect-non-literal-require', path: 'scripts/__control__.mjs', code: 'const m = require(name);\n' },
-  { name: 'security/detect-unsafe-regex', path: 'scripts/__control__.mjs', code: 'const r = /(a+)+$/;\n', expect: false }
+  { name: 'security/detect-unsafe-regex', path: 'scripts/__control__.mjs', code: 'const r = /(a+)+$/;\n', expect: false },
+  // Several bans share no-restricted-syntax, so these controls also name the
+  // ban they expect: a fixture that tripped a different one would prove nothing.
+  // sql.raw had no control of its own until 2026-10-10.
+  { name: 'no-restricted-syntax', match: 'QGD-SEC-0005', label: 'sql.raw ban', path: 'scripts/__control__.mjs', code: 'sql.raw(value);\n' },
+  { name: 'no-restricted-syntax', match: 'QGD-ENG-0016', label: 'storage error-message ban', path: 'packages/storage/__control__.mjs', code: 'try { run(); } catch (error) { report(error.message); }\n' },
+  { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage non-literal SQL ban', path: 'packages/storage/__control__.mjs', code: 'connection.prepare(query);\n' },
+  { name: 'no-restricted-syntax', match: 'QGD-ENG-0002', label: 'storage literal SQL', path: 'packages/storage/__control__.mjs', code: "connection.exec('PRAGMA journal_mode = DELETE');\n", expect: false }
 ];
 
 // Some rules cannot be fixture-tested where they matter: a fixture under packages/
@@ -99,7 +106,8 @@ const REQUIRED_FOR_PRODUCT = [
 const failures = [];
 for (const control of CONTROLS) {
   const [result] = await eslint.lintText(control.code, { filePath: resolve(root, control.path), warnIgnored: false });
-  const fired = (result?.messages ?? []).some(message => message.ruleId === control.name);
+  const fired = (result?.messages ?? []).some(message =>
+    message.ruleId === control.name && (control.match === undefined || message.message.includes(control.match)));
   const wanted = control.expect !== false;
   if (fired !== wanted) {
     const label = control.label ?? control.name;
@@ -128,6 +136,29 @@ for (const rule of REQUIRED_FOR_PRODUCT) {
   const severity = Array.isArray(setting) ? setting[0] : setting;
   if (severity !== 'error' && severity !== 2) {
     failures.push(`${rule} is not an error for packages/main/main.ts; the product is not held to it`);
+  }
+}
+
+// The storage bans are asserted where they matter, on the real files: a .mjs
+// fixture shows the selectors fire, and this shows they are configured for the
+// TypeScript the product ships. sqlite.ts and migrate.ts are exempt from the SQL
+// ban by name, and only from that one.
+const storageSelectors = async (file) => {
+  const config = await eslint.calculateConfigForFile(resolve(root, file));
+  const setting = config.rules?.['no-restricted-syntax'] ?? [];
+  return (Array.isArray(setting) ? setting.slice(1) : []).map(entry => entry.message ?? '');
+};
+for (const [file, wanted] of [
+  ['packages/storage/layout.ts', ['QGD-ENG-0016', 'QGD-ENG-0002', 'QGD-SEC-0005']],
+  ['packages/storage/sqlite.ts', ['QGD-ENG-0016', 'QGD-SEC-0005']],
+  ['packages/storage/migrate.ts', ['QGD-ENG-0016', 'QGD-SEC-0005']]
+]) {
+  const messages = await storageSelectors(file);
+  for (const id of wanted) {
+    if (!messages.some(message => message.includes(id))) failures.push(`${file} is not held to the ${id} ban`);
+  }
+  if (!wanted.includes('QGD-ENG-0002') && messages.some(message => message.startsWith('QGD-ENG-0002'))) {
+    failures.push(`${file} is held to the QGD-ENG-0002 SQL ban, which would stop it doing its job`);
   }
 }
 

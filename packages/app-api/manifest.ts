@@ -35,9 +35,16 @@ export interface AppManifest {
   readonly page: string;
 }
 
-// An id names a directory, a database schema and a database role
-// (QGD-ENG-0010), and appears in a refusal message. Bounded and plain.
+// An id names the application's folder (QGD-ENG-0018) and its key-values in
+// state.sqlite, and appears in a refusal message. Bounded and plain.
 const APP_ID = /^[a-z][a-z0-9-]{1,30}$/;
+
+// The same test, for code that receives an identifier from somewhere other than
+// a manifest and must hold it to the same shape (QGD-ENG-0018: it names a folder).
+export function isAppId(value: unknown): value is string {
+  return typeof value === 'string' && APP_ID.test(value);
+}
+
 // Split before matching rather than one pattern with an optional group round
 // a bounded repetition, which eslint-plugin-security reads as unsafe
 // (QGD-SEC-0013). Two plain patterns say the same thing and neither can
