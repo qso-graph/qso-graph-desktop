@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/qso-graph-desktop-banner.svg" alt="QSO Graph Desktop" width="720">
+</p>
+
 # QSO Graph Desktop
 
 A local macOS preview of QSO Graph Desktop with a Rust persona core. Create or
