@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { compare, decode } from '../scripts/png.mjs';
+import { compare, decode, describeDiff } from '../scripts/png.mjs';
 
 // The committed baselines are the real input this decoder exists to read, so
 // they are what it is tested against rather than something synthesised.
@@ -79,5 +79,79 @@ describe('comparing two screenshots', () => {
     expect(compare(before, after, 0).differing).toBe(1);
     expect(compare(before, after, 1).differing).toBe(1);
     expect(compare(before, after, 2).same).toBe(true);
+  });
+});
+
+describe('describing a difference', () => {
+  // Why this is tested at all: when the screenshot suite began failing
+  // intermittently, all it said was "752 of 814000 pixels differ, first at
+  // 12,68" — one coordinate and a count, which does not say where the
+  // difference is or how it is shaped.
+  //
+  // What it must NOT do is name a cause. An earlier version inferred one from
+  // the largest channel difference and got the suite's own failure wrong, so
+  // these controls assert the measurements are there AND that no verdict is
+  // attached to them.
+  const image = (width, height, fill) => {
+    const pixels = new Uint8Array(width * height * 4);
+    for (let i = 0; i < pixels.length; i += 4) pixels.set(fill, i);
+    return { width, height, pixels };
+  };
+  const set = (img, x, y, colour) => {
+    img.pixels.set(colour, (y * img.width + x) * 4);
+  };
+
+  it('gives the region, the density and how far off the channels are', () => {
+    const was = image(8, 8, [10, 20, 30, 255]);
+    const now = image(8, 8, [10, 20, 30, 255]);
+    set(now, 3, 4, [10, 20, 32, 255]);
+    const said = describeDiff(was, now);
+    expect(said).toContain('region x 3..3, y 4..4 (1x1 of 8x8)');
+    expect(said).toContain('1 differing pixel(s), 100% of that region');
+    expect(said).toContain('worst channel off by 2');
+    // The actual colours, so a reader can see it for themselves.
+    expect(said).toContain('(3,4) was 10/20/30/255 now 10/20/32/255');
+  });
+
+  it('separates a sparse outline from a solid block by density, not by verdict', () => {
+    // Same bounding box, same worst channel, different shape. The numbers
+    // differ; neither is labelled.
+    const solidWas = image(8, 8, [0, 0, 0, 255]);
+    const solidNow = image(8, 8, [0, 0, 0, 255]);
+    for (let x = 0; x < 4; x++) for (let y = 2; y < 4; y++) set(solidNow, x, y, [255, 255, 255, 255]);
+    const solid = describeDiff(solidWas, solidNow);
+    expect(solid).toContain('region x 0..3, y 2..3 (4x2 of 8x8)');
+    expect(solid).toContain('8 differing pixel(s), 100% of that region');
+
+    const sparseWas = image(8, 8, [0, 0, 0, 255]);
+    const sparseNow = image(8, 8, [0, 0, 0, 255]);
+    set(sparseNow, 0, 2, [255, 255, 255, 255]);
+    set(sparseNow, 3, 3, [255, 255, 255, 255]);
+    const sparse = describeDiff(sparseWas, sparseNow);
+    expect(sparse).toContain('region x 0..3, y 2..3 (4x2 of 8x8)');
+    expect(sparse).toContain('2 differing pixel(s), 25% of that region');
+  });
+
+  it('names no cause, however large or small the difference', () => {
+    // The control on the defect itself. 100/100/100 to 102/102/102 is a real
+    // colour change that the old rule called antialiasing, and 20 levels over
+    // a thin outline is antialiasing that it called a layout change.
+    const tinyWas = image(4, 4, [100, 100, 100, 100]);
+    const tinyNow = image(4, 4, [102, 102, 102, 102]);
+    const bigWas = image(4, 4, [0, 0, 0, 255]);
+    const bigNow = image(4, 4, [255, 255, 255, 255]);
+    for (const said of [describeDiff(tinyWas, tinyNow), describeDiff(bigWas, bigNow)]) {
+      for (const verdict of ['rasteris', 'antialias', 'moved', 'layout', 'not a ']) {
+        expect(said.toLowerCase(), `it must not conclude "${verdict}"`).not.toContain(verdict);
+      }
+    }
+  });
+
+  it('says so rather than throwing when the second pass finds nothing', () => {
+    // compare and describeDiff decode separately, so a difference that is gone
+    // by the time this runs is possible. It reports that instead of inventing
+    // a region from Infinity.
+    const same = describeDiff(image(4, 4, [1, 2, 3, 4]), image(4, 4, [1, 2, 3, 4]));
+    expect(same).toBe('no differing pixel found on the second pass');
   });
 });

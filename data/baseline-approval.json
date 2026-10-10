@@ -22,24 +22,24 @@
         "personas-dark.png": "503ac34a37a17c3eabcc2180cbc3d8cac2eda5989d89d42ae112faa258deb8c7",
         "settings-dark.png": "b1fe7c404ab072d6cf850fb511fce20ae5b30aa31e3feef03a08ab3f70e0baa9"
       }
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-10",
+      "what": "2 baseline(s): settings-light.png, settings-dark.png",
+      "said": "Screen shots look ok",
+      "why": "Settings gained the \"Move personas to another machine\" and \"Applications\" sections (QGD-PSN-0007 to QGD-PSN-0011, QGD-APP-0012). The other four baselines are byte-identical to his 2026-10-09 approval and are not re-approved here.",
+      "recordedAtUtc": "2026-10-10T05:59:57.991Z",
+      "files": {
+        "settings-dark.png": "cf9e35da8cece1d4a9fbd35cee507d1bb99c6ce440963e65670739c86d3a780f",
+        "settings-light.png": "37b0b7276af91055a6528a7d91b4663e644a6ba613dac4fe790b656b6ef9c87d"
+      }
     }
   ],
   "awaiting": {
     "note": "Baselines whose bytes differ from the approved set. Written by an agent as a record of what is pending, never as an approval. KI7MT clears these by looking at them and saying so; the entry then moves into \"approved\".",
-    "files": {
-      "home-light.png": "0f9d141a9fc340f408735c4825d3764c6cb8e6cdb78b3372c6ea68cae9f08eee",
-      "personas-light.png": "3cfa6dba916b7e2f56a80d65a786cb1d31580dc2bc79c042d40acca118ecdfcf",
-      "settings-light.png": "37b0b7276af91055a6528a7d91b4663e644a6ba613dac4fe790b656b6ef9c87d",
-      "home-dark.png": "4b93ab686b591c85735438a20a3daeb3420b21a588ba10712a22443406eba8b4",
-      "personas-dark.png": "503ac34a37a17c3eabcc2180cbc3d8cac2eda5989d89d42ae112faa258deb8c7",
-      "settings-dark.png": "cf9e35da8cece1d4a9fbd35cee507d1bb99c6ce440963e65670739c86d3a780f"
-    },
-    "whyTheyChanged": [
-      "The footer: \"Connects only when you test a credential\" became \"Connects to test a credential or update reference data\", because the product now fetches reference data (QGD-REF-0001, QGD-REF-0009) and the old sentence was false.",
-      "The Home page: \"Nothing is sent anywhere until you ask for it\" became \"Nothing of yours is sent anywhere until you ask. The app fetches the ADIF and park reference lists it needs, and nothing else.\" Same reason.",
-      "Settings gained a \"Move personas to another machine\" section (QGD-PSN-0007 to QGD-PSN-0011).",
-      "Settings gained an \"Applications\" section (QGD-APP-0012): each loaded application, its tier and version, and a checkbox per grant it asked for that needs the operator \u2014 with the ones that need nobody shown as always allowed rather than offered as a choice. Only settings-light.png and settings-dark.png actually differ; the rail is unchanged, because the Apps page appears only in a proofs build (QGD-APP-0014.1). Added because P7 first shipped the grant mechanism with no surface: the operator could allow or withdraw a grant only by editing the settings file or calling IPC, which QGD-APP-0012 does not permit. Found in review."
-    ],
+    "files": {},
+    "whyTheyChanged": [],
     "approvedByAnAgentInError": "Watson ran scripts/screenshots.mjs --approve on these during P5 and P6. That approval was not his to give (QGD-PRT-0103); Bob caught it. The images are kept because they are what the product now draws, and this register records that KI7MT has not yet seen them."
   }
 }

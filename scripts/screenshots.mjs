@@ -29,7 +29,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { redact } from './report.mjs';
-import { compare, decode } from './png.mjs';
+import { compare, decode, describeDiff } from './png.mjs';
 
 // Who is approving. An agent passing --approve has to say so, and what it
 // writes lands in "awaiting" rather than in "approved": the register is the
@@ -103,14 +103,40 @@ try {
       // opened on.
       '--force-color-profile=srgb',
       // Greyscale antialiasing. Subpixel antialiasing depends on the panel.
-      '--disable-lcd-text'
+      '--disable-lcd-text',
+      // One scale factor, not the scale of whichever display the window opened
+      // on. This machine drives more than one, and a window opening on a
+      // Retina panel one run and a 1x panel the next would rasterise the same
+      // layout differently.
+      //
+      // Honest about what this did and did not do: it was added while chasing
+      // the intermittent failure and it did NOT fix it — the suite still
+      // failed 4 runs in 8 afterwards, and the cause turned out to be the
+      // Applications inventory race handled below. It stays because it pins a
+      // real variable and provably changes nothing: all six baselines still
+      // match pixel for pixel with it in place.
+      '--force-device-scale-factor=1',
+      // Glyphs rasterised at whole pixels. Subpixel positioning makes the same
+      // text render differently depending on its fractional x, which is the
+      // other way a settled page differs between two runs.
+      '--disable-font-subpixel-positioning'
     ],
     cwd: process.cwd(),
     env: {
       ...process.env,
       QG_DESKTOP_PROFILE_DIR: join(directory, 'profile'),
       QG_DESKTOP_USER_DATA_DIR: join(directory, 'chromium'),
-      QG_DESKTOP_LOG_DIR: logs
+      QG_DESKTOP_LOG_DIR: logs,
+      // Which applications Settings draws, pinned rather than inherited.
+      //
+      // Settings lists every loaded application with a checkbox per grant
+      // (QGD-APP-0012), so what it looks like depends on what loaded — and
+      // the default is `<appPath>/apps` plus `<appPath>/proofs`, resolved from
+      // wherever Electron thinks the app is. A baseline of a page whose
+      // content comes from a default nobody stated is a baseline that drifts
+      // for reasons nothing records. The three proof manifests are what these
+      // baselines were approved with, so that is what is named here.
+      QG_DESKTOP_APP_DIRS: resolve('proofs')
     },
     timeout: 30_000
   });
@@ -180,6 +206,40 @@ try {
       // The caret blinks. Nothing else on these pages moves, and a blinking
       // caret in a baseline is a comparison that fails every other run.
       await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
+      // The Applications section asks the frame what loaded, and the answer
+      // arrives over IPC. Until it does the section reads "Reading which
+      // applications are installed…", which is a different page from the one
+      // in the baseline — and the settle loop above cannot see it: two
+      // identical frames 250ms apart both land inside that wait, so the
+      // capture is taken and the inventory arrives afterwards. That is the
+      // intermittent failure this suite had, 4 runs in 8, and it is the same
+      // shape as the app-proofs lazy-start race. The precondition is the
+      // answer being in, not the markup being drawn. Found by instrumenting
+      // the diff: 168,468 pixels over the whole content area, page grey
+      // becoming surface white, which is a section that grew.
+      if (name === 'Settings') {
+        await expect(page.locator('#apps-reading'), 'the inventory must be in before Settings is captured')
+          .toHaveCount(0, { timeout: 30_000 });
+        // And it is the expected answer, not merely some answer: a capture of
+        // an empty list would otherwise be compared as though it were the
+        // three applications the baseline holds.
+        await expect(page.locator('.app > h3'), 'the three proof applications are what the baselines hold')
+          .toHaveCount(3, { timeout: 30_000 });
+      }
+      // Both panes back to the top, and proven to be there. A page captured at
+      // a different scroll offset differs over its whole content area for a
+      // reason no colour comparison can name.
+      await page.evaluate(() => {
+        for (const element of document.querySelectorAll('aside, .page-main')) {
+          element.scrollTop = 0;
+          element.scrollLeft = 0;
+        }
+      });
+      const offsets = await page.evaluate(() => [...document.querySelectorAll('aside, .page-main')]
+        .map(element => `${element.scrollTop},${element.scrollLeft}`));
+      for (const offset of offsets) {
+        expect(offset, 'every pane is scrolled to the top before capture').toBe('0,0');
+      }
       const file = `${name.toLowerCase()}-${theme}.png`;
       const shot = await stableShot(page, join(captures, file));
       // Checked after the fact, not only before: a capture is worth nothing if
@@ -211,9 +271,16 @@ try {
         failures.push(`${file}: no baseline. Review report/screenshots/${file}, then approve it with: node scripts/screenshots.mjs --approve`);
         continue;
       }
-      const result = compare(decode(existing), current);
+      const baseline = decode(existing);
+      const result = compare(baseline, current);
       if (!result.same) {
-        changed.push(`${file}: ${result.reason}`);
+        // The reason alone is a pixel count and one coordinate, which does
+        // not say where the difference is or what shape it has — and that was
+        // the whole question when this suite began failing intermittently.
+        // describeDiff adds the region, how densely it differs inside it, how
+        // far off the channels are, and some actual colours. It names no
+        // cause, deliberately: see the note on it in png.mjs.
+        changed.push(`${file}: ${result.reason}\n      ${describeDiff(baseline, current)}`);
       }
     }
   }

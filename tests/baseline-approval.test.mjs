@@ -30,22 +30,63 @@ describe('who approved what', () => {
     // way an unapproved screen becomes an approved one without anyone
     // looking.
     const pending = new Set(Object.keys(register.awaiting.files ?? {}));
+    // The governing approval for a file is the LAST entry that names it.
+    //
+    // Checking every entry made a second approval of the same screen
+    // impossible: Settings changed in P7, KI7MT looked at it and said so, and
+    // the only way to record that was to go back and edit what he approved in
+    // P3 — rewriting history to describe the present, which is the one thing a
+    // register must not do. An earlier entry is the record of what was
+    // approved *then*; the newest is what governs the bytes now.
+    //
+    // The guarantee is unchanged and still exact: every baseline on disk must
+    // match the hash of its most recent approval, or be openly listed as
+    // awaiting with its real bytes. Nothing can be swapped silently either
+    // way. Append-only ordering is asserted separately, so "most recent"
+    // cannot be gamed by inserting an entry in the middle.
+    const governing = new Map();
     for (const entry of register.approved) {
       for (const [file, hash] of Object.entries(entry.files ?? {})) {
-        // A file openly recorded as awaiting is the opposite of a silent
-        // swap, and its own hash is checked below. Without this exemption a
-        // legitimate change to an approved screen could never land until
-        // KI7MT happened to be at the keyboard, which is not what this check
-        // is protecting against — and the approval itself is still his: the
-        // awaiting entry says plainly that nobody has looked yet.
-        if (pending.has(file)) continue;
-        expect(await hashOf(file), `${file} has changed since ${entry.by} approved it`).toBe(hash);
+        governing.set(file, { hash, by: entry.by, date: entry.date });
       }
+    }
+    for (const [file, approval] of governing) {
+      // A file openly recorded as awaiting is the opposite of a silent swap,
+      // and its own hash is checked below. Without this exemption a legitimate
+      // change to an approved screen could never land until KI7MT happened to
+      // be at the keyboard, which is not what this check is protecting
+      // against — and the approval itself is still his: the awaiting entry
+      // says plainly that nobody has looked yet.
+      if (pending.has(file)) continue;
+      expect(await hashOf(file),
+        `${file} has changed since ${approval.by} approved it on ${approval.date}`)
+        .toBe(approval.hash);
     }
     for (const [file, hash] of Object.entries(register.awaiting.files ?? {})) {
       expect(files, `${file} is recorded as awaiting and is not there`).toContain(file);
       expect(await hashOf(file), `${file} has changed since it was recorded as awaiting`).toBe(hash);
     }
+  });
+
+  it('is append-only, so a later approval cannot be slipped in behind an earlier one', () => {
+    // What makes "the last entry governs" safe. Re-ordering the list, or
+    // inserting an entry before the newest, would change which hash governs a
+    // file without changing any hash — so the order is held to the clock.
+    const stamps = register.approved.map(entry => entry.recordedAtUtc);
+    for (const stamp of stamps) expect(stamp, 'every approval is stamped').toMatch(/Z$/);
+    expect(stamps, 'approvals are in the order they were recorded').toEqual([...stamps].sort());
+    // A new approval must carry the bytes it approved. The one exception is
+    // the first entry, KI7MT's P3 sign-off, recorded before this register
+    // held per-file hashes at all — history, not a loophole, so it is pinned
+    // to position 0 and anything later must name files.
+    register.approved.forEach((entry, index) => {
+      if (index === 0) return;
+      expect(Object.keys(entry.files ?? {}).length,
+        `the ${entry.date} approval records the bytes it approved`).toBeGreaterThan(0);
+    });
+    expect(Object.keys(register.approved[0].files ?? {}).length === 0
+      || register.approved.every(entry => Object.keys(entry.files ?? {}).length > 0),
+      'only the first entry may predate per-file hashes').toBe(true);
   });
 
   it('cannot hide a change by listing a file as awaiting without recording its bytes', async () => {
