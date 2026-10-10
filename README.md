@@ -9,7 +9,9 @@ secret; use the explicit removal controls to delete it.
 
 The credential core owns its own Keychain entry names: the `io.qso-graph.desktop` service
 with `persona:provider` accounts, a `personas.json` index and a `current.txt` active marker
-(`QGD-CRD-0003`). The default profile directory is `${XDG_CONFIG_HOME:-~/.config}/qso-graph-desktop`.
+(`QGD-CRD-0003`). Those live in a `personas` directory inside the one the operating system
+gives the application — `~/Library/Application Support/QSO Graph Desktop` on macOS — beside the
+engine's data and the reference cache (`QGD-CRD-0013.1`).
 It never reads or writes the qso-graph MCP servers' data (`QGD-CRD-0004`).
 Test credential checks QRZ lookup login or QRZ logbook STATUS, through the Rust
 core's TLS 1.3 client. Other services explicitly report that testing is pending.

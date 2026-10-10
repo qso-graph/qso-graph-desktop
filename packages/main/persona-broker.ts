@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { BrowserWindow, dialog, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { homedir } from 'node:os';
 import {
   allowsSender, isReply, validateCommand,
   type FetchedReference, type PersonaCommand, type PersonaReply, type SealedExport, type ServiceCommand
@@ -28,12 +27,22 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   let nextId = 0;
   let failures = 0;
   const pending = new Map<number, { resolve: (reply: PersonaReply) => void; timer: NodeJS.Timeout }>();
-  // The desktop's own directory. This was `adif-mcp` until 2026-10-09, which
-  // is the MCP servers' — so personas.json, holding KI7MT's and KE1HA's real
-  // personas, was a file both products wrote. Nothing in the old directory is
-  // migrated, read or removed: it may be the MCP side's, and separating two
-  // products is not the same as taking one's data.
-  const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'qso-graph-desktop');
+  // Inside the directory the operating system gives this application, beside
+  // everything else it owns — the engine's data and the reference cache are
+  // already under the same root (enginePaths, QGD-CRD-0013.1).
+  //
+  // Two wrongs were fixed here. Until 2026-10-09 this was `~/.config/adif-mcp`,
+  // the MCP servers' own directory, so personas.json — holding KI7MT's and
+  // KE1HA's real personas — was a file both products wrote. My first fix moved
+  // it to `~/.config/qso-graph-desktop`, which stopped the sharing but kept a
+  // Linux convention on macOS and put the personas somewhere the rest of this
+  // application does not live. Bob's correction is the right one: ask the
+  // platform.
+  //
+  // Nothing in either old directory is migrated, read or removed. The first
+  // may be the MCP side's data, and separating two products is not the same as
+  // taking one's.
+  const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(app.getPath('userData'), 'personas');
   // The services a command may name (QGD-PSN-0002). Read once, here, rather
   // than listed in the contract. A register that cannot be read leaves this
   // empty, which refuses every command naming a service while leaving the

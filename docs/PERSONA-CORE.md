@@ -8,14 +8,28 @@ them — `QGD-CRD-0004` rules out Python and MCP interoperability in any Part:
 - Record: lowercase name, uppercase callsign, start/end dates, provider refs.
 - Active persona: `current.txt` in the same directory.
 - Credentials: JSON `username`, `password`, `api_key`, with empty fields omitted,
-  in Keychain service `adif-mcp`, account `persona:provider` lowercased.
+  in Keychain service `io.qso-graph.desktop`, account `persona:provider` lowercased.
+  Until 2026-10-09 this said `adif-mcp` — the MCP servers' namespace — and so did the
+  code (`QGD-CRD-0003`, `QGD-CRD-0013`).
 - Secret selection: `qrz_logbook` prefers `api_key`; others prefer `password`;
   each falls back to the other, as in `PersonaManager.require()`.
 
-Default profile directory on macOS: `$XDG_CONFIG_HOME/adif-mcp` or
-`~/.config/adif-mcp`. Only the trusted app process
-chooses this path. Tests use their own temporary directory and unique fake
-Keychain entries; no test reads or changes an existing user credential.
+Default profile directory: a `personas` directory inside the one the operating
+system gives the application — `~/Library/Application Support/QSO Graph Desktop`
+on macOS — beside the engine's data and the reference cache. Only the trusted
+app process chooses this path.
+
+It was `~/.config/adif-mcp` until 2026-10-09, which is the MCP servers' own
+directory, so `personas.json` was a file both products wrote
+(`QGD-CRD-0013.1`). Nothing there is migrated, read or removed by this product.
+
+Tests use their own temporary profile directory, and their Keychain fixtures go
+to a service of their own, `io.qso-graph.desktop.test`, swept when a suite exits
+(`QGD-CRD-0013`). A release's verification run happens in an account whose login
+keychain holds nothing of the operator's — `docs/VERIFY-ACCOUNT.md`. The claim
+that "no test reads or changes an existing user credential" was true of the
+index and false of the Keychain: seventeen fixtures were found in KI7MT's real
+login keychain under the shared namespace, which is why both controls exist.
 
 Registered before implementation:
 

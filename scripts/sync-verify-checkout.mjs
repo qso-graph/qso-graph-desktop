@@ -16,7 +16,7 @@
 // Run as the developing account:
 //     node scripts/sync-verify-checkout.mjs [ref]
 import { spawnSync } from 'node:child_process';
-import { access, constants, writeFile } from 'node:fs/promises';
+import { access, constants, readFile, writeFile } from 'node:fs/promises';
 
 export const CHECKOUT = '/Users/Shared/qg-desktop-verify';
 export const SHARED_RUST = '/Users/Shared/rust';
@@ -48,13 +48,29 @@ run(['git', '-C', CHECKOUT, 'fetch', '--quiet', process.cwd(), ref]);
 run(['git', '-C', CHECKOUT, 'checkout', '--quiet', '--force', '-B', ref, 'FETCH_HEAD']);
 run(['git', '-C', CHECKOUT, 'reset', '--quiet', '--hard', head]);
 // Nothing of a previous run's output is left to be mistaken for this one's.
-run(['git', '-C', CHECKOUT, 'clean', '-qfd', '-e', 'node_modules', '-e', 'vendor', '-e', 'verify-env.sh']);
+// Limited to paths this project builds into. `git clean -fd` removes every
+// untracked file that is not ignored, which includes anything somebody left in
+// the directory — startup.txt among them. Naming the targets means a file
+// nobody told this script about survives it.
+for (const built of ['dist', 'out', 'report', '.svelte-check-control']) {
+  run(['git', '-C', CHECKOUT, 'clean', '-qfdx', '--', built]);
+}
 
 // The environment that account needs, written beside the checkout rather than
 // left as something to remember. CARGO_HOME is why scripts/cargo-path.mjs
 // resolves cargo instead of assuming ~/.cargo (which does not exist there).
-await writeFile(`${CHECKOUT}/verify-env.sh`, `# SPDX-License-Identifier: GPL-3.0-only
-# Written by scripts/sync-verify-checkout.mjs. Source this before make verify.
+const MARKER = '# Written by scripts/sync-verify-checkout.mjs';
+const envFile = `${CHECKOUT}/verify-env.sh`;
+try {
+  const existing = await readFile(envFile, 'utf8');
+  if (!existing.includes(MARKER)) {
+    throw new Error(`${envFile} exists and this script did not write it. Refusing to overwrite it.`);
+  }
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
+await writeFile(envFile, `# SPDX-License-Identifier: GPL-3.0-only
+${MARKER}. Source this before make verify.
 #
 # The Rust toolchain is shared from ${SHARED_RUST} rather than installed per
 # account: same version, no second download, and nothing in this account needs
@@ -64,12 +80,28 @@ export CARGO_HOME=${SHARED_RUST}/cargo
 export PATH="${SHARED_RUST}/cargo/bin:/opt/homebrew/bin:$PATH"
 `);
 
-// The commands to run there, written by the sync rather than kept by hand.
-// The first copy of these was hand-written and listed two of the four setup
-// steps, so the first run failed on missing ADIF definitions. A crib sheet
-// that is generated cannot drift from the procedure.
-const first = `cd ${CHECKOUT}\n. ./verify-env.sh\nmake setup          # first time in this account only\nmake verify\n`;
-await writeFile(`${CHECKOUT}/startup.txt`, first);
+// The commands are PRINTED, never written to a file.
+//
+// An earlier version wrote them to startup.txt. KI7MT had created that file
+// himself as a scratchpad, and on 2026-10-09 this script overwrote it — three
+// times — destroying the DKIM and site-verification records he had pasted
+// there while setting up DNS for qso-graph.io. It did so because the write had
+// no check of any kind: not whether the file existed, not who made it, not
+// whether this script had written it before. And the directory was world
+// writable by my own hand, so the non-admin account could build in it.
+//
+// Generating a crib sheet was reasonable. Claiming a filename in a shared
+// directory and overwriting it unconditionally was not. A script that writes a
+// file it did not create will eventually destroy one that mattered.
+//
+// So this writes exactly one file — verify-env.sh, which it created and which
+// carries its own marker — and refuses even that if the marker is absent.
+const commands = [
+  `cd ${CHECKOUT}`,
+  '. ./verify-env.sh',
+  'make setup          # first time in this account only',
+  'make verify'
+];
 
 // Made writable so the verification account can build here — but only the
 // files this account owns.
@@ -96,4 +128,4 @@ console.log('Then, logged in as qgdesktop:');
 // Printed from the same string that was just written, so the message and the
 // crib sheet cannot say different things. They did: this line listed two of
 // the four setup steps while startup.txt was being hand-maintained.
-for (const command of first.trimEnd().split('\n')) console.log(`  ${command}`);
+for (const command of commands) console.log(`  ${command}`);

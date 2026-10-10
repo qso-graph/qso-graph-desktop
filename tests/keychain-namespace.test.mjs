@@ -70,15 +70,51 @@ describe('the credential core owns its namespace', () => {
     }
   });
 
-  it('does not put the persona index in another product’s directory', async () => {
-    // The third instance of the same drift, found while fixing the first two:
-    // the profile directory was `~/.config/adif-mcp`, so personas.json —
-    // holding KI7MT's and KE1HA's real personas — was a file both products
-    // wrote.
+  it('asks the platform where its own data goes, and names no other product’s directory', async () => {
+    // The third instance of the drift, found while fixing the first two: the
+    // profile directory was `~/.config/adif-mcp`, so personas.json — holding
+    // KI7MT's and KE1HA's real personas — was a file both products wrote.
+    //
+    // The first fix moved it to `~/.config/qso-graph-desktop`, which stopped
+    // the sharing and was still wrong: a Linux convention on macOS, and not
+    // where the rest of this application keeps its data. Bob's correction is
+    // the rule asserted here — ask the platform.
     const broker = await readFile('packages/main/persona-broker.ts', 'utf8');
     const live = broker.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
-    expect(live).toContain("'qso-graph-desktop'");
-    expect(live).not.toContain(`'${FOREIGN_SERVICE}'`);
+    expect(live, 'the profile directory must come from the platform').toContain("app.getPath('userData')");
+    expect(live, `the broker names ${FOREIGN_SERVICE}`).not.toContain(FOREIGN_SERVICE);
+    // Not a path of its own choosing anywhere: no XDG, no dot-config, no home.
+    for (const invented of ['.config', 'XDG_CONFIG_HOME', 'homedir()']) {
+      expect(live, `the broker builds a path from ${invented} instead of asking the platform`)
+        .not.toContain(invented);
+    }
+  });
+
+  it('builds no path from the home directory except where that is the platform’s answer', async () => {
+    // Bob's step 5, as far as a static check reaches: nothing in the product
+    // invents a location in the user's home. The exceptions are named, with
+    // the reason, because an exception a rule works out for itself is not an
+    // exception, it is a hole (the same shape as NETWORK_EXCEPTIONS).
+    const allowed = {
+      'packages/logging/logger.ts':
+        'the log folder is per platform by definition — Library/Logs on macOS, LOCALAPPDATA on Windows, XDG_STATE_HOME on Linux (QGD-LOG-0002)',
+      'packages/engine/endpoint.ts':
+        'a Unix socket path is bounded at 104 bytes, so a short directory of the user’s own is measured against the home path (QGD-ENG-0009.1)'
+    };
+    const files = await sources('packages', ['.ts', '.cts', '.svelte']);
+    const offenders = [];
+    for (const file of files) {
+      const text = await readFile(file, 'utf8');
+      const live = text.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
+      if (/\bhomedir\b/.test(live) && !(file in allowed)) offenders.push(file);
+    }
+    expect(offenders, 'these build a path in the user’s home without a stated reason').toEqual([]);
+    // Not vacuous: every named exception still has to be real, or the list is
+    // describing a product that has moved on.
+    for (const [file, why] of Object.entries(allowed)) {
+      const text = await readFile(file, 'utf8');
+      expect(/\bhomedir\b/.test(text), `${file} no longer uses homedir — remove it from the list (${why})`).toBe(true);
+    }
   });
 
   it('every suite that reaches the core sends its fixtures somewhere safe', async () => {
