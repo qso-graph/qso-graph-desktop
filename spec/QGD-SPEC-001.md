@@ -124,6 +124,17 @@ order KI7MT sets: QG Reference's browsable surface, QG Net, the representative s
 LoTW signing, the contributed tier and sandbox, QG Spots, QG Rig, the Vault store, QG Sync,
 QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 
+> **QG Sync's key is not a persona credential** (KI7MT, 2026-10-09). It belongs in
+> Settings under Storage, beside the S3 endpoint and bucket it is for — not in the
+> persona service's register of per-persona service credentials. The two look alike
+> and are not: a persona credential is one operator's login to somebody else's
+> service, held per persona and offered to an application only through a grant
+> (`QGD-CRD-0010`, `QGD-APP-0007`); a sync key is one machine's access to the
+> operator's own storage, the same for every persona on it. Putting it in the persona
+> register would make it per-persona, reachable by grant, and carried by a persona
+> export — none of which is wanted. It is still a secret in the OS credential store
+> (`QGD-CRD-0001`); where it is *configured* and *keyed* is what this settles.
+
 > The persona core is P0 and the shell is P3 because `QGD-PRT-0001` says operating-system-level
 > components come first. Rationale: `QGD-HDBK-001` §2. Any document placing the shell ahead of
 > the core contradicts `QGD-PRT-0001` and is wrong by this specification.
