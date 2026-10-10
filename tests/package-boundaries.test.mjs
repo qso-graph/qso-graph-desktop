@@ -13,7 +13,9 @@ import { readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ALLOWED, ALLOWED_FOR_APPS, crossings, judge } from '../scripts/package-boundaries.mjs';
+import {
+  ALLOWED, ALLOWED_FOR_APPS, FRAME_TO_APP_ALLOWANCE, PROOF_HOST, crossings, judge, namedAllowance
+} from '../scripts/package-boundaries.mjs';
 
 let root;
 beforeAll(async () => {
@@ -131,6 +133,29 @@ describe('the real tree', () => {
     }
     for (const frame of ['engine', 'personas', 'persona-core', 'main', 'reference']) {
       expect(ALLOWED_FOR_APPS, `an application must not reach ${frame} directly`).not.toContain(frame);
+    }
+  });
+
+  it('lets the frame reach the proof host and nothing else under it', () => {
+    // The planted defect this is here for: the allowance was keyed on the
+    // importing file alone, so Shell.svelte importing any application's
+    // private module was marked "named" and allowed. The exception written
+    // down is the proof host — one file — and these are the two sides of it.
+    const shell = 'packages/renderer/Shell.svelte';
+    expect(Object.keys(FRAME_TO_APP_ALLOWANCE)).toEqual([shell]);
+    expect(namedAllowance(shell, PROOF_HOST), 'the named exception itself').toBe(true);
+
+    for (const target of [
+      join('apps', 'example', 'private.ts'),
+      join('proofs', 'harness', 'HarnessPage.svelte'),
+      join('proofs', 'qrz-lookup', 'LookupPage.svelte'),
+      join('proofs', 'AppsPage.ts')
+    ]) {
+      expect(namedAllowance(shell, target), `${target} is not the proof host`).toBe(false);
+    }
+    // And the exception belongs to that one file, not to the frame at large.
+    for (const file of ['packages/main/main.ts', 'packages/renderer/app.ts', 'packages/ui/Rail.svelte']) {
+      expect(namedAllowance(file, PROOF_HOST), `${file} holds no allowance`).toBe(false);
     }
   });
 });

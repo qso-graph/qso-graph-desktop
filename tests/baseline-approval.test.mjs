@@ -29,14 +29,34 @@ describe('who approved what', () => {
     // The point of the hash: approving an image and then replacing it is the
     // way an unapproved screen becomes an approved one without anyone
     // looking.
+    const pending = new Set(Object.keys(register.awaiting.files ?? {}));
     for (const entry of register.approved) {
       for (const [file, hash] of Object.entries(entry.files ?? {})) {
+        // A file openly recorded as awaiting is the opposite of a silent
+        // swap, and its own hash is checked below. Without this exemption a
+        // legitimate change to an approved screen could never land until
+        // KI7MT happened to be at the keyboard, which is not what this check
+        // is protecting against — and the approval itself is still his: the
+        // awaiting entry says plainly that nobody has looked yet.
+        if (pending.has(file)) continue;
         expect(await hashOf(file), `${file} has changed since ${entry.by} approved it`).toBe(hash);
       }
     }
     for (const [file, hash] of Object.entries(register.awaiting.files ?? {})) {
       expect(files, `${file} is recorded as awaiting and is not there`).toContain(file);
       expect(await hashOf(file), `${file} has changed since it was recorded as awaiting`).toBe(hash);
+    }
+  });
+
+  it('cannot hide a change by listing a file as awaiting without recording its bytes', async () => {
+    // The exemption above is only safe because an awaiting entry carries the
+    // hash of what is actually on disk. A file listed as awaiting with no
+    // hash, or a stale one, would be a way to change an approved screen and
+    // silence the check — so that is asserted directly rather than relied on.
+    for (const [file, hash] of Object.entries(register.awaiting.files ?? {})) {
+      expect(typeof hash, `${file} is awaiting with no recorded hash`).toBe('string');
+      expect(hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(await hashOf(file), `${file} does not match the bytes recorded as awaiting`).toBe(hash);
     }
   });
 

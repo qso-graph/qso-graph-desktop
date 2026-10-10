@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { PAGES, INITIAL_SHELL, createShellStore, isPageId, type ShellState } from '../packages/renderer/shell-store.js';
+import { INITIAL_SHELL, PAGES, PROOFS_ENABLED, createShellStore, isPageId, type ShellState, visiblePages } from '../packages/renderer/shell-store.js';
 
 describe('the shell store', () => {
   it('starts on Home with no active persona and the system theme', () => {
@@ -97,12 +97,28 @@ describe('the rail', () => {
   it('offers Personas and Settings, in that order', () => {
     // QGD-LOG-0013 puts the Logs page inside Settings, so it is not a third
     // rail item and this list is the whole of the navigation.
-    expect(PAGES.map(page => page.id)).toEqual(['home', 'personas', 'settings']);
-    expect(PAGES.map(page => page.label)).toEqual(['Home', 'Personas', 'Settings']);
+    //
+    // Asserted on visiblePages(), which is what the rail is given — not on
+    // PAGES, which also holds the Apps page. That one appears only in a
+    // proofs build, so a release's rail is unchanged and the screenshot
+    // baselines KI7MT approved do not move (QGD-APP-0014.1).
+    expect(visiblePages().map(page => page.id)).toEqual(['home', 'personas', 'settings']);
+    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Personas', 'Settings']);
     // Home at the top, Settings at the foot: it is where you change how the
     // places you work behave, not one of them.
-    expect(PAGES[0].placement).toBe('top');
-    expect(PAGES.at(-1)?.placement).toBe('bottom');
+    expect(visiblePages()[0].placement).toBe('top');
+    expect(visiblePages().at(-1)?.placement).toBe('bottom');
+  });
+
+  it('keeps the Apps page out of a build that has no applications to show', () => {
+    // The page exists in PAGES so there is one list of what a page is; what
+    // the rail offers is filtered. PROOFS_ENABLED is false here, as it is in
+    // every build but the one the app-proofs suite makes for itself.
+    expect(PROOFS_ENABLED).toBe(false);
+    expect(PAGES.map(page => page.id)).toContain('apps');
+    expect(visiblePages().map(page => page.id)).not.toContain('apps');
+    // Not vacuous: the filter must be removing exactly one thing.
+    expect(visiblePages().length).toBe(PAGES.length - 1);
   });
 
   it('accepts only a page that exists', () => {

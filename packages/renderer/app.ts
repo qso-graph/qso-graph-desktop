@@ -10,6 +10,7 @@ import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
+import type { AppsCommand, AppsReply } from '../main/apps-contract.js';
 import { createShellStore } from './shell-store.js';
 declare const __QG_VERSION__: string;
 
@@ -19,6 +20,10 @@ declare global {
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
     engine: { request(command: EngineCommand): Promise<EngineReply> };
+    apps?: {
+      request(app: unknown, command: unknown): Promise<unknown>;
+      inventory(command: AppsCommand): Promise<AppsReply>;
+    };
     appearance?: Appearance;
   }
 }
@@ -26,6 +31,54 @@ declare global {
 // below looks for an element. The Persona screen's markup moved into
 // PersonaPage.svelte unchanged and this file still finds it by id, so the
 // workflow signed off at P1 is the same code driving the same markup.
+// QGD-APP-0012: Settings shows what each application holds and can withdraw
+// it. Read on start and again after every change, so what is on screen is what
+// the frame would decide on the next request — not what was asked for.
+async function readApps(): Promise<void> {
+  const bridge = window.apps;
+  if (!bridge) {
+    shell.set({ appsProblem: 'The app API is not available in this window.' });
+    return;
+  }
+  try {
+    const reply = await bridge.inventory({ type: 'inventory' });
+    if (reply.ok) shell.set({ apps: reply.inventory, appsProblem: undefined });
+    else shell.set({ appsProblem: reply.error });
+  } catch {
+    // The channel is not there at all, which is what a broker that failed to
+    // start looks like from here: main logs the reason and opens the window
+    // anyway (QGD-APP-0013). Said rather than left as a spinner — Settings
+    // showed "Reading which applications are installed…" for ever. Found in
+    // review.
+    shell.set({ appsProblem: 'The applications could not be read. See the logs for why.' });
+  }
+}
+
+async function setGrant(app: string, grant: string, allow: boolean): Promise<boolean> {
+  // Read, change, write — and the change is applied to what was just read, not
+  // to the inventory on screen.
+  //
+  // Building this application's list from the cached inventory meant a grant
+  // withdrawn in the settings file while the application was running came back
+  // the next time any other grant was toggled: the broker had honoured the
+  // withdrawal, the screen had not, and the write put it back. Found in review.
+  //
+  // The stored map covers every application, so writing one list must not drop
+  // another's either.
+  const settings = await window.settings.request({ type: 'read' });
+  if (!settings.ok) return false;
+  const existing = settings.data.grants;
+  const next: Record<string, string[]> = {};
+  for (const [id, grants] of Object.entries(existing)) next[id] = [...grants];
+  const held = new Set(next[app] ?? []);
+  if (allow) held.add(grant); else held.delete(grant);
+  next[app] = [...held];
+
+  const written = await window.settings.request({ type: 'write', key: 'grants', value: next });
+  await readApps();
+  return written.ok;
+}
+
 const shell = createShellStore();
 mount(Shell, {
   target: document.body,
@@ -33,7 +86,7 @@ mount(Shell, {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onStartEngine: startEngine, onStopEngine: stopEngine,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
-    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
+    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential, onSetGrant: setGrant,
     onFinishSetup: finishSetup,
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
@@ -434,6 +487,10 @@ async function loadTheme(): Promise<void> {
 }
 
 void loadTheme();
+// What Settings needs to show the applications and their grants
+// (QGD-APP-0012). Asked for once at start and re-read after every change;
+// nothing waits for it, and Settings says it is reading until it answers.
+void readApps();
 
 
 // QGD-LOG-0013. The page shows the level that is in force, so every reply is

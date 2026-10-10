@@ -11,12 +11,15 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Rail from '../ui/Rail.svelte';
+  // Behind PROOFS_ENABLED, a build-time constant. With it false, Rollup drops
+  // this import and the three applications it reaches (QGD-APP-0014.1).
+  import AppsPage from '../../proofs/AppsPage.svelte';
   import StatusBar from '../ui/StatusBar.svelte';
   import HomePage from './pages/HomePage.svelte';
   import PersonaPage from './pages/PersonaPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import SetupPage from './pages/SetupPage.svelte';
-  import { PAGES, isPageId, type ShellState, type ShellStore } from './shell-store.js';
+  import { PAGES, PROOFS_ENABLED, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
@@ -36,6 +39,7 @@
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
+    onSetGrant: (app: string, grant: string, allow: boolean) => Promise<boolean>;
     onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
     onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
@@ -44,7 +48,7 @@
   const {
     store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine,
     onCreatePersona, onSaveCredential, onFinishSetup,
-    onExportPersonas, onInspectImport, onApplyImport, version
+    onSetGrant, onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
 
   // untrack, because reading a prop to seed state is not a reactive read and
@@ -64,7 +68,7 @@
 
   // Everything the rail offers except Home itself: the page is a way in, not a
   // way back to where you already are.
-  const destinations = $derived(PAGES.filter(page => page.id !== 'home'));
+  const destinations = $derived(visiblePages().filter(page => page.id !== 'home'));
 </script>
 
 <header>
@@ -92,7 +96,7 @@
   </span>
 </header>
 <div class="workspace">
-  <Rail pages={PAGES} current={state.page} onNavigate={navigate} />
+  <Rail pages={visiblePages()} current={state.page} onNavigate={navigate} />
   <main>
     <div class="page" hidden={state.page !== 'home'}>
       <HomePage
@@ -142,9 +146,15 @@
         <div class="page-row"><PersonaPage /></div>
       </div>
     </div>
+    {#if PROOFS_ENABLED}
+      <div class="page" hidden={state.page !== 'apps'}>
+        <AppsPage />
+      </div>
+    {/if}
     <div class="page" hidden={state.page !== 'settings'}>
       <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport}
                     engine={state.engine} {onStartEngine} {onStopEngine}
+                    apps={state.apps} appsProblem={state.appsProblem} {onSetGrant}
                     {onExportPersonas} {onInspectImport} {onApplyImport} />
     </div>
   </main>

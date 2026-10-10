@@ -69,6 +69,18 @@ export interface NativeImportSummary {
   credentials: number;
 }
 
+export interface NativeLookupField {
+  name: string;
+  value: string;
+}
+
+// QGD-APP-0007 and QGD-PII-0007: a fixed outcome word, and the fields the
+// service sent, for display. Never the secret that was used.
+export interface NativeLookupResult {
+  outcome: string;
+  fields: NativeLookupField[];
+}
+
 export declare class PersonaCore {
   constructor(directory: string);
   list(): NativePersona[];
@@ -88,6 +100,7 @@ export declare class PersonaCore {
   // All of the app's outbound HTTPS goes through this core (D-18, D-31):
   // rustls over AWS-LC in FIPS mode, TLS 1.3, not Electron's BoringSSL.
   fetchReference(url: string, etag?: string, lastModified?: string): NativeFetchedReference;
+  serviceLookup(persona: string, provider: string, operation: string, callsign: string): NativeLookupResult;
   exportPersonas(passphrase: string): Buffer;
   inspectImport(file: Buffer, passphrase: string): NativeImportPreview;
   applyImport(file: Buffer, passphrase: string): NativeImportSummary;

@@ -21,7 +21,13 @@ import { readFileSync } from 'node:fs';
 const version = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 
 export default defineConfig({
-  define: { __QG_VERSION__: JSON.stringify(version) },
+  define: {
+    __QG_VERSION__: JSON.stringify(version),
+    // QG_DESKTOP_PROOFS=1 includes the demonstration applications. Off
+    // everywhere else, so a release bundle cannot contain them and the
+    // screenshot baselines are captured without them (QGD-APP-0014.1).
+    __QG_PROOFS__: JSON.stringify(process.env.QG_DESKTOP_PROOFS === '1')
+  },
   root: 'packages/renderer',
   base: './',
   // configFile is explicit because vite-plugin-svelte looks beside the Vite

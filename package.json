@@ -50,11 +50,14 @@
     },
     "files": [
       "dist/**/*",
+      "!dist/renderer/*.map",
       "package.json",
       "LICENSE",
       "data/postgres-build.json",
       "data/reference-sources.json",
       "data/service-profiles.json",
+      "data/app-grants.json",
+      "data/app-sources.json",
       "drizzle/**/*"
     ],
     "asar": true,

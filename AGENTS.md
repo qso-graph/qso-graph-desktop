@@ -79,6 +79,7 @@ qso-graph-desktop/
 │   ├── logging/         the structured, redacted log stream
 │   └── app-api/         the public contract for apps: manifest, grants, messages
 ├── apps/                built-in apps (P8 onward), each self-contained
+├── proofs/              the three apps that demonstrate the grant model (dev only, never shipped)
 ├── storybook/           the component and pattern gallery (dev only, never shipped)
 ├── spec/ hdbk/ rvm/     specification, handbook, generated verification matrix
 ├── docs/                per-Part acceptance registrations (P0.md …) and design notes

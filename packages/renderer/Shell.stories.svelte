@@ -45,7 +45,7 @@
       themeChoice: 'system',
       logs,
       engine: { state: 'running', version: '17.11' },
-      setup: false,
+      apps: undefined, appsProblem: undefined, setup: false,
       firstRun: false,
       services: []
     })

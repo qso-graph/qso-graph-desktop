@@ -6,6 +6,7 @@
 // checks it and a test can drive it without a component tree. Shell.svelte is
 // the one subscriber; app.ts is the one writer.
 import type { ThemeChoice } from '../main/settings-contract.js';
+import type { AppInventory } from '../main/apps-contract.js';
 import type { LogsStatus } from '../main/logs-contract.js';
 import type { EngineStatus } from '../engine/engine-contract.js';
 import type { ServiceSummary } from '../personas/service-contract.js';
@@ -15,6 +16,13 @@ import type { ServiceSummary } from '../personas/service-contract.js';
 // it sits. Settings is at the bottom, which is where an application with a
 // rail conventionally puts it — it is not one of the places you work, it is
 // where you go to change how the places you work behave.
+// A build-time constant, false unless QG_DESKTOP_PROOFS=1 (vite.config.mjs).
+// Rollup drops everything behind it from a release bundle, which is half of
+// how QGD-APP-0014.1 is enforced — the other half is that proofs/ is not in
+// electron-builder's files list.
+declare const __QG_PROOFS__: boolean;
+export const PROOFS_ENABLED: boolean = typeof __QG_PROOFS__ === 'boolean' ? __QG_PROOFS__ : false;
+
 export const PAGES = [
   {
     id: 'home',
@@ -31,6 +39,13 @@ export const PAGES = [
     placement: 'top'
   },
   {
+    id: 'apps',
+    label: 'Apps',
+    icon: 'apps',
+    description: 'The applications demonstrating the app API and its grants',
+    placement: 'top'
+  },
+  {
     id: 'settings',
     label: 'Settings',
     icon: 'settings',
@@ -38,6 +53,13 @@ export const PAGES = [
     placement: 'bottom'
   }
 ] as const;
+
+// What the rail offers. The Apps entry is absent from a release, so the
+// approved screenshot baselines (QGD-PRT-0103) do not move: they are captured
+// from an ordinary build, which has no proofs in it.
+export function visiblePages(): readonly (typeof PAGES)[number][] {
+  return PAGES.filter(page => page.id !== 'apps' || PROOFS_ENABLED);
+}
 
 export type PageId = (typeof PAGES)[number]['id'];
 
@@ -58,6 +80,12 @@ export interface ShellState {
   // Undefined until the engine has been asked. It is started in the background
   // and the shell never waits for it (QGD-ENG-0003).
   engine: EngineStatus | undefined;
+  // Which applications loaded and what each holds, for the Settings surface
+  // (QGD-APP-0012). Undefined until the main process has answered.
+  apps: AppInventory | undefined;
+  // Why the inventory could not be read, when it could not. Undefined while it
+  // is still being asked for, and cleared when an answer arrives.
+  appsProblem: string | undefined;
   // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
   // never imposed: the Personas page a machine with no personas shows is the
   // one P1 built and P3 was signed off with, and guided setup is a thing to
@@ -84,6 +112,8 @@ export const INITIAL_SHELL: ShellState = {
   themeChoice: 'system',
   logs: undefined,
   engine: undefined,
+    apps: undefined,
+    appsProblem: undefined,
   // Both decided once the personas have been read, not before: a shell that
   // opened on an offer and then withdrew it would flash it at somebody who
   // already has personas.

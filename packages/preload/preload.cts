@@ -11,6 +11,15 @@ contextBridge.exposeInMainWorld('settings', Object.freeze({
 contextBridge.exposeInMainWorld('engine', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('engine:request', command)
 }));
+// QGD-APP-0002: one path, and this is it. The application names itself and
+// passes a command; the frame decides (see app-broker.ts on why that claim is
+// taken at its word until each application has its own process).
+contextBridge.exposeInMainWorld('apps', Object.freeze({
+  request: (app: unknown, command: unknown) => ipcRenderer.invoke('app:request', app, command),
+  // For Settings, not for an application: what loaded and what each holds
+  // (QGD-APP-0012).
+  inventory: (command: unknown) => ipcRenderer.invoke('apps:inventory', command)
+}));
 contextBridge.exposeInMainWorld('logs', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('logs:request', command)
 }));

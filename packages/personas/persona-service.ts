@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { LOOKUP_OUTCOMES, type LookupOutcome } from './persona-contract.js';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -117,6 +118,19 @@ function execute(command: ServiceCommand): PersonaReply {
           fresh: fetched.fresh, body: fetched.body,
           etag: fetched.etag, lastModified: fetched.lastModified
         } };
+      }
+      // QGD-APP-0007: act with the credential, return the answer. The secret
+      // stays in this process; what crosses back is the outcome and the
+      // fields the service sent.
+      case 'service-lookup': {
+        const callsign = command.parameters.callsign ?? '';
+        const looked = core.serviceLookup(command.persona, command.service, command.operation, callsign);
+        // The core's outcome is one of a fixed set; checked rather than cast,
+        // because it crosses a process boundary (QGD-SEC-0006).
+        const outcome = (LOOKUP_OUTCOMES as readonly string[]).includes(looked.outcome)
+          ? (looked.outcome as LookupOutcome)
+          : 'invalid-response';
+        return { ok: true, data: { outcome, fields: looked.fields } };
       }
       case 'export-personas': return { ok: true, data: { bytes: core.exportPersonas(command.passphrase) } };
       case 'import-personas': {

@@ -12,6 +12,7 @@ import { windowBackground } from './window-background.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
 import { enginePaths, startEngineBroker } from './engine-broker.js';
+import { startAppBroker } from './app-broker.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
 
 // The compiled tree is dist/<package>/, so this file is dist/main/main.js and
@@ -118,7 +119,7 @@ if (!app.requestSingleInstanceLock()) {
     if (window?.isMinimized()) window.restore();
     window?.focus();
   });
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     const localSession = session.defaultSession;
     localSession.setSpellCheckerEnabled(false);
     localSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -168,12 +169,60 @@ if (!app.requestSingleInstanceLock()) {
       fetchReference: personas.fetchReference,
       startAtLaunch: process.env.QG_DESKTOP_ENGINE_OFF !== '1'
     });
+    // The app API (QGD-APP-0002). Started after the brokers it reaches
+    // through, because its ports are their methods.
+    //
+    // `apps` is empty until QGD-PRT-0108 and `proofs` is absent from a shipped
+    // build, so on a release this loads nothing — which is the correct result,
+    // not a failure (QGD-APP-0014.1).
+    const appBroker = await startAppBroker({
+      // Overridable for the same reason QG_DESKTOP_POSTGRES_BIN is: a suite
+      // needs to run the product against manifests of its own. Without it the
+      // only way to exercise a refused application was to edit a tracked
+      // manifest, and an interrupted run then left that edit behind — where
+      // the next run would read it as the original and keep failing.
+      directories: process.env.QG_DESKTOP_APP_DIRS
+        ? process.env.QG_DESKTOP_APP_DIRS.split(':').filter(Boolean)
+        : [join(app.getAppPath(), 'apps'), join(app.getAppPath(), 'proofs')],
+      grantRegisterFile: join(app.getAppPath(), 'data', 'app-grants.json'),
+      sourceRegisterFile: join(app.getAppPath(), 'data', 'app-sources.json'),
+      ports: {
+        allowed: () => load().grants,
+        personas: async () => {
+          const briefs = await personas.personaBriefs();
+          if (typeof briefs === 'string') throw new Error(briefs);
+          return briefs;
+        },
+        fetchSource: async url => {
+          const fetched = await personas.fetchReference(url);
+          if (typeof fetched === 'string') throw new Error(fetched);
+          // The core hands back bytes, because reference data includes a zip.
+          // A source an application reads is text, decoded here rather than in
+          // the core: what the bytes mean is the caller's business.
+          return { body: new TextDecoder('utf-8', { fatal: false }).decode(fetched.body), fresh: fetched.fresh };
+        },
+        callService: async (service, persona, operation, parameters) => {
+          const answer = await personas.serviceLookup(service, persona, operation, parameters);
+          if (typeof answer === 'string') throw new Error(answer);
+          return answer;
+        }
+      }
+    }).catch((error: unknown) => {
+      // A register this product ships that cannot be read is worth saying
+      // loudly, and is not a reason to refuse to start: an application that
+      // does not load leaves the frame working (QGD-APP-0013).
+      log.error({ reason: error instanceof Error ? error.message : String(error) },
+        'the app API could not start; no application will load');
+      return undefined;
+    });
+
     // Stopping the engine is the one thing here that takes time, and it has
     // to finish: a postmaster that outlives the application refuses the next
     // launch (QGD-ENG-0008). So the first quit is held, the engine is stopped,
     // and the quit is asked for again — the second one is let through.
     let quitting = false;
     app.on('before-quit', event => {
+      appBroker?.stop();
       stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
       if (quitting) return;
       quitting = true;

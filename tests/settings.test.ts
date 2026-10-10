@@ -128,17 +128,17 @@ describe('QGD-SEC-0006 the settings channel rejects rather than coerces', () => 
 
 describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () => {
   it('reads what is valid and defaults the rest, key by key', () => {
-    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark' });
+    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {} });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'system' });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'system' });
-    expect(readSettings(null)).toEqual({ theme: 'system' });
-    expect(readSettings('not an object')).toEqual({ theme: 'system' });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'system', grants: {} });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'system', grants: {} });
+    expect(readSettings(null)).toEqual({ theme: 'system', grants: {} });
+    expect(readSettings('not an object')).toEqual({ theme: 'system', grants: {} });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'system' });
+    expect(readSettings(hostile)).toEqual({ theme: 'system', grants: {} });
   });
 });
 
@@ -231,5 +231,40 @@ describe('QGD-FRM-0001 where the system appearance is read from', () => {
     expect(seen).toEqual([true]);
     stop();
     expect(fake.listening()).toBe(0);
+  });
+});
+
+describe('the grants the operator has allowed', () => {
+  it('defaults to none, which is what a fresh install has', () => {
+    expect(DEFAULT_SETTINGS.grants).toEqual({});
+    expect(readSettings({}).grants).toEqual({});
+  });
+
+  it('accepts a well-formed map and refuses anything else', () => {
+    expect(readSettings({ grants: { 'qrz-lookup': ['service:qrz', 'persona:list'] } }).grants)
+      .toEqual({ 'qrz-lookup': ['service:qrz', 'persona:list'] });
+    // A bad value falls back to the default rather than taking the file down.
+    for (const bad of [
+      [], 'service:qrz', null,
+      { 'QRZ-Lookup': ['service:qrz'] },          // an id that is not an app id
+      { 'qrz-lookup': 'service:qrz' },            // not a list
+      { 'qrz-lookup': ['not a grant id'] },       // not a grant id
+      { 'qrz-lookup': [1] }                       // not a string
+    ]) {
+      expect(readSettings({ grants: bad }).grants, JSON.stringify(bad)).toEqual({});
+    }
+  });
+
+  it('is a settable key, so a withdrawal can be written', () => {
+    // QGD-APP-0012: the operator can withdraw a grant. That means the key has
+    // to pass the write-command validator, with its value checked.
+    expect(validateSettingsCommand({ type: 'write', key: 'grants', value: { solar: [] } })).toBe(true);
+    expect(validateSettingsCommand({ type: 'write', key: 'grants', value: { solar: ['nope'] } })).toBe(false);
+  });
+
+  it('still refuses the prototype-polluting keys', () => {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      expect(validateSettingsCommand({ type: 'write', key, value: {} }), key).toBe(false);
+    }
   });
 });

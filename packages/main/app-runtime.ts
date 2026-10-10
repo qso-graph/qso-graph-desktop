@@ -15,6 +15,8 @@
 // that needs a window, a disk and a running engine to exercise is a decision
 // that gets tested once, and this one needs to be tested against every way of
 // getting it wrong.
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   type AppManifest, ManifestError, validateManifest
 } from '../app-api/manifest.js';
@@ -173,4 +175,62 @@ export function withGrants(
   app: LoadedApp, register: GrantRegister, allowed: AllowedGrants
 ): LoadedApp {
   return { manifest: app.manifest, held: heldGrants(app.manifest, register, allowed) };
+}
+
+// ---------------------------------------------------------------------------
+// Reading what is on disk.
+//
+// Here rather than in app-broker.ts because that module imports Electron, and
+// a pure function behind an Electron import is a pure function no unit test
+// can reach. Everything in this file is exercisable without a window.
+
+interface SourceRegister {
+  readonly sources: Readonly<Record<string, string>>;
+}
+
+export async function readSourceRegister(file: string): Promise<SourceRegister> {
+  const parsed: unknown = JSON.parse(await readFile(file, 'utf8'));
+  if (typeof parsed !== 'object' || parsed === null) throw new Error('The source register is not an object.');
+  const sources = (parsed as { sources?: unknown }).sources;
+  if (typeof sources !== 'object' || sources === null) throw new Error('The source register has no sources.');
+  const out: Record<string, string> = {};
+  for (const [id, url] of Object.entries(sources as Record<string, unknown>)) {
+    if (typeof url !== 'string' || !url.startsWith('https://')) {
+      throw new Error(`Source "${id}" is not an HTTPS URL.`);
+    }
+    out[id] = url;
+  }
+  return { sources: out };
+}
+
+// Read from a directory of application directories. A manifest that cannot be
+// parsed is reported as a refusal rather than skipped: an application that
+// silently fails to appear is harder to diagnose than one that says why.
+export async function readManifests(
+  directories: readonly string[]
+): Promise<{ source: string; value: unknown }[]> {
+  const found: { source: string; value: unknown }[] = [];
+  for (const directory of directories) {
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      // A directory that is not there holds no applications. `apps/` is empty
+      // until QGD-PRT-0108 and the proofs are absent from a shipped build
+      // (QGD-APP-0014.1), so this is the ordinary case, not an error.
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const file = join(directory, entry.name, 'manifest.json');
+      try {
+        found.push({ source: file, value: JSON.parse(await readFile(file, 'utf8')) });
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        if (code === 'ENOENT') continue;
+        found.push({ source: file, value: { __unreadable: String(error) } });
+      }
+    }
+  }
+  return found;
 }

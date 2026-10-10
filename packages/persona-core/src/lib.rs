@@ -41,6 +41,23 @@ mod reference;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
+// What a service lookup answers (QGD-APP-0007, QGD-PII-0007). `outcome` is a
+// fixed word; `fields` carries what the service sent, for display. The secret
+// used is never in here.
+#[derive(Default, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "addon", napi_derive::napi(object))]
+pub struct LookupField {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "addon", napi_derive::napi(object))]
+pub struct LookupResult {
+    pub outcome: String,
+    pub fields: Vec<LookupField>,
+}
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
 pub struct ProviderRef {
@@ -655,6 +672,52 @@ mod addon {
                 }
             };
             Ok(CredentialTest { outcome: outcome.into() })
+        }
+        // QGD-APP-0007: the frame acts with the credential and returns the
+        // answer. Never the secret, and never a log line carrying the result —
+        // QGD-PII-0007 forbids keeping or passing on what a lookup returned,
+        // and a log is keeping it. Only the outcome word is logged.
+        #[napi]
+        pub fn service_lookup(
+            &mut self, persona: String, provider: String, operation: String, callsign: String
+        ) -> Result<LookupResult> {
+            // Refused before a secret is read.
+            //
+            // QGD-CRD-0009: a secret is read only on an action that needs it,
+            // because reading one is what makes macOS ask for the login
+            // keychain password. An operation this product does not perform,
+            // or a callsign it will not send, needs no credential to refuse —
+            // and the first version of this read the Keychain first and then
+            // threw the answer away. Found in review.
+            if !validation::known_operation(&provider, &operation) {
+                return Ok(LookupResult { outcome: "unsupported".into(), fields: Vec::new() });
+            }
+            if !validation::plain_callsign(&callsign) {
+                return Ok(LookupResult { outcome: "invalid-request".into(), fields: Vec::new() });
+            }
+            let preference = self.store.preference(&persona, &provider).map_err(error)?;
+            let creds = self.store.read_credentials(&persona, &provider).map_err(error)?;
+            let Some(creds) = creds.filter(|c| c.username.as_ref().is_some_and(|s| !s.is_empty())) else {
+                return Ok(LookupResult { outcome: "missing".into(), fields: Vec::new() });
+            };
+            let looked = validation::lookup(
+                &provider, &creds,
+                if preference == "service" { None } else { Some(&preference) },
+                &operation, &callsign,
+            ).map_err(error)?;
+            match looked {
+                validation::Looked::Found(fields) => {
+                    tracing::info!(provider = %provider, operation = %operation, fields = fields.len(), "service lookup answered");
+                    Ok(LookupResult {
+                        outcome: "success".into(),
+                        fields: fields.into_iter().map(|(name, value)| LookupField { name, value }).collect(),
+                    })
+                }
+                validation::Looked::Nothing(reason) => {
+                    tracing::info!(provider = %provider, operation = %operation, outcome = %reason, "service lookup answered");
+                    Ok(LookupResult { outcome: reason.into(), fields: Vec::new() })
+                }
+            }
         }
         #[napi]
         pub fn list(&self) -> Result<Vec<Persona>> { Ok(self.store.load().map_err(error)?.personas.into_values().collect()) }

@@ -7,12 +7,15 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "types": []
+    "types": [],
+    "rootDir": "."
   },
   "_comment": "tsc checks the TypeScript here; svelte-check checks inside the components, which tsc cannot parse. Both read this file, so the two agree on the compiler options and differ only in what they can open.",
   "include": [
     "packages/renderer/**/*.ts",
-    "packages/ui/**/*.ts"
+    "packages/ui/**/*.ts",
+    "packages/app-api/**/*.ts",
+    "proofs/**/*.ts"
   ],
   "exclude": []
 }

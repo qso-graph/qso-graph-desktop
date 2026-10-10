@@ -21,5 +21,11 @@ export default {
     disableTelemetry: true,
     disableWhatsNewNotifications: true
   },
-  viteFinal: config => ({ ...config, base: './' })
+  // The gallery is never a proofs build: the constant has to exist or
+  // shell-store throws when Rail's story imports PAGES.
+  viteFinal: config => ({
+    ...config,
+    base: './',
+    define: { ...config.define, __QG_PROOFS__: 'false' }
+  })
 };

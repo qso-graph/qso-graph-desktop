@@ -53,11 +53,29 @@ export type PersonaCommand =
   // the renderer never touches an export.
   | { type: 'export-personas'; passphrase: string }
   | { type: 'import-personas'; passphrase: string; apply: boolean };
+// What a service lookup answers (QGD-APP-0007). Its own outcome set, not the
+// credential test's: a lookup can come back "not-found", which is an answer
+// about a callsign rather than anything about the credential, and
+// "invalid-request", which is the core refusing a callsign it will not send.
+export const LOOKUP_OUTCOMES = [
+  'success', 'not-found', 'rejected', 'missing',
+  'network-error', 'rate-limited', 'invalid-response', 'invalid-request', 'unsupported'
+] as const;
+export type LookupOutcome = (typeof LOOKUP_OUTCOMES)[number];
+
+export interface LookupAnswer {
+  outcome: LookupOutcome;
+  // As the service sent them. Displayable in full (QGD-PII-0007); what may be
+  // persisted is a named allowlist, which is the caller's rule to keep.
+  fields: { name: string; value: string }[];
+}
+
 export type PersonaReply =
   | {
       ok: true;
       data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
-        | SealedExport | FetchedReference | ExportResult | ImportPreview | ImportResult | null;
+        | SealedExport | FetchedReference | ExportResult | ImportPreview | ImportResult
+          | LookupAnswer | null;
     }
   | { ok: false; error: string };
 
@@ -142,10 +160,36 @@ export type ServiceCommand =
   // PersonaCommand: a renderer may not ask this product to fetch a URL, and
   // validateCommand — which is what the renderer's requests are held to —
   // does not accept it.
-  | { type: 'fetch-reference'; url: string; etag?: string; lastModified?: string };
+  | { type: 'fetch-reference'; url: string; etag?: string; lastModified?: string }
+  // Acting with a stored credential on an application's behalf, and returning
+  // the answer (QGD-APP-0007). Not a PersonaCommand either, and for the same
+  // reason: a renderer may not ask this product to use a credential directly.
+  // An application reaches it only through the app API, with a service grant
+  // the operator allowed, and the secret never comes back — only the result.
+  | {
+      type: 'service-lookup';
+      service: string;
+      persona: string;
+      operation: string;
+      parameters: Record<string, string>;
+    };
 
 export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
   if (!record(value)) return false;
+  if (value.type === 'service-lookup') {
+    if (!keys(value, ['type', 'service', 'persona', 'operation', 'parameters'])) return false;
+    // The service must be one the register holds, the same set every other
+    // command is held to (QGD-PSN-0003). A grant named a service; this checks
+    // the service exists.
+    if (typeof value.service !== 'string' || !providers.has(value.service)) return false;
+    if (typeof value.persona !== 'string' || value.persona === '' || value.persona.length > 64) return false;
+    if (typeof value.operation !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(value.operation)) return false;
+    if (!record(value.parameters)) return false;
+    const entries = Object.entries(value.parameters);
+    if (entries.length > 16) return false;
+    return entries.every(([key, parameter]) =>
+      /^[a-z][a-z0-9_-]{0,31}$/.test(key) && typeof parameter === 'string' && parameter.length <= 512);
+  }
   if (value.type === 'fetch-reference') {
     return keys(value, ['type', 'url', 'etag', 'lastModified'])
       // HTTPS is checked here, in the core, and in the caller. It is the one

@@ -7,6 +7,7 @@ import {
   type FetchedReference, type PersonaCommand, type PersonaReply, type SealedExport, type ServiceCommand
 } from '../personas/persona-contract.js';
 import { readServices, serviceIds } from '../personas/services.js';
+import { deadlineFor } from '../personas/deadlines.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 
 const log = createLogger('broker');
@@ -18,6 +19,16 @@ export interface PersonaBroker {
   // broker by main; never reachable from a renderer, which has no command for
   // it (see validateCommand in persona-contract.ts).
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
+  // The personas an application may be shown: callsign and name, nothing else
+  // (QGD-CRD-0010). Reached only through the app API with a persona:list
+  // grant.
+  personaBriefs: () => Promise<readonly { name: string; callsign: string }[] | string>;
+  // Acting with a credential on an application's behalf (QGD-APP-0007). Not
+  // reachable from a renderer: `service-lookup` is a ServiceCommand, which
+  // validateCommand does not accept.
+  serviceLookup: (
+    service: string, persona: string, operation: string, parameters: Readonly<Record<string, string>>
+  ) => Promise<Readonly<Record<string, string>> | string>;
 }
 
 export function startPersonaBroker(distDirectory: string, registerFile: string): PersonaBroker {
@@ -95,7 +106,10 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
     if (pending.size >= 16) return Promise.resolve({ ok: false, error: 'A persona operation is still running. Try again shortly.' });
     const id = ++nextId;
     return new Promise(resolve => {
-      const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: 'Keychain did not respond. Check for a macOS permission dialog, then try again.' }); }, 30_000);
+      // Per command, not one number for all of them: see deadlines.ts.
+      const deadline = deadlineFor(command.type);
+      const timer = setTimeout(
+        () => { pending.delete(id); resolve({ ok: false, error: deadline.said }); }, deadline.ms);
       pending.set(id, { resolve, timer });
       worker!.postMessage({ id, command });
     });
@@ -184,6 +198,30 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   });
   return {
     stop: () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); },
+    async personaBriefs() {
+      const reply = await ask({ type: 'list' });
+      if (!reply.ok) return reply.error;
+      const data = reply.data as { personas?: { name?: unknown; callsign?: unknown }[] } | null;
+      if (!data || !Array.isArray(data.personas)) return 'The personas could not be read.';
+      // Built field by field rather than passed through. A persona record
+      // carries provider entries, and an application has no business seeing
+      // which services an operator holds credentials for.
+      return data.personas.flatMap(persona =>
+        typeof persona.name === 'string' && typeof persona.callsign === 'string'
+          ? [{ name: persona.name, callsign: persona.callsign }]
+          : []);
+    },
+    async serviceLookup(service, persona, operation, parameters) {
+      const reply = await ask({ type: 'service-lookup', service, persona, operation, parameters: { ...parameters } });
+      if (!reply.ok) return reply.error;
+      const data = reply.data as { outcome?: unknown; fields?: { name?: unknown; value?: unknown }[] } | null;
+      if (!data || typeof data.outcome !== 'string') return 'The lookup could not be read.';
+      const answer: Record<string, string> = { outcome: data.outcome };
+      for (const field of Array.isArray(data.fields) ? data.fields : []) {
+        if (typeof field.name === 'string' && typeof field.value === 'string') answer[field.name] = field.value;
+      }
+      return answer;
+    },
     async fetchReference(url, etag, lastModified) {
       const reply = await ask({
         type: 'fetch-reference', url,

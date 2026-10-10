@@ -21,7 +21,12 @@ export const PACKAGE = '@fortawesome/fontawesome-free';
 export const ICONS = [
   { key: 'home', name: 'house', style: 'solid' },
   { key: 'personas', name: 'id-card', style: 'solid' },
-  { key: 'settings', name: 'gear', style: 'solid' }
+  { key: 'settings', name: 'gear', style: 'solid' },
+  // The Apps page, which a release does not show (QGD-APP-0014.1). The icon
+  // ships regardless: the geometry is a few hundred bytes and a generated file
+  // that depends on a build flag would be a generated file that disagrees with
+  // itself.
+  { key: 'apps', name: 'shapes', style: 'solid' }
 ];
 
 export function fontAwesomeVersion() {

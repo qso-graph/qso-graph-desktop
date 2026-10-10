@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { markdown, redact } from './report.mjs';
 import { blockedBy } from './suite-gate.mjs';
 import { artifactScan, sentinelsIn } from './artifact-scan.mjs';
-import { suiteCommands } from './suites.mjs';
+import { suiteCommands, suiteTimeout } from './suites.mjs';
 
 await mkdir('report', { recursive: true });
 let previous;
@@ -24,7 +24,10 @@ for (const [name, args] of commands) {
     suites.push({ name, result: 'NOT RUN', blockedBy: blocked });
     continue;
   }
-  const run = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 120_000, maxBuffer: 2_000_000 });
+  // Per suite: a flat bound killed any suite that legitimately waits longer
+  // than it, which is not the same as failing it (see suites.mjs).
+  const run = spawnSync(process.execPath, args,
+    { encoding: 'utf8', timeout: suiteTimeout(name), maxBuffer: 2_000_000 });
   const output = `${run.stdout || ''}\n${run.stderr || ''}`;
   // QGD-CRD-0006: a suite's own output is a place a credential could appear, and
   // successful output is discarded while failed output is redacted — so neither

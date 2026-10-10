@@ -95,6 +95,117 @@ export async function crossings(root = 'packages') {
 // 'allowed', 'refused', or 'waived' — the last only where the direction is
 // refused and a story is what crossed, so the four stories that import in a
 // permitted direction are not reported as exceptions they do not need.
+// QGD-REP-0003 and QGD-REP-0006, for applications rather than packages: an
+// application depends on app-api and ui and on nothing else. Checked over
+// apps/ and proofs/ — the demonstrations are applications too, and holding
+// them to the rule is most of what makes the rule credible.
+//
+// An application reaching into `personas`, `engine`, `reference` or `main`
+// would be using the frame directly, which is the thing the app API exists to
+// prevent. A built-in application gets no shortcut a contributed one lacks
+// (D-33).
+export const APP_ROOTS = ['apps', 'proofs'];
+
+// The host that mounts the demonstrations sits at the root of proofs/ rather
+// than inside one of them, so it is allowed to reach each application's page.
+// Named, because it is the one file for which that is true.
+export const PROOF_HOST = join('proofs', 'AppsPage.svelte');
+
+export async function appCrossings() {
+  const found = [];
+  for (const root of APP_ROOTS) {
+    for (const file of await sources(root)) {
+      // The owning application is its own directory, not the root. Comparing
+      // roots treated everything under apps/ as one application, so
+      // apps/one/page.ts importing ../two/private.ts produced no crossing at
+      // all and the gate passed — one application depending directly on
+      // another's implementation, which is what QGD-REP-0003 forbids. Found in
+      // review.
+      const parts = file.split(sep);
+      const owner = parts.length > 2 ? join(parts[0], parts[1]) : parts[0];
+      const text = await readFile(file, 'utf8');
+      for (const match of text.matchAll(SPECIFIER)) {
+        const target = normalize(join(dirname(file), match[1]));
+        // Inside its own directory is its own business.
+        if (!target.startsWith('..') && target.startsWith(owner + sep)) continue;
+        const reachedParts = target.split(sep);
+        const reached = reachedParts[0] === 'packages'
+          ? reachedParts[1]
+          // Another application, named by its directory so the refusal says
+          // which one.
+          : (reachedParts.length > 2 ? join(reachedParts[0], reachedParts[1]) : reachedParts[0]);
+        found.push({ file, owner, reached, specifier: match[1], host: file === PROOF_HOST });
+      }
+    }
+  }
+  return found;
+}
+
+export function judgeApp(crossing) {
+  if (ALLOWED_FOR_APPS.includes(crossing.reached)) return { verdict: 'allowed' };
+  // The proof host mounts the demonstrations, so it reaches each of their
+  // pages by design. Nothing else may reach into another application.
+  if (crossing.host && APP_ROOTS.some(root => crossing.reached.startsWith(root + sep))) {
+    return { verdict: 'allowed' };
+  }
+  return {
+    verdict: 'refused',
+    why: `an application may depend on ${ALLOWED_FOR_APPS.join(' and ')} only, not ${crossing.reached}`
+  };
+}
+
+// The frame reaching the other way, which happens exactly once and is named
+// here so it is a decision rather than a gap.
+//
+// Shell.svelte imports the proof host behind PROOFS_ENABLED, a build-time
+// constant. That is how the demonstrations are kept out of a release bundle:
+// with the constant false, Rollup drops the import and everything it reaches
+// (QGD-APP-0014.1). Loading a page from disk instead would mean widening the
+// three resources policy.ts serves over qg: to a pattern (QGD-SEC-0008), which
+// is what a contributed application will need and what the sandbox Part brings.
+//
+// Any other import from packages/ into apps/ or proofs/ is refused: the frame
+// must not depend on an application.
+// Keyed on the importing file AND the exact file it may reach.
+//
+// The first version keyed on the importer alone, which exempted Shell.svelte's
+// every import: `../../apps/example/private.ts` from Shell was marked named
+// and allowed, though the exception it was claiming is the proof host and
+// nothing else. An allowance that names one file and grants a directory is not
+// the allowance that was written down. Found in review.
+export const FRAME_TO_APP_ALLOWANCE = {
+  'packages/renderer/Shell.svelte': {
+    target: PROOF_HOST,
+    why: 'the proof host, behind PROOFS_ENABLED so a release bundle drops it (QGD-APP-0014.1)'
+  }
+};
+
+// The allowance decision, on its own so it can be controlled.
+//
+// It is a function rather than a lookup because the lookup was the defect: an
+// exception keyed on the importer alone grants that importer everything under
+// apps/ and proofs/, and nothing in a clean run shows it. The control is in
+// tests/package-boundaries.test.mjs.
+export function namedAllowance(file, target) {
+  const allowance = FRAME_TO_APP_ALLOWANCE[file];
+  return allowance !== undefined && target === allowance.target;
+}
+
+export async function frameReachingApps() {
+  const found = [];
+  for (const file of await sources('packages')) {
+    const text = await readFile(file, 'utf8');
+    for (const match of text.matchAll(SPECIFIER)) {
+      const target = normalize(join(dirname(file), match[1]));
+      const root = target.split(sep)[0];
+      if (!APP_ROOTS.includes(root)) continue;
+      // The allowance has to match the target too, not merely the importer.
+      found.push({ file, reached: root, specifier: match[1], target, named: namedAllowance(file, target) });
+    }
+  }
+  return found;
+}
+
 export function judge(crossing, allowed = ALLOWED) {
   const permitted = allowed[crossing.owner];
   if (permitted === undefined) {
@@ -116,7 +227,13 @@ if (process.argv[1]?.endsWith('package-boundaries.mjs')) {
     process.exitCode = 1;
   } else {
     const judged = found.map(crossing => ({ crossing, ...judge(crossing) }));
-    const refused = judged.filter(entry => entry.verdict === 'refused');
+    const apps = (await appCrossings()).map(crossing => ({ crossing, ...judgeApp(crossing) }));
+    const inward = (await frameReachingApps()).map(crossing => ({
+      crossing,
+      verdict: crossing.named ? 'allowed' : 'refused',
+      why: crossing.named ? undefined : `the frame must not depend on ${crossing.reached}/`
+    }));
+    const refused = [...judged, ...apps, ...inward].filter(entry => entry.verdict === 'refused');
     const waived = judged.filter(entry => entry.verdict === 'waived');
     if (refused.length) {
       console.error('Package boundaries failed. QGD-REP-0006.');
@@ -128,6 +245,10 @@ if (process.argv[1]?.endsWith('package-boundaries.mjs')) {
     } else {
       const packages = new Set(found.map(crossing => crossing.owner));
       console.log(`Package boundaries: ${found.length} cross-package import(s) from ${packages.size} package(s), every one in the permitted direction: PASS`);
+      console.log(`Application boundaries: ${apps.length} import(s) out of apps/ and proofs/, every one to ${ALLOWED_FOR_APPS.join(' or ')}: PASS`);
+      for (const entry of inward) {
+        console.log(`  named: ${entry.crossing.file} -> ${entry.crossing.target} — ${FRAME_TO_APP_ALLOWANCE[entry.crossing.file].why}`);
+      }
       for (const { crossing, why } of waived) {
         console.log(`  waived: ${relative('packages', crossing.file)} -> ${crossing.reached} — ${why}`);
       }
