@@ -29,10 +29,7 @@ other document — handbook, decision log, build-order note, brief, README, or i
 restate a requirement. They cite the ID. A second copy of a fact is a defect, because the
 two copies will eventually disagree and nothing mechanical will notice.
 
-> This rule exists because its absence has already cost this project a build. A build-order
-> decision and the Part catalogue that encoded it were written into two documents in a single
-> commit, contradicting each other on arrival. Four review passes by three agents did not see
-> it, because each pass reviewed one file's diff. See `QGD-HDBK-001` §1 for the full account.
+> The account of the build this rule's absence cost is `QGD-HDBK-001` §1.
 
 **ID shape:** `QGD-<AREA>-NNNN`, with sub-IDs as `NNNN.N` for requirements that refine a parent.
 
@@ -75,13 +72,11 @@ requirement — it is an opinion, and it does not belong here.
 | `QGD-SCP-0004` | **macOS arm64 is the only platform required before Release 1.** Windows and Linux remain Release 1 targets under D-27. No Part's exit gate before Release 1 requires a second operating system, a CI matrix, or a clean VM of another OS. | Static |
 | `QGD-SCP-0005` | The sequencing in `QGD-SCP-0003` and `QGD-SCP-0004` changes only by KI7MT's direction, recorded here. **An agent may not pull signing or a second platform forward into an earlier Part.** | Inspection |
 | `QGD-SCP-0006` | Linux distribution through COPR and Launchpad is an **open question**, not a commitment: a bundled Electron runtime, a native addon and a managed PostgreSQL may exceed what those services will build or carry. Resolved before Release 1 packaging, tracked in an issue. | Inspection |
-| `QGD-SCP-0007` | **Known limitation, not a requirement met: QSO Graph does not sign in to POTA, and holds no POTA credential.** POTA's sign-in registers one client, for POTA's own web app, and `QGD-PSN-0012` forbids borrowing it. An email-and-password account could have been reached by an SRP exchange, but that serves only accounts created that way — not an Amazon, Google or Facebook account, which has no password and cannot be given one (confirmed by KI7MT on his own account). KI7MT's decision, 2026-10-09: **it is a busted path and is not taken.** So the POTA application is built to work with no POTA login at all — park data, spots and filters, self-spotting, logging to the neutral log, and public statistics — and submitting a log is done on POTA's own page. An in-app upload waits until POTA registers a desktop client for QSO Graph. | Inspection |
+| `QGD-SCP-0007` | **Known limitation, not a requirement met: QSO Graph does not sign in to POTA, and holds no POTA credential.** POTA's sign-in registers one client, for POTA's own web app, and `QGD-PSN-0012` forbids borrowing it. An email-and-password account could have been reached by an SRP exchange, but that serves only accounts created that way — not an Amazon, Google or Facebook account, which has no password and cannot be given one. **That path is not taken** (KI7MT, 2026-10-09). So the POTA application is built to work with no POTA login at all — park data, spots and filters, self-spotting, logging to the neutral log, and public statistics — and submitting a log is done on POTA's own page. An in-app upload waits until POTA registers a desktop client for QSO Graph. | Inspection |
 
-> These are **sequencing requirements, not prohibitions.** D-27 (*Code signing and the public
-> repo — decided KI7MT, 2026-10-07*) is the long-term path and is not reversed; KI7MT's
-> direction of the same date is that it waits until there is a useful product. The earlier
-> draft of this section claimed signing had never been requested. That was wrong, it
-> contradicted the record, and it is corrected here. Rationale: `QGD-HDBK-001` §2.
+> These are **sequencing requirements, not prohibitions.** Code signing and the public
+> repository (D-27) remain the long-term path and are not reversed; they wait until there is a
+> useful product (KI7MT, 2026-10-07). Rationale: `QGD-HDBK-001` §2.
 
 ## 2. Part catalogue
 
@@ -124,20 +119,8 @@ order KI7MT sets: QG Reference's browsable surface, QG Net, the representative s
 LoTW signing, the contributed tier and sandbox, QG Spots, QG Rig, the Vault store, QG Sync,
 QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 
-> **QG Sync's key is not a persona credential** (KI7MT, 2026-10-09). It is configured
-> in Settings under Storage, keyed to the S3 endpoint and bucket it belongs to, and is
-> not held in the persona service's register of per-persona service credentials. A
-> persona credential is one operator's login to another party's service, held per
-> persona and reachable by an application only through a grant (`QGD-CRD-0010`,
-> `QGD-APP-0007`); a sync key is one machine's access to the operator's own storage and
-> is the same for every persona on it. Held in the persona register it would be
-> per-persona, grantable, and carried out by a persona export, none of which is
-> intended. It remains a secret in the OS credential store (`QGD-CRD-0001`). The
-> requirement is written when QG Sync is built.
-
-> The persona core is P0 and the shell is P3 because `QGD-PRT-0001` says operating-system-level
-> components come first. Rationale: `QGD-HDBK-001` §2. Any document placing the shell ahead of
-> the core contradicts `QGD-PRT-0001` and is wrong by this specification.
+> Any document placing the shell ahead of the credential core contradicts `QGD-PRT-0001` and is
+> wrong by this specification. Rationale: `QGD-HDBK-001` §2.
 
 ## 2.2 Repository layout
 
@@ -149,14 +132,6 @@ QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 | `QGD-REP-0003` | A built-in application uses only the app API and its grants, exactly as a contributed application would. Personas, the engine and the reference data are frame, not applications, because the frame enforces the grants. | Inspection |
 | `QGD-REP-0004` | `app-api` and `ui` are separate packages: what an application may call and what it may look like are different contracts. | Inspection |
 | `QGD-REP-0005` | Third-party material that ships inside the application is recorded in `NOTICE`, with its licence and the version that ships. Where that licence requires attribution, the attribution also appears in a surface the user can reach — the About panel — because a file in the repository is not somewhere a user can be expected to look. | Test, Inspection |
-
-> `logging` is in that list and was not in the version of `QGD-REP-0001` written before the move. Every
-> process logs into one stream (`QGD-LOG-0001`) and the log directory's caps cover the engine's files as
-> well as the application's (`QGD-LOG-0011`), so the logger is shared by `main`, `engine` and `personas`.
-> It had no home among the nine: putting it in `main` would have made the engine depend on the main
-> process to write a log line. The naming of the engine's own log files moved here with it, having lived
-> in the engine's endpoint module — which is what made the logger depend on the engine to sweep its own
-> directory.
 
 ## 3. Credential core
 
@@ -175,7 +150,7 @@ QG Atlas, QG Predict, QG Chat, and QG Awards once "awards" is defined.
 | `QGD-CRD-0010` | The status display answers from the index and from the existence of the Keychain entry — which the Keychain reports from an item's attributes without unlocking its data — and never from the secret. Which kinds of secret an entry holds is not itself a secret, and is recorded when it is written. | Test |
 | `QGD-CRD-0012` | **A secret is stored only if the operator entered it in that action.** Intent is read from the operator's own input, not from what the field holds when the button is pressed — so a value that reached a secret field some other way (a stale value, an autofill, a paste landing late while focus moves) is not written. A blank field still means *keep what is saved*, and `Remove` is still how a secret is deleted; what changed is that untouched now means the same as blank. (KI7MT, 2026-10-09: `packaged-launch` stored a password into an entry whose field the suite had just emptied, and he directed it be treated as a security bug rather than a record entry. It was not reproduced in twelve runs, eight under load, so this removes the product's dependence on that field being correct rather than fixing a known mechanism — which is what every candidate mechanism had in common.) | Test |
 | `QGD-CRD-0013` | **The suites never write a credential beside a real one.** Fixtures go to a Keychain service of their own, selected by the presence of an environment variable and never named by one — a variable that supplied the service would be a route into another product's namespace from outside the process. Everything under the test service is swept when a suite exits, including when it throws or is signalled, and again before the next run starts, because the runs that left fixtures behind were the ones that never reached their cleanup. (KI7MT, 2026-10-09: seventeen `qg-test-…` fixtures were found in his real login keychain, in the same namespace as his and KE1HA's actual credentials. Nothing under that namespace is migrated, read or deleted by this product — it may be the MCP servers' data.) | Test |
-| `QGD-CRD-0013.1` | **A release's verification run happens in an account whose login keychain holds nothing of the operator's.** KI7MT's decision, 2026-10-09: `make verify` runs from the non-admin `qgdesktop` account. A separate account has its own login keychain, so the isolation is the operating system's property rather than something the suites have to keep getting right — and it needs no change to the credential core's proven paths, which a per-run temporary keychain would have, because targeting a keychain file means routing the credential path off the library the naming convention is a contract with (D-17, `QGD-CRD-0003`). The per-service scoping in `QGD-CRD-0013` stays as the net for day-to-day runs: two controls, and the one that does not depend on the suites behaving is the stronger. That account cannot read the working repository and holds no credential for the remote, both deliberately, so the commit is pushed across to a shared checkout from the developing side. Procedure: `docs/VERIFY-ACCOUNT.md`. | Demo, Inspection |
+| `QGD-CRD-0013.1` | **A release's verification run happens in an account whose login keychain holds nothing of the operator's** (KI7MT, 2026-10-09). `make verify` runs from the non-admin `qgdesktop` account. A separate account has its own login keychain, so the isolation is the operating system's property rather than something the suites have to keep getting right — and it needs no change to the credential core's proven paths, which a per-run temporary keychain would have, because targeting a keychain file means routing the credential path off the library the naming convention is a contract with (D-17, `QGD-CRD-0003`). The per-service scoping in `QGD-CRD-0013` stays as the net for day-to-day runs: two controls, and the one that does not depend on the suites behaving is the stronger. That account cannot read the working repository and holds no credential for the remote, both deliberately, so the commit is pushed across to a shared checkout from the developing side. Procedure: `docs/VERIFY-ACCOUNT.md`. | Demo, Inspection |
 
 ## 3.1 Club rosters — personal data
 
@@ -193,9 +168,6 @@ not the operator's own.
 | `QGD-PII-0005` | A club customises by **defining lists** — offices, membership classes, net roles, award categories — and by assigning members to them with dates, so history is kept. A club never adds fields: the schema is the same for every club. | Inspection, Test |
 | `QGD-PII-0006` | Club data on a user's machine is theirs. Nothing is collected, no telemetry is sent, and no feature pushes another person's details to a shared or public service. | Static, Inspection |
 | `QGD-PII-0007` | **A callsign lookup may be shown in full; none of it is kept or passed on except named radio fields** (KI7MT, 2026-10-09). A lookup the operator asked for is displayed as the service returned it, street address, email address and telephone number included: the service is the source for that lookup, as its own site is. What this requirement governs is what the product **keeps and passes on**. A lookup result is never written to a log (`QGD-CRD-0006`), never saved to the database, a cache or any file, and never leaves the machine in an export, a sync or anything shared. What may be **persisted** is a named list — callsign, name, grid, country, DXCC, CQ and ITU zone, licence class, coordinates where a grid needs them, QSL manager, and the LoTW and eQSL flags — never *everything except* a list of exclusions, because a denylist is a guess about somebody else's response format and the format can change underneath it. So the allowlist governs storage and egress, not the screen. | Test |
-
-> `QGD-PII-0006` closes what D-30 left open: how roster handling squares with the project's
-> never-a-PII-source rule. The answer is that the data stays where the user put it.
 
 ## 3.2 Personas and services
 
@@ -236,8 +208,7 @@ service needs from them. Both are the frame's, not an application's (`QGD-REP-00
 
 ## 4.1 Application logging
 
-From `qso-graph-desktop#19` §5 (KI7MT with Bob, 2026-10-08), released early for P2 because it
-belongs with the process map. The rest of that issue is now carried here too.
+How this section came to land ahead of the rest: `QGD-HDBK-001` §6.
 
 | ID | Requirement | Verify |
 |---|---|---|
@@ -297,7 +268,7 @@ belongs with the process map. The rest of that issue is now carried here too.
 | `QGD-REF-0012` | **POTA's `entityId` is POTA's, not ADIF's DXCC entity code**, however often the two agree. Of 311 entity numbers observed in the park list, 298 are also ADIF DXCC codes and 13 are not: POTA numbers Bonaire 524 where ADIF has 520, Crete 536 where ADIF has 40, Mount Athos 534 where ADIF has 180, and lists India under two of its own numbers. The ADIF entity is therefore recorded as a **derived, nullable link where the numbers agree**, never as a key — a foreign key would have refused 113 parks, and dropping a park because two organisations number the world differently is the product deciding one of them is wrong. | Test |
 | `QGD-REF-0013` | A park can be in more than one location: 1,618 of them publish `locationDesc` as a comma-separated list. Locations are therefore a table of their own, one row per park per location, rather than a column holding a list. | Test |
 | `QGD-REF-0014` | **A reference load that cannot happen does not stop the engine starting, and is never reported as a pass.** The definitions and POTA's lists are both fetched from somewhere else, so a first run with no network reaches a working engine with no reference data in it. That state is recorded and reported as *not loaded* — the same answer `QGD-REF-0006` gives for a list ADIF does not supply, and for the same reason: a validator that cannot consult a list must say so rather than pass everything or fail everything. A migration failing still stops the engine (`QGD-ENG-0013`); a load failing does not. | Test |
-| `QGD-REF-0015` | **A list derived from ADIF's zone columns is a coverage list, not the zone list, and a cell the derivation cannot read is recorded rather than skipped.** ADIF fills those columns for 152 of its 1,965 subdivisions — five DXCC entities — so the derivation yields 11 of CQ's 40 zones and 22 of the ITU's 90. A zone is therefore reported as *not checked against a list*, which is `QGD-REF-0006`'s answer, and never checked against the derivation. Three of those cells are not zone numbers at all (`S=16 T=17`, `07/08`, `06/07`); they are kept exactly as published, flagged as uninterpreted, and nothing guesses what they mean. The first version of this derivation dropped all three in silence, which is why this is a requirement: a derivation that quietly discards what it cannot read is indistinguishable from one that read everything. | Test |
+| `QGD-REF-0015` | **A list derived from ADIF's zone columns is a coverage list, not the zone list, and a cell the derivation cannot read is recorded rather than skipped.** ADIF fills those columns for 152 of its 1,965 subdivisions — five DXCC entities — so the derivation yields 11 of CQ's 40 zones and 22 of the ITU's 90. A zone is therefore reported as *not checked against a list*, which is `QGD-REF-0006`'s answer, and never checked against the derivation. Three of those cells are not zone numbers at all (`S=16 T=17`, `07/08`, `06/07`); they are kept exactly as published, flagged as uninterpreted, and nothing guesses what they mean. A derivation that discards what it cannot read is indistinguishable from one that read everything, which is why recording the unreadable cell is required rather than optional. | Test |
 | `QGD-REF-0016` | **A list that does not cover the value's domain cannot judge it.** ADIF's `Secondary_Administrative_Subdivision` enumeration holds 58 rows, every one of them in a single DXCC entity (Alaska), while `CNTY` is typed against it for every entity and `USACA_COUNTIES`'s own documented example is `MA,Franklin:MA,Hampshire`. Three Massachusetts counties appear in ADIF's own test QSOs and none of them is in the list. A value outside what a list covers is therefore reported as *not checked against a list* — `QGD-REF-0006`'s answer — while a value inside its coverage that is absent is invalid. Coverage is decided from the data: by the entity the parameter names where the reference is parameterised, and otherwise by the leading segment of the enumeration's own composite codes. Checking a county against one state's boroughs would have this product call ADIF's documentation invalid, which `QGD-REF-0008` says is a finding against this product. | Test |
 
 ## 4.3 Security rules
@@ -381,7 +352,7 @@ README and the documentation **exactly**, and nowhere is it paraphrased.
 applications built on this API. Everything a ham *does* is an application (D-21); the frame holds
 only what every application needs and what protects the user.
 
-Three of KI7MT's decisions constrain this area before a requirement is written. **D-33:** QSO
+This area is constrained by three decisions before any requirement is written. **D-33:** QSO
 Graph's own applications use the same message API as every other application, with no private
 shortcut, unless a measurement later shows one is needed and it is written down as a numbered
 decision. **D-2:** three tiers — official, contributed, unofficial — with contributed and
@@ -404,11 +375,7 @@ the frame's scope, above.
 | `QGD-APP-0012` | **The operator can see what each application has been granted, and withdraw it.** Grants are shown in Settings with the application that holds them, and a withdrawal takes effect without a restart. A grant that cannot be found or taken back is a permission the operator gave once and cannot govern. | Test, Demo |
 | `QGD-APP-0013` | **An application that fails does not take the frame down** (`QGD-PRC-0001`), and the frame says which application stopped rather than failing as something else. | Test |
 | `QGD-APP-0014` | **The exit gate is three applications, two of them proofs.** A no-credential application (solar) works with only the grants it asked for; a granted one (QRZ lookup) works and is refused the same call with the grant withdrawn; and a test application that uses this API and nothing else exercises the surface. The two proofs are not shipped — they exist so the grant model is shown refusing as well as allowing, which a shipped application alone would not show. | Test, Demo |
-| `QGD-APP-0014.1` | **The proof applications are absent from the packaged application, and that is asserted on the artifact.** The solar and QRZ demonstrations and the test harness exist to show the grant model refusing; a demonstration that reached an operator would be a feature nobody wrote. So the packaged contents are inspected for them, the way `QGD-FRM-0009` already proves the component gallery is not shipped. "Not shipped" is a check on what was built, never a statement of intent. (KI7MT via Bob, 2026-10-09.) | Test |
-
-> `QGD-APP-0003` is the load-bearing one. Everything else here can be changed later; an API written
-> as function calls could not be sandboxed later without breaking every application already written
-> against it, and D-2 commits this project to sandboxing two of the three tiers.
+| `QGD-APP-0014.1` | **The proof applications are absent from the packaged application, and that is asserted on the artifact.** The solar and QRZ demonstrations and the test harness exist to show the grant model refusing; a demonstration that reached an operator would be a feature nobody wrote. So the packaged contents are inspected for them, the way `QGD-FRM-0009` already proves the component gallery is not shipped. "Not shipped" is a check on what was built, never a statement of intent. (KI7MT, 2026-10-09.) | Test |
 
 ## 5. Test, verification and release
 

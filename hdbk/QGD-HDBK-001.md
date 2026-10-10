@@ -159,6 +159,15 @@ described in §7 below.
 included logging while its own row did not mention it would be the §0.1 failure again: the
 catalogue is the build order, and a Part's scope has to be visible in it.
 
+`logging` became a package of its own at the restructure, and was not in the version of
+`QGD-REP-0001` written before it. Every process logs into one stream (`QGD-LOG-0001`), and the
+log directory's caps cover the engine's files as well as the application's (`QGD-LOG-0011`), so
+the logger is shared by `main`, `engine` and `personas`. It had no home among the nine packages
+that existed: putting it in `main` would have made the engine depend on the main process to
+write a log line. The naming of the engine's own log files moved with it, having lived in the
+engine's endpoint module — which is what had made the logger depend on the engine to sweep its
+own directory.
+
 The bloat controls — `QGD-LOG-0006` through `QGD-LOG-0011` — are separate requirements rather
 than one because each is a different failure. A log folder can grow without bound through a
 single file that never rotates, through many files that rotate but are never removed, through a
@@ -288,3 +297,14 @@ The cost is 0.3 seconds a build and being deliberately one major release behind,
 which is only safe as a dated decision with a trigger rather than as drift. The
 trigger is in the requirement: `typescript-eslint` supporting 7. That one gates
 the others in practice.
+
+## 12. The app API's one irreversible choice
+
+`QGD-APP-0003` — that an application reaches the frame by message and not by function call — is
+the load-bearing requirement of that area. Everything else in it can be changed later. An API
+written as function calls could not be sandboxed afterwards without breaking every application
+already written against it, and D-2 commits this project to sandboxing two of its three tiers.
+
+So the message boundary is not a style preference deferred to taste: it is the decision that
+has to be right before the first application exists, because the second one cannot be written
+against a different shape without discarding the first.
