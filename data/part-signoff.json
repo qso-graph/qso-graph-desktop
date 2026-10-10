@@ -75,5 +75,18 @@
       "evidence": "The exit gate is an application without a grant being refused, proven by a no-credential application and a granted one and by a test application that uses the API and nothing else. All three exist as the proofs/ applications and are the app-proofs suite's 13 checks: the three load from their manifests; an unofficial manifest is refused before any of its code runs and the host mounts nothing of it; an application holding nothing still reads its own standing; every capability it did not declare is refused, each naming the application and the grant; a source nobody registered is reported as absent rather than as a grant to go and allow; qrz-lookup is refused the persona list on a fresh profile, is offered the personas once persona:list is allowed with no reload of the window, reaches the credential core which reports no credential saved, and is refused again the moment service:qrz is withdrawn without restarting anything, while the grant left alone still works; solar, declaring one grant and no credential, fetches through the core and draws its table; and the run leaves this product's real Keychain service exactly as it found it. proofs-not-shipped adds 7 checks against the packaged asar, reading every dist entry including source maps, so none of the above ships. KI7MT approved the two Settings baselines that P7 changed. Thirty-three suites PASS. Recorded at KI7MT's explicit direction; AGENTS.md otherwise has an agent never record a sign-off.",
       "recordedAtUtc": "2026-10-10T06:33:47Z"
     }
+  ],
+  "missionNote": "Work KI7MT has accepted that is not a Part. A Part is signed off against an exit gate in QGD-SPEC-001 \u00a72.1 and appears in the report; a mission is a piece of work he directed and accepted, so it is recorded here and not in signedOff, where it would claim a Part id and a gate it does not have. Changed only on his direction.",
+  "missions": [
+    {
+      "mission": 1,
+      "what": "Cleanup following Podman Desktop, VS Code and Bitwarden desktop practice",
+      "by": "KI7MT",
+      "date": "2026-10-10",
+      "commit": "ec49e69",
+      "said": "sign off mission 1",
+      "evidence": "Settings reduced to the theme; the database state on the status bar with its detail a click away; the logs, the level switch and the support bundle behind Troubleshooting; moving personas on the Personas page; the three demonstration applications and their per-grant checkboxes gone, with the grant model still enforced and now proven by unit tests over the serving path. KI7MT ran the application, approved all eight screenshot baselines, and tested the QRZ credential both ways, with username and password and with the API key. He also found two product defects in the course of looking, both fixed: a cooldown this product imposed on credential testing, and four messages naming QRZ whatever service was being tested. make verify: 32 suites PASS at ec49e69. Recorded at his explicit direction; AGENTS.md otherwise has an agent never record a sign-off.",
+      "recordedAtUtc": "2026-10-10T18:13:39Z"
+    }
   ]
 }
