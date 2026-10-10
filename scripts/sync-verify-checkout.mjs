@@ -48,17 +48,20 @@ run(['git', '-C', CHECKOUT, 'fetch', '--quiet', process.cwd(), ref]);
 run(['git', '-C', CHECKOUT, 'checkout', '--quiet', '--force', '-B', ref, 'FETCH_HEAD']);
 run(['git', '-C', CHECKOUT, 'reset', '--quiet', '--hard', head]);
 // Nothing of a previous run's output is left to be mistaken for this one's.
-// Limited to paths this project builds into. `git clean -fd` removes every
-// untracked file that is not ignored, which includes anything somebody left in
-// the directory — startup.txt among them. Naming the targets means a file
-// nobody told this script about survives it.
-for (const built of ['dist', 'out', 'report', '.svelte-check-control']) {
-  run(['git', '-C', CHECKOUT, 'clean', '-qfdx', '--', built]);
-}
+// No clean at all.
+//
+// `git reset --hard` above already restores every tracked file, which is the
+// content that matters. Build output is not ours to remove: dist/, out/,
+// report/ and target/ belong to the verification account, which created them,
+// and its next build overwrites them. Two attempts to tidy them failed for the
+// same reason a beat apart — a blanket `chmod -R` and then a scoped
+// `git clean -qfdx -- dist` — because removing or re-moding another user's
+// file needs root, and neither needed doing.
+//
+// The earlier unscoped `git clean -qfd` was worse than a nuisance: it removed
+// every untracked file that was not ignored, which is how it destroyed a
+// scratchpad KI7MT was keeping in this directory.
 
-// The environment that account needs, written beside the checkout rather than
-// left as something to remember. CARGO_HOME is why scripts/cargo-path.mjs
-// resolves cargo instead of assuming ~/.cargo (which does not exist there).
 const MARKER = '# Written by scripts/sync-verify-checkout.mjs';
 const envFile = `${CHECKOUT}/verify-env.sh`;
 try {
