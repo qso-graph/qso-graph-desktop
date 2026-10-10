@@ -16,7 +16,7 @@ them — `QGD-CRD-0004` rules out Python and MCP interoperability in any Part:
 
 Default profile directory: a `personas` directory inside the one the operating
 system gives the application — `~/Library/Application Support/QSO Graph Desktop`
-on macOS — beside the engine's data and the reference cache. Only the trusted
+on macOS — beside the application's own SQLite stores and the reference cache. Only the trusted
 app process chooses this path.
 
 It was `~/.config/adif-mcp` until 2026-10-09, which is the MCP servers' own

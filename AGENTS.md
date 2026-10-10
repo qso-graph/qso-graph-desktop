@@ -22,8 +22,8 @@ has a bug.
 
 QSO Graph Desktop is an Electron desktop application for hams, built as a **frame plus apps**,
 modelled on Podman Desktop. The **frame** (Parts P0–P7) holds only what every app needs and what
-protects the user: the Rust credential core, the process map, the shell, the bundled PostgreSQL
-engine, reference data, personas, and the app API with its grants. **Apps** (P8 onward) do the
+protects the user: the Rust credential core, the process map, the shell, storage (SQLite files the
+frame opens in one utility process), reference data, personas, and the app API with its grants. **Apps** (P8 onward) do the
 ham work and reach the frame only through the app API, exactly as a contributed app would
 (`QGD-PRT-0005`, `QGD-REP-0003`). The build order is the catalogue in spec §2.1 and nowhere else.
 
@@ -37,7 +37,7 @@ This section is navigation; the requirements themselves are in the spec.
 | Credentials, outbound network, cryptography | `persona-core` (Rust) | `QGD-CRD-*`, `QGD-SEC-0020`, §4.3.1 |
 | Windows, IPC brokering, process supervision | `main` | `QGD-PRC-*`, `QGD-SEC-*` |
 | Screens and components | `renderer`, `ui` | `QGD-FRM-*`, `QGD-CRD-0007`, `QGD-PRC-0006` |
-| Data, schema, backups | `engine` | `QGD-ENG-*` |
+| Storage, schema, migrations, reference data files | `storage` | `QGD-ENG-*` |
 | Reference data (ADIF, POTA…) | `reference` | `QGD-REF-*` |
 | Personas and services | `personas` | `QGD-PSN-*` |
 | Anything a ham *does* | an app in `apps/`, through `app-api` only | `QGD-APP-*`, `QGD-REP-0003` |
@@ -54,7 +54,7 @@ Four things are easy to get wrong, so check them on every change:
 ## Quick start
 
 ```bash
-make setup      # npm ci, plus the pinned PostgreSQL build, ADIF release and POTA data (verified)
+make setup      # npm ci, plus the pinned ADIF release (verified) and POTA's lists
 make verify     # every check; writes report/. Must be green before a commit
 make start      # build and run the app
 make package    # a packaged .app in build output (no installer)
@@ -73,7 +73,7 @@ qso-graph-desktop/
 │   ├── preload/         the only bridge to the renderer: named, typed functions
 │   ├── renderer/        the Svelte shell and pages
 │   ├── ui/              shared Svelte components and patterns
-│   ├── engine/          bundled PostgreSQL: supervisor, Drizzle schema, migrations, backup
+│   ├── storage/         SQLite through node:sqlite: QG Storage, the adapter, migrations, reference.sqlite
 │   ├── reference/       reference data: ADIF definitions, POTA parks, loaders
 │   ├── personas/        personas and the service register
 │   ├── logging/         the structured, redacted log stream
@@ -116,7 +116,7 @@ What each is a reference for:
 
 Worked example, from the 2026-10-10 cleanup: the per-grant permission list in Settings was deleted
 because VS Code has no per-permission screen for extensions at all and asks once whether a
-publisher is trusted; the logs and the database moved behind a status-bar affordance because that
+publisher is trusted; the logs and storage's detail moved behind a status-bar affordance because that
 is where Podman Desktop keeps Troubleshooting, with its Logs tab and "collect logs as .zip"; and
 export of personas moved out of preferences because Bitwarden keeps vault export under the
 application's own menu. Podman Desktop's `extensions/` directory holds nine real shipped features
@@ -129,8 +129,14 @@ and no demonstration extension, which is why this repository now has none either
   Verify method (`QGD-TST-0005`).
 - **IPC:** every message is typed, validated against its contract, and rejected rather than
   coerced. Every handler checks its sender (`QGD-SEC-*`, `QGD-PRC-*`).
-- **Database:** Drizzle schema and migrations live with the engine. Apps get their own role and
-  schema. `sql.raw()` is not used except on a fixed literal (`QGD-SEC-0005`).
+- **Storage:** SQLite, opened only by QG Storage (`QGD-ENG-0006`), through Drizzle and one
+  adapter (`packages/storage/sqlite.ts`). SQL text reaches SQLite only there and in
+  `migrate.ts`; everywhere else `prepare()`/`exec()` take a fixed literal and `sql.raw()` is not
+  used (`QGD-SEC-0005`). A caught error goes through `reduce()` before it is used anywhere, and
+  `.message` is never read in storage code (`QGD-ENG-0016`). Apps get their own folder and
+  database, reached only through the API (`QGD-ENG-0018`, `QGD-APP-0009`). `reference.sqlite` is
+  derived, never migrated: change its schema and raise `REFERENCE_SCHEMA_VERSION`
+  (`QGD-ENG-0015`).
 - **A new service** for personas is a data change in the service register, not new code paths.
 - **A new UI component** arrives with its Storybook story, in both themes (`QGD-FRM-0006`/`0007`).
   Reuse an existing pattern before inventing one.
@@ -192,8 +198,8 @@ Versions change, so pick the current ones rather than the names here.
 
 - **[Electron](https://www.electronjs.org/):** the application runtime
 - **[Svelte](https://svelte.dev/)** with **[@podman-desktop/ui-svelte](https://www.npmjs.com/package/@podman-desktop/ui-svelte):** screens and components
-- **[Drizzle ORM](https://orm.drizzle.team/)** and **[node-postgres](https://node-postgres.com/):** the database layer
-- **[PostgreSQL](https://www.postgresql.org/):** the bundled engine, trimmed
+- **[Drizzle ORM](https://orm.drizzle.team/)** (its SQLite dialect, through `sqlite-proxy`): the database layer
+- **[SQLite](https://sqlite.org/)** through Node's **`node:sqlite`**, as Electron carries it: storage, with no server
 - **[pino](https://getpino.io/):** structured logging
 - **[napi-rs](https://napi.rs/):** the Rust native addon bridge
 - **[rustls](https://github.com/rustls/rustls)** on **[aws-lc-rs](https://github.com/aws/aws-lc-rs)** (FIPS feature): TLS and cryptography in the core

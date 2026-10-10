@@ -60,12 +60,13 @@ baked-in path that makes a check pass in one place and fail in another.
 make setup
 ```
 
-That is `npm ci` plus the three fetches — the pinned PostgreSQL build
-(`QGD-ENG-0004`), ADIF's definitions, and POTA's lists. All of it writes inside
-the checkout and none of it needs a credential.
+That is `npm ci`, the build, and the two fetches: ADIF's definitions and POTA's
+lists. All of it writes inside the checkout and none of it needs a credential.
+(It fetched a pinned PostgreSQL build too, until storage became SQLite on
+2026-10-10; there is no database server to fetch.)
 
 An earlier version of this file said `npm ci && node scripts/fetch-postgres.mjs`,
-which is two of the four steps, and the first run in that account duly failed
+which was two of the four steps then, and the first run in that account duly failed
 `adif-reference` with *"the definitions are missing… Run: make setup"*. The
 suite said exactly what to do; the instructions here were the thing that was
 wrong.

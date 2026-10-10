@@ -19,7 +19,7 @@ Before Release 1 the only supported platform is macOS on Apple silicon (`QGD-SCP
 the Node version in `.node-version`, a Rust toolchain and CMake.
 
 ```bash
-make setup     # npm ci, plus the pinned PostgreSQL build and reference data, checksum-verified
+make setup     # npm ci, plus the pinned ADIF release (checksum-verified) and POTA's lists
 make start     # build and run
 make verify    # the full gate; must be green before anything is committed
 ```

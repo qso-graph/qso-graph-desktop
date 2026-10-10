@@ -1,7 +1,14 @@
 # Storage plan: PostgreSQL out, SQLite in
 
 Status: **decided by KI7MT, 2026-10-10.** Every decision below is settled; §3.1 records his answers.
-Work proceeds in the order of §8.
+Work proceeds in the order of §8. Done on `develop`: stage 2 (`c5efc53`), stage 3 (`0c7adfe`), stage 4
+(`ebe6e0f`), stage 5 (`0ac8dc7`) and stage 6 (the documents). Owed: stage 7, `make verify` on the M3, and
+stage 8, KI7MT's baselines and sign-offs.
+
+**Read as a record of the plan.** Sections 1 to 9 were written before the work, against `develop` at
+`ede4ab1`. Where they say "today", "the current engine" or "the app starts PostgreSQL", they describe
+the code as it was then, before 2026-10-10. The specification (`QGD-ENG-*`) and `QGD-HDBK-001` §13
+describe it as it is now.
 Author: Bob, 2026-10-10. It comes from a full inventory of `develop` at `ede4ab1` (spec, handbook,
 RVM, `docs/`, every package, every suite, every register). Revision 2 adds the 15 findings from
 Turing's first review (Codex gpt-6-astra, high), and revision 3 the 6 from his second. Each finding was

@@ -36,11 +36,11 @@ maintained. After Release 1, security fixes are made for the latest release.
 
 ## Scope
 
-In scope: the desktop application and its credential core, the bundled engine as configured by the
-application, and the build and packaging scripts in this repository.
+In scope: the desktop application and its credential core, its storage (the SQLite files it keeps
+and the process that opens them), and the build and packaging scripts in this repository.
 
 Out of scope: vulnerabilities in third-party services QSO Graph connects to (report those to the
-service), and in upstream components such as Electron or PostgreSQL unless QSO Graph's own
+service), and in upstream components such as Electron or SQLite unless QSO Graph's own
 configuration causes or worsens them.
 
 ## How the application is designed to protect you

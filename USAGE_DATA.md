@@ -20,5 +20,5 @@ Nothing else is contacted, and nothing about you or your use of the application 
 
 ## Sharing diagnostics
 
-**Settings → Logs → Export diagnostics** creates an archive for troubleshooting, with credentials
+**Troubleshooting** (on the status bar) **→ Export diagnostics** creates an archive, with credentials
 removed. It's saved on your computer, and it's shared only if you choose to send it.

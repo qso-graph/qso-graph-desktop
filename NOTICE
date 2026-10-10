@@ -8,6 +8,17 @@ it names what ships, and what shipping it obliges us to say.
 
 --------------------------------------------------------------------------------
 
+## SQLite
+
+Storage is SQLite (`QGD-ENG-0001`), through the `node:sqlite` module of the
+Node.js that Electron carries. Nothing of SQLite is vendored by this product;
+it ships inside Electron and under Electron's notices. Recorded here so the
+list of what the application relies on is complete.
+
+SQLite is in the public domain: https://sqlite.org/copyright.html
+
+--------------------------------------------------------------------------------
+
 ## Font Awesome Free 7.3.1
 
 Icons by Fonticons, Inc. — https://fontawesome.com
@@ -19,7 +30,7 @@ https://creativecommons.org/licenses/by/4.0/
 Full Font Awesome Free license: https://fontawesome.com/license/free
 
 The navigation rail's icons are Font Awesome Free icons. Their geometry is
-vendored into `src/renderer/ui/icons.ts`, generated from the installed package
+vendored into `packages/ui/icons.ts`, generated from the installed package
 by `scripts/gen-icons.mjs` — the application does not load a Font Awesome
 webfont, stylesheet or sprite at runtime, because its content policy
 (`QGD-SEC-0008`) allows the renderer no font and no image. Inline SVG markup is
