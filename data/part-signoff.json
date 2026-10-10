@@ -1,6 +1,6 @@
 {
   "register": "Part sign-off",
-  "note": "A Part is signed off when KI7MT has seen its exit gate in QGD-SPEC-001 §2.1 met. A green local run is evidence, not sign-off. Changed only on KI7MT's direction; an agent does not add an entry on its own. Dates are lab-local (UTC-6).",
+  "note": "A Part is signed off when KI7MT has seen its exit gate in QGD-SPEC-001 \u00a72.1 met. A green local run is evidence, not sign-off. Changed only on KI7MT's direction; an agent does not add an entry on its own. Dates are lab-local (UTC-6).",
   "signedOff": [
     {
       "part": "P0",
@@ -35,7 +35,7 @@
       "by": "KI7MT",
       "date": "2026-10-08",
       "commit": "39741bd",
-      "evidence": "KI7MT approved all six screenshot baselines — home, personas and settings, in light and dark. The shell on the M3: rail navigation with Home at the top and Settings at the foot, the P1 persona workflow unchanged inside it, themes following the system and overridable, the Logs page, and the two faults he found on the way fixed and held by tests — no credential secret read at startup (QGD-CRD-0009) and no disabled control drawn as busy (QGD-CRD-0011). Twenty-four suites PASS, including axe over six page views and the baselines compared pixel for pixel.",
+      "evidence": "KI7MT approved all six screenshot baselines \u2014 home, personas and settings, in light and dark. The shell on the M3: rail navigation with Home at the top and Settings at the foot, the P1 persona workflow unchanged inside it, themes following the system and overridable, the Logs page, and the two faults he found on the way fixed and held by tests \u2014 no credential secret read at startup (QGD-CRD-0009) and no disabled control drawn as busy (QGD-CRD-0011). Twenty-four suites PASS, including axe over six page views and the baselines compared pixel for pixel.",
       "recordedAtUtc": "2026-10-09T03:52:14Z"
     },
     {
@@ -44,7 +44,7 @@
       "by": "KI7MT",
       "date": "2026-10-08",
       "commit": "f8af876",
-      "evidence": "KI7MT signed off after the bundling gap closed: the packaged application runs the PostgreSQL it carries, 121 MB trimmed from 356 MB. Twenty-four suites PASS, four of them the engine — the pinned build verified by SHA-256, first run and lifecycle, a second start on the same data refused, a Unix socket with no TCP port read off the running process, per-application roles with a password fresh at each start, migrations applied and rolled back whole when one fails, and a backup round-tripped with its three failure paths driven.",
+      "evidence": "KI7MT signed off after the bundling gap closed: the packaged application runs the PostgreSQL it carries, 121 MB trimmed from 356 MB. Twenty-four suites PASS, four of them the engine \u2014 the pinned build verified by SHA-256, first run and lifecycle, a second start on the same data refused, a Unix socket with no TCP port read off the running process, per-application roles with a password fresh at each start, migrations applied and rolled back whole when one fails, and a backup round-tripped with its three failure paths driven.",
       "recordedAtUtc": "2026-10-09T02:17:30Z"
     },
     {
@@ -53,7 +53,7 @@
       "by": "KI7MT",
       "date": "2026-10-09",
       "commit": "a08b133",
-      "evidence": "The reference data is in the engine and the validation built from it answers ADIF's own cases. adif-validation loads the definitions into a real PostgreSQL, reads the rules back out of it and validates all 6,197 of ADIF's test QSOs: 54,212 values valid, 16 reported as not checked against a list, 0 disagreements — each of the 16 one of four causes that are facts about ADIF's archive. reference-load proves the archive is the pinned one by SHA-256, that a cache failing its checksum is replaced rather than trusted, and that a first run with no network reaches a migrated engine whose reference data is reported not loaded. pota-load holds 96,412 parks, 249 programs, 4,006 locations and 96,638 park-location rows, with the four impossible coordinates stored exactly as POTA publishes them and flagged, and the 113 parks in POTA's own 13 entity numbers loaded with no ADIF link. KI7MT ran the packaged application on a clean non-admin macOS account and confirmed it.",
+      "evidence": "The reference data is in the engine and the validation built from it answers ADIF's own cases. adif-validation loads the definitions into a real PostgreSQL, reads the rules back out of it and validates all 6,197 of ADIF's test QSOs: 54,212 values valid, 16 reported as not checked against a list, 0 disagreements \u2014 each of the 16 one of four causes that are facts about ADIF's archive. reference-load proves the archive is the pinned one by SHA-256, that a cache failing its checksum is replaced rather than trusted, and that a first run with no network reaches a migrated engine whose reference data is reported not loaded. pota-load holds 96,412 parks, 249 programs, 4,006 locations and 96,638 park-location rows, with the four impossible coordinates stored exactly as POTA publishes them and flagged, and the 113 parks in POTA's own 13 entity numbers loaded with no ADIF link. KI7MT ran the packaged application on a clean non-admin macOS account and confirmed it.",
       "recordedAtUtc": "2026-10-09T18:47:04Z"
     },
     {
@@ -64,6 +64,16 @@
       "commit": "a08b133",
       "evidence": "KI7MT walked guided setup on a clean machine: a non-admin macOS account created for it, running the packaged application from /Users/Shared with no personas, no Keychain entries and no engine data. That walk found three defects, all fixed and re-confirmed by him on the same account: the persona form rendered 75 pixels wide because the setup offer became a third column in a row layout; the \"No personas yet\" line disappeared because toggling the offer made Svelte rebuild markup app.ts drives by hand; and setup made a persona the Personas page could not find, because the core lowercases a name and the renderer remembered the spelling it sent. The third had a test asserting the broken state, which now asserts the right one. The export round-trip is held by persona-export, 12 checks against the real credential core and the real Keychain: one encrypted file holding none of the five values that went into it, AES-256-GCM with PBKDF2-HMAC-SHA-256 at 600,000 iterations measured on this machine, a header that fails the same tag as the ciphertext when edited, two personas and two credentials arriving in a profile that had none, and one message for a wrong passphrase and an altered file because the tag cannot tell them apart. Thirty suites PASS.",
       "recordedAtUtc": "2026-10-09T18:47:04Z"
+    },
+    {
+      "part": "P7",
+      "id": "QGD-PRT-0107",
+      "by": "KI7MT",
+      "date": "2026-10-10",
+      "commit": "39481ac",
+      "said": "Sign off P7 and hand it to Bob",
+      "evidence": "The exit gate is an application without a grant being refused, proven by a no-credential application and a granted one and by a test application that uses the API and nothing else. All three exist as the proofs/ applications and are the app-proofs suite's 13 checks: the three load from their manifests; an unofficial manifest is refused before any of its code runs and the host mounts nothing of it; an application holding nothing still reads its own standing; every capability it did not declare is refused, each naming the application and the grant; a source nobody registered is reported as absent rather than as a grant to go and allow; qrz-lookup is refused the persona list on a fresh profile, is offered the personas once persona:list is allowed with no reload of the window, reaches the credential core which reports no credential saved, and is refused again the moment service:qrz is withdrawn without restarting anything, while the grant left alone still works; solar, declaring one grant and no credential, fetches through the core and draws its table; and the run leaves this product's real Keychain service exactly as it found it. proofs-not-shipped adds 7 checks against the packaged asar, reading every dist entry including source maps, so none of the above ships. KI7MT approved the two Settings baselines that P7 changed. Thirty-three suites PASS. Recorded at KI7MT's explicit direction; AGENTS.md otherwise has an agent never record a sign-off.",
+      "recordedAtUtc": "2026-10-10T06:33:47Z"
     }
   ]
 }
