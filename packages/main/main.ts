@@ -172,18 +172,16 @@ if (!app.requestSingleInstanceLock()) {
     // The app API (QGD-APP-0002). Started after the brokers it reaches
     // through, because its ports are their methods.
     //
-    // `apps` is empty until QGD-PRT-0108 and `proofs` is absent from a shipped
-    // build, so on a release this loads nothing — which is the correct result,
-    // not a failure (QGD-APP-0014.1).
+    // `apps/` is empty until QGD-PRT-0108, so an ordinary run loads no
+    // applications at all. That is the correct result, not a failure: the
+    // broker still enforces, and there is nothing yet to enforce against.
     const appBroker = await startAppBroker({
       // Overridable for the same reason QG_DESKTOP_POSTGRES_BIN is: a suite
-      // needs to run the product against manifests of its own. Without it the
-      // only way to exercise a refused application was to edit a tracked
-      // manifest, and an interrupted run then left that edit behind — where
-      // the next run would read it as the original and keep failing.
+      // can point the product at manifests of its own rather than editing a
+      // tracked one, which an interrupted run would leave behind.
       directories: process.env.QG_DESKTOP_APP_DIRS
         ? process.env.QG_DESKTOP_APP_DIRS.split(':').filter(Boolean)
-        : [join(app.getAppPath(), 'apps'), join(app.getAppPath(), 'proofs')],
+        : [join(app.getAppPath(), 'apps')],
       grantRegisterFile: join(app.getAppPath(), 'data', 'app-grants.json'),
       sourceRegisterFile: join(app.getAppPath(), 'data', 'app-sources.json'),
       ports: {

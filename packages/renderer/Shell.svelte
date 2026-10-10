@@ -11,15 +11,13 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Rail from '../ui/Rail.svelte';
-  // Behind PROOFS_ENABLED, a build-time constant. With it false, Rollup drops
-  // this import and the three applications it reaches (QGD-APP-0014.1).
-  import AppsPage from '../../proofs/AppsPage.svelte';
   import StatusBar from '../ui/StatusBar.svelte';
   import HomePage from './pages/HomePage.svelte';
   import PersonaPage from './pages/PersonaPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
+  import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
-  import { PAGES, PROOFS_ENABLED, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
+  import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
@@ -39,7 +37,6 @@
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
-    onSetGrant: (app: string, grant: string, allow: boolean) => Promise<boolean>;
     onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
     onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
@@ -48,19 +45,23 @@
   const {
     store, onChooseTheme, onSetLevel, onExport, onStartEngine, onStopEngine,
     onCreatePersona, onSaveCredential, onFinishSetup,
-    onSetGrant, onExportPersonas, onInspectImport, onApplyImport, version
+    onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
 
+  // Named `shell`, not `state`: `$state` is both Svelte's rune and the
+  // subscription syntax for a store called `state`, and with two rune calls in
+  // one file svelte-check read the first as a subscription of the second.
+  //
   // untrack, because reading a prop to seed state is not a reactive read and
   // Svelte is right to ask: the subscription below is what keeps it current.
   // Seeded rather than defaulted so the first frame is already correct.
-  let state = $state<ShellState>(untrack(() => store.get()));
+  let shell = $state<ShellState>(untrack(() => store.get()));
   // The effect's return value is its cleanup, so the subscription follows the
   // component's life and a replaced store is re-subscribed rather than lost.
   // Not $derived: the store is plain TypeScript and not reactive, so there is
   // nothing for a derivation to track. An assignment from a subscription is
   // the documented way to bring outside state in.
-  $effect(() => store.subscribe(next => { state = next; }));
+  $effect(() => store.subscribe(next => { shell = next; }));
 
   function navigate(id: string): void {
     if (isPageId(id)) store.set({ page: id });
@@ -96,18 +97,18 @@
   </span>
 </header>
 <div class="workspace">
-  <Rail pages={visiblePages()} current={state.page} onNavigate={navigate} />
+  <Rail pages={visiblePages()} current={shell.page} onNavigate={navigate} />
   <main>
-    <div class="page" hidden={state.page !== 'home'}>
+    <div class="page" hidden={shell.page !== 'home'}>
       <HomePage
         {version}
-        activePersona={state.activePersona}
-        engine={state.engine}
+        activePersona={shell.activePersona}
+        engine={shell.engine}
         {destinations}
         onGo={navigate}
       />
     </div>
-    <div class="page" hidden={state.page !== 'personas'}>
+    <div class="page" hidden={shell.page !== 'personas'}>
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
            underneath is the one P1 built and P3 was signed off with; a
            machine with no personas gets an offer above it, and the offer is
@@ -129,11 +130,11 @@
            3. Hidden rather than destroyed also means select() can draw into
               the page the moment setup finishes, with no waiting for Svelte
               to put the markup back. -->
-      {#if state.setup}
-        <SetupPage services={state.services} {onCreatePersona} {onSaveCredential} onDone={onFinishSetup} />
+      {#if shell.setup}
+        <SetupPage services={shell.services} {onCreatePersona} {onSaveCredential} onDone={onFinishSetup} />
       {/if}
-      <div class="page-stack" hidden={state.setup}>
-        {#if state.firstRun && state.services.length > 0}
+      <div class="page-stack" hidden={shell.setup}>
+        {#if shell.firstRun && shell.services.length > 0}
           <section class="card offer" aria-labelledby="setup-offer-title">
             <h2 id="setup-offer-title">New to QSO Graph Desktop?</h2>
             <p>
@@ -143,20 +144,20 @@
             <button type="button" id="begin-setup" onclick={() => store.beginSetup()}>Set up step by step</button>
           </section>
         {/if}
-        <div class="page-row"><PersonaPage /></div>
+        <div class="page-row">
+          <PersonaPage {onExportPersonas} {onInspectImport} {onApplyImport} />
+        </div>
       </div>
     </div>
-    {#if PROOFS_ENABLED}
-      <div class="page" hidden={state.page !== 'apps'}>
-        <AppsPage />
-      </div>
-    {/if}
-    <div class="page" hidden={state.page !== 'settings'}>
-      <SettingsPage themeChoice={state.themeChoice} {onChooseTheme} logs={state.logs} {onSetLevel} {onExport}
-                    engine={state.engine} {onStartEngine} {onStopEngine}
-                    apps={state.apps} appsProblem={state.appsProblem} {onSetGrant}
-                    {onExportPersonas} {onInspectImport} {onApplyImport} />
+    <div class="page" hidden={shell.page !== 'settings'}>
+      <SettingsPage themeChoice={shell.themeChoice} {onChooseTheme} />
     </div>
   </main>
 </div>
-<StatusBar activePersona={state.activePersona} />
+<StatusBar activePersona={shell.activePersona} engineState={shell.engine?.state}
+           onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
+{#if shell.troubleshooting}
+  <TroubleshootingPanel engine={shell.engine} {onStartEngine} {onStopEngine}
+                        logs={shell.logs} {onSetLevel} {onExport}
+                        onClose={() => store.set({ troubleshooting: false })} />
+{/if}

@@ -6,9 +6,7 @@
     "packages/renderer/**/*.svelte",
     "packages/ui/**/*.ts",
     "packages/ui/**/*.svelte",
-    "packages/app-api/**/*.ts",
-    "proofs/**/*.ts",
-    "proofs/**/*.svelte"
+    "packages/app-api/**/*.ts"
   ],
   "exclude": []
 }

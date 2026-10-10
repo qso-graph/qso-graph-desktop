@@ -13,10 +13,10 @@
 // The outer bound on one suite, where 120s is not enough.
 //
 // Every suite had a flat 120s, and a suite that legitimately waits longer than
-// that is killed rather than failed — so app-proofs' 150s wait for a stalled
-// NOAA could never be reached, and the upstream outcome it explicitly accepts
-// was unreachable through `make verify`. A number inside a suite and the
-// number the runner kills it with have to agree, and nothing made them.
+// that is killed rather than failed — electron-smoke waits 705s in total and
+// electron-audit 300s, both of them under a flat 120s bound. A number inside a
+// suite and the number the runner kills it with have to agree, and nothing
+// made them.
 // tests/suite-timeouts.test.mjs is what makes them agree now: it reads each
 // suite's own `timeout:` waits out of its source and fails if the outer bound
 // does not clear them. Found in review.
@@ -37,7 +37,6 @@ export const SUITE_TIMEOUT_MS = {
   'process-recovery': 240_000,    // 150s
   screenshots: 420_000,           // 270s
   storybook: 900_000,             // a 600s build wait
-  'app-proofs': 600_000,          // 380s
   'packaged-launch': 720_000,     // 495s
   'electron-audit': 480_000,      // a single 300s wait
   // An npm script, so its waits are not in a scripts/ file to read. Packaging
@@ -58,7 +57,7 @@ export function suiteCommands(npmCli) {
   ['adif-reference', ['scripts/adif-reference.mjs']],
   ['package-boundaries', ['scripts/package-boundaries.mjs']],
   ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/engine-binaries.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/app-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/app-broker.test.mjs', 'tests/deadlines.test.mjs', 'tests/suite-timeouts.test.mjs']],
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/persona-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/engine-binaries.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/app-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/app-broker.test.mjs', 'tests/app-serve.test.ts', 'tests/deadlines.test.mjs', 'tests/suite-timeouts.test.mjs']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
@@ -79,11 +78,10 @@ export function suiteCommands(npmCli) {
   ['screenshots', ['scripts/screenshots.mjs']],
   ['storybook', ['scripts/storybook.mjs']],
   ['story-themes', ['scripts/story-themes.mjs']],
-  ['app-proofs', ['scripts/app-proofs.mjs']],
   ['package', [npmCli, 'run', 'package']],
   ['packaged-launch', ['scripts/packaged-smoke.mjs']],
   ['electron-audit', ['scripts/electron-audit.mjs']],
-  ['proofs-not-shipped', ['scripts/proofs-not-shipped.mjs']]
+  ['package-contents', ['scripts/package-contents.mjs']]
 ];
 }
 

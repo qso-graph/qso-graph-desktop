@@ -1,8 +1,0 @@
-{
-  "id": "qrz-lookup",
-  "name": "Callsign lookup",
-  "tier": "official",
-  "version": "1.0.0",
-  "grants": ["service:qrz", "persona:list"],
-  "page": "LookupPage.svelte"
-}

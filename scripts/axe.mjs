@@ -131,6 +131,17 @@ try {
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
       await run(page, `${name} in ${theme}`);
     }
+
+    // Troubleshooting is a surface with controls on it — a level switch, a
+    // save, start and stop — so it is scanned like a page even though it is
+    // not one (QGD-LOG-0013, QGD-FRM-0012). Scanned open, because closed it is
+    // not in the document at all.
+    await page.locator('#open-troubleshooting').click();
+    await expect(page.locator('#troubleshooting')).toBeVisible();
+    await expect(page.getByLabel('Detail level', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await run(page, `Troubleshooting in ${theme}`);
+    await page.locator('#close-troubleshooting').click();
+    await expect(page.locator('#troubleshooting')).toHaveCount(0);
   }
 
   if (failures.length) {
@@ -138,7 +149,7 @@ try {
     for (const failure of failures) console.error(`  ${failure}`);
     process.exitCode = 1;
   } else {
-    console.log(`Accessibility: axe-core ${axeVersion}, ${checked} page views (${PAGES.join(' and ')}, in ${THEMES.join(' and ')}), both controls fired, 0 violations: PASS`);
+    console.log(`Accessibility: axe-core ${axeVersion}, ${checked} page views (${PAGES.join(', ')} and Troubleshooting, in ${THEMES.join(' and ')}), both controls fired, 0 violations: PASS`);
   }
 } catch (error) {
   console.error('Accessibility check could not run.');

@@ -176,8 +176,12 @@ try {
   // QGD-ENG-0004.1: the trimmed PostgreSQL is in the bundle and the packaged
   // application runs it. Nothing here points at the repository — the binaries
   // come from Contents/Resources, which is the only copy a user would have.
-  await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Settings', exact: true }).click();
+  // The status bar says it, on every page, so nothing is navigated to first
+  // (QGD-FRM-0012). Its detail is behind Troubleshooting, which is where this
+  // suite goes for the version and the hint below (QGD-LOG-0013).
+  await expect(page.locator('#engine-indicator')).toBeVisible();
+  await page.locator('#open-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
   await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
     { message: 'the packaged application must run its own bundled engine', timeout: 180_000 })

@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { INITIAL_SHELL, PAGES, PROOFS_ENABLED, createShellStore, isPageId, type ShellState, visiblePages } from '../packages/renderer/shell-store.js';
+import { INITIAL_SHELL, PAGES, createShellStore, isPageId, type ShellState, visiblePages } from '../packages/renderer/shell-store.js';
 
 describe('the shell store', () => {
   it('starts on Home with no active persona and the system theme', () => {
     expect(INITIAL_SHELL).toEqual({
       page: 'home', activePersona: '', themeChoice: 'system', logs: undefined, engine: undefined,
+      // Troubleshooting closed. It is in the store rather than local to the
+      // shell because what it shows is fetched while it is open — the logs,
+      // and the engine asked again (QGD-LOG-0013, QGD-FRM-0012).
+      troubleshooting: false,
       // Not setup: that is decided once the personas have been read, so a
       // machine with personas never sees a frame of the setup screen
       // (QGD-PSN-0004).
@@ -95,13 +99,11 @@ describe('the shell store', () => {
 
 describe('the rail', () => {
   it('offers Personas and Settings, in that order', () => {
-    // QGD-LOG-0013 puts the Logs page inside Settings, so it is not a third
-    // rail item and this list is the whole of the navigation.
-    //
-    // Asserted on visiblePages(), which is what the rail is given — not on
-    // PAGES, which also holds the Apps page. That one appears only in a
-    // proofs build, so a release's rail is unchanged and the screenshot
-    // baselines KI7MT approved do not move (QGD-APP-0014.1).
+    // The whole of the navigation. QGD-LOG-0013 puts the logs behind
+    // Troubleshooting on the status bar and QGD-FRM-0012 puts the engine
+    // there too, so neither is a rail item; and the demonstration
+    // applications that briefly added an Apps entry are gone
+    // (QGD-APP-0014).
     expect(visiblePages().map(page => page.id)).toEqual(['home', 'personas', 'settings']);
     expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Personas', 'Settings']);
     // Home at the top, Settings at the foot: it is where you change how the
@@ -110,15 +112,13 @@ describe('the rail', () => {
     expect(visiblePages().at(-1)?.placement).toBe('bottom');
   });
 
-  it('keeps the Apps page out of a build that has no applications to show', () => {
-    // The page exists in PAGES so there is one list of what a page is; what
-    // the rail offers is filtered. PROOFS_ENABLED is false here, as it is in
-    // every build but the one the app-proofs suite makes for itself.
-    expect(PROOFS_ENABLED).toBe(false);
-    expect(PAGES.map(page => page.id)).toContain('apps');
-    expect(visiblePages().map(page => page.id)).not.toContain('apps');
-    // Not vacuous: the filter must be removing exactly one thing.
-    expect(visiblePages().length).toBe(PAGES.length - 1);
+  it('offers every page it declares, there being nothing to hide any more', () => {
+    // visiblePages() stays a function rather than becoming PAGES: the rail
+    // will be filtered again when applications are installed rather than
+    // built in. Until then the two must agree, and a filter that quietly
+    // dropped something would show up here.
+    expect(visiblePages().map(page => page.id)).toEqual(PAGES.map(page => page.id));
+    expect(visiblePages().length).toBe(PAGES.length);
   });
 
   it('accepts only a page that exists', () => {
@@ -169,9 +169,40 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
   it('holds no behaviour of its own', async () => {
     // app.ts owns this screen. A handler appearing here would mean two owners.
     const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
-    expect(page).not.toMatch(/\bon(?:click|submit|change|input)=/);
+    expect(page).not.toMatch(/\bon(?:click|submit|change|input)=\s*\{(?!on[A-Z])/);
     expect(page).not.toContain('$state');
-    expect(page).not.toContain('$props');
+    expect(page).not.toContain('$effect');
+    // Nor does it reach for its own elements: finding them by id is app.ts's
+    // job, and a query here would be the second owner by another route.
+    expect(page).not.toMatch(/document\.|getElementById|querySelector/);
+  });
+
+  it('takes props only to pass them straight to a child', async () => {
+    // `$props` was forbidden outright until 2026-10-10, when moving personas
+    // to another machine came out of Settings and onto this page — it is
+    // something you do to the personas, so it belongs with them.
+    //
+    // The rule that matters is the one above: no behaviour here, because
+    // app.ts owns this screen. A prop that is handed to a child component
+    // unchanged is not behaviour. So this asserts the narrower thing: every
+    // prop it declares is passed on, and none is read by this file for
+    // anything else.
+    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
+    const destructured = page.match(/const \{([^}]*)\}: Props = \$props\(\);/);
+    if (!destructured) {
+      // Still propless, which is also fine — the point is that it has no
+      // behaviour, not that it has props.
+      expect(page).not.toContain('$props');
+      return;
+    }
+    const names = destructured[1].split(',').map(name => name.trim()).filter(Boolean);
+    expect(names.length, 'a prop here should be rare enough to be read').toBeLessThanOrEqual(4);
+    for (const name of names) {
+      expect(name, 'a prop this page takes is a callback it passes on').toMatch(/^on[A-Z]/);
+      // Passed to a child, and appearing exactly where it is handed over.
+      expect(page, `${name} must be passed to a child, not used here`)
+        .toMatch(new RegExp(`=\\{${name}\\}`));
+    }
   });
 });
 

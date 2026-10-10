@@ -90,6 +90,38 @@ qso-graph-desktop/
 
 ## Development patterns
 
+### Reference check first
+
+**Before designing any application, extension or frame feature, read how Podman Desktop, VS Code
+and Bitwarden desktop do something similar, and design from that evidence** (KI7MT, 2026-10-10).
+Open-source references only — a closed-source product's behaviour cannot be read, only guessed at.
+
+- **Read their code or their CI, and cite file paths.** Not a marketing page, not a blog post, not
+  a recollection. `gh api repos/<owner>/<repo>/contents/<path>` and a fetch of the file are enough.
+  A docs page is acceptable for a thing their docs are the authority on — where a button is in
+  their own UI — and says so when cited.
+- **Record the findings where the work is**, in the issue or the spec, so the next person reads the
+  evidence rather than repeating the search.
+- **Where the three disagree, say so and let KI7MT decide.** Do not average them.
+- **A pattern none of them uses is labelled novel, with the reason** it is novel here. Novel is
+  allowed; unexamined is not.
+
+What each is a reference for:
+
+| Reference | What to read it for |
+|---|---|
+| Podman Desktop | the shell, extensions and their API, providers, the status bar, troubleshooting |
+| VS Code | the extension model, commands and keybindings, settings, trust |
+| Bitwarden desktop | Electron with a Rust `napi` security core — the same shape as this product |
+
+Worked example, from the 2026-10-10 cleanup: the per-grant permission list in Settings was deleted
+because VS Code has no per-permission screen for extensions at all and asks once whether a
+publisher is trusted; the logs and the database moved behind a status-bar affordance because that
+is where Podman Desktop keeps Troubleshooting, with its Logs tab and "collect logs as .zip"; and
+export of personas moved out of preferences because Bitwarden keeps vault export under the
+application's own menu. Podman Desktop's `extensions/` directory holds nine real shipped features
+and no demonstration extension, which is why this repository now has none either.
+
 - **A Part starts with its tests.** Register its acceptance tests in `docs/Pn.md` before writing
   its code (`QGD-PRT-0003`).
 - **Changing a requirement:** edit `spec/QGD-SPEC-001.md`, then regenerate the RVM with

@@ -7,15 +7,31 @@
   correct. The packaged smoke suite drives it by role and label and is the
   check that it is.
 
-  It carries no props and no logic. When the shell grows past P3 this is the
+  Its own markup carries no logic. When the shell grows past P3 this is the
   component that gets rewritten in Svelte properly, with its own state; doing
   that here would have put the P1 workflow and the framework on trial at once.
+
+  It gained one child on 2026-10-10: moving a station's personas to another
+  machine, which was a section of Settings. It is something you do *to the
+  personas*, so it belongs with them — Bitwarden's desktop client keeps vault
+  export under the application's own menu rather than in preferences. It is
+  inside this page's scrolling column rather than a sibling of it: placed
+  alongside, its card covered the persona list and intercepted every click on
+  it, which is the same lesson the setup offer taught at P6.
 -->
 <script lang="ts">
-  // No props and no state: app.ts owns this screen's behaviour, by design.
-  // The block is here because svelte-check types a component through its
-  // script tag, and a component without one is read as JavaScript and cannot
-  // be imported with types.
+  // The only props are the three the move card needs, passed straight through.
+  // app.ts still owns everything else on this screen and finds its elements by
+  // id, by design.
+  import MovePersonasPage from './MovePersonasPage.svelte';
+  import type { ExportResult, ImportPreview, ImportResult } from '../../personas/persona-contract.js';
+
+  interface Props {
+    onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
+    onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
+    onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
+  }
+  const { onExportPersonas, onInspectImport, onApplyImport }: Props = $props();
 </script>
 
 <aside aria-label="Personas">
@@ -52,4 +68,5 @@
       <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">Save in Keychain</button></div>
     </form>
   </section>
+  <MovePersonasPage onExport={onExportPersonas} onInspect={onInspectImport} onImport={onApplyImport} />
 </div>

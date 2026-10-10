@@ -2,10 +2,9 @@
 // A suite's outer bound must clear the waits inside it.
 //
 // The defect this is a control on: `make verify` killed every suite at a flat
-// 120s, so app-proofs' 150s wait for a stalled reference source was
-// unreachable and the upstream outcome that suite explicitly accepts could
-// never happen under the gate. A suite killed by the runner is not a suite
-// that failed, and the report cannot tell them apart.
+// 120s, while electron-smoke waits 705s in total and electron-audit 300s. A
+// suite killed by the runner is not a suite that failed, and the report cannot
+// tell them apart.
 //
 // Derived, not listed. Each suite's own `timeout:` and `timeout: N_000` waits
 // are read out of its source, so adding or raising a wait inside a suite fails
@@ -22,11 +21,11 @@ const WAITS = /timeout:\s*([\d_]+)/g;
 
 // The sum, not the longest.
 //
-// The longest alone is not the worst case: app-proofs waits 150s for a stalled
-// source and 35s for a persona create one after the other, among nine others,
-// so a bound that merely clears the biggest single wait still kills it. If
-// every wait falls due in turn, the suite needs their sum — an overestimate
-// where the waits are alternatives, which is the safe direction for a ceiling.
+// The longest alone is not the worst case: electron-smoke holds nineteen
+// waits, the largest 180s and the total 705s, so a bound that merely clears
+// the biggest single wait still kills it. If every wait falls due in turn, the
+// suite needs their sum — an overestimate where the waits are alternatives,
+// which is the safe direction for a ceiling.
 const waitBudget = async file => {
   let text;
   try { text = await readFile(file, 'utf8'); } catch { return 0; }
@@ -64,6 +63,6 @@ describe('the runner bound on each suite', () => {
 
   it('leaves the default where nothing asked for more', () => {
     expect(suiteTimeout('a-suite-that-does-not-exist')).toBe(DEFAULT_SUITE_TIMEOUT_MS);
-    expect(suiteTimeout('app-proofs')).toBeGreaterThan(DEFAULT_SUITE_TIMEOUT_MS);
+    expect(suiteTimeout('electron-smoke')).toBeGreaterThan(DEFAULT_SUITE_TIMEOUT_MS);
   });
 });

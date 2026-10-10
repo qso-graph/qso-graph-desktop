@@ -48,7 +48,7 @@ describe('reading manifests from disk', () => {
 
   it('treats a directory that is not there as no applications', async () => {
     // The ordinary case on a release: apps/ is empty until QGD-PRT-0108 and
-    // proofs/ is not packaged at all (QGD-APP-0014.1).
+    // `apps/` is empty until QGD-PRT-0108.
     expect(await readManifests([join(root, 'nowhere')])).toEqual([]);
     expect(await readManifests([])).toEqual([]);
   });

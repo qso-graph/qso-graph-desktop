@@ -64,21 +64,20 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
     // at run time, so what ships is where to get it and nothing more.
     // The app API's two registers ship as well: the broker reads the grants
     // and the sources from the application path (QGD-APP-0006, QGD-APP-0008).
-    // `proofs` is deliberately absent, which is half of how QGD-APP-0014.1 is
-    // enforced — the other half is the build-time constant that keeps their
-    // pages out of the bundle.
+    // It is an allowlist, which is what makes everything development-only
+    // absent by construction rather than by anybody remembering
+    // (QGD-APP-0014.1). scripts/package-contents.mjs checks the same list
+    // against the archive that was actually built.
     expect(manifest.build.files).toEqual([
-      // The renderer's source map is excluded, and that is not tidiness.
-      // Rollup drops the proof components from app.js and still records their
-      // complete text in app.js.map's sourcesContent, so a release shipped
-      // every line of three demonstration applications as source while the
-      // executable JavaScript was clean. Found in review; the gate reads maps
-      // now too (QGD-APP-0014.1).
+      // The renderer's source map is excluded, and that is not tidiness. A
+      // map records the complete text of every module in its
+      // `sourcesContent`, so a bundle with code removed still ships that code
+      // as source. Found in review, when a release carried three whole
+      // components that way while the executable JavaScript was clean.
       'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE', 'data/postgres-build.json',
       'data/reference-sources.json', 'data/service-profiles.json',
       'data/app-grants.json', 'data/app-sources.json', 'drizzle/**/*'
     ]);
-    expect(files, 'the proof applications must not be packaged').not.toContain('proofs');
     expect(files, 'nor apps/ until one exists to ship').not.toContain('apps');
   });
 

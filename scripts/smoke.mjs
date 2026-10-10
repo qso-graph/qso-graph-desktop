@@ -256,6 +256,30 @@ try {
       .toBeGreaterThan(afterNavigating);
     notesSecrets = `${afterNavigating - readsBefore} on startup and navigation, ${await secretReads() - afterNavigating} on an explicit test`;
   }
+  // ---- QGD-LOG-0013: Troubleshooting works without Settings -------------
+  // Before anything navigates, because that is the whole point.
+  //
+  // The logs were read while `page === 'settings'`, which is where they used
+  // to be shown. After they moved to Troubleshooting, opening the panel from
+  // Home left it reading "Reading the log settings…" with no level switch and
+  // no way to save a bundle — and this suite did not catch it, because it
+  // visits Settings further down for the navigation checks and that happened
+  // to fetch them first. So the check goes here, where nothing has navigated
+  // yet. Found in review.
+  await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
+  // The guard that makes this check mean anything: Settings must not have been
+  // opened yet, since opening it is what used to fetch the logs.
+  expect(await page.getByRole('navigation', { name: 'Sections' })
+    .getByRole('button', { name: 'Settings', exact: true }).getAttribute('aria-current'),
+    'this check is only meaningful before Settings has been opened').toBeNull();
+  await page.locator('#open-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toBeVisible();
+  await expect(page.getByLabel('Detail level', { exact: true }),
+    'the level switch must be there without Settings having been opened').toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Export diagnostics', exact: true })).toBeVisible();
+  await page.locator('#close-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toHaveCount(0);
+
   // ---- P3: the shell ----------------------------------------------------
   await mkdir('report', { recursive: true });
   // P3-navigation: the rail moves between pages and the document never does.
@@ -418,8 +442,12 @@ try {
   // that the shell is drawn and usable regardless. Everything above has
   // already happened; Settings must report a state rather than hanging or
   // showing nothing.
-  await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Settings', exact: true }).click();
+  // The status bar says it, on every page, so nothing is navigated to first
+  // (QGD-FRM-0012). Its detail is behind Troubleshooting, which is where this
+  // suite goes for the version and the hint below (QGD-LOG-0013).
+  await expect(page.locator('#engine-indicator')).toBeVisible();
+  await page.locator('#open-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Database', exact: true })).toBeVisible();
   // Running, not merely "some state": this suite launches the real
   // application from the repository, where the pinned build is, so the whole
@@ -456,10 +484,15 @@ try {
   // which is the restart half of the rule — the hour would take an hour.
   await page.getByLabel('Detail level', { exact: true }).selectOption('debug');
   await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('debug');
-  await railAgain('Personas').click();
+  // Closed and reopened, not navigated away and back: the logs are read when
+  // Troubleshooting opens now, so that is what refreshes them (QGD-LOG-0013).
+  // Navigating used to be the refresh because the logs lived in Settings.
+  await page.locator('#close-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toHaveCount(0);
   await writeFile(join(logs, 'level.json'),
     JSON.stringify({ level: 'debug', raisedAtMs: Date.now() - 4 * 60 * 60 * 1000 }) + '\n');
-  await railAgain('Settings').click();
+  await page.locator('#open-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toBeVisible();
   // Without the refresh this still read debug, while every logger had already
   // reverted to info.
   await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('info');

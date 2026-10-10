@@ -1,8 +1,0 @@
-{
-  "id": "solar",
-  "name": "Space weather",
-  "tier": "official",
-  "version": "1.0.0",
-  "grants": ["source:solar"],
-  "page": "SolarPage.svelte"
-}

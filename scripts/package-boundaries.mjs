@@ -97,19 +97,15 @@ export async function crossings(root = 'packages') {
 // permitted direction are not reported as exceptions they do not need.
 // QGD-REP-0003 and QGD-REP-0006, for applications rather than packages: an
 // application depends on app-api and ui and on nothing else. Checked over
-// apps/ and proofs/ — the demonstrations are applications too, and holding
-// them to the rule is most of what makes the rule credible.
+// apps/, which is empty until QGD-PRT-0108 — so what is asserted here is the
+// rule the first application will meet, not a rule being enforced on code
+// that exists.
 //
 // An application reaching into `personas`, `engine`, `reference` or `main`
 // would be using the frame directly, which is the thing the app API exists to
 // prevent. A built-in application gets no shortcut a contributed one lacks
 // (D-33).
-export const APP_ROOTS = ['apps', 'proofs'];
-
-// The host that mounts the demonstrations sits at the root of proofs/ rather
-// than inside one of them, so it is allowed to reach each application's page.
-// Named, because it is the one file for which that is true.
-export const PROOF_HOST = join('proofs', 'AppsPage.svelte');
+export const APP_ROOTS = ['apps'];
 
 export async function appCrossings() {
   const found = [];
@@ -134,7 +130,7 @@ export async function appCrossings() {
           // Another application, named by its directory so the refusal says
           // which one.
           : (reachedParts.length > 2 ? join(reachedParts[0], reachedParts[1]) : reachedParts[0]);
-        found.push({ file, owner, reached, specifier: match[1], host: file === PROOF_HOST });
+        found.push({ file, owner, reached, specifier: match[1] });
       }
     }
   }
@@ -143,11 +139,6 @@ export async function appCrossings() {
 
 export function judgeApp(crossing) {
   if (ALLOWED_FOR_APPS.includes(crossing.reached)) return { verdict: 'allowed' };
-  // The proof host mounts the demonstrations, so it reaches each of their
-  // pages by design. Nothing else may reach into another application.
-  if (crossing.host && APP_ROOTS.some(root => crossing.reached.startsWith(root + sep))) {
-    return { verdict: 'allowed' };
-  }
   return {
     verdict: 'refused',
     why: `an application may depend on ${ALLOWED_FOR_APPS.join(' and ')} only, not ${crossing.reached}`
@@ -164,8 +155,8 @@ export function judgeApp(crossing) {
 // three resources policy.ts serves over qg: to a pattern (QGD-SEC-0008), which
 // is what a contributed application will need and what the sandbox Part brings.
 //
-// Any other import from packages/ into apps/ or proofs/ is refused: the frame
-// must not depend on an application.
+// Any import from packages/ into apps/ is refused: the frame must not depend
+// on an application.
 // Keyed on the importing file AND the exact file it may reach.
 //
 // The first version keyed on the importer alone, which exempted Shell.svelte's
@@ -173,18 +164,23 @@ export function judgeApp(crossing) {
 // and allowed, though the exception it was claiming is the proof host and
 // nothing else. An allowance that names one file and grants a directory is not
 // the allowance that was written down. Found in review.
-export const FRAME_TO_APP_ALLOWANCE = {
-  'packages/renderer/Shell.svelte': {
-    target: PROOF_HOST,
-    why: 'the proof host, behind PROOFS_ENABLED so a release bundle drops it (QGD-APP-0014.1)'
-  }
-};
+// Deliberately empty.
+//
+// It held one entry until 2026-10-10 — the host that mounted the
+// demonstration applications — and that host is gone with them
+// (QGD-APP-0014). With nothing named here, every import from `packages/` into
+// an application is refused, which is the rule as written. The mechanism is
+// kept rather than deleted because the sandboxed-tier Part may need one named
+// exception, and an exception has to be a named file reaching a named file,
+// never an importer granted a directory.
+export const FRAME_TO_APP_ALLOWANCE = {};
+
 
 // The allowance decision, on its own so it can be controlled.
 //
 // It is a function rather than a lookup because the lookup was the defect: an
 // exception keyed on the importer alone grants that importer everything under
-// apps/ and proofs/, and nothing in a clean run shows it. The control is in
+// apps/, and nothing in a clean run shows it. The control is in
 // tests/package-boundaries.test.mjs.
 export function namedAllowance(file, target) {
   const allowance = FRAME_TO_APP_ALLOWANCE[file];
@@ -245,7 +241,17 @@ if (process.argv[1]?.endsWith('package-boundaries.mjs')) {
     } else {
       const packages = new Set(found.map(crossing => crossing.owner));
       console.log(`Package boundaries: ${found.length} cross-package import(s) from ${packages.size} package(s), every one in the permitted direction: PASS`);
-      console.log(`Application boundaries: ${apps.length} import(s) out of apps/ and proofs/, every one to ${ALLOWED_FOR_APPS.join(' or ')}: PASS`);
+      // An empty scope says so rather than reporting a pass.
+      //
+      // Four gates in this project went quiet by having nothing to look at —
+      // ESLint reviewing no Svelte, svelte-check excluding every story, the
+      // network scan's scope, and svelte-check again after the restructure.
+      // `apps/` is empty until QGD-PRT-0108, and "0 import(s), every one
+      // permitted: PASS" reads like a check that ran. This one did not.
+      console.log(apps.length === 0
+        ? 'Application boundaries: apps/ holds no application yet (QGD-PRT-0108), so nothing was checked. '
+          + `The rule it will meet — app-api and ui only — is asserted in tests/package-boundaries.test.mjs.`
+        : `Application boundaries: ${apps.length} import(s) out of apps/, every one to ${ALLOWED_FOR_APPS.join(' or ')}: PASS`);
       for (const entry of inward) {
         console.log(`  named: ${entry.crossing.file} -> ${entry.crossing.target} — ${FRAME_TO_APP_ALLOWANCE[entry.crossing.file].why}`);
       }

@@ -38,8 +38,24 @@
   ],
   "awaiting": {
     "note": "Baselines whose bytes differ from the approved set. Written by an agent as a record of what is pending, never as an approval. KI7MT clears these by looking at them and saying so; the entry then moves into \"approved\".",
-    "files": {},
-    "whyTheyChanged": [],
+    "files": {
+      "home-light.png": "3f616effd0d8b27d4b4b54c2f821050cf61b8d4a5af0e88728a467eb66564b59",
+      "personas-light.png": "a635adaa7145aed9d1e56322f8fa3fedbdcd55c97396a9ef2c9ca9244588706d",
+      "settings-light.png": "31ec6c830a32c014e06a84140e50e11167fa2f83c6e2e6fdaf8d3c332cd32f51",
+      "troubleshooting-light.png": "31a9983cde567bf35d56fd7c58147e566811b230998c94a5796dcf948fb1ddcd",
+      "home-dark.png": "5e2855ae3879257bb1b21bab590bcdd386f6ec7a112624c4178c55ff7f3dabf2",
+      "personas-dark.png": "1d4d1d6e1b36280e8932d0fa1c8c161752e5e018757e03e9a249560c5811e25d",
+      "settings-dark.png": "5ac761a34f5a6255f7385adf04f2ee1d2440bd8824a2b2ab80ca79afbca9f505",
+      "troubleshooting-dark.png": "ccf4f360edb862b092083cc81c4a7fa50dba04cdb59abd3a6a42035af49d24d4"
+    },
+    "whyTheyChanged": [
+      "All eight: the status bar gained two things that were pages in Settings \u2014 an indicator saying what the database is doing, and Troubleshooting (QGD-FRM-0012, QGD-LOG-0013). The bar is on every page, so every baseline moved at its foot.",
+      "Settings: four of its five sections are gone. The per-grant Applications list went entirely, because an official application's grants are what the application is and a checkbox for them offers no decision (QGD-APP-0012.1); the database and the logs went to Troubleshooting; export and import went to the Personas page. What is left is Appearance.",
+      "Personas: it carries 'Move personas to another machine' now, inside its own scrolling column. Moving a station's personas is something you do to the personas, so it belongs with them rather than in preferences.",
+      "troubleshooting-light.png and troubleshooting-dark.png are new surfaces, not changed ones: the panel opened from the status bar, holding the database's detail and the logs with their level switch and the support bundle.",
+      "The references this follows, read in their own code and docs rather than their marketing: Podman Desktop puts engine and provider state on its status bar and Troubleshooting there too, with a Logs tab and 'collect logs as .zip'; VS Code has no per-permission screen for extensions at all, asking once whether a publisher is trusted; Bitwarden's desktop client keeps vault export under the application's own menu, not in preferences.",
+      "The Troubleshooting panel sits to the right of the rail rather than across it: it is not modal, so it must not cover the navigation. Covering it also stopped the smoke suite navigating while the panel was open, which is how that was found."
+    ],
     "approvedByAnAgentInError": "Watson ran scripts/screenshots.mjs --approve on these during P5 and P6. That approval was not his to give (QGD-PRT-0103); Bob caught it. The images are kept because they are what the product now draws, and this register records that KI7MT has not yet seen them."
   }
 }

@@ -24,43 +24,24 @@ import { ipcMain } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { allowsSender } from '../personas/persona-contract.js';
 import { createLogger } from '../logging/logger.js';
-import { findGrant, validateGrantRegister, type GrantRegister } from '../app-api/grants.js';
-import { validateAppsCommand, type AppInventory, type AppsReply } from './apps-contract.js';
+import { validateGrantRegister, type GrantRegister } from '../app-api/grants.js';
+import { validateAppsCommand, type AppsReply } from './apps-contract.js';
+import { REQUEST_KINDS, type AppReply } from '../app-api/api-contract.js';
 import {
-  REQUEST_KINDS, RequestError, validateRequest,
-  type AppReply, type AppRequest, type PersonaBrief
-} from '../app-api/api-contract.js';
-import {
-  appInfo, decide, loadApps, readManifests, readSourceRegister, withGrants,
-  type AllowedGrants, type LoadedApp
+  loadApps, readManifests, readSourceRegister, type LoadedApp
 } from './app-runtime.js';
+// The serving itself is in app-serve.ts, with no Electron above it, so it can
+// be unit tested. This file is the Electron wiring: the channels, the sender
+// check, the files and the logger.
+import {
+  buildInventory, createServe, refusal, type AppBrokerPorts
+} from './app-serve.js';
 
 export const APP_CHANNEL = 'app:request';
 // A second channel, for the frame's own Settings surface rather than for an
 // application (QGD-APP-0012). Separate because an application has no business
 // enumerating the others: this one answers what loaded and what each holds.
 export const APPS_INVENTORY_CHANNEL = 'apps:inventory';
-
-// What the broker needs from the rest of the frame, injected rather than
-// imported, so the decision path can be exercised without a window, a
-// credential core or a network.
-export interface AppBrokerPorts {
-  // The grants the operator has allowed, read from the settings file
-  // (QGD-ENG-0003: simple settings live there, so this answers before the
-  // engine is up).
-  allowed: () => AllowedGrants;
-  // Personas, metadata only — callsign and name, never a credential
-  // (QGD-CRD-0010).
-  personas: () => Promise<readonly PersonaBrief[]>;
-  // Fetch a registered source. The URL is resolved here from the register and
-  // the connection is the credential core's (QGD-APP-0008, D-18, D-31).
-  fetchSource: (url: string) => Promise<{ body: string; fresh: boolean }>;
-  // Act with a credential and return the answer. The secret does not come
-  // back (QGD-APP-0007).
-  callService: (
-    service: string, persona: string, operation: string, parameters: Readonly<Record<string, string>>
-  ) => Promise<Readonly<Record<string, string>>>;
-}
 
 export interface AppBrokerOptions {
   // Where manifests are read from. One directory per application, each with a
@@ -95,97 +76,21 @@ export async function startAppBroker(options: AppBrokerOptions): Promise<AppBrok
   if (result.loaded.length > 0) {
     log.info({ apps: result.loaded.map(app => app.manifest.id) }, 'applications loaded');
   }
-  let apps = [...result.loaded];
 
-  const refusal = (error: string, refused?: string): AppReply =>
-    refused === undefined ? { ok: false, error } : { ok: false, error, refused };
-
-  async function serve(id: unknown, command: unknown): Promise<AppReply> {
-    if (typeof id !== 'string') return refusal('No application was named.');
-    // Re-read the allowed grants on every request, so a withdrawal takes
-    // effect without a restart (QGD-APP-0012).
-    const allowed = options.ports.allowed();
-    const found = apps.find(app => app.manifest.id === id);
-    if (!found) return refusal(`"${id}" is not a loaded application.`);
-    const app = withGrants(found, register, allowed);
-    apps = apps.map(entry => (entry.manifest.id === id ? app : entry));
-
-    let request: AppRequest;
-    try {
-      request = validateRequest(command);
-    } catch (error) {
-      const field = error instanceof RequestError ? error.field : undefined;
-      return refusal(`That request was refused: ${(error as Error).message}.${field ? ` (${field})` : ''}`);
-    }
-
-    const decision = decide(app, request, register);
-    if (!decision.allowed) {
-      // Logged as well as returned: the operator is told, and there is a
-      // record of what asked for what (QGD-APP-0011).
-      log.warn({ app: id, refused: decision.refused, kind: request.kind }, decision.why);
-      return refusal(decision.why, decision.refused);
-    }
-
-    try {
-      switch (request.kind) {
-        case 'app.info':
-          return { ok: true, kind: 'app.info', info: appInfo(app) };
-        case 'persona.list':
-          return { ok: true, kind: 'persona.list', personas: await options.ports.personas() };
-        case 'source.fetch': {
-          const url = sources.sources[request.source];
-          // Decided already by the grant check — a source nobody registered
-          // has no grant — so reaching here with no URL would be a register
-          // that changed under a loaded application.
-          if (url === undefined) return refusal(`"${request.source}" is not a registered source.`);
-          const answer = await options.ports.fetchSource(url);
-          return { ok: true, kind: 'source.fetch', body: answer.body, fresh: answer.fresh };
-        }
-        case 'service.request': {
-          const answer = await options.ports.callService(
-            request.service, request.persona, request.operation, request.parameters);
-          return { ok: true, kind: 'service.request', answer };
-        }
-      }
-    } catch (error) {
-      // The message only. A thrown error from a service call is the one place
-      // a secret could ride out in a stack (QGD-CRD-0006).
-      const why = error instanceof Error ? error.message : 'That could not be done.';
-      log.warn({ app: id, kind: request.kind }, why);
-      return refusal(why);
-    }
-  }
-
-  function inventory(): AppInventory {
-    const allowed = options.ports.allowed();
-    return {
-      apps: apps.map(entry => {
-        const app = withGrants(entry, register, allowed);
-        const { id, name, tier, version } = app.manifest;
-        return {
-          id, name, tier, version,
-          grants: app.manifest.grants.map(grantId => {
-            const grant = findGrant(register, grantId);
-            return {
-              id: grantId,
-              what: grant?.what ?? 'This capability is no longer one this product defines.',
-              ...(grant?.notWhat === undefined ? {} : { notWhat: grant.notWhat }),
-              needsOperator: grant?.needsOperator ?? true,
-              held: app.held.includes(grantId)
-            };
-          })
-        };
-      }),
-      refused: result.refused.map(entry => ({ source: entry.source, reason: entry.reason }))
-    };
-  }
+  // One object, shared by serving and by the inventory, holding the loaded
+  // applications so the held grants stay current as requests arrive.
+  const deps = {
+    register, sources: sources.sources, ports: options.ports, log,
+    apps: [...result.loaded], refused: result.refused
+  };
+  const serve = createServe(deps);
 
   const inventoryHandler = (event: Electron.IpcMainInvokeEvent, command: unknown): AppsReply => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url)) {
       return { ok: false, error: 'That request did not come from the application window.' };
     }
     if (!validateAppsCommand(command)) return { ok: false, error: 'That is not a request this product serves.' };
-    return { ok: true, inventory: inventory() };
+    return { ok: true, inventory: buildInventory(deps) };
   };
   ipcMain.handle(APPS_INVENTORY_CHANNEL, inventoryHandler);
 
@@ -206,7 +111,7 @@ export async function startAppBroker(options: AppBrokerOptions): Promise<AppBrok
 
   return {
     stop: () => { ipcMain.removeHandler(APP_CHANNEL); ipcMain.removeHandler(APPS_INVENTORY_CHANNEL); },
-    loaded: () => apps,
+    loaded: () => deps.apps,
     refused: () => result.refused
   };
 }

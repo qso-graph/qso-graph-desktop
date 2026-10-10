@@ -74,6 +74,11 @@ const PERSONA = { name: 'qg-baseline-fixture', callsign: 'W1AW', start: '2026-01
 const VIEW = { width: 1100, height: 740 };
 const THEMES = ['light', 'dark'];
 const PAGES = ['Home', 'Personas', 'Settings'];
+// Not a rail destination — an overlay opened from the status bar
+// (QGD-LOG-0013, QGD-FRM-0012) — so it is captured by opening it rather than
+// by navigating to it. Its own baseline, because it is where the logs, the
+// level switch and the support bundle now live, and nothing else shows them.
+const OVERLAY = 'Troubleshooting';
 
 const directory = await mkdtemp(join(tmpdir(), 'qg-shots-'));
 const logs = resolve('report/screenshot-logs');
@@ -86,6 +91,69 @@ let application;
 const failures = [];
 const changed = [];
 const written = [];
+
+// Capture one surface and compare it, or write it when approving.
+//
+// A function rather than loop body because Troubleshooting is captured by
+// opening it, not by navigating to it, and the two must be recorded the same
+// way: same settle loop, same scroll reset, same theme check after the fact.
+async function record(page, file, theme) {
+    // Both panes back to the top, and proven to be there. A page captured at
+    // a different scroll offset differs over its whole content area for a
+    // reason no colour comparison can name.
+    await page.evaluate(() => {
+      for (const element of document.querySelectorAll('aside, .page-main')) {
+        element.scrollTop = 0;
+        element.scrollLeft = 0;
+      }
+    });
+    const offsets = await page.evaluate(() => [...document.querySelectorAll('aside, .page-main')]
+      .map(element => `${element.scrollTop},${element.scrollLeft}`));
+    for (const offset of offsets) {
+      expect(offset, 'every pane is scrolled to the top before capture').toBe('0,0');
+    }
+    const shot = await stableShot(page, join(captures, file));
+    // Checked after the fact, not only before: a capture is worth nothing if
+    // the page re-themed while it was being taken, and "half the pixels
+    // differ" is a slow way to be told that.
+    const drawnAs = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+    if (drawnAs !== theme) {
+      failures.push(`${file}: captured while the page was ${drawnAs ?? 'unthemed'}, not ${theme}`);
+      return;
+    }
+
+    const baselineFile = join(baselines, file);
+    const current = decode(shot);
+    // The decode is real: a screenshot of this window is this size, and a
+    // decoder returning something else would make every comparison pass.
+    if (current.width !== VIEW.width || current.height !== VIEW.height) {
+      failures.push(`${file}: captured ${current.width}x${current.height}, expected ${VIEW.width}x${VIEW.height}`);
+      return;
+    }
+
+    if (approve) {
+      await writeFile(baselineFile, shot);
+      written.push(file);
+      return;
+    }
+
+    const existing = await readFile(baselineFile).catch(() => undefined);
+    if (!existing) {
+      failures.push(`${file}: no baseline. Review report/screenshots/${file}, then approve it with: node scripts/screenshots.mjs --approve`);
+      return;
+    }
+    const baseline = decode(existing);
+    const result = compare(baseline, current);
+    if (!result.same) {
+      // The reason alone is a pixel count and one coordinate, which does
+      // not say where the difference is or what shape it has — and that was
+      // the whole question when this suite began failing intermittently.
+      // describeDiff adds the region, how densely it differs inside it, how
+      // far off the channels are, and some actual colours. It names no
+      // cause, deliberately: see the note on it in png.mjs.
+      changed.push(`${file}: ${result.reason}\n      ${describeDiff(baseline, current)}`);
+    }
+}
 
 try {
   application = await electron.launch({
@@ -126,17 +194,7 @@ try {
       ...process.env,
       QG_DESKTOP_PROFILE_DIR: join(directory, 'profile'),
       QG_DESKTOP_USER_DATA_DIR: join(directory, 'chromium'),
-      QG_DESKTOP_LOG_DIR: logs,
-      // Which applications Settings draws, pinned rather than inherited.
-      //
-      // Settings lists every loaded application with a checkbox per grant
-      // (QGD-APP-0012), so what it looks like depends on what loaded — and
-      // the default is `<appPath>/apps` plus `<appPath>/proofs`, resolved from
-      // wherever Electron thinks the app is. A baseline of a page whose
-      // content comes from a default nobody stated is a baseline that drifts
-      // for reasons nothing records. The three proof manifests are what these
-      // baselines were approved with, so that is what is named here.
-      QG_DESKTOP_APP_DIRS: resolve('proofs')
+      QG_DESKTOP_LOG_DIR: logs
     },
     timeout: 30_000
   });
@@ -188,13 +246,17 @@ try {
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 
-  // Settings now shows what the database is doing, and "starting" becomes
-  // "running" a few seconds in. Waited for rather than captured mid-flight,
-  // or the baseline would differ from one run to the next.
-  await rail('Settings').click();
-  await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(),
+  // The status bar says what the database is doing, and "starting" becomes
+  // "running" a few seconds in. Waited for rather than captured mid-flight, or
+  // every baseline would differ from one run to the next — the indicator is on
+  // the status bar, so it is in all of them (QGD-FRM-0012).
+  //
+  // Read from the bar rather than from a page, which is also why this no
+  // longer needs to navigate to Settings first: the engine's detail moved into
+  // Troubleshooting on 2026-10-10.
+  await expect.poll(() => page.locator('#engine-indicator').innerText(),
     { message: 'the engine must settle before anything is captured', timeout: 180_000 })
-    .toBe('Running');
+    .toBe('Database: Running');
 
   for (const theme of THEMES) {
     await rail('Settings').click();
@@ -206,83 +268,34 @@ try {
       // The caret blinks. Nothing else on these pages moves, and a blinking
       // caret in a baseline is a comparison that fails every other run.
       await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
-      // The Applications section asks the frame what loaded, and the answer
-      // arrives over IPC. Until it does the section reads "Reading which
-      // applications are installed…", which is a different page from the one
-      // in the baseline — and the settle loop above cannot see it: two
-      // identical frames 250ms apart both land inside that wait, so the
-      // capture is taken and the inventory arrives afterwards. That is the
-      // intermittent failure this suite had, 4 runs in 8, and it is the same
-      // shape as the app-proofs lazy-start race. The precondition is the
-      // answer being in, not the markup being drawn. Found by instrumenting
-      // the diff: 168,468 pixels over the whole content area, page grey
-      // becoming surface white, which is a section that grew.
-      if (name === 'Settings') {
-        await expect(page.locator('#apps-reading'), 'the inventory must be in before Settings is captured')
-          .toHaveCount(0, { timeout: 30_000 });
-        // And it is the expected answer, not merely some answer: a capture of
-        // an empty list would otherwise be compared as though it were the
-        // three applications the baseline holds.
-        await expect(page.locator('.app > h3'), 'the three proof applications are what the baselines hold')
-          .toHaveCount(3, { timeout: 30_000 });
-      }
-      // Both panes back to the top, and proven to be there. A page captured at
-      // a different scroll offset differs over its whole content area for a
-      // reason no colour comparison can name.
-      await page.evaluate(() => {
-        for (const element of document.querySelectorAll('aside, .page-main')) {
-          element.scrollTop = 0;
-          element.scrollLeft = 0;
-        }
-      });
-      const offsets = await page.evaluate(() => [...document.querySelectorAll('aside, .page-main')]
-        .map(element => `${element.scrollTop},${element.scrollLeft}`));
-      for (const offset of offsets) {
-        expect(offset, 'every pane is scrolled to the top before capture').toBe('0,0');
-      }
-      const file = `${name.toLowerCase()}-${theme}.png`;
-      const shot = await stableShot(page, join(captures, file));
-      // Checked after the fact, not only before: a capture is worth nothing if
-      // the page re-themed while it was being taken, and "half the pixels
-      // differ" is a slow way to be told that.
-      const drawnAs = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
-      if (drawnAs !== theme) {
-        failures.push(`${file}: captured while the page was ${drawnAs ?? 'unthemed'}, not ${theme}`);
-        continue;
-      }
-
-      const baselineFile = join(baselines, file);
-      const current = decode(shot);
-      // The decode is real: a screenshot of this window is this size, and a
-      // decoder returning something else would make every comparison pass.
-      if (current.width !== VIEW.width || current.height !== VIEW.height) {
-        failures.push(`${file}: captured ${current.width}x${current.height}, expected ${VIEW.width}x${VIEW.height}`);
-        continue;
-      }
-
-      if (approve) {
-        await writeFile(baselineFile, shot);
-        written.push(file);
-        continue;
-      }
-
-      const existing = await readFile(baselineFile).catch(() => undefined);
-      if (!existing) {
-        failures.push(`${file}: no baseline. Review report/screenshots/${file}, then approve it with: node scripts/screenshots.mjs --approve`);
-        continue;
-      }
-      const baseline = decode(existing);
-      const result = compare(baseline, current);
-      if (!result.same) {
-        // The reason alone is a pixel count and one coordinate, which does
-        // not say where the difference is or what shape it has — and that was
-        // the whole question when this suite began failing intermittently.
-        // describeDiff adds the region, how densely it differs inside it, how
-        // far off the channels are, and some actual colours. It names no
-        // cause, deliberately: see the note on it in png.mjs.
-        changed.push(`${file}: ${result.reason}\n      ${describeDiff(baseline, current)}`);
-      }
+      // Settings held a section fed over IPC until 2026-10-10, and a capture
+      // taken while it still read "Reading which applications are
+      // installed…" was a different page from the baseline — the failure this
+      // suite had 4 runs in 8. That section is gone (QGD-APP-0012.1), and
+      // with it the precondition. Nothing on these three pages now waits on
+      // an answer from the main process except the engine, which is settled
+      // above before anything is captured.
+      await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
     }
+
+    // Troubleshooting, opened from the status bar rather than navigated to.
+    //
+    // Captured because it is where the logs, the level switch and the support
+    // bundle live now (QGD-LOG-0013) and where the database's detail is
+    // (QGD-FRM-0012) — none of which any other baseline shows. Opened from
+    // the Home page so the panel is over the same backdrop every run, and
+    // closed afterwards so the next theme starts from the same place.
+    await rail('Home').click();
+    await page.locator('#open-troubleshooting').click();
+    await expect(page.locator('#troubleshooting')).toBeVisible();
+    // The level switch reads the logs status over IPC. Waiting for the panel's
+    // own content rather than for the panel is the lesson the Applications
+    // section taught: markup is drawn before the answer arrives, and two
+    // identical frames can both land inside that wait.
+    await expect(page.locator('#log-level')).toBeVisible({ timeout: 30_000 });
+    await record(page, `troubleshooting-${theme}.png`, theme);
+    await page.locator('#close-troubleshooting').click();
+    await expect(page.locator('#troubleshooting')).toHaveCount(0);
   }
 
   if (approve) {
@@ -318,7 +331,7 @@ try {
     }
     process.exitCode = 1;
   } else {
-    console.log(`Screenshots: ${PAGES.length * THEMES.length} baselines (${PAGES.join(' and ')}, in ${THEMES.join(' and ')}) match, pixel for pixel: PASS`);
+    console.log(`Screenshots: ${(PAGES.length + 1) * THEMES.length} baselines (${PAGES.join(', ')} and ${OVERLAY}, in ${THEMES.join(' and ')}) match, pixel for pixel: PASS`);
     // Said on every green run, because a baseline nobody has approved is a
     // picture of what the product draws and not a statement that it is right
     // (QGD-PRT-0103).

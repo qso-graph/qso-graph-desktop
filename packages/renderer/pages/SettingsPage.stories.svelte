@@ -2,33 +2,16 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import SettingsPage from './SettingsPage.svelte';
-  import type { LogsStatus } from '../../main/logs-contract.js';
 
-  const logs: LogsStatus = {
-    level: 'info',
-    defaultLevel: 'info',
-    revertAfterMs: 60 * 60 * 1000,
-    directory: '/Users/you/Library/Logs/QSO Graph Desktop'
-  };
-
+  // Two args, because Settings holds one thing. It took eleven until
+  // 2026-10-10, which is a fair measure of how much of the frame had been put
+  // in front of the operator (QGD-APP-0012.1, QGD-FRM-0012, QGD-LOG-0013).
   const { Story } = defineMeta({
     title: 'pages/SettingsPage',
     component: SettingsPage,
     args: {
       themeChoice: 'system',
-      onChooseTheme: () => Promise.resolve(true),
-      logs,
-      onSetLevel: () => Promise.resolve(true),
-      engine: { state: 'running', version: '17.11' },
-      onStartEngine: () => Promise.resolve(),
-      onStopEngine: () => Promise.resolve(),
-      onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
-      onExportPersonas: () => Promise.resolve({ written: 'qso-graph-personas.qgp', bytes: 1195 }),
-      onInspectImport: () => Promise.resolve({
-        created: '2026-10-09T06:13:30Z', personas: 2, credentials: 2,
-        arriving: ['home'], overwritten: ['portable']
-      }),
-      onApplyImport: () => Promise.resolve({ personas: 2, credentials: 2 })
+      onChooseTheme: () => Promise.resolve(true)
     }
   });
 </script>

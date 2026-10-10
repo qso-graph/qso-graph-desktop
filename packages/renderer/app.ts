@@ -31,54 +31,13 @@ declare global {
 // below looks for an element. The Persona screen's markup moved into
 // PersonaPage.svelte unchanged and this file still finds it by id, so the
 // workflow signed off at P1 is the same code driving the same markup.
-// QGD-APP-0012: Settings shows what each application holds and can withdraw
-// it. Read on start and again after every change, so what is on screen is what
-// the frame would decide on the next request — not what was asked for.
-async function readApps(): Promise<void> {
-  const bridge = window.apps;
-  if (!bridge) {
-    shell.set({ appsProblem: 'The app API is not available in this window.' });
-    return;
-  }
-  try {
-    const reply = await bridge.inventory({ type: 'inventory' });
-    if (reply.ok) shell.set({ apps: reply.inventory, appsProblem: undefined });
-    else shell.set({ appsProblem: reply.error });
-  } catch {
-    // The channel is not there at all, which is what a broker that failed to
-    // start looks like from here: main logs the reason and opens the window
-    // anyway (QGD-APP-0013). Said rather than left as a spinner — Settings
-    // showed "Reading which applications are installed…" for ever. Found in
-    // review.
-    shell.set({ appsProblem: 'The applications could not be read. See the logs for why.' });
-  }
-}
-
-async function setGrant(app: string, grant: string, allow: boolean): Promise<boolean> {
-  // Read, change, write — and the change is applied to what was just read, not
-  // to the inventory on screen.
-  //
-  // Building this application's list from the cached inventory meant a grant
-  // withdrawn in the settings file while the application was running came back
-  // the next time any other grant was toggled: the broker had honoured the
-  // withdrawal, the screen had not, and the write put it back. Found in review.
-  //
-  // The stored map covers every application, so writing one list must not drop
-  // another's either.
-  const settings = await window.settings.request({ type: 'read' });
-  if (!settings.ok) return false;
-  const existing = settings.data.grants;
-  const next: Record<string, string[]> = {};
-  for (const [id, grants] of Object.entries(existing)) next[id] = [...grants];
-  const held = new Set(next[app] ?? []);
-  if (allow) held.add(grant); else held.delete(grant);
-  next[app] = [...held];
-
-  const written = await window.settings.request({ type: 'write', key: 'grants', value: next });
-  await readApps();
-  return written.ok;
-}
-
+// The inventory and the grant writer were here until 2026-10-10, feeding the
+// Applications section of Settings. Both are gone with it (QGD-APP-0012.1): an
+// official application's grants are what the application is, so there was no
+// decision to put to anybody. The enforcement did not move — it is in
+// app-runtime.ts and app-serve.ts, with the settings channel still the way a
+// grant is allowed or withdrawn, and tests/app-serve.test.ts proving a
+// withdrawal takes effect with nothing restarted.
 const shell = createShellStore();
 mount(Shell, {
   target: document.body,
@@ -86,7 +45,7 @@ mount(Shell, {
     store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onStartEngine: startEngine, onStopEngine: stopEngine,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
-    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential, onSetGrant: setGrant,
+    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
@@ -490,7 +449,6 @@ void loadTheme();
 // What Settings needs to show the applications and their grants
 // (QGD-APP-0012). Asked for once at start and re-read after every change;
 // nothing waits for it, and Settings says it is reading until it answers.
-void readApps();
 
 
 // QGD-LOG-0013. The page shows the level that is in force, so every reply is
@@ -560,17 +518,22 @@ export async function applyImport(passphrase: string): Promise<ImportResult | st
 // been back on `info` for an hour — and somebody collects diagnostics
 // believing they have detail that was never recorded.
 //
-// Read when Settings is opened, and again while it stays open. The level is
+// Read when Troubleshooting opens, and again while it stays open. The level is
 // owned by the main process and changed by a clock, so the renderer has
 // nothing to derive it from; asking is the only honest answer.
+//
+// Keyed on the panel, not on Settings. It was keyed on `page === 'settings'`
+// because that is where the logs used to be shown; after the move, opening
+// Troubleshooting from Home left the panel reading "Reading the log settings…"
+// for ever, with no level switch and no way to save a bundle. A lifecycle has
+// to follow the surface it feeds. Found in review.
 const LOGS_REFRESH_MS = 30_000;
 let logsRefresh: ReturnType<typeof setInterval> | undefined;
 shell.subscribe(state => {
-  const onSettings = state.page === 'settings';
-  if (onSettings && logsRefresh === undefined) {
+  if (state.troubleshooting && logsRefresh === undefined) {
     void readLogs();
     logsRefresh = setInterval(() => { void readLogs(); }, LOGS_REFRESH_MS);
-  } else if (!onSettings && logsRefresh !== undefined) {
+  } else if (!state.troubleshooting && logsRefresh !== undefined) {
     clearInterval(logsRefresh);
     logsRefresh = undefined;
   }
@@ -579,8 +542,14 @@ shell.subscribe(state => {
 
 // QGD-ENG-0003. The engine is asked how it is, and nothing waits for the
 // answer: this file has already mounted the shell by the time any of it runs.
-// While Settings is open it is asked again, because a database that is
-// starting becomes a database that has started without telling anyone.
+//
+// It used to be asked only while Settings was open, because that is where its
+// state was shown. The indicator is on the status bar now (QGD-FRM-0012),
+// which is every page — so asked once at startup and then again only while
+// the answer is still moving. A database that is starting becomes a database
+// that has started without telling anyone; one that is running stays running
+// until something in this window asks it to stop, and start and stop ask for
+// the status themselves.
 async function askEngine(command: EngineCommand): Promise<void> {
   const reply = await window.engine.request(command);
   if (reply.ok) shell.set({ engine: reply.status });
@@ -589,15 +558,41 @@ async function askEngine(command: EngineCommand): Promise<void> {
 export async function startEngine(): Promise<void> { await askEngine({ type: 'start' }); }
 export async function stopEngine(): Promise<void> { await askEngine({ type: 'stop' }); }
 
-const ENGINE_REFRESH_MS = 2_000;
+// Two rates, and never nothing.
+//
+// A first version stopped polling once the answer settled, on the reasoning
+// that a running database stays running. It does not: the postmaster can exit
+// on its own and the utility process can crash and be restarted, which is why
+// engine-service.ts checks the postmaster on every status request rather than
+// remembering. There is no push from the main process, so an indicator that
+// stopped asking would keep saying "Running" over a database that had gone —
+// worse than saying nothing, because it also hides the Start button behind a
+// state that looks fine. Found in review.
+//
+// So it is always watched, slowly, and quickly while the answer is moving or
+// while somebody is looking at the detail.
+const ENGINE_SETTLING_MS = 2_000;
+const ENGINE_WATCHING_MS = 15_000;
+const SETTLING = new Set([undefined, 'starting']);
 let engineRefresh: ReturnType<typeof setInterval> | undefined;
+let engineRate = 0;
 shell.subscribe(state => {
-  const onSettings = state.page === 'settings';
-  if (onSettings && engineRefresh === undefined) {
-    void askEngine({ type: 'status' });
-    engineRefresh = setInterval(() => { void askEngine({ type: 'status' }); }, ENGINE_REFRESH_MS);
-  } else if (!onSettings && engineRefresh !== undefined) {
-    clearInterval(engineRefresh);
-    engineRefresh = undefined;
-  }
+  const wanted = SETTLING.has(state.engine?.state) || state.troubleshooting
+    ? ENGINE_SETTLING_MS
+    : ENGINE_WATCHING_MS;
+  if (engineRate === wanted && engineRefresh !== undefined) return;
+  if (engineRefresh !== undefined) clearInterval(engineRefresh);
+  engineRate = wanted;
+  engineRefresh = setInterval(() => { void askEngine({ type: 'status' }); }, wanted);
 });
+// Asked the moment Troubleshooting opens, so the detail is current when it is
+// read rather than up to a tick stale.
+let panelWasOpen = false;
+shell.subscribe(state => {
+  if (state.troubleshooting && !panelWasOpen) void askEngine({ type: 'status' });
+  panelWasOpen = state.troubleshooting;
+});
+
+// Asked once, straight away, so the bar says something true on the first frame
+// rather than "asking…" until a timer fires.
+void askEngine({ type: 'status' });

@@ -1,8 +1,0 @@
-{
-  "id": "harness",
-  "name": "App API harness",
-  "tier": "official",
-  "version": "1.0.0",
-  "grants": [],
-  "page": "HarnessPage.svelte"
-}

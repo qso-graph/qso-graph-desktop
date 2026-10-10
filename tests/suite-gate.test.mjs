@@ -88,11 +88,10 @@ describe('QGD-SEC-0021 the order this walks is the order that runs', () => {
     expect(ORDER.length).toBeGreaterThan(24);
     expect(ORDER[0], 'the first suite is the spec check').toBe('spec-rvm');
     // The last suites are the ones that read the packaged artifact, so they
-    // run after it exists. proofs-not-shipped joined them at P7: it reads the
-    // archive to prove the demonstration applications are absent from it
-    // (QGD-APP-0014.1).
+    // run after it exists. package-contents reads the archive and the file
+    // list that bounds it (QGD-APP-0014.1).
     expect(ORDER.slice(-2), 'the last suites audit what was packaged')
-      .toEqual(['electron-audit', 'proofs-not-shipped']);
+      .toEqual(['electron-audit', 'package-contents']);
     for (const name of CREDENTIAL_SUITES) {
       expect(ORDER, `${name} must be a suite that actually runs`).toContain(name);
     }

@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  ALLOWED, ALLOWED_FOR_APPS, FRAME_TO_APP_ALLOWANCE, PROOF_HOST, crossings, judge, namedAllowance
+  ALLOWED, ALLOWED_FOR_APPS, FRAME_TO_APP_ALLOWANCE, crossings, judge, namedAllowance
 } from '../scripts/package-boundaries.mjs';
 
 let root;
@@ -136,26 +136,36 @@ describe('the real tree', () => {
     }
   });
 
-  it('lets the frame reach the proof host and nothing else under it', () => {
-    // The planted defect this is here for: the allowance was keyed on the
-    // importing file alone, so Shell.svelte importing any application's
-    // private module was marked "named" and allowed. The exception written
-    // down is the proof host — one file — and these are the two sides of it.
-    const shell = 'packages/renderer/Shell.svelte';
-    expect(Object.keys(FRAME_TO_APP_ALLOWANCE)).toEqual([shell]);
-    expect(namedAllowance(shell, PROOF_HOST), 'the named exception itself').toBe(true);
-
-    for (const target of [
-      join('apps', 'example', 'private.ts'),
-      join('proofs', 'harness', 'HarnessPage.svelte'),
-      join('proofs', 'qrz-lookup', 'LookupPage.svelte'),
-      join('proofs', 'AppsPage.ts')
+  it('lets no package reach an application, there being no named exception', () => {
+    // The table held one entry until 2026-10-10 — the host that mounted the
+    // demonstration applications — and it is empty now that they are gone
+    // (QGD-APP-0014). Empty is the rule as written: the frame must not depend
+    // on an application.
+    expect(Object.keys(FRAME_TO_APP_ALLOWANCE)).toEqual([]);
+    for (const file of [
+      'packages/renderer/Shell.svelte',
+      'packages/main/main.ts',
+      'packages/renderer/app.ts',
+      'packages/ui/Rail.svelte'
     ]) {
-      expect(namedAllowance(shell, target), `${target} is not the proof host`).toBe(false);
+      for (const target of [join('apps', 'qg-adif', 'AdifPage.svelte'), join('apps', 'other', 'private.ts')]) {
+        expect(namedAllowance(file, target), `${file} may not reach ${target}`).toBe(false);
+      }
     }
-    // And the exception belongs to that one file, not to the frame at large.
-    for (const file of ['packages/main/main.ts', 'packages/renderer/app.ts', 'packages/ui/Rail.svelte']) {
-      expect(namedAllowance(file, PROOF_HOST), `${file} holds no allowance`).toBe(false);
-    }
+  });
+
+  it('would still refuse an importer handed a whole directory', () => {
+    // The defect the mechanism was fixed for, kept as a control so it cannot
+    // come back when the sandboxed-tier Part needs its one exception: an
+    // allowance is a named file reaching a named file, never an importer
+    // granted everything under a root.
+    const table = { 'packages/renderer/Shell.svelte': { target: join('apps', 'qg-adif', 'AdifPage.svelte'), why: 'hypothetical' } };
+    const allows = (file, target) => {
+      const allowance = table[file];
+      return allowance !== undefined && target === allowance.target;
+    };
+    expect(allows('packages/renderer/Shell.svelte', join('apps', 'qg-adif', 'AdifPage.svelte'))).toBe(true);
+    expect(allows('packages/renderer/Shell.svelte', join('apps', 'qg-adif', 'secret.ts'))).toBe(false);
+    expect(allows('packages/main/main.ts', join('apps', 'qg-adif', 'AdifPage.svelte'))).toBe(false);
   });
 });
