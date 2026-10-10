@@ -71,8 +71,9 @@ useful product to sign. Signing was therefore **deferred, not unrequested** — 
 of this handbook said otherwise and was wrong.
 
 `QGD-SCP-0006` records a genuinely open question rather than a decision: whether COPR and
-Launchpad will build or carry a package bundling an Electron runtime, a native addon and a
-managed PostgreSQL. That is a bridge to cross at Release 1 packaging, not now.
+Launchpad will build or carry a package bundling an Electron runtime and a native addon. Until
+2026-10-10 the list also included a managed PostgreSQL, which §13 removed. That is a bridge to
+cross at Release 1 packaging, not now.
 
 `QGD-PRT-0001` — operating system level components before the screens wired to them — was
 proposed in review and accepted by KI7MT on 2026-10-07 as "normally a better way to build."
@@ -168,11 +169,13 @@ write a log line. The naming of the engine's own log files moved with it, having
 engine's endpoint module — which is what had made the logger depend on the engine to sweep its
 own directory.
 
-The bloat controls — `QGD-LOG-0006` through `QGD-LOG-0011` — are separate requirements rather
-than one because each is a different failure. A log folder can grow without bound through a
-single file that never rotates, through many files that rotate but are never removed, through a
-debug level somebody left on, or through the engine's own log, which no amount of care on our
-side constrains. One requirement covering all four would be met by addressing any one of them.
+The bloat controls (`QGD-LOG-0006` through `QGD-LOG-0010`) are separate requirements rather
+than one, because each is a different failure. A log folder can grow without bound through a
+single file that never rotates, through many files that rotate but are never removed, or through
+a debug level somebody left on. One requirement covering all three would be met by addressing
+any one of them. There was a fourth, the database engine's own log, which no amount of care on
+our side constrained. `QGD-LOG-0011` capped it until the engine was removed (§13). The paragraph
+above, about the logger's home, records why the package exists. The engine it mentions is history.
 
 
 ## 7. The catalogue re-cut, and what it is for
@@ -184,9 +187,11 @@ planning.
 
 **P0 to P7 are the frame and P8 onward are applications on its API** (`QGD-PRT-0005`). That line
 is what the rest follows from. Reference data moves to P5 and depends on P4 alone, because
-definitions and zone tables are data in a database and need nothing else. Personas becomes P6
-and the app runtime P7, whose sign-off now includes a test application that uses the API and
-nothing else — the only way to find out whether the API is usable is to be its first consumer.
+definitions and zone tables are stored data and need nothing else. Personas becomes P6
+and the app runtime P7. P7 was first to be signed off on a test application that used the API
+and nothing else. On 2026-10-10 KI7MT replaced that test application with unit tests over the
+runtime and the first real application (`QGD-APP-0014`), because an application that exists only
+to be demonstrated proves less than one that does ham work.
 QG Club moves off ADIF and onto P7, because a roster is people, not contacts, and never needed
 ADIF to describe it.
 
@@ -308,3 +313,73 @@ already written against it, and D-2 commits this project to sandboxing two of it
 So the message boundary is not a style preference deferred to taste: it is the decision that
 has to be right before the first application exists, because the second one cannot be written
 against a different shape without discarding the first.
+
+## 13. Why storage is SQLite and not a database server
+
+Until 2026-10-10 the frame bundled PostgreSQL 17 and ran it as a supervised server: 121 MB in the
+package, a pinned and trimmed binary set, a Unix socket (and a loopback port on Windows), peer
+authentication, a role and schema per application, and backups taken with the engine stopped.
+`QGD-ENG-0001` gave two reasons: per-application roles are how the grant model reaches the data,
+and several processes connect at once.
+
+**Neither reason needed a server.**
+- **Roles do restrict what a database connection may do.** They do not protect the files from a
+  process running as the same operating-system user, and every process of this product runs as
+  that user. Only the frame is ever offered a connection; an application never is
+  (`QGD-APP-0009`). The boundary that counts is therefore the brokered app API, which already
+  carries credentials and sources, and roles duplicated it.
+- **"Several processes" turned out to mean one owning process per file.**
+- **Most of the server went unused by the shipping product.** It started the server, applied two
+  migrations, wrote one row, and loaded ADIF and POTA. The roles, the backup and the restore
+  were called only by test scripts.
+
+KI7MT's test was: if no use case can be named where a server is mandatory, its overhead cannot be
+justified.
+
+**The references agree.** VS Code, Podman Desktop and Bitwarden were read in their own source on
+2026-10-10. N1MM is closed source, so it was read in its documentation.
+- **VS Code** keeps its state in SQLite (`@vscode/sqlite3`; `src/vs/base/parts/storage/node/storage.ts`)
+  and its settings in JSON. Each extension's state is stored under the extension's ID, and each
+  extension gets a folder of its own.
+- **Podman Desktop** has no database: one `settings.json`
+  (`packages/main/src/plugin/configuration-registry.ts`), a folder per extension
+  (`extensions-storage/<id>`, `extension/extension-loader.ts`), and one secrets file encrypted with
+  Electron `safeStorage` and scoped per extension (`safe-storage/safe-storage-registry.ts`).
+- **Bitwarden desktop** keeps one `electron-store` file (`electron-store` 11.0.2;
+  `apps/desktop/src/platform/main/storage/electron-store-backend.ts`, which sets no encryption key on
+  the file), and encrypts the sensitive values it puts in it.
+- **N1MM Logger+**, a contest logger in wide use for multi-operator stations, keeps its log in SQLite. For multi-operator work
+  it gives each computer a full copy and replicates between them, because, in N1MM's own words,
+  *"using a single database would not be as reliable as having each computer log its own QSOs and
+  replicate them on all the other computers"*.
+
+None of the four runs a database server.
+
+**What was weighed and rejected.**
+- **PostgreSQL from each platform:** EDB for macOS and Windows, and the platform's own package on
+  Linux, the way Podman Desktop relies on the system's Podman. This answered "where does the
+  server come from" but not "why a server".
+- **Zonky's embedded-PostgreSQL binaries**, which the P4 build had used: a repackaging made for a
+  Java testing library. Its Linux build carries OpenSSL 1.1, which is past its end of life:
+  `embedded-postgres-binaries-linux-amd64` 17.11.0 bundles `lib/libssl.so.1.1` and
+  `libcrypto.so.1.1`, and `bin/postgres` links them (checked with `ldd` on 2026-10-10).
+- **`better-sqlite3`:** a native module whose ABI differs between Node and Electron. It would be
+  rebuilt per platform and per Electron upgrade, and the suites run under plain Node could not load
+  the Electron build.
+- **PGlite:** PostgreSQL compiled to WebAssembly. It keeps the dialect, but not the reason for it.
+
+**What it is instead** (`QGD-ENG-0001`):
+- `settings.json` for preferences and grants
+- `state.sqlite` for what the frame keeps
+- a folder per application
+- one derived `reference.sqlite`, rebuilt and swapped rather than migrated, because it can be
+  remade from its sources
+
+Main reads `settings.json`. The SQLite stores are opened by one utility process, through the
+`node:sqlite` that Electron already carries. The plan of the work is `docs/STORAGE-PLAN.md`.
+
+**What it cost.** P4's sign-off, and the parts of P5's and P7's evidence that named PostgreSQL,
+are re-earned against rewritten tests (`QGD-PRT-0104`). It was cheapest now. The frame held one
+row, reference data rebuilds itself, and no operator data existed anywhere. Every application
+built on the server would have made the move dearer, and the first one to keep operator data would
+have made it a migration rather than a decision.
