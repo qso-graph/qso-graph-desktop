@@ -18,12 +18,15 @@
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
+  import type { HomeModel, HomeStore } from './home-store.js';
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
 
   interface Props {
     store: ShellStore;
+    // Home's cards and pins (QGD-HOM-*).
+    home: HomeStore;
     onChooseTheme: (choice: ThemeChoice) => Promise<boolean>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
@@ -41,7 +44,7 @@
     version: string;
   }
   const {
-    store, onChooseTheme, onSetLevel, onExport,
+    store, home, onChooseTheme, onSetLevel, onExport,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -60,6 +63,12 @@
   // nothing for a derivation to track. An assignment from a subscription is
   // the documented way to bring outside state in.
   $effect(() => store.subscribe(next => { shell = next; }));
+
+  let homeModel = $state<HomeModel>(untrack(() => home.get()));
+  $effect(() => home.subscribe(next => { homeModel = next; }));
+  // Home is "showing" only while it is the page on screen: only then are its
+  // cards asked for (QGD-HOM-0005).
+  $effect(() => { home.setVisible(shell.page === 'home'); });
 
   function navigate(id: string): void {
     if (isPageId(id)) store.set({ page: id });
@@ -104,6 +113,8 @@
         storage={shell.storage}
         {destinations}
         onGo={navigate}
+        home={homeModel}
+        onSavePins={pins => home.savePins(pins)}
       />
     </div>
     <div class="page" hidden={shell.page !== 'personas'}>

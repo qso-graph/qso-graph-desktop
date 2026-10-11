@@ -3,6 +3,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Shell from './Shell.svelte';
   import { createShellStore } from './shell-store.js';
+  import { createHomeStore } from './home-store.js';
   import type { LogsStatus } from '../main/logs-contract.js';
 
   const logs: LogsStatus = {
@@ -29,7 +30,7 @@
   const { Story } = defineMeta({
     title: 'Shell',
     component: Shell,
-    args: { store: createShellStore(), ...settled }
+    args: { store: createShellStore(), home: createHomeStore(undefined), ...settled }
   });
 </script>
 

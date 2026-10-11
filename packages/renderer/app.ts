@@ -12,6 +12,7 @@ import { mount } from 'svelte';
 import Shell from './Shell.svelte';
 import type { ExtensionsCommand, ExtensionsReply } from '../main/extensions-contract.js';
 import { createShellStore } from './shell-store.js';
+import { createHomeStore } from './home-store.js';
 import { forStore } from '../personas/credential-store.js';
 declare const __QG_VERSION__: string;
 
@@ -20,6 +21,10 @@ declare global {
     personas: { request(command: PersonaCommand): Promise<PersonaReply>; platform?: string };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
+    home?: {
+      request(command: unknown): Promise<unknown>;
+      onCard(listener: (card: unknown) => void): () => void;
+    };
     storage: {
       request(command: StorageCommand): Promise<StorageReply>;
       onStatus(listener: (status: unknown) => void): () => void;
@@ -44,10 +49,14 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.personas.platform ?? 'darwin';
 const shell = createShellStore();
+// Home's cards: read once, then pushed (QGD-HOM-0005).
+const home = createHomeStore(window.home);
+home.start();
+
 mount(Shell, {
   target: document.body,
   props: {
-    store: shell, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    store: shell, home, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,

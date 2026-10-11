@@ -34,6 +34,9 @@
   --ok-border: #cfddd8;
   --danger: #a53232;
   --danger-border: #d4b6b6;
+  --warn: #7a4f00;
+  --warn-surface: #fbf4e6;
+  --warn-border: #e3cfa3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +58,12 @@
     --ok-border: #1f4a35;
     --danger: #ff9b9b;
     --danger-border: #5c2d2d;
+  --warn: #f0c674;
+  --warn-surface: #241c0c;
+  --warn-border: #4d3d1a;
+    --warn: #f0c674;
+    --warn-surface: #241c0c;
+    --warn-border: #4d3d1a;
   }
 }
 
@@ -191,3 +200,36 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
 
 footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 8px 24px; font-size: 11px; color: var(--ink-muted); }
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
+
+/* Home's cards (QGD-HOM-0002): drawn by the core from data. */
+.home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; max-width: 980px; margin-bottom: 20px; }
+.home-cards .card { margin-bottom: 0; max-width: none; }
+.home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.home-card-head h2 { margin: 0; }
+.home-card-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.home-card-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin: 0 0 12px; }
+.home-card-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.home-card-figures dd { margin: 2px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.home-card-figures .unit { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
+.home-card-items { list-style: none; margin: 0 0 12px; padding: 0; font-size: 13px; }
+.home-card-items li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); }
+.home-card-items li:first-child { border-top: 0; }
+.home-card-items .item-detail { color: var(--ink-muted); text-align: right; }
+.home-card-alert { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border); background: var(--surface-inset); }
+.home-card-alert.warning { color: var(--warn); background: var(--warn-surface); border-color: var(--warn-border); }
+.home-card-alert.severe { color: var(--danger); border-color: var(--danger-border); }
+.home-card-failed { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.home-cards-head { display: flex; align-items: center; justify-content: space-between; max-width: 980px; margin-bottom: 12px; }
+
+/* Customize your pins (QGD-HOM-0003). */
+dialog.pins { width: min(560px, 92vw); }
+.pins-list { list-style: none; margin: 0 0 16px; padding: 0; }
+.pins-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.pins-list li:first-child { border-top: 0; }
+.pins-list label { flex: 1; display: flex; gap: 10px; align-items: flex-start; }
+.pins-list .pin-name { font-weight: 600; }
+.pins-list .pin-description { display: block; font-size: 11px; color: var(--ink-muted); }
+.pins-order { display: flex; gap: 4px; }
+.pins-order button { padding: 2px 8px; }
+/* Read by a screen reader, not drawn. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
