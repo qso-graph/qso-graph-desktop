@@ -304,13 +304,30 @@ the others in practice.
 ## 12. The extension API's one irreversible choice
 
 `QGD-APP-0003` — that an extension reaches the core by message and not by function call — is
-the load-bearing requirement of that area. Everything else in it can be changed later. An API
+the load-bearing requirement of that area, and the first of several that cannot change once an
+extension exists; the rest are set out at the end of this section. An API
 written as function calls could not be sandboxed afterwards without breaking every extension
 already written against it, and D-2 commits this project to sandboxing third-party extensions.
 
 So the message boundary is not a style preference deferred to taste: it is the decision that
 has to be right before the first extension exists, because the second one cannot be written
 against a different shape without discarding the first.
+
+**Where extension code runs, and what that commits to** (KI7MT, 2026-10-11). Extension code runs
+in an extension host process, as VS Code's does, and never in the window or in main
+(`QGD-APP-0015`). Podman Desktop runs its extensions in Electron's main process; here main is the
+broker that enforces grants, and code that is checked should not live beside the checker. A
+second opinion (Codex, 2026-10-11) agreed, and sharpened three things that are now requirements.
+First, a host process is not a sandbox: it has Node's file and network access, so official
+extensions are accepted as trusted code, and an OS-enforced sandbox is the precondition for any
+other tier (`QGD-APP-0016`). Second, trust and identity come from the core, never from what an
+extension says about itself: official status from provenance (`QGD-APP-0017`), identity from the
+broker's binding of hosts to extensions (`QGD-APP-0018`). Third, the message boundary alone
+understated the promise: the manifest's version and fields, the `activate` lifecycle, the message
+bookkeeping and the card shapes are all compatibility obligations from the first extension
+(`QGD-APP-0019`–`0021`, `QGD-HOM-0002`). How many hosts there are, and how they are reached, stays
+internal, which is what lets third-party extensions later run in their own sandboxed host with the
+same API.
 
 ## 13. Why storage is SQLite and not a database server
 
