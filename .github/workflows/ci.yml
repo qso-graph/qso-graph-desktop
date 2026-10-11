@@ -20,6 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # The newest glibc the Linux credential core may need (scripts/build-native.mjs).
+  QG_GLIBC_MAX: '2.28'
   SUITES: keychain-roundtrip,credential-editing,persona-export,electron-smoke,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
 
 jobs:
@@ -54,6 +56,19 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install -y --no-progress nasm ninja
       # make setup, spelled out: Windows runners have no make.
+      # The Linux credential core, built against glibc 2.28 in a manylinux_2_28
+      # container, so the packages load on Pi OS, Debian 10+, Ubuntu 20.04+ and
+      # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
+      - name: Credential core against glibc 2.28
+        if: runner.os == 'Linux'
+        run: |
+          case "$(uname -m)" in
+            x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
+            aarch64) image=quay.io/pypa/manylinux_2_28_aarch64@sha256:abd1230aa9e4058a74b89d27cd14ba18c0db036d7bfe6e6f219a29ea63c24eb6 ;;
+          esac
+          mkdir -p .cache
+          docker run --rm -v "$PWD":/w -w /w "$image" bash scripts/core-manylinux.sh .cache/libqg_persona_core.so
+          echo "QG_PERSONA_CORE_LIB=$PWD/.cache/libqg_persona_core.so" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
       # ADIF's archive, kept between runs rather than fetched from adif.org.uk
@@ -104,6 +119,19 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q xvfb gnome-keyring dbus-x11 libsecret-tools lsof openbox
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # The Linux credential core, built against glibc 2.28 in a manylinux_2_28
+      # container, so the packages load on Pi OS, Debian 10+, Ubuntu 20.04+ and
+      # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
+      - name: Credential core against glibc 2.28
+        if: runner.os == 'Linux'
+        run: |
+          case "$(uname -m)" in
+            x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
+            aarch64) image=quay.io/pypa/manylinux_2_28_aarch64@sha256:abd1230aa9e4058a74b89d27cd14ba18c0db036d7bfe6e6f219a29ea63c24eb6 ;;
+          esac
+          mkdir -p .cache
+          docker run --rm -v "$PWD":/w -w /w "$image" bash scripts/core-manylinux.sh .cache/libqg_persona_core.so
+          echo "QG_PERSONA_CORE_LIB=$PWD/.cache/libqg_persona_core.so" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
       # ADIF's archive, kept between runs rather than fetched from adif.org.uk
@@ -164,6 +192,19 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q rpm
+      # The Linux credential core, built against glibc 2.28 in a manylinux_2_28
+      # container, so the packages load on Pi OS, Debian 10+, Ubuntu 20.04+ and
+      # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
+      - name: Credential core against glibc 2.28
+        if: runner.os == 'Linux'
+        run: |
+          case "$(uname -m)" in
+            x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
+            aarch64) image=quay.io/pypa/manylinux_2_28_aarch64@sha256:abd1230aa9e4058a74b89d27cd14ba18c0db036d7bfe6e6f219a29ea63c24eb6 ;;
+          esac
+          mkdir -p .cache
+          docker run --rm -v "$PWD":/w -w /w "$image" bash scripts/core-manylinux.sh .cache/libqg_persona_core.so
+          echo "QG_PERSONA_CORE_LIB=$PWD/.cache/libqg_persona_core.so" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run installer
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
