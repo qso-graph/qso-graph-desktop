@@ -207,7 +207,9 @@ try {
     // cannot fire until it has returned, and a socket opened and closed
     // inside the call would never be seen. That is the socket worth catching.
     const sampler = spawn(process.execPath,
-      [resolve('scripts/socket-sampler.mjs'), String(process.pid), '1500'],
+      // netstat takes longer per reading than lsof, so Windows samples for longer
+      // to read this process as many times.
+      [resolve('scripts/socket-sampler.mjs'), String(process.pid), process.platform === 'win32' ? '8000' : '1500'],
       { stdio: ['ignore', 'pipe', 'ignore'] });
     let output = '';
     sampler.stdout.on('data', chunk => { output += chunk; });

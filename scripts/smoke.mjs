@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { redact } from './report.mjs';
+import { freeze } from './platform-process.mjs';
 // What the screens say on this platform: Keychain, Credential Manager or the keyring.
 import { forStore } from '../dist/personas/credential-store.js';
 const said = text => forStore(text, process.platform);
@@ -609,7 +610,7 @@ try {
     const started = (await logLines()).filter(entry => entry.msg === 'storage service started' && Number.isInteger(entry.storagePid));
     const frozen = started.at(-1)?.storagePid;
     expect(frozen, 'QG Storage must be identified to freeze it').toBeTruthy();
-    process.kill(frozen, 'SIGSTOP');
+    freeze(frozen);
     try {
       await application.close();
       application = undefined;

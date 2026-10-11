@@ -62,7 +62,10 @@ try {
     ? name.status === 0 && `${name.stdout || ''}`.includes(`${account}.${service}`)
     : name.status === 0;
   check(found, 'Keyring naming convention');
-  check(!secrets.some(secret => `${name.stdout || ''}`.includes(secret)), 'No secret in entry metadata');
+  // secret-tool prints the stored secret on a line of its own after the
+  // attributes; that line is the secret, not the entry's metadata.
+  const metadata = `${name.stdout || ''}`.split('\n').filter(line => !line.startsWith('secret = ')).join('\n');
+  check(!secrets.some(secret => metadata.includes(secret)), 'No secret in entry metadata');
 
   check(!core.credentialStatus(other, provider).stored, 'Persona credential isolation');
   const status = core.credentialStatus(persona, provider);

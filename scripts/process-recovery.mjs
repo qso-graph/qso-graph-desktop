@@ -19,6 +19,7 @@ import { redact } from './report.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
 import { assertNoVisibleWindow } from './no-visible-window.mjs';
 import { createRequire } from 'node:module';
+import { listProcesses } from './platform-process.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003).
@@ -57,15 +58,9 @@ function storagePids() {
   return pids;
 }
 function utilities(mainPid) {
-  const ps = spawnSync('/bin/ps', ['-ax', '-o', 'pid=,ppid=,command='], { encoding: 'utf8' });
-  const found = [];
-  for (const line of (ps.stdout || '').split('\n')) {
-    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/);
-    if (!match) continue;
-    const [, pid, parent, command] = match;
-    if (Number(parent) === mainPid && command.includes('--utility-sub-type=node.mojom.NodeService')) found.push(Number(pid));
-  }
-  return found;
+  return listProcesses()
+    .filter(entry => entry.ppid === mainPid && entry.command.includes('--utility-sub-type=node.mojom.NodeService'))
+    .map(entry => entry.pid);
 }
 function personaUtility(mainPid) {
   const storage = new Set(storagePids());
