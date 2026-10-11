@@ -34,7 +34,7 @@ pub const KDF: &str = "PBKDF2-HMAC-SHA256";
 const SALT_LEN: usize = 16;
 const KEY_LEN: usize = 32;
 
-// Measured on the M3 Ultra, 2026-10-09, by the `kdf_cost` measurement at the
+// Measured on an M3 Ultra, 2026-10-09, by the `kdf_cost` measurement at the
 // foot of this file:
 //
 //     100,000 iterations:  41 ms

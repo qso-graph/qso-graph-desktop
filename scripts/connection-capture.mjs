@@ -368,7 +368,7 @@ try {
   // AWS-LC in FIPS mode, because Electron's networking is BoringSSL and not
   // the validated module.
   //
-  // This rule said "the engine's own process" until Bob checked P5 against
+  // This rule said "the engine's own process" until a review checked P5 against
   // the decisions: the reference loader was using Node's fetch from the
   // database engine of the time, and this suite was asserting that was
   // correct. It is the other way round: only the credential core connects.

@@ -49,12 +49,11 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   // already under the same root (enginePaths, QGD-CRD-0013.1).
   //
   // Two wrongs were fixed here. Until 2026-10-09 this was `~/.config/adif-mcp`,
-  // the MCP servers' own directory, so personas.json — holding KI7MT's and
-  // KE1HA's real personas — was a file both products wrote. My first fix moved
-  // it to `~/.config/qso-graph-desktop`, which stopped the sharing but kept a
-  // Linux convention on macOS and put the personas somewhere the rest of this
-  // application does not live. Bob's correction is the right one: ask the
-  // platform.
+  // the MCP servers' own directory, so personas.json — holding real personas —
+  // was a file both products wrote. The first fix moved it to
+  // `~/.config/qso-graph-desktop`, which stopped the sharing but kept a Linux
+  // convention on macOS and put the personas somewhere the rest of this
+  // application does not live. The right answer is to ask the platform.
   //
   // Nothing in either old directory is migrated, read or removed. The first
   // may be the MCP side's data, and separating two products is not the same as

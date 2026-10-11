@@ -63,7 +63,7 @@ describe('P4-migrations (QGD-ENG-0013)', () => {
     expect(await tables(path)).not.toContain('app_state');
   });
 
-  // A store made before 0002 (the M3 verification profiles are) keeps what it
+  // A store made before 0002 (existing profiles are) keeps what it
   // holds when the table is renamed. Applied as an upgrade, not a fresh run.
   it('carries an extension\'s state across the app_state to extension_state rename', async () => {
     const before = join(root, 'before-0002');

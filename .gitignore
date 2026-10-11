@@ -21,5 +21,5 @@ report/screenshot-logs/
 # to mean the report covers code no commit holds.
 verify-env.sh
 
-# The pinned PostgreSQL build, fetched by scripts/fetch-postgres.mjs (QGD-ENG-0004).
+# The pinned ADIF release and POTA's lists, fetched by make setup (QGD-REF-0003).
 vendor/

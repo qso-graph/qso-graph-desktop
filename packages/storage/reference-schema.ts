@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // reference.sqlite's tables (QGD-REF-0001, QGD-ENG-0015).
 //
-// The same tables the PostgreSQL engine held, column for column, mapped as
-// docs/STORAGE-PLAN.md §5 records. A boolean is an integer in boolean mode, a
-// list and a published row are JSON text, a coordinate is real, and a time
-// is ISO-8601 UTC text set in TypeScript. The reasons each table exists are
-// unchanged and are in the comments of packages/reference/schema.ts, which
-// this replaces when the engine goes.
+// Mapped to SQLite's types: a boolean is an integer in boolean mode, a list
+// and a published row are JSON text, a coordinate is real, and a time is
+// ISO-8601 UTC text set in TypeScript (QGD-HDBK-001 §13).
 //
 // The file is derived, never migrated (QGD-ENG-0015). Its DDL is rendered
 // from this declaration into drizzle/reference/ by drizzle-kit and checked

@@ -14,8 +14,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 // This was "adif-mcp" until 2026-10-09 — the MCP servers' namespace, left from
 // P0 when `qso-graph-auth` interoperability was still the plan. KI7MT ended
 // Python and MCP interop (QGD-CRD-0004) and the constant never moved, so the
-// desktop was reading and writing the MCP servers' own credentials: his real
-// `ki7mt:qrz`, `ke1ha:lotw` and the rest sat in the same namespace the suites
+// desktop was reading and writing the MCP servers' own credentials: real
+// personas' entries sat in the same namespace the suites
 // wrote synthetic fixtures into. Either side could overwrite the other's entry
 // for the same persona and provider, and nothing would have said so.
 //

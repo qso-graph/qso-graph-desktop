@@ -74,6 +74,6 @@
     "note": "Baselines whose bytes differ from the approved set. Written by an agent as a record of what is pending, never as an approval. KI7MT clears these by looking at them and saying so; the entry then moves into \"approved\".",
     "files": {},
     "whyTheyChanged": [],
-    "approvedByAnAgentInError": "Watson ran scripts/screenshots.mjs --approve on these during P5 and P6. That approval was not his to give (QGD-PRT-0103); Bob caught it. The images are kept because they are what the product now draws, and this register records that KI7MT has not yet seen them."
+    "approvedByAnAgentInError": "An agent ran scripts/screenshots.mjs --approve on these during P5 and P6. That approval was not an agent's to give (QGD-PRT-0103), and review caught it. The images are kept because they are what the product now draws, and this register records that KI7MT has not yet seen them."
   }
 }

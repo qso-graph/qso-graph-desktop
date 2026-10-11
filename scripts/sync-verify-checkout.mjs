@@ -59,8 +59,8 @@ run(['git', '-C', CHECKOUT, 'reset', '--quiet', '--hard', head]);
 // file needs root, and neither needed doing.
 //
 // The earlier unscoped `git clean -qfd` was worse than a nuisance: it removed
-// every untracked file that was not ignored, which is how it destroyed a
-// scratchpad KI7MT was keeping in this directory.
+// every untracked file that was not ignored, including files the operator had
+// put there.
 
 const MARKER = '# Written by scripts/sync-verify-checkout.mjs';
 const envFile = `${CHECKOUT}/verify-env.sh`;
@@ -85,17 +85,11 @@ export PATH="${SHARED_RUST}/cargo/bin:/opt/homebrew/bin:$PATH"
 
 // The commands are PRINTED, never written to a file.
 //
-// An earlier version wrote them to startup.txt. KI7MT had created that file
-// himself as a scratchpad, and on 2026-10-09 this script overwrote it — three
-// times — destroying the DKIM and site-verification records he had pasted
-// there while setting up DNS for qso-graph.io. It did so because the write had
-// no check of any kind: not whether the file existed, not who made it, not
-// whether this script had written it before. And the directory was world
-// writable by my own hand, so the non-admin account could build in it.
-//
-// Generating a crib sheet was reasonable. Claiming a filename in a shared
-// directory and overwriting it unconditionally was not. A script that writes a
-// file it did not create will eventually destroy one that mattered.
+// An earlier version wrote them to startup.txt and overwrote a file of that
+// name the operator had made, because the write had no check of any kind: not
+// whether the file existed, not who made it, not whether this script had
+// written it before. A script that writes a file it did not create will
+// eventually destroy one that mattered.
 //
 // So this writes exactly one file — verify-env.sh, which it created and which
 // carries its own marker — and refuses even that if the marker is absent.

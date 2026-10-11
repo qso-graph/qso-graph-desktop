@@ -18,7 +18,7 @@ Pre-release development toward Release 1. The frame is being built Part by Part 
   `settings.json`; one utility process, QG Storage, opens the SQLite files through the
   `node:sqlite` that Electron carries. There is no database
   server, no socket and no port, and the package is about 121 MB smaller. Why, and what was
-  weighed: `hdbk/QGD-HDBK-001.md` §13; the plan of work: `docs/STORAGE-PLAN.md`.
+  weighed: `hdbk/QGD-HDBK-001.md` §13.
 - The status bar's database indicator is gone; storage's detail is in Troubleshooting, and Home
   says whether reference data is loaded.
 - **Development profiles start fresh.** Nothing converts a profile made by an earlier build: delete

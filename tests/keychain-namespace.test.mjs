@@ -7,7 +7,7 @@
 // until 2026-10-09, long after KI7MT ended Python and MCP interoperability
 // (QGD-CRD-0004). The requirement said one thing, the code said another, and
 // nothing compared them, so the desktop read and wrote the MCP servers' own
-// credentials: KI7MT's `ki7mt:qrz` and KE1HA's `ke1ha:lotw` sat in the
+// credentials: two real personas' entries sat in the
 // namespace the suites were writing synthetic fixtures into, seventeen of
 // which were still there. Either product could have overwritten the other's
 // entry for the same persona and provider.
@@ -73,12 +73,12 @@ describe('the credential core owns its namespace', () => {
   it('asks the platform where its own data goes, and names no other product’s directory', async () => {
     // The third instance of the drift, found while fixing the first two: the
     // profile directory was `~/.config/adif-mcp`, so personas.json — holding
-    // KI7MT's and KE1HA's real personas — was a file both products wrote.
+    // real personas — was a file both products wrote.
     //
     // The first fix moved it to `~/.config/qso-graph-desktop`, which stopped
     // the sharing and was still wrong: a Linux convention on macOS, and not
-    // where the rest of this application keeps its data. Bob's correction is
-    // the rule asserted here — ask the platform.
+    // where the rest of this application keeps its data. The rule asserted
+    // here is the correction — ask the platform.
     const broker = await readFile('packages/main/persona-broker.ts', 'utf8');
     const live = broker.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
     expect(live, 'the profile directory must come from the platform').toContain("app.getPath('userData')");
@@ -91,7 +91,7 @@ describe('the credential core owns its namespace', () => {
   });
 
   it('builds no path from the home directory except where that is the platform’s answer', async () => {
-    // Bob's step 5, as far as a static check reaches: nothing in the product
+    // As far as a static check reaches: nothing in the product
     // invents a location in the user's home. The exceptions are named, with
     // the reason, because an exception a rule works out for itself is not an
     // exception, it is a hole (the same shape as NETWORK_EXCEPTIONS).

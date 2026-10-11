@@ -12,9 +12,9 @@
 // **Approving is KI7MT's, not an agent's.** QGD-PRT-0103 says "screenshot
 // baselines approved by KI7MT": a baseline is what the product is supposed to
 // look like, so approving one is a judgement about what a user sees. An agent
-// captures and compares; it does not decide. Watson ran --approve during P5
-// and P6 on a change to two sentences the product shows, which was not his to
-// make — Bob caught it. So the command now records who ran it against
+// captures and compares; it does not decide. An agent once ran --approve on a
+// change to two sentences the product shows, which was not its call to make.
+// So the command now records who ran it against
 // data/baseline-approval.json, and every run says how many baselines are
 // waiting for KI7MT.
 //

@@ -25,8 +25,8 @@ companion_to: ../spec/QGD-SPEC-001.md
 
 ## 1. Why this structure exists
 
-QSO Graph Desktop's planning material reached 125,956 characters across six documents in
-`qso-graph-devel/planning/`. Four of them contained a build order. The four did not agree.
+QSO Graph Desktop's planning material reached 125,956 characters across six documents in an
+earlier planning repository. Four of them contained a build order. The four did not agree.
 
 The Part catalogue in the locked specification placed the shell ahead of the Rust credential
 core, while the decision log in the same repository recorded the opposite rule — operating
@@ -83,14 +83,11 @@ document is what disagreed with the table.
 
 ## 3. Sources
 
-The following are background and are **not normative**. They are retained for history and
-should not be loaded to build anything:
-
-- `qso-graph-devel/planning/QG-DESKTOP-RESEARCH.md` — the original research record
-- `qso-graph-devel/planning/QG-DESKTOP-DECISIONS.md` — decisions 1–33 with their reasoning
-- `qso-graph-devel/planning/QG-DESKTOP-SPEC.md` — the superseded specification
-- `qso-graph-devel/planning/QG-DESKTOP-DOC-REVIEW.md` — the review that said do not lock it
-- `qso-graph-devel/planning/QG-DESKTOP-OPEN-FINDINGS.md` — findings that never reached the PR
+The earlier planning documents are background and are **not normative**: the original
+research record, decisions 1–33 with their reasoning (cited here and in the specification as
+`D-1` to `D-33`), the superseded specification, the review that said not to lock it, and
+findings that never reached a pull request. They are kept privately for history and should not
+be needed to build anything.
 
 Material from these is folded into this handbook as it is needed. Open findings become GitHub
 issues on `qso-graph/qso-graph-desktop`, not documents.
@@ -150,7 +147,7 @@ have bought could not be proven unattended on this platform anyway.
 
 ## 6. Logging arrived with the process map, ahead of the rest
 
-`qso-graph-desktop#19` recorded decisions KI7MT made with Bob on 2026-10-08 and was held, to
+`qso-graph-desktop#19` recorded decisions KI7MT made on 2026-10-08 and was held, to
 land as one specification change so that P0 and P1 work would not be disturbed by a catalogue
 being re-cut underneath it. One carve-out came across early — the logging section, because it
 belongs with the process map, and §4.1 is that. The rest followed after P2 was signed off and is
@@ -377,7 +374,7 @@ None of the four runs a database server.
   remade from its sources
 
 Main reads `settings.json`. The SQLite stores are opened by one utility process, through the
-`node:sqlite` that Electron already carries. The plan of the work is `docs/STORAGE-PLAN.md`.
+`node:sqlite` that Electron already carries.
 
 **What it cost.** P4's sign-off, and the parts of P5's and P7's evidence that named PostgreSQL,
 are re-earned against rewritten tests (`QGD-PRT-0104`). It was cheapest now. The frame held one

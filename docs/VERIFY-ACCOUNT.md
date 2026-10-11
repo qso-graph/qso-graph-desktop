@@ -3,7 +3,7 @@
 **KI7MT's decision, 2026-10-09:** `make verify` runs from the non-admin
 `qgdesktop` account, so the suites never touch his login keychain.
 
-This replaces the temporary-keychain approach Bob proposed. A separate macOS
+This replaces an earlier temporary-keychain approach. A separate macOS
 account has its **own login keychain**, so the isolation is a property of the
 operating system rather than something the suites have to keep getting right —
 and it needs no change to the credential core's proven paths. The

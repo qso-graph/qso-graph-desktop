@@ -14,7 +14,7 @@ describe('QGD-REF-0003 the pinned ADIF release', () => {
     expect(release.source.url).toContain(archiveRoot(release));
   });
 
-  it('lives in vendor, beside the database build and out of the repository', async () => {
+  it('lives in vendor, out of the repository', async () => {
     expect(releaseDirectory(release, '/somewhere')).toBe(`/somewhere/vendor/adif/${release.version}`);
     expect(definitionsPath(release, '/somewhere')).toContain('exports/json/all.json');
     expect(testQsosPath(release, '/somewhere')).toContain('tests/');

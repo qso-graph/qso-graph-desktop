@@ -10,7 +10,7 @@ Closes #
 
 ## Verification
 
-- [ ] `make verify` on the M3: PASS / FAIL (paste the summary line)
+- [ ] `make verify` on macOS (Apple silicon): PASS / FAIL (paste the summary line)
 - [ ] `codex review --base develop`: findings and how each was resolved
 
 ## Credentials

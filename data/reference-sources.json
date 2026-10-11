@@ -1,7 +1,7 @@
 {
   "register": "Where the reference data comes from, and who owns what is in it",
   "note": "QGD-REF-0002, QGD-REF-0003 and QGD-REF-0009. Two different facts about every list: who issues it, and where this copy came from. ADIF issues almost none of what it reproduces — the award sponsor does, or the national society, or the ITU — and POTA issues its own. Some sources are pinned by checksum because they are releases; POTA's park list is not, because it changes daily (QGD-REF-0010). \"supplied\" says whether the copy named above actually ships the list, and \"derived\" whether this product builds it out of columns on another one — both machine-readable, because the loader has to act on them and reading a prefix off an English sentence is not a fact.",
-  "decidedBy": "Watson, 2026-10-08, recorded for KI7MT",
+  "decidedBy": "KI7MT, 2026-10-08",
   "adif": {
     "version": "3.1.7",
     "source": {

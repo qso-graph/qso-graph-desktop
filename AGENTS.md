@@ -176,9 +176,9 @@ models** for them is deliberate: a model is poorest at catching its own blind sp
 
 | Role | Who (typically) | Job |
 |---|---|---|
-| **Coder** | The agent doing the Part (for example Claude, as Watson) | Writes the change and its tests, proves each check can fail, gets `make verify` green |
-| **Checker** | A second agent, ideally a different model (for example Bob) | Checks the change against the spec and the code: cited IDs exist and say what's claimed, the layer is right, nothing restates a requirement, nothing touches another product's data |
-| **Reviewer** | An independent frontier model at high reasoning effort, from a different vendor than the coder (for example `codex review` with Hopper) | An adversarial review of the diff: real defects, gates that check nothing, security and edge cases |
+| **Coder** | The agent doing the Part (for example Claude) | Writes the change and its tests, proves each check can fail, gets `make verify` green |
+| **Checker** | A second agent, ideally a different model | Checks the change against the spec and the code: cited IDs exist and say what's claimed, the layer is right, nothing restates a requirement, nothing touches another product's data |
+| **Reviewer** | An independent frontier model at high reasoning effort, from a different vendor than the coder (for example `codex review`) | An adversarial review of the diff: real defects, gates that check nothing, security and edge cases |
 
 Use **current frontier models at high effort** for the checker and reviewer. As of October 2026
 that means models such as GPT-6.1-astra (high), Claude Fable 5.1 (high) or Google's current Gemini.

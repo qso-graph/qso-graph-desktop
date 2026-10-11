@@ -71,7 +71,7 @@ body:
       label: Acceptance
       description: Who signs it off, and against what.
       placeholder: |
-        - [ ] `make verify` passes on the M3
+        - [ ] `make verify` passes on macOS (Apple silicon)
         - [ ] KI7MT approves
     validations:
       required: true
