@@ -3,8 +3,8 @@
 //
 // KI7MT, 2026-10-09: `make verify` runs from the non-admin `qgdesktop`
 // account, so the suites never touch his login keychain (QGD-CRD-0013). That
-// account cannot reach the working repo — `/Users/gbeam` is `drwxr-x---`, so
-// it cannot even traverse into it — and it deliberately holds no GitHub
+// account cannot reach the working repo — the developing account's home is
+// `drwxr-x---`, so it cannot even traverse into it — and it deliberately holds no GitHub
 // credential, so it cannot fetch from the remote either.
 //
 // Both of those are features, not obstacles to work around. So the sync is

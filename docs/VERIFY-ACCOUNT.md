@@ -18,7 +18,7 @@ for the same reason.
 
 | | State | Why |
 |---|---|---|
-| The working repo | **Unreachable.** `/Users/gbeam` is `drwxr-x---`, so it cannot even be traversed | An account that could read the developing account's home would not be isolated from it |
+| The working repo | **Unreachable.** the developing account's home is `drwxr-x---`, so it cannot even be traversed | An account that could read the developing account's home would not be isolated from it |
 | A GitHub credential | **None** | Nothing in this account should be able to write to a remote |
 | Its own login keychain | Empty of the operator's credentials | The whole reason for running here |
 | Rust toolchain | Shared from `/Users/Shared/rust` | Same version, no second download, no reach into another home directory |

@@ -73,7 +73,7 @@ Python interoperability is out, in any Part (KI7MT, 2026-10-08, `QGD-CRD-0004`).
 It was first dropped from P0 on 2026-10-07 because cross-application reads raise a
 macOS authorization dialog that an explicit trusted-application list cannot remove,
 every party being ad-hoc signed. See QGD-HDBK-001 section 5. The Rust round-trip
-passes unattended in under 0.2 s. Judge later
+passes unattended in under 0.2 s. KI7MT later
 confirmed a successful QRZ test through the app using a saved credential. That
 user check is separate from the isolated automated validation described below.
 
