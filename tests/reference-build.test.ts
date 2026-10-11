@@ -406,6 +406,25 @@ withData('defects found in review, each held by a test', () => {
     } finally { second.done(); }
   });
 
+  it('a list whose server sends no ETag or Last-Modified is still asked for only once a day', async () => {
+    // POTA's API sends neither for programs and locations. The record was
+    // written without them and then refused as unreadable, so both lists were
+    // fetched on every start (QGD-REF-0010). Found on a Raspberry Pi 5.
+    const bare = async (url: string): Promise<Fetched> =>
+      ({ status: 'fresh', body: BODIES[url], etag: undefined as unknown as null, lastModified: undefined as unknown as null });
+    const first = await reference({ fetchText: bare });
+    await first.ref.refresh();
+    first.done();
+    const calls: string[] = [];
+    const second = await reference({ fetchText: async url => { calls.push(url); return bare(url); } });
+    try {
+      const outcome = await second.ref.refresh();
+      expect(calls).toEqual([]);
+      expect(outcome.pota.programs.state).toBe('fresh enough');
+      expect(outcome.pota.locations.state).toBe('fresh enough');
+    } finally { second.done(); }
+  });
+
   it('a corrupt cached body is fetched again unconditionally, and repaired', async () => {
     const calls: string[] = [];
     const conditionals: (string | null | undefined)[] = [];

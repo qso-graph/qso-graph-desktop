@@ -49,7 +49,10 @@ function digest(text: string): string {
 function isRecord(value: unknown, list: PotaList): value is PotaRecord {
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
-  const optional = (v: unknown) => v === null || typeof v === 'string';
+  // Absent as well as null: a server that sends no ETag or Last-Modified
+  // (POTA's API sends neither) left the key out of records written before
+  // commit() wrote null, and refusing those fetched the list on every start.
+  const optional = (v: unknown) => v === undefined || v === null || typeof v === 'string';
   return r.list === list && typeof r.url === 'string' && typeof r.what === 'string'
     && optional(r.etag) && optional(r.lastModified)
     && typeof r.fetchedAt === 'string' && !Number.isNaN(Date.parse(r.fetchedAt))
@@ -96,7 +99,7 @@ export function commit(
   hooks: CommitHooks = {}
 ): PotaRecord {
   const directory = potaDirectory(referenceCache);
-  const record: PotaRecord = { ...meta, sha256: digest(body) };
+  const record: PotaRecord = { ...meta, etag: meta.etag ?? null, lastModified: meta.lastModified ?? null, sha256: digest(body) };
   try {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const bodyPath = join(directory, `${record.sha256}.body`);
