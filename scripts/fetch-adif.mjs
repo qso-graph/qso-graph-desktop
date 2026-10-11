@@ -35,7 +35,16 @@ if (already?.ok && !process.argv.includes('--force')) {
       console.log(`Using the cached ADIF ${release.version} download.`);
     } else {
       console.log(`Fetching ADIF ${release.version} …`);
-      const response = await fetch(release.source.url);
+      // Three tries, a pause between: a volunteer-run site can drop a
+      // connection, and one dropped connection should not fail a setup.
+      let response;
+      for (let attempt = 1; ; attempt++) {
+        try { response = await fetch(release.source.url); break; } catch (error) {
+          if (attempt === 3) throw error;
+          console.log(`Could not reach ${new URL(release.source.url).host}; trying again.`);
+          await new Promise(settle => setTimeout(settle, 5_000 * attempt));
+        }
+      }
       if (!response.ok) throw new Error(`${release.source.url} answered ${response.status}`);
       archive = Buffer.from(await response.arrayBuffer());
     }

@@ -56,6 +56,13 @@ jobs:
       # make setup, spelled out: Windows runners have no make.
       - run: npm ci
       - run: npm run build
+      # ADIF's archive, kept between runs rather than fetched from adif.org.uk
+      # each time. It is pinned by SHA-256, so a cached copy is checked exactly
+      # as a fresh one is (QGD-REF-0003).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/.cache
+          key: adif-${{ hashFiles('data/reference-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-pota.mjs
       - run: npm run check
@@ -99,6 +106,13 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: npm ci
       - run: npm run build
+      # ADIF's archive, kept between runs rather than fetched from adif.org.uk
+      # each time. It is pinned by SHA-256, so a cached copy is checked exactly
+      # as a fresh one is (QGD-REF-0003).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/.cache
+          key: adif-${{ hashFiles('data/reference-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-pota.mjs
       - name: Window suites (Linux)
