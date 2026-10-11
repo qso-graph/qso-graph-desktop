@@ -3,9 +3,12 @@
   "productName": "QSO Graph Desktop",
   "version": "0.0.0-preview.1",
   "private": true,
-  "description": "QSO Graph Desktop — local P0 preview",
+  "description": "QSO Graph Desktop — an extensible desktop platform for amateur radio",
   "license": "GPL-3.0-only",
-  "author": "QSO Graph contributors",
+  "author": {
+    "name": "QSO Graph contributors",
+    "email": "maintainers@qso-graph.io"
+  },
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
@@ -62,7 +65,8 @@
     "asar": true,
     "asarUnpack": [
       "dist/native/*.node",
-      "dist/native/*.dylib"
+      "dist/native/*.dylib",
+      "dist/native/*.dll"
     ],
     "electronFuses": {
       "runAsNode": false,
@@ -92,9 +96,14 @@
       "icon": "build/icon.png"
     },
     "linux": {
-      "target": "AppImage",
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
       "category": "Utility",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "maintainer": "QSO Graph contributors <maintainers@qso-graph.io>"
     }
   },
   "dependencies": {
@@ -115,5 +124,6 @@
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
     }
-  }
+  },
+  "homepage": "https://github.com/qso-graph/qso-graph-desktop"
 }
