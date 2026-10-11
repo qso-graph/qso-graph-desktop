@@ -7,7 +7,33 @@ const cargo = await cargoPath();
 const run = spawnSync(cargo, ['build', '--release', '--manifest-path', 'packages/persona-core/Cargo.toml'], { stdio: 'inherit' });
 if (run.status !== 0) process.exit(run.status || 1);
 await mkdir('dist/native', { recursive: true });
-await copyFile('packages/persona-core/target/release/libqg_persona_core.dylib', 'dist/native/persona.node');
+// Cargo names the library for the platform it built on.
+const LIBRARY = {
+  darwin: 'libqg_persona_core.dylib',
+  linux: 'libqg_persona_core.so',
+  win32: 'qg_persona_core.dll'
+}[process.platform];
+if (!LIBRARY) throw new Error(`The credential core is not built for ${process.platform}.`);
+await copyFile(join('packages/persona-core/target/release', LIBRARY), 'dist/native/persona.node');
+// On Linux the FIPS crypto module is linked into the library itself. On
+// Windows it can arrive as a DLL of its own, which has to sit beside the addon
+// for Node to load it (Node loads an addon's dependencies from its directory).
+// AWS-LC builds them under its own build directory, as on macOS.
+if (process.platform === 'win32') {
+  const builds = 'packages/persona-core/target/release/build';
+  let copied = 0;
+  for (const directory of await readdir(builds)) {
+    if (!directory.startsWith('aws-lc-fips-sys-')) continue;
+    const artifacts = join(builds, directory, 'out', 'build', 'artifacts');
+    let names = [];
+    try { names = await readdir(artifacts); } catch { continue; }
+    for (const name of names.filter(entry => /^aws_lc_fips.*\.dll$/i.test(entry))) {
+      await copyFile(join(artifacts, name), join('dist/native', name));
+      copied++;
+    }
+  }
+  if (copied === 0) throw new Error('The FIPS crypto library could not be bundled.');
+}
 if (process.platform === 'darwin') {
   const linked = spawnSync('otool', ['-L', 'dist/native/persona.node'], { encoding: 'utf8' });
   if (linked.status !== 0) throw new Error('Native library dependencies could not be inspected.');

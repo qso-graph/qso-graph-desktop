@@ -34,6 +34,11 @@ napi-derive = { version = "3", optional = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "=3.7.0"
 
+# The silent existence check (entry_exists): the same secret-service keyring's
+# Linux store is built on, so no second D-Bus stack is linked.
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+secret-service = { version = "=5.2.0", features = ["crypto-rust"] }
+
 [build-dependencies]
 napi-build = "2"
 

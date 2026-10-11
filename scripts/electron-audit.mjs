@@ -25,7 +25,8 @@ import { createHash } from 'node:crypto';
 import { access, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const binary = resolve('node_modules/.bin/electronegativity');
+// The JavaScript entry, run through Node: the .bin shim does not run on Windows.
+const binary = resolve('node_modules/@doyensec/electronegativity/dist/index.js');
 const archive = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/Resources/app.asar');
 const sarif = resolve('report/electron-audit.sarif');
 const ELECTRON_VERSION = JSON.parse(await readFile('package.json', 'utf8')).devDependencies.electron;
@@ -61,7 +62,7 @@ for (const [path, message] of [
 
 if (!failures.length) {
   await rm(sarif, { force: true });
-  const run = spawnSync(binary, ['-i', archive, '-e', ELECTRON_VERSION, '-o', sarif], { encoding: 'utf8', timeout: 300_000 });
+  const run = spawnSync(process.execPath, [binary, '-i', archive, '-e', ELECTRON_VERSION, '-o', sarif], { encoding: 'utf8', timeout: 300_000 });
   const report = await readFile(sarif, 'utf8').catch(() => '');
 
   let parsed;

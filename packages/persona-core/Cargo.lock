@@ -1394,6 +1394,7 @@ dependencies = [
  "reqwest",
  "roxmltree",
  "rustls",
+ "secret-service",
  "security-framework",
  "serde",
  "serde_json",

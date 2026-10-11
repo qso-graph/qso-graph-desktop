@@ -37,7 +37,8 @@ await rm(output, { recursive: true, force: true });
 // -c names the configuration directory: it moved from .storybook to
 // storybook/ at QGD-PRT-0107 (QGD-REP-0001), and Storybook's default is
 // still the dot-directory.
-const build = spawnSync(resolve('node_modules/.bin/storybook'), ['build', '-c', 'storybook', '--output-dir', output, '--quiet'], {
+// The JavaScript entry through Node: the .bin shim does not run on Windows.
+const build = spawnSync(process.execPath, [resolve('node_modules/storybook/dist/bin/dispatcher.js'), 'build', '-c', 'storybook', '--output-dir', output, '--quiet'], {
   encoding: 'utf8', timeout: 600_000
 });
 

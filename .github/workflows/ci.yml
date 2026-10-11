@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# The development pass on all three platforms: setup, build, and the suites
+# that need no window, no package and no credential store (make check).
+# GitHub-hosted runners only: this repository is public, and a self-hosted
+# runner on a public repository runs code from any fork's pull request.
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      # AWS-LC's FIPS module builds with Go and CMake.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Windows build tools for the FIPS module
+        if: runner.os == 'Windows'
+        run: choco install -y --no-progress nasm ninja
+      # make setup, spelled out: Windows runners have no make.
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/fetch-adif.mjs
+      - run: node scripts/fetch-pota.mjs
+      - run: npm run check

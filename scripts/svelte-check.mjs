@@ -13,6 +13,9 @@
 import { spawnSync } from 'node:child_process';
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+// The package's JavaScript entry, run by this Node: node_modules/.bin holds a
+// shell shim that Windows cannot execute without a shell.
+const SVELTE_CHECK = resolve('node_modules/svelte-check/bin/svelte-check');
 
 const SKIP = new Set(['node_modules', 'dist', 'out', 'report', 'target', '.git']);
 
@@ -49,8 +52,8 @@ async function coversAStandaloneComponent() {
     await writeFile(join(directory, 'Control.svelte'),
       '<script lang="ts">\n  const wrong: number = "not a number";\n</script>\n\n<p>{wrong}</p>\n');
     const run = spawnSync(
-      resolve('node_modules/.bin/svelte-check'),
-      ['--tsconfig', './.svelte-check-control/tsconfig.json', '--threshold', 'error', '--output', 'human'],
+      process.execPath,
+      [SVELTE_CHECK, '--tsconfig', './.svelte-check-control/tsconfig.json', '--threshold', 'error', '--output', 'human'],
       { encoding: 'utf8', timeout: 180_000 }
     );
     return run.status !== 0;
@@ -70,8 +73,8 @@ if (found.length === 0) {
   process.exitCode = 1;
 } else {
   const run = spawnSync(
-    resolve('node_modules/.bin/svelte-check'),
-    ['--tsconfig', TSCONFIG, '--threshold', 'warning', '--fail-on-warnings', '--output', 'human'],
+    process.execPath,
+    [SVELTE_CHECK, '--tsconfig', TSCONFIG, '--threshold', 'warning', '--fail-on-warnings', '--output', 'human'],
     { stdio: 'inherit' }
   );
   process.exitCode = run.status === 0 ? 0 : run.status || 1;

@@ -237,9 +237,29 @@ impl Store {
         }
     }
 
-    #[cfg(not(target_os = "macos"))]
+    // The Secret Service equivalent. keyring's own lookup unlocks any locked
+    // item it finds, and unlocking a locked collection is what raises the
+    // password dialog, so it is not used here. SearchItems answers with the
+    // matching items split into locked and unlocked; either half is an entry,
+    // and neither is opened. The attributes are the ones keyring writes
+    // (zbus-secret-service-keyring-store's search_attributes).
+    #[cfg(all(unix, not(target_os = "macos")))]
     fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
-        match self.entry(persona, provider)?.get_attributes() {
+        use secret_service::{EncryptionType, blocking::SecretService};
+        let account = subject(persona, provider)?;
+        let unavailable = "Keychain could not be asked about this credential.";
+        let ss = SecretService::connect(EncryptionType::Dh).map_err(|_| unavailable)?;
+        let found = ss
+            .search_items(std::collections::HashMap::from([("service", service()), ("username", account.as_str())]))
+            .map_err(|_| unavailable)?;
+        Ok(!found.unlocked.is_empty() || !found.locked.is_empty())
+    }
+
+    // Windows Credential Manager has no prompt to raise: reading an entry's
+    // attributes is silent.
+    #[cfg(windows)]
+    fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
+        match self.entry(persona, provider)?.inner.get_attributes() {
             Ok(_) => Ok(true),
             Err(keyring::Error::NoEntry) => Ok(false),
             Err(_) => Err("Keychain could not be asked about this credential."),
@@ -447,10 +467,20 @@ impl Store {
                 Err("Keychain could not remove this credential.")
             }
         }
+        // The same contract as above: the index never goes on describing an
+        // entry that is gone, whichever way it went.
         #[cfg(not(target_os = "macos"))]
         match self.entry(persona, provider)?.delete_credential() {
-            Ok(()) => Ok(true), Err(keyring::Error::NoEntry) => Ok(false),
-            Err(_) => Err("Keychain could not remove this credential."),
+            Ok(()) => {
+                tracing::info!(provider = %provider, "credential removed");
+                self.forget_kinds(persona, provider)?;
+                Ok(true)
+            }
+            Err(keyring::Error::NoEntry) => { self.forget_kinds(persona, provider)?; Ok(false) }
+            Err(_) => {
+                tracing::warn!(provider = %provider, "keychain refused to remove a credential");
+                Err("Keychain could not remove this credential.")
+            }
         }
     }
     fn remove_secret(&self, persona: &str, provider: &str, field: &str) -> CoreResult<()> {

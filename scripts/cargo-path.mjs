@@ -34,7 +34,9 @@ export async function rustcPath() {
   return resolve('rustc');
 }
 
-async function resolve(tool) {
+async function resolve(name) {
+  // rustup installs cargo.exe and rustc.exe on Windows.
+  const tool = process.platform === 'win32' ? `${name}.exe` : name;
   const tried = [];
   const candidates = [];
 

@@ -114,7 +114,7 @@ import { readFileSync } from 'node:fs';
 //   - it builds the component gallery, which is a Storybook build
 const LAUNCHES = /@playwright\/test|_electron|electron-builder|electronegativity/;
 const TOUCHES_KEYCHAIN = /keychain-service\.mjs|QG_DESKTOP_TEST_KEYCHAIN/;
-const BUILDS_GALLERY = /node_modules\/\.bin\/storybook/;
+const BUILDS_GALLERY = /node_modules\/storybook\/dist\/bin\/dispatcher\.js/;
 
 // The packaging chain: these need an artifact that only `package` produces, so
 // they cannot run in a development pass whatever their script imports.
