@@ -9,6 +9,7 @@ import { serviceIds, summarise, validateRegister, type ServiceRegister } from '.
 import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from '../persona-core/native.js';
 import type { CredentialStatus, CredentialTest } from './persona-contract.js';
 import { createForwardingLogger } from '../logging/logger.js';
+import { forStore } from './credential-store.js';
 
 const require = createRequire(import.meta.url);
 // One explicit assertion at the boundary, against the declared shape in
@@ -180,7 +181,9 @@ function execute(command: ServiceCommand): PersonaReply {
     ];
     const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The persona operation could not be completed.';
     log.warn({ command: command.type, reason: message }, 'persona operation failed');
-    return { ok: false, error: message };
+    // Named for the store this platform has (Keychain, Credential Manager,
+    // the keyring); the sentence is still one of the fixed ones above.
+    return { ok: false, error: forStore(message, process.platform) };
   }
 }
 process.parentPort.on('message', (event: { data?: unknown }) => {

@@ -25,6 +25,10 @@
   // id, by design.
   import MovePersonasPage from './MovePersonasPage.svelte';
   import type { ExportResult, ImportPreview, ImportResult } from '../../personas/persona-contract.js';
+  import { credentialStoreTitle, forStore } from '../../personas/credential-store.js';
+  // The store this platform has; the preload says which. A gallery story has
+  // no preload, and shows macOS.
+  const platform = (globalThis as { personas?: { platform?: string } }).personas?.platform ?? 'darwin';
 
   interface Props {
     onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
@@ -52,20 +56,20 @@
     </form>
   </section>
   <section id="credential-card" class="card" aria-labelledby="credentials-title" hidden>
-    <div class="section-title"><h2 id="credentials-title">Service credentials</h2><span class="badge">macOS Keychain</span></div>
+    <div class="section-title"><h2 id="credentials-title">Service credentials</h2><span class="badge">{credentialStoreTitle(platform)}</span></div>
     <label for="provider">Service</label><select id="provider"><option value="qrz">QRZ lookup</option><option value="qrz_logbook">QRZ logbook</option><option value="eqsl">eQSL</option><option value="lotw">LoTW website</option><option value="hamqth">HamQTH</option><option value="clublog">Club Log</option></select>
     <p id="credential-status" class="credential-status" role="status">Checking saved credentials…</p>
     <div class="credential-test"><button id="test-credential" class="secondary" type="button" disabled>Test credential</button><p id="credential-test-result" role="status">Not tested yet.</p></div>
     <form id="credential-form" autocomplete="off">
       <label>Username<input id="username" name="username" maxlength="4096" required autocomplete="off"></label>
       <div class="fields">
-        <div><label>Password<input id="password" type="password" name="password" maxlength="4096" autocomplete="new-password" aria-describedby="password-saved"></label><p id="password-saved" class="saved-indicator" hidden>Password saved in Keychain</p><button id="remove-password" class="danger field-remove" type="button" hidden>Remove password</button></div>
-        <div><label>API key<input id="api-key" type="password" name="apiKey" maxlength="4096" autocomplete="new-password" aria-describedby="api-key-saved"></label><p id="api-key-saved" class="saved-indicator" hidden>API key saved in Keychain</p><button id="remove-api-key" class="danger field-remove" type="button" hidden>Remove API key</button></div>
+        <div><label>Password<input id="password" type="password" name="password" maxlength="4096" autocomplete="new-password" aria-describedby="password-saved"></label><p id="password-saved" class="saved-indicator" hidden>{forStore('Password saved in Keychain', platform)}</p><button id="remove-password" class="danger field-remove" type="button" hidden>Remove password</button></div>
+        <div><label>API key<input id="api-key" type="password" name="apiKey" maxlength="4096" autocomplete="new-password" aria-describedby="api-key-saved"></label><p id="api-key-saved" class="saved-indicator" hidden>{forStore('API key saved in Keychain', platform)}</p><button id="remove-api-key" class="danger field-remove" type="button" hidden>Remove API key</button></div>
       </div>
       <label for="credential-preference">Preferred credential</label><select id="credential-preference" disabled><option value="service">Service default</option><option value="password">Password</option><option value="api_key">API key</option></select>
       <p id="credential-effective" class="hint"></p>
       <p class="hint">Saving updates the fields you enter. Blank password and API key fields keep their saved values. Use Remove to delete one. Saved secrets are never displayed.</p>
-      <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">Save in Keychain</button></div>
+      <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">{forStore('Save in Keychain', platform)}</button></div>
     </form>
   </section>
   <MovePersonasPage onExport={onExportPersonas} onInspect={onInspectImport} onImport={onApplyImport} />

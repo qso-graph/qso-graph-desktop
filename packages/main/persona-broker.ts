@@ -8,6 +8,7 @@ import {
 } from '../personas/persona-contract.js';
 import { readServices, serviceIds } from '../personas/services.js';
 import { deadlineFor } from '../personas/deadlines.js';
+import { forStore } from '../personas/credential-store.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 
 const log = createLogger('broker');
@@ -114,7 +115,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       // Per command, not one number for all of them: see deadlines.ts.
       const deadline = deadlineFor(command.type);
       const timer = setTimeout(
-        () => { pending.delete(id); resolve({ ok: false, error: deadline.said }); }, deadline.ms);
+        () => { pending.delete(id); resolve({ ok: false, error: forStore(deadline.said, process.platform) }); }, deadline.ms);
       pending.set(id, { resolve, timer });
       worker!.postMessage({ id, command });
     });

@@ -2,8 +2,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 // QGD-SEC-0007: named functions only. Never ipcRenderer, never a generic send,
 // never anything that forwards a channel the caller chooses.
+// The platform, so the screens name the credential store the operator has
+// (packages/personas/credential-store.ts). A fixed string, not a capability.
 contextBridge.exposeInMainWorld('personas', Object.freeze({
-  request: (command: unknown) => ipcRenderer.invoke('persona:request', command)
+  request: (command: unknown) => ipcRenderer.invoke('persona:request', command),
+  platform: process.platform
 }));
 contextBridge.exposeInMainWorld('settings', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('settings:request', command)

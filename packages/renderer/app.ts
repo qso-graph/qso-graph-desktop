@@ -12,11 +12,12 @@ import { mount } from 'svelte';
 import Shell from './Shell.svelte';
 import type { ExtensionsCommand, ExtensionsReply } from '../main/extensions-contract.js';
 import { createShellStore } from './shell-store.js';
+import { forStore } from '../personas/credential-store.js';
 declare const __QG_VERSION__: string;
 
 declare global {
   interface Window {
-    personas: { request(command: PersonaCommand): Promise<PersonaReply> };
+    personas: { request(command: PersonaCommand): Promise<PersonaReply>; platform?: string };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
     storage: {
@@ -41,6 +42,8 @@ declare global {
 // extension-runtime.ts and extension-serve.ts, with the settings channel still the way a
 // grant is allowed or withdrawn, and tests/extension-serve.test.ts proving a
 // withdrawal takes effect with nothing restarted.
+// The credential store this platform has, named on screen (credential-store.ts).
+const PLATFORM = window.personas.platform ?? 'darwin';
 const shell = createShellStore();
 mount(Shell, {
   target: document.body,
@@ -261,8 +264,8 @@ function showCredentialStatus(status: CredentialStatus) {
   element('credential-status').textContent = !status.stored
     ? 'No credential saved for this service.'
     : unknown
-      ? 'Stored in Keychain. Test it or save it again to show what it holds.'
-      : `Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.`;
+      ? forStore('Stored in Keychain. Test it or save it again to show what it holds.', PLATFORM)
+      : forStore(`Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.`, PLATFORM);
   element('remove-credential').hidden = !status.stored;
 }
 function select(name: string | null) {
@@ -310,7 +313,7 @@ element('use-persona').addEventListener('click', () => void busy('use-persona', 
   select(selected); message('Active persona selected.');
 }));
 element('remove-persona').addEventListener('click', () => void busy('remove-persona', async () => {
-  if (!selected || !window.confirm('Remove this persona and ALL its saved service credentials from Keychain? This cannot be undone.')) return;
+  if (!selected || !window.confirm(forStore('Remove this persona and ALL its saved service credentials from Keychain? This cannot be undone.', PLATFORM))) return;
   const name = selected;
   snapshot = await request({ type: 'remove-persona', name }) as Snapshot;
   for (const key of testResults.keys()) if (key.startsWith(`${name}:`)) testResults.delete(key);
@@ -338,7 +341,7 @@ element('credential-form').addEventListener('submit', event => {
     const provider = element<HTMLSelectElement>('provider').value;
     const status = await request({ type: 'save-credentials', persona, provider, credentials }) as CredentialStatus;
     if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
-      showCredentialStatus(status); message('Credential saved in macOS Keychain.');
+      showCredentialStatus(status); message(forStore('Credential saved in macOS Keychain.', PLATFORM));
       invalidateTest();
     }
   });

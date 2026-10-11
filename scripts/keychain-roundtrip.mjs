@@ -48,10 +48,20 @@ try {
   check(core.requireCredential(persona, provider, 'password').password === password, 'Retained password');
 
   // QGD-CRD-0003: the entry is named by the convention, not a library default.
-  const name = spawnSync('/usr/bin/security',
-    ['find-generic-password', '-s', activeKeychainService(), '-a', `${persona}:${provider}`],
-    { encoding: 'utf8', timeout: 30_000 });
-  check(name.status === 0, 'Keyring naming convention');
+  // Each platform's own tool finds it by that name: security on macOS,
+  // secret-tool for the Secret Service on Linux, cmdkey on Windows (whose
+  // target the keyring crate writes as account.service).
+  const account = `${persona}:${provider}`;
+  const service = activeKeychainService();
+  const name = process.platform === 'darwin'
+    ? spawnSync('/usr/bin/security', ['find-generic-password', '-s', service, '-a', account], { encoding: 'utf8', timeout: 30_000 })
+    : process.platform === 'win32'
+      ? spawnSync('cmdkey', [`/list:${account}.${service}`], { encoding: 'utf8', timeout: 30_000 })
+      : spawnSync('secret-tool', ['search', 'service', service, 'username', account], { encoding: 'utf8', timeout: 30_000 });
+  const found = process.platform === 'win32'
+    ? name.status === 0 && `${name.stdout || ''}`.includes(`${account}.${service}`)
+    : name.status === 0;
+  check(found, 'Keyring naming convention');
   check(!secrets.some(secret => `${name.stdout || ''}`.includes(secret)), 'No secret in entry metadata');
 
   check(!core.credentialStatus(other, provider).stored, 'Persona credential isolation');

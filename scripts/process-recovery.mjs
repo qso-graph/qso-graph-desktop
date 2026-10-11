@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { redact } from './report.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
 import { assertNoVisibleWindow } from './no-visible-window.mjs';
+import { createRequire } from 'node:module';
 
 // Fixtures go to this product's test Keychain service, never beside a real
 // credential, and are swept on exit (QGD-CRD-0003).
@@ -88,10 +89,12 @@ try {
   await cp('data', join(application_directory, 'data'), { recursive: true });
   // The application has runtime dependencies now, so the copy needs them on its
   // resolution path. Linked rather than copied: this suite only reads them.
-  await symlink(resolve('node_modules'), join(application_directory, 'node_modules'), 'dir');
+  // A junction on Windows, which needs no administrator rights.
+  await symlink(resolve('node_modules'), join(application_directory, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   application = await electron.launch({
     args: ['.'], cwd: application_directory,
-    executablePath: resolve('node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),
+    // The electron package names its own binary on every platform.
+    executablePath: createRequire(import.meta.url)('electron'),
     env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs },
     timeout: 30_000
   });

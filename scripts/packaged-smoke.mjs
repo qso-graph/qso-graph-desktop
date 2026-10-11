@@ -8,6 +8,9 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { redact } from './report.mjs';
+// What the screens say on this platform: Keychain, Credential Manager or the keyring.
+import { forStore } from '../dist/personas/credential-store.js';
+const said = text => forStore(text, process.platform);
 import { enableTestKeychain } from './keychain-service.mjs';
 
 // Fixtures go to this product's test Keychain service, never beside a real
@@ -94,8 +97,8 @@ try {
   await username.fill('W1AW');
   await username.press(`${modifier}+a`); await username.press(`${modifier}+c`);
   await page.getByLabel('Password', { exact: true }).fill('');
-  await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
-  await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
+  await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   credentialSaved = true;
   await expect(page.locator('#api-key-saved')).toBeVisible();
   await expect(page.locator('#password-saved')).toBeHidden();
@@ -109,7 +112,7 @@ try {
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
   expect((await readFile(join(profile, 'personas.json'), 'utf8')).includes(fakeCredential)).toBe(false);
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
-  await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
+  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();
   await page.getByLabel('Preferred credential', { exact: true }).selectOption('password');
@@ -120,7 +123,7 @@ try {
     .getByRole('button', { name: 'Personas', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
-  await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();
   await expect(page.getByLabel('Preferred credential', { exact: true })).toHaveValue('password');
   await expect(page.locator('#credential-effective')).toContainText('Selected for use: password');
@@ -135,7 +138,7 @@ try {
   await expect(page.locator('#api-key-saved')).toBeHidden();
   await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '');
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
-  await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
+  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe('');
   // QGD-CRD-0011: eQSL cannot be tested yet, and that is said without being
@@ -155,12 +158,12 @@ try {
   await expect(page.locator('#api-key-saved')).toBeHidden();
   credentialSaved = false;
   await page.getByLabel('API key', { exact: true }).fill(fakeCredential);
-  await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
+  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#api-key-saved')).toBeVisible({ timeout: 30_000 });
   credentialSaved = true;
   await page.getByLabel('Service', { exact: true }).selectOption('eqsl');
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
-  await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
+  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   page.once('dialog', dialog => dialog.dismiss());
   await page.getByRole('button', { name: 'Remove persona', exact: true }).click();

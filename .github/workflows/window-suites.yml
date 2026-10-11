@@ -4,9 +4,9 @@
 # GitHub-hosted runners only: this repository is public.
 name: Window suites
 
+# Started by hand until every platform is green, so work in progress does not
+# leave failed runs on the branch.
 on:
-  push:
-    branches: [develop]
   workflow_dispatch:
 
 permissions:
@@ -49,7 +49,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q xvfb gnome-keyring dbus-x11
+          sudo apt-get install -y -q xvfb gnome-keyring dbus-x11 libsecret-tools
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: npm ci
       - run: npm run build

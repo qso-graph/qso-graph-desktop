@@ -10,6 +10,9 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { redact } from './report.mjs';
+// What the screens say on this platform: Keychain, Credential Manager or the keyring.
+import { forStore } from '../dist/personas/credential-store.js';
+const said = text => forStore(text, process.platform);
 import { entries } from './unzip.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
 import { assertNoVisibleWindow } from './no-visible-window.mjs';
@@ -140,8 +143,8 @@ try {
   await application.evaluate(({ clipboard }) => clipboard.clear());
   await usernameField.fill('W1AW');
   await page.getByLabel('Password', { exact: true }).fill('');
-  await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
-  await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
+  await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
   expect((await page.locator('body').innerText()).includes(fakeCredential)).toBe(false);
   const index = await readFile(join(profile, 'personas.json'), 'utf8');
@@ -174,7 +177,7 @@ try {
     const service = page.getByLabel('Service', { exact: true });
     await service.selectOption('eqsl');
     await service.selectOption('qrz_logbook');
-    await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+    await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
     await expect(page.locator('#message')).toHaveText('');
 
     // The API key is typed, so the save is a real one that completes — this is
@@ -190,8 +193,8 @@ try {
       document.getElementById('password').value = value;
     }, planted);
     expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe(planted);
-    await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
-    await expect(page.locator('#message')).toHaveText('Credential saved in macOS Keychain.', { timeout: 30_000 });
+    await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
+    await expect(page.locator('#message')).toHaveText(said('Credential saved in macOS Keychain.'), { timeout: 30_000 });
     await expect(page.locator('#api-key-saved')).toBeVisible();
     await expect(page.locator('#password-saved')).toBeHidden();
     expect((await readFile(join(profile, 'personas.json'), 'utf8')).includes(planted)).toBe(false);
@@ -203,8 +206,8 @@ try {
     await service.selectOption('qrz_logbook');
     await expect(page.locator('#message')).toHaveText('');
     await page.getByLabel('Password', { exact: true }).fill(planted);
-    await page.getByRole('button', { name: 'Save in Keychain', exact: true }).click();
-    await expect(page.locator('#message')).toHaveText('Credential saved in macOS Keychain.', { timeout: 30_000 });
+    await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
+    await expect(page.locator('#message')).toHaveText(said('Credential saved in macOS Keychain.'), { timeout: 30_000 });
     await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
 
     page.once('dialog', dialog => dialog.accept());
@@ -229,7 +232,7 @@ try {
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   // The status is drawn, and drawn correctly, from metadata alone.
-  await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();
 
   {
@@ -240,7 +243,7 @@ try {
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
     }
     await page.locator('.persona-item').first().click();
-    await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+    await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
     for (const provider of ['eqsl', 'qrz_logbook']) {
       await page.getByLabel('Service', { exact: true }).selectOption(provider);
       await expect(page.locator('#credential-status')).not.toHaveText('Checking saved credentials…', { timeout: 30_000 });
@@ -542,7 +545,7 @@ try {
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   // P3-personas-intact: the P1 screen still works after all of that.
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
-  await expect(page.locator('#credential-status')).toContainText('Stored in Keychain', { timeout: 30_000 });
+  await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
 
   await mkdir('report', { recursive: true });
   await page.screenshot({ path: resolve('report/personas-preview.png') });
