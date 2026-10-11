@@ -345,7 +345,10 @@ withData('defects found in review, each held by a test', () => {
       bodies = { ...BODIES, [register.pota.sources.parks.url]: PARKS.split('\n').slice(0, 2701).join('\n') + '\n' };
       const second = ref.refresh({ force: true });
       const [a, b] = await Promise.all([first, second]);
-      expect([a.built, b.built]).toEqual([true, true]);
+      // Why a build did not happen, if one did not: reduced errors and input
+      // states only, so nothing here can carry a value (QGD-ENG-0016).
+      const why = (o: typeof a) => JSON.stringify({ deferred: o.deferred, failure: o.buildFailure, adif: o.adif, pota: o.pota });
+      expect([a.built, b.built], `first ${why(a)}; second ${why(b)}`).toEqual([true, true]);
       expect(spans.length, 'two builds happened').toBe(2);
       expect(spans[1][0], 'the second began after the first ended').toBeGreaterThanOrEqual(spans[0][1]);
       expect(b.status.pota.parks).toMatchObject({ rows: 2700 });
