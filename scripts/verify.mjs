@@ -48,13 +48,21 @@ for (const [name, args] of commands) {
     name,
     result: passed ? 'PASS' : 'FAIL',
     ...(leaked.length ? { sentinelsPrinted: leaked.length } : {}),
-    ...(passed ? {} : {
-      failure: leaked.length
-        ? `Printed ${leaked.length} credential sentinel(s) to its output. Values omitted.`
-        : redact(output).split('\n').filter(Boolean).slice(0, 20).join('\n') || 'Command did not finish.'
-    })
+    ...(passed ? {} : { failure: summarize(output, leaked.length) })
   });
 }
+// What a failed suite said, in the lines that say what failed: the failing
+// tests, their errors, and which test printed what. The first lines of the
+// output were mostly the tests that passed, so the failure was cut off. A line
+// holding a sentinel is never shown, whatever else it says (QGD-CRD-0006).
+function summarize(output, leaked) {
+  const lines = redact(output).split('\n').filter(line => line.trim() && sentinelsIn(line).length === 0);
+  const telling = lines.filter(line => /×|❯|FAIL|Error|expected|Expected|Received|Timed out|timed out|stdout \||stderr \|/.test(line));
+  const shown = (telling.length ? telling : lines).slice(0, 40).join('\n');
+  const head = leaked ? `Printed ${leaked} credential sentinel(s) to its output. Values omitted.\n` : '';
+  return (head + shown).trim() || 'Command did not finish.';
+}
+
 // Which commit this report is evidence for. Two failures look alike and are
 // not: git unable to read the checkout (a tooling problem: the commit is
 // fine, the report just cannot name it) and a tree with uncommitted changes
@@ -95,7 +103,7 @@ if (fast) {
   const failed = suites.filter(suite => suite.result !== 'PASS');
   for (const suite of failed) {
     console.error(`${suite.name}: ${suite.result}`);
-    if (suite.failure) console.error(suite.failure.split('\n').slice(0, 12).map(line => `  ${line}`).join('\n'));
+    if (suite.failure) console.error(suite.failure.split('\n').slice(0, 40).map(line => `  ${line}`).join('\n'));
   }
   console.log(failed.length === 0
     ? `Development pass: ${suites.length} of ${suiteCommands(npmCli).length} suites PASS. `

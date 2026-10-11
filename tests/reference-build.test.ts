@@ -574,5 +574,7 @@ withData('P5-answers-during-build: QG Storage keeps answering (QGD-ENG-0015)', (
       const finished = await refreshing;
       expect(answered).toBeLessThan(finished);
     } finally { done(); }
-  });
+    // The whole park list, on purpose: the build has to be long enough to be
+    // caught in the middle of. Seconds on a workstation, more on a CI runner.
+  }, 60_000);
 });
