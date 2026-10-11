@@ -26,23 +26,81 @@
       they are about. Bitwarden's desktop client keeps vault export under the
       application menu rather than in preferences.
 
-  What is left is appearance, and Storage when QG Sync is built.
+  What is left is appearance, the extensions, and Storage when QG Sync is
+  built.
+
+  Extensions: one switch each, as VS Code's Disable and Podman Desktop's
+  extension toggle. Turning one off takes its cards off Home and out of
+  "Customize your pins"; turning it on brings them back to the pins they
+  held (QGD-HOM-0007). Grants are not shown here (QGD-APP-0012.1).
 -->
 <script lang="ts">
   import PageLayout from '../../ui/PageLayout.svelte';
   import ThemeChoice from '../../ui/ThemeChoice.svelte';
   import type { ThemeChoice as Choice } from '../../main/settings-contract.js';
+  import type { ExtensionSwitch } from '../shell-store.js';
 
   interface Props {
     themeChoice: Choice;
     onChooseTheme: (choice: Choice) => Promise<boolean>;
+    // Undefined while the main process has not answered.
+    extensions?: readonly ExtensionSwitch[];
+    onSetExtension?: (id: string, enabled: boolean) => Promise<boolean>;
   }
-  const { themeChoice, onChooseTheme }: Props = $props();
+  const { themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false) }: Props = $props();
+
+  // The switch being changed, so it cannot be flipped again before the main
+  // process has answered; and the last failure, said in words.
+  let saving = $state<string | undefined>();
+  let failure = $state('');
+
+  async function flip(extension: ExtensionSwitch, control: HTMLInputElement): Promise<void> {
+    saving = extension.id;
+    failure = '';
+    const done = await onSetExtension(extension.id, !extension.enabled);
+    saving = undefined;
+    if (!done) {
+      // The browser moved the switch when it was clicked, and an unchanged
+      // prop does not move it back, so it is put back here: the switch shows
+      // what was recorded, not what was clicked.
+      control.checked = extension.enabled;
+      failure = `${extension.name} could not be turned ${extension.enabled ? 'off' : 'on'}.`;
+    }
+  }
 </script>
 
 <PageLayout eyebrow="PREFERENCES" title="Settings">
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
+  </section>
+
+  <section class="card" aria-labelledby="extensions-title">
+    <h2 id="extensions-title">Extensions</h2>
+    {#if extensions === undefined}
+      <p class="hint">Reading the extensions…</p>
+    {:else if extensions.length === 0}
+      <p class="hint">No extensions are installed.</p>
+    {:else}
+      <ul class="extension-list">
+        {#each extensions as extension (extension.id)}
+          <li class="extension-row">
+            <label class="extension-switch">
+              <span class="extension-text">
+                <span class="extension-name">{extension.name}</span>
+                {#if extension.cards.length > 0}
+                  <span class="hint">Cards: {extension.cards.join(', ')}</span>
+                {/if}
+              </span>
+              <input type="checkbox" role="switch" checked={extension.enabled}
+                disabled={saving !== undefined}
+                data-extension={extension.id}
+                onchange={event => { void flip(extension, event.currentTarget); }} />
+            </label>
+          </li>
+        {/each}
+      </ul>
+      {#if failure}<p class="extension-error" role="alert">{failure}</p>{/if}
+    {/if}
   </section>
 </PageLayout>

@@ -54,13 +54,23 @@ const captures = resolve('report/screenshots');
 // pixel; the values themselves are the smoke suite's to assert. A mask is a
 // box drawn over the element in the capture, so it hides content and nothing
 // else.
-const VOLATILE = ['#storage-state-hint', '#storage-sizes', '#reference-title', '#reference-datasets', '#home-reference'];
+//
+// Home's cards (P8) are drawn from recorded NOAA responses
+// (tests/fixtures/noaa/quiet), so Conditions is the same every run; Your
+// station shows the clock, so its times are masked and its callsign is not.
+// Every card's time is masked: it gains the date once the day it shows is not
+// today, so the recorded responses would redraw Conditions at midnight.
+const VOLATILE = [
+  '#storage-state-hint', '#storage-sizes', '#reference-title', '#reference-datasets', '#home-reference',
+  'section.home-card[aria-label="Your station"] .home-card-figures',
+  'section.home-card .home-card-time'
+];
 
-async function stableShot(page, path) {
+async function stableShot(page, path, masks = VOLATILE) {
   let previous;
   let last;
   for (let attempt = 0; attempt < 24; attempt++) {
-    const shot = await page.screenshot({ path, mask: VOLATILE.map(selector => page.locator(selector)), maskColor: '#888888' });
+    const shot = await page.screenshot({ path, mask: masks.map(selector => page.locator(selector)), maskColor: '#888888' });
     if (previous) {
       last = compare(decode(previous), decode(shot));
       if (last.same) {
@@ -120,7 +130,7 @@ const written = [];
 // A function rather than loop body because Troubleshooting is captured by
 // opening it, not by navigating to it, and the two must be recorded the same
 // way: same settle loop, same scroll reset, same theme check after the fact.
-async function record(page, file, theme) {
+async function record(page, file, theme, masks = VOLATILE) {
     // Both panes back to the top, and proven to be there. A page captured at
     // a different scroll offset differs over its whole content area for a
     // reason no colour comparison can name.
@@ -135,7 +145,7 @@ async function record(page, file, theme) {
     for (const offset of offsets) {
       expect(offset, 'every pane is scrolled to the top before capture').toBe('0,0');
     }
-    const shot = await stableShot(page, join(captures, file));
+    const shot = await stableShot(page, join(captures, file), masks);
     // Checked after the fact, not only before: a capture is worth nothing if
     // the page re-themed while it was being taken, and "half the pixels
     // differ" is a slow way to be told that.
@@ -217,7 +227,10 @@ try {
       ...process.env,
       QG_DESKTOP_PROFILE_DIR: join(directory, 'profile'),
       QG_DESKTOP_USER_DATA_DIR: join(directory, 'chromium'),
-      QG_DESKTOP_LOG_DIR: logs
+      QG_DESKTOP_LOG_DIR: logs,
+      // Recorded NOAA responses, so Conditions draws the same every run and
+      // nothing depends on NOAA answering (source-fixtures.ts).
+      QG_DESKTOP_SOURCE_FIXTURES: resolve('tests/fixtures/noaa/quiet')
     },
     timeout: 30_000
   });
@@ -291,11 +304,35 @@ try {
       // taken while it still read "Reading which applications are
       // installed…" was a different page from the baseline — the failure this
       // suite had 4 runs in 8. That section is gone (QGD-APP-0012.1), and
-      // with it the precondition. Nothing on these three pages now waits on
-      // an answer from the main process except Home's reference line, which
-      // is masked.
+      // with it the precondition. P8 brought two more answers, Home's cards
+      // and Settings' extension switch, and both are waited for below.
+      // What these pages show from the main process is waited for, not
+      // raced: Home's two cards, answered, and Settings' extension switch.
+      if (name === 'Home') {
+        for (const card of ['Conditions', 'Your station']) {
+          await expect(page.locator(`section.home-card[aria-label="${card}"]`)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+        }
+      }
+      if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
     }
+
+    // "Customize your pins" (QGD-HOM-0003), opened over Home and cancelled.
+    await rail('Home').click();
+    await page.locator('#customize-pins').click();
+    await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeVisible();
+    await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
+    // A mask is painted over its element even where the dialog covers it, so
+    // here the moving values under the dialog are hidden instead, through the
+    // CSSOM as the caret is, and put back afterwards.
+    const hidden = await page.evaluate(() => {
+      const sheet = document.styleSheets[0];
+      return sheet.insertRule('section.home-card .home-card-time, section.home-card[aria-label="Your station"] .home-card-figures { visibility: hidden !important; }', sheet.cssRules.length);
+    });
+    await record(page, `pins-${theme}.png`, theme, VOLATILE.filter(selector => !selector.startsWith('section.home-card')));
+    await page.evaluate(index => document.styleSheets[0].deleteRule(index), hidden);
+    await page.getByRole('dialog', { name: 'Customize your pins' }).getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeHidden();
 
     // Troubleshooting, opened from the status bar rather than navigated to.
     //

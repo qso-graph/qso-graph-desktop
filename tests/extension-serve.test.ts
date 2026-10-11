@@ -55,7 +55,7 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     ports,
     log: { warn: (_fields, message) => warnings.push(message) },
     extensions: [...loadExtensions(
-      [SOLAR, QRZ, BARE].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value })),
+      [SOLAR, QRZ, BARE].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value, shipped: true })),
       register, allowed
     ).loaded],
     refused: []

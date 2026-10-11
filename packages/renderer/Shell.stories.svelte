@@ -15,6 +15,7 @@
   const settled = {
     version: '0.0.0-preview.1',
     onChooseTheme: () => Promise.resolve(true),
+    onSetExtension: () => Promise.resolve(true),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
     onCreatePersona: () => Promise.resolve(undefined),
@@ -46,7 +47,8 @@
       storage: { state: 'ready' },
       troubleshooting: false, setup: false,
       firstRun: false,
-      services: []
+      services: [],
+      extensions: undefined
     })
   }}
 />

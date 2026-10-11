@@ -63,7 +63,10 @@ export function socketsOf(pid) {
   }
   // -a, because lsof ORs its filters: without it this reads every socket on
   // the machine rather than this process's.
-  const run = spawnSync('lsof', ['-a', '-p', String(pid), '-i', '-n', '-P', '-F', 'n'], { encoding: 'utf8' });
+  // -w, because a warning about some other mount it cannot stat (a container's
+  // bind mounts, a FUSE file system) is not a failure to read this process,
+  // and was being taken for one; errors are still written.
+  const run = spawnSync('lsof', ['-w', '-a', '-p', String(pid), '-i', '-n', '-P', '-F', 'n'], { encoding: 'utf8' });
   if (run.error || (run.status !== 0 && (run.stderr || '').trim() !== '')) return { ok: false, sockets: [] };
   return { ok: true, sockets: (run.stdout || '').split('\n').filter(line => line.startsWith('n')).map(line => line.slice(1)) };
 }

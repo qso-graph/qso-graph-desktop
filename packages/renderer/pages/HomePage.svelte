@@ -13,6 +13,8 @@
   import PinPicker from '../../ui/PinPicker.svelte';
   import { referenceLoaded, type StorageStatus } from '../../storage/storage-contract.js';
   import type { HomeModel } from '../home-store.js';
+  import { MAX_PINS } from '../../main/settings-contract.js';
+
 
   interface Destination {
     readonly id: string;
@@ -35,6 +37,9 @@
   const { version, activePersona, storage, destinations, onGo, home, onSavePins }: Props = $props();
 
   let picking = $state(false);
+  // Pins kept for an extension that is off hold their places, so the picker
+  // offers only the room left beside them (QGD-HOM-0007).
+  const room = $derived(MAX_PINS - home.pins.filter(pin => !home.available.some(card => card.key === pin)).length);
 
   // Whether reference data is loaded (QGD-FRM-0011), read from the status
   // storage pushes. A first run with no network says "not loaded", which is
@@ -65,6 +70,7 @@
     open={picking}
     available={home.available}
     pins={home.pins}
+    max={room}
     onSave={pins => { picking = false; onSavePins(pins); }}
     onCancel={() => { picking = false; }}
   />

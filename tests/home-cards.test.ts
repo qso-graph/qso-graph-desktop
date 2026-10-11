@@ -107,7 +107,7 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     scheduler.stop();
   });
 
-  it('drops what was shown and asked for the old persona, and asks again when the interval allows', async () => {
+  it('drops what was shown and asked for the old persona, and asks again for the new one', async () => {
     let finish: (outcome: CardOutcome) => void = () => {};
     let calls = 0;
     const { scheduler, published, asked } = harness({
@@ -121,12 +121,32 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     finish({ outcome: 'completed', answer: answer('old persona') });
     await flush();
     expect(JSON.stringify(published)).not.toContain('old persona');
-    expect(scheduler.views()[0]).toEqual({ key: 'air/station', state: 'waiting' });
-    // Not asked again at once: the interval holds through a persona change.
-    expect(asked).toHaveLength(1);
-    await vi.advanceTimersByTimeAsync(60_000);
+    // Asked again as soon as the old question settled, not after the
+    // interval: a card must not sit on "Getting the latest…" for fifteen
+    // minutes because a persona was made.
     expect(asked).toHaveLength(2);
     expect(JSON.stringify(scheduler.views())).toContain('new persona');
+    scheduler.stop();
+  });
+
+  it('asks again after a persona change only when Home shows, and once', async () => {
+    const { scheduler, asked } = harness({ pins: ['air/conditions'] });
+    scheduler.setVisible(true);
+    await flush();
+    expect(asked).toEqual(['conditions']);
+    scheduler.setVisible(false);
+    scheduler.personasChanged();
+    scheduler.personasChanged();
+    await flush();
+    expect(asked).toHaveLength(1);
+    scheduler.setVisible(true);
+    await flush();
+    expect(asked).toHaveLength(2);
+    // And the interval holds again from there.
+    scheduler.setVisible(false);
+    scheduler.setVisible(true);
+    await flush();
+    expect(asked).toHaveLength(2);
     scheduler.stop();
   });
 

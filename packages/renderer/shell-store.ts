@@ -91,6 +91,17 @@ export interface ShellState {
   // later is a prop that was empty when it mattered, which is what the first
   // version of this did — setup had a callsign step and no services at all.
   services: ServiceSummary[];
+  // The extensions that loaded, for Settings' switches (QGD-HOM-0007).
+  // Undefined until the main process has answered.
+  extensions: ExtensionSwitch[] | undefined;
+}
+
+export interface ExtensionSwitch {
+  readonly id: string;
+  readonly name: string;
+  // The cards it offers, named, so the switch says what it takes away.
+  readonly cards: readonly string[];
+  readonly enabled: boolean;
 }
 
 export const INITIAL_SHELL: ShellState = {
@@ -107,7 +118,8 @@ export const INITIAL_SHELL: ShellState = {
   troubleshooting: false,
   setup: false,
   firstRun: false,
-  services: []
+  services: [],
+  extensions: undefined
 };
 
 export interface ShellStore {

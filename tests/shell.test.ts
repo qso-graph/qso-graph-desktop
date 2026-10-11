@@ -14,7 +14,7 @@ describe('the shell store', () => {
       // Not setup: that is decided once the personas have been read, so a
       // machine with personas never sees a frame of the setup screen
       // (QGD-PSN-0004).
-      setup: false, firstRun: false, services: []
+      setup: false, firstRun: false, services: [], extensions: undefined
     });
     expect(createShellStore().get()).toEqual(INITIAL_SHELL);
   });

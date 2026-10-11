@@ -16,17 +16,35 @@
 //
 // "Not shipped" is a check on what was built, never a statement of intent.
 import asar from '@electron/asar';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { validateManifest } from '../dist/extension-api/manifest.js';
+import { grantIds, validateGrantRegister } from '../dist/extension-api/grants.js';
 
-const archive = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/Resources/app.asar');
+// Where electron-builder leaves the unpacked application on each platform.
+const CANDIDATES = [
+  'out/mac-arm64/QSO Graph Desktop.app/Contents/Resources/app.asar',
+  'out/mac/QSO Graph Desktop.app/Contents/Resources/app.asar',
+  'out/linux-unpacked/resources/app.asar',
+  'out/linux-arm64-unpacked/resources/app.asar',
+  'out/win-unpacked/resources/app.asar',
+  'out/win-arm64-unpacked/resources/app.asar'
+].map(path => resolve(path));
+const archive = CANDIDATES.find(path => existsSync(path)) ?? CANDIDATES[0];
+
+// The library looks a file up by splitting on the platform's separator, so a
+// "/" path is given back in the platform's form.
+const extract = name => asar.extractFile(archive, name.replace(/^\//, '').split('/').join(sep));
 
 const failures = [];
 const notes = [];
 
 let entries;
 try {
-  entries = asar.listPackage(archive);
+  // In "/" form on every platform: on Windows the library answers with "\",
+  // and every check below is written against "/".
+  entries = asar.listPackage(archive).map(entry => entry.replaceAll('\\', '/'));
 } catch (error) {
   console.error(`The packaged archive could not be read at ${archive}.`);
   console.error('Run `npm run package` first.');
@@ -103,7 +121,7 @@ for (const entry of entries) {
   if (!/^\/?dist\//.test(entry)) continue;
   if (!/\.(js|cjs|mjs|map|json|html|css|svelte|ts)$/.test(entry)) continue;
   let text;
-  try { text = asar.extractFile(archive, entry.replace(/^\//, '')).toString('utf8'); } catch { continue; }
+  try { text = extract(entry).toString('utf8'); } catch { continue; }
   scanned.push({ entry, text });
   const leaked = MARKERS.filter(marker => text.includes(marker));
   if (leaked.length > 0) failures.push(`${entry} names development-only material: ${leaked.join(', ')}`);
@@ -139,11 +157,37 @@ else notes.push(`${scanned.length} dist entr(ies) read, including every source m
 }
 
 // --------------------------------------------------------------------------
-// 5. The control for the control: the bundle has to hold the shell's own
+// 5. The built-in extensions ship in the package, which is what makes them
+// official (QGD-APP-0017), with the host that runs them (QGD-APP-0015), and
+// nothing of their tests does.
+{
+  const relative = entries.map(entry => entry.replace(/^\//, ''));
+  for (const wanted of ['dist/extension-host/host.js', 'dist/extensions/on-the-air/manifest.json', 'dist/extensions/on-the-air/main.js']) {
+    if (!relative.includes(wanted)) failures.push(`${wanted} is not in the archive`);
+  }
+  const tests = relative.filter(entry => /^dist\/extensions\/.*\.test\.js$/.test(entry));
+  if (tests.length > 0) failures.push(`an extension's tests are in the archive: ${tests.slice(0, 3).join(', ')}`);
+  // Read and checked as the product checks it when it loads, against the
+  // grant register shipped beside it: a manifest that is there but cannot load
+  // is no better than a missing one.
+  let loadable = false;
+  try {
+    const manifest = validateManifest(JSON.parse(extract('dist/extensions/on-the-air/manifest.json').toString('utf8')),
+      grantIds(validateGrantRegister(JSON.parse(extract('data/extension-grants.json').toString('utf8')))));
+    if (manifest.main !== 'main.js') failures.push('On the Air\'s packaged manifest does not name the main.js shipped beside it');
+    else loadable = true;
+  } catch (error) {
+    failures.push(`On the Air's packaged manifest would not load: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (loadable && tests.length === 0) notes.push('On the Air ships in the package with the extension host, its manifest loads, and none of its tests do');
+}
+
+// --------------------------------------------------------------------------
+// 6. The control for the control: the bundle has to hold the shell's own
 // words, or a bundle that failed to build would look clean.
 let bundle;
 try {
-  bundle = asar.extractFile(archive, 'dist/renderer/app.js').toString('utf8');
+  bundle = extract('dist/renderer/app.js').toString('utf8');
 } catch {
   failures.push('dist/renderer/app.js is not in the archive');
 }

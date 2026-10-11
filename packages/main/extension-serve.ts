@@ -132,7 +132,8 @@ export function createServe(deps: ServeDeps) {
   };
 }
 
-export function buildInventory(deps: ServeDeps): ExtensionInventory {
+// `off` is the operator's list of extensions turned off (QGD-HOM-0007).
+export function buildInventory(deps: ServeDeps, off: readonly string[] = []): ExtensionInventory {
   const allowed = deps.ports.allowed();
   return {
     extensions: deps.extensions.map(entry => {
@@ -140,6 +141,8 @@ export function buildInventory(deps: ServeDeps): ExtensionInventory {
       const { id, name, tier, version } = extension.manifest;
       return {
         id, name, tier, version,
+        cards: extension.manifest.contributes.cards.map(card => card.name),
+        enabled: !off.includes(id),
         grants: extension.manifest.grants.map(grantId => {
           const grant = findGrant(deps.register, grantId);
           return {

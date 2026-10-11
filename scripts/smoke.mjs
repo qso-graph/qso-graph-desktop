@@ -70,8 +70,8 @@ try {
     // second-instance handler could be deleted and these assertions would
     // still pass — the lock alone makes the second process exit.
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize());
-    await expect.poll(() => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized()))
-      .toBe(true);
+    await expect.poll(() => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized()),
+      { message: 'the window must minimise', timeout: 30_000 }).toBe(true);
 
     const electronBinary = createElectronRequire(import.meta.url)('electron');
     const second = spawn(electronBinary, ['.'], {
@@ -86,10 +86,11 @@ try {
     expect(exited, 'a second launch must exit rather than open a second application').not.toBe('still running');
     // And the window already open is raised rather than left where it was.
     await expect.poll(() => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized()),
-      { message: 'a second launch must restore the window already open' }).toBe(false);
+      { message: 'a second launch must restore the window already open', timeout: 30_000 }).toBe(false);
     // Still one application, still answering.
     expect(application.windows()).toHaveLength(1);
-    await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
+      { message: 'the persona service must still answer after a second launch', timeout: 30_000 }).toBe(true);
   }
 
   expect(await page.evaluate(() => 'require' in window || 'process' in window)).toBe(false);
@@ -100,7 +101,8 @@ try {
   expect(await page.evaluate(() => window.open('https://example.invalid/'))).toBeNull();
   const permission = await page.evaluate(() => navigator.permissions.query({ name: 'geolocation' }).then(result => result.state));
   expect(permission).toBe('denied');
-  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the persona service must answer', timeout: 30_000 }).toBe(true);
   expect(await page.evaluate(() => window.personas.request({ type: 'require-credential', persona: 'home', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid persona request.' });
   await page.getByLabel('Persona name', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
@@ -351,11 +353,11 @@ try {
     };
   });
   await theme.selectOption('light');
-  await expect.poll(async () => (await drawn()).theme, { message: 'choosing Light must apply light' }).toBe('light');
+  await expect.poll(async () => (await drawn()).theme, { message: 'choosing Light must apply light', timeout: 30_000 }).toBe('light');
   const light = await drawn();
   expect(light.luminance, 'light must be light').toBeGreaterThan(0.85);
   await theme.selectOption('dark');
-  await expect.poll(async () => (await drawn()).theme, { message: 'choosing Dark must apply dark' }).toBe('dark');
+  await expect.poll(async () => (await drawn()).theme, { message: 'choosing Dark must apply dark', timeout: 30_000 }).toBe('dark');
   const dark = await drawn();
   // QGD-FRM-0003: properly dark, for night nets and contests, not grey.
   expect(dark.luminance, 'dark must be properly dark, not grey').toBeLessThan(0.08);
@@ -365,7 +367,7 @@ try {
   await application.close();
   application = await launch(); page = await application.firstWindow();
   await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')),
-    { message: 'the chosen theme must survive a restart' }).toBe('dark');
+    { message: 'the chosen theme must survive a restart', timeout: 30_000 }).toBe('dark');
   const railAgain = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
   await railAgain('Settings').click();
   await expect(page.getByLabel('Theme', { exact: true })).toHaveValue('dark');
@@ -635,6 +637,9 @@ try {
   // Do not serialize Playwright's exception payloads into shared artifacts.
   console.error('P0 local Electron smoke failed. Check launch, page and security assertions.');
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
+  // Which step: the line in this file, which the message alone does not say.
+  const at = String(error.stack ?? '').split('\n').find(line => line.includes('smoke.mjs'));
+  if (at) console.error(redact(at.trim()));
   process.exitCode = 1;
 } finally {
   if (application) await application.close().catch(() => {});

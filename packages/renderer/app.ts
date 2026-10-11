@@ -10,7 +10,7 @@ import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
-import type { ExtensionsCommand, ExtensionsReply } from '../main/extensions-contract.js';
+import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
 import { createShellStore } from './shell-store.js';
 import { createHomeStore } from './home-store.js';
 import { forStore } from '../personas/credential-store.js';
@@ -56,7 +56,7 @@ home.start();
 mount(Shell, {
   target: document.body,
   props: {
-    store: shell, home, onChooseTheme: setThemeChoice, onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
@@ -476,6 +476,25 @@ async function loadTheme(): Promise<void> {
 }
 
 void loadTheme();
+
+// Settings' switches for the extensions (QGD-HOM-0007). Every reply is checked
+// and read back, so a switch shows what the main process recorded rather than
+// what was clicked.
+function takeExtensions(reply: unknown): boolean {
+  if (!isExtensionsReply(reply) || !reply.ok) return false;
+  shell.set({ extensions: reply.inventory.extensions.map(({ id, name, cards, enabled }) => ({ id, name, cards: [...cards], enabled })) });
+  return true;
+}
+
+export async function setExtensionEnabled(id: string, enabled: boolean): Promise<boolean> {
+  try {
+    return takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+  } catch {
+    return false;
+  }
+}
+
+void window.extensions?.inventory({ type: 'inventory' }).then(takeExtensions, () => undefined);
 // What Settings needs to show the applications and their grants
 // (QGD-APP-0012). Asked for once at start and re-read after every change;
 // nothing waits for it, and Settings says it is reading until it answers.

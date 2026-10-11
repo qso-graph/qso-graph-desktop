@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
 import { startPersonaBroker } from './persona-broker.js';
 import { createLogger } from '../logging/logger.js';
-import { load, startSettingsBroker } from './settings.js';
+import { load, save, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
 import { windowVisibility } from './window-visibility.js';
 import { startAppearanceBroker } from './system-appearance.js';
@@ -14,6 +14,8 @@ import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
 import { startExtensionBroker } from './extension-broker.js';
+import { extensionDirectories } from './extension-directories.js';
+import { sourceFixtures } from './source-fixtures.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
 
 // The compiled tree is dist/<package>/, so this file is dist/main/main.js and
@@ -159,19 +161,20 @@ if (!app.requestSingleInstanceLock()) {
     // `apps/` is empty until QGD-PRT-0108, so an ordinary run loads no
     // applications at all. That is the correct result, not a failure: the
     // broker still enforces, and there is nothing yet to enforce against.
+    // The suites' recorded responses, never in a packaged application
+    // (source-fixtures.ts).
+    const recorded = sourceFixtures(app.isPackaged, process.env.QG_DESKTOP_SOURCE_FIXTURES);
     const extensionBroker = await startExtensionBroker({
-      // Overridable so a suite can point the product at manifests of its own rather than editing a
-      // tracked one, which an interrupted run would leave behind.
-      // Never in a packaged application: there, only the extensions shipped in
-      // the package load (QGD-APP-0017), whatever the environment says.
-      directories: process.env.QG_DESKTOP_EXTENSION_DIRS && !app.isPackaged
-        ? process.env.QG_DESKTOP_EXTENSION_DIRS.split(':').filter(Boolean)
-        // The built-in extensions, as the build placed them (build-extensions.mjs).
-        : [join(app.getAppPath(), 'dist', 'extensions')],
+      // The package's own extensions, and in a development run any more
+      // directories the environment names; those are never official, and a
+      // packaged application never reads them (QGD-APP-0017).
+      directories: extensionDirectories(app.isPackaged, app.getAppPath(), process.env.QG_DESKTOP_EXTENSION_DIRS),
       grantRegisterFile: join(app.getAppPath(), 'data', 'extension-grants.json'),
       sourceRegisterFile: join(app.getAppPath(), 'data', 'extension-sources.json'),
       limitsFile: join(app.getAppPath(), 'data', 'extension-limits.json'),
       distDirectory: join(app.getAppPath(), 'dist'),
+      readOff: () => load().extensionsOff,
+      writeOff: off => save({ ...load(), extensionsOff: [...off] }),
       ports: {
         allowed: () => load().grants,
         personas: async () => {
@@ -185,6 +188,7 @@ if (!app.requestSingleInstanceLock()) {
           return brief;
         },
         fetchSource: async url => {
+          if (recorded) return recorded(url);
           const fetched = await personas.fetchReference(url);
           if (typeof fetched === 'string') throw new Error(fetched);
           // The core hands back bytes, because reference data includes a zip.
@@ -212,6 +216,7 @@ if (!app.requestSingleInstanceLock()) {
     const homeBroker = extensionBroker ? startHomeBroker({
       loaded: () => extensionBroker.loaded(),
       supervisor: extensionBroker.supervisor,
+      enablement: extensionBroker.enablement,
       onPersonasChanged: personas.onPersonasChanged
     }) : undefined;
 

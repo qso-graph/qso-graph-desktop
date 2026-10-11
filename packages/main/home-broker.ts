@@ -7,13 +7,15 @@ import { allowsSender } from '../personas/persona-contract.js';
 import { createLogger } from '../logging/logger.js';
 import type { LoadedExtension } from './extension-runtime.js';
 import type { Supervisor } from './extension-host-supervisor.js';
-import { createCardScheduler, type CatalogueCard } from './home-cards.js';
+import type { Enablement } from './extension-enablement.js';
+import { createCardScheduler, keepHidden, type CatalogueCard } from './home-cards.js';
 import { HOME_CARD_CHANNEL, HOME_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
 import { load, save } from './settings.js';
 
 export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
   supervisor: Supervisor;
+  enablement: Pick<Enablement, 'isOn' | 'onChange'>;
   onPersonasChanged: (listener: () => void) => void;
   logDirectory?: string;
 }
@@ -22,8 +24,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   const log = createLogger('home', options.logDirectory);
 
   // Every card a loaded extension offers. An extension that is turned off
-  // offers none (QGD-HOM-0007); that arrives with the switch to turn it off.
-  const catalogue = (): CatalogueCard[] => options.loaded().flatMap(extension =>
+  // offers none (QGD-HOM-0007).
+  const catalogue = (): CatalogueCard[] => options.loaded().filter(extension => options.enablement.isOn(extension.manifest.id)).flatMap(extension =>
     extension.manifest.contributes.cards.map(card => ({
       key: `${extension.manifest.id}/${card.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
       card: card.id, name: card.name, description: card.description, refreshSeconds: card.refreshSeconds
@@ -42,6 +44,9 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
     now: () => Date.now()
   });
   options.onPersonasChanged(() => scheduler.personasChanged());
+  // Turned off, its cards go and what they had in flight is cancelled; on
+  // again, they come back to the pins they held.
+  const stopListening = options.enablement.onChange(() => scheduler.changed());
 
   const state = (): HomeState => ({
     available: catalogue().map(({ key, name, description, extensionName }) => ({ key, name, description, extensionName })),
@@ -71,8 +76,13 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
         scheduler.setVisible(command.visible);
         return { ok: true, state: state() };
       case 'pin': {
-        // Saved as given: the order is the operator's (QGD-HOM-0003).
-        if (!save({ ...load(), pins: [...command.pins] })) return { ok: false, error: 'The pins could not be saved.' };
+        // Saved in the operator's order (QGD-HOM-0003), with the pins of an
+        // extension that is off kept after them while there is room, so its
+        // cards come back when it is turned on (QGD-HOM-0007).
+        const settings = load();
+        const pins = keepHidden(command.pins, settings.pins, catalogue());
+        if (!pins) return { ok: false, error: 'There is no room for that many pins beside those kept for extensions that are off.' };
+        if (!save({ ...settings, pins })) return { ok: false, error: 'The pins could not be saved.' };
         scheduler.changed();
         return { ok: true, state: state() };
       }
@@ -80,6 +90,6 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   });
 
   return {
-    stop: () => { scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); }
+    stop: () => { stopListening(); scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); }
   };
 }

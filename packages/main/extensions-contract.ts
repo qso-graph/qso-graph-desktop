@@ -31,6 +31,12 @@ export interface ExtensionEntry {
   readonly name: string;
   readonly tier: string;
   readonly version: string;
+  // The names of the cards it offers Home, so Settings can say what turning
+  // it off takes away.
+  readonly cards: readonly string[];
+  // Off when the operator turned it off (QGD-HOM-0007): it stays installed,
+  // offers no cards and is not started.
+  readonly enabled: boolean;
   // Every grant the manifest asked for, each with whether it is held.
   readonly grants: readonly GrantOffer[];
 }
@@ -47,14 +53,45 @@ export interface ExtensionInventory {
   readonly refused: readonly RefusedEntry[];
 }
 
-export type ExtensionsCommand = { readonly type: 'inventory' };
+export type ExtensionsCommand =
+  | { readonly type: 'inventory' }
+  | { readonly type: 'set-enabled'; readonly id: string; readonly enabled: boolean };
 
 export type ExtensionsReply =
   | { readonly ok: true; readonly inventory: ExtensionInventory }
   | { readonly ok: false; readonly error: string };
 
+const EXTENSION_ID = /^[a-z][a-z0-9-]{1,30}$/;
+
 export function validateExtensionsCommand(value: unknown): value is ExtensionsCommand {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const keys = Object.keys(value);
-  return keys.length === 1 && keys[0] === 'type' && (value as { type: unknown }).type === 'inventory';
+  const command = value as Record<string, unknown>;
+  const keys = Object.keys(command).sort().join(',');
+  if (command.type === 'inventory') return keys === 'type';
+  if (command.type === 'set-enabled') {
+    return keys === 'enabled,id,type' && typeof command.id === 'string' && EXTENSION_ID.test(command.id)
+      && typeof command.enabled === 'boolean';
+  }
+  return false;
+}
+
+// The window's check on what it is told (QGD-SEC-0006): only the fields
+// Settings shows, each bounded and plain.
+const plain = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit && !/[<>]/.test(value);
+
+function isShownEntry(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const entry = value as Record<string, unknown>;
+  return typeof entry.id === 'string' && EXTENSION_ID.test(entry.id) && plain(entry.name, 64)
+    && typeof entry.enabled === 'boolean'
+    && Array.isArray(entry.cards) && entry.cards.length <= 32 && entry.cards.every(card => plain(card, 48));
+}
+
+export function isExtensionsReply(value: unknown): value is ExtensionsReply {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const reply = value as Record<string, unknown>;
+  if (reply.ok === false) return typeof reply.error === 'string';
+  if (reply.ok !== true || typeof reply.inventory !== 'object' || reply.inventory === null) return false;
+  const extensions = (reply.inventory as Record<string, unknown>).extensions;
+  return Array.isArray(extensions) && extensions.length <= 64 && extensions.every(isShownEntry);
 }

@@ -9,13 +9,18 @@
 // see asserted too, because QGD-APP-0011 makes the words part of the
 // requirement rather than a nicety.
 import { readFile } from 'node:fs/promises';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   REQUEST_KINDS, RequestError, requiredGrant, validateRequest, type ExtensionRequest
 } from '../packages/extension-api/api-contract.js';
 import { LOADABLE_TIERS, TIERS, ManifestError, validateManifest } from '../packages/extension-api/manifest.js';
 import { RegisterError, grantIds, validateGrantRegister } from '../packages/extension-api/grants.js';
-import { extensionInfo, decide, loadExtensions, withGrants } from '../packages/main/extension-runtime.js';
+import { extensionInfo, decide, loadExtensions, readManifests, withGrants } from '../packages/main/extension-runtime.js';
+import { extensionDirectories } from '../packages/main/extension-directories.js';
+import { sourceFixtures } from '../packages/main/source-fixtures.js';
 
 const register = validateGrantRegister(JSON.parse(await readFile('data/extension-grants.json', 'utf8')));
 const known = grantIds(register);
@@ -24,7 +29,9 @@ const SOLAR = { id: 'solar', name: 'Space weather', manifestVersion: 1, tier: 'o
 const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
-const from = (...values: unknown[]) => values.map((value, at) => ({ source: `extensions/${at}/manifest.json`, value }));
+// Read from the package's own directory, as every official extension must be
+// (QGD-APP-0017); P8-provenance below covers one that was not.
+const from = (...values: unknown[]) => values.map((value, at) => ({ source: `extensions/${at}/manifest.json`, value, shipped: true }));
 
 describe('a manifest is read before any code is', () => {
   it('accepts a well-formed one and keeps exactly what it declared', () => {
@@ -265,5 +272,53 @@ describe('the grant register', () => {
 describe('persona.active (QGD-CRD-0010)', () => {
   it('needs the same grant as the persona list, because it is the same information', () => {
     expect(requiredGrant({ kind: 'persona.active' })).toBe('persona:list');
+  });
+});
+
+describe('P8-provenance: official only when shipped in the package (QGD-APP-0017)', () => {
+  it('loads an official extension read from the package', () => {
+    expect(loadExtensions(from(SOLAR), register).loaded.map(entry => entry.manifest.id)).toEqual(['solar']);
+  });
+
+  it('refuses the same extension read from anywhere else, whatever its manifest says', () => {
+    for (const shipped of [false, undefined]) {
+      const result = loadExtensions([{ source: 'elsewhere/solar/manifest.json', value: SOLAR, shipped }], register);
+      expect(result.loaded).toEqual([]);
+      expect(result.refused[0].reason).toMatch(/not shipped with QSO Graph Desktop/);
+    }
+  });
+
+  it('marks what it reads as shipped only when the caller says the directory is the package\'s', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qgd-provenance-'));
+    try {
+      mkdirSync(join(root, 'solar'));
+      writeFileSync(join(root, 'solar', 'manifest.json'), JSON.stringify(SOLAR));
+      expect((await readManifests([root]))[0].shipped).toBe(false);
+      expect((await readManifests([root], true))[0].shipped).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('never reads another directory in a packaged application, and reads the package\'s in both', () => {
+    const appPath = join('app', 'root');
+    expect(extensionDirectories(true, appPath, join('tmp', 'mine'))).toEqual({ shipped: [join(appPath, 'dist', 'extensions')], others: [] });
+    expect(extensionDirectories(false, appPath, 'a:b')).toEqual({ shipped: [join(appPath, 'dist', 'extensions')], others: ['a', 'b'] });
+    expect(extensionDirectories(false, appPath, undefined).others).toEqual([]);
+  });
+});
+
+describe('recorded responses for the suites, never in a package', () => {
+  it('is off in a packaged application and when no directory is named', () => {
+    expect(sourceFixtures(true, 'tests/fixtures/noaa/quiet')).toBeUndefined();
+    expect(sourceFixtures(false, undefined)).toBeUndefined();
+  });
+
+  it('answers a source from the file its URL names, and nothing outside the directory', async () => {
+    const recorded = sourceFixtures(false, join('tests', 'fixtures', 'noaa', 'quiet'))!;
+    const flux = await recorded('https://services.swpc.noaa.gov/products/summary/10cm-flux.json');
+    expect(JSON.parse(flux.body)).toBeTruthy();
+    await expect(recorded('https://services.swpc.noaa.gov/products/%2e%2e%2fexpected.json')).rejects.toThrow();
+    await expect(recorded('https://services.swpc.noaa.gov/products/')).rejects.toThrow();
   });
 });

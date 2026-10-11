@@ -22,7 +22,7 @@ concurrency:
 env:
   # The newest glibc the Linux credential core may need (scripts/build-native.mjs).
   QG_GLIBC_MAX: '2.28'
-  SUITES: keychain-roundtrip,credential-editing,persona-export,electron-smoke,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
+  SUITES: keychain-roundtrip,credential-editing,persona-export,electron-smoke,home-cards,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
 
 jobs:
   check:
@@ -207,6 +207,9 @@ jobs:
           echo "QG_PERSONA_CORE_LIB=$PWD/.cache/libqg_persona_core.so" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run installer
+      # What shipped: the built-in extensions and the host are in it, and no
+      # development material is (QGD-APP-0017).
+      - run: npm run verify -- --suites package-contents
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: qso-graph-desktop-${{ runner.os }}-${{ runner.arch }}

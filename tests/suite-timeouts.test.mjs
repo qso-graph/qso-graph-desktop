@@ -2,7 +2,7 @@
 // A suite's outer bound must clear the waits inside it.
 //
 // The defect this is a control on: `make verify` killed every suite at a flat
-// 120s, while electron-smoke waits 705s in total and electron-audit 300s. A
+// 120s, while electron-smoke waits 895s in total and electron-audit 300s. A
 // suite killed by the runner is not a suite that failed, and the report cannot
 // tell them apart.
 //
@@ -21,8 +21,8 @@ const WAITS = /timeout:\s*([\d_]+)/g;
 
 // The sum, not the longest.
 //
-// The longest alone is not the worst case: electron-smoke holds nineteen
-// waits, the largest 180s and the total 705s, so a bound that merely clears
+// The longest alone is not the worst case: electron-smoke holds twenty-nine
+// waits, the largest 180s and the total 895s, so a bound that merely clears
 // the biggest single wait still kills it. If every wait falls due in turn, the
 // suite needs their sum — an overestimate where the waits are alternatives,
 // which is the safe direction for a ceiling.

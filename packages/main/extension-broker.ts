@@ -26,6 +26,8 @@ import { dirname, join } from 'node:path';
 import type { Port } from '../extension-host/protocol.js';
 import { createSupervisor, type Supervisor } from './extension-host-supervisor.js';
 import { parseLimits } from './extension-limits.js';
+import { createEnablement, type Enablement } from './extension-enablement.js';
+import type { ExtensionDirectories } from './extension-directories.js';
 import { allowsSender } from '../personas/persona-contract.js';
 import { createLogger } from '../logging/logger.js';
 import { validateGrantRegister, type GrantRegister } from '../extension-api/grants.js';
@@ -47,9 +49,10 @@ import {
 export const EXTENSIONS_INVENTORY_CHANNEL = 'extensions:inventory';
 
 export interface ExtensionBrokerOptions {
-  // Where manifests are read from. One directory per application, each with a
-  // manifest.json.
-  directories: readonly string[];
+  // Where manifests are read from: directories of extensions, each in a
+  // folder with a manifest.json. Only `shipped`'s may be official
+  // (QGD-APP-0017).
+  directories: ExtensionDirectories;
   grantRegisterFile: string;
   sourceRegisterFile: string;
   // data/extension-limits.json (QGD-APP-0021, QGD-APP-0022).
@@ -57,6 +60,10 @@ export interface ExtensionBrokerOptions {
   // Where the built core is, for the extension host's entry file.
   distDirectory: string;
   ports: ExtensionBrokerPorts;
+  // The extensions the operator turned off, kept in settings.json
+  // (QGD-HOM-0007).
+  readOff: () => readonly string[];
+  writeOff: (off: readonly string[]) => boolean;
   logDirectory?: string;
 }
 
@@ -68,6 +75,8 @@ export interface ExtensionBroker {
   refused: () => readonly { id: string | undefined; source: string; reason: string }[];
   // The extension host's supervisor: activation and card requests (QGD-APP-0015).
   supervisor: Supervisor;
+  // Which extensions are on, and word when one is turned off or on (QGD-HOM-0007).
+  enablement: Enablement;
 }
 
 function adapt(port: MessagePortMain): Port {
@@ -84,7 +93,10 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
     JSON.parse(await readFile(options.grantRegisterFile, 'utf8')));
   const sources = await readSourceRegister(options.sourceRegisterFile);
 
-  const result = loadExtensions(await readManifests(options.directories), register, options.ports.allowed());
+  const result = loadExtensions([
+    ...await readManifests(options.directories.shipped, true),
+    ...await readManifests(options.directories.others)
+  ], register, options.ports.allowed());
   for (const entry of result.refused) {
     // QGD-APP-0011: a refusal is visible. An extension that did not load is
     // said so, with the subject named.
@@ -133,12 +145,25 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
     log
   });
 
-  const inventoryHandler = (event: Electron.IpcMainInvokeEvent, command: unknown): ExtensionsReply => {
+  const enablement = createEnablement({
+    loaded: () => deps.extensions.map(extension => extension.manifest.id),
+    readOff: options.readOff,
+    writeOff: options.writeOff,
+    supervisor
+  });
+  await enablement.start();
+
+  const inventoryHandler = async (event: Electron.IpcMainInvokeEvent, command: unknown): Promise<ExtensionsReply> => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url)) {
       return { ok: false, error: 'That request did not come from the application window.' };
     }
     if (!validateExtensionsCommand(command)) return { ok: false, error: 'That is not a request this product serves.' };
-    return { ok: true, inventory: buildInventory(deps) };
+    if (command.type === 'set-enabled') {
+      const done = await enablement.set(command.id, command.enabled);
+      if (!done.ok) return done;
+      log.info({ extension: command.id, enabled: command.enabled }, 'extension turned on or off');
+    }
+    return { ok: true, inventory: buildInventory(deps, options.readOff()) };
   };
   ipcMain.handle(EXTENSIONS_INVENTORY_CHANNEL, inventoryHandler);
 
@@ -156,6 +181,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   return {
     stop: () => { supervisor.stop(); ipcMain.removeHandler(EXTENSIONS_INVENTORY_CHANNEL); },
     supervisor,
+    enablement,
     loaded: () => deps.extensions,
     refused: () => result.refused
   };

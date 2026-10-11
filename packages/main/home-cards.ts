@@ -11,6 +11,7 @@
 // it runs under unit tests with time the test controls.
 import type { CardView } from './home-contract.js';
 import type { CardOutcome } from './extension-host-supervisor.js';
+import { MAX_PINS } from './settings-contract.js';
 
 // A card some loaded, enabled extension offers. `key` is "extension/card",
 // which is what a pin names.
@@ -51,9 +52,15 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
   let stopped = false;
   const tracked = new Map<string, Tracked>();
   // When each card was last asked, kept apart from everything else: unpinning
-  // and re-pinning, hiding Home or changing persona never let a card be asked
-  // sooner than its interval allows (QGD-HOM-0005).
+  // and re-pinning or hiding Home never let a card be asked sooner than its
+  // interval allows (QGD-HOM-0005). A persona change is the one exception,
+  // below.
   const lastAsked = new Map<string, number>();
+  // What a card last said, kept when it stops being shown (unpinned, or its
+  // extension turned off), so that shown again inside its interval it shows
+  // that rather than "Getting the latest…" until the interval runs out. A
+  // persona change drops it with everything else.
+  const kept = new Map<string, CardView>();
 
   // The pinned cards that some extension offers, in pin order.
   function shown(): CatalogueCard[] {
@@ -76,8 +83,13 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
 
   function schedule(card: CatalogueCard): void {
     if (!visible || stopped) return;
-    const entry = tracked.get(card.key) ?? { generation: 0 };
-    tracked.set(card.key, entry);
+    let entry = tracked.get(card.key);
+    if (!entry) {
+      entry = { generation: 0 };
+      tracked.set(card.key, entry);
+      const before = kept.get(card.key);
+      if (before) { kept.delete(card.key); publish(entry, before); }
+    }
     if (entry.timer || entry.work) return;
     const last = lastAsked.get(card.key);
     const due = last === undefined ? 0 : last + card.refreshSeconds * 1000 - deps.now();
@@ -115,8 +127,9 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
     for (const [key, entry] of tracked) {
       if (keep.has(key)) continue;
       // Unpinned, or its extension turned off: what is in flight is cancelled
-      // and nothing more is asked (QGD-HOM-0005).
+      // and nothing more is asked (QGD-HOM-0005). An answer it had is kept.
       halt(entry);
+      if (entry.view && entry.view.state !== 'waiting') kept.set(key, entry.view);
       tracked.delete(key);
     }
     for (const card of shown()) schedule(card);
@@ -134,17 +147,23 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
     changed(): void { reconcile(); },
     // A persona was added, changed, removed or made active. What is shown and
     // what is in flight belong to the old one: both are dropped, and each card
-    // is asked again when its interval allows.
+    // is asked again, once, when Home shows (QGD-HOM-0005). Waiting out the
+    // interval instead left Conditions saying "Getting the latest…" for
+    // fifteen minutes after a new user made their first persona. Persona
+    // changes are made on the Personas page, while Home is hidden, so this
+    // costs at most one question per card per return to Home.
     personasChanged(): void {
       for (const [key, entry] of tracked) {
         halt(entry);
         publish(entry, { key, state: 'waiting' });
       }
+      lastAsked.clear();
+      kept.clear();
       reconcile();
     },
     // What each shown card last said, for a screen that has just opened.
     views(): CardView[] {
-      return shown().map(card => tracked.get(card.key)?.view ?? { key: card.key, state: 'waiting' });
+      return shown().map(card => tracked.get(card.key)?.view ?? kept.get(card.key) ?? { key: card.key, state: 'waiting' });
     },
     shown,
     stop(): void {
@@ -156,3 +175,21 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
 }
 
 export type CardScheduler = ReturnType<typeof createCardScheduler>;
+
+// The pins to save when the operator saves `chosen`. "Customize your pins"
+// lists only the cards that are offered, so a pin whose extension is turned
+// off is not in what it sends back. It keeps its place: the chosen cards fill
+// the offered cards' places in order, and any more follow (QGD-HOM-0003,
+// QGD-HOM-0007). Undefined when they would not all fit, which the picker
+// prevents by offering only the room that is left (see hiddenPins).
+export function keepHidden(chosen: readonly string[], stored: readonly string[], offered: readonly CatalogueCard[]): string[] | undefined {
+  const keys = new Set(offered.map(card => card.key));
+  const queue = chosen.filter(pin => keys.has(pin));
+  const out: string[] = [];
+  for (const pin of stored) {
+    if (!keys.has(pin)) out.push(pin);
+    else if (queue.length > 0) out.push(queue.shift()!);
+  }
+  out.push(...queue);
+  return out.length <= MAX_PINS ? out : undefined;
+}

@@ -81,8 +81,13 @@ export function heldGrants(
 // name, and whatever JSON.parse produced. Parsing is the caller's because a
 // file that is not JSON is a different failure from a manifest that is wrong,
 // and both have to be reported rather than one masking the other.
+//
+// `shipped` says the manifest was read from the application package's own
+// extensions directory. Only those may be official (QGD-APP-0017): a manifest
+// anywhere else that says `"tier": "official"` is refused, because the claim
+// confers nothing and an official extension holds its grants unasked.
 export function loadExtensions(
-  manifests: readonly { readonly source: string; readonly value: unknown }[],
+  manifests: readonly { readonly source: string; readonly value: unknown; readonly shipped?: boolean }[],
   register: GrantRegister,
   allowed: AllowedGrants = {}
 ): LoadResult {
@@ -102,6 +107,15 @@ export function loadExtensions(
         source: candidate.source,
         reason: failure?.message ?? 'The manifest could not be read.',
         subject: failure?.subject
+      });
+      continue;
+    }
+    if (manifest.tier === 'official' && candidate.shipped !== true) {
+      refused.push({
+        id: manifest.id,
+        source: candidate.source,
+        reason: `"${manifest.id}" says it is official, but it was not shipped with QSO Graph Desktop, so it is not loaded.`,
+        subject: manifest.id
       });
       continue;
     }
@@ -214,10 +228,12 @@ export async function readSourceRegister(file: string): Promise<SourceRegister> 
 // Read from a directory of application directories. A manifest that cannot be
 // parsed is reported as a refusal rather than skipped: an extension that
 // silently fails to appear is harder to diagnose than one that says why.
+// `shipped` marks every manifest found as the package's own (QGD-APP-0017);
+// the caller knows which directories those are, a manifest never does.
 export async function readManifests(
-  directories: readonly string[]
-): Promise<{ source: string; value: unknown }[]> {
-  const found: { source: string; value: unknown }[] = [];
+  directories: readonly string[], shipped = false
+): Promise<{ source: string; value: unknown; shipped: boolean }[]> {
+  const found: { source: string; value: unknown; shipped: boolean }[] = [];
   for (const directory of directories) {
     let entries;
     try {
@@ -232,11 +248,11 @@ export async function readManifests(
       if (!entry.isDirectory()) continue;
       const file = join(directory, entry.name, 'manifest.json');
       try {
-        found.push({ source: file, value: JSON.parse(await readFile(file, 'utf8')) });
+        found.push({ source: file, value: JSON.parse(await readFile(file, 'utf8')), shipped });
       } catch (error) {
         const code = (error as { code?: string }).code;
         if (code === 'ENOENT') continue;
-        found.push({ source: file, value: { __unreadable: String(error) } });
+        found.push({ source: file, value: { __unreadable: String(error) }, shipped });
       }
     }
   }
