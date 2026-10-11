@@ -11,7 +11,9 @@ export function redact(value) {
 export function signOff(signedOff) {
   const tail = 'A green local run is evidence, not sign-off.';
   if (!Array.isArray(signedOff) || signedOff.length === 0) return `Parts signed off: **none**. ${tail}`;
-  const parts = signedOff.map(entry => `${entry.part} (${entry.id}) by ${entry.by}, ${entry.date}`).join('; ');
+  // A superseded entry stays in the register as a dated record, and is not
+  // reported as standing.
+  const parts = signedOff.filter(entry => !entry.supersededBy).map(entry => `${entry.part} (${entry.id}) by ${entry.by}, ${entry.date}`).join('; ');
   return `Parts signed off: **${parts}**. ${tail}`;
 }
 
