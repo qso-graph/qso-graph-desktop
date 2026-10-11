@@ -42,7 +42,12 @@ export const SUITE_TIMEOUT_MS = {
   // An npm script, so its waits are not in a scripts/ file to read. Packaging
   // was inside the flat 120s bound on this machine with no headroom at all on
   // a slower one.
-  package: 600_000
+  package: 600_000,
+  // cargo test, compiling the credential core and AWS-LC's FIPS module from
+  // nothing when the build used a prebuilt core (CI's Linux jobs, which build
+  // it against glibc 2.28 in a container). Minutes on a two-core runner; it
+  // was killed at the flat 120 s and reported as a failure.
+  'rust-unit': 900_000
 };
 
 export function suiteTimeout(name) {

@@ -59,18 +59,21 @@ for (const [name, args] of commands) {
     name,
     result: passed ? 'PASS' : 'FAIL',
     ...(leaked.length ? { sentinelsPrinted: leaked.length } : {}),
-    ...(passed ? {} : { failure: summarize(output, leaked.length) })
+    // Killed at its time limit is said as such: otherwise it reads as a
+    // failure, with whatever the suite happened to print last.
+    ...(passed ? {} : { failure: summarize(output, leaked.length,
+      run.error && /ETIMEDOUT/.test(String(run.error)) ? `Stopped at its time limit of ${suiteTimeout(name) / 1000} s, before it finished.` : undefined) })
   });
 }
 // What a failed suite said, in the lines that say what failed: the failing
 // tests, their errors, and which test printed what. The first lines of the
 // output were mostly the tests that passed, so the failure was cut off. A line
 // holding a sentinel is never shown, whatever else it says (QGD-CRD-0006).
-function summarize(output, leaked) {
+function summarize(output, leaked, stopped) {
   const lines = redact(output).split('\n').filter(line => line.trim() && sentinelsIn(line).length === 0);
   const telling = lines.filter(line => /×|❯|FAIL|Error|expected|Expected|Received|Timed out|timed out|stdout \||stderr \|/.test(line));
   const shown = (telling.length ? telling : lines).slice(0, 40).join('\n');
-  const head = leaked ? `Printed ${leaked} credential sentinel(s) to its output. Values omitted.\n` : '';
+  const head = (stopped ? `${stopped}\n` : '') + (leaked ? `Printed ${leaked} credential sentinel(s) to its output. Values omitted.\n` : '');
   return (head + shown).trim() || 'Command did not finish.';
 }
 
