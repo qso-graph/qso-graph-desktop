@@ -437,3 +437,36 @@ extension broker, and `extension_state` in `state.sqlite`, by a migration rather
 store made before the rename keeps what it holds. Requirement IDs keep the `QGD-APP` prefix and
 registered test IDs keep their names, because an identifier that changes breaks every reference to it.
 
+
+## 15. Three systems, four builds, one floor
+
+Before Release 1 only macOS is required (`QGD-SCP-0004`), and no Part's gate waits on another
+system. KI7MT brought Windows and Linux into CI anyway, as Mission 2 (2026-10-11), because
+problems found on the third system are cheaper found early than at Release 1. They were.
+Every push now runs the development pass, the window and credential-store suites, and the
+installers on macOS arm64, Windows x64, Linux x64 and Linux arm64 (`QGD-SCP-0002`).
+
+What each system taught:
+
+- **Windows.** `cargo` is `cargo.exe`; `node_modules/.bin` holds shell scripts Windows cannot run,
+  so tools are started through Node from their own JavaScript; the temp folder and the checkout
+  sit on different drives, so a rename between them fails; Defender holds a file it has just
+  seen written while it scans it, so the reference swap retries a refused rename. That last one
+  is a real product fix: users run Defender too.
+- **Linux.** A headless test needs a display, a Secret Service and a window manager, as a desktop
+  has, and Chromium's sandbox needs the user namespaces Ubuntu 24.04 restricts. The sandbox stays
+  on.
+- **Every system.** What the suites asked of the operating system (the process list, freezing a
+  process, a process's sockets) goes through each system's own tool, in one module
+  (`scripts/platform-process.mjs`), so no check is skipped on any of them.
+- **The credential store has three names.** Keychain, Credential Manager and the keyring. The
+  screens and messages now say the one the operator has (`QGD-CRD-0014`).
+
+**The floor is a Raspberry Pi 5** (`QGD-SCP-0009`): if it runs well there, it runs on any ham's
+machine, and it keeps the core lean. CI's arm64 runner proves the build runs on arm64, not that it
+is fast enough on a Pi, so a real Pi 5 is the check that counts. The first one on a real Pi found
+what CI could not: the Linux credential core, built on Ubuntu 24.04, needed glibc 2.39 and would
+not load on Raspberry Pi OS's 2.36, nor on Debian 12, Ubuntu 22.04 or Rocky 9. CI never saw it
+because it built and tested on the same new system. The core is now built against glibc 2.28,
+and the build refuses one that needs more (`QGD-SCP-0008`). On the Pi it starts in about four
+seconds and uses about 500 MB across its processes.

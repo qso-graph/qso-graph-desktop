@@ -71,7 +71,10 @@ make package    # a packaged .app in build output (no installer)
 make installer  # the installer
 ```
 
-macOS on Apple silicon is the only platform before Release 1 (`QGD-SCP-0002`).
+macOS on Apple silicon is the primary platform, and CI builds and tests Windows and Linux (x64 and
+arm64) on every push (`QGD-SCP-0002`). Code that touches the system goes through each platform's
+own tool: `scripts/platform-process.mjs` for processes, `credential-store.ts` for the store's name.
+The floor is a Raspberry Pi 5 (`QGD-SCP-0009`); Linux packages target glibc 2.28 (`QGD-SCP-0008`).
 
 ## Codebase structure
 

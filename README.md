@@ -17,14 +17,17 @@ The core gives every extension, for free:
 An extension author writes only the ham part. Our own code, built from the ground up on proven
 open-source practice.
 
-**Status:** a local macOS preview of QSO Graph Desktop with a Rust credential core. Create or
-edit station personas, select the active persona, and save or remove service
-credentials in macOS Keychain. Saved passwords and API keys are never displayed.
+**Status:** a preview. macOS on Apple silicon is the primary platform, and every change is also
+built and tested on Windows and on Linux, x64 and arm64 (a Raspberry Pi 5 is the floor,
+`QGD-SCP-0009`). Each CI run carries unsigned installers to try: a DMG, a Windows installer, and an
+AppImage, `.deb` and `.rpm`. Create or edit station personas, select the active persona, and save
+or remove service credentials in the system's own store: Keychain on macOS, Credential Manager on
+Windows, the keyring on Linux. Saved passwords and API keys are never displayed.
 Remove password and API key independently, choose which to prefer, or remove a
 persona together with its credentials. Saving one secret keeps the other saved
 secret; use the explicit removal controls to delete it.
 
-The credential core owns its own Keychain entry names: the `io.qso-graph.desktop` service
+The credential core owns its own entry names in that store: the `io.qso-graph.desktop` service
 with `persona:provider` accounts, a `personas.json` index and a `current.txt` active marker
 (`QGD-CRD-0003`). Those live in a `personas` directory inside the one the operating system
 gives the application — `~/Library/Application Support/QSO Graph Desktop` on macOS — beside the
@@ -37,12 +40,14 @@ The rest of the desktop shell is still pending.
 TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
 macOS).
 
-On a Mac with Apple silicon, use the Node version in `.node-version`, Rust and CMake; run `make setup`, then `make start`.
+To build, use the Node version in `.node-version`, Rust, CMake and Go (AWS-LC's FIPS module
+builds with Go); run `make setup`, then `make start`. Windows has no `make`: the npm commands it
+runs are spelled out in `.github/workflows/ci.yml`.
 `make setup` installs the npm dependencies and fetches the pinned ADIF release, verified by
 SHA-256 before it is unpacked, and POTA's lists. There is no database server: storage is SQLite,
 through the `node:sqlite` that Electron already carries (`QGD-ENG-0002`).
-`make package` produces `out/mac-arm64/QSO Graph Desktop.app`.
-`make installer` produces a local DMG. Signing and publication are deferred.
+`make package` produces the unpacked application under `out/`, and `make installer` the
+platform's installers. Signing and publication are deferred (`QGD-SCP-0003`).
 
 `make verify` builds and packages the application, runs the unit and Electron smoke suites,
 and checks that the hardened native bundle launches and stops. It

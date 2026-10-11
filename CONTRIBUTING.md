@@ -25,8 +25,10 @@ The template, the extension API's documentation and an example extension are on 
 
 ## Setting up
 
-Before Release 1 the only supported platform is macOS on Apple silicon (`QGD-SCP-0002`). You need
-the Node version in `.node-version`, a Rust toolchain and CMake.
+macOS on Apple silicon is the primary platform; CI also builds and tests Windows and Linux, x64 and
+arm64, on every push (`QGD-SCP-0002`). You need the Node version in `.node-version`, a Rust
+toolchain, CMake and Go. On Windows there is no `make`; `.github/workflows/ci.yml` spells out the
+npm commands.
 
 ```bash
 make setup     # npm ci, plus the pinned ADIF release (checksum-verified) and POTA's lists
