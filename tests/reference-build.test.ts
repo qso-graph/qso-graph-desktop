@@ -9,7 +9,7 @@
 // park list is cut to its first 3,000 rows so each build takes a fraction of a
 // second. What a full list does is the pota-load suite's business. Like the
 // reader suite, this one is skipped when the vendor directory is missing.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -61,7 +61,12 @@ const inline: RunBuild = (target, ddl, inputs) => buildReference(target, ddl, in
 
 let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'qg-reference-')); });
-afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+// Windows holds a file it has just seen written while Defender scans it, so a
+// folder can refuse to go for a moment: retried, as Node allows for EBUSY and
+// EPERM. The same hold is why a build's publish retries (reference.ts), and why
+// these tests are given longer than the default five seconds.
+afterEach(() => { rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); });
+vi.setConfig({ testTimeout: 60_000 });
 
 let clock = Date.parse('2026-10-10T12:00:00Z');
 async function reference(options: Partial<ConstructorParameters<typeof Reference>[0]> = {}) {
