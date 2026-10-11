@@ -1,11 +1,11 @@
 {
   "register": "Which screenshot baselines KI7MT has approved",
-  "note": "QGD-PRT-0103: \"screenshot baselines approved by KI7MT\". A baseline is what the product is supposed to look like, so approving one is a judgement about what a user sees, and it is his. An agent may capture and compare; it does not approve. Changed only on KI7MT\u2019s direction, like data/part-signoff.json. Hashes are of the PNG bytes in baselines/.",
+  "note": "QGD-PRT-0103: \"screenshot baselines approved by KI7MT\". A baseline is what the product is supposed to look like, so approving one is a judgement about what a user sees, and it is his. An agent may capture and compare; it does not approve. Changed only on KI7MT’s direction, like data/part-signoff.json. Hashes are of the PNG bytes in baselines/.",
   "approved": [
     {
       "by": "KI7MT",
       "date": "2026-10-08",
-      "what": "The six baselines at P3 sign-off \u2014 home, personas and settings, light and dark",
+      "what": "The six baselines at P3 sign-off — home, personas and settings, light and dark",
       "recordedAtUtc": "2026-10-09T03:52:14Z",
       "files": {}
     },
@@ -51,6 +51,22 @@
         "settings-light.png": "31ec6c830a32c014e06a84140e50e11167fa2f83c6e2e6fdaf8d3c332cd32f51",
         "troubleshooting-dark.png": "ccf4f360edb862b092083cc81c4a7fa50dba04cdb59abd3a6a42035af49d24d4",
         "troubleshooting-light.png": "31a9983cde567bf35d56fd7c58147e566811b230998c94a5796dcf948fb1ddcd"
+      }
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-11",
+      "what": "8 baseline(s): home-light.png, personas-light.png, settings-light.png, troubleshooting-light.png, home-dark.png, personas-dark.png, settings-dark.png, troubleshooting-dark.png",
+      "recordedAtUtc": "2026-10-11T01:00:35.213Z",
+      "files": {
+        "home-light.png": "d085ed0719ccbf5ec39532dc60e58925e8b031a47a10437f892101422b3a39d5",
+        "personas-light.png": "bb1121ae1bc2f6198d87cc083798855c3a63357d9b3e1ff1911f47392e276370",
+        "settings-light.png": "784d8f7957704280765df958065dbadf4206eb890b4a495ba2623426ed47657d",
+        "troubleshooting-light.png": "971aa194035cf16b6dcfb27ca5603aa4b91ed4f58fc98f13f5e05d2aadf64ba5",
+        "home-dark.png": "a2539e50cab7977c9df6d408283a587bd5efc9e15451038848d5e9e195afee3e",
+        "personas-dark.png": "c12a6a109bdad85488dfadd4b6c9e95686893cd88b6d5a8be946cc322434cdfe",
+        "settings-dark.png": "e8c304f381bfec3001529623ef0e898535fe1a3df39cbc83cc74bbb15e259dd7",
+        "troubleshooting-dark.png": "5512110ff4f7fc6d2ab7ed29dea141265213050c0697e91d86ede2678f28e61e"
       }
     }
   ],
