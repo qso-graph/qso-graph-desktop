@@ -49,7 +49,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q xvfb gnome-keyring dbus-x11 libsecret-tools lsof
+          sudo apt-get install -y -q xvfb gnome-keyring dbus-x11 libsecret-tools lsof openbox
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: npm ci
       - run: npm run build
@@ -58,7 +58,9 @@ jobs:
       - name: Window suites (Linux)
         if: runner.os == 'Linux'
         run: |
-          dbus-run-session -- bash -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null; xvfb-run -a npm run verify -- --suites "$SUITES"'
+          # A window manager too: without one nothing minimises or raises a
+          # window, and electron-smoke checks that a second launch raises it.
+          dbus-run-session -- bash -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null; xvfb-run -a bash -c "openbox & sleep 1; npm run verify -- --suites \"\$SUITES\""'
       - name: Window suites (macOS, Windows)
         if: runner.os != 'Linux'
         run: npm run verify -- --suites ${{ env.SUITES }}
