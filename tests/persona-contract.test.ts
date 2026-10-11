@@ -47,3 +47,14 @@ describe('QGD-PRC-0006 sender rule', () => {
     expect(allowsSender(sender, mainFrame, url)).toBe(false);
   });
 });
+
+describe('QGD-SEC-0020: a reference fetch carries no credential', () => {
+  it('refuses a reference URL with a user name or password, which would be sent as Basic auth', async () => {
+    const { validateServiceCommand } = await import('../packages/personas/persona-contract.js');
+    const ask = (url: string) => validateServiceCommand({ type: 'fetch-reference', url }, services);
+    expect(ask('https://adif.org.uk/317/x.zip')).toBe(true);
+    for (const url of ['https://user:secret@adif.org.uk/x.zip', 'https://user@adif.org.uk/x.zip', 'https://:secret@adif.org.uk/x.zip', 'https://us%65r@adif.org.uk/x.zip']) {
+      expect(ask(url), url).toBe(false);
+    }
+  });
+});

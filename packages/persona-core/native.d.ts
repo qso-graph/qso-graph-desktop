@@ -98,7 +98,8 @@ export declare class PersonaCore {
   // crosses this boundary is ciphertext: the bundle is built, sealed and
   // dropped inside the core.
   // All of the app's outbound HTTPS goes through this core (D-18, D-31):
-  // rustls over AWS-LC in FIPS mode, TLS 1.3, not Electron's BoringSSL.
+  // rustls over AWS-LC in FIPS mode (TLS 1.3, or 1.2 where a public reference
+  // source offers nothing newer), not Electron's BoringSSL.
   fetchReference(url: string, etag?: string, lastModified?: string): NativeFetchedReference;
   serviceLookup(persona: string, provider: string, operation: string, callsign: string): NativeLookupResult;
   exportPersonas(passphrase: string): Buffer;

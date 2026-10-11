@@ -128,7 +128,8 @@ try {
       whatFipsReportsMean: 'fips() is the library reporting the build configuration it was compiled with. It is not a statement that this is a supported FIPS build on this platform — see fipsBuildOnThisPlatform.'
     },
     transport: {
-      versions: 'TLS 1.3 only',
+      versions: 'TLS 1.3 only for credentials; TLS 1.3 or 1.2 (FIPS-approved ECDHE + AES-GCM) for public reference data',
+      referenceTransportAssertedBy: 'packages/persona-core/src/reference.rs::tests::the_reference_client_is_fips_and_offers_only_approved_suites',
       httpsOnly: true, proxies: false, redirects: false,
       destinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],
       source: 'packages/persona-core/src/validation.rs'
@@ -154,7 +155,7 @@ try {
   await mkdir('report', { recursive: true });
   await writeFile('report/crypto-evidence.json', JSON.stringify(evidence, null, 2) + '\n');
 
-  console.log(`Crypto evidence: AWS-LC library ${libraryVersion}, built by aws-lc-fips-sys ${fromLock}, bundled and linked in agreement; rustls ${locked('rustls')}, TLS 1.3 only: PASS`);
+  console.log(`Crypto evidence: AWS-LC library ${libraryVersion}, built by aws-lc-fips-sys ${fromLock}, bundled and linked in agreement; rustls ${locked('rustls')}, TLS 1.3 only for credentials: PASS`);
   console.log(`CMVP register ${register.retrieved}: ${libraryVersion} in validated list = ${validatedMatches.length > 0}, in submitted list = ${submittedMatches.length > 0}`);
   console.log(`FIPS build platform support: ${process.platform} supported = ${platformSupported}${platformSupported ? '' : ' — recorded as not a FIPS build'}`);
   console.log(`Operational environment recorded: ${evidence.operationalEnvironment.product} ${evidence.operationalEnvironment.version} on ${evidence.operationalEnvironment.model}: PASS`);

@@ -37,8 +37,9 @@ Test credential checks QRZ lookup login or QRZ logbook STATUS, through the Rust
 core's TLS 1.3 client. Other services explicitly report that testing is pending.
 The rest of the desktop shell is still pending.
 
-TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
-macOS).
+On AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on macOS):
+TLS 1.3 only for anything that carries a credential, and TLS 1.3 or 1.2 with FIPS-approved
+suites for public reference data, whose sources do not all offer 1.3.
 
 To build, use the Node version in `.node-version`, Rust, CMake and Go (AWS-LC's FIPS module
 builds with Go); run `make setup`, then `make start`. Windows has no `make`: the npm commands it

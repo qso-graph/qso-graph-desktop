@@ -123,6 +123,12 @@ The real ClientHello test confirms the library reports its FIPS build configurat
 servers passed credential-free TLS 1.3 certificate-verified handshakes; no real
 user credential was read or transmitted by these validation tests.
 
+Reference data (ADIF's archive, POTA's lists, NOAA's feeds) is fetched by the same core with the
+same FIPS provider and roots, but may use TLS 1.2 where a source offers nothing newer: adif.org.uk
+offers only TLS 1.2, and a 1.3-only client never reached it. TLS 1.2 here means ECDHE with AES-GCM
+on P-256 or P-384 with Extended Master Secret. No credential is ever sent over this client
+(`reference_tls_config`, `QGD-SEC-0020`).
+
 The Mac build copies the separate AWS-LC FIPS dynamic library unchanged beside
 the addon; only the addon's dependency path is relocated. Both native loading
 and packaged utility-process loading passed. The packaged UI test exercises the

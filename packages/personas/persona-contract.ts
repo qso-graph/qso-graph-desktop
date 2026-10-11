@@ -174,6 +174,15 @@ export type ServiceCommand =
       parameters: Record<string, string>;
     };
 
+function noUserinfo(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.username === '' && parsed.password === '';
+  } catch {
+    return false;
+  }
+}
+
 export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
   if (!record(value)) return false;
   if (value.type === 'service-lookup') {
@@ -195,6 +204,9 @@ export function validateServiceCommand(value: unknown, providers: Services): val
       // HTTPS is checked here, in the core, and in the caller. It is the one
       // property of a destination this product will not take on trust.
       && typeof value.url === 'string' && value.url.startsWith('https://') && value.url.length <= 2048
+      // No user name or password: the reference client may use TLS 1.2, which
+      // a credential never does (QGD-SEC-0020). Refused in the core as well.
+      && noUserinfo(value.url)
       && (value.etag === undefined || (typeof value.etag === 'string' && value.etag.length <= 256))
       && (value.lastModified === undefined
         || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));

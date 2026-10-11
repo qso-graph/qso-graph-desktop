@@ -307,7 +307,7 @@ chain. These add to `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*` and do not re
 | `QGD-SEC-0013` | `make verify` runs the ESLint security rules, `svelte/no-at-html-tags`, and the `sql.raw` ban. | Test |
 | `QGD-SEC-0014` | `make verify` runs Electronegativity against the packaged application. | Test |
 | `QGD-SEC-0019` | TypeScript is pinned to an exact 6.x. The pin exists so the product is linted from source with type information rather than after compilation, and so component and Electron checking need no isolated dependency trees. **It moves to 7 when `typescript-eslint` supports 7**, and not before: that one tool gates the others in practice. | Static |
-| `QGD-SEC-0020` | **The credential core is the only process in this product that opens an outbound connection, and it is the only TLS stack.** All of the application's outbound HTTPS goes through the Rust credential core over `rustls` and AWS-LC in FIPS mode (D-18, D-31). Electron's own networking is BoringSSL, which is not the validated module, so traffic that went that way would not be covered by the FIPS claim this product makes. TLS 1.3 is the floor and FIPS-approved suites the only ones offered, so a server's preference never decides. Two kinds of destination are permitted and no others: the hosts the reference register names, and the validation endpoint each service profile names. No telemetry, no update check, no analytics, nothing from the renderer (`QGD-CRD-0007`), and nothing from QG Storage, which asks the credential core and receives bytes rather than connecting. A connection from another process, to another host, or on another port is a finding. | Static, Test |
+| `QGD-SEC-0020` | **The credential core is the only process in this product that opens an outbound connection, and it is the only TLS stack.** All of the application's outbound HTTPS goes through the Rust credential core over `rustls` and AWS-LC in FIPS mode (D-18, D-31). Electron's own networking is BoringSSL, which is not the validated module, so traffic that went that way would not be covered by the FIPS claim this product makes. FIPS-approved suites are the only ones offered, so a server's preference never decides. A connection that carries a credential is TLS 1.3 only. A fetch of public reference data, which carries none, may use TLS 1.2 where its source offers nothing newer, still in FIPS mode: ECDHE with AES-GCM on P-256 or P-384, with Extended Master Secret (NIST SP 800-52r2; KI7MT, 2026-10-11, because adif.org.uk offers only TLS 1.2). Two kinds of destination are permitted and no others: the hosts the reference register names, and the validation endpoint each service profile names. No telemetry, no update check, no analytics, nothing from the renderer (`QGD-CRD-0007`), and nothing from QG Storage, which asks the credential core and receives bytes rather than connecting. A connection from another process, to another host, or on another port is a finding. | Static, Test |
 | `QGD-SEC-0021` | **A static gate's scope is derived from the tree, never a list of file names.** Every TypeScript file under `src/` is scanned, and an exception is named with the reason it is one. Three gates in this project went quiet because their scope was a list somebody had to remember to extend: ESLint reviewed no Svelte component, `svelte-check` excluded every story, and `QGD-CRD-0007`'s network gate scanned seven files while the product grew to thirty-six — a `fetch` added to the engine passed it. Each gate therefore carries a control proving its scope is derived: a file placed in the tree with the defect in it must fail the gate. | Static, Test |
 
 ### 4.3.1 Cryptographic claims
@@ -325,20 +325,22 @@ README and the documentation **exactly**, and nowhere is it paraphrased.
 **Windows and Linux:**
 
 > QSO Graph Desktop performs its cryptography in its credential core using AWS-LC's FIPS module
-> (version 4.2.0) in FIPS mode, with TLS 1.3 and FIPS-approved cipher suites only. Earlier
+> (version 4.2.0) in FIPS mode, with FIPS-approved cipher suites only: TLS 1.3 for anything
+> that carries a credential, and TLS 1.3 or 1.2 for public reference data. Earlier
 > versions of this module hold CMVP certificates; version 4.2.0 is not yet validated. Each
 > release records evidence of the module version and mode.
 
 **macOS:**
 
-> Credentials are stored in the macOS Keychain. Network connections use TLS 1.3 with
-> FIPS-approved cipher suites, built from AWS-LC's FIPS module source; macOS builds are not
-> FIPS builds.
+> Credentials are stored in the macOS Keychain. Network connections use FIPS-approved cipher
+> suites, built from AWS-LC's FIPS module source: TLS 1.3 for anything that carries a
+> credential, and TLS 1.3 or 1.2 for public reference data. macOS builds are not FIPS builds.
 
 **README:**
 
-> TLS 1.3 only, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on
-> macOS).
+> On AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on macOS):
+> TLS 1.3 only for anything that carries a credential, and TLS 1.3 or 1.2 with FIPS-approved
+> suites for public reference data, whose sources do not all offer 1.3.
 
 > Before the macOS line is published, Apple's current corecrypto certificate for the targeted
 > macOS version is checked. Apple's validations trail its releases, so where the targeted

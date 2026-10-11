@@ -9,15 +9,18 @@
 //
 // The first version of the reference loader used Node's `fetch` from the
 // engine process. It worked, and it was wrong: Electron's TLS stack, not
-// rustls over AWS-LC in FIPS mode, and no TLS 1.3 floor. Nothing about the
+// rustls over AWS-LC in FIPS mode. Nothing about the
 // data it carries is secret — ADIF's archive and POTA's park list are public
 // files — but the decision is not about secrecy. It is that there is one TLS
 // stack in this product and a claim that rests on it.
 //
-// So: the same client the credential tests use (validation.rs), same
-// preconfigured TLS, same HTTPS-only, same no-proxy, same no-redirect. The
-// caller passes a URL it read from the register and gets bytes back.
-use crate::validation::tls_config;
+// So: the same FIPS provider and roots the credential tests use
+// (validation.rs), same HTTPS-only, same no-proxy, same no-redirect. One
+// difference: TLS 1.2 is allowed beside 1.3, because adif.org.uk offers only
+// 1.2 and a 1.3-only client never reached it; a credential is never sent this
+// way (reference_tls_config). The caller passes a URL it read from the
+// register and gets bytes back.
+use crate::validation::reference_tls_config;
 use std::io::Read;
 use std::time::Duration;
 
@@ -52,9 +55,15 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
     // The register says where; this says only that it must be HTTPS. A URL
     // that is not is refused here as well as in the caller.
     if !url.starts_with("https://") { return Err("Reference data is fetched over HTTPS only."); }
+    // No credential in the URL: reqwest would send userinfo as Basic auth, and
+    // this client may use TLS 1.2, which a credential never does.
+    let parsed = reqwest::Url::parse(url).map_err(|_| "That is not a reference source address.")?;
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err("A reference source address may not carry a user name or password.");
+    }
 
     let client = reqwest::blocking::Client::builder()
-        .use_preconfigured_tls(tls_config()?)
+        .use_preconfigured_tls(reference_tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(120))
         .user_agent("QGDesktop/0.0.0-preview.1")
@@ -106,11 +115,41 @@ mod tests {
     }
 
     #[test]
-    fn the_client_is_the_one_the_credential_tests_use() {
-        // Same preconfigured TLS: FIPS provider, TLS 1.3 only. tls_config
-        // itself refuses to build if the provider is not in FIPS mode, so
-        // this failing means the whole crypto posture has moved.
-        let config = tls_config().expect("the core's TLS config must build");
+    fn the_reference_client_is_fips_and_offers_only_approved_suites() {
+        // TLS 1.3, or 1.2 for a source that offers nothing newer, and still
+        // the FIPS provider: reference_tls_config refuses to build otherwise.
+        let config = reference_tls_config().expect("the reference TLS config must build");
         assert!(config.fips(), "the reference fetch must use the FIPS provider");
+        // TLS 1.3 and 1.2, exactly: without 1.2, adif.org.uk cannot be reached.
+        assert_eq!(crate::validation::offered_versions(config.clone()), vec![4, 3, 4, 3, 3]);
+        // Every suite it can offer is TLS 1.3, or TLS 1.2 ECDHE with AES-GCM.
+        for suite in &config.crypto_provider().cipher_suites {
+            let name = format!("{:?}", suite.suite());
+            assert!(name.starts_with("TLS13_AES_") || (name.starts_with("TLS_ECDHE_") && name.contains("_AES_") && name.contains("_GCM_")),
+                "{name} is not an approved suite");
+        }
+        // Key exchange on the NIST curves (or their post-quantum hybrids), never X25519 alone.
+        for group in &config.crypto_provider().kx_groups {
+            let name = format!("{:?}", group.name());
+            assert!(name != "X25519", "{name} is not FIPS-approved");
+        }
+    }
+
+    // Network, so not in the ordinary run: cargo test -- --ignored.
+    // adif.org.uk offers only TLS 1.2, which the 1.3-only client could not
+    // reach; ADIF's definitions never loaded in a packaged build until this.
+    #[test]
+    #[ignore]
+    fn reaches_a_tls12_only_source() {
+        let fetched = fetch("https://adif.org.uk/317/ADIF_317_resources_2026_03_22.zip", None, None).expect("adif.org.uk must be reachable");
+        assert!(fetched.fresh && fetched.body.len() > 1_000_000);
+    }
+
+    #[test]
+    fn refuses_a_url_carrying_a_user_name_or_password() {
+        for url in ["https://user:secret@adif.org.uk/x.zip", "https://user@adif.org.uk/x.zip",
+                    "https://:secret@adif.org.uk/x.zip", "https://us%65r:s%65cret@adif.org.uk/x.zip"] {
+            assert!(fetch(url, None, None).is_err(), "{url} should be refused");
+        }
     }
 }

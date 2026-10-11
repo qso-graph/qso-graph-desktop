@@ -8,6 +8,7 @@ use zeroize::Zeroizing;
 const MAX_BODY: u64 = 64 * 1024;
 pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook") }
 
+// For anything that carries a credential: TLS 1.3 only.
 pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
     let provider = rustls::crypto::aws_lc_rs::default_provider();
     if !provider.fips() { return Err("Secure client is unavailable."); }
@@ -17,6 +18,48 @@ pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
         .with_root_certificates(roots).with_no_client_auth();
     if !config.fips() { return Err("Secure client is unavailable."); }
     Ok(config)
+}
+
+// For public reference data only, which carries no credential: TLS 1.3, or
+// TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
+// Still the FIPS provider, so 1.2 means ECDHE with AES-GCM on P-256 or P-384
+// and Extended Master Secret required (NIST SP 800-52r2); config.fips() is
+// checked as it is above. KI7MT, 2026-10-11 (QGD-SEC-0020).
+pub fn reference_tls_config() -> CoreResult<rustls::ClientConfig> {
+    let provider = rustls::crypto::aws_lc_rs::default_provider();
+    if !provider.fips() { return Err("Secure client is unavailable."); }
+    let roots = rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let config = rustls::ClientConfig::builder_with_provider(Arc::new(provider))
+        .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12]).map_err(|_| "Secure client is unavailable.")?
+        .with_root_certificates(roots).with_no_client_auth();
+    if !config.fips() { return Err("Secure client is unavailable."); }
+    Ok(config)
+}
+
+// The supported_versions extension (43) of the ClientHello a config sends, read
+// by walking the hello's own structure: no connection is opened. For tests.
+#[cfg(test)]
+pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
+    let mut client = rustls::ClientConnection::new(Arc::new(config), "example.invalid".try_into().unwrap()).unwrap();
+    let mut hello = Vec::new();
+    client.write_tls(&mut hello).unwrap();
+    // Record header 5, handshake header 4, version 2, random 32.
+    let mut position = 5 + 4 + 2 + 32;
+    position += 1 + hello[position] as usize;
+    let cipher_length = u16::from_be_bytes([hello[position], hello[position + 1]]) as usize;
+    position += 2 + cipher_length;
+    position += 1 + hello[position] as usize;
+    let extensions_length = u16::from_be_bytes([hello[position], hello[position + 1]]) as usize;
+    position += 2;
+    let end = position + extensions_length;
+    while position < end {
+        let kind = u16::from_be_bytes([hello[position], hello[position + 1]]);
+        let length = u16::from_be_bytes([hello[position + 2], hello[position + 3]]) as usize;
+        position += 4;
+        if kind == 43 { return hello[position..position + length].to_vec(); }
+        position += length;
+    }
+    panic!("the ClientHello carries no supported_versions extension");
 }
 
 pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
@@ -323,27 +366,7 @@ mod tests {
     fn secure_client_requires_fips_crypto_and_only_tls13() {
         let config = tls_config().unwrap();
         assert!(config.fips());
-        // Inspect the offered versions in a real ClientHello, without any
-        // connection or credential. Only TLS 1.3 may be advertised.
-        let mut client = rustls::ClientConnection::new(Arc::new(config), "example.invalid".try_into().unwrap()).unwrap();
-        let mut hello = Vec::new();
-        client.write_tls(&mut hello).unwrap();
-        let mut position = 5 + 4 + 2 + 32;
-        position += 1 + hello[position] as usize;
-        let cipher_length = u16::from_be_bytes([hello[position], hello[position + 1]]) as usize;
-        position += 2 + cipher_length;
-        position += 1 + hello[position] as usize;
-        let extensions_length = u16::from_be_bytes([hello[position], hello[position + 1]]) as usize;
-        position += 2;
-        let end = position + extensions_length;
-        let mut found = false;
-        while position < end {
-            let kind = u16::from_be_bytes([hello[position], hello[position + 1]]);
-            let length = u16::from_be_bytes([hello[position + 2], hello[position + 3]]) as usize;
-            position += 4;
-            if kind == 43 { assert_eq!(&hello[position..position + length], &[2, 3, 4]); found = true; }
-            position += length;
-        }
-        assert!(found);
+        // Only TLS 1.3 may be advertised to anything carrying a credential.
+        assert_eq!(offered_versions(config), vec![2, 3, 4]);
     }
 }
