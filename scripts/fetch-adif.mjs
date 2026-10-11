@@ -12,7 +12,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { releaseDirectory, verifyRelease } from './adif-release.mjs';
 
@@ -24,7 +23,11 @@ const already = await verifyRelease(release).catch(() => undefined);
 if (already?.ok && !process.argv.includes('--force')) {
   console.log(`ADIF ${release.version} is already in ${target}.`);
 } else {
-  const staging = await mkdtemp(join(tmpdir(), 'qg-adif-'));
+  // Staged inside vendor/, not the system temp directory: the final rename
+  // only works within one volume, and on Windows the temp directory and the
+  // checkout are routinely on different drives (EXDEV).
+  await mkdir(resolve('vendor'), { recursive: true });
+  const staging = await mkdtemp(resolve('vendor', '.staging-adif-'));
   try {
     const cache = resolve('vendor', '.cache', `adif-${release.version}.zip`);
     let archive = await readFile(cache).catch(() => undefined);
