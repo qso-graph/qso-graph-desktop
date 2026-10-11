@@ -433,7 +433,7 @@ reference projects.
 | `QGD-HOM-0006` | A card whose source fails says so in words on that card, and the rest of Home is unaffected. | Test |
 | `QGD-HOM-0007` | **On the Air** is a built-in extension: it ships with the application, is on by default, and can be turned off, which removes its cards from Home and from the list. It reaches the core only through the extension API and its grants (`QGD-APP-0002`). | Test |
 | `QGD-HOM-0008` | **Conditions:** solar flux, K and A indices, an alert banner when something is happening, and a simple day and night band outlook, from NOAA's Space Weather Prediction Center, fetched through the credential core like every outbound request (`QGD-SEC-0020`). `solar-mcp` is the specification for its behaviour: both are tested against the same recorded NOAA responses, and neither copies the other's code. | Test |
-| `QGD-HOM-0009` | **Your station:** UTC and local time, the active persona's callsign and grid, and sunrise and sunset at that grid in UTC, calculated locally with no network. | Test |
+| `QGD-HOM-0009` | **Your station:** UTC first, because ham radio is talked about in UTC, with local time beside it and the active persona's callsign, calculated locally with no network. Nothing about the station's location yet: where a station is (home, portable, mobile, or remote, where the station and the operator are in different places) is its own design, and sunrise, sunset and the grey line wait for it (KI7MT, 2026-10-11). | Test |
 | `QGD-HOM-0010` | Home meets the floor: with its day-one cards pinned it stays within `QGD-SCP-0009`'s memory and responsiveness on a Raspberry Pi 5. | Demo |
 
 ## 5. Test, verification and release
