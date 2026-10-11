@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# The development pass on all three platforms: setup, build, and the suites
-# that need no window, no package and no credential store (make check).
+# On all three platforms: the development pass (make check), then the suites
+# that open a window or use the credential store.
 # GitHub-hosted runners only: this repository is public, and a self-hosted
 # runner on a public repository runs code from any fork's pull request.
 name: CI
@@ -18,6 +18,9 @@ permissions:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  SUITES: keychain-roundtrip,credential-editing,persona-export,electron-smoke,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
 
 jobs:
   check:
@@ -50,3 +53,48 @@ jobs:
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-pota.mjs
       - run: npm run check
+
+  window:
+    name: window (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Windows build tools for the FIPS module
+        if: runner.os == 'Windows'
+        run: choco install -y --no-progress nasm ninja
+      # A display, a Secret Service, and user namespaces for Chromium's
+      # sandbox, which Ubuntu 24.04 restricts by default. The sandbox stays on.
+      - name: Linux display and keyring
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb gnome-keyring dbus-x11 libsecret-tools lsof openbox
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/fetch-adif.mjs
+      - run: node scripts/fetch-pota.mjs
+      - name: Window suites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # A window manager too: without one nothing minimises or raises a
+          # window, and electron-smoke checks that a second launch raises it.
+          dbus-run-session -- bash -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null; xvfb-run -a bash -c "openbox & sleep 1; npm run verify -- --suites \"\$SUITES\""'
+      - name: Window suites (macOS, Windows)
+        if: runner.os != 'Linux'
+        run: npm run verify -- --suites ${{ env.SUITES }}
