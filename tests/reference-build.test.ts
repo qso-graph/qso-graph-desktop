@@ -336,12 +336,23 @@ withData('defects found in review, each held by a test', () => {
       return summary;
     };
     let bodies = BODIES;
-    const { ref, paths, done } = await reference({ build: slow, fetchText: (url, c) => pota(bodies)(url, c) });
+    // The park list changes once the first refresh has read it, not after a
+    // guessed delay: on a slow runner the first refresh had not fetched yet
+    // after 10 ms, read the changed list itself, and left the second nothing
+    // to build.
+    let parksRead: () => void = () => {};
+    const firstReadParks = new Promise<void>((settle) => { parksRead = settle; });
+    const parksUrl = register.pota.sources.parks.url;
+    const { ref, paths, done } = await reference({ build: slow, fetchText: (url, c) => {
+      const answer = pota(bodies)(url, c);
+      if (url === parksUrl) parksRead();
+      return answer;
+    } });
     try {
       const first = ref.refresh();
-      // Asked while the first is still building, with a park list that has
-      // changed, so the second must build too.
-      await new Promise((settle) => setTimeout(settle, 10));
+      // Asked while the first is still building (it waits 60 ms before it
+      // builds), with a park list that has changed, so the second must build too.
+      await firstReadParks;
       bodies = { ...BODIES, [register.pota.sources.parks.url]: PARKS.split('\n').slice(0, 2701).join('\n') + '\n' };
       const second = ref.refresh({ force: true });
       const [a, b] = await Promise.all([first, second]);
