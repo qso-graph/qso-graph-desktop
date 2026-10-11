@@ -7,12 +7,10 @@ security problems are taken seriously.
 
 **Please don't report security problems in public issues, discussions or pull requests.**
 
-- **Email:** **maintainers@qso-graph.io**. This works at any time and reaches the maintainers
-  only. While the repository is private (before Release 1), it's the way to report.
-- **Once the repository is public:** use GitHub's **private vulnerability reporting**. On this
-  repository, open the **Security** tab and choose **Report a vulnerability**. The report is
-  visible only to the maintainers. (GitHub offers this only on public repositories; it will be
-  enabled when the repository is published.)
+- **GitHub's private vulnerability reporting:** on this repository, open the **Security** tab and
+  choose **Report a vulnerability**. The report is visible only to the maintainers.
+- **Email:** **maintainers@qso-graph.io**, if you'd rather not use GitHub. It reaches the
+  maintainers only.
 
 Helpful details:
 - what the problem is, and what an attacker could do with it;
