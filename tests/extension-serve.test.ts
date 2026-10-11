@@ -21,9 +21,9 @@ import { buildInventory, createServe, type ExtensionBrokerPorts, type ServeDeps 
 const register = validateGrantRegister(JSON.parse(await readFile('data/extension-grants.json', 'utf8')));
 const known = grantIds(register);
 
-const SOLAR = { id: 'solar', name: 'Space weather', tier: 'official', version: '1.0.0', grants: ['source:solar'], page: 'SolarPage.svelte' };
-const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', tier: 'official', version: '1.0.0', grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
-const BARE = { id: 'bare', name: 'Nothing at all', tier: 'official', version: '1.0.0', grants: [], page: 'Bare.svelte' };
+const SOLAR = { id: 'solar', name: 'Space weather', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['source:solar'], page: 'SolarPage.svelte' };
+const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
+const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Every port records what it was asked and by whom, so "nothing was touched"
 // is a thing a test can assert rather than infer.

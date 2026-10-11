@@ -20,16 +20,18 @@ import { extensionInfo, decide, loadExtensions, withGrants } from '../packages/m
 const register = validateGrantRegister(JSON.parse(await readFile('data/extension-grants.json', 'utf8')));
 const known = grantIds(register);
 
-const SOLAR = { id: 'solar', name: 'Space weather', tier: 'official', version: '1.0.0', grants: ['source:solar'], page: 'SolarPage.svelte' };
-const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', tier: 'official', version: '1.0.0', grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
-const BARE = { id: 'bare', name: 'Nothing at all', tier: 'official', version: '1.0.0', grants: [], page: 'Bare.svelte' };
+const SOLAR = { id: 'solar', name: 'Space weather', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['source:solar'], page: 'SolarPage.svelte' };
+const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
+const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 const from = (...values: unknown[]) => values.map((value, at) => ({ source: `extensions/${at}/manifest.json`, value }));
 
 describe('a manifest is read before any code is', () => {
   it('accepts a well-formed one and keeps exactly what it declared', () => {
     const manifest = validateManifest(SOLAR, known);
-    expect(manifest).toEqual(SOLAR);
+    // What it declared, with the parts it left out filled in as empty rather
+    // than invented (QGD-APP-0019).
+    expect(manifest).toEqual({ ...SOLAR, contributes: { cards: [] }, activationEvents: [] });
   });
 
   it('refuses a grant this product does not define, and names it', () => {
@@ -49,7 +51,7 @@ describe('a manifest is read before any code is', () => {
     // own access, which is what D-2 was decided to prevent.
     for (const tier of TIERS.filter(entry => !LOADABLE_TIERS.includes(entry))) {
       expect(() => validateManifest({ ...SOLAR, tier }, known))
-        .toThrowError(/the sandbox a contributed or unofficial application needs is not built yet/);
+        .toThrowError(/the sandbox a contributed or unofficial extension needs is not built yet/);
     }
     // And the control: the tier that is loadable loads.
     expect(validateManifest({ ...SOLAR, tier: 'official' }, known).tier).toBe('official');
@@ -58,7 +60,7 @@ describe('a manifest is read before any code is', () => {
   it('refuses a page that points outside the extension', () => {
     for (const page of ['../../packages/main/main.js', '/etc/passwd', 'a/../../b', '']) {
       expect(() => validateManifest({ ...SOLAR, page }, known), page)
-        .toThrowError(/does not say where its page is, or points outside itself/);
+        .toThrowError(/names a page that points outside itself/);
     }
   });
 

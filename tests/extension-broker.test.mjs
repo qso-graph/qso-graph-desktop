@@ -27,7 +27,7 @@ beforeAll(async () => {
         typeof manifest === 'string' ? manifest : JSON.stringify(manifest));
     }
   };
-  await extension('good', { id: 'good', name: 'Good', tier: 'official', version: '1.0.0', grants: [], page: 'P.svelte' });
+  await extension('good', { id: 'good', name: 'Good', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'P.svelte' });
   await extension('broken', '{ not json');
   // A directory with no manifest at all: a working tree with a stray folder in
   // it, which is not an error.
