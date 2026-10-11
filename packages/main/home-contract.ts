@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// What the window may ask about Home, and what it is told (QGD-HOM-0001 to
+// QGD-HOM-0006). Checked on both sides, refused rather than coerced
+// (QGD-SEC-0006).
+//
+// The window asks for the state, says whether Home is showing, and sets the
+// pins. Each card's data arrives unasked, pushed as the broker gets it, so
+// Home never polls.
+import { validateCardAnswer, type CardAnswer } from '../extension-api/cards.js';
+import { isPins } from './settings-contract.js';
+
+export const HOME_CHANNEL = 'home:request';
+export const HOME_CARD_CHANNEL = 'home:card';
+
+// A card some extension offers, as "Customize your pins" lists it.
+export interface AvailableCard {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly extensionName: string;
+}
+
+export type CardView =
+  | { readonly key: string; readonly state: 'waiting' }
+  | { readonly key: string; readonly state: 'ready'; readonly answer: CardAnswer; readonly fetchedAt: string }
+  | { readonly key: string; readonly state: 'failed'; readonly reason: string };
+
+export interface HomeState {
+  readonly available: readonly AvailableCard[];
+  readonly pins: readonly string[];
+  // The pinned cards some extension offers, in pin order, as last known.
+  readonly cards: readonly CardView[];
+}
+
+export type HomeCommand =
+  | { readonly type: 'read' }
+  | { readonly type: 'visible'; readonly visible: boolean }
+  | { readonly type: 'pin'; readonly pins: readonly string[] };
+
+export type HomeReply = { readonly ok: true; readonly state: HomeState } | { readonly ok: false; readonly error: string };
+
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+const exactly = (value: Record<string, unknown>, keys: readonly string[]) =>
+  Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+
+const KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
+const plainText = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit && !/[<>]/.test(value);
+
+export function validateHomeCommand(value: unknown): value is HomeCommand {
+  if (!record(value)) return false;
+  if (value.type === 'read') return exactly(value, ['type']);
+  if (value.type === 'visible') return exactly(value, ['type', 'visible']) && typeof value.visible === 'boolean';
+  if (value.type === 'pin') return exactly(value, ['type', 'pins']) && isPins(value.pins);
+  return false;
+}
+
+export function isCardView(value: unknown): value is CardView {
+  if (!record(value) || typeof value.key !== 'string' || !KEY.test(value.key)) return false;
+  if (value.state === 'waiting') return exactly(value, ['key', 'state']);
+  if (value.state === 'failed') return exactly(value, ['key', 'state', 'reason']) && plainText(value.reason, 160);
+  if (value.state === 'ready') {
+    if (!exactly(value, ['key', 'state', 'answer', 'fetchedAt']) || typeof value.fetchedAt !== 'string' || Number.isNaN(Date.parse(value.fetchedAt))) return false;
+    try { validateCardAnswer(value.answer); return true; } catch { return false; }
+  }
+  return false;
+}
+
+function isAvailable(value: unknown): value is AvailableCard {
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName'])
+    && typeof value.key === 'string' && KEY.test(value.key)
+    && plainText(value.name, 48) && plainText(value.description, 120) && plainText(value.extensionName, 64);
+}
+
+// Every index, holes included: every() skips a hole, so a list with gaps in it
+// would pass with nothing in the gaps checked (QGD-SEC-0006).
+function everyIndex(list: unknown, check: (value: unknown) => boolean): boolean {
+  if (!Array.isArray(list)) return false;
+  for (let at = 0; at < list.length; at++) {
+    if (!Object.hasOwn(list, at) || !check(list[at])) return false;
+  }
+  return true;
+}
+
+export function isHomeReply(value: unknown): value is HomeReply {
+  if (!record(value)) return false;
+  if (value.ok === false) return exactly(value, ['ok', 'error']) && typeof value.error === 'string';
+  if (value.ok !== true || !exactly(value, ['ok', 'state']) || !record(value.state)) return false;
+  const state = value.state;
+  return exactly(state, ['available', 'pins', 'cards'])
+    && everyIndex(state.available, isAvailable)
+    && isPins(state.pins)
+    && Array.isArray(state.cards) && state.cards.length <= 6 && everyIndex(state.cards, isCardView);
+}

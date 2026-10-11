@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SETTINGS, isThemeChoice, readSettings, validateSettingsCommand
-} from '../packages/main/settings-contract.js';
+  DEFAULT_SETTINGS, isThemeChoice, readSettings, validateSettingsCommand, DAY_ONE_PINS, isPins, MAX_PINS } from '../packages/main/settings-contract.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance, type Theme } from '../packages/renderer/theme.js';
 import { WINDOW_BACKGROUND, windowBackground } from '../packages/main/window-background.js';
 import { readFile } from 'node:fs/promises';
@@ -128,17 +127,17 @@ describe('QGD-SEC-0006 the settings channel rejects rather than coerces', () => 
 
 describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () => {
   it('reads what is valid and defaults the rest, key by key', () => {
-    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {} });
+    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'system', grants: {} });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'system', grants: {} });
-    expect(readSettings(null)).toEqual({ theme: 'system', grants: {} });
-    expect(readSettings('not an object')).toEqual({ theme: 'system', grants: {} });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS });
+    expect(readSettings(null)).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS });
+    expect(readSettings('not an object')).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'system', grants: {} });
+    expect(readSettings(hostile)).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS });
   });
 });
 
@@ -266,5 +265,36 @@ describe('the grants the operator has allowed', () => {
     for (const key of ['__proto__', 'constructor', 'prototype']) {
       expect(validateSettingsCommand({ type: 'write', key, value: {} }), key).toBe(false);
     }
+  });
+});
+
+describe('P8-pins: pins in settings.json (QGD-HOM-0003, QGD-HOM-0004)', () => {
+  it('starts a new install with the day-one cards pinned, in order', () => {
+    expect(readSettings({})).toMatchObject({ pins: ['on-the-air/conditions', 'on-the-air/your-station'] });
+    expect(DAY_ONE_PINS).toEqual(['on-the-air/conditions', 'on-the-air/your-station']);
+  });
+
+  it('keeps the order an operator set', () => {
+    const pins = ['on-the-air/your-station', 'on-the-air/conditions', 'other/card'];
+    expect(readSettings({ pins }).pins).toEqual(pins);
+  });
+
+  it('refuses a seventh pin, a duplicate, a malformed name or a gap', () => {
+    const six = Array.from({ length: MAX_PINS }, (_, i) => `ext/card-${i}`);
+    expect(isPins(six)).toBe(true);
+    expect(isPins([...six, 'ext/card-six'])).toBe(false);
+    expect(isPins(['ext/card', 'ext/card'])).toBe(false);
+    for (const bad of ['card', 'Ext/Card', 'ext/', 'a/b/c', '../x/y']) expect(isPins([bad]), bad).toBe(false);
+    const gap = ['ext/card']; gap.length = 2;
+    expect(isPins(gap)).toBe(false);
+    // A file holding a bad list keeps the day-one pins rather than half of it.
+    expect(readSettings({ pins: ['ext/card', 'ext/card'] }).pins).toEqual(DAY_ONE_PINS);
+  });
+});
+
+describe('pins change only through Home (QGD-HOM-0005)', () => {
+  it('refuses a settings write to pins, which would bypass Home cancelling what an unpinned card has in flight', () => {
+    expect(validateSettingsCommand({ type: 'write', key: 'pins', value: [] })).toBe(false);
+    expect(validateSettingsCommand({ type: 'write', key: 'theme', value: 'dark' })).toBe(true);
   });
 });

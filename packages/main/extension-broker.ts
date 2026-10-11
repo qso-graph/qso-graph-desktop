@@ -30,7 +30,7 @@ import { allowsSender } from '../personas/persona-contract.js';
 import { createLogger } from '../logging/logger.js';
 import { validateGrantRegister, type GrantRegister } from '../extension-api/grants.js';
 import { validateExtensionsCommand, type ExtensionsReply } from './extensions-contract.js';
-import { REQUEST_KINDS, type ExtensionReply } from '../extension-api/api-contract.js';
+import { REQUEST_KINDS } from '../extension-api/api-contract.js';
 import {
   loadExtensions, readManifests, readSourceRegister, type LoadedExtension
 } from './extension-runtime.js';
@@ -38,10 +38,9 @@ import {
 // be unit tested. This file is the Electron wiring: the channels, the sender
 // check, the files and the logger.
 import {
-  buildInventory, createServe, refusal, type ExtensionBrokerPorts
+  buildInventory, createServe, type ExtensionBrokerPorts
 } from './extension-serve.js';
 
-export const EXTENSION_CHANNEL = 'extension:request';
 // A second channel, for the core's own Settings surface rather than for an
 // application (QGD-APP-0012). Separate because an extension has no business
 // enumerating the others: this one answers what loaded and what each holds.
@@ -143,13 +142,9 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   };
   ipcMain.handle(EXTENSIONS_INVENTORY_CHANNEL, inventoryHandler);
 
-  const handler = async (event: Electron.IpcMainInvokeEvent, id: unknown, command: unknown): Promise<ExtensionReply> => {
-    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url)) {
-      return refusal('That request did not come from the application window.');
-    }
-    return serve(id, command);
-  };
-  ipcMain.handle(EXTENSION_CHANNEL, handler);
+  // There is no channel from the window to the extension API: extension code
+  // never runs there (QGD-APP-0015). Extensions reach the core only on their
+  // own channels, through the extension host.
 
   // Not vacuous: every kind the contract declares has a branch above. A kind
   // added to the contract with no branch falls through the switch and returns
@@ -159,7 +154,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   if (unserved.length > 0) log.error({ unserved }, 'the extension API declares request kinds this broker does not serve');
 
   return {
-    stop: () => { supervisor.stop(); ipcMain.removeHandler(EXTENSION_CHANNEL); ipcMain.removeHandler(EXTENSIONS_INVENTORY_CHANNEL); },
+    stop: () => { supervisor.stop(); ipcMain.removeHandler(EXTENSIONS_INVENTORY_CHANNEL); },
     supervisor,
     loaded: () => deps.extensions,
     refused: () => result.refused

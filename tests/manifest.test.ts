@@ -85,6 +85,12 @@ describe('P8-contribution: the cards a manifest offers (QGD-HOM-0001)', () => {
     }
   });
 
+  it('refuses markup in a card\'s name or description, which Home would refuse to draw', () => {
+    expect(() => validateManifest({ ...BASE, contributes: { cards: [{ ...CARD, description: 'SFI < 100' }] } }, known)).toThrowError(/markup in its name or description/);
+    expect(() => validateManifest({ ...BASE, contributes: { cards: [{ ...CARD, name: '<b>Bold</b>' }] } }, known)).toThrowError(/markup/);
+    expect(() => validateManifest({ ...BASE, name: 'On <the> Air' }, known)).toThrowError(/no name to show/);
+  });
+
   it('refuses a card offered twice, and a list that is not a short list', () => {
     expect(() => validateManifest({ ...BASE, contributes: { cards: [CARD, CARD] } }, known)).toThrowError(/offers the card "conditions" twice/);
     const many = Array.from({ length: 17 }, (_, i) => ({ ...CARD, id: `card-${i}` }));

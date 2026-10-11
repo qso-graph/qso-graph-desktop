@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readManifests, readSourceRegister } from '../packages/main/extension-runtime.js';
-import { plainRequest } from '../packages/extension-api/bridge.js';
+import { plainRequest } from '../packages/extension-api/plain.js';
 import { validateRequest } from '../packages/extension-api/api-contract.js';
 
 let root;

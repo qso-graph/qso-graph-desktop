@@ -7,7 +7,9 @@ What an extension may call (`QGD-APP-0003`):
 | `manifest.ts` | the manifest an extension ships, read and checked before any of its code runs |
 | `grants.ts` | the closed grant register, from `data/extension-grants.json` |
 | `api-contract.ts` | the request kinds and their replies, validated at the boundary |
-| `bridge.ts` | the one function an extension calls, over `window.extensions` |
+| `context.ts` | what an extension is given: `activate(context)`, with `context.request` and `context.cards`; it runs in the extension host (`QGD-APP-0015`) |
+| `cards.ts` | the card data shapes and their check (`QGD-HOM-0002`) |
+| `plain.ts` | a request rebuilt as a plain value before it is sent |
 
 It is a separate package from `ui` on purpose (`QGD-REP-0004`): what an
 extension may **call** and what it may **look like** are different contracts,

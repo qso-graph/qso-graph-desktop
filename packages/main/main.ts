@@ -12,6 +12,7 @@ import { windowVisibility } from './window-visibility.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
+import { startHomeBroker } from './home-broker.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
 
@@ -200,12 +201,21 @@ if (!app.requestSingleInstanceLock()) {
       return undefined;
     });
 
+    // Home's cards (QGD-HOM-*): asked of extensions through the extension
+    // host, only while Home shows. Nothing if the extension API did not start.
+    const homeBroker = extensionBroker ? startHomeBroker({
+      loaded: () => extensionBroker.loaded(),
+      supervisor: extensionBroker.supervisor,
+      onPersonasChanged: personas.onPersonasChanged
+    }) : undefined;
+
     // Closing the stores is the one thing here worth waiting for: a clean
     // close checkpoints the WAL, so the next start has nothing to replay. So
     // the first quit is held while QG Storage closes, and the quit is asked
     // for again; the second one is let through.
     let quitting = false;
     app.on('before-quit', event => {
+      homeBroker?.stop();
       extensionBroker?.stop();
       stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
       if (quitting) return;

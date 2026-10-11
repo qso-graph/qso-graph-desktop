@@ -24,11 +24,22 @@ contextBridge.exposeInMainWorld('storage', Object.freeze({
     return () => { ipcRenderer.removeListener('storage:status', handler); };
   }
 }));
-// QGD-APP-0002: one path, and this is it. The application names itself and
-// passes a command; the core decides (see extension-broker.ts on why that claim is
-// taken at its word until each application has its own process).
+// Home (QGD-HOM-*): the state, whether Home is showing, and the pins. Each
+// card's data is pushed; onCard hands back the function that stops listening,
+// and the listener receives the card only, never the event.
+contextBridge.exposeInMainWorld('home', Object.freeze({
+  request: (command: unknown) => ipcRenderer.invoke('home:request', command),
+  onCard: (listener: (card: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, card: unknown) => listener(card);
+    ipcRenderer.on('home:card', handler);
+    return () => { ipcRenderer.removeListener('home:card', handler); };
+  }
+}));
+// The extension inventory, for Settings (QGD-APP-0012). There is no way for
+// the window to make an extension request: extension code runs only in the
+// extension host (QGD-APP-0015), on channels the broker binds (QGD-APP-0018).
 contextBridge.exposeInMainWorld('extensions', Object.freeze({
-  request: (app: unknown, command: unknown) => ipcRenderer.invoke('extension:request', app, command),
   // For Settings, not for an application: what loaded and what each holds
   // (QGD-APP-0012).
   inventory: (command: unknown) => ipcRenderer.invoke('extensions:inventory', command)

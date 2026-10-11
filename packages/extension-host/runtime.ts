@@ -11,6 +11,7 @@ import type { ExtensionReply, ExtensionRequest } from '../extension-api/api-cont
 import type { CardAnswer } from '../extension-api/cards.js';
 import type { CardProvider, Disposable, ExtensionContext, ExtensionModule } from '../extension-api/context.js';
 import type { FromHost, Port, ToExtension } from './protocol.js';
+import { plainRequest } from '../extension-api/plain.js';
 
 interface Loaded {
   readonly id: string;
@@ -62,7 +63,9 @@ export function createHostRuntime(options: HostRuntimeOptions) {
             reject: error => { signal?.removeEventListener('abort', onAbort); reject(error); }
           });
           signal?.addEventListener('abort', onAbort, { once: true });
-          extension.port.post({ type: 'request', cid, request });
+          let plain: unknown;
+          try { plain = plainRequest(request); } catch { plain = request; }
+          extension.port.post({ type: 'request', cid, request: plain });
         });
       },
       cards: {

@@ -159,6 +159,12 @@ function validCard(value: unknown, id: string, seen: Set<string>): CardContribut
   if (typeof description !== 'string' || description.trim() === '' || description.length > 120) {
     throw new ManifestError(`The card "${card}" in "${id}" has no one-line description.`, card);
   }
+  // Drawn by Home, which refuses markup in anything it draws (QGD-HOM-0002).
+  // Refused here, where it is the extension's to fix, rather than there,
+  // where one card's text would make all of Home unreadable.
+  if (/[<>]/.test(name) || /[<>]/.test(description)) {
+    throw new ManifestError(`The card "${card}" in "${id}" has markup in its name or description.`, card);
+  }
   if (!Number.isInteger(refreshSeconds) || (refreshSeconds as number) < 60 || (refreshSeconds as number) > 86_400) {
     throw new ManifestError(`The card "${card}" in "${id}" has no refresh interval between a minute and a day.`, card);
   }
@@ -182,7 +188,7 @@ export function validateManifest(value: unknown, known: ReadonlySet<string>): Ex
   if (manifestVersion !== MANIFEST_VERSION) {
     throw new ManifestError(`"${id}" is written for manifest version ${String(manifestVersion)}; this core reads version ${MANIFEST_VERSION}.`, id);
   }
-  if (typeof name !== 'string' || name.trim() === '' || name.length > 64) {
+  if (typeof name !== 'string' || name.trim() === '' || name.length > 64 || /[<>]/.test(name)) {
     throw new ManifestError(`"${id}" has no name to show.`, id);
   }
   if (!isTier(tier)) {

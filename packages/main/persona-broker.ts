@@ -21,6 +21,9 @@ export const PERSONA_STARTING = 'The persona service is starting. Try again.';
 
 export interface PersonaBroker {
   stop: () => void;
+  // Called after a persona was added, changed, removed or made active, so
+  // what Home shows for the old one can be dropped (QGD-HOM-0005).
+  onPersonasChanged: (listener: () => void) => void;
   // Reference data, fetched by the credential core because that is where all
   // of this product's outbound HTTPS goes (D-18, D-31). Handed to the engine
   // broker by main; never reachable from a renderer, which has no command for
@@ -38,7 +41,11 @@ export interface PersonaBroker {
   ) => Promise<Readonly<Record<string, string>> | string>;
 }
 
+// The commands after which the personas, or which one is active, may differ.
+const CHANGES_PERSONAS = new Set(['upsert', 'set-active', 'remove-persona', 'import-personas']);
+
 export function startPersonaBroker(distDirectory: string, registerFile: string): PersonaBroker {
+  const changeListeners = new Set<() => void>();
   let worker: UtilityProcess | undefined;
   let ready = false;
   let stopped = false;
@@ -197,12 +204,17 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       log.warn({ accepted: false }, 'persona request refused');
       return { ok: false, error: 'Invalid persona request.' };
     }
+    const told = (reply: PersonaReply): PersonaReply => {
+      if (reply.ok && CHANGES_PERSONAS.has(command.type)) for (const listener of changeListeners) listener();
+      return reply;
+    };
     if (command.type === 'export-personas' || command.type === 'import-personas') {
-      return movePersonas(BrowserWindow.fromWebContents(event.sender), command);
+      return movePersonas(BrowserWindow.fromWebContents(event.sender), command).then(told);
     }
-    return ask(command);
+    return ask(command).then(told);
   });
   return {
+    onPersonasChanged: listener => { changeListeners.add(listener); },
     stop: () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); },
     async personaBriefs() {
       const reply = await ask({ type: 'list' });

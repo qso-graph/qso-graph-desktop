@@ -25,7 +25,6 @@ declare global {
       onStatus(listener: (status: unknown) => void): () => void;
     };
     extensions?: {
-      request(extension: unknown, command: unknown): Promise<unknown>;
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;

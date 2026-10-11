@@ -1,45 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// How an extension calls the core.
-//
-// This is the whole of what `extension-api` offers a page: one function, taking a
-// typed request and returning a typed reply. QGD-APP-0002 — an extension
-// reaches the core through here and nowhere else, and a built-in application
-// uses it exactly as a contributed one would (D-33).
-//
-// The bridge is a named function the preload exposed (QGD-SEC-0007); there is
-// no `ipcRenderer` here and no channel the caller chooses. What crosses is a
-// value, not a reference (QGD-APP-0003), which is what lets a later Part move
-// an extension into its own process by changing the transport alone.
-import type { ExtensionReply, ExtensionRequest } from './api-contract.js';
+// A request rebuilt as a plain value before it is sent. Used by the extension
+// host's context.request (QGD-APP-0003): what crosses a message channel is
+// structured-cloned, and a value an extension built from Svelte state is a
+// Proxy that cannot be. This was the window bridge's job until extensions
+// left the renderer (QGD-APP-0015, 2026-10-11); the job is the same.
+import type { ExtensionRequest } from './api-contract.js';
 
-// Re-exported so an extension has one import. QGD-REP-0006 holds it to
-// `extension-api` and `ui`; making it reach for two files of this package to make
-// one call would be friction with no purpose.
-export type {
-  ExtensionInfo, ExtensionReply, ExtensionRequest, PersonaBrief, RequestKind
-} from './api-contract.js';
-
-// Read off the window through a local shape rather than by augmenting the
-// global one.
-//
-// There is exactly one declaration of `window.extensions` and it belongs to the
-// renderer, which also has `inventory` on it — the channel Settings uses to
-// list the extensions (QGD-APP-0012). Declaring the global here as well
-// collided with that, and widening this one to match would advertise
-// `inventory` to every application. An extension has no business
-// enumerating the others, so what it is given a type for is `request`.
-interface ExtensionBridge {
-  request(extension: unknown, command: unknown): Promise<unknown>;
-}
-
-function bridgeOf(): ExtensionBridge | undefined {
-  return (globalThis as { extensions?: ExtensionBridge }).extensions;
-}
-
-// Shaped so a refusal is an ordinary answer rather than an exception: a grant
-// that has been withdrawn is a normal thing for an extension to be told
-// (QGD-APP-0011), and code that has to wrap every call in a try block ends up
-// not handling it.
 // Rebuilt as a plain value before it crosses, field by field.
 //
 // QGD-APP-0003 says what crosses is a value and not a reference, and this is
@@ -97,18 +63,4 @@ export function plainRequest(request: ExtensionRequest): unknown {
       };
     }
   }
-}
-
-export async function callApp(extension: string, request: ExtensionRequest): Promise<ExtensionReply> {
-  const bridge = bridgeOf();
-  if (!bridge) {
-    return { ok: false, error: 'The extension API is not available in this window.' };
-  }
-  const reply = await bridge.request(extension, plainRequest(request));
-  if (typeof reply !== 'object' || reply === null || typeof (reply as { ok?: unknown }).ok !== 'boolean') {
-    // The core always answers in the contract's shape. Anything else is not
-    // coerced into one (QGD-SEC-0006).
-    return { ok: false, error: 'The core answered something this application cannot read.' };
-  }
-  return reply as ExtensionReply;
 }

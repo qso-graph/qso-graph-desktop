@@ -22,9 +22,31 @@ export interface Settings {
   // Absent or empty means an application holds only the grants that need
   // nobody — which is the safe default and the one a fresh install has.
   grants: Readonly<Record<string, readonly string[]>>;
+  // The cards pinned to Home, in order: at most six, each named
+  // "extension/card" (QGD-HOM-0003). A pin naming a card no extension offers
+  // is kept and not shown, so a card whose extension is turned off comes back
+  // where it was when it is turned on.
+  pins: readonly string[];
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', grants: {} };
+export const MAX_PINS = 6;
+// The day-one cards (QGD-HOM-0004): what a new install starts with.
+export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions', 'on-the-air/your-station'];
+
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', grants: {}, pins: DAY_ONE_PINS };
+
+const CARD_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
+
+export function isPins(value: unknown): value is readonly string[] {
+  if (!Array.isArray(value) || value.length > MAX_PINS) return false;
+  const seen = new Set<string>();
+  for (let at = 0; at < value.length; at++) {
+    const pin: unknown = value[at];
+    if (!Object.hasOwn(value, at) || typeof pin !== 'string' || !CARD_KEY.test(pin) || seen.has(pin)) return false;
+    seen.add(pin);
+  }
+  return true;
+}
 
 // An application id and a grant id, both already bounded by the extension API's own
 // validators. Re-checked here because this value arrives from a settings file
@@ -46,9 +68,14 @@ export function isGrantMap(value: unknown): value is Readonly<Record<string, rea
   return true;
 }
 
+// What the settings channel may write. Pins are not among them: they change
+// only through Home's channel, which cancels what an unpinned card has in
+// flight (QGD-HOM-0005); a write that bypassed it would leave that running.
+export type WritableSetting = Exclude<keyof Settings, 'pins'>;
+
 export type SettingsCommand =
   | { type: 'read' }
-  | { type: 'write'; key: keyof Settings; value: unknown };
+  | { type: 'write'; key: WritableSetting; value: unknown };
 
 export type SettingsReply =
   | { ok: true; data: Settings }
@@ -64,7 +91,7 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean {
 
 // One validator per settable key, so adding a setting means adding its rule
 // rather than widening a general one.
-const VALIDATORS: { [K in keyof Settings]: (value: unknown) => value is Settings[K] } = {
+const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Settings[K] } = {
   theme: isThemeChoice,
   grants: isGrantMap
 };
@@ -83,7 +110,7 @@ export function validateSettingsCommand(value: unknown): value is SettingsComman
       // and threw instead of being refused. Both are the prototype-polluting
       // keys QGD-SEC-0006 names, and both passed before this line changed.
       if (typeof value.key !== 'string' || !Object.hasOwn(VALIDATORS, value.key)) return false;
-      return VALIDATORS[value.key as keyof Settings](value.value);
+      return VALIDATORS[value.key as WritableSetting](value.value);
     default:
       return false;
   }
@@ -112,5 +139,6 @@ export function readSettings(stored: unknown): Settings {
   };
   read('theme', isThemeChoice);
   read('grants', isGrantMap);
+  read('pins', isPins);
   return settings;
 }
