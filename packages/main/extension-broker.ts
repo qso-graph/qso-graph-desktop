@@ -20,8 +20,12 @@
 // (QGD-APP-0004). Until then only `official` manifests load, which is what
 // makes the gap bounded rather than open: the code that claims an identity
 // here is code this project built and reviewed.
-import { ipcMain } from 'electron';
+import { ipcMain, MessageChannelMain, utilityProcess, type MessagePortMain } from 'electron';
 import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import type { Port } from '../extension-host/protocol.js';
+import { createSupervisor, type Supervisor } from './extension-host-supervisor.js';
+import { parseLimits } from './extension-limits.js';
 import { allowsSender } from '../personas/persona-contract.js';
 import { createLogger } from '../logging/logger.js';
 import { validateGrantRegister, type GrantRegister } from '../extension-api/grants.js';
@@ -49,6 +53,10 @@ export interface ExtensionBrokerOptions {
   directories: readonly string[];
   grantRegisterFile: string;
   sourceRegisterFile: string;
+  // data/extension-limits.json (QGD-APP-0021, QGD-APP-0022).
+  limitsFile: string;
+  // Where the built core is, for the extension host's entry file.
+  distDirectory: string;
   ports: ExtensionBrokerPorts;
   logDirectory?: string;
 }
@@ -59,6 +67,16 @@ export interface ExtensionBroker {
   // (QGD-APP-0012) and for a suite to assert on.
   loaded: () => readonly LoadedExtension[];
   refused: () => readonly { id: string | undefined; source: string; reason: string }[];
+  // The extension host's supervisor: activation and card requests (QGD-APP-0015).
+  supervisor: Supervisor;
+}
+
+function adapt(port: MessagePortMain): Port {
+  return {
+    post: message => port.postMessage(message),
+    onMessage: listener => { port.on('message', event => listener(event.data)); port.start(); },
+    close: () => port.close()
+  };
 }
 
 export async function startExtensionBroker(options: ExtensionBrokerOptions): Promise<ExtensionBroker> {
@@ -85,6 +103,37 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   };
   const serve = createServe(deps);
 
+  // QG Extensions (QGD-APP-0015). Started lazily, when the first extension is
+  // needed (QGD-APP-0023). Each extension's channel is made here and bound to
+  // it (QGD-APP-0018), and its entry is built from the directory its manifest
+  // was read from, which is the package's (QGD-APP-0017).
+  const limits = parseLimits(JSON.parse(await readFile(options.limitsFile, 'utf8')));
+  const supervisor = createSupervisor({
+    limits,
+    spawn: () => {
+      const child = utilityProcess.fork(join(options.distDirectory, 'extension-host', 'host.js'), [],
+        { serviceName: 'QG Extensions', stdio: 'ignore' });
+      child.once('spawn', () => { log.info({ hostPid: child.pid }, 'extension host process started'); });
+      return {
+        post: (message, transfer) => child.postMessage(message, transfer ? [transfer as MessagePortMain] : []),
+        onMessage: listener => { child.on('message', listener); },
+        onExit: listener => { child.once('exit', listener); },
+        kill: () => { child.kill(); }
+      };
+    },
+    channel: () => {
+      const { port1, port2 } = new MessageChannelMain();
+      return { broker: adapt(port1), transfer: port2 };
+    },
+    describe: id => {
+      const extension = deps.extensions.find(entry => entry.manifest.id === id);
+      if (!extension?.manifest.main) return undefined;
+      return { entry: join(dirname(extension.source), extension.manifest.main), cards: extension.manifest.contributes.cards.map(card => card.id) };
+    },
+    serve: (id, request) => serve(id, request),
+    log
+  });
+
   const inventoryHandler = (event: Electron.IpcMainInvokeEvent, command: unknown): ExtensionsReply => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url)) {
       return { ok: false, error: 'That request did not come from the application window.' };
@@ -110,7 +159,8 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   if (unserved.length > 0) log.error({ unserved }, 'the extension API declares request kinds this broker does not serve');
 
   return {
-    stop: () => { ipcMain.removeHandler(EXTENSION_CHANNEL); ipcMain.removeHandler(EXTENSIONS_INVENTORY_CHANNEL); },
+    stop: () => { supervisor.stop(); ipcMain.removeHandler(EXTENSION_CHANNEL); ipcMain.removeHandler(EXTENSIONS_INVENTORY_CHANNEL); },
+    supervisor,
     loaded: () => deps.extensions,
     refused: () => result.refused
   };

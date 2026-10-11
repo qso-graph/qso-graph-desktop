@@ -76,7 +76,7 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
       // components that way while the executable JavaScript was clean.
       'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE',
       'data/reference-sources.json', 'data/service-profiles.json',
-      'data/extension-grants.json', 'data/extension-sources.json', 'drizzle/**/*'
+      'data/extension-grants.json', 'data/extension-sources.json', 'data/extension-limits.json', 'drizzle/**/*'
     ]);
     expect(files, 'nor extensions/ until one exists to ship').not.toContain('extensions');
   });

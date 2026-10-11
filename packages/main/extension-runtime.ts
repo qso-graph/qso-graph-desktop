@@ -29,6 +29,9 @@ export interface LoadedExtension {
   // allowed is absent, which is why this is separate from manifest.grants:
   // asking and holding are different facts (QGD-APP-0012).
   readonly held: readonly string[];
+  // The manifest file it was read from. Its directory is where its code is,
+  // and only directories the core chose are read (QGD-APP-0017).
+  readonly source: string;
 }
 
 export interface RefusedApp {
@@ -111,7 +114,7 @@ export function loadExtensions(
       continue;
     }
     claimed.set(manifest.id, candidate.source);
-    loaded.push({ manifest, held: heldGrants(manifest, register, allowed) });
+    loaded.push({ manifest, held: heldGrants(manifest, register, allowed), source: candidate.source });
   }
   return { loaded, refused };
 }
@@ -174,7 +177,7 @@ export function extensionInfo(extension: LoadedExtension): ExtensionInfo {
 export function withGrants(
   extension: LoadedExtension, register: GrantRegister, allowed: AllowedGrants
 ): LoadedExtension {
-  return { manifest: extension.manifest, held: heldGrants(extension.manifest, register, allowed) };
+  return { manifest: extension.manifest, held: heldGrants(extension.manifest, register, allowed), source: extension.source };
 }
 
 // ---------------------------------------------------------------------------

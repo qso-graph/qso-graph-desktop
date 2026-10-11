@@ -38,11 +38,14 @@ export const ALLOWED = {
   // application the core's internals through its own types, and main would
   // depend on it while it depended on main (QGD-REP-0006).
   'extension-api': [],
+  // The extension host (QGD-APP-0015): it runs extensions, so it reaches only
+  // the contract they are written against.
+  'extension-host': ['extension-api'],
   'personas': ['logging', 'persona-core'],
   // The SQLite stores (QGD-ENG-0001). extension-api only for the shape of an
   // application id, which names a folder (QGD-ENG-0018).
   'storage': ['extension-api', 'logging', 'reference'],
-  'main': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'extension-api'],
+  'main': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'extension-api', 'extension-host'],
   'renderer': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'main', 'extension-api']
 };
 

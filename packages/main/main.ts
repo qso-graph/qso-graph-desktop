@@ -161,11 +161,15 @@ if (!app.requestSingleInstanceLock()) {
     const extensionBroker = await startExtensionBroker({
       // Overridable so a suite can point the product at manifests of its own rather than editing a
       // tracked one, which an interrupted run would leave behind.
-      directories: process.env.QG_DESKTOP_EXTENSION_DIRS
+      // Never in a packaged application: there, only the extensions shipped in
+      // the package load (QGD-APP-0017), whatever the environment says.
+      directories: process.env.QG_DESKTOP_EXTENSION_DIRS && !app.isPackaged
         ? process.env.QG_DESKTOP_EXTENSION_DIRS.split(':').filter(Boolean)
         : [join(app.getAppPath(), 'extensions')],
       grantRegisterFile: join(app.getAppPath(), 'data', 'extension-grants.json'),
       sourceRegisterFile: join(app.getAppPath(), 'data', 'extension-sources.json'),
+      limitsFile: join(app.getAppPath(), 'data', 'extension-limits.json'),
+      distDirectory: join(app.getAppPath(), 'dist'),
       ports: {
         allowed: () => load().grants,
         personas: async () => {
