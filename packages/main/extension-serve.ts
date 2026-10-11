@@ -40,6 +40,8 @@ export interface ExtensionBrokerPorts {
   // Fetch a registered source. The URL is resolved by the caller from the
   // register and the connection is the credential core's (QGD-APP-0008, D-18,
   // D-31).
+  // The active persona's name and callsign, or none (QGD-CRD-0010).
+  activePersona: () => Promise<PersonaBrief | null>;
   fetchSource: (url: string) => Promise<{ body: string; fresh: boolean }>;
   // Act with a credential and return the answer. The secret does not come
   // back (QGD-APP-0007).
@@ -103,6 +105,8 @@ export function createServe(deps: ServeDeps) {
           return { ok: true, kind: 'extension.info', info: extensionInfo(extension) };
         case 'persona.list':
           return { ok: true, kind: 'persona.list', personas: await deps.ports.personas() };
+        case 'persona.active':
+          return { ok: true, kind: 'persona.active', persona: await deps.ports.activePersona() };
         case 'source.fetch': {
           const url = deps.sources[request.source];
           // Decided already by the grant check — a source nobody registered

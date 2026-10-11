@@ -1,0 +1,20 @@
+{
+  "producedBy": "solar-mcp 0.2.6, SolarClient.conditions() over these files",
+  "sfi": 122,
+  "kp": 1.67,
+  "noaa_r_scale": "R0",
+  "noaa_s_scale": "S0",
+  "noaa_g_scale": "G0",
+  "bands": {
+    "160m": "Good \u2014 quiet night conditions",
+    "80m": "Good \u2014 reliable night band",
+    "40m": "Good \u2014 workhorse band, day and night",
+    "30m": "Good \u2014 transition band, usually open",
+    "20m": "Good \u2014 reliable daytime DX",
+    "17m": "Good \u2014 DX openings likely",
+    "15m": "Good \u2014 daytime openings",
+    "12m": "Fair \u2014 brief openings possible",
+    "10m": "Fair \u2014 short openings or sporadic-E",
+    "6m": "Sporadic \u2014 watch for Es openings"
+  }
+}

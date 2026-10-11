@@ -68,8 +68,10 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
 }
 
 describe('a refused request reaches nothing', () => {
-  it('touches no port when the grant was never allowed', async () => {
-    const it0 = recorder();
+  it('touches no port when the grant was taken back', async () => {
+    // Withdrawn in the settings file: an official extension holds its grants
+    // by default (QGD-APP-0012.1), so this is how one is withheld.
+    const it0 = recorder({ 'qrz-lookup': [] });
     const reply = await it0.serve('qrz-lookup', {
       kind: 'service.request', service: 'qrz', persona: 'Home station',
       operation: 'lookup', parameters: { callsign: 'W1AW' }
@@ -148,8 +150,8 @@ describe('an allowed request reaches the one port it names', () => {
 });
 
 describe('a grant is read again on every request', () => {
-  it('starts working when it is allowed, with nothing reloaded', async () => {
-    const it0 = recorder();
+  it('starts working when it is allowed again, with nothing reloaded', async () => {
+    const it0 = recorder({ 'qrz-lookup': [] });
     const before = await it0.serve('qrz-lookup', { kind: 'persona.list' });
     expect(before.ok).toBe(false);
 

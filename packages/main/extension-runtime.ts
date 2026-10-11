@@ -68,6 +68,11 @@ export function heldGrants(
     // register changed under a loaded application — in which case the answer
     // is still no.
     if (!grant) return false;
+    // QGD-APP-0012.1: an official extension's grants are what it is, and are
+    // not put to the operator, so it holds what it declares. The settings file
+    // can still take grants back (QGD-APP-0012): once it lists grants for an
+    // extension, that list is what the extension holds.
+    if (manifest.tier === 'official' && !Object.hasOwn(allowed, manifest.id)) return true;
     return grant.needsOperator ? permitted.has(id) : true;
   });
 }

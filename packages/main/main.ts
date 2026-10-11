@@ -166,7 +166,8 @@ if (!app.requestSingleInstanceLock()) {
       // the package load (QGD-APP-0017), whatever the environment says.
       directories: process.env.QG_DESKTOP_EXTENSION_DIRS && !app.isPackaged
         ? process.env.QG_DESKTOP_EXTENSION_DIRS.split(':').filter(Boolean)
-        : [join(app.getAppPath(), 'extensions')],
+        // The built-in extensions, as the build placed them (build-extensions.mjs).
+        : [join(app.getAppPath(), 'dist', 'extensions')],
       grantRegisterFile: join(app.getAppPath(), 'data', 'extension-grants.json'),
       sourceRegisterFile: join(app.getAppPath(), 'data', 'extension-sources.json'),
       limitsFile: join(app.getAppPath(), 'data', 'extension-limits.json'),
@@ -177,6 +178,11 @@ if (!app.requestSingleInstanceLock()) {
           const briefs = await personas.personaBriefs();
           if (typeof briefs === 'string') throw new Error(briefs);
           return briefs;
+        },
+        activePersona: async () => {
+          const brief = await personas.activeBrief();
+          if (typeof brief === 'string') throw new Error(brief);
+          return brief;
         },
         fetchSource: async url => {
           const fetched = await personas.fetchReference(url);

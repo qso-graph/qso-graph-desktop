@@ -33,6 +33,8 @@ export interface PersonaBroker {
   // (QGD-CRD-0010). Reached only through the extension API with a persona:list
   // grant.
   personaBriefs: () => Promise<readonly { name: string; callsign: string }[] | string>;
+  // The active persona's name and callsign, or null when none is active.
+  activeBrief: () => Promise<{ name: string; callsign: string } | null | string>;
   // Acting with a credential on an application's behalf (QGD-APP-0007). Not
   // reachable from a renderer: `service-lookup` is a ServiceCommand, which
   // validateCommand does not accept.
@@ -228,6 +230,16 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
         typeof persona.name === 'string' && typeof persona.callsign === 'string'
           ? [{ name: persona.name, callsign: persona.callsign }]
           : []);
+    },
+    async activeBrief() {
+      const reply = await ask({ type: 'list' });
+      if (!reply.ok) return reply.error;
+      const data = reply.data as { personas?: { name?: unknown; callsign?: unknown }[]; active?: unknown } | null;
+      if (!data || !Array.isArray(data.personas)) return 'The personas could not be read.';
+      // Name and callsign only, as personaBriefs builds them (QGD-CRD-0010).
+      const active = data.personas.find(persona => persona.name === data.active);
+      return active && typeof active.name === 'string' && typeof active.callsign === 'string'
+        ? { name: active.name, callsign: active.callsign } : null;
     },
     async serviceLookup(service, persona, operation, parameters) {
       const reply = await ask({ type: 'service-lookup', service, persona, operation, parameters: { ...parameters } });

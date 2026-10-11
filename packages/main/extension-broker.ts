@@ -150,7 +150,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   // added to the contract with no branch falls through the switch and returns
   // undefined, which TypeScript catches — this asserts it at run time too, in
   // case the contract is widened without rebuilding this file.
-  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'persona.list', 'source.fetch', 'service.request'].includes(kind));
+  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'persona.list', 'persona.active', 'source.fetch', 'service.request'].includes(kind));
   if (unserved.length > 0) log.error({ unserved }, 'the extension API declares request kinds this broker does not serve');
 
   return {

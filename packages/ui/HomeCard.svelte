@@ -18,10 +18,10 @@
 </script>
 
 <section class="card home-card" aria-label={name} aria-busy={shown.state === 'waiting'}>
-  <header class="home-card-head">
+  <div class="home-card-head">
     <h2>{name}</h2>
     {#if shown.state === 'ready'}<span class="home-card-time">{utc(shown.observedAt)}</span>{/if}
-  </header>
+  </div>
   {#if shown.state === 'waiting'}
     <p class="hint">Getting the latest…</p>
   {:else if shown.state === 'failed'}

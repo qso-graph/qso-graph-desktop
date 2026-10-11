@@ -99,15 +99,20 @@ describe('loading reports every refusal rather than the first', () => {
     expect(result.refused[0].reason).toBe('"solar" is already loaded from extensions/0/manifest.json.');
   });
 
-  it('holds a grant that needs nobody, and withholds one that needs the operator', () => {
-    const result = loadExtensions(from(SOLAR, QRZ), register);
-    // source:solar is needsOperator: false — the core registered the source
-    // itself, so fetching from it asks nothing of anybody.
-    expect(result.loaded[0].held).toEqual(['source:solar']);
-    // service:qrz and persona:list both need the operator, and nobody has
-    // allowed them yet.
-    expect(result.loaded[1].held).toEqual([]);
-    expect(result.loaded[1].manifest.grants).toEqual(['service:qrz', 'persona:list']);
+  it('gives an official extension what it declares, unless the settings file takes grants back (QGD-APP-0012.1)', () => {
+    // A fresh profile: an official extension's grants are what it is, and are
+    // not put to the operator, so it holds them all.
+    const fresh = loadExtensions(from(SOLAR, QRZ), register);
+    expect(fresh.loaded[0].held).toEqual(['source:solar']);
+    expect(fresh.loaded[1].held).toEqual(['service:qrz', 'persona:list']);
+    // Taken back in the settings file: once it lists grants for an extension,
+    // that list is what it holds, and a grant that needs the operator and is
+    // not on it is withheld.
+    const restricted = loadExtensions(from(SOLAR, QRZ), register, { 'qrz-lookup': [] });
+    expect(restricted.loaded[1].held).toEqual([]);
+    expect(restricted.loaded[1].manifest.grants).toEqual(['service:qrz', 'persona:list']);
+    // A grant that needs nobody stays held even then.
+    expect(loadExtensions(from(SOLAR), register, { solar: [] }).loaded[0].held).toEqual(['source:solar']);
   });
 });
 
@@ -173,6 +178,7 @@ describe('the decision', () => {
     const sample: Record<string, ExtensionRequest> = {
       'extension.info': { kind: 'extension.info' },
       'persona.list': { kind: 'persona.list' },
+      'persona.active': { kind: 'persona.active' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {} }
     };
@@ -253,5 +259,11 @@ describe('the grant register', () => {
     expect(register.grants.some(grant => grant.needsOperator)).toBe(true);
     expect(register.grants.some(grant => !grant.needsOperator)).toBe(true);
     for (const grant of register.grants) expect(grant.what.length).toBeGreaterThan(20);
+  });
+});
+
+describe('persona.active (QGD-CRD-0010)', () => {
+  it('needs the same grant as the persona list, because it is the same information', () => {
+    expect(requiredGrant({ kind: 'persona.active' })).toBe('persona:list');
   });
 });

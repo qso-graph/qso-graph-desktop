@@ -25,6 +25,9 @@ export type ExtensionRequest =
   // The personas the operator has, so an extension can ask which to act as.
   // Callsigns and names only — never a credential (QGD-CRD-0010).
   | { readonly kind: 'persona.list' }
+  // Which persona is active: its name and callsign, or none. Under the same
+  // grant as the list, because it is the same information (QGD-CRD-0010).
+  | { readonly kind: 'persona.active' }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -59,6 +62,7 @@ export interface PersonaBrief {
 export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'extension.info'; readonly info: ExtensionInfo }
   | { readonly ok: true; readonly kind: 'persona.list'; readonly personas: readonly PersonaBrief[] }
+  | { readonly ok: true; readonly kind: 'persona.active'; readonly persona: PersonaBrief | null }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the
@@ -85,6 +89,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     // no grants can still draw its page and read its own standing).
     case 'extension.info': return undefined;
     case 'persona.list': return 'persona:list';
+    case 'persona.active': return 'persona:list';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -93,7 +98,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'persona.list', 'source.fetch', 'service.request'];
+  ['extension.info', 'persona.list', 'persona.active', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -148,6 +153,8 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'extension.info':
       return { kind };
     case 'persona.list':
+      return { kind };
+    case 'persona.active':
       return { kind };
     case 'source.fetch': {
       if (typeof value.source !== 'string' || !NAME.test(value.source)) {

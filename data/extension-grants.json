@@ -33,6 +33,24 @@
       "needsOperator": false
     },
     {
+      "id": "source:noaa-flux",
+      "what": "Ask the core to fetch NOAA SWPC's 10.7 cm solar flux. The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "source:noaa-kp",
+      "what": "Ask the core to fetch NOAA SWPC's planetary K index. The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "source:noaa-scales",
+      "what": "Ask the core to fetch NOAA SWPC's space weather scales (R, S, G). The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
       "id": "files:chosen",
       "what": "Read or write the one path the operator chose in a dialog, for that action.",
       "notWhat": "No ambient filesystem: the path is not kept and nothing else is reachable (QGD-APP-0010).",

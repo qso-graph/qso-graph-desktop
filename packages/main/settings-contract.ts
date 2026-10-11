@@ -54,6 +54,19 @@ export function isPins(value: unknown): value is readonly string[] {
 const APP_ID = /^[a-z][a-z0-9-]{1,30}$/;
 const GRANT_ID = /^[a-z]+:[a-z0-9-]+$/;
 
+function readGrants(value: unknown): Readonly<Record<string, readonly string[]>> {
+  if (isGrantMap(value)) return value;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  const out: Record<string, readonly string[]> = {};
+  // Every entry, however many: a cut-off would drop a withdrawal past it.
+  for (const [app, grants] of Object.entries(value as Record<string, unknown>)) {
+    if (!APP_ID.test(app)) continue;
+    out[app] = Array.isArray(grants) && grants.length <= 32 && grants.every(grant => typeof grant === 'string' && GRANT_ID.test(grant))
+      ? grants as string[] : [];
+  }
+  return out;
+}
+
 export function isGrantMap(value: unknown): value is Readonly<Record<string, readonly string[]>> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const entries = Object.entries(value as Record<string, unknown>);
@@ -138,7 +151,12 @@ export function readSettings(stored: unknown): Settings {
     if (accepts(source[key])) settings[key] = source[key] as Settings[K];
   };
   read('theme', isThemeChoice);
-  read('grants', isGrantMap);
+  // Grants are read entry by entry, failing closed: an extension whose entry
+  // cannot be read holds only the grants that need nobody, as if every other
+  // were withdrawn. Discarding the whole map would hand an official extension
+  // back every grant it declares (QGD-APP-0012.1), undoing withdrawals the
+  // operator made; a typo must never widen what an extension holds.
+  if (Object.hasOwn(source, 'grants')) settings.grants = readGrants(source.grants);
   read('pins', isPins);
   return settings;
 }

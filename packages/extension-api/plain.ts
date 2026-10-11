@@ -38,6 +38,7 @@ export function plainRequest(request: ExtensionRequest): unknown {
   switch (request.kind) {
     case 'extension.info':
     case 'persona.list':
+    case 'persona.active':
       return { kind: request.kind };
     case 'source.fetch':
       return { kind: request.kind, source: request.source };

@@ -202,7 +202,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
-.home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; max-width: 980px; margin-bottom: 20px; }
+.home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; align-items: start; max-width: min(980px, 100%); margin-bottom: 20px; }
 .home-cards .card { margin-bottom: 0; max-width: none; }
 .home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .home-card-head h2 { margin: 0; }
@@ -219,7 +219,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .home-card-alert.warning { color: var(--warn); background: var(--warn-surface); border-color: var(--warn-border); }
 .home-card-alert.severe { color: var(--danger); border-color: var(--danger-border); }
 .home-card-failed { margin: 0; font-size: 13px; color: var(--ink-muted); }
-.home-cards-head { display: flex; align-items: center; justify-content: space-between; max-width: 980px; margin-bottom: 12px; }
+.home-cards-head { display: flex; align-items: center; justify-content: space-between; max-width: min(980px, 100%); margin-bottom: 12px; }
 
 /* Customize your pins (QGD-HOM-0003). */
 dialog.pins { width: min(560px, 92vw); }
