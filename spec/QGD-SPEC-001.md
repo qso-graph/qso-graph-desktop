@@ -43,6 +43,7 @@ two copies will eventually disagree and nothing mechanical will notice.
 | `QGD-PRC` | Process map and IPC |
 | `QGD-FRM` | The shell, and the component gallery |
 | `QGD-APP` | Extensions: the runtime, the extension API, grants and trust tiers |
+| `QGD-HOM` | Home and the cards extensions contribute to it |
 | `QGD-ENG` | Local storage |
 | `QGD-REF` | Reference data and the validation built from it |
 | `QGD-LOG` | Application logging |
@@ -106,7 +107,7 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 | **P5** | `QGD-PRT-0105` | Reference data: ADIF definitions (`all.json`), CQ and ITU zones, DOKs, and the validation built from them | P4 | The reference data builds into `reference.sqlite` and the validation built from it answers ADIF's own cases |
 | **P6** | `QGD-PRT-0106` | QG Personas: personas, service profiles, guided setup and a test per credential, expiry warnings, encrypted export and import | P0, P4 | KI7MT walks setup on a clean machine; export round-trips |
 | **P7** | `QGD-PRT-0107` | Extension runtime, official tier, grant model, over the message API — the extension API | P6 | An extension without a grant is refused, proven by unit tests over the runtime, the manifest validator and the broker; demonstrated end to end by the first real extension (KI7MT, 2026-10-10) |
-| **P8** | `QGD-PRT-0108` | QG ADIF: validate, check and repair `.adi` files, using the core's ADIF definitions from `QGD-PRT-0105` through the extension API, as any extension does under `QGD-REP-0003`, rather than loading them itself. **Files only; no QSO storage** | P5, P7 | ADIF's test QSOs pass; an anonymized copy of KI7MT's log round-trips, equal except documented fields |
+| **P8** | `QGD-PRT-0108` | Home and its cards: the card contribution, pins, and the built-in **On the Air** extension with **Conditions** and **Your station** (`QGD-HOM-*`). Re-planned 2026-10-11 by KI7MT: Home is the base product, and QG ADIF left the plan (below) | P7 | On a new install Conditions and Your station are pinned and drawn by the core from the extension's data; pins hold up to six, reorder and persist; only pinned cards fetch; a failing source fails its own card and nothing else; screenshots approved by KI7MT in light and dark; it runs on a Raspberry Pi 5 (`QGD-SCP-0009`) |
 | **P9** | `QGD-PRT-0109` | QG Club: club definition and roster | P7 | The field canvas's cases load |
 | **P10** | `QGD-PRT-0110` | QG Editor: **generate, validate and maintain** a club's `.cli` (club information) and `.prf` (roster) files in NetLogger's own format — the authoring tool clubs currently do not have | P9 | A club with no file generates a valid one; a file carrying headers copied from another club's file is detected and reported; synthetic fixtures round-trip byte for byte where the user did not edit |
 | **P11** | `QGD-PRT-0111` | Updates and onboarding | P6–P10 | An update installs on a clean machine |
@@ -114,7 +115,13 @@ summarizes, or re-sequences it. A document that needs to refer to the order cite
 **Release 1 = P0–P11.**
 
 **The logbook store and QG Log are not in Release 1.** This replaces D-29, which placed the
-logbook store inside it. Release 1 reads and writes ADIF files; it does not keep QSOs.
+logbook store inside it. Release 1 keeps no QSOs.
+
+**QG ADIF left the plan on 2026-10-11** (it was P8). It checks and repairs `.adi` files: a tool
+used on its own or inside a logger, not part of the base product, and for anyone using an AI
+`adif-mcp` already validates. It stays a candidate official extension, built if hams ask for a
+log checker or when QG Log needs one. The ADIF definitions themselves are core reference data
+(`QGD-PRT-0105`) and are unaffected.
 
 **After Release 1**, in order: the logbook store, then QG Log. Then, each its own Part in an
 order KI7MT sets: QG Reference's browsable surface, QG Net, the representative spike, QG NCS,
@@ -399,6 +406,26 @@ appears only where extensions are added and removed. The code uses the same name
 | `QGD-APP-0013` | **An extension that fails does not take the core down** (`QGD-PRC-0001`), and the core says which extension stopped rather than failing as something else. | Test |
 | `QGD-APP-0014` | **The grant model is proven by unit tests, and demonstrated by extensions that are real features** (KI7MT, 2026-10-10). Every decision the runtime can make — a grant held, a grant asked for and not allowed, a grant never declared, a capability that does not exist, a duplicate identifier, an unreadable manifest, a tier that may not load — is exercised against manifest fixtures with no window, no database and no network, because a decision that needs those to test is a decision tested once. **No extension exists only to be demonstrated.** The end-to-end demonstration is the first extension that does ham work. | Test |
 | `QGD-APP-0014.1` | **The packaged application is built from a list of the paths that ship, and that list is asserted on the artifact.** An allowlist is what makes every development-only thing absent by construction rather than by remembering: the gallery (`QGD-FRM-0009`), the suites, the fixtures and anything added later are outside it unless somebody names them. So the check is that the list is still a list — not a wildcard over the repository with exclusions — and that the built archive holds no path from the development tree. "Not shipped" is a check on what was built, never a statement of intent. | Test |
+
+## 4.6 Home and its cards
+
+Home is the base product: *informational, not overbearing, useful*. It answers "should I turn the
+radio on, and what's out there?" at a glance (KI7MT, 2026-10-11, `qso-graph-desktop#35`). The core
+owns the page; extensions contribute what is on it, as dashboard cards come from providers in the
+reference projects.
+
+| ID | Requirement | Verify |
+|---|---|---|
+| `QGD-HOM-0001` | **Cards come from extensions, through a declared contribution.** An extension's manifest lists the cards it offers, each with an id, a name, a one-line description and the shortest interval it may refresh at. The core keeps the list of every available card and never hard-codes one. | Test |
+| `QGD-HOM-0002` | **The core draws every card.** An extension answers a card's request with data in one of the core's card shapes (figures, a list of items, an alert) and the core renders it with the shared components. No extension code or markup runs on Home. The data is checked on arrival and refused rather than coerced (`QGD-SEC-0006`). | Test |
+| `QGD-HOM-0003` | **Pins, as on a GitHub profile.** Up to six cards are pinned to Home, in an order the operator sets, chosen in a "Customize your pins" list that shows each available card's name and description. Pins are kept in `settings.json`. Installing or enabling an extension offers its cards and never pins them. | Test |
+| `QGD-HOM-0004` | A new install starts with the day-one cards pinned: Conditions and Your station, and DX on the air once it exists. | Test |
+| `QGD-HOM-0005` | **Only pinned cards fetch.** A card refreshes only while Home is showing, and never more often than the interval it declared or its source allows, as `QGD-REF-0010` holds POTA's lists to once a day. An unpinned card costs nothing. | Test |
+| `QGD-HOM-0006` | A card whose source fails says so in words on that card, and the rest of Home is unaffected. | Test |
+| `QGD-HOM-0007` | **On the Air** is a built-in extension: it ships with the application, is on by default, and can be turned off, which removes its cards from Home and from the list. It reaches the core only through the extension API and its grants (`QGD-APP-0002`). | Test |
+| `QGD-HOM-0008` | **Conditions:** solar flux, K and A indices, an alert banner when something is happening, and a simple day and night band outlook, from NOAA's Space Weather Prediction Center, fetched through the credential core like every outbound request (`QGD-SEC-0020`). `solar-mcp` is the specification for its behaviour: both are tested against the same recorded NOAA responses, and neither copies the other's code. | Test |
+| `QGD-HOM-0009` | **Your station:** UTC and local time, the active persona's callsign and grid, and sunrise and sunset at that grid in UTC, calculated locally with no network. | Test |
+| `QGD-HOM-0010` | Home meets the floor: with its day-one cards pinned it stays within `QGD-SCP-0009`'s memory and responsiveness on a Raspberry Pi 5. | Demo |
 
 ## 5. Test, verification and release
 
