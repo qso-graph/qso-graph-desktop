@@ -474,6 +474,9 @@ try {
   // Read here rather than through the application: this is the file the
   // running loggers poll, and reading it from outside is the whole point.
   const levelInFile = async () => JSON.parse(await readFile(join(logs, 'level.json'), 'utf8'));
+  // The storage checks above close Troubleshooting; the logs live inside it.
+  await page.locator('#open-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toBeVisible();
   await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('info');
   await page.getByLabel('Detail level', { exact: true }).selectOption('debug');
   await expect(page.getByLabel('Detail level', { exact: true })).toHaveValue('debug');
