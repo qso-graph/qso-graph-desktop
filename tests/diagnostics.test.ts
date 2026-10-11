@@ -1,10 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { crc32, redactForExport, zip } from '../packages/main/diagnostics.js';
+
+// The operating system's own tool is the arbiter, not our reading of our own
+// writing: unzip on macOS and Linux, and on Windows the bsdtar it ships in
+// System32, which reads zip. Each throws on an archive it cannot read.
+const WINDOWS = process.platform === 'win32';
+function systemCheck(path: string): string {
+  return WINDOWS
+    ? execFileSync('tar', ['-tf', path], { encoding: 'utf8' })
+    : execFileSync('/usr/bin/unzip', ['-t', path], { encoding: 'utf8' });
+}
+async function systemExtract(path: string, into: string): Promise<void> {
+  await mkdir(into, { recursive: true });
+  if (WINDOWS) execFileSync('tar', ['-xf', path, '-C', into]);
+  else execFileSync('/usr/bin/unzip', ['-q', '-o', path, '-d', into]);
+}
 
 describe('QGD-LOG-0012 the archive', () => {
   it('computes the checksum the format requires', () => {
@@ -26,10 +41,11 @@ describe('QGD-LOG-0012 the archive', () => {
       await writeFile(path, archive);
 
       // The system's own unzip is the arbiter, not our reading of our writing.
-      const tested = execFileSync('/usr/bin/unzip', ['-t', path], { encoding: 'utf8' });
-      expect(tested).toContain('No errors detected');
+      const tested = systemCheck(path);
+      if (WINDOWS) expect(tested).toContain('qg-desktop.log');
+      else expect(tested).toContain('No errors detected');
 
-      execFileSync('/usr/bin/unzip', ['-q', '-o', path, '-d', join(directory, 'out')]);
+      await systemExtract(path, join(directory, 'out'));
       expect(await readFile(join(directory, 'out', 'qg-desktop.log'))).toEqual(large);
       expect(await readFile(join(directory, 'out', 'notes.txt'))).toEqual(small);
     } finally {
@@ -50,6 +66,8 @@ describe('QGD-LOG-0012 the archive', () => {
       await writeFile(path, archive);
       // unzip warns on an empty archive and exits non-zero. The distinction
       // that matters is empty rather than damaged.
+      // bsdtar lists an empty archive as nothing, and succeeds.
+      if (WINDOWS) { expect(systemCheck(path).trim()).toBe(''); return; }
       let output = '';
       try { output = execFileSync('/usr/bin/unzip', ['-l', path], { encoding: 'utf8' }); }
       catch (error) { output = `${(error as { stdout?: string }).stdout ?? ''}${(error as { stderr?: string }).stderr ?? ''}`; }
@@ -109,8 +127,10 @@ describe('QGD-LOG-0012 the export', () => {
       expect(summary.files).toBe(2);
       expect(summary.bytes).toBeGreaterThan(0);
 
-      expect(execFileSync('/usr/bin/unzip', ['-t', destination], { encoding: 'utf8' })).toContain('No errors detected');
-      execFileSync('/usr/bin/unzip', ['-q', '-o', destination, '-d', join(directory, 'out')]);
+      const tested = systemCheck(destination);
+      if (WINDOWS) expect(tested).toContain('qg-desktop.log');
+      else expect(tested).toContain('No errors detected');
+      await systemExtract(destination, join(directory, 'out'));
 
       const exported = await readFile(join(directory, 'out', 'qg-desktop.log'), 'utf8');
       expect(exported).not.toContain('QG_FAKE_CREDENTIAL');

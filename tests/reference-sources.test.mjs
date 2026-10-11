@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { archiveRoot, definitionsPath, releaseDirectory, testQsosPath } from '../scripts/adif-release.mjs';
 
@@ -15,9 +16,9 @@ describe('QGD-REF-0003 the pinned ADIF release', () => {
   });
 
   it('lives in vendor, out of the repository', async () => {
-    expect(releaseDirectory(release, '/somewhere')).toBe(`/somewhere/vendor/adif/${release.version}`);
-    expect(definitionsPath(release, '/somewhere')).toContain('exports/json/all.json');
-    expect(testQsosPath(release, '/somewhere')).toContain('tests/');
+    expect(releaseDirectory(release, '/somewhere')).toBe(join('/somewhere', 'vendor', 'adif', release.version));
+    expect(definitionsPath(release, '/somewhere').replaceAll('\\', '/')).toContain('exports/json/all.json');
+    expect(testQsosPath(release, '/somewhere').replaceAll('\\', '/')).toContain('tests/');
     expect(await readFile('.gitignore', 'utf8')).toContain('vendor/');
   });
 

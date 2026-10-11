@@ -38,7 +38,7 @@ afterAll(async () => { await rm(root, { recursive: true, force: true }); });
 describe('reading manifests from disk', () => {
   it('reads what is there and reports what cannot be parsed', async () => {
     const found = await readManifests([join(root, 'extensions')]);
-    const byName = Object.fromEntries(found.map(entry => [entry.source.split('/').at(-2), entry]));
+    const byName = Object.fromEntries(found.map(entry => [entry.source.split(/[\\/]/).at(-2), entry]));
     expect(Object.keys(byName).sort()).toEqual(['broken', 'good']);
     expect(byName.good.value).toMatchObject({ id: 'good' });
     // Reported rather than skipped: an extension that silently fails to

@@ -101,6 +101,20 @@ export function workerBuild(workerFile: URL): RunBuild {
   });
 }
 
+// The rename that publishes a build. On Windows a file that was just closed
+// can stay held for a moment (an antivirus scan, the search indexer), and
+// renaming over it fails with EPERM or EBUSY until it is let go. Retried
+// briefly, as graceful-fs does for npm; anywhere else the first error stands.
+async function publish(from: string, to: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try { renameSync(from, to); return; } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (process.platform !== 'win32' || attempt >= 20 || !['EPERM', 'EBUSY', 'EACCES'].includes(code ?? '')) throw error;
+      await new Promise((settle) => setTimeout(settle, 50 * (attempt + 1)));
+    }
+  }
+}
+
 export class Reference {
   readonly #options: ReferenceOptions;
   #reader: Store<typeof referenceSchema> | undefined;
@@ -312,7 +326,7 @@ export class Reference {
         // 4. Swap. The read handle on the old file is closed first: Windows
         // cannot rename over an open file.
         this.close();
-        renameSync(target, paths.reference);
+        await publish(target, paths.reference);
         // Built means published: set only once the rename has happened.
         summary = built;
         this.#options.hooks?.afterSwap?.();

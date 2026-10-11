@@ -17,7 +17,7 @@
 // appearing anywhere in the product again, and on a suite forgetting to put
 // its fixtures somewhere safe.
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   FOREIGN_SERVICE, KEYCHAIN_SERVICE, KEYCHAIN_TEST_SERVICE, TEST_KEYCHAIN_ENV
@@ -33,7 +33,9 @@ async function sources(root, extensions) {
       if (entry.isDirectory() && (entry.name === 'target' || entry.name === 'node_modules')) continue;
       const path = join(directory, entry.name);
       if (entry.isDirectory()) await walk(path);
-      else if (extensions.some(end => entry.name.endsWith(end))) found.push(path);
+      // Forward slashes on every platform, so the names compare with the ones
+      // written below.
+      else if (extensions.some(end => entry.name.endsWith(end))) found.push(path.split(sep).join('/'));
     }
   };
   await walk(root);
