@@ -14,5 +14,12 @@ storybook-static/
 report/screenshots/
 report/screenshot-logs/
 
+# Written into the verification checkout by scripts/sync-verify-checkout.mjs,
+# which is the documented way to prepare a run (docs/VERIFY-ACCOUNT.md). Not
+# ignoring it made `git status` dirty in every verification checkout, so the
+# report stamped itself <sha>-dirty on a pristine tree — and -dirty is supposed
+# to mean the report covers code no commit holds.
+verify-env.sh
+
 # The pinned PostgreSQL build, fetched by scripts/fetch-postgres.mjs (QGD-ENG-0004).
 vendor/
