@@ -88,6 +88,18 @@ cp -a ~/.cargo  /Users/Shared/rust/cargo
 chmod -R a+rwX /Users/Shared/rust
 ```
 
+Then once, signed in as the verification account:
+
+```
+git config --global --add safe.directory /Users/Shared/qg-desktop-verify
+```
+
+The checkout belongs to the developing account, and git refuses to read a
+repository owned by another user. Without this line every report this account
+writes says `unknown-commit` instead of the commit it covers, and a sign-off
+recorded against it cannot name what it signed. `chmod` does not help: it is an
+ownership check, not a permission one.
+
 The toolchain is **copied, not downloaded**, so the version is identical to the
 one the developing account builds with rather than whatever is current.
 Verified afterwards with `cargo --version` from the shared path.

@@ -55,10 +55,33 @@ for (const [name, args] of commands) {
     })
   });
 }
-const head = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' });
+// Which commit this report is evidence for. Two failures look alike and are
+// not: git unable to read the checkout (a tooling problem: the commit is
+// fine, the report just cannot name it) and a tree with uncommitted changes
+// (an evidence problem: the report covers code no commit holds). The first
+// is named and explained; the second is stamped "-dirty", as git describe does.
+// The verification account hits the first whenever the checkout belongs to
+// another user (docs/VERIFY-ACCOUNT.md).
+function commitStamp() {
+  const head = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' });
+  if (head.status !== 0) {
+    const ownership = /dubious ownership|safe\.directory/.test(head.stderr ?? '');
+    console.error(ownership
+      ? 'git cannot read this checkout: it belongs to another user. See docs/VERIFY-ACCOUNT.md (safe.directory).'
+      : 'git cannot read this checkout; the report will not name a commit.');
+    return ownership ? 'unknown-commit (checkout owned by another user)' : 'unknown-commit (not a readable git checkout)';
+  }
+  const sha = head.stdout.trim();
+  const status = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8' });
+  if (status.status !== 0) {
+    console.error('git could not say whether this checkout has uncommitted changes.');
+    return `${sha}-unverified (git status failed)`;
+  }
+  return status.stdout.trim() !== '' ? `${sha}-dirty` : sha;
+}
 const outcome = () => (suites.every(s => s.result === 'PASS') ? 'PASS' : 'FAIL');
 const report = {
-  sha: head.status === 0 ? head.stdout.trim() : 'uncommitted-local-preview',
+  sha: commitStamp(),
   date: new Date().toISOString(), os: process.platform, arch: process.arch,
   result: outcome(),
   partSignOff: signedOff, retries: 0, suites,

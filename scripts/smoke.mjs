@@ -552,12 +552,16 @@ try {
   // QGD-ENG-0006 and QGD-ENG-0016 on the way out: closing the application
   // closes the stores cleanly, and nothing secret was ever written into one.
   // The broker logs "storage closed" only when QG Storage acknowledges the
-  // close, and "did not close in time; killed" when it does not. The control:
-  // neither is in the log before the quit, so finding the first after it is
-  // something the quit did.
+  // close, and "did not close in time; killed" when it does not. Counted, not
+  // looked for: the restart earlier in this suite (QGD-CRD-0009/0010) closed
+  // storage too and wrote to the same log, so only one more entry than before
+  // the quit is something the quit did.
   const logLines = async () => (await readFile(join(logs, 'qg-desktop.log'), 'utf8').catch(() => '')).split('\n').filter(Boolean)
     .map(line => { try { return JSON.parse(line); } catch { return undefined; } }).filter(Boolean);
-  expect((await logLines()).some(entry => entry.msg === 'storage closed'), 'nothing has closed storage yet').toBe(false);
+  const count = (lines, msg) => lines.filter(entry => entry.msg === msg).length;
+  const beforeQuit = await logLines();
+  const closedBeforeQuit = count(beforeQuit, 'storage closed');
+  const killedBeforeQuit = count(beforeQuit, 'storage did not close in time; killed');
   await application.close();
   application = undefined;
   {
@@ -582,8 +586,8 @@ try {
     }
     const lines = await logLines();
     expect(lines.some(entry => entry.msg === 'storage ready'), 'storage must have said it was ready').toBe(true);
-    expect(lines.some(entry => entry.msg === 'storage closed'), 'QG Storage must have acknowledged the close').toBe(true);
-    expect(lines.some(entry => entry.msg === 'storage did not close in time; killed'), 'storage must close within its time').toBe(false);
+    expect(count(lines, 'storage closed'), 'QG Storage must have acknowledged the close').toBe(closedBeforeQuit + 1);
+    expect(count(lines, 'storage did not close in time; killed'), 'storage must close within its time').toBe(killedBeforeQuit);
     notesStorage += ', closed cleanly when the application quit, and holding no credential';
   }
   // The control for the close check, planted from this harness and not from
