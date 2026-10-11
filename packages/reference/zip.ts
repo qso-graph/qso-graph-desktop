@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Reading one named file out of a zip archive.
 //
-// The frame fetches ADIF's published archive at run time (QGD-REF-0001: a
+// The core fetches ADIF's published archive at run time (QGD-REF-0001: a
 // later ADIF release is new data, not a new build), so the application has to
 // be able to open it itself. It is not allowed to shell out to `unzip` — that
 // would be a command built at run time, which QGD-SEC-0002 forbids — and the

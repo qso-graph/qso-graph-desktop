@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The adapter between Drizzle and node:sqlite (QGD-ENG-0002).
 //
-// Drizzle 0.45 has no driver for node:sqlite, so the frame uses its generic
+// Drizzle 0.45 has no driver for node:sqlite, so the core uses its generic
 // sqlite-proxy driver and answers its callback here. This file and migrate.ts
 // are the only places that hand SQL text to SQLite: the text is what Drizzle
-// generated, or a migration file the frame ships. security-lint holds that
+// generated, or a migration file the core ships. security-lint holds that
 // nothing else calls prepare() or exec() with anything but a literal.
 //
 // The contract, each part of it tested in tests/storage.test.ts:

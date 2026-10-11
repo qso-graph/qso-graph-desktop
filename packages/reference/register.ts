@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The shape of data/reference-sources.json: which reference data the frame
+// The shape of data/reference-sources.json: which reference data the core
 // fetches, from where, and who owns each list (QGD-REF-0002, QGD-REF-0003,
 // QGD-REF-0009, QGD-REF-0010). The register ships with the product; what it
 // points at is fetched.

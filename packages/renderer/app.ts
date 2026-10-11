@@ -10,7 +10,7 @@ import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
-import type { AppsCommand, AppsReply } from '../main/apps-contract.js';
+import type { ExtensionsCommand, ExtensionsReply } from '../main/extensions-contract.js';
 import { createShellStore } from './shell-store.js';
 declare const __QG_VERSION__: string;
 
@@ -23,9 +23,9 @@ declare global {
       request(command: StorageCommand): Promise<StorageReply>;
       onStatus(listener: (status: unknown) => void): () => void;
     };
-    apps?: {
-      request(app: unknown, command: unknown): Promise<unknown>;
-      inventory(command: AppsCommand): Promise<AppsReply>;
+    extensions?: {
+      request(extension: unknown, command: unknown): Promise<unknown>;
+      inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
   }
@@ -38,8 +38,8 @@ declare global {
 // Applications section of Settings. Both are gone with it (QGD-APP-0012.1): an
 // official application's grants are what the application is, so there was no
 // decision to put to anybody. The enforcement did not move — it is in
-// app-runtime.ts and app-serve.ts, with the settings channel still the way a
-// grant is allowed or withdrawn, and tests/app-serve.test.ts proving a
+// extension-runtime.ts and extension-serve.ts, with the settings channel still the way a
+// grant is allowed or withdrawn, and tests/extension-serve.test.ts proving a
 // withdrawal takes effect with nothing restarted.
 const shell = createShellStore();
 mount(Shell, {

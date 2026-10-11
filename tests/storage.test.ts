@@ -12,10 +12,10 @@ import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { eq } from 'drizzle-orm';
 import { StorageFailure, describe as describeError, reduce } from '../packages/storage/errors.js';
-import { appFolder, layout, openState, removeAppFolder } from '../packages/storage/layout.js';
+import { extensionFolder, layout, openState, removeExtensionFolder } from '../packages/storage/layout.js';
 import { openStore, isSqliteFile } from '../packages/storage/sqlite.js';
 import { UnitQueue } from '../packages/storage/queue.js';
-import { appState, installation, INSTALLATION_ID } from '../packages/storage/schema.js';
+import { extensionState, installation, INSTALLATION_ID } from '../packages/storage/schema.js';
 
 const MIGRATIONS = resolve('drizzle/state');
 const SENTINEL = 'QGD-SENTINEL-4f1c9a';
@@ -38,7 +38,7 @@ describe('P4-layout: what the first run creates (QGD-ENG-0001, QGD-ENG-0007)', (
     } finally { store.close(); }
     expect(isSqliteFile(paths.state)).toBe(true);
     // No application folder and no reference file: each is made when first needed.
-    expect(existsSync(paths.apps)).toBe(false);
+    expect(existsSync(paths.extensions)).toBe(false);
     expect(existsSync(paths.reference)).toBe(false);
     expect(readdirSync(root).filter((name) => name.includes('.creating'))).toEqual([]);
   });
@@ -133,7 +133,7 @@ describe('P4-one-writer: a file that is not SQLite is refused (QGD-ENG-0008)', (
   });
 });
 
-// A table the frame does not have, so each column mode is exercised.
+// A table the core does not have, so each column mode is exercised.
 const sample = sqliteTable('sample', {
   id: integer('id').primaryKey(),
   name: text('name').notNull(),
@@ -206,7 +206,7 @@ describe('P4-units-of-work: one request at a time on a connection (QGD-ENG-0020)
     const s = await openState(layout(root), MIGRATIONS, 'x');
     try {
       const write = (key: string) => (db: Parameters<Parameters<typeof s.unit>[0]>[0]) =>
-        db.insert(appState).values({ appId: 'test-app', key, value: key, updatedAt: 'now' });
+        db.insert(extensionState).values({ extensionId: 'test-extension', key, value: key, updatedAt: 'now' });
       // A transaction that writes, waits, and then fails, so it rolls back.
       const failing = async (db: Parameters<Parameters<typeof s.unit>[0]>[0]) => {
         await db.transaction(async (tx) => {
@@ -230,7 +230,7 @@ describe('P4-units-of-work: one request at a time on a connection (QGD-ENG-0020)
         await new Promise((settle) => setTimeout(settle, 5));
         await Promise.all([first, unrelated(db)]);
       }
-      const rows = await s.unit((db) => db.select({ key: appState.key }).from(appState).all());
+      const rows = await s.unit((db) => db.select({ key: extensionState.key }).from(extensionState).all());
       return rows.map((row) => row.key).sort();
     } finally { s.close(); }
   }
@@ -257,10 +257,10 @@ describe('P4-errors: a storage error carries no value (QGD-ENG-0016)', () => {
   it('reduces a failed statement to a kind, a code and SQLite\'s own string', async () => {
     const s = await openState(layout(root), MIGRATIONS, 'x');
     try {
-      await s.unit((db) => db.insert(appState).values({ appId: 'test-app', key: 'k', value: SENTINEL, updatedAt: 'now' }));
+      await s.unit((db) => db.insert(extensionState).values({ extensionId: 'test-extension', key: 'k', value: SENTINEL, updatedAt: 'now' }));
       // The same primary key again: a constraint failure, with the sentinel bound.
       const error = await caught(() =>
-        s.unit((db) => db.insert(appState).values({ appId: 'test-app', key: 'k', value: SENTINEL, updatedAt: SENTINEL })));
+        s.unit((db) => db.insert(extensionState).values({ extensionId: 'test-extension', key: 'k', value: SENTINEL, updatedAt: SENTINEL })));
       expect(error).toBeInstanceOf(StorageFailure);
       const reduced = (error as StorageFailure).reduced;
       expect(reduced.kind).toBe('query');
@@ -301,8 +301,8 @@ describe('P4-errors: a storage error carries no value (QGD-ENG-0016)', () => {
         s.connection.prepare(query).run(...(params as never[]));
         return { rows: [] };
       });
-      await raw.insert(appState).values({ appId: 'a1', key: 'k', value: 'v', updatedAt: 'now' });
-      const error = await caught(() => raw.insert(appState).values({ appId: 'a1', key: 'k', value: SENTINEL, updatedAt: 'now' }));
+      await raw.insert(extensionState).values({ extensionId: 'a1', key: 'k', value: 'v', updatedAt: 'now' });
+      const error = await caught(() => raw.insert(extensionState).values({ extensionId: 'a1', key: 'k', value: SENTINEL, updatedAt: 'now' }));
       expect(String((error as Error).message)).toContain(SENTINEL);
       // And the reduction removes it.
       expect(JSON.stringify(reduce(error, 'query'))).not.toContain(SENTINEL);
@@ -310,63 +310,63 @@ describe('P4-errors: a storage error carries no value (QGD-ENG-0016)', () => {
   });
 });
 
-describe('P4-app-folder: each application\'s data is a folder the frame owns (QGD-ENG-0018)', () => {
-  it('creates apps/<id>/ for an identifier a manifest may carry', () => {
+describe('P4-app-folder: each application\'s data is a folder the core owns (QGD-ENG-0018)', () => {
+  it('creates extensions/<id>/ for an identifier a manifest may carry', () => {
     const paths = layout(root);
-    const folder = appFolder(paths, 'qg-adif', { create: true });
-    expect(folder).toBe(join(paths.apps, 'qg-adif'));
+    const folder = extensionFolder(paths, 'qg-adif', { create: true });
+    expect(folder).toBe(join(paths.extensions, 'qg-adif'));
     expect(existsSync(folder)).toBe(true);
   });
 
-  it('refuses an identifier that would leave apps/', () => {
+  it('refuses an identifier that would leave extensions/', () => {
     const paths = layout(root);
     for (const id of ['../escape', '..', 'a/b', 'A-Upper', '', 'x', '/abs', 'qg adif', 'qg-adif/..']) {
-      expect(() => appFolder(paths, id, { create: true }), id).toThrow(StorageFailure);
+      expect(() => extensionFolder(paths, id, { create: true }), id).toThrow(StorageFailure);
     }
     expect(existsSync(join(root, 'escape'))).toBe(false);
   });
 
   it('refuses a folder that a planted link points elsewhere', () => {
     const paths = layout(root);
-    mkdirSync(paths.apps, { recursive: true });
+    mkdirSync(paths.extensions, { recursive: true });
     const elsewhere = mkdtempSync(join(tmpdir(), 'qg-elsewhere-'));
     try {
-      symlinkSync(elsewhere, join(paths.apps, 'qg-club'));
-      expect(() => appFolder(paths, 'qg-club', { create: true })).toThrow(StorageFailure);
+      symlinkSync(elsewhere, join(paths.extensions, 'qg-club'));
+      expect(() => extensionFolder(paths, 'qg-club', { create: true })).toThrow(StorageFailure);
     } finally { rmSync(elsewhere, { recursive: true, force: true }); }
   });
 
-  it('refuses an apps/ that is itself a link, with or without creating', () => {
+  it('refuses an extensions/ that is itself a link, with or without creating', () => {
     const paths = layout(root);
     const elsewhere = mkdtempSync(join(tmpdir(), 'qg-elsewhere-'));
     try {
       mkdirSync(join(elsewhere, 'qg-club'));
-      symlinkSync(elsewhere, paths.apps);
-      expect(() => appFolder(paths, 'qg-club', { create: true })).toThrow(StorageFailure);
-      expect(() => appFolder(paths, 'qg-club')).toThrow(StorageFailure);
-      expect(() => removeAppFolder(paths, 'qg-club')).toThrow(StorageFailure);
+      symlinkSync(elsewhere, paths.extensions);
+      expect(() => extensionFolder(paths, 'qg-club', { create: true })).toThrow(StorageFailure);
+      expect(() => extensionFolder(paths, 'qg-club')).toThrow(StorageFailure);
+      expect(() => removeExtensionFolder(paths, 'qg-club')).toThrow(StorageFailure);
       expect(existsSync(join(elsewhere, 'qg-club')), 'nothing outside was removed').toBe(true);
     } finally { rmSync(elsewhere, { recursive: true, force: true }); }
   });
 
   it('refuses an existing application folder that is a link, and will not remove through it', () => {
     const paths = layout(root);
-    mkdirSync(paths.apps, { recursive: true });
+    mkdirSync(paths.extensions, { recursive: true });
     const elsewhere = mkdtempSync(join(tmpdir(), 'qg-elsewhere-'));
     try {
       writeFileSync(join(elsewhere, 'precious'), 'keep');
-      symlinkSync(elsewhere, join(paths.apps, 'qg-net'));
-      expect(() => appFolder(paths, 'qg-net')).toThrow(StorageFailure);
-      expect(() => removeAppFolder(paths, 'qg-net')).toThrow(StorageFailure);
+      symlinkSync(elsewhere, join(paths.extensions, 'qg-net'));
+      expect(() => extensionFolder(paths, 'qg-net')).toThrow(StorageFailure);
+      expect(() => removeExtensionFolder(paths, 'qg-net')).toThrow(StorageFailure);
       expect(readFileSync(join(elsewhere, 'precious'), 'utf8')).toBe('keep');
     } finally { rmSync(elsewhere, { recursive: true, force: true }); }
   });
 
   it('removes the folder with the application', () => {
     const paths = layout(root);
-    const folder = appFolder(paths, 'qg-editor', { create: true });
+    const folder = extensionFolder(paths, 'qg-editor', { create: true });
     writeFileSync(join(folder, 'data.sqlite'), '');
-    removeAppFolder(paths, 'qg-editor');
+    removeExtensionFolder(paths, 'qg-editor');
     expect(existsSync(folder)).toBe(false);
   });
 });

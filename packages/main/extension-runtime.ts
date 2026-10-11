@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Loading applications and deciding what they may do (QGD-APP-0001,
+// Loading extensions and deciding what they may do (QGD-APP-0001,
 // QGD-APP-0004, QGD-APP-0005, QGD-APP-0006, QGD-APP-0011).
 //
 // This is the enforcement point. QGD-CRD-0002 puts the grant model's
-// enforcement in the frame, and the reason is in the sentence: an application
+// enforcement in the core, and the reason is in the sentence: an extension
 // asking itself whether it is allowed is not a permission system. So every
-// decision here is made from the manifest the frame read and the grants the
-// operator allowed, and never from anything the application says at the time
+// decision here is made from the manifest the core read and the grants the
+// operator allowed, and never from anything the extension says at the time
 // of the call.
 //
 // Deliberately free of Electron, the filesystem and IPC. Loading is given the
@@ -18,13 +18,13 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
-  type AppManifest, ManifestError, validateManifest
-} from '../app-api/manifest.js';
-import { type Grant, type GrantRegister, findGrant, grantIds } from '../app-api/grants.js';
-import { type AppInfo, type AppRequest, requiredGrant } from '../app-api/api-contract.js';
+  type ExtensionManifest, ManifestError, validateManifest
+} from '../extension-api/manifest.js';
+import { type Grant, type GrantRegister, findGrant, grantIds } from '../extension-api/grants.js';
+import { type ExtensionInfo, type ExtensionRequest, requiredGrant } from '../extension-api/api-contract.js';
 
-export interface LoadedApp {
-  readonly manifest: AppManifest;
+export interface LoadedExtension {
+  readonly manifest: ExtensionManifest;
   // What it actually holds. A grant it asked for that the operator has not
   // allowed is absent, which is why this is separate from manifest.grants:
   // asking and holding are different facts (QGD-APP-0012).
@@ -41,21 +41,21 @@ export interface RefusedApp {
 }
 
 export interface LoadResult {
-  readonly loaded: readonly LoadedApp[];
+  readonly loaded: readonly LoadedExtension[];
   readonly refused: readonly RefusedApp[];
 }
 
 // What the operator has allowed, per application. Simple settings, so it lives
-// in the settings file rather than the database (QGD-ENG-0003): the frame
-// decides what an application may do before the engine is up.
+// in the settings file rather than the database (QGD-ENG-0003): the core
+// decides what an extension may do before the engine is up.
 export type AllowedGrants = Readonly<Record<string, readonly string[]>>;
 
 // A grant the register marks `needsOperator: false` is held as soon as the
-// manifest asks for it: reading reference data the frame has already loaded,
-// or fetching from a source the frame itself registered, asks nothing of
+// manifest asks for it: reading reference data the core has already loaded,
+// or fetching from a source the core itself registered, asks nothing of
 // anybody. Everything else waits to be allowed.
 export function heldGrants(
-  manifest: AppManifest, register: GrantRegister, allowed: AllowedGrants
+  manifest: ExtensionManifest, register: GrantRegister, allowed: AllowedGrants
 ): string[] {
   const permitted = new Set(allowed[manifest.id] ?? []);
   return manifest.grants.filter(id => {
@@ -73,18 +73,18 @@ export function heldGrants(
 // name, and whatever JSON.parse produced. Parsing is the caller's because a
 // file that is not JSON is a different failure from a manifest that is wrong,
 // and both have to be reported rather than one masking the other.
-export function loadApps(
+export function loadExtensions(
   manifests: readonly { readonly source: string; readonly value: unknown }[],
   register: GrantRegister,
   allowed: AllowedGrants = {}
 ): LoadResult {
   const known = grantIds(register);
-  const loaded: LoadedApp[] = [];
+  const loaded: LoadedExtension[] = [];
   const refused: RefusedApp[] = [];
   const claimed = new Map<string, string>();
 
   for (const candidate of manifests) {
-    let manifest: AppManifest;
+    let manifest: ExtensionManifest;
     try {
       manifest = validateManifest(candidate.value, known);
     } catch (error) {
@@ -97,7 +97,7 @@ export function loadApps(
       });
       continue;
     }
-    // Two applications with one id would share a database schema and role
+    // Two extensions with one id would share a database schema and role
     // (QGD-ENG-0010) and a set of grants. The second is refused rather than
     // overwriting the first, and the refusal names what it collided with.
     const already = claimed.get(manifest.id);
@@ -121,14 +121,14 @@ export function loadApps(
 
 export type Decision =
   | { readonly allowed: true }
-  // `refused` is the grant that was missing, so the frame can say which
+  // `refused` is the grant that was missing, so the core can say which
   // capability was refused and to whom (QGD-APP-0011). `why` is the sentence
   // shown to the operator.
   | { readonly allowed: false; readonly refused: string | undefined; readonly why: string };
 
-export function decide(app: LoadedApp, request: AppRequest, register: GrantRegister): Decision {
+export function decide(extension: LoadedExtension, request: ExtensionRequest, register: GrantRegister): Decision {
   const needed = requiredGrant(request);
-  // No grant needed: app.info only, so an application with nothing can still
+  // No grant needed: extension.info only, so an extension with nothing can still
   // read its own standing (QGD-APP-0005).
   if (needed === undefined) return { allowed: true };
 
@@ -140,47 +140,47 @@ export function decide(app: LoadedApp, request: AppRequest, register: GrantRegis
     return {
       allowed: false,
       refused: needed,
-      why: `"${app.manifest.name}" asked for ${needed}, which is not a capability this product has.`
+      why: `"${extension.manifest.name}" asked for ${needed}, which is not a capability this product has.`
     };
   }
-  if (!app.held.includes(needed)) {
-    const asked = app.manifest.grants.includes(needed);
+  if (!extension.held.includes(needed)) {
+    const asked = extension.manifest.grants.includes(needed);
     return {
       allowed: false,
       refused: needed,
       // The two cases read differently to an operator, and both are true
       // statements rather than a guess: one is fixable by allowing it, the
-      // other is not fixable at all without a new version of the application.
+      // other is not fixable at all without a new version of the extension.
       why: asked
-        ? `"${app.manifest.name}" needs ${needed}, which has not been allowed.`
-        : `"${app.manifest.name}" asked to use ${needed}, which it did not declare.`
+        ? `"${extension.manifest.name}" needs ${needed}, which has not been allowed.`
+        : `"${extension.manifest.name}" asked to use ${needed}, which it did not declare.`
     };
   }
   return { allowed: true };
 }
 
-export function appInfo(app: LoadedApp): AppInfo {
-  const { id, name, tier, version } = app.manifest;
-  // What it holds, not what it asked for: an application that has had a grant
+export function extensionInfo(extension: LoadedExtension): ExtensionInfo {
+  const { id, name, tier, version } = extension.manifest;
+  // What it holds, not what it asked for: an extension that has had a grant
   // withdrawn sees that here, which is how it can say why it stopped working
   // rather than failing at the next call.
-  return { id, name, tier, version, grants: [...app.held] };
+  return { id, name, tier, version, grants: [...extension.held] };
 }
 
 // Withdrawing a grant takes effect without a restart (QGD-APP-0012), so this
-// returns the application as it now stands rather than mutating it: the next
+// returns the extension as it now stands rather than mutating it: the next
 // decision is made against the new value, and there is no moment where a
 // half-updated application is being asked about.
 export function withGrants(
-  app: LoadedApp, register: GrantRegister, allowed: AllowedGrants
-): LoadedApp {
-  return { manifest: app.manifest, held: heldGrants(app.manifest, register, allowed) };
+  extension: LoadedExtension, register: GrantRegister, allowed: AllowedGrants
+): LoadedExtension {
+  return { manifest: extension.manifest, held: heldGrants(extension.manifest, register, allowed) };
 }
 
 // ---------------------------------------------------------------------------
 // Reading what is on disk.
 //
-// Here rather than in app-broker.ts because that module imports Electron, and
+// Here rather than in extension-broker.ts because that module imports Electron, and
 // a pure function behind an Electron import is a pure function no unit test
 // can reach. Everything in this file is exercisable without a window.
 
@@ -204,7 +204,7 @@ export async function readSourceRegister(file: string): Promise<SourceRegister> 
 }
 
 // Read from a directory of application directories. A manifest that cannot be
-// parsed is reported as a refusal rather than skipped: an application that
+// parsed is reported as a refusal rather than skipped: an extension that
 // silently fails to appear is harder to diagnose than one that says why.
 export async function readManifests(
   directories: readonly string[]
@@ -215,7 +215,7 @@ export async function readManifests(
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch {
-      // A directory that is not there holds no applications. `apps/` is empty
+      // A directory that is not there holds no extensions. `apps/` is empty
       // until QGD-PRT-0108 and the proofs are absent from a shipped build
       // (QGD-APP-0014.1), so this is the ordinary case, not an error.
       continue;

@@ -33,9 +33,9 @@ The build order is the catalogue in spec §2.1 and nowhere else.
 Two words to keep apart: **the core** is the platform; **the credential core** is the Rust addon
 in `packages/persona-core`. Never call the second one "the core".
 
-The code still uses the earlier names (`packages/app-api`, `apps/`, the app broker, "app" in
-manifests and grants) until the one-pass rename in `qso-graph-desktop#34`. Write new prose in the
-new words, and name code by what it is called today.
+The code uses the same words (`packages/extension-api`, `extensions/`, the extension broker), renamed
+in one pass in `qso-graph-desktop#34`. Requirement IDs keep the `QGD-APP` prefix and registered test
+IDs keep their names: an identifier that changes breaks every reference to it.
 
 ## Mental model for any change
 
@@ -50,7 +50,7 @@ This section is navigation; the requirements themselves are in the spec.
 | Storage, schema, migrations, reference data files | `storage` | `QGD-ENG-*` |
 | Reference data (ADIF, POTA…) | `reference` | `QGD-REF-*` |
 | Personas and services | `personas` | `QGD-PSN-*` |
-| Anything a ham *does* | an extension in `apps/`, through `app-api` only | `QGD-APP-*`, `QGD-REP-0003` |
+| Anything a ham *does* | an extension in `extensions/`, through `extension-api` only | `QGD-APP-*`, `QGD-REP-0003` |
 
 Four things are easy to get wrong, so check them on every change:
 
@@ -77,7 +77,7 @@ macOS on Apple silicon is the only platform before Release 1 (`QGD-SCP-0002`).
 
 ```text
 qso-graph-desktop/
-├── packages/            the core (P0–P7); extensions may depend only on app-api and ui
+├── packages/            the core (P0–P7); extensions may depend only on extension-api and ui
 │   ├── persona-core/    Rust (napi-rs): OS credential store, outbound HTTPS, crypto
 │   ├── main/            Electron main: windows, IPC brokers, process supervision
 │   ├── preload/         the only bridge to the renderer: named, typed functions
@@ -87,8 +87,8 @@ qso-graph-desktop/
 │   ├── reference/       reference data: ADIF definitions, POTA parks, loaders
 │   ├── personas/        personas and the service register
 │   ├── logging/         the structured, redacted log stream
-│   └── app-api/         the extension API: manifest, grants, messages
-├── apps/                built-in extensions (P8 onward), each self-contained
+│   └── extension-api/   the extension API: manifest, grants, messages
+├── extensions/          built-in extensions (P8 onward), each self-contained
 ├── storybook/           the component and pattern gallery (dev only, never shipped)
 ├── spec/ hdbk/ rvm/     specification, handbook, generated verification matrix
 ├── docs/                per-Part acceptance registrations (P0.md …) and design notes

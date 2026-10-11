@@ -1,35 +1,35 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Serving one application request, and answering what loaded.
 //
-// Split out of app-broker.ts, which imports Electron's `ipcMain` at module
+// Split out of extension-broker.ts, which imports Electron's `ipcMain` at module
 // scope — so nothing behind that import can be reached by a unit test. The
-// same reason app-runtime.ts exists: a decision that needs a window, a
+// same reason extension-runtime.ts exists: a decision that needs a window, a
 // credential core and a network to exercise is a decision that gets tested
 // once.
 //
 // What this file makes testable is the seam rather than the decision.
-// app-runtime.ts answers *whether* a request is allowed; this answers what
+// extension-runtime.ts answers *whether* a request is allowed; this answers what
 // happens either way — that the allowed grants are read again on every
 // request so a withdrawal needs no restart (`QGD-APP-0012`), that a permitted
 // request reaches the one port it names and no other, and that a refused one
 // reaches none of them.
 //
-// Those three were proven end to end by the proof applications until
+// Those three were proven end to end by the proof extensions until
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, type AppReply, type AppRequest, type PersonaBrief
-} from '../app-api/api-contract.js';
+  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type PersonaBrief
+} from '../extension-api/api-contract.js';
 import {
-  appInfo, decide, withGrants, type AllowedGrants, type LoadedApp
-} from './app-runtime.js';
-import { findGrant, type GrantRegister } from '../app-api/grants.js';
-import type { AppInventory } from './apps-contract.js';
+  extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
+} from './extension-runtime.js';
+import { findGrant, type GrantRegister } from '../extension-api/grants.js';
+import type { ExtensionInventory } from './extensions-contract.js';
 
-// What serving needs from the rest of the frame, injected rather than
+// What serving needs from the rest of the core, injected rather than
 // imported, so the path can be exercised without a window, a credential core
 // or a network.
-export interface AppBrokerPorts {
+export interface ExtensionBrokerPorts {
   // The grants the operator has allowed, read from the settings file
   // (QGD-ENG-0003: simple settings live there, so this answers before the
   // engine is up).
@@ -56,32 +56,32 @@ export interface ServeLog {
 export interface ServeDeps {
   readonly register: GrantRegister;
   readonly sources: Readonly<Record<string, string>>;
-  readonly ports: AppBrokerPorts;
+  readonly ports: ExtensionBrokerPorts;
   readonly log: ServeLog;
   // Held by the caller because the held grants are refreshed in place as
   // requests arrive. Correctness does not depend on that — withGrants is
   // computed fresh from `allowed()` every time — but it is kept rather than
   // changed, because a refactor that also changes behaviour is two changes
   // reported as one.
-  apps: LoadedApp[];
+  extensions: LoadedExtension[];
   readonly refused: readonly { id: string | undefined; source: string; reason: string }[];
 }
 
-export const refusal = (error: string, refused?: string): AppReply =>
+export const refusal = (error: string, refused?: string): ExtensionReply =>
   refused === undefined ? { ok: false, error } : { ok: false, error, refused };
 
 export function createServe(deps: ServeDeps) {
-  return async function serve(id: unknown, command: unknown): Promise<AppReply> {
+  return async function serve(id: unknown, command: unknown): Promise<ExtensionReply> {
     if (typeof id !== 'string') return refusal('No application was named.');
     // Re-read the allowed grants on every request, so a withdrawal takes
     // effect without a restart (QGD-APP-0012).
     const allowed = deps.ports.allowed();
-    const found = deps.apps.find(app => app.manifest.id === id);
+    const found = deps.extensions.find(extension => extension.manifest.id === id);
     if (!found) return refusal(`"${id}" is not a loaded application.`);
-    const app = withGrants(found, deps.register, allowed);
-    deps.apps = deps.apps.map(entry => (entry.manifest.id === id ? app : entry));
+    const extension = withGrants(found, deps.register, allowed);
+    deps.extensions = deps.extensions.map(entry => (entry.manifest.id === id ? extension : entry));
 
-    let request: AppRequest;
+    let request: ExtensionRequest;
     try {
       request = validateRequest(command);
     } catch (error) {
@@ -89,18 +89,18 @@ export function createServe(deps: ServeDeps) {
       return refusal(`That request was refused: ${(error as Error).message}.${field ? ` (${field})` : ''}`);
     }
 
-    const decision = decide(app, request, deps.register);
+    const decision = decide(extension, request, deps.register);
     if (!decision.allowed) {
       // Logged as well as returned: the operator is told, and there is a
       // record of what asked for what (QGD-APP-0011).
-      deps.log.warn({ app: id, refused: decision.refused, kind: request.kind }, decision.why);
+      deps.log.warn({ extension: id, refused: decision.refused, kind: request.kind }, decision.why);
       return refusal(decision.why, decision.refused);
     }
 
     try {
       switch (request.kind) {
-        case 'app.info':
-          return { ok: true, kind: 'app.info', info: appInfo(app) };
+        case 'extension.info':
+          return { ok: true, kind: 'extension.info', info: extensionInfo(extension) };
         case 'persona.list':
           return { ok: true, kind: 'persona.list', personas: await deps.ports.personas() };
         case 'source.fetch': {
@@ -122,28 +122,28 @@ export function createServe(deps: ServeDeps) {
       // The message only. A thrown error from a service call is the one place
       // a secret could ride out in a stack (QGD-CRD-0006).
       const why = error instanceof Error ? error.message : 'That could not be done.';
-      deps.log.warn({ app: id, kind: request.kind }, why);
+      deps.log.warn({ extension: id, kind: request.kind }, why);
       return refusal(why);
     }
   };
 }
 
-export function buildInventory(deps: ServeDeps): AppInventory {
+export function buildInventory(deps: ServeDeps): ExtensionInventory {
   const allowed = deps.ports.allowed();
   return {
-    apps: deps.apps.map(entry => {
-      const app = withGrants(entry, deps.register, allowed);
-      const { id, name, tier, version } = app.manifest;
+    extensions: deps.extensions.map(entry => {
+      const extension = withGrants(entry, deps.register, allowed);
+      const { id, name, tier, version } = extension.manifest;
       return {
         id, name, tier, version,
-        grants: app.manifest.grants.map(grantId => {
+        grants: extension.manifest.grants.map(grantId => {
           const grant = findGrant(deps.register, grantId);
           return {
             id: grantId,
             what: grant?.what ?? 'This capability is no longer one this product defines.',
             ...(grant?.notWhat === undefined ? {} : { notWhat: grant.notWhat }),
             needsOperator: grant?.needsOperator ?? true,
-            held: app.held.includes(grantId)
+            held: extension.held.includes(grantId)
           };
         })
       };

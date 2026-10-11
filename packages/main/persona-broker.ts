@@ -26,7 +26,7 @@ export interface PersonaBroker {
   // it (see validateCommand in persona-contract.ts).
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
   // The personas an application may be shown: callsign and name, nothing else
-  // (QGD-CRD-0010). Reached only through the app API with a persona:list
+  // (QGD-CRD-0010). Reached only through the extension API with a persona:list
   // grant.
   personaBriefs: () => Promise<readonly { name: string; callsign: string }[] | string>;
   // Acting with a credential on an application's behalf (QGD-APP-0007). Not

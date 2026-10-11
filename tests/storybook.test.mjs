@@ -62,7 +62,7 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
     // migrations and reference.sqlite's rendered DDL (QGD-ENG-0013, QGD-ENG-0015). Nothing of ADIF's or POTA's
     // own data is in that list: QGD-REF-0001 and QGD-REF-0009 have it fetched
     // at run time, so what ships is where to get it and nothing more.
-    // The app API's two registers ship as well: the broker reads the grants
+    // The extension API's two registers ship as well: the broker reads the grants
     // and the sources from the application path (QGD-APP-0006, QGD-APP-0008).
     // It is an allowlist, which is what makes everything development-only
     // absent by construction rather than by anybody remembering
@@ -76,9 +76,9 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
       // components that way while the executable JavaScript was clean.
       'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE',
       'data/reference-sources.json', 'data/service-profiles.json',
-      'data/app-grants.json', 'data/app-sources.json', 'drizzle/**/*'
+      'data/extension-grants.json', 'data/extension-sources.json', 'drizzle/**/*'
     ]);
-    expect(files, 'nor apps/ until one exists to ship').not.toContain('apps');
+    expect(files, 'nor extensions/ until one exists to ship').not.toContain('extensions');
   });
 
   it('keeps the built gallery out of the repository', async () => {

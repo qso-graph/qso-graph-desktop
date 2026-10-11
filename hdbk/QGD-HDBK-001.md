@@ -434,7 +434,9 @@ other project, so that it cannot read as an endorsement; it uses the open-source
 documentation names Podman Desktop, VS Code and Bitwarden, because that is where a contributor
 learns the patterns, and it is the credit.
 
-**The code follows in one pass.** The specification and documentation use these words now. The code
-(`packages/app-api`, `apps/`, the app broker, manifest fields and grant names) takes them in a
-single rename before any extension is built, while the rename is still cheap.
+**The code uses the same words.** It was renamed in one pass (`qso-graph-desktop#34`) before any
+extension was built, while that was still cheap: `packages/extension-api`, `extensions/`, the
+extension broker, and `extension_state` in `state.sqlite`, by a migration rather than an edit, so a
+store made before the rename keeps what it holds. Requirement IDs keep the `QGD-APP` prefix and
+registered test IDs keep their names, because an identifier that changes breaks every reference to it.
 

@@ -164,7 +164,7 @@ export type ServiceCommand =
   // Acting with a stored credential on an application's behalf, and returning
   // the answer (QGD-APP-0007). Not a PersonaCommand either, and for the same
   // reason: a renderer may not ask this product to use a credential directly.
-  // An application reaches it only through the app API, with a service grant
+  // An application reaches it only through the extension API, with a service grant
   // the operator allowed, and the secret never comes back — only the result.
   | {
       type: 'service-lookup';

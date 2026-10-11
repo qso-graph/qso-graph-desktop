@@ -31,7 +31,7 @@ export async function applyMigrations<TSchema extends Record<string, unknown>>(
     connection.exec('BEGIN IMMEDIATE');
     try {
       await migrate(db, async (queries: string[]) => {
-        // The migration files the frame ships, and Drizzle's own bookkeeping
+        // The migration files the core ships, and Drizzle's own bookkeeping
         // insert. Nothing in them comes from a user.
         for (const query of queries) connection.exec(query);
       }, { migrationsFolder: folder, migrationsTable: MIGRATIONS_TABLE });
@@ -57,7 +57,7 @@ export async function read<TSchema extends Record<string, unknown>>(store: Store
 }
 
 // reference.sqlite's DDL (QGD-ENG-0015): run here, beside the migrator, as the
-// other place SQL text the frame ships reaches SQLite. The statements are the
+// other place SQL text the core ships reaches SQLite. The statements are the
 // rendered file in drizzle/reference/. The caller holds the transaction.
 export function applyDdl<TSchema extends Record<string, unknown>>(store: Store<TSchema>, statements: string[]): void {
   for (const statement of statements) store.connection.exec(statement);

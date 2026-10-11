@@ -1,7 +1,0 @@
-{
-  "register": "The sources an application may ask the frame to fetch",
-  "note": "QGD-APP-0008. An application names a source; the URL is here. It never names a destination and never opens a connection — the fetch is the Rust credential core's, because all of this product's outbound HTTPS goes through it (D-18, D-31). A grant is source:<id>, so adding a source means adding its grant to data/app-grants.json as well, and an application asking for a source with no grant is refused before the URL is looked up.",
-  "sources": {
-    "solar": "https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json"
-  }
-}

@@ -12,7 +12,7 @@ import { windowVisibility } from './window-visibility.js';
 import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
-import { startAppBroker } from './app-broker.js';
+import { startExtensionBroker } from './extension-broker.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
 
 // The compiled tree is dist/<package>/, so this file is dist/main/main.js and
@@ -152,20 +152,20 @@ if (!app.requestSingleInstanceLock()) {
       // credential core, the one process that reaches the network (QGD-SEC-0020).
       fetchReference: personas.fetchReference
     });
-    // The app API (QGD-APP-0002). Started after the brokers it reaches
+    // The extension API (QGD-APP-0002). Started after the brokers it reaches
     // through, because its ports are their methods.
     //
     // `apps/` is empty until QGD-PRT-0108, so an ordinary run loads no
     // applications at all. That is the correct result, not a failure: the
     // broker still enforces, and there is nothing yet to enforce against.
-    const appBroker = await startAppBroker({
+    const extensionBroker = await startExtensionBroker({
       // Overridable so a suite can point the product at manifests of its own rather than editing a
       // tracked one, which an interrupted run would leave behind.
-      directories: process.env.QG_DESKTOP_APP_DIRS
-        ? process.env.QG_DESKTOP_APP_DIRS.split(':').filter(Boolean)
-        : [join(app.getAppPath(), 'apps')],
-      grantRegisterFile: join(app.getAppPath(), 'data', 'app-grants.json'),
-      sourceRegisterFile: join(app.getAppPath(), 'data', 'app-sources.json'),
+      directories: process.env.QG_DESKTOP_EXTENSION_DIRS
+        ? process.env.QG_DESKTOP_EXTENSION_DIRS.split(':').filter(Boolean)
+        : [join(app.getAppPath(), 'extensions')],
+      grantRegisterFile: join(app.getAppPath(), 'data', 'extension-grants.json'),
+      sourceRegisterFile: join(app.getAppPath(), 'data', 'extension-sources.json'),
       ports: {
         allowed: () => load().grants,
         personas: async () => {
@@ -190,9 +190,9 @@ if (!app.requestSingleInstanceLock()) {
     }).catch((error: unknown) => {
       // A register this product ships that cannot be read is worth saying
       // loudly, and is not a reason to refuse to start: an application that
-      // does not load leaves the frame working (QGD-APP-0013).
+      // does not load leaves the core working (QGD-APP-0013).
       log.error({ reason: error instanceof Error ? error.message : String(error) },
-        'the app API could not start; no application will load');
+        'the extension API could not start; no extension will load');
       return undefined;
     });
 
@@ -202,7 +202,7 @@ if (!app.requestSingleInstanceLock()) {
     // for again; the second one is let through.
     let quitting = false;
     app.on('before-quit', event => {
-      appBroker?.stop();
+      extensionBroker?.stop();
       stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
       if (quitting) return;
       quitting = true;

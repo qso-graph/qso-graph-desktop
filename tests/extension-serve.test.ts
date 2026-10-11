@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// What the proof applications used to prove, proven here instead.
+// What the proof extensions used to prove, proven here instead.
 //
 // Three of the thirteen checks in the retired app-proofs suite were about the
 // seam rather than the decision: that allowing a grant takes effect with no
 // reload of the window, that withdrawing it takes effect with no restart, and
-// that a permitted call actually reaches the credential core. app-runtime
+// that a permitted call actually reaches the credential core. extension-runtime
 // answers *whether* a request is allowed; this answers what happens either
 // way (`QGD-APP-0012`, `QGD-APP-0014`).
 //
@@ -14,11 +14,11 @@
 // a permission system, and nothing in the decision tests can see that.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { grantIds, validateGrantRegister } from '../packages/app-api/grants.js';
-import { loadApps } from '../packages/main/app-runtime.js';
-import { buildInventory, createServe, type AppBrokerPorts, type ServeDeps } from '../packages/main/app-serve.js';
+import { grantIds, validateGrantRegister } from '../packages/extension-api/grants.js';
+import { loadExtensions } from '../packages/main/extension-runtime.js';
+import { buildInventory, createServe, type ExtensionBrokerPorts, type ServeDeps } from '../packages/main/extension-serve.js';
 
-const register = validateGrantRegister(JSON.parse(await readFile('data/app-grants.json', 'utf8')));
+const register = validateGrantRegister(JSON.parse(await readFile('data/extension-grants.json', 'utf8')));
 const known = grantIds(register);
 
 const SOLAR = { id: 'solar', name: 'Space weather', tier: 'official', version: '1.0.0', grants: ['source:solar'], page: 'SolarPage.svelte' };
@@ -39,7 +39,7 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
   // fresh object each time makes them depend on the re-read they claim to
   // prove.
   let current: Record<string, readonly string[]> = { ...allowed };
-  const ports: AppBrokerPorts = {
+  const ports: ExtensionBrokerPorts = {
     allowed: () => { allowedReads += 1; return current; },
     personas: async () => { calls.push('personas'); return [{ name: 'Home station', callsign: 'W1AW' }]; },
     fetchSource: async url => { calls.push(`fetchSource:${url}`); return { body: 'sfi 150', fresh: true }; },
@@ -54,8 +54,8 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     sources: { solar: 'https://services.swpc.noaa.gov/indices.json' },
     ports,
     log: { warn: (_fields, message) => warnings.push(message) },
-    apps: [...loadApps(
-      [SOLAR, QRZ, BARE].map((value, at) => ({ source: `apps/${at}/manifest.json`, value })),
+    extensions: [...loadExtensions(
+      [SOLAR, QRZ, BARE].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value })),
       register, allowed
     ).loaded],
     refused: []
@@ -81,7 +81,7 @@ describe('a refused request reaches nothing', () => {
     expect(it0.warnings.join(' ')).toContain('service:qrz');
   });
 
-  it('touches no port when the application never declared the grant', async () => {
+  it('touches no port when the extension never declared the grant', async () => {
     const it0 = recorder({ bare: ['persona:list'] });
     const reply = await it0.serve('bare', { kind: 'persona.list' });
     expect(reply.ok).toBe(false);
@@ -99,9 +99,9 @@ describe('a refused request reaches nothing', () => {
     expect(it0.calls).toEqual([]);
   });
 
-  it('refuses an application that is not loaded, without naming a grant', async () => {
+  it('refuses an extension that is not loaded, without naming a grant', async () => {
     const it0 = recorder();
-    const reply = await it0.serve('not-installed', { kind: 'app.info' });
+    const reply = await it0.serve('not-installed', { kind: 'extension.info' });
     expect(reply.ok).toBe(false);
     expect(reply.ok === false && reply.error).toContain('not a loaded application');
     expect(reply.ok === false && reply.refused).toBeUndefined();
@@ -110,7 +110,7 @@ describe('a refused request reaches nothing', () => {
 });
 
 describe('an allowed request reaches the one port it names', () => {
-  it('reaches the credential core with exactly the values the frame validated', async () => {
+  it('reaches the credential core with exactly the values the core validated', async () => {
     const it0 = recorder({ 'qrz-lookup': ['service:qrz', 'persona:list'] });
     const reply = await it0.serve('qrz-lookup', {
       kind: 'service.request', service: 'qrz', persona: 'Home station',
@@ -122,11 +122,11 @@ describe('an allowed request reaches the one port it names', () => {
     ]);
   });
 
-  it('resolves the source URL from the register rather than from the application', async () => {
+  it('resolves the source URL from the register rather than from the extension', async () => {
     const it0 = recorder({ solar: ['source:solar'] });
     const reply = await it0.serve('solar', { kind: 'source.fetch', source: 'solar' });
     expect(reply.ok).toBe(true);
-    // The application named "solar"; what was fetched is the register's URL.
+    // The extension named "solar"; what was fetched is the register's URL.
     expect(it0.calls).toEqual(['fetchSource:https://services.swpc.noaa.gov/indices.json']);
   });
 
@@ -138,11 +138,11 @@ describe('an allowed request reaches the one port it names', () => {
     expect(it0.calls, 'a missing URL must not become a fetch of undefined').toEqual([]);
   });
 
-  it('lets an application read its own standing with no grant and no port', async () => {
+  it('lets an extension read its own standing with no grant and no port', async () => {
     const it0 = recorder();
-    const reply = await it0.serve('bare', { kind: 'app.info' });
+    const reply = await it0.serve('bare', { kind: 'extension.info' });
     expect(reply.ok).toBe(true);
-    expect(reply.ok === true && reply.kind === 'app.info' && reply.info.grants).toEqual([]);
+    expect(reply.ok === true && reply.kind === 'extension.info' && reply.info.grants).toEqual([]);
     expect(it0.calls).toEqual([]);
   });
 });
@@ -205,22 +205,22 @@ describe('what comes back when a port fails', () => {
   });
 });
 
-describe('the inventory the frame shows itself', () => {
+describe('the inventory the core shows itself', () => {
   it('says what each application asked for and whether it is held', () => {
     const deps = recorder({ 'qrz-lookup': ['persona:list'] }).deps;
     const inventory = buildInventory(deps);
-    const lookup = inventory.apps.find(app => app.id === 'qrz-lookup');
+    const lookup = inventory.extensions.find(extension => extension.id === 'qrz-lookup');
     expect(lookup?.grants.map(grant => [grant.id, grant.held])).toEqual([
       ['service:qrz', false],
       ['persona:list', true]
     ]);
     // A grant needing nobody is held without being allowed.
-    const solar = inventory.apps.find(app => app.id === 'solar');
+    const solar = inventory.extensions.find(extension => extension.id === 'solar');
     expect(solar?.grants.every(grant => grant.held || grant.needsOperator)).toBe(true);
     // Every grant carries the sentence the register holds, because a grant
     // with no explanation cannot be put to anybody.
-    for (const app of inventory.apps) {
-      for (const grant of app.grants) expect(grant.what.length).toBeGreaterThan(0);
+    for (const extension of inventory.extensions) {
+      for (const grant of extension.grants) expect(grant.what.length).toBeGreaterThan(0);
     }
   });
 });

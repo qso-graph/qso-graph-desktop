@@ -11,20 +11,20 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
-  REQUEST_KINDS, RequestError, requiredGrant, validateRequest, type AppRequest
-} from '../packages/app-api/api-contract.js';
-import { LOADABLE_TIERS, TIERS, ManifestError, validateManifest } from '../packages/app-api/manifest.js';
-import { RegisterError, grantIds, validateGrantRegister } from '../packages/app-api/grants.js';
-import { appInfo, decide, loadApps, withGrants } from '../packages/main/app-runtime.js';
+  REQUEST_KINDS, RequestError, requiredGrant, validateRequest, type ExtensionRequest
+} from '../packages/extension-api/api-contract.js';
+import { LOADABLE_TIERS, TIERS, ManifestError, validateManifest } from '../packages/extension-api/manifest.js';
+import { RegisterError, grantIds, validateGrantRegister } from '../packages/extension-api/grants.js';
+import { extensionInfo, decide, loadExtensions, withGrants } from '../packages/main/extension-runtime.js';
 
-const register = validateGrantRegister(JSON.parse(await readFile('data/app-grants.json', 'utf8')));
+const register = validateGrantRegister(JSON.parse(await readFile('data/extension-grants.json', 'utf8')));
 const known = grantIds(register);
 
 const SOLAR = { id: 'solar', name: 'Space weather', tier: 'official', version: '1.0.0', grants: ['source:solar'], page: 'SolarPage.svelte' };
 const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', tier: 'official', version: '1.0.0', grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', tier: 'official', version: '1.0.0', grants: [], page: 'Bare.svelte' };
 
-const from = (...values: unknown[]) => values.map((value, at) => ({ source: `apps/${at}/manifest.json`, value }));
+const from = (...values: unknown[]) => values.map((value, at) => ({ source: `extensions/${at}/manifest.json`, value }));
 
 describe('a manifest is read before any code is', () => {
   it('accepts a well-formed one and keeps exactly what it declared', () => {
@@ -45,7 +45,7 @@ describe('a manifest is read before any code is', () => {
 
   it('refuses a tier this release cannot sandbox, rather than running it', () => {
     // QGD-APP-0004 fails closed. This is the one that matters most: the
-    // alternative is a release that runs third-party code with the frame's
+    // alternative is a release that runs third-party code with the core's
     // own access, which is what D-2 was decided to prevent.
     for (const tier of TIERS.filter(entry => !LOADABLE_TIERS.includes(entry))) {
       expect(() => validateManifest({ ...SOLAR, tier }, known))
@@ -55,7 +55,7 @@ describe('a manifest is read before any code is', () => {
     expect(validateManifest({ ...SOLAR, tier: 'official' }, known).tier).toBe('official');
   });
 
-  it('refuses a page that points outside the application', () => {
+  it('refuses a page that points outside the extension', () => {
     for (const page of ['../../packages/main/main.js', '/etc/passwd', 'a/../../b', '']) {
       expect(() => validateManifest({ ...SOLAR, page }, known), page)
         .toThrowError(/does not say where its page is, or points outside itself/);
@@ -67,13 +67,13 @@ describe('a manifest is read before any code is', () => {
     expect(() => validateManifest({ ...SOLAR, version: 'latest' }, known)).toThrowError(/well-formed version/);
     expect(() => validateManifest({ ...SOLAR, name: '' }, known)).toThrowError(/no name to show/);
     expect(() => validateManifest({ ...SOLAR, grants: 'source:solar' }, known))
-      .toThrowError(/an empty list is how an application asks for none/);
+      .toThrowError(/an empty list is how an extension asks for none/);
     expect(() => validateManifest({ ...SOLAR, grants: ['source:solar', 'source:solar'] }, known))
       .toThrowError(/twice/);
   });
 
-  it('accepts an application that asks for nothing', () => {
-    // Not an error: QGD-APP-0005 says an application starts with nothing and
+  it('accepts an extension that asks for nothing', () => {
+    // Not an error: QGD-APP-0005 says an extension starts with nothing and
     // can still draw its page.
     expect(validateManifest(BARE, known).grants).toEqual([]);
   });
@@ -81,25 +81,25 @@ describe('a manifest is read before any code is', () => {
 
 describe('loading reports every refusal rather than the first', () => {
   it('loads what is good and refuses what is not, in one pass', () => {
-    const result = loadApps(from(SOLAR, { ...QRZ, tier: 'unofficial' }, BARE, 'not an object'), register);
-    expect(result.loaded.map(app => app.manifest.id)).toEqual(['solar', 'bare']);
+    const result = loadExtensions(from(SOLAR, { ...QRZ, tier: 'unofficial' }, BARE, 'not an object'), register);
+    expect(result.loaded.map(extension => extension.manifest.id)).toEqual(['solar', 'bare']);
     expect(result.refused).toHaveLength(2);
     expect(result.refused[0].subject).toBe('unofficial');
-    expect(result.refused[0].source).toBe('apps/1/manifest.json');
+    expect(result.refused[0].source).toBe('extensions/1/manifest.json');
     expect(result.refused[1].reason).toMatch(/not an object/);
   });
 
   it('refuses a second application claiming an id, naming what it collided with', () => {
-    // Two applications with one id would share a schema and a role
+    // Two extensions with one id would share a schema and a role
     // (QGD-ENG-0010) and a set of grants.
-    const result = loadApps(from(SOLAR, SOLAR), register);
+    const result = loadExtensions(from(SOLAR, SOLAR), register);
     expect(result.loaded).toHaveLength(1);
-    expect(result.refused[0].reason).toBe('"solar" is already loaded from apps/0/manifest.json.');
+    expect(result.refused[0].reason).toBe('"solar" is already loaded from extensions/0/manifest.json.');
   });
 
   it('holds a grant that needs nobody, and withholds one that needs the operator', () => {
-    const result = loadApps(from(SOLAR, QRZ), register);
-    // source:solar is needsOperator: false — the frame registered the source
+    const result = loadExtensions(from(SOLAR, QRZ), register);
+    // source:solar is needsOperator: false — the core registered the source
     // itself, so fetching from it asks nothing of anybody.
     expect(result.loaded[0].held).toEqual(['source:solar']);
     // service:qrz and persona:list both need the operator, and nobody has
@@ -110,18 +110,18 @@ describe('loading reports every refusal rather than the first', () => {
 });
 
 describe('the decision', () => {
-  const { loaded } = loadApps(from(SOLAR, QRZ, BARE), register, { 'qrz-lookup': ['service:qrz', 'persona:list'] });
+  const { loaded } = loadExtensions(from(SOLAR, QRZ, BARE), register, { 'qrz-lookup': ['service:qrz', 'persona:list'] });
   const [solar, qrz, bare] = loaded;
 
-  it('lets an application read its own standing with no grant at all', () => {
+  it('lets an extension read its own standing with no grant at all', () => {
     // QGD-APP-0005. The only request that needs nothing, and it has to, or an
     // application cannot say why it stopped working.
-    expect(decide(bare, { kind: 'app.info' }, register)).toEqual({ allowed: true });
-    expect(appInfo(bare).grants).toEqual([]);
+    expect(decide(bare, { kind: 'extension.info' }, register)).toEqual({ allowed: true });
+    expect(extensionInfo(bare).grants).toEqual([]);
   });
 
-  it('refuses every capability an application with nothing did not ask for', () => {
-    const requests: AppRequest[] = [
+  it('refuses every capability an extension with nothing did not ask for', () => {
+    const requests: ExtensionRequest[] = [
       { kind: 'persona.list' },
       { kind: 'source.fetch', source: 'solar' },
       { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {} }
@@ -139,7 +139,7 @@ describe('the decision', () => {
   it('allows what was asked for and allowed, and refuses the same call once it is withdrawn', () => {
     // P7-grant-withdrawn, and half of QGD-APP-0014's gate: the granted
     // application works, and the same call is refused with the grant gone.
-    const lookup: AppRequest = { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: { callsign: 'W1AW' } };
+    const lookup: ExtensionRequest = { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: { callsign: 'W1AW' } };
     expect(decide(qrz, lookup, register)).toEqual({ allowed: true });
 
     const withdrawn = withGrants(qrz, register, { 'qrz-lookup': ['persona:list'] });
@@ -166,10 +166,10 @@ describe('the decision', () => {
 
   it('gates every request kind the contract has, not the ones somebody thought of', () => {
     // The guarantee behind requiredGrant being one function: a kind added to
-    // the contract with no entry would reach the frame ungated, which is how
+    // the contract with no entry would reach the core ungated, which is how
     // four gates in this project have gone quiet (QGD-SEC-0021).
-    const sample: Record<string, AppRequest> = {
-      'app.info': { kind: 'app.info' },
+    const sample: Record<string, ExtensionRequest> = {
+      'extension.info': { kind: 'extension.info' },
       'persona.list': { kind: 'persona.list' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {} }
@@ -177,11 +177,11 @@ describe('the decision', () => {
     expect(Object.keys(sample).sort()).toEqual([...REQUEST_KINDS].sort());
     for (const kind of REQUEST_KINDS) {
       const request = sample[kind];
-      // Either it needs a grant, or it is app.info. Nothing else may be free.
-      if (kind === 'app.info') expect(requiredGrant(request)).toBeUndefined();
+      // Either it needs a grant, or it is extension.info. Nothing else may be free.
+      if (kind === 'extension.info') expect(requiredGrant(request)).toBeUndefined();
       else expect(requiredGrant(request), kind).toBeTypeOf('string');
-      // And an application holding nothing is refused everything but app.info.
-      expect(decide(bare, request, register).allowed, kind).toBe(kind === 'app.info');
+      // And an extension holding nothing is refused everything but extension.info.
+      expect(decide(bare, request, register).allowed, kind).toBe(kind === 'extension.info');
     }
   });
 });
@@ -202,7 +202,7 @@ describe('a request is validated and never coerced', () => {
     }
   });
 
-  it('bounds the one part of a request the application shapes', () => {
+  it('bounds the one part of a request the extension shapes', () => {
     const base = { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup' };
     expect(validateRequest(base)).toEqual({ ...base, parameters: {} });
     expect(() => validateRequest({ ...base, parameters: { 'Call Sign': 'W1AW' } })).toThrowError(/is not a name/);
@@ -223,7 +223,7 @@ describe('the grant register', () => {
     // QGD-APP-0006 and the rule QGD-PSN-0002 set for services: a second list
     // is a list that will disagree with the first. No grant id is written into
     // the contract or the runtime.
-    for (const file of ['packages/app-api/grants.ts', 'packages/app-api/manifest.ts', 'packages/main/app-runtime.ts']) {
+    for (const file of ['packages/extension-api/grants.ts', 'packages/extension-api/manifest.ts', 'packages/main/extension-runtime.ts']) {
       const text = await readFile(file, 'utf8');
       const code = text.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
       for (const grant of register.grants) {

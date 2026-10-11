@@ -58,7 +58,31 @@ describe('P4-migrations (QGD-ENG-0013)', () => {
       // A second application finds nothing pending and changes nothing.
       expect(await applyMigrations(store, SHIPPED)).toEqual(applied);
     } finally { store.close(); }
-    expect(await tables(path)).toEqual(expect.arrayContaining(['__drizzle_migrations', 'app_state', 'installation']));
+    expect(await tables(path)).toEqual(expect.arrayContaining(['__drizzle_migrations', 'extension_state', 'installation']));
+    // 0002 renamed it: a store migrated from 0000 must not keep the old name.
+    expect(await tables(path)).not.toContain('app_state');
+  });
+
+  // A store made before 0002 (the M3 verification profiles are) keeps what it
+  // holds when the table is renamed. Applied as an upgrade, not a fresh run.
+  it('carries an extension\'s state across the app_state to extension_state rename', async () => {
+    const before = join(root, 'before-0002');
+    cpSync(SHIPPED, before, { recursive: true });
+    const journalPath = join(before, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8'));
+    journal.entries = journal.entries.filter((entry: { tag: string }) => entry.tag < '0002');
+    writeFileSync(journalPath, JSON.stringify(journal));
+    const path = join(root, 'state.sqlite');
+    const store = openStore(path);
+    try {
+      await applyMigrations(store, before);
+      await store.unit((db) => db.run(sql`INSERT INTO app_state (app_id, key, value, updated_at) VALUES ('solar', 'band', '"20m"', '2026-10-11T00:00:00Z')`));
+      await applyMigrations(store, SHIPPED);
+      const rows = await store.unit((db) =>
+        db.values<[string, string, string]>(sql`SELECT extension_id, key, value FROM extension_state`));
+      expect(rows).toEqual([['solar', 'band', '"20m"']]);
+    } finally { store.close(); }
+    expect(await tables(path)).not.toContain('app_state');
   });
 
   it('rolls back a whole fresh run when its last migration fails', async () => {

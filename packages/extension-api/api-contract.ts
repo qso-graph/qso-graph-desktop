@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The app API itself (QGD-APP-0003): what an application may send, what comes
+// The extension API itself (QGD-APP-0003): what an extension may send, what comes
 // back, and which grant each request needs.
 //
 // **Messages, not functions.** Every call is a value that is validated on
 // arrival and rejected rather than coerced (QGD-SEC-0006), and nothing the
-// frame hands back is a live reference into the frame. That is the one
+// frame hands back is a live reference into the core. That is the one
 // requirement here that could not be added later: D-2 commits this project to
 // sandboxing the contributed and unofficial tiers, and an API of function
 // calls would have to be redesigned to be sandboxed — by which time there
-// would be applications written against it. Written this way now, moving an
+// would be extensions written against it. Written this way now, moving an
 // application into its own process changes the transport and leaves the API
 // alone.
 //
-// The surface is small because it is as large as the applications that exist.
-// A request kind arrives with the application that needs it, not in advance:
+// The surface is small because it is as large as the extensions that exist.
+// A request kind arrives with the extension that needs it, not in advance:
 // an unused surface is a surface nobody has exercised, and every kind here is
 // gated and tested.
 
-export type AppRequest =
-  // What am I and what do I hold. No grant: an application is always allowed
+export type ExtensionRequest =
+  // What am I and what do I hold. No grant: an extension is always allowed
   // to know what it was given, and showing it is how QGD-APP-0012's Settings
-  // page and an application's own "why can I not do this" agree.
-  | { readonly kind: 'app.info' }
-  // The personas the operator has, so an application can ask which to act as.
+  // page and an extension's own "why can I not do this" agree.
+  | { readonly kind: 'extension.info' }
+  // The personas the operator has, so an extension can ask which to act as.
   // Callsigns and names only — never a credential (QGD-CRD-0010).
   | { readonly kind: 'persona.list' }
-  // Fetch from a registered source. The application names the source; the URL
+  // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
   | { readonly kind: 'source.fetch'; readonly source: string }
@@ -39,9 +39,9 @@ export type AppRequest =
       readonly parameters: Readonly<Record<string, string>>;
     };
 
-export type RequestKind = AppRequest['kind'];
+export type RequestKind = ExtensionRequest['kind'];
 
-export interface AppInfo {
+export interface ExtensionInfo {
   readonly id: string;
   readonly name: string;
   readonly tier: string;
@@ -56,13 +56,13 @@ export interface PersonaBrief {
   readonly callsign: string;
 }
 
-export type AppReply =
-  | { readonly ok: true; readonly kind: 'app.info'; readonly info: AppInfo }
+export type ExtensionReply =
+  | { readonly ok: true; readonly kind: 'extension.info'; readonly info: ExtensionInfo }
   | { readonly ok: true; readonly kind: 'persona.list'; readonly personas: readonly PersonaBrief[] }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
-  // A refusal says which capability was refused, so the frame can tell the
-  // operator in words and the application can say why it stopped
+  // A refusal says which capability was refused, so the core can tell the
+  // operator in words and the extension can say why it stopped
   // (QGD-APP-0011). `refused` is present only when a grant was the reason.
   | { readonly ok: false; readonly error: string; readonly refused?: string };
 
@@ -71,19 +71,19 @@ export type AppReply =
 //
 // One function, and the only place where "what does this request need" is
 // decided. A request kind with no entry here cannot be served at all, which is
-// what stops a kind added later from reaching the frame ungated — the
+// what stops a kind added later from reaching the core ungated — the
 // alternative is a check beside each handler, which is a list somebody has to
 // remember to extend, and four gates in this project have gone quiet that way
 // (QGD-SEC-0021).
 //
-// Returned rather than checked here: this package enforces nothing. The frame
-// is the enforcement point (QGD-CRD-0002), because an application asking
+// Returned rather than checked here: this package enforces nothing. The core
+// is the enforcement point (QGD-CRD-0002), because an extension asking
 // itself whether it is allowed is not a permission system.
-export function requiredGrant(request: AppRequest): string | undefined {
+export function requiredGrant(request: ExtensionRequest): string | undefined {
   switch (request.kind) {
-    // Knowing what you hold needs nothing (QGD-APP-0005: an application with
+    // Knowing what you hold needs nothing (QGD-APP-0005: an extension with
     // no grants can still draw its page and read its own standing).
-    case 'app.info': return undefined;
+    case 'extension.info': return undefined;
     case 'persona.list': return 'persona:list';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
@@ -93,12 +93,12 @@ export function requiredGrant(request: AppRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['app.info', 'persona.list', 'source.fetch', 'service.request'];
+  ['extension.info', 'persona.list', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
 
-// A source or service id, and an operation, all arrive from an application and
+// A source or service id, and an operation, all arrive from an extension and
 // are used to look something up. Bounded and plain, so a name cannot be a path
 // or a grant id of its own making.
 const NAME = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -140,12 +140,12 @@ function parameters(value: unknown): Record<string, string> {
   return out;
 }
 
-export function validateRequest(value: unknown): AppRequest {
+export function validateRequest(value: unknown): ExtensionRequest {
   if (!isRecord(value)) throw new RequestError('a request is not an object');
   const { kind } = value;
   if (typeof kind !== 'string') throw new RequestError('a request has no kind', 'kind');
   switch (kind) {
-    case 'app.info':
+    case 'extension.info':
       return { kind };
     case 'persona.list':
       return { kind };
@@ -174,7 +174,7 @@ export function validateRequest(value: unknown): AppRequest {
       };
     }
     default:
-      // Named, so an application written against a later release gets a
+      // Named, so an extension written against a later release gets a
       // sentence rather than silence.
       throw new RequestError(`"${kind}" is not a request this product serves`, 'kind');
   }

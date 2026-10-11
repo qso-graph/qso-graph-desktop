@@ -14,7 +14,7 @@
   "include": [
     "packages/renderer/**/*.ts",
     "packages/ui/**/*.ts",
-    "packages/app-api/**/*.ts"
+    "packages/extension-api/**/*.ts"
   ],
   "exclude": []
 }

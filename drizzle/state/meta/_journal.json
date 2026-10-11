@@ -15,6 +15,13 @@
       "when": 1791667268615,
       "tag": "0001_reference_refresh",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791681155120,
+      "tag": "0002_extension_state",
+      "breakpoints": true
     }
   ]
 }

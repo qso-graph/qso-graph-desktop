@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The grants an application may ask for (QGD-APP-0006).
+// The grants an extension may ask for (QGD-APP-0006).
 //
-// The set is closed and it is data: data/app-grants.json. This module reads
+// The set is closed and it is data: data/extension-grants.json. This module reads
 // and validates it and knows nothing else — no grant name is written here,
 // because a second list is a list that will disagree with the first. The same
 // rule the service register follows (QGD-PSN-0002), for the same reason.
 //
 // Nothing in this package imports another package (QGD-REP-0006): it is the
-// contract an application is written against, and a surface that imported the
-// frame's own contracts would hand an application the frame's internals
+// contract an extension is written against, and a surface that imported the
+// core's own contracts would hand an extension the core's internals
 // through its own types.
 
 export interface Grant {
@@ -16,7 +16,7 @@ export interface Grant {
   readonly what: string;
   readonly notWhat?: string;
   // Whether the operator has to allow it, or whether declaring it is enough.
-  // Reading reference data the frame already loaded asks nothing of anybody;
+  // Reading reference data the core already loaded asks nothing of anybody;
   // acting with a credential does.
   readonly needsOperator: boolean;
 }

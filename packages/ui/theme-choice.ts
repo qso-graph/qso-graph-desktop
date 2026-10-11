@@ -7,7 +7,7 @@
 // what a stored theme may be, which is the direction that leaves `ui`
 // depending on nothing (QGD-REP-0004 — what an application may look like is a
 // different contract from what it may call, and a component package that
-// reaches back into the frame is neither).
+// reaches back into the core is neither).
 export const THEME_CHOICES = ['system', 'light', 'dark'] as const;
 export type ThemeChoice = (typeof THEME_CHOICES)[number];
 

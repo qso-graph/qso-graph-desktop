@@ -6,7 +6,7 @@
 // by a user (QGD-ENG-0006).
 import { lstatSync, mkdirSync, renameSync, rmSync, realpathSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { isAppId } from '../app-api/manifest.js';
+import { isExtensionId } from '../extension-api/manifest.js';
 import { StorageFailure, failure } from './errors.js';
 import { applyMigrations } from './migrate.js';
 import { openStore, type Store } from './sqlite.js';
@@ -16,7 +16,7 @@ export interface Layout {
   root: string;
   settings: string;   // read by main, never opened here (QGD-ENG-0003)
   state: string;
-  apps: string;
+  extensions: string;
   reference: string;  // exists only once a build has published it
   referenceCache: string;
 }
@@ -27,7 +27,7 @@ export function layout(root: string): Layout {
     root,
     settings: join(root, 'settings.json'),
     state: join(root, 'state.sqlite'),
-    apps: join(root, 'apps'),
+    extensions: join(root, 'extensions'),
     reference: join(root, 'reference.sqlite'),
     referenceCache: join(root, 'reference')
   };
@@ -41,14 +41,14 @@ export function layout(root: string): Layout {
 // - apps/<id>, if it exists, must be a real directory, not a link
 // A link at either level could otherwise send a write, or a removal, outside
 // the application's directory.
-export function appFolder(paths: Layout, id: string, options: { create?: boolean } = {}): string {
-  if (!isAppId(id)) throw new StorageFailure({ kind: 'path' });
-  const folder = join(paths.apps, id);
+export function extensionFolder(paths: Layout, id: string, options: { create?: boolean } = {}): string {
+  if (!isExtensionId(id)) throw new StorageFailure({ kind: 'path' });
+  const folder = join(paths.extensions, id);
   try {
-    if (options.create) mkdirSync(paths.apps, { recursive: true, mode: 0o700 });
-    if (present(paths.apps)) {
-      realDirectory(paths.apps);
-      if (realpathSync(paths.apps) !== join(realpathSync(paths.root), 'apps')) throw new StorageFailure({ kind: 'path' });
+    if (options.create) mkdirSync(paths.extensions, { recursive: true, mode: 0o700 });
+    if (present(paths.extensions)) {
+      realDirectory(paths.extensions);
+      if (realpathSync(paths.extensions) !== join(realpathSync(paths.root), 'extensions')) throw new StorageFailure({ kind: 'path' });
     }
     if (options.create && !present(folder)) mkdirSync(folder, { mode: 0o700 });
     if (present(folder)) realDirectory(folder);
@@ -63,9 +63,9 @@ function realDirectory(path: string): void {
   if (stat.isSymbolicLink() || !stat.isDirectory()) throw new StorageFailure({ kind: 'path' });
 }
 
-export function removeAppFolder(paths: Layout, id: string): void {
-  // appFolder validates both levels first, so a link is refused rather than followed.
-  const folder = appFolder(paths, id);
+export function removeExtensionFolder(paths: Layout, id: string): void {
+  // extensionFolder validates both levels first, so a link is refused rather than followed.
+  const folder = extensionFolder(paths, id);
   try {
     rmSync(folder, { recursive: true, force: true });
   } catch (error) {

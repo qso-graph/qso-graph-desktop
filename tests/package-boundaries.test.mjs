@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  ALLOWED, ALLOWED_FOR_APPS, FRAME_TO_APP_ALLOWANCE, crossings, judge, namedAllowance
+  ALLOWED, ALLOWED_FOR_APPS, CORE_TO_EXTENSION_ALLOWANCE, crossings, judge, namedAllowance
 } from '../scripts/package-boundaries.mjs';
 
 let root;
@@ -44,16 +44,16 @@ describe('the boundary gate reads the imports', () => {
     expect(edges).toEqual(['main->ui', 'renderer->main', 'ui->logging', 'ui->renderer']);
   });
 
-  it('refuses a component reaching into the frame', async () => {
+  it('refuses a component reaching into the core', async () => {
     // ui is a leaf: it may depend on no package at all. This is the edge the
     // restructure found for real — ThemeChoice.svelte took the words System,
-    // Light and Dark from the frame's settings contract.
+    // Light and Dark from the core's settings contract.
     const found = await crossings(root);
     const uiToLogging = found.find(crossing => crossing.owner === 'ui' && crossing.reached === 'logging');
     expect(judge(uiToLogging)).toEqual({ verdict: 'refused', why: 'ui may not depend on logging' });
   });
 
-  it('refuses the frame reaching up into the renderer', async () => {
+  it('refuses the core reaching up into the renderer', async () => {
     const found = await crossings(root);
     const rendererToMain = found.find(crossing => crossing.owner === 'renderer');
     // The permitted direction, as a control on the refusals above: this gate
@@ -93,7 +93,7 @@ describe('the real tree', () => {
     expect(refused.map(entry => `${entry.crossing.file}: ${entry.why}`)).toEqual([]);
   });
 
-  it('is not vacuous: the frame really does cross packages', async () => {
+  it('is not vacuous: the core really does cross packages', async () => {
     // The failure this guards against is the gate's own walk root being wrong,
     // which is how svelte-check passed on an empty tree during this very
     // restructure.
@@ -113,7 +113,7 @@ describe('the real tree', () => {
 
   it('describes a direction with no cycle in it', () => {
     // The table is the policy, so a cycle in the table would permit one in the
-    // code. app-api was briefly written with main on both sides of the arrow.
+    // code. extension-api was briefly written with main on both sides of the arrow.
     const seen = new Map();
     const visit = (name, trail) => {
       if (trail.includes(name)) throw new Error(`cycle: ${[...trail, name].join(' -> ')}`);
@@ -124,10 +124,10 @@ describe('the real tree', () => {
     for (const name of Object.keys(ALLOWED)) expect(() => visit(name, [])).not.toThrow();
   });
 
-  it('holds an application to the app API and the components, and nothing else', () => {
+  it('holds an application to the extension API and the components, and nothing else', () => {
     // QGD-REP-0003, structurally. apps/ is empty until QGD-PRT-0108, so what
     // is asserted here is the rule the first one will meet.
-    expect([...ALLOWED_FOR_APPS].sort()).toEqual(['app-api', 'ui']);
+    expect([...ALLOWED_FOR_APPS].sort()).toEqual(['extension-api', 'ui']);
     for (const reachable of ALLOWED_FOR_APPS) {
       expect(Object.keys(ALLOWED), `${reachable} is a real package`).toContain(reachable);
     }
@@ -139,16 +139,16 @@ describe('the real tree', () => {
   it('lets no package reach an application, there being no named exception', () => {
     // The table held one entry until 2026-10-10 — the host that mounted the
     // demonstration applications — and it is empty now that they are gone
-    // (QGD-APP-0014). Empty is the rule as written: the frame must not depend
+    // (QGD-APP-0014). Empty is the rule as written: the core must not depend
     // on an application.
-    expect(Object.keys(FRAME_TO_APP_ALLOWANCE)).toEqual([]);
+    expect(Object.keys(CORE_TO_EXTENSION_ALLOWANCE)).toEqual([]);
     for (const file of [
       'packages/renderer/Shell.svelte',
       'packages/main/main.ts',
       'packages/renderer/app.ts',
       'packages/ui/Rail.svelte'
     ]) {
-      for (const target of [join('apps', 'qg-adif', 'AdifPage.svelte'), join('apps', 'other', 'private.ts')]) {
+      for (const target of [join('extensions', 'qg-adif', 'AdifPage.svelte'), join('extensions', 'other', 'private.ts')]) {
         expect(namedAllowance(file, target), `${file} may not reach ${target}`).toBe(false);
       }
     }
@@ -159,13 +159,13 @@ describe('the real tree', () => {
     // come back when the sandboxed-tier Part needs its one exception: an
     // allowance is a named file reaching a named file, never an importer
     // granted everything under a root.
-    const table = { 'packages/renderer/Shell.svelte': { target: join('apps', 'qg-adif', 'AdifPage.svelte'), why: 'hypothetical' } };
+    const table = { 'packages/renderer/Shell.svelte': { target: join('extensions', 'qg-adif', 'AdifPage.svelte'), why: 'hypothetical' } };
     const allows = (file, target) => {
       const allowance = table[file];
       return allowance !== undefined && target === allowance.target;
     };
-    expect(allows('packages/renderer/Shell.svelte', join('apps', 'qg-adif', 'AdifPage.svelte'))).toBe(true);
-    expect(allows('packages/renderer/Shell.svelte', join('apps', 'qg-adif', 'secret.ts'))).toBe(false);
-    expect(allows('packages/main/main.ts', join('apps', 'qg-adif', 'AdifPage.svelte'))).toBe(false);
+    expect(allows('packages/renderer/Shell.svelte', join('extensions', 'qg-adif', 'AdifPage.svelte'))).toBe(true);
+    expect(allows('packages/renderer/Shell.svelte', join('extensions', 'qg-adif', 'secret.ts'))).toBe(false);
+    expect(allows('packages/main/main.ts', join('extensions', 'qg-adif', 'AdifPage.svelte'))).toBe(false);
   });
 });

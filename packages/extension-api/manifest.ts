@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// An application declares itself in data (QGD-APP-0001), and this is what a
-// declaration has to be for the frame to accept it.
+// An extension declares itself in data (QGD-APP-0001), and this is what a
+// declaration has to be for the core to accept it.
 //
-// The point of a manifest is that **nothing about an application is learned by
-// running it**. The frame reads this, decides, and only then loads code — so a
+// The point of a manifest is that **nothing about an extension is learned by
+// running it**. The core reads this, decides, and only then loads code — so a
 // manifest that is malformed, asks for a grant nobody defined, or declares a
 // tier this release cannot sandbox is refused with none of its code loaded.
 //
 // QGD-APP-0004 is why `tier` is here and why the check is strict: the sandbox
-// that contributed and unofficial applications need is a later Part, so until
+// that contributed and unofficial extensions need is a later Part, so until
 // it exists anything but `official` fails to load. Failing closed is the
 // decision. The alternative is a release that runs third-party code with the
-// frame's privileges, which is exactly what D-2 was decided to prevent.
+// core's privileges, which is exactly what D-2 was decided to prevent.
 
 // D-2, KI7MT 2026-10-05. Named here because the API's shape depends on there
 // being more than one tier, even while only the first can be loaded.
@@ -23,25 +23,25 @@ export type Tier = (typeof TIERS)[number];
 // and conflating them is how an unsandboxed load happens by accident.
 export const LOADABLE_TIERS: readonly Tier[] = ['official'];
 
-export interface AppManifest {
+export interface ExtensionManifest {
   readonly id: string;
   readonly name: string;
   readonly tier: Tier;
   readonly version: string;
-  // What it asks for. An empty list is valid and means an application that can
+  // What it asks for. An empty list is valid and means an extension that can
   // draw its page and nothing else (QGD-APP-0005).
   readonly grants: readonly string[];
-  // Where its page is, relative to the application's own directory.
+  // Where its page is, relative to the extension's own directory.
   readonly page: string;
 }
 
-// An id names the application's folder (QGD-ENG-0018) and its key-values in
+// An id names the extension's folder (QGD-ENG-0018) and its key-values in
 // state.sqlite, and appears in a refusal message. Bounded and plain.
 const APP_ID = /^[a-z][a-z0-9-]{1,30}$/;
 
 // The same test, for code that receives an identifier from somewhere other than
 // a manifest and must hold it to the same shape (QGD-ENG-0018: it names a folder).
-export function isAppId(value: unknown): value is string {
+export function isExtensionId(value: unknown): value is string {
   return typeof value === 'string' && APP_ID.test(value);
 }
 
@@ -59,12 +59,12 @@ function isVersion(value: unknown): value is string {
   if (!VERSION_CORE.test(parts[0])) return false;
   return parts.length === 1 || VERSION_SUFFIX.test(parts[1]);
 }
-// A path inside the application, and only inside it: no absolute path, no
+// A path inside the extension, and only inside it: no absolute path, no
 // parent segment, no backslash.
 const PAGE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,96}$/;
 
 export class ManifestError extends Error {
-  // The grant or tier the refusal is about, so the frame can name it to the
+  // The grant or tier the refusal is about, so the core can name it to the
   // operator rather than reporting that something was wrong (QGD-APP-0011).
   constructor(message: string, readonly subject?: string) { super(message); }
 }
@@ -78,32 +78,32 @@ export function isTier(value: unknown): value is Tier {
 }
 
 // `known` is the grant register's ids. Passed in rather than read here: this
-// package depends on nothing, and the frame is what holds the register.
-export function validateManifest(value: unknown, known: ReadonlySet<string>): AppManifest {
-  if (!isRecord(value)) throw new ManifestError('An application manifest is not an object.');
+// package depends on nothing, and the core is what holds the register.
+export function validateManifest(value: unknown, known: ReadonlySet<string>): ExtensionManifest {
+  if (!isRecord(value)) throw new ManifestError('An extension manifest is not an object.');
 
   const { id, name, tier, version, grants, page } = value;
   if (typeof id !== 'string' || !APP_ID.test(id)) {
-    throw new ManifestError('An application manifest has no well-formed id.');
+    throw new ManifestError('An extension manifest has no well-formed id.');
   }
   if (typeof name !== 'string' || name.trim() === '' || name.length > 64) {
     throw new ManifestError(`"${id}" has no name to show.`, id);
   }
   if (!isTier(tier)) {
-    throw new ManifestError(`"${id}" declares no tier the frame recognises.`, id);
+    throw new ManifestError(`"${id}" declares no tier the core recognises.`, id);
   }
   // Refused here, before anything is loaded (QGD-APP-0004).
   if (!LOADABLE_TIERS.includes(tier)) {
     throw new ManifestError(
-      `"${id}" is ${tier}, and this release runs only ${LOADABLE_TIERS.join(', ')} applications: ` +
+      `"${id}" is ${tier}, and this release runs only ${LOADABLE_TIERS.join(', ')} extensions: ` +
       'the sandbox a contributed or unofficial application needs is not built yet, ' +
-      'so it is refused rather than run with the frame’s own access.', tier);
+      'so it is refused rather than run with the core’s own access.', tier);
   }
   if (!isVersion(version)) {
     throw new ManifestError(`"${id}" has no well-formed version.`, id);
   }
   if (!Array.isArray(grants)) {
-    throw new ManifestError(`"${id}" does not say which grants it asks for; an empty list is how an application asks for none.`, id);
+    throw new ManifestError(`"${id}" does not say which grants it asks for; an empty list is how an extension asks for none.`, id);
   }
   const asked: string[] = [];
   for (const grant of grants) {

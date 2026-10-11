@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// state.sqlite: what the frame keeps (QGD-ENG-0001). The migrations in
+// state.sqlite: what the core keeps (QGD-ENG-0001). The migrations in
 // drizzle/state/ are generated from this file (QGD-ENG-0002).
 //
 // Times are ISO-8601 UTC text, set in TypeScript. SQLite has no timestamp
@@ -20,15 +20,15 @@ export const INSTALLATION_ID = 'this';
 // its identifier, as VS Code keeps an extension's state under its id. An
 // application never names its id here: the broker supplies it from the
 // manifest of the application making the request.
-export const appState = sqliteTable(
-  'app_state',
+export const extensionState = sqliteTable(
+  'extension_state',
   {
-    appId: text('app_id').notNull(),
+    extensionId: text('extension_id').notNull(),
     key: text('key').notNull(),
     value: text('value', { mode: 'json' }).notNull(),
     updatedAt: text('updated_at').notNull()
   },
-  (table) => [primaryKey({ columns: [table.appId, table.key] })]
+  (table) => [primaryKey({ columns: [table.extensionId, table.key] })]
 );
 
 // The outcome of reference refreshes, per source (QGD-ENG-0015.1). What is
@@ -42,4 +42,4 @@ export const referenceRefresh = sqliteTable('reference_refresh', {
   lastFailure: text('last_failure')
 });
 
-export const stateSchema = { installation, appState, referenceRefresh };
+export const stateSchema = { installation, extensionState, referenceRefresh };

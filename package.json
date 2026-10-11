@@ -55,8 +55,8 @@
       "LICENSE",
       "data/reference-sources.json",
       "data/service-profiles.json",
-      "data/app-grants.json",
-      "data/app-sources.json",
+      "data/extension-grants.json",
+      "data/extension-sources.json",
       "drizzle/**/*"
     ],
     "asar": true,

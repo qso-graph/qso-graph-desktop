@@ -5,7 +5,7 @@
   It held five sections until 2026-10-10 — appearance, a per-grant permission
   list for three demonstration applications, the database's internal state, an
   encrypted export tool and a log viewer with level and retention controls.
-  Four of those were the frame describing itself. An operator opening Settings
+  Four of those were the core describing itself. An operator opening Settings
   wants to change how the product behaves, not to read what the database is
   doing.
 

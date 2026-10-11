@@ -14,7 +14,7 @@ export interface Settings {
   // QGD-FRM-0002: System is the default.
   theme: ThemeChoice;
   // Which grants the operator has allowed, per application id (QGD-APP-0012).
-  // Here rather than in the database because the frame decides what an
+  // Here rather than in the database because the core decides what an
   // application may do before the engine is up (QGD-ENG-0003), and because a
   // permission the operator gave must be visible and revocable in a file they
   // own.
@@ -26,7 +26,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = { theme: 'system', grants: {} };
 
-// An application id and a grant id, both already bounded by the app API's own
+// An application id and a grant id, both already bounded by the extension API's own
 // validators. Re-checked here because this value arrives from a settings file
 // on disk, which is a boundary of its own (QGD-SEC-0006).
 const APP_ID = /^[a-z][a-z0-9-]{1,30}$/;

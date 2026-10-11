@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Reading what reference.sqlite holds, for the frame's own use and, through
+// Reading what reference.sqlite holds, for the core's own use and, through
 // the API, an application's (QGD-APP-0009).
 //
 // The validator's ruleset is read whole into memory, once, and validation is
