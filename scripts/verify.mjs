@@ -24,8 +24,19 @@ if (!npmCli) throw new Error('Run verification with make verify or npm run verif
 // command run every check), and a fast run that produced them would be a
 // partial run wearing a full run's clothes. So a development pass prints and
 // exits, and `make verify` remains the only thing that reports.
-const fast = process.argv.includes('--fast');
-const commands = fast ? fastSuiteCommands(npmCli) : suiteCommands(npmCli);
+// --suites a,b,c: the named suites only, as CI runs the window suites on each
+// platform. Like --fast it writes no report: it is not a full run.
+const named = process.argv.includes('--suites')
+  ? (process.argv[process.argv.indexOf('--suites') + 1] ?? '').split(',').filter(Boolean)
+  : undefined;
+if (named) {
+  const unknown = named.filter(name => !suiteCommands(npmCli).some(([known]) => known === name));
+  if (named.length === 0 || unknown.length) throw new Error(`Unknown suite(s): ${unknown.join(', ') || '(none named)'}`);
+}
+const fast = process.argv.includes('--fast') || named !== undefined;
+const commands = named
+  ? suiteCommands(npmCli).filter(([name]) => named.includes(name))
+  : fast ? fastSuiteCommands(npmCli) : suiteCommands(npmCli);
 const suites = [];
 for (const [name, args] of commands) {
   // QGD-TST-0007: stop only the suites whose result depends on what failed.
