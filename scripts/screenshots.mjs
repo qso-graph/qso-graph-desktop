@@ -326,10 +326,18 @@ try {
   // that differ every other frame, which no amount of waiting settles — and it
   // is not part of the design being baselined. Inserted through the CSSOM
   // because QGD-SEC-0008 forbids an inline style and CSP does not reach the
-  // CSSOM. Nothing else about the page is altered.
+  // CSSOM. The only other change is the fixed widths of masked values, below.
   await page.evaluate(() => {
     const sheet = document.styleSheets[0];
     sheet.insertRule('*, *::before, *::after { caret-color: transparent !important; }', sheet.cssRules.length);
+    // A mask is the box of the value it covers, and a value whose text varies
+    // (a temporary folder, a size, a time in a proportional font) varies the
+    // box, so the edge of the grey moved by a few pixels between two runs and
+    // the comparison failed for nothing. Each masked value gets a fixed width
+    // for the capture; what is under the mask is not compared anyway.
+    sheet.insertRule('#storage-folder, #log-directory { display: inline-block; width: 40ch; overflow: hidden; white-space: nowrap; vertical-align: bottom; }', sheet.cssRules.length);
+    sheet.insertRule('.storage-size { display: inline-block; width: 8ch; overflow: hidden; white-space: nowrap; vertical-align: bottom; }', sheet.cssRules.length);
+    sheet.insertRule('section.home-card .home-card-time { display: inline-block; width: 16ch; overflow: hidden; white-space: nowrap; text-align: right; }', sheet.cssRules.length);
   });
 
   // The persona broker owns a utility process that starts after the window
