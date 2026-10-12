@@ -7,7 +7,7 @@
       "id": "adif",
       "name": "ADIF definitions",
       "what": "ADIF's fields, data types and enumerations, which QSO records are checked against",
-      "owner": "ADIF Development Group",
+      "owner": "the ADIF Development Group",
       "size": "about 2 MB"
     },
     {

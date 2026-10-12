@@ -25,6 +25,8 @@ export interface ResourceEntry {
   id: string;
   name: string;
   what: string;
+  // As it reads after "From" in Settings: "the ADIF Development Group",
+  // "Parks on the Air".
   owner: string;
   size: string;
 }
