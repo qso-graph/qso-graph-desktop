@@ -189,6 +189,11 @@ try {
   // the reference build runs on its worker there. Nothing here points at the
   // repository. Its detail is behind Troubleshooting (QGD-LOG-0013).
   await expect(page.locator('#engine-indicator'), 'no database indicator ships').toHaveCount(0);
+  // Nothing is fetched at start (KI7MT, 2026-10-11): ADIF's definitions are
+  // loaded from Settings, as an operator does, from the archive put in the
+  // cache before launch.
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Load ADIF definitions' }).click();
   await page.locator('#open-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Storage', exact: true })).toBeVisible();

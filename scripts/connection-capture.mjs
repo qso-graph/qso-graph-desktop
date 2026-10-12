@@ -268,6 +268,19 @@ try {
     labelled.push(sample(label, tree(mainPid)));
   }
 
+  // Reference data is fetched only when the operator asks (KI7MT, 2026-10-11),
+  // so this run asks, from Settings, for each resource in turn, and the capture
+  // sees the fetches the core makes for them. ADIF comes from the archive put
+  // in the cache above; POTA is fetched, or fails without a network.
+  stage = 'load the reference data, as the operator does';
+  for (const resource of register.resources) {
+    await page.evaluate(id => window.storage.request({ type: 'update-reference', resource: id }), resource.id);
+    await expect.poll(() => page.evaluate(() => window.storage.request({ type: 'status' })
+      .then(reply => reply.ok && reply.status.reference && !reply.status.reference.refreshing)),
+    { message: `loading ${resource.name} must finish`, timeout: 180_000 }).toBe(true);
+    labelled.push(sample(`${resource.name} loaded`, tree(mainPid)));
+  }
+
   // QGD-PRC-0006 / QGD-CRD-0007: every outbound route the renderer has, aimed
   // at a listener this test owns. The assertion is that nothing arrives, not
   // that each API reports an error: navigator.sendBeacon reports success for a

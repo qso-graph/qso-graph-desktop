@@ -26,8 +26,13 @@
       they are about. Bitwarden's desktop client keeps vault export under the
       application menu rather than in preferences.
 
-  What is left is appearance, the extensions, and Storage when QG Sync is
-  built.
+  What is left is appearance, the extensions, the reference data, and
+  Storage when QG Sync is built.
+
+  Reference data: one row per resource the register lists, each with its own
+  Load or Update (KI7MT, 2026-10-11). Nothing is fetched at start, and someone
+  who never uses a resource never downloads it. The list is the register's, so
+  a new resource (EME, meteor scatter) appears here without a new screen.
 
   Extensions: one switch each, as VS Code's Disable and Podman Desktop's
   extension toggle. Turning one off takes its cards off Home and out of
@@ -39,6 +44,7 @@
   import ThemeChoice from '../../ui/ThemeChoice.svelte';
   import type { ThemeChoice as Choice } from '../../main/settings-contract.js';
   import type { ExtensionSwitch } from '../shell-store.js';
+  import type { ResourceSummary, StorageStatus } from '../../storage/storage-contract.js';
 
   interface Props {
     themeChoice: Choice;
@@ -46,8 +52,35 @@
     // Undefined while the main process has not answered.
     extensions?: readonly ExtensionSwitch[];
     onSetExtension?: (id: string, enabled: boolean) => Promise<boolean>;
+    storage?: StorageStatus;
+    onUpdateReference?: (resource: string) => Promise<boolean>;
   }
-  const { themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false) }: Props = $props();
+  const {
+    themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
+    storage, onUpdateReference = () => Promise.resolve(false)
+  }: Props = $props();
+
+  const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
+  const busy = $derived(storage?.reference?.refreshing === true);
+  let referenceFailure = $state('');
+
+  // "Updated today", "yesterday" or "N days ago", from the oldest fetch.
+  function age(resource: ResourceSummary): string {
+    if (!resource.fetchedAt) return '';
+    const days = Math.floor((Date.now() - Date.parse(resource.fetchedAt)) / 86_400_000);
+    return days <= 0 ? 'updated today' : days === 1 ? 'updated yesterday' : `updated ${days} days ago`;
+  }
+
+  function stateWords(resource: ResourceSummary): string {
+    if (resource.updating) return resource.state === 'loaded' ? 'Updating…' : 'Loading…';
+    if (resource.state === 'not loaded') return 'Not loaded';
+    return resource.due ? `Out of date, ${age(resource)}` : `Loaded, ${age(resource)}`;
+  }
+
+  async function load(resource: ResourceSummary): Promise<void> {
+    referenceFailure = '';
+    if (!(await onUpdateReference(resource.id))) referenceFailure = `${resource.name} could not be ${resource.state === 'loaded' ? 'updated' : 'loaded'}.`;
+  }
 
   // The switch being changed, so it cannot be flipped again before the main
   // process has answered; and the last failure, said in words.
@@ -73,6 +106,30 @@
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
+  </section>
+
+  <section class="card" aria-labelledby="reference-title">
+    <h2 id="reference-title">Reference data</h2>
+    {#if resources === undefined}
+      <p class="hint">Reading the reference data…</p>
+    {:else}
+      <ul class="extension-list">
+        {#each resources as resource (resource.id)}
+          <li class="extension-row reference-row" data-resource={resource.id}>
+            <span class="extension-text">
+              <span class="extension-name">{resource.name}</span>
+              <span class="hint">{resource.what}. From {resource.owner}, {resource.size}.</span>
+              <span class="hint reference-state">{stateWords(resource)}</span>
+            </span>
+            <button type="button" class="secondary" disabled={busy}
+              aria-label="{resource.state === 'loaded' ? 'Update' : 'Load'} {resource.name}"
+              onclick={() => { void load(resource); }}>{resource.state === 'loaded' ? 'Update' : 'Load'}</button>
+          </li>
+        {/each}
+      </ul>
+      {#if referenceFailure}<p class="extension-error" role="alert">{referenceFailure}</p>{/if}
+      <p class="hint">Fetched only when you ask. Nothing is downloaded at start.</p>
+    {/if}
   </section>
 
   <section class="card" aria-labelledby="extensions-title">

@@ -39,6 +39,7 @@ export const SUITE_TIMEOUT_MS = {
   screenshots: 420_000,           // 300s
   storybook: 900_000,             // a 600s build wait
   'packaged-launch': 720_000,     // 495s
+  'connection-capture': 360_000,  // 210s, with the reference data loaded as an operator does
   'electron-audit': 480_000,      // a single 300s wait
   // An npm script, so its waits are not in a scripts/ file to read. Packaging
   // was inside the flat 120s bound on this machine with no headroom at all on

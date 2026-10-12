@@ -23,7 +23,8 @@ import { layout, openState } from '../packages/storage/layout.js';
 import { buildReference, referenceDdl } from '../packages/storage/reference-build.js';
 import { POTA_LISTS, commit, potaDirectory, readRecord } from '../packages/storage/reference-cache.js';
 import * as referenceSchema from '../packages/storage/reference-schema.js';
-import { Reference, workerBuild, type RunBuild } from '../packages/storage/reference.js';
+import { REFERENCE_RESOURCES, Reference, workerBuild, type RunBuild } from '../packages/storage/reference.js';
+import { validateStorageCommand } from '../packages/storage/storage-contract.js';
 import { readReferenceRuleset } from '../packages/storage/reference-read.js';
 import { openStore } from '../packages/storage/sqlite.js';
 import { referenceRefresh } from '../packages/storage/schema.js';
@@ -615,4 +616,50 @@ withData('P5-answers-during-build: QG Storage keeps answering (QGD-ENG-0015)', (
     // The whole park list, on purpose: the build has to be long enough to be
     // caught in the middle of. Seconds on a workstation, more on a CI runner.
   }, 60_000);
+});
+
+describe('each resource loaded by its own control (KI7MT, 2026-10-11)', () => {
+  it('loading POTA fetches nothing of ADIF', async () => {
+    let archives = 0;
+    const { ref, done } = await reference({ fetchArchive: async () => { archives++; return archive; } });
+    try {
+      const outcome = await ref.refresh({ force: true, only: 'pota' });
+      expect(archives).toBe(0);
+      expect(outcome.adif.state).toBe('not asked');
+      expect(outcome.pota.parks.state).toBe('loaded');
+      expect(outcome.status.adif.state).toBe('not loaded');
+      expect(outcome.status.pota.parks.state).toBe('loaded');
+    } finally { done(); }
+  });
+
+  it('loading ADIF fetches nothing of POTA, and a later POTA load keeps ADIF without fetching it again', async () => {
+    const urls: string[] = [];
+    let archives = 0;
+    const watched = pota(BODIES, [], urls);
+    const { ref, done } = await reference({ fetchArchive: async () => { archives++; return archive; }, fetchText: watched });
+    try {
+      const first = await ref.refresh({ force: true, only: 'adif' });
+      expect(urls).toEqual([]);
+      expect(first.adif.state).toBe('obtained');
+      expect(first.pota.parks.state).toBe('not asked');
+      expect(first.status.adif.state).toBe('loaded');
+      expect(first.status.pota.parks.state).toBe('not loaded');
+      const second = await ref.refresh({ force: true, only: 'pota' });
+      expect(archives).toBe(1);
+      expect(second.status.adif.state).toBe('loaded');
+      expect(second.status.pota.parks.state).toBe('loaded');
+    } finally { done(); }
+  });
+
+  it('the register lists exactly the resources the core can load', () => {
+    expect(register.resources.map((entry: { id: string }) => entry.id).sort()).toEqual([...REFERENCE_RESOURCES].sort());
+  });
+
+  it('a window may name a resource to update, and nothing else', () => {
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'pota' })).toBe(true);
+    expect(validateStorageCommand({ type: 'update-reference' })).toBe(false);
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'https://example.invalid/' })).toBe(false);
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'pota', url: 'x' })).toBe(false);
+    expect(validateStorageCommand({ type: 'status' })).toBe(true);
+  });
 });

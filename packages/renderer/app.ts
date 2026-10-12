@@ -56,7 +56,7 @@ home.start();
 mount(Shell, {
   target: document.body,
   props: {
-    store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference, onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
@@ -606,3 +606,16 @@ function takeStatus(status: unknown): void {
 const stopListening = window.storage.onStatus(status => { pushed = true; takeStatus(status); });
 window.addEventListener('pagehide', () => { stopListening(); }, { once: true });
 void window.storage.request({ type: 'status' }).then(reply => { if (reply.ok && !pushed) takeStatus(reply.status); });
+
+// Loading or updating the reference data, when the operator asks for it: a
+// start fetches nothing (KI7MT, 2026-10-11). The reply says it is running; the
+// finished status arrives pushed, like every other change.
+export async function updateReference(resource: string): Promise<boolean> {
+  try {
+    const reply = await window.storage.request({ type: 'update-reference', resource });
+    if (reply.ok) takeStatus(reply.status);
+    return reply.ok;
+  } catch {
+    return false;
+  }
+}

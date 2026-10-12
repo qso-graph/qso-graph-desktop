@@ -2,8 +2,9 @@
 // What the renderer may ask about storage, and what it is told (QGD-ENG-0006,
 // QGD-FRM-0012).
 //
-// The renderer asks for status, and nothing else: there is no engine to start
-// or stop. Status also arrives unasked, pushed by the broker whenever it
+// The renderer asks for status, or for the reference data to be loaded or
+// updated, and nothing else: there is no engine to start or stop. Reference
+// data is fetched only when asked (KI7MT, 2026-10-11: startup must be fast). Status also arrives unasked, pushed by the broker whenever it
 // changes, so the screen is never polling and never stale (QGD-ENG-0006).
 // QGD-SEC-0006 applies as at every boundary: checked on arrival, refused rather
 // than coerced.
@@ -25,8 +26,28 @@ export interface ReferenceSummary {
   parks: DatasetSummary;
   programs: DatasetSummary;
   locations: DatasetSummary;
-  // When the last refresh ran, and whether a build is running now.
+  // Whether a load or update is running now.
   refreshing: boolean;
+  // What the operator loads and updates, one control each, in the register's
+  // order (data/reference-sources.json "resources").
+  resources: ResourceSummary[];
+}
+
+// One resource, as Settings lists it. Nothing is fetched until the operator
+// asks (KI7MT, 2026-10-11).
+export interface ResourceSummary {
+  id: string;
+  name: string;
+  what: string;
+  owner: string;
+  size: string;
+  state: 'loaded' | 'not loaded';
+  // The oldest fetch among what it holds.
+  fetchedAt?: string;
+  // Loaded, but older than its refresh interval or a version behind what this
+  // release pins: worth an Update.
+  due: boolean;
+  updating: boolean;
 }
 
 export interface StorageStatus {
@@ -42,7 +63,7 @@ export interface StorageStatus {
   reason?: string;
 }
 
-export type StorageCommand = { type: 'status' };
+export type StorageCommand = { type: 'status' } | { type: 'update-reference'; resource: string };
 export type StorageReply = { ok: true; status: StorageStatus } | { ok: false; error: string };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
@@ -63,6 +84,18 @@ function isDataset(value: unknown): value is DatasetSummary {
   return value.version === undefined || typeof value.version === 'string';
 }
 
+const RESOURCE_ID = /^[a-z][a-z0-9-]{1,30}$/;
+const words = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit;
+
+function isResource(value: unknown): value is ResourceSummary {
+  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updating'])) return false;
+  return typeof value.id === 'string' && RESOURCE_ID.test(value.id)
+    && words(value.name, 64) && words(value.what, 200) && words(value.owner, 64) && words(value.size, 32)
+    && (value.state === 'loaded' || value.state === 'not loaded')
+    && (value.fetchedAt === undefined || (typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))))
+    && typeof value.due === 'boolean' && typeof value.updating === 'boolean';
+}
+
 export function isStorageStatus(value: unknown): value is StorageStatus {
   if (!record(value) || !only(value, ['state', 'folder', 'sizes', 'reference', 'reason'])) return false;
   if (!(STORAGE_STATES as readonly unknown[]).includes(value.state)) return false;
@@ -75,8 +108,9 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
   }
   if (value.reference !== undefined) {
     const reference = value.reference;
-    if (!record(reference) || !only(reference, [...DATASETS, 'refreshing'])) return false;
+    if (!record(reference) || !only(reference, [...DATASETS, 'refreshing', 'resources'])) return false;
     if (typeof reference.refreshing !== 'boolean') return false;
+    if (!Array.isArray(reference.resources) || reference.resources.length > 32 || !reference.resources.every(isResource)) return false;
     if (!DATASETS.every((name) => isDataset(reference[name]))) return false;
   }
   return true;
@@ -91,10 +125,15 @@ export function isStorageReply(value: unknown): value is StorageReply {
   return false;
 }
 
-// Exactly { type: 'status' }. A command carrying a path would be the renderer
-// choosing where the stores are.
+// Exactly { type: 'status' }, or { type: 'update-reference', resource } naming
+// one by id. A command
+// carrying a path would be the renderer choosing where the stores are, and one
+// carrying a URL would be the renderer choosing what is fetched.
 export function validateStorageCommand(value: unknown): value is StorageCommand {
-  return record(value) && value.type === 'status' && Object.keys(value).length === 1;
+  if (!record(value)) return false;
+  if (value.type === 'status') return Object.keys(value).length === 1;
+  return value.type === 'update-reference' && only(value, ['type', 'resource']) && Object.keys(value).length === 2
+    && typeof value.resource === 'string' && RESOURCE_ID.test(value.resource);
 }
 
 export function referenceLoaded(status: StorageStatus | undefined): boolean | undefined {

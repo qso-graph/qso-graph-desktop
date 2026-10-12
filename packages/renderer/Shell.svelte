@@ -30,6 +30,8 @@
     onChooseTheme: (choice: ThemeChoice) => Promise<boolean>;
     // Turning an extension off or on (QGD-HOM-0007).
     onSetExtension: (id: string, enabled: boolean) => Promise<boolean>;
+    // Loading or updating one reference resource, when the operator asks.
+    onUpdateReference: (resource: string) => Promise<boolean>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
@@ -46,7 +48,7 @@
     version: string;
   }
   const {
-    store, home, onChooseTheme, onSetExtension, onSetLevel, onExport,
+    store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -161,7 +163,7 @@
       </div>
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
-      <SettingsPage themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} />
+      <SettingsPage themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} />
     </div>
   </main>
 </div>

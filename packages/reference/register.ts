@@ -18,7 +18,19 @@ export interface PotaRegister {
   sources: { parks: PotaSource; programs: PotaSource; locations: PotaSource };
 }
 
+// What the operator loads and updates, one control each. `id` names the
+// resource in a command and a status; the core knows how to load each id it
+// lists in REFERENCE_RESOURCES (packages/storage/reference.ts).
+export interface ResourceEntry {
+  id: string;
+  name: string;
+  what: string;
+  owner: string;
+  size: string;
+}
+
 export interface Register {
+  resources: ResourceEntry[];
   adif: {
     version: string;
     source: { what: string; url: string; sha256: string; published: string; definitions: string; testQsos: string };

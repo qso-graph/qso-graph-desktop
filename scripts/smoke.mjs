@@ -465,12 +465,13 @@ try {
   await expect(page.locator('#troubleshooting').getByRole('button', { name: /^(Start|Stop)$/ })).toHaveCount(0);
   await expect(page.locator('#reference-datasets')).toBeVisible();
   await page.locator('#close-troubleshooting').click();
-  // QGD-FRM-0011: Home says whether reference data is loaded. Which answer
-  // depends on the network this run has; that it is one of the answers, and
-  // not "not available", is what is asserted.
+  // QGD-FRM-0011: Home says, per resource, whether reference data is loaded.
+  // Nothing is fetched at start (KI7MT, 2026-10-11), so a new profile says
+  // "not loaded" for each, and points to Settings to load them.
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Home', exact: true }).click();
   await expect.poll(() => page.locator('#home-reference').innerText(), { timeout: 10_000 })
-    .toMatch(/^(loaded|not loaded|being fetched|loaded, updating|being checked)/);
+    .toMatch(/^ADIF definitions: not loaded; POTA parks: not loaded/);
+  await expect(page.locator('#manage-reference')).toBeVisible();
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Personas', exact: true }).click();
 
   // ---- P3-logs-page (QGD-LOG-0013) --------------------------------------

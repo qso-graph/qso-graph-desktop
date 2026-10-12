@@ -12,7 +12,7 @@ import { allowsSender, type FetchedReference } from '../personas/persona-contrac
 import { PERSONA_STARTING } from './persona-broker.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 import {
-  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageReply, type StorageStatus,
+  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus,
   isStorageReply, isStorageStatus, validateStorageCommand
 } from '../storage/storage-contract.js';
 
@@ -136,7 +136,7 @@ export function startStorageBroker(options: StorageBrokerOptions): () => Promise
     });
   }
 
-  function ask(timeoutMs = 10_000): Promise<StorageReply> {
+  function ask(command: StorageCommand = { type: 'status' }, timeoutMs = 10_000): Promise<StorageReply> {
     if (worker === undefined) {
       return Promise.resolve({ ok: true, status: { ...last, state: 'unavailable', reason: 'The storage service is not running.' } });
     }
@@ -148,7 +148,7 @@ export function startStorageBroker(options: StorageBrokerOptions): () => Promise
       }, timeoutMs);
       timer.unref?.();
       pending.set(id, { settle, timer });
-      worker?.postMessage({ id, command: { type: 'status' } });
+      worker?.postMessage({ id, command });
     });
   }
 
@@ -158,7 +158,8 @@ export function startStorageBroker(options: StorageBrokerOptions): () => Promise
       log.warn({ accepted: false }, 'storage request refused');
       return { ok: false, error: 'Invalid storage request.' };
     }
-    return ask();
+    if (command.type === 'update-reference') log.info({}, 'reference update asked for');
+    return ask(command);
   });
 
   spawn();

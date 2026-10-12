@@ -17,11 +17,11 @@ import { createForwardingLogger } from '../logging/logger.js';
 import type { Register } from '../reference/register.js';
 import { StorageFailure, describe, reduce } from './errors.js';
 import { layout, openState } from './layout.js';
-import { Reference, type DatasetState, type ReferenceStatus } from './reference.js';
+import { Reference, isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus } from './reference.js';
 import type { Store } from './sqlite.js';
 import type { stateSchema } from './schema.js';
 import {
-  type DatasetSummary, type StorageReply, type StorageStatus, validateStorageCommand
+  type DatasetSummary, type ResourceSummary, type StorageReply, type StorageStatus, validateStorageCommand
 } from './storage-contract.js';
 
 const [, , root, stateMigrations, referenceDdl, registerFile, referenceCache, appVersion] = process.argv;
@@ -71,6 +71,9 @@ let reference: Reference | undefined;
 let referenceStatus: ReferenceStatus | undefined;
 let refreshing = false;
 let failed: string | undefined;
+let register: Register | undefined;
+// The resource being loaded or updated now, if any.
+let updating: ReferenceResource | undefined;
 
 function sizeOf(...files: string[]): number {
   let total = 0;
@@ -98,7 +101,8 @@ function status(): StorageStatus {
         parks: summary(referenceStatus.pota.parks),
         programs: summary(referenceStatus.pota.programs),
         locations: summary(referenceStatus.pota.locations),
-        refreshing
+        refreshing,
+        resources: resources(referenceStatus)
       }
     } : {})
   };
@@ -106,35 +110,45 @@ function status(): StorageStatus {
 
 const publish = () => process.parentPort.postMessage({ status: status() });
 
-// A source that was never asked for, because the credential core was not up
-// yet when storage first asked (the two processes start side by side), is
-// asked for again soon: 15 s, doubling, at most every 30 minutes. Only that.
-// A request that did reach a server and failed is not retried here: POTA is
-// asked at most once a day (QGD-REF-0010), and the next start or the next day's
-// refresh asks again.
-const RETRY_FIRST_MS = 15_000;
-const RETRY_MOST_MS = 30 * 60_000;
-let retries = 0;
-let retryTimer: NodeJS.Timeout | undefined;
-
-function scheduleRetry(notAsked: boolean): void {
-  if (retryTimer) { clearTimeout(retryTimer); retryTimer = undefined; }
-  if (!notAsked) { retries = 0; return; }
-  const wait = Math.min(RETRY_FIRST_MS * 2 ** retries++, RETRY_MOST_MS);
-  retryTimer = setTimeout(() => { retryTimer = undefined; void refresh(); }, wait);
-  retryTimer.unref?.();
+// One summary per resource the register lists, read from what the file holds,
+// as status() is. "Due" means loaded but stale: a resource never loaded is
+// "not loaded", which is a choice, not something to nag about.
+function resources(held: ReferenceStatus): ResourceSummary[] {
+  if (!register) return [];
+  const limit = register.pota.refreshAfterHours * 3_600_000;
+  const parts = (id: string): DatasetState[] => id === 'adif' ? [held.adif]
+    : id === 'pota' ? Object.values(held.pota) : [];
+  return register.resources.filter((entry) => isReferenceResource(entry.id)).map((entry) => {
+    const sets = parts(entry.id);
+    const loaded = sets.length > 0 && sets.every((set) => set.state === 'loaded');
+    const times = sets.flatMap((set) => (set.state === 'loaded' ? [Date.parse(set.fetchedAt)] : [])).filter(Number.isFinite);
+    const oldest = times.length > 0 ? Math.min(...times) : undefined;
+    const stale = entry.id === 'adif'
+      ? held.adif.state === 'loaded' && held.adif.version !== register!.adif.version
+      : oldest !== undefined && Date.now() - oldest >= limit;
+    return {
+      id: entry.id, name: entry.name, what: entry.what, owner: entry.owner, size: entry.size,
+      state: loaded ? 'loaded' as const : 'not loaded' as const,
+      ...(oldest !== undefined ? { fetchedAt: new Date(oldest).toISOString() } : {}),
+      due: loaded && stale,
+      updating: updating === entry.id
+    };
+  });
 }
 
-async function refresh(): Promise<void> {
-  if (!reference) return;
+// Reference data is fetched only when the operator asks (KI7MT, 2026-10-11):
+// a start fetches nothing, so it is never slowed by a download or a build.
+// A request that fails is said so, and is asked again when they ask again.
+async function refresh(resource: ReferenceResource): Promise<void> {
+  if (!reference || refreshing) return;
   refreshing = true;
+  updating = resource;
   publish();
-  let notAsked = false;
   try {
-    const outcome = await reference.refresh();
+    // Asked for by the operator, so not held back by the once-a-day check;
+    // POTA is still asked conditionally, so an unchanged list costs a 304.
+    const outcome = await reference.refresh({ force: true, only: resource });
     referenceStatus = outcome.status;
-    notAsked = [outcome.adif, ...Object.values(outcome.pota)]
-      .some((result) => result.state === 'kept' && result.failure.kind === 'pending');
     // Kinds and states only (QGD-ENG-0016): never a message, a path or a value.
     log.info({
       built: outcome.built, deferred: outcome.deferred === true,
@@ -146,15 +160,15 @@ async function refresh(): Promise<void> {
     log.warn({ failure: describe(reduce(error, 'build')) }, 'reference refresh failed');
   } finally {
     refreshing = false;
+    updating = undefined;
     publish();
-    scheduleRetry(notAsked);
   }
 }
 
 async function start(): Promise<void> {
   try {
     state = await openState(paths, stateMigrations, appVersion);
-    const register = JSON.parse(await readFile(registerFile, 'utf8')) as Register;
+    register = JSON.parse(await readFile(registerFile, 'utf8')) as Register;
     reference = new Reference({ paths, ddl: referenceDdl, register, state, fetchArchive, fetchText });
     referenceStatus = await reference.status();
     log.info({}, 'storage ready');
@@ -163,11 +177,9 @@ async function start(): Promise<void> {
     log.error({ failure: describe(reduce(error, 'open')) }, 'storage could not be opened');
   }
   publish();
-  if (!failed) void refresh();
 }
 
 function close(): void {
-  if (retryTimer) { clearTimeout(retryTimer); retryTimer = undefined; }
   try { reference?.close(); } catch { /* closing what is left */ }
   try { state?.close(); } catch { /* closing what is left */ }
   reference = undefined;
@@ -191,9 +203,27 @@ process.parentPort.on('message', (event) => {
     return;
   }
   if (!Number.isSafeInteger(data?.id)) return;
-  const reply: StorageReply = validateStorageCommand(data.command)
-    ? { ok: true, status: status() }
-    : { ok: false, error: 'Invalid storage request.' };
+  if (!validateStorageCommand(data.command)) {
+    process.parentPort.postMessage({ id: data.id, reply: { ok: false, error: 'Invalid storage request.' } });
+    return;
+  }
+  if (data.command.type === 'update-reference') {
+    const resource = data.command.resource;
+    if (!isReferenceResource(resource) || !register?.resources.some((entry) => entry.id === resource)) {
+      process.parentPort.postMessage({ id: data.id, reply: { ok: false, error: 'There is no such reference data.' } });
+      return;
+    }
+    if (!reference) {
+      process.parentPort.postMessage({ id: data.id, reply: { ok: false, error: 'Storage is not open yet.' } });
+      return;
+    }
+    // Started, not awaited: the reply says it is running, and the finished
+    // status is pushed like every other change.
+    // refresh() marks itself running before its first await, so the reply
+    // below already says so; a second press while it runs does nothing.
+    void refresh(resource);
+  }
+  const reply: StorageReply = { ok: true, status: status() };
   process.parentPort.postMessage({ id: data.id, reply });
 });
 

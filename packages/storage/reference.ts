@@ -52,7 +52,27 @@ export interface ReferenceStatus {
 
 export type InputOutcome =
   | { state: 'current' | 'obtained' | 'loaded' | 'unchanged' | 'fresh enough' }
+  // The operator updated the other source: this one was read from its cache,
+  // if there, and not fetched.
+  | { state: 'not asked' }
   | { state: 'kept'; failure: StorageError };
+
+// The resources this core knows how to load, by the register's ids
+// (data/reference-sources.json "resources"). A register row the core cannot
+// load, or an id here the register lacks, is a test failure, not a quiet gap.
+export const REFERENCE_RESOURCES = ['adif', 'pota'] as const;
+export type ReferenceResource = (typeof REFERENCE_RESOURCES)[number];
+export function isReferenceResource(value: unknown): value is ReferenceResource {
+  return typeof value === 'string' && (REFERENCE_RESOURCES as readonly string[]).includes(value);
+}
+
+export interface RefreshOptions {
+  force?: boolean;
+  only?: ReferenceResource;
+}
+
+// For the source not being fetched: the cache answers, or nothing does.
+const notFetched = async (): Promise<Buffer> => { throw new StorageFailure({ kind: 'fetch' }); };
 
 export interface RefreshOutcome {
   adif: InputOutcome;
@@ -241,11 +261,14 @@ export class Reference {
       }));
   }
 
-  refresh(options: { force?: boolean } = {}): Promise<RefreshOutcome> {
+  // `only` fetches one source and leaves the other as its cache has it: each
+  // resource is loaded or updated by its own control, so someone who never
+  // hunts parks never downloads POTA's lists (KI7MT, 2026-10-11).
+  refresh(options: RefreshOptions = {}): Promise<RefreshOutcome> {
     return this.#refreshes.run(() => this.#refresh(options));
   }
 
-  async #refresh(options: { force?: boolean }): Promise<RefreshOutcome> {
+  async #refresh(options: RefreshOptions): Promise<RefreshOutcome> {
     const { paths, register } = this.#options;
     const now = this.#now();
     const at = now.toISOString();
@@ -258,18 +281,20 @@ export class Reference {
     // 1. ADIF.
     let definitions: Definitions | undefined;
     let adif: InputOutcome;
+    const askAdif = options.only !== 'pota';
     try {
-      const archive = await openArchive(register.adif, paths.referenceCache, this.#options.fetchArchive);
+      const archive = await openArchive(register.adif, paths.referenceCache, askAdif ? this.#options.fetchArchive : notFetched);
       definitions = archive.definitions;
-      adif = { state: archive.fromCache ? 'current' : 'obtained' };
+      adif = askAdif ? { state: archive.fromCache ? 'current' : 'obtained' } : { state: 'not asked' };
     } catch (error) {
-      adif = { state: 'kept', failure: reduce(error, 'fetch') };
+      adif = askAdif ? { state: 'kept', failure: reduce(error, 'fetch') } : { state: 'not asked' };
     }
 
     // 2. POTA, each list on its own.
     const pota = {} as Record<PotaList, InputOutcome>;
     for (const list of POTA_LISTS) {
-      pota[list] = await this.#refreshList(list, now, options.force === true, held.get(POTA_SOURCE_IDS[list]));
+      pota[list] = options.only === 'adif' ? { state: 'not asked' }
+        : await this.#refreshList(list, now, options.force === true, held.get(POTA_SOURCE_IDS[list]));
     }
 
     // 3. Build, if what the file holds is not what the inputs now are.
@@ -340,9 +365,11 @@ export class Reference {
     }
 
     // Outcomes, after the swap (QGD-ENG-0015.1).
-    await this.#record(ADIF_SOURCE, at, adif, adif.state !== 'kept');
+    // A source that was not asked has nothing to record.
+    if (adif.state !== 'not asked') await this.#record(ADIF_SOURCE, at, adif, adif.state !== 'kept');
     for (const list of POTA_LISTS) {
       const outcome = pota[list];
+      if (outcome.state === 'not asked') continue;
       await this.#record(POTA_SOURCE_IDS[list], at, outcome, outcome.state !== 'fresh enough' && outcome.state !== 'kept');
     }
 

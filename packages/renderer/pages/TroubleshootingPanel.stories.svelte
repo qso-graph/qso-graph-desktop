@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { RESOURCES_LOADED } from './reference-fixtures.js';
   import TroubleshootingPanel from './TroubleshootingPanel.svelte';
   import type { LogsStatus } from '../../main/logs-contract.js';
 
@@ -23,7 +24,8 @@
           parks: { state: 'loaded', rows: 96532, fetchedAt: '2026-10-10T12:00:00.000Z' },
           programs: { state: 'loaded', rows: 249, fetchedAt: '2026-10-10T12:00:00.000Z' },
           locations: { state: 'loaded', rows: 4006, fetchedAt: '2026-10-10T12:00:00.000Z' },
-          refreshing: false
+          refreshing: false,
+          resources: RESOURCES_LOADED
         }
       },
       logs,

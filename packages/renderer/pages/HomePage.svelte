@@ -11,7 +11,7 @@
   import { ICONS } from '../../ui/icons.js';
   import HomeCard from '../../ui/HomeCard.svelte';
   import PinPicker from '../../ui/PinPicker.svelte';
-  import { referenceLoaded, type StorageStatus } from '../../storage/storage-contract.js';
+  import type { StorageStatus } from '../../storage/storage-contract.js';
   import type { HomeModel } from '../home-store.js';
   import { MAX_PINS } from '../../main/settings-contract.js';
 
@@ -41,15 +41,18 @@
   // offers only the room left beside them (QGD-HOM-0007).
   const room = $derived(MAX_PINS - home.pins.filter(pin => !home.available.some(card => card.key === pin)).length);
 
-  // Whether reference data is loaded (QGD-FRM-0011), read from the status
-  // storage pushes. A first run with no network says "not loaded", which is
-  // an answer, not a fault (QGD-REF-0014).
+  // What reference data is loaded (QGD-FRM-0011), read from the status
+  // storage pushes, one resource at a time. Nothing is fetched at start, and
+  // each resource is loaded or updated in Settings by its own control
+  // (KI7MT, 2026-10-11). A resource never loaded is a choice, not a fault
+  // (QGD-REF-0014).
   const referenceWords = $derived.by(() => {
     if (storage?.state === 'failed' || storage?.state === 'unavailable') return 'not available';
-    const loaded = referenceLoaded(storage);
-    if (loaded === undefined) return 'being checked';
-    if (storage?.reference?.refreshing) return loaded ? 'loaded, updating' : 'being fetched';
-    return loaded ? 'loaded' : 'not loaded';
+    const resources = storage?.reference?.resources;
+    if (!resources) return 'being checked';
+    if (resources.length === 0) return 'none offered';
+    return resources.map(resource => `${resource.name}: ${resource.updating ? 'updating'
+      : resource.state === 'not loaded' ? 'not loaded' : resource.due ? 'out of date' : 'loaded'}`).join('; ');
   });
 </script>
 
@@ -84,6 +87,7 @@
       <dt>Reference data</dt>
       <dd id="home-reference">
         {referenceWords}
+        <button type="button" class="secondary inline-action" id="manage-reference" onclick={() => onGo('settings')}>Load or update</button>
         {#if storage?.reason}<span class="fact-note">{storage.reason}</span>{/if}
       </dd>
     </dl>
@@ -96,8 +100,8 @@
     -->
     <p class="hint">
       Everything you enter stays on this computer. Nothing of yours is sent anywhere
-      until you ask. The app fetches the ADIF and park reference lists it needs,
-      and nothing else.
+      until you ask. The app fetches the ADIF and park reference lists when you load
+      or update them, and the data your pinned cards show, and nothing else.
     </p>
   </section>
 

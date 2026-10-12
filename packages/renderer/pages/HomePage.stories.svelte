@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { RESOURCES_LOADED, RESOURCES_NOT_LOADED } from './reference-fixtures.js';
   import HomePage from './HomePage.svelte';
   import type { HomeModel } from '../home-store.js';
 
@@ -42,7 +43,8 @@
         parks: { state: 'loaded', rows: 96532, fetchedAt: '2026-10-10T12:00:00.000Z' },
         programs: { state: 'loaded', rows: 249, fetchedAt: '2026-10-10T12:00:00.000Z' },
         locations: { state: 'loaded', rows: 4006, fetchedAt: '2026-10-10T12:00:00.000Z' },
-        refreshing: false
+        refreshing: false,
+        resources: RESOURCES_LOADED
       }
       },
       destinations,
@@ -59,7 +61,7 @@
      answer and not a fault (QGD-REF-0014). -->
 <Story name="Reference data not loaded" args={{ storage: { state: 'ready', reference: {
   adif: { state: 'not loaded' }, parks: { state: 'not loaded' }, programs: { state: 'not loaded' },
-  locations: { state: 'not loaded' }, refreshing: false } } }} />
+  locations: { state: 'not loaded' }, refreshing: false, resources: RESOURCES_NOT_LOADED } } }} />
 <!-- Readable with storage down, which is half of what this page is for. -->
 <Story name="Storage could not open" args={{ storage: { state: 'failed', reason: 'Storage could not be opened.' } }} />
 <Story name="Still checking" args={{ storage: undefined }} />
