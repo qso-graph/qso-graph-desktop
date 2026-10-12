@@ -274,7 +274,8 @@ try {
   // in the cache above; POTA is fetched, or fails without a network.
   stage = 'load the reference data, as the operator does';
   for (const resource of register.resources) {
-    await page.evaluate(id => window.storage.request({ type: 'update-reference', resource: id }), resource.id);
+    const accepted = await page.evaluate(id => window.storage.request({ type: 'update-reference', resource: id }), resource.id);
+    expect(accepted, `loading ${resource.name} must be accepted`).toMatchObject({ ok: true });
     await expect.poll(() => page.evaluate(() => window.storage.request({ type: 'status' })
       .then(reply => reply.ok && reply.status.reference && !reply.status.reference.refreshing)),
     { message: `loading ${resource.name} must finish`, timeout: 180_000 }).toBe(true);
@@ -411,7 +412,13 @@ try {
   stage = 'the run said what happened to the reference data';
   const storageLog = (await Promise.all((await readdir(logs).catch(() => []))
     .map(name => readFile(join(logs, name), 'utf8').catch(() => '')))).join('\n');
-  expect(storageLog, 'storage must say what became of the reference data').toContain('reference data');
+  // Each resource asked for, by name: one resource's line cannot stand in
+  // for another's.
+  const outcomes = storageLog.split('\n').filter(line => line.includes('"msg":"reference data"'));
+  for (const resource of register.resources) {
+    expect(outcomes.some(line => line.includes(`"resource":"${resource.id}"`)),
+      `storage must say what became of ${resource.name}`).toBe(true);
+  }
 
   stage = 'the renderer holds no socket at all';
   {

@@ -48,6 +48,8 @@ export interface ResourceSummary {
   // release pins: worth an Update.
   due: boolean;
   updating: boolean;
+  // What went wrong with the last attempt, in words a person can act on.
+  problem?: string;
 }
 
 export interface StorageStatus {
@@ -88,12 +90,13 @@ const RESOURCE_ID = /^[a-z][a-z0-9-]{1,30}$/;
 const words = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit;
 
 function isResource(value: unknown): value is ResourceSummary {
-  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updating'])) return false;
+  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updating', 'problem'])) return false;
   return typeof value.id === 'string' && RESOURCE_ID.test(value.id)
     && words(value.name, 64) && words(value.what, 200) && words(value.owner, 64) && words(value.size, 32)
     && (value.state === 'loaded' || value.state === 'not loaded')
     && (value.fetchedAt === undefined || (typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))))
-    && typeof value.due === 'boolean' && typeof value.updating === 'boolean';
+    && typeof value.due === 'boolean' && typeof value.updating === 'boolean'
+    && (value.problem === undefined || (words(value.problem, 200) && !/[<>]/.test(value.problem as string)));
 }
 
 export function isStorageStatus(value: unknown): value is StorageStatus {

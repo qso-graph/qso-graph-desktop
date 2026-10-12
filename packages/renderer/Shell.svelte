@@ -31,7 +31,7 @@
     // Turning an extension off or on (QGD-HOM-0007).
     onSetExtension: (id: string, enabled: boolean) => Promise<boolean>;
     // Loading or updating one reference resource, when the operator asks.
-    onUpdateReference: (resource: string) => Promise<boolean>;
+    onUpdateReference: (resource: string) => Promise<string | undefined>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because

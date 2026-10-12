@@ -16,6 +16,7 @@
     version: '0.0.0-preview.1',
     onChooseTheme: () => Promise.resolve(true),
     onSetExtension: () => Promise.resolve(true),
+    onUpdateReference: () => Promise.resolve(undefined),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
     onCreatePersona: () => Promise.resolve(undefined),

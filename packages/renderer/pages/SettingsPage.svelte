@@ -53,11 +53,11 @@
     extensions?: readonly ExtensionSwitch[];
     onSetExtension?: (id: string, enabled: boolean) => Promise<boolean>;
     storage?: StorageStatus;
-    onUpdateReference?: (resource: string) => Promise<boolean>;
+    onUpdateReference?: (resource: string) => Promise<string | undefined>;
   }
   const {
     themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
-    storage, onUpdateReference = () => Promise.resolve(false)
+    storage, onUpdateReference = () => Promise.resolve('The update could not be started.')
   }: Props = $props();
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
@@ -79,7 +79,8 @@
 
   async function load(resource: ResourceSummary): Promise<void> {
     referenceFailure = '';
-    if (!(await onUpdateReference(resource.id))) referenceFailure = `${resource.name} could not be ${resource.state === 'loaded' ? 'updated' : 'loaded'}.`;
+    const refused = await onUpdateReference(resource.id);
+    if (refused) referenceFailure = `${resource.name}: ${refused}`;
   }
 
   // The switch being changed, so it cannot be flipped again before the main
@@ -120,6 +121,7 @@
               <span class="extension-name">{resource.name}</span>
               <span class="hint">{resource.what}. From {resource.owner}, {resource.size}.</span>
               <span class="hint reference-state">{stateWords(resource)}</span>
+              {#if resource.problem && !resource.updating}<span class="extension-error reference-problem" role="status">{resource.problem}</span>{/if}
             </span>
             <button type="button" class="secondary" disabled={busy}
               aria-label="{resource.state === 'loaded' ? 'Update' : 'Load'} {resource.name}"

@@ -243,6 +243,16 @@ export class Reference {
     };
   }
 
+  // When each source last answered: a fresh body or a 304. Freshness is
+  // measured from this, not from when the body was fetched, so a list that
+  // has not changed is current after an Update that found it unchanged.
+  async lastChecks(): Promise<Record<string, string | undefined>> {
+    const ids = [ADIF_SOURCE, ...POTA_LISTS.map((list) => POTA_SOURCE_IDS[list])];
+    const out: Record<string, string | undefined> = {};
+    for (const id of ids) out[id] = (await this.#lastCheck(id))?.toISOString();
+    return out;
+  }
+
   async #lastCheck(sourceId: string): Promise<Date | undefined> {
     const row = await this.#options.state.unit((db) =>
       db.select().from(referenceRefresh).where(eq(referenceRefresh.sourceId, sourceId)).get());

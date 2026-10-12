@@ -610,12 +610,13 @@ void window.storage.request({ type: 'status' }).then(reply => { if (reply.ok && 
 // Loading or updating the reference data, when the operator asks for it: a
 // start fetches nothing (KI7MT, 2026-10-11). The reply says it is running; the
 // finished status arrives pushed, like every other change.
-export async function updateReference(resource: string): Promise<boolean> {
+// Undefined when it started; otherwise the reason, in words, to show.
+export async function updateReference(resource: string): Promise<string | undefined> {
   try {
     const reply = await window.storage.request({ type: 'update-reference', resource });
-    if (reply.ok) takeStatus(reply.status);
-    return reply.ok;
+    if (reply.ok) { takeStatus(reply.status); return undefined; }
+    return reply.error;
   } catch {
-    return false;
+    return 'The update could not be started.';
   }
 }

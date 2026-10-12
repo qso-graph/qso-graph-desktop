@@ -18,10 +18,11 @@ import type { Register } from '../reference/register.js';
 import { StorageFailure, describe, reduce } from './errors.js';
 import { layout, openState } from './layout.js';
 import { Reference, isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus } from './reference.js';
+import { problemOf, summarize } from './reference-resources.js';
 import type { Store } from './sqlite.js';
 import type { stateSchema } from './schema.js';
 import {
-  type DatasetSummary, type ResourceSummary, type StorageReply, type StorageStatus, validateStorageCommand
+  type DatasetSummary, type StorageReply, type StorageStatus, validateStorageCommand
 } from './storage-contract.js';
 
 const [, , root, stateMigrations, referenceDdl, registerFile, referenceCache, appVersion] = process.argv;
@@ -102,7 +103,7 @@ function status(): StorageStatus {
         programs: summary(referenceStatus.pota.programs),
         locations: summary(referenceStatus.pota.locations),
         refreshing,
-        resources: resources(referenceStatus)
+        resources: register ? summarize({ register, held: referenceStatus, checks, problems, updating, now: Date.now() }) : []
       }
     } : {})
   };
@@ -110,31 +111,14 @@ function status(): StorageStatus {
 
 const publish = () => process.parentPort.postMessage({ status: status() });
 
-// One summary per resource the register lists, read from what the file holds,
-// as status() is. "Due" means loaded but stale: a resource never loaded is
-// "not loaded", which is a choice, not something to nag about.
-function resources(held: ReferenceStatus): ResourceSummary[] {
-  if (!register) return [];
-  const limit = register.pota.refreshAfterHours * 3_600_000;
-  const parts = (id: string): DatasetState[] => id === 'adif' ? [held.adif]
-    : id === 'pota' ? Object.values(held.pota) : [];
-  return register.resources.filter((entry) => isReferenceResource(entry.id)).map((entry) => {
-    const sets = parts(entry.id);
-    const loaded = sets.length > 0 && sets.every((set) => set.state === 'loaded');
-    const times = sets.flatMap((set) => (set.state === 'loaded' ? [Date.parse(set.fetchedAt)] : [])).filter(Number.isFinite);
-    const oldest = times.length > 0 ? Math.min(...times) : undefined;
-    const stale = entry.id === 'adif'
-      ? held.adif.state === 'loaded' && held.adif.version !== register!.adif.version
-      : oldest !== undefined && Date.now() - oldest >= limit;
-    return {
-      id: entry.id, name: entry.name, what: entry.what, owner: entry.owner, size: entry.size,
-      state: loaded ? 'loaded' as const : 'not loaded' as const,
-      ...(oldest !== undefined ? { fetchedAt: new Date(oldest).toISOString() } : {}),
-      due: loaded && stale,
-      updating: updating === entry.id
-    };
-  });
-}
+// When each source last answered, and the last attempt's problem per
+// resource: what Settings needs beyond the file itself (reference-resources.ts).
+let checks: Record<string, string | undefined> = {};
+const problems = new Map<string, string>();
+
+// Nothing is fetched on a clock, but "out of date" is: the status is pushed
+// again every hour so a window left open says so when it becomes true.
+setInterval(() => { if (state && !failed) publish(); }, 3_600_000).unref?.();
 
 // Reference data is fetched only when the operator asks (KI7MT, 2026-10-11):
 // a start fetches nothing, so it is never slowed by a download or a build.
@@ -149,15 +133,20 @@ async function refresh(resource: ReferenceResource): Promise<void> {
     // POTA is still asked conditionally, so an unchanged list costs a 304.
     const outcome = await reference.refresh({ force: true, only: resource });
     referenceStatus = outcome.status;
+    checks = await reference.lastChecks();
+    const problem = problemOf(resource, outcome);
+    if (problem) problems.set(resource, problem); else problems.delete(resource);
     // Kinds and states only (QGD-ENG-0016): never a message, a path or a value.
     log.info({
+      resource, problem: problem !== undefined,
       built: outcome.built, deferred: outcome.deferred === true,
       adif: outcome.adif.state, buildFailure: outcome.buildFailure?.kind,
       pota: Object.fromEntries(Object.entries(outcome.pota).map(([list, result]) =>
         [list, result.state === 'kept' ? `kept (${result.failure.kind})` : result.state]))
     }, 'reference data');
   } catch (error) {
-    log.warn({ failure: describe(reduce(error, 'build')) }, 'reference refresh failed');
+    problems.set(resource, 'Could not be loaded. Try again; if it keeps failing, Troubleshooting has the logs.');
+    log.warn({ resource, failure: describe(reduce(error, 'build')) }, 'reference refresh failed');
   } finally {
     refreshing = false;
     updating = undefined;
@@ -171,6 +160,7 @@ async function start(): Promise<void> {
     register = JSON.parse(await readFile(registerFile, 'utf8')) as Register;
     reference = new Reference({ paths, ddl: referenceDdl, register, state, fetchArchive, fetchText });
     referenceStatus = await reference.status();
+    checks = await reference.lastChecks();
     log.info({}, 'storage ready');
   } catch (error) {
     failed = 'Storage could not be opened.';
@@ -215,6 +205,12 @@ process.parentPort.on('message', (event) => {
     }
     if (!reference) {
       process.parentPort.postMessage({ id: data.id, reply: { ok: false, error: 'Storage is not open yet.' } });
+      return;
+    }
+    // One at a time, and said so: a second press while one runs is refused
+    // rather than acknowledged and dropped.
+    if (refreshing) {
+      process.parentPort.postMessage({ id: data.id, reply: { ok: false, error: 'Another update is running; try again when it finishes.' } });
       return;
     }
     // Started, not awaited: the reply says it is running, and the finished
