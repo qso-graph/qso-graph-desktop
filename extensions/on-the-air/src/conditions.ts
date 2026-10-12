@@ -4,10 +4,10 @@
 //
 // solar-mcp is the specification for this card's behaviour. The parsing and
 // the band table below follow its SolarClient.conditions() and
-// _band_outlook() (solar-mcp 0.2.6), and tests/conditions.test.ts holds both
-// to the same recorded NOAA responses. One deliberate difference: NOAA sends a
-// scale as a bare digit, and solar-mcp prefixes only "0" ("G0" but "2"); here
-// every level is prefixed, so a storm reads "G2" as a quiet day reads "G0".
+// _band_outlook() (solar-mcp 0.3.0), and tests/conditions.test.ts holds both
+// to the same recorded NOAA responses. NOAA sends a scale as a bare digit;
+// both prefix every level, so a storm reads "G2" as a quiet day reads "G0"
+// (solar-mcp did so from 0.3.0; before that it left a non-zero level bare).
 //
 // Pure: three response bodies in, a card answer out. Nothing here fetches.
 import type { CardAnswer, Section } from '../../../packages/extension-api/cards.js';

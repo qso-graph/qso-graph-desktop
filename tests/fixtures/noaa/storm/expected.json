@@ -1,10 +1,10 @@
 {
-  "producedBy": "solar-mcp 0.2.6, SolarClient.conditions() over these files",
+  "producedBy": "solar-mcp 0.3.0, SolarClient.conditions() over these files",
   "sfi": 168,
   "kp": 5.67,
   "noaa_r_scale": "R0",
   "noaa_s_scale": "S0",
-  "noaa_g_scale": "2",
+  "noaa_g_scale": "G2",
   "bands": {
     "160m": "Poor \u2014 storm absorption",
     "80m": "Poor \u2014 D-layer absorption and noise",

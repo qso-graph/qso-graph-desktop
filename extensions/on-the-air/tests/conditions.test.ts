@@ -2,6 +2,7 @@
 // P8-conditions: Conditions reports what solar-mcp reports for the same
 // recorded NOAA responses (QGD-HOM-0008). tests/fixtures/noaa/README.md says
 // where the files and the expected answers came from.
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateCardAnswer } from '../../../packages/extension-api/cards.js';
@@ -10,8 +11,17 @@ import { bandOutlook, conditionsCard, parseConditions } from '../src/conditions.
 const fixture = (name: string, file: string) => readFileSync(`tests/fixtures/noaa/${name}/${file}`, 'utf8');
 const bodies = (name: string) => ({ flux: fixture(name, '10cm-flux.json'), kp: fixture(name, 'noaa-planetary-k-index.json'), scales: fixture(name, 'noaa-scales.json') });
 const expected = (name: string) => JSON.parse(fixture(name, 'expected.json'));
-// solar-mcp prefixes only a "0" scale; the card prefixes every level.
-const prefixed = (scale: string, letter: string) => (/^\d$/.test(scale) ? `${letter}${scale}` : scale);
+// The recorded responses, pinned. solar-mcp checks the same files against these
+// sums from its side (solar-mcp tests/test_fixtures_noaa.py), so either side
+// changing them fails a test on both.
+const PINNED: Record<string, string> = {
+  'quiet/10cm-flux.json': '2138583f6f96a59ab0c9f43cfec454b0cd844cccfaa36c1f3631c2d413d20858',
+  'storm/10cm-flux.json': '47463078883fd10daee99f72e16d6ee2cf29cf974f8a35133ce4c5443be4a0ce',
+  'quiet/noaa-planetary-k-index.json': '9eb4122adc5d795965b528c70a766cfaab2f4f389d9364bccdf0bb22a0fdd239',
+  'storm/noaa-planetary-k-index.json': 'ea45dc16d611a72645a1a2a39297e0c8bfa4e2c417235e311bb4c9c7264460cb',
+  'quiet/noaa-scales.json': '62c3233ad19470a76e19c9205b02419c3d7340e2f8205373d10b24621576d4c4',
+  'storm/noaa-scales.json': 'f2d1b143dc4d726c0ff35a745ba9f64e4e775d20c07d54753c0879fc04539b79',
+};
 
 describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
   for (const name of ['quiet', 'storm']) {
@@ -21,10 +31,18 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
       expect(got).toBeDefined();
       expect(got!.sfi).toBe(want.sfi);
       expect(got!.kp).toBe(want.kp);
-      expect(got!.scales).toEqual({ R: prefixed(want.noaa_r_scale, 'R'), S: prefixed(want.noaa_s_scale, 'S'), G: prefixed(want.noaa_g_scale, 'G') });
+      // Exactly as solar-mcp reports them: since solar-mcp 0.3.0 both prefix
+      // every level, so a storm reads G2 on both sides.
+      expect(got!.scales).toEqual({ R: want.noaa_r_scale, S: want.noaa_s_scale, G: want.noaa_g_scale });
       expect(got!.bands).toEqual(want.bands);
     });
   }
+
+  it('reads exactly the recorded responses solar-mcp reads', () => {
+    for (const [path, digest] of Object.entries(PINNED)) {
+      expect(createHash('sha256').update(readFileSync(`tests/fixtures/noaa/${path}`)).digest('hex'), path).toBe(digest);
+    }
+  });
 
   it('draws a card that passes the core\'s own check, with no alert on a quiet day', () => {
     const card = validateCardAnswer(conditionsCard(parseConditions(bodies('quiet'))!));
