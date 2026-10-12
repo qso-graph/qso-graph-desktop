@@ -68,6 +68,36 @@
         "settings-dark.png": "e8c304f381bfec3001529623ef0e898535fe1a3df39cbc83cc74bbb15e259dd7",
         "troubleshooting-dark.png": "5512110ff4f7fc6d2ab7ed29dea141265213050c0697e91d86ede2678f28e61e"
       }
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-12",
+      "what": "20 baseline(s): home-light.png, home-end-light.png, personas-light.png, personas-2-light.png, personas-end-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, home-end-dark.png, personas-dark.png, personas-2-dark.png, personas-end-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png",
+      "recordedAtUtc": "2026-10-12T18:33:06.720Z",
+      "files": {
+        "home-light.png": "eab017b7b31296f6e9e3d268f426b601facb557c24d1fa9bbb988a6a640c9cbe",
+        "home-end-light.png": "ee867187ea771335edffe514db1a752d93bf7e7358cb386e86b53e2550c3c132",
+        "personas-light.png": "26d5697e0e24d32f0ba06ec077a99a75f163513cba2e595d019342356af1cf76",
+        "personas-2-light.png": "456f1a4c17ee82471919f67891557b53cf44cb1243d56f6f6eff5ee3fd821d16",
+        "personas-end-light.png": "1c9eaa80a817524b5a856999479a27ee350ad9da98531d4d201c87d00d706e1c",
+        "settings-light.png": "6e6797a7d1575bd37649e27b8fcd4e759c1ca03176cc2d4a35f6c8a33caa995b",
+        "settings-extensions-light.png": "1f21078699afe0bcbb6628240d7b48e731e1664c383c7b376c20d882f25a09be",
+        "pins-light.png": "5dafc9540e6d04db863043469afac0e63af9ff86f9afeadd75224d3278a10190",
+        "troubleshooting-light.png": "087938595dd43c454dca277b7db0d085f4863dd692b3d38116ea35e8d5a9afd2",
+        "troubleshooting-end-light.png": "4f9c2d582c683f586cfdddd8f487fbfc1bc080e30896a9c16948e2acc9289e81",
+        "home-dark.png": "0637e0f3db5b432de75bf8738c871c71525d6048076bec22bdae0e1ab3dc083c",
+        "home-end-dark.png": "7634a319ebf086ba361188ad6da96bde143bd8aa12ca5b3e2727e74452d479b8",
+        "personas-dark.png": "48fb2b611659b3149538fcd1eeb38d2f6f766f65ee8284e413713387b4fe65f4",
+        "personas-2-dark.png": "f69f767e623cd687e980f7424e3fb0a4a98d5053ef2a284d8cfcc5ff771716bd",
+        "personas-end-dark.png": "85f82d213dae87bf50b2152995b67919b5e8c3b74c09ce7e672a0a9fa2a2b9ef",
+        "settings-dark.png": "2ad4e5c77266e2330ce77f6eaf37848df11c042045c03e94f63538cb902680d8",
+        "settings-extensions-dark.png": "4ea6b6ee7cc6460b4af8adfa694d2270bfa137b24729c46761d6eda8ab378d13",
+        "pins-dark.png": "3cc2859edd148a4223f06597513719c0dabc7b9e41b98d36b68b61fab3793aa8",
+        "troubleshooting-dark.png": "2e61d37610e7e8c0360789b7f0861c78b56c43f4479629a7423ff0e6300eb9ed",
+        "troubleshooting-end-dark.png": "873eaa26d55b979b3884145a80fa99828c2dac4b5c10da1e176f7bf1db74a30f"
+      },
+      "said": "yes, i just saw them, approved.",
+      "seen": "On the M3 in ~/Desktop/qgd-p8-screens-mac, captured at f068bf5; the approved files are pixel-identical to that set. Reviewed beforehand by Hopper (three rounds, then the fixed-width masks)."
     }
   ],
   "awaiting": {
