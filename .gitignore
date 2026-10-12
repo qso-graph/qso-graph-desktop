@@ -14,8 +14,7 @@ storybook-static/
 report/screenshots/
 report/screenshot-logs/
 
-# Written into the verification checkout by scripts/sync-verify-checkout.mjs,
-# which is the way a verification run is prepared. Not
+# Written into a verification checkout when a run is prepared. Not
 # ignoring it made `git status` dirty in every verification checkout, so the
 # report stamped itself <sha>-dirty on a pristine tree — and -dirty is supposed
 # to mean the report covers code no commit holds.
