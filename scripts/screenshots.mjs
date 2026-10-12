@@ -188,7 +188,9 @@ async function recordOverHome(page, file, theme, options = {}) {
 const OVERLAP = 60;
 async function recordScreens(page, name, theme, capture, pane = '.page-main') {
   const [height, client] = await page.evaluate(target => {
-    const element = document.querySelector(target);
+    // The one on screen: every page keeps its own .page-main in the document,
+    // and the first is Home's even while another page shows.
+    const element = [...document.querySelectorAll(target)].find(candidate => candidate.clientHeight > 0);
     return element ? [element.scrollHeight, element.clientHeight] : [0, 0];
   }, pane);
   if (height <= client) return;
