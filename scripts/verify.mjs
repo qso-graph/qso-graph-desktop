@@ -83,13 +83,13 @@ function summarize(output, leaked, stopped) {
 // (an evidence problem: the report covers code no commit holds). The first
 // is named and explained; the second is stamped "-dirty", as git describe does.
 // The verification account hits the first whenever the checkout belongs to
-// another user (docs/VERIFY-ACCOUNT.md).
+// another user; git's safe.directory setting is the fix.
 function commitStamp() {
   const head = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' });
   if (head.status !== 0) {
     const ownership = /dubious ownership|safe\.directory/.test(head.stderr ?? '');
     console.error(ownership
-      ? 'git cannot read this checkout: it belongs to another user. See docs/VERIFY-ACCOUNT.md (safe.directory).'
+      ? 'git cannot read this checkout: it belongs to another user. Add it to git\'s safe.directory.'
       : 'git cannot read this checkout; the report will not name a commit.');
     return ownership ? 'unknown-commit (checkout owned by another user)' : 'unknown-commit (not a readable git checkout)';
   }

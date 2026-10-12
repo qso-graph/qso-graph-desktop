@@ -3,7 +3,7 @@
 //
 // build-native.mjs and rust-unit.mjs both hardcoded `~/.cargo/bin/cargo`,
 // which is only true for the account that installed rustup. KI7MT's direction
-// on 2026-10-09 is that `make verify` runs from the non-admin `qgdesktop`
+// on 2026-10-09 is that `make verify` runs from a separate non-admin
 // account, so the suites never touch his login keychain (QGD-CRD-0013) — and
 // in that account the hardcoded path does not exist.
 //

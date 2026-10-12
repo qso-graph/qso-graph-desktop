@@ -26,7 +26,7 @@ directory, so `personas.json` was a file both products wrote
 Tests use their own temporary profile directory, and their Keychain fixtures go
 to a service of their own, `io.qso-graph.desktop.test`, swept when a suite exits
 (`QGD-CRD-0013`). A release's verification run happens in an account whose login
-keychain holds nothing of the operator's — `docs/VERIFY-ACCOUNT.md`. The claim
+keychain holds nothing of the operator's (`QGD-CRD-0013.1`). The claim
 that "no test reads or changes an existing user credential" was true of the
 index and false of the Keychain: seventeen fixtures were found in KI7MT's real
 login keychain under the shared namespace, which is why both controls exist.
