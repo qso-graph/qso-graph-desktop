@@ -360,7 +360,11 @@ try {
   expect(arrivals, `unexpected arrivals: ${arrivals.join(', ')}`).toEqual(['/control/linger']);
 
   stage = 'the capture is not vacuous';
-  expect(labelled.length).toBe(steps.length + 2);
+  // One sample at idle, one per credential step, one per reference resource
+  // loaded, and one after the renderer's outbound routes. Counted from the
+  // same lists the samples were taken from, so adding a resource or a step
+  // cannot leave this behind again (it did, with 716cffa).
+  expect(labelled.length, 'one sample per step taken').toBe(1 + steps.length + register.resources.length + 1);
   expect(observed.size, 'the poll observed nothing at all').toBeGreaterThan(0);
   for (const taken of labelled) {
     const kinds = Object.values(taken.processes);
