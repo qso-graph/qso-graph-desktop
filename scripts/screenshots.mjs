@@ -210,12 +210,15 @@ async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pan
     // `pane` is the element scrolled to its end: the page, or an overlay that
     // scrolls on its own (Troubleshooting).
     await page.evaluate(([scrollTo, target]) => {
-      for (const element of document.querySelectorAll(`aside, .page-main, ${target}`)) {
+      // Only what is on screen: hidden pages keep their panes in the document,
+      // and a pane with no height cannot scroll.
+      for (const element of [...document.querySelectorAll(`aside, .page-main, ${target}`)].filter(e => e.clientHeight > 0)) {
         element.scrollTop = !element.matches(target) ? 0 : scrollTo === 'end' ? element.scrollHeight : typeof scrollTo === 'number' ? scrollTo : 0;
         element.scrollLeft = 0;
       }
     }, [scroll, pane]);
     const offsets = await page.evaluate(([scrollTo, target]) => [...document.querySelectorAll(`aside, .page-main, ${target}`)]
+      .filter(element => element.clientHeight > 0)
       .map(element => (!element.matches(target) || scrollTo === 'top' ? `${element.scrollTop},${element.scrollLeft}`
         : scrollTo === 'end' ? (element.scrollTop + element.clientHeight >= element.scrollHeight - 1 ? 'end' : `stopped at ${element.scrollTop}`)
           : (Math.abs(element.scrollTop - scrollTo) <= 1 ? 'at' : `stopped at ${element.scrollTop}`))), [scroll, pane]);
