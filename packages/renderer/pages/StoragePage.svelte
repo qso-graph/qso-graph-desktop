@@ -58,16 +58,23 @@
 
   {#if status}
     <Field id="storage-state" label="State" error={status.reason}
-           hint={status.folder ? `In ${status.folder}. Nothing in it leaves this computer.` : undefined}>
+           hint={status.folder ? 'Nothing in it leaves this computer.' : undefined}>
       {#snippet control({ describedBy, invalid }: ControlAttributes)}
         <input id="storage-state" class="narrow" type="text" readonly value={WORDS[status.state] ?? status.state}
                aria-describedby={describedBy} aria-invalid={invalid} />
       {/snippet}
     </Field>
 
+    <!-- The folder and the sizes in elements of their own, so a screenshot can
+         mask the values that change from run to run and still compare the
+         words around them. -->
+    {#if status.folder}
+      <p class="hint" id="storage-folder-line">Folder: <span id="storage-folder">{status.folder}</span></p>
+    {/if}
     {#if status.sizes}
       <p class="hint" id="storage-sizes">
-        Your data: {size(status.sizes.state)}. Reference data: {size(status.sizes.reference)}.
+        Your data: <span class="storage-size">{size(status.sizes.state)}</span>.
+        Reference data: <span class="storage-size">{size(status.sizes.reference)}</span>.
       </p>
     {/if}
 

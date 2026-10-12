@@ -49,28 +49,57 @@ const captures = resolve('report/screenshots');
 // moving, not to widen the comparison until it stops noticing.
 // What varies by nature from one run to the next, and is masked: the
 // operator's own folder (a temporary one here), the sizes of the stores, the
-// dates the reference data was fetched, and whether a fetch is still running.
-// The layout, labels and themes around them are still compared pixel for
-// pixel; the values themselves are the smoke suite's to assert. A mask is a
-// box drawn over the element in the capture, so it hides content and nothing
-// else.
+// clock on Your station and every card's time. A mask covers the value and
+// nothing more: a mask over a label or a button would let that label or button
+// change unseen (Hopper, 2026-10-12, found three that did). The values
+// themselves are the smoke suite's to assert. A mask is a box drawn over the
+// element in the capture, so it hides content and nothing else.
 //
 // Home's cards (P8) are drawn from recorded NOAA responses
-// (tests/fixtures/noaa/quiet), so Conditions is the same every run; Your
-// station shows the clock, so its times are masked and its callsign is not.
-// Every card's time is masked: it gains the date once the day it shows is not
+// (tests/fixtures/noaa/quiet), so Conditions is the same every run. Every
+// card's time is masked: it gains the date once the day it shows is not
 // today, so the recorded responses would redraw Conditions at midnight.
 const VOLATILE = [
-  '#storage-state-hint', '#storage-sizes', '#reference-title', '#reference-datasets', '#home-reference',
-  'section.home-card[aria-label="Your station"] .home-card-figures',
+  // The operator's folder (a temporary one here) and the stores' sizes: only
+  // the values, so the words around them are still compared.
+  '#storage-folder', '.storage-size', '#log-directory',
+  // Your station's clock: the times, not the "UTC" and "Local" labels above them.
+  'section.home-card[aria-label="Your station"] .home-card-figures dd',
   'section.home-card .home-card-time'
 ];
+// Not masked, because in this run they do not change: nothing is fetched at
+// start, so Home's reference line and Storage's reference list both say "not
+// loaded", and the capture waits until they do.
+
+// The masks that are actually in view. Playwright paints a mask where its
+// element is even when a scrolling panel has moved it out of sight, which put
+// grey boxes over the page title in troubleshooting-end. So each element is
+// masked only while it is inside every scrolling ancestor's visible area.
+async function visibleMasks(page, selectors) {
+  const out = [];
+  for (const selector of selectors) {
+    const shown = await page.locator(selector).evaluateAll(elements => elements.map(element => {
+      const box = element.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) return false;
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        if (!/(auto|scroll|hidden)/.test(style.overflowY + style.overflowX)) continue;
+        const clip = parent.getBoundingClientRect();
+        if (box.bottom <= clip.top || box.top >= clip.bottom || box.right <= clip.left || box.left >= clip.right) return false;
+      }
+      return true;
+    }));
+    shown.forEach((visible, index) => { if (visible) out.push(page.locator(selector).nth(index)); });
+  }
+  return out;
+}
 
 async function stableShot(page, path, masks = VOLATILE) {
   let previous;
   let last;
+  const mask = await visibleMasks(page, masks);
   for (let attempt = 0; attempt < 24; attempt++) {
-    const shot = await page.screenshot({ path, mask: masks.map(selector => page.locator(selector)), maskColor: '#888888' });
+    const shot = await page.screenshot({ path, mask, maskColor: '#888888' });
     if (previous) {
       last = compare(decode(previous), decode(shot));
       if (last.same) {
@@ -136,34 +165,36 @@ const written = [];
 // moving values on Home's cards are hidden instead, through the CSSOM as the
 // caret is, and put back afterwards; the masks for Home's cards are left out.
 const OVER_HOME_MASKS = VOLATILE.filter(selector => !selector.startsWith('section.home-card'));
-async function recordOverHome(page, file, theme) {
+async function recordOverHome(page, file, theme, options = {}) {
   const hidden = await page.evaluate(() => {
     const sheet = document.styleSheets[0];
-    return sheet.insertRule('section.home-card .home-card-time, section.home-card[aria-label="Your station"] .home-card-figures { visibility: hidden !important; }', sheet.cssRules.length);
+    return sheet.insertRule('section.home-card .home-card-time, section.home-card[aria-label="Your station"] .home-card-figures dd { visibility: hidden !important; }', sheet.cssRules.length);
   });
   try {
-    await record(page, file, theme, OVER_HOME_MASKS);
+    await record(page, file, theme, OVER_HOME_MASKS, options);
   } finally {
     await page.evaluate(index => document.styleSheets[0].deleteRule(index), hidden);
   }
 }
 
-async function record(page, file, theme, masks = VOLATILE, { scroll = 'top' } = {}) {
+async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pane = '.page-main' } = {}) {
     // Both panes at a known offset, and proven to be there. A page captured at
     // a different scroll offset differs over its whole content area for a
     // reason no colour comparison can name. 'top' for every page; 'end' for a
     // page whose last card is below the fold (Settings' Extensions), which no
     // capture from the top contains.
-    await page.evaluate(scrollTo => {
-      for (const element of document.querySelectorAll('aside, .page-main')) {
-        element.scrollTop = scrollTo === 'end' && element.matches('.page-main') ? element.scrollHeight : 0;
+    // `pane` is the element scrolled to its end: the page, or an overlay that
+    // scrolls on its own (Troubleshooting).
+    await page.evaluate(([scrollTo, target]) => {
+      for (const element of document.querySelectorAll(`aside, .page-main, ${target}`)) {
+        element.scrollTop = scrollTo === 'end' && element.matches(target) ? element.scrollHeight : 0;
         element.scrollLeft = 0;
       }
-    }, scroll);
-    const offsets = await page.evaluate(scrollTo => [...document.querySelectorAll('aside, .page-main')]
-      .map(element => (scrollTo === 'end' && element.matches('.page-main')
+    }, [scroll, pane]);
+    const offsets = await page.evaluate(([scrollTo, target]) => [...document.querySelectorAll(`aside, .page-main, ${target}`)]
+      .map(element => (scrollTo === 'end' && element.matches(target)
         ? (element.scrollTop + element.clientHeight >= element.scrollHeight - 1 ? 'end' : `stopped at ${element.scrollTop}`)
-        : `${element.scrollTop},${element.scrollLeft}`)), scroll);
+        : `${element.scrollTop},${element.scrollLeft}`)), [scroll, pane]);
     for (const offset of offsets) {
       expect(['0,0', 'end'], `every pane is where the capture expects it (${scroll})`).toContain(offset);
     }
@@ -305,12 +336,12 @@ try {
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 
-  // Storage has no indicator on the status bar (QGD-FRM-0012), so nothing on
-  // it moves while storage opens. Home's reference line does, and it is
-  // masked; what is waited for is that Home has an answer at all.
+  // Home's reference line settles once storage answers. Nothing is fetched at
+  // start, so in this run its answer is always "not loaded" for each
+  // resource; that is waited for, and then it is compared like any text.
   await expect.poll(() => page.locator('#home-reference').innerText(),
-    { message: 'Home must have an answer about reference data before anything is captured', timeout: 60_000 })
-    .not.toBe('');
+    { message: 'Home must say what reference data is loaded before anything is captured', timeout: 60_000 })
+    .toMatch(/ADIF definitions: not loaded; POTA parks: not loaded/);
 
   for (const theme of THEMES) {
     await rail('Settings').click();
@@ -337,6 +368,10 @@ try {
       }
       if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
+      // Home and Personas run past the first screen; what is below it is
+      // captured too (Home's facts and "Where to go"; the credentials and
+      // export). Settings' end is its own capture below.
+      if (name !== 'Settings') await record(page, `${name.toLowerCase()}-end-${theme}.png`, theme, VOLATILE, { scroll: 'end' });
     }
 
     // Settings' last card, Extensions, is below the fold: Playwright calls the
@@ -374,8 +409,10 @@ try {
     await expect(page.locator('#log-level')).toBeVisible({ timeout: 30_000 });
     // And storage's own answer: Ready, with its sections drawn.
     await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(), { timeout: 60_000 }).toBe('Ready');
-    await expect(page.locator('#reference-datasets')).toBeVisible();
+    await expect.poll(() => page.locator('#reference-datasets').innerText(), { timeout: 60_000 }).toMatch(/not loaded/);
     await recordOverHome(page, `troubleshooting-${theme}.png`, theme);
+    // The panel scrolls on its own, and the Logs card is below its fold.
+    await recordOverHome(page, `troubleshooting-end-${theme}.png`, theme, { scroll: 'end', pane: '#troubleshooting' });
     await page.locator('#close-troubleshooting').click();
     await expect(page.locator('#troubleshooting')).toHaveCount(0);
   }

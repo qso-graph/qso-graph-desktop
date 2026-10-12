@@ -50,7 +50,7 @@
     <h2 id="identity-title">Persona details</h2>
     <form id="persona-form">
       <div class="fields"><label>Persona name<input id="persona-name" name="name" required maxlength="128" placeholder="Home station" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off"></label></div>
-      <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label>End date <span class="optional">optional</span><input id="end-date" type="date" name="end"></label></div>
+      <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label><span>End date <span class="optional">optional</span></span><input id="end-date" type="date" name="end"></label></div>
       <p class="hint">The dates identify when this callsign belongs to this persona.</p>
       <div class="form-footer"><button id="remove-persona" class="danger" type="button" hidden>Remove persona</button><button id="save-persona" type="submit">Create persona</button></div>
     </form>

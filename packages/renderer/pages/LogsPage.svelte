@@ -80,7 +80,7 @@
       Writes one archive where you choose, with passwords and keys removed.
       Nothing is sent anywhere — you decide who gets it.
     </p>
-    <p class="hint">Logs are kept in {status.directory}</p>
+    <p class="hint">Logs are kept in <span id="log-directory">{status.directory}</span></p>
   {:else}
     <p class="hint">Reading the log settings…</p>
   {/if}
