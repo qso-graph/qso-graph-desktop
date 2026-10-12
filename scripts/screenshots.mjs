@@ -62,7 +62,11 @@ const captures = resolve('report/screenshots');
 const VOLATILE = [
   // The operator's folder (a temporary one here) and the stores' sizes: only
   // the values, so the words around them are still compared.
-  '#storage-folder', '.storage-size', '#log-directory',
+  '#storage-folder', '.storage-size',
+  // The log folder is this checkout's report/screenshot-logs: fixed within one
+  // checkout, but the baselines are committed and compared from any checkout
+  // (~/qgd-bob, a maintainer's own clone), so the path differs between them.
+  '#log-directory',
   // Your station's clock: the times, not the "UTC" and "Local" labels above them.
   'section.home-card[aria-label="Your station"] .home-card-figures dd',
   'section.home-card .home-card-time'
@@ -177,6 +181,24 @@ async function recordOverHome(page, file, theme, options = {}) {
   }
 }
 
+// Everything below the first screen, a screen at a time with an overlap, so
+// no part of a tall page is in no capture: <name>-2, <name>-3, ... and the
+// last one <name>-end, scrolled to the end. Hopper found Personas' middle (the
+// credential fields) in neither the top capture nor the end one.
+const OVERLAP = 60;
+async function recordScreens(page, name, theme, capture, pane = '.page-main') {
+  const [height, client] = await page.evaluate(target => {
+    const element = document.querySelector(target);
+    return element ? [element.scrollHeight, element.clientHeight] : [0, 0];
+  }, pane);
+  if (height <= client) return;
+  const step = client - OVERLAP;
+  for (let at = step, index = 2; at < height - client; at += step, index += 1) {
+    await capture(page, `${name}-${index}-${theme}.png`, theme, VOLATILE, { scroll: at, pane });
+  }
+  await capture(page, `${name}-end-${theme}.png`, theme, VOLATILE, { scroll: 'end', pane });
+}
+
 async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pane = '.page-main' } = {}) {
     // Both panes at a known offset, and proven to be there. A page captured at
     // a different scroll offset differs over its whole content area for a
@@ -187,16 +209,16 @@ async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pan
     // scrolls on its own (Troubleshooting).
     await page.evaluate(([scrollTo, target]) => {
       for (const element of document.querySelectorAll(`aside, .page-main, ${target}`)) {
-        element.scrollTop = scrollTo === 'end' && element.matches(target) ? element.scrollHeight : 0;
+        element.scrollTop = !element.matches(target) ? 0 : scrollTo === 'end' ? element.scrollHeight : typeof scrollTo === 'number' ? scrollTo : 0;
         element.scrollLeft = 0;
       }
     }, [scroll, pane]);
     const offsets = await page.evaluate(([scrollTo, target]) => [...document.querySelectorAll(`aside, .page-main, ${target}`)]
-      .map(element => (scrollTo === 'end' && element.matches(target)
-        ? (element.scrollTop + element.clientHeight >= element.scrollHeight - 1 ? 'end' : `stopped at ${element.scrollTop}`)
-        : `${element.scrollTop},${element.scrollLeft}`)), [scroll, pane]);
+      .map(element => (!element.matches(target) || scrollTo === 'top' ? `${element.scrollTop},${element.scrollLeft}`
+        : scrollTo === 'end' ? (element.scrollTop + element.clientHeight >= element.scrollHeight - 1 ? 'end' : `stopped at ${element.scrollTop}`)
+          : (Math.abs(element.scrollTop - scrollTo) <= 1 ? 'at' : `stopped at ${element.scrollTop}`))), [scroll, pane]);
     for (const offset of offsets) {
-      expect(['0,0', 'end'], `every pane is where the capture expects it (${scroll})`).toContain(offset);
+      expect(['0,0', 'end', 'at'], `every pane is where the capture expects it (${scroll})`).toContain(offset);
     }
     const shot = await stableShot(page, join(captures, file), masks);
     // Checked after the fact, not only before: a capture is worth nothing if
@@ -371,7 +393,7 @@ try {
       // Home and Personas run past the first screen; what is below it is
       // captured too (Home's facts and "Where to go"; the credentials and
       // export). Settings' end is its own capture below.
-      if (name !== 'Settings') await record(page, `${name.toLowerCase()}-end-${theme}.png`, theme, VOLATILE, { scroll: 'end' });
+      if (name !== 'Settings') await recordScreens(page, name.toLowerCase(), theme, record);
     }
 
     // Settings' last card, Extensions, is below the fold: Playwright calls the
@@ -412,7 +434,7 @@ try {
     await expect.poll(() => page.locator('#reference-datasets').innerText(), { timeout: 60_000 }).toMatch(/not loaded/);
     await recordOverHome(page, `troubleshooting-${theme}.png`, theme);
     // The panel scrolls on its own, and the Logs card is below its fold.
-    await recordOverHome(page, `troubleshooting-end-${theme}.png`, theme, { scroll: 'end', pane: '#troubleshooting' });
+    await recordScreens(page, 'troubleshooting', theme, (p, file, t, masks, options) => recordOverHome(p, file, t, options), '#troubleshooting');
     await page.locator('#close-troubleshooting').click();
     await expect(page.locator('#troubleshooting')).toHaveCount(0);
   }
