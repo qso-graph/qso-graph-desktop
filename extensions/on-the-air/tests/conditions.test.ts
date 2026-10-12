@@ -31,6 +31,7 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
       expect(got).toBeDefined();
       expect(got!.sfi).toBe(want.sfi);
       expect(got!.kp).toBe(want.kp);
+      expect(got!.a).toBe(want.a_index);
       // Exactly as solar-mcp reports them: since solar-mcp 0.3.0 both prefix
       // every level, so a storm reads G2 on both sides.
       expect(got!.scales).toEqual({ R: want.noaa_r_scale, S: want.noaa_s_scale, G: want.noaa_g_scale });
@@ -126,3 +127,22 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     expect(bandOutlook(150, 4)['80m']).toMatch(/^Fair/);
   });
 });
+
+describe('the A index, as solar-mcp reads it', () => {
+  const flux = JSON.stringify([{ TimeStamp: '2026-10-11 20:00:00', Flux: 122 }]);
+  const scales = JSON.stringify({ 0: { R: { Scale: '0' }, S: { Scale: '0' }, G: { Scale: '0' } } });
+  it('reads a_running from the list format, where it is the fourth column', () => {
+    const kp = JSON.stringify([['time_tag', 'Kp', 'Kp_fraction', 'a_running', 'station_count'], ['2026-10-11 18:00:00.000', '2.00', '2', '7', '8']]);
+    expect(parseConditions({ flux, kp, scales })!.a).toBe(7);
+  });
+  it('keeps the K index and says the A index was not read when a row has none', () => {
+    const kp = JSON.stringify([{ time_tag: '2026-10-11T15:00:00', Kp: 1.33 }, { time_tag: '2026-10-11T18:00:00', Kp: 1.67 }]);
+    const got = parseConditions({ flux, kp, scales })!;
+    expect(got.kp).toBe(1.67);
+    expect(got.a).toBeUndefined();
+    const figures = (conditionsCard(got) as { data: { sections: { shape: string; figures?: { label: string; value: string }[] }[] } }).data.sections
+      .find(section => section.shape === 'figures')!.figures!;
+    expect(figures.find(figure => figure.label === 'A index')!.value).toBe('not read');
+  });
+});
+

@@ -1,8 +1,8 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `a101e39b1d52670280a353b219e5667d5ec7a4a6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `5b7c8997990a17e0cec04a0df81510f5065ee73e` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `a101e39b1d52670280a353b219e5667d5ec7a4a6` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `5b7c8997990a17e0cec04a0df81510f5065ee73e` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
 > 181 requirements · 12 Parts · 10 Demo · 37 Inspection · 38 Static · 133 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
@@ -181,7 +181,7 @@
 | `QGD-HOM-0005` | **Only pinned cards fetch, and the broker decides when.** The broker schedules each refresh from the pins, whether Home is showing and the card's interval; an extension never polls on its own, and a reply that arrives after its card was unpinned or the persona changed is discarded. A card refreshes only while Home is showing, and never more often than the interval it declared or its source allows, as `QGD-REF-0010` holds POTA's lists to once a day. A persona change is a new question rather than a refresh: what each card showed is dropped and it is asked again once, when Home next shows. An unpinned card costs nothing. | Test | ✓ |
 | `QGD-HOM-0006` | A card whose source fails says so in words on that card, and the rest of Home is unaffected. | Test | ✓ |
 | `QGD-HOM-0007` | **On the Air** is a built-in extension: it ships with the application, is on by default, and can be turned off, which removes its cards from Home and from the list. It reaches the core only through the extension API and its grants (`QGD-APP-0002`). | Test | ✓ |
-| `QGD-HOM-0008` | **Conditions:** solar flux, the planetary K index, NOAA's space weather scales (R, S and G), an alert when any of them is above 0, and the band-by-band outlook, from NOAA's Space Weather Prediction Center, fetched through the credential core like every outbound request (`QGD-SEC-0020`). `solar-mcp` is the specification for its behaviour: both are tested against the same recorded NOAA responses, and neither copies the other's code. | Test | ✓ |
+| `QGD-HOM-0008` | **Conditions:** solar flux, the planetary K and A indices, NOAA's space weather scales (R, S and G), an alert when any of them is above 0, and the band-by-band outlook, from NOAA's Space Weather Prediction Center, fetched through the credential core like every outbound request (`QGD-SEC-0020`). `solar-mcp` is the specification for its behaviour: both are tested against the same recorded NOAA responses, and neither copies the other's code. | Test | ✓ |
 | `QGD-HOM-0009` | **Your station:** UTC first, because ham radio is talked about in UTC, with local time beside it and the active persona's callsign, calculated locally with no network. Nothing about the station's location yet: where a station is (home, portable, mobile, or remote, where the station and the operator are in different places) is its own design, and sunrise, sunset and the grey line wait for it (KI7MT, 2026-10-11). | Test | ✓ |
 | `QGD-HOM-0010` | Home meets the floor: with its day-one cards pinned it stays within `QGD-SCP-0009`'s memory and responsiveness on a Raspberry Pi 5. | Demo |  |
 | `QGD-TST-0001` | One command, `make verify`, runs every check and produces the report. | Test | ✓ |

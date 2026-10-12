@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Conditions (QGD-HOM-0008): solar flux, the planetary K index, NOAA's
+// Conditions (QGD-HOM-0008): solar flux, the planetary K and A indices, NOAA's
 // space weather scales and the band outlook, from NOAA SWPC.
 //
 // solar-mcp is the specification for this card's behaviour. The parsing and
@@ -23,6 +23,9 @@ export interface Conditions {
   // solar-mcp, what worked is kept, and the outlook needs both.
   readonly sfi?: number;
   readonly kp?: number;
+  // The running A index, from the same row as the K index (solar-mcp's
+  // a_running), so it costs no request.
+  readonly a?: number;
   readonly scales: { readonly R: string; readonly S: string; readonly G: string };
   readonly scaleText: { readonly R: string; readonly S: string; readonly G: string };
   readonly observedAt: string;
@@ -62,21 +65,25 @@ function parseFlux(data: unknown): { sfi: number; at?: string } | undefined {
   return at ? { sfi: Math.trunc(value), at } : undefined;
 }
 
-// The latest Kp: the last row, as an object or as a [time, Kp, …] list under
-// a header row. Like solar-mcp, a list of one row (a header alone) has none.
-function parseKp(data: unknown): { kp: number; at?: string } | undefined {
+// The latest Kp and A: the last row, as an object or as a [time, Kp,
+// Kp_fraction, a_running, …] list under a header row. Like solar-mcp, a list
+// of one row (a header alone) has none, and a row with no usable A still
+// gives its Kp.
+function parseKp(data: unknown): { kp: number; a?: number; at?: string } | undefined {
   if (!Array.isArray(data) || data.length <= 1) return undefined;
   const latest: unknown = data.at(-1);
   if (Array.isArray(latest) && latest.length >= 2) {
     const kp = toNumber(latest[1]);
     const at = isoUtc(latest[0]);
-    return kp === undefined || !at ? undefined : { kp, at };
+    const a = latest.length >= 4 ? toNumber(latest[3]) : undefined;
+    return kp === undefined || !at ? undefined : { kp, at, ...(a === undefined ? {} : { a }) };
   }
   if (typeof latest === 'object' && latest !== null) {
     const record = latest as Record<string, unknown>;
     const kp = toNumber(record.Kp ?? record.kp);
     const at = isoUtc(record.time_tag ?? record.timeStamp);
-    return kp === undefined || !at ? undefined : { kp, at };
+    const a = toNumber(record.a_running);
+    return kp === undefined || !at ? undefined : { kp, at, ...(a === undefined ? {} : { a }) };
   }
   return undefined;
 }
@@ -138,6 +145,7 @@ export function parseConditions(bodies: NoaaBodies): Conditions | undefined {
   return {
     ...(sfi ? { sfi: sfi.sfi } : {}),
     ...(k ? { kp: k.kp } : {}),
+    ...(k?.a !== undefined ? { a: k.a } : {}),
     ...parseScales(parse(bodies.scales)),
     observedAt,
     ...(sfi && k ? { bands: bandOutlook(sfi.sfi, k.kp) } : {})
@@ -164,6 +172,7 @@ export function conditionsCard(conditions: Conditions): CardAnswer {
   sections.push({ shape: 'figures', figures: [
     conditions.sfi !== undefined ? { label: 'Solar flux', value: String(conditions.sfi), unit: 'sfu' } : { label: 'Solar flux', value: 'not read' },
     conditions.kp !== undefined ? { label: 'K index', value: String(conditions.kp) } : { label: 'K index', value: 'not read' },
+    conditions.a !== undefined ? { label: 'A index', value: String(conditions.a) } : { label: 'A index', value: 'not read' },
     { label: 'Scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
   ] });
   if (conditions.bands) {

@@ -2,6 +2,7 @@
   "producedBy": "solar-mcp 0.3.0, SolarClient.conditions() over these files",
   "sfi": 122,
   "kp": 1.67,
+  "a_index": 6.0,
   "noaa_r_scale": "R0",
   "noaa_s_scale": "S0",
   "noaa_g_scale": "G0",
