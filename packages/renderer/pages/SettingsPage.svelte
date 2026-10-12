@@ -109,8 +109,8 @@
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
   </section>
 
-  <section class="card" aria-labelledby="reference-title">
-    <h2 id="reference-title">Reference data</h2>
+  <section class="card" aria-labelledby="settings-reference-title">
+    <h2 id="settings-reference-title">Reference data</h2>
     {#if resources === undefined}
       <p class="hint">Reading the reference data…</p>
     {:else}

@@ -130,20 +130,42 @@ const written = [];
 // A function rather than loop body because Troubleshooting is captured by
 // opening it, not by navigating to it, and the two must be recorded the same
 // way: same settle loop, same scroll reset, same theme check after the fact.
-async function record(page, file, theme, masks = VOLATILE) {
-    // Both panes back to the top, and proven to be there. A page captured at
+// A capture of something drawn over Home: the pin dialog, Troubleshooting. A
+// mask is painted over its element even where the overlay covers it, which
+// put grey blocks across Troubleshooting's text and its Close button. So the
+// moving values on Home's cards are hidden instead, through the CSSOM as the
+// caret is, and put back afterwards; the masks for Home's cards are left out.
+const OVER_HOME_MASKS = VOLATILE.filter(selector => !selector.startsWith('section.home-card'));
+async function recordOverHome(page, file, theme) {
+  const hidden = await page.evaluate(() => {
+    const sheet = document.styleSheets[0];
+    return sheet.insertRule('section.home-card .home-card-time, section.home-card[aria-label="Your station"] .home-card-figures { visibility: hidden !important; }', sheet.cssRules.length);
+  });
+  try {
+    await record(page, file, theme, OVER_HOME_MASKS);
+  } finally {
+    await page.evaluate(index => document.styleSheets[0].deleteRule(index), hidden);
+  }
+}
+
+async function record(page, file, theme, masks = VOLATILE, { scroll = 'top' } = {}) {
+    // Both panes at a known offset, and proven to be there. A page captured at
     // a different scroll offset differs over its whole content area for a
-    // reason no colour comparison can name.
-    await page.evaluate(() => {
+    // reason no colour comparison can name. 'top' for every page; 'end' for a
+    // page whose last card is below the fold (Settings' Extensions), which no
+    // capture from the top contains.
+    await page.evaluate(scrollTo => {
       for (const element of document.querySelectorAll('aside, .page-main')) {
-        element.scrollTop = 0;
+        element.scrollTop = scrollTo === 'end' && element.matches('.page-main') ? element.scrollHeight : 0;
         element.scrollLeft = 0;
       }
-    });
-    const offsets = await page.evaluate(() => [...document.querySelectorAll('aside, .page-main')]
-      .map(element => `${element.scrollTop},${element.scrollLeft}`));
+    }, scroll);
+    const offsets = await page.evaluate(scrollTo => [...document.querySelectorAll('aside, .page-main')]
+      .map(element => (scrollTo === 'end' && element.matches('.page-main')
+        ? (element.scrollTop + element.clientHeight >= element.scrollHeight - 1 ? 'end' : `stopped at ${element.scrollTop}`)
+        : `${element.scrollTop},${element.scrollLeft}`)), scroll);
     for (const offset of offsets) {
-      expect(offset, 'every pane is scrolled to the top before capture').toBe('0,0');
+      expect(['0,0', 'end'], `every pane is where the capture expects it (${scroll})`).toContain(offset);
     }
     const shot = await stableShot(page, join(captures, file), masks);
     // Checked after the fact, not only before: a capture is worth nothing if
@@ -317,20 +339,21 @@ try {
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
     }
 
+    // Settings' last card, Extensions, is below the fold: Playwright calls the
+    // switch visible there, but no capture from the top contains it. Captured
+    // scrolled to the end, and the switch proven to be inside the frame.
+    await rail('Settings').click();
+    await record(page, `settings-extensions-${theme}.png`, theme, VOLATILE, { scroll: 'end' });
+    const switchBox = await page.getByRole('switch', { name: /On the Air/ }).boundingBox();
+    expect(switchBox && switchBox.y >= 0 && switchBox.y + switchBox.height <= VIEW.height,
+      'the On the Air switch must be inside the settings-extensions capture').toBe(true);
+
     // "Customize your pins" (QGD-HOM-0003), opened over Home and cancelled.
     await rail('Home').click();
     await page.locator('#customize-pins').click();
     await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeVisible();
     await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
-    // A mask is painted over its element even where the dialog covers it, so
-    // here the moving values under the dialog are hidden instead, through the
-    // CSSOM as the caret is, and put back afterwards.
-    const hidden = await page.evaluate(() => {
-      const sheet = document.styleSheets[0];
-      return sheet.insertRule('section.home-card .home-card-time, section.home-card[aria-label="Your station"] .home-card-figures { visibility: hidden !important; }', sheet.cssRules.length);
-    });
-    await record(page, `pins-${theme}.png`, theme, VOLATILE.filter(selector => !selector.startsWith('section.home-card')));
-    await page.evaluate(index => document.styleSheets[0].deleteRule(index), hidden);
+    await recordOverHome(page, `pins-${theme}.png`, theme);
     await page.getByRole('dialog', { name: 'Customize your pins' }).getByRole('button', { name: 'Cancel' }).click();
     await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeHidden();
 
@@ -352,7 +375,7 @@ try {
     // And storage's own answer: Ready, with its sections drawn.
     await expect.poll(() => page.getByLabel('State', { exact: true }).inputValue(), { timeout: 60_000 }).toBe('Ready');
     await expect(page.locator('#reference-datasets')).toBeVisible();
-    await record(page, `troubleshooting-${theme}.png`, theme);
+    await recordOverHome(page, `troubleshooting-${theme}.png`, theme);
     await page.locator('#close-troubleshooting').click();
     await expect(page.locator('#troubleshooting')).toHaveCount(0);
   }
