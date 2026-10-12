@@ -157,6 +157,8 @@ let application;
 const failures = [];
 const changed = [];
 const written = [];
+// Every capture this run took, for the count it reports.
+const captured = [];
 
 // Capture one surface and compare it, or write it when approving.
 //
@@ -226,6 +228,7 @@ async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pan
       expect(['0,0', 'end', 'at'], `every pane is where the capture expects it (${scroll})`).toContain(offset);
     }
     const shot = await stableShot(page, join(captures, file), masks);
+    captured.push(file);
     // Checked after the fact, not only before: a capture is worth nothing if
     // the page re-themed while it was being taken, and "half the pixels
     // differ" is a slow way to be told that.
@@ -485,7 +488,9 @@ try {
     }
     process.exitCode = 1;
   } else {
-    console.log(`Screenshots: ${(PAGES.length + 1) * THEMES.length} baselines (${PAGES.join(', ')} and ${OVERLAY}, in ${THEMES.join(' and ')}) match, pixel for pixel: PASS`);
+    // Counted from what was captured, not from a list of pages: the pages now
+    // run to several captures each, and the fixed count said 8 when it was 20.
+    console.log(`Screenshots: ${captured.length} baselines match, pixel for pixel: PASS`);
     // Said on every green run, because a baseline nobody has approved is a
     // picture of what the product draws and not a statement that it is right
     // (QGD-PRT-0103).
