@@ -98,6 +98,36 @@
       },
       "said": "yes, i just saw them, approved.",
       "seen": "Captured at f068bf5 on macOS; the approved files are pixel-identical to the set KI7MT looked at. Reviewed beforehand by Hopper (three rounds, then the fixed-width masks)."
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-19",
+      "what": "20 baseline(s): home-light.png, home-end-light.png, personas-light.png, personas-2-light.png, personas-end-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, home-end-dark.png, personas-dark.png, personas-2-dark.png, personas-end-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png",
+      "recordedAtUtc": "2026-10-19T17:17:30.248Z",
+      "files": {
+        "home-light.png": "7bce22256f67ce8e8891649ec7c9995ad37808dd5b149fc728fbb7330f45c2be",
+        "home-end-light.png": "fb0d9c07e7d36844e99ff6204dcf1e6ed24ee06cd4832865ae34d7f3d9ecc852",
+        "personas-light.png": "26d5697e0e24d32f0ba06ec077a99a75f163513cba2e595d019342356af1cf76",
+        "personas-2-light.png": "456f1a4c17ee82471919f67891557b53cf44cb1243d56f6f6eff5ee3fd821d16",
+        "personas-end-light.png": "1c9eaa80a817524b5a856999479a27ee350ad9da98531d4d201c87d00d706e1c",
+        "settings-light.png": "6e6797a7d1575bd37649e27b8fcd4e759c1ca03176cc2d4a35f6c8a33caa995b",
+        "settings-extensions-light.png": "1f21078699afe0bcbb6628240d7b48e731e1664c383c7b376c20d882f25a09be",
+        "pins-light.png": "962d4304c6e58f03e28d1d58e969ae932bbaac0fc967a09f25634a02967be551",
+        "troubleshooting-light.png": "09e18fea057541078cc8471dec55fa0b4f5d5d319fb0d23d35bfda1c24d331ff",
+        "troubleshooting-end-light.png": "50634a4f068d66eb075cd6f03c5c4c0aea8d5d6172846523c6ddea74227e801d",
+        "home-dark.png": "3cf1102873b28b39bdff22fd4544e9685587bb8b7a071f44827630e3d93b1535",
+        "home-end-dark.png": "ae06fe1eb248705e5582adbdf10af567ccbfca36486f67f80818a9521161bd73",
+        "personas-dark.png": "48fb2b611659b3149538fcd1eeb38d2f6f766f65ee8284e413713387b4fe65f4",
+        "personas-2-dark.png": "f69f767e623cd687e980f7424e3fb0a4a98d5053ef2a284d8cfcc5ff771716bd",
+        "personas-end-dark.png": "85f82d213dae87bf50b2152995b67919b5e8c3b74c09ce7e672a0a9fa2a2b9ef",
+        "settings-dark.png": "2ad4e5c77266e2330ce77f6eaf37848df11c042045c03e94f63538cb902680d8",
+        "settings-extensions-dark.png": "4ea6b6ee7cc6460b4af8adfa694d2270bfa137b24729c46761d6eda8ab378d13",
+        "pins-dark.png": "44a7bc3126bc52db57104a0b062a555f4bdedfac0a53f4a69cc08a66b9059199",
+        "troubleshooting-dark.png": "048e85b60e174b6bdba35e5bdd9c9a75c3489d103e0c8bbe3170c19f8258d5fb",
+        "troubleshooting-end-dark.png": "77e6d51c5ef8a639b59483689c2cd551c29288cf7a4e06d6753ccc274d9dd869"
+      },
+      "said": "p8 set looks good.",
+      "seen": "Captured at d90fd4e on macOS, with the A index on the Conditions card; the approved files are pixel-identical to the set KI7MT looked at. Home and the screens drawn over it changed; Personas and Settings were unchanged. Checked by Hopper before KI7MT saw them."
     }
   ],
   "awaiting": {
