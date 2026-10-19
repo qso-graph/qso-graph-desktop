@@ -37,7 +37,7 @@ export const SUITE_TIMEOUT_MS = {
   'home-cards': 900_000,          // 620s of waits, plus three launches
   stations: 900_000,              // the ADIF load's 180s and two launches
   'process-recovery': 360_000,    // 270s, with QG Storage's kill-and-recover (QGD-ENG-0006)
-  screenshots: 420_000,           // 300s
+  screenshots: 720_000,           // 510s, with the Stations captures (P9)
   storybook: 900_000,             // a 600s build wait
   'packaged-launch': 720_000,     // 495s
   'connection-capture': 360_000,  // 210s, with the reference data loaded as an operator does
