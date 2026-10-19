@@ -139,7 +139,7 @@ async function stableShot(page, path, masks = VOLATILE) {
 const PERSONA = { name: 'qg-baseline-fixture', callsign: 'W1AW', start: '2026-01-01' };
 const VIEW = { width: 1100, height: 740 };
 const THEMES = ['light', 'dark'];
-const PAGES = ['Home', 'Personas', 'Settings'];
+const PAGES = ['Home', 'Personas', 'Stations', 'Settings'];
 // Not a rail destination — an overlay opened from the status bar
 // (QGD-LOG-0013, QGD-FRM-0012) — so it is captured by opening it rather than
 // by navigating to it. Its own baseline, because it is where the logs, the
@@ -453,6 +453,57 @@ try {
     await recordScreens(page, 'troubleshooting', theme, (p, file, t, masks, options) => recordOverHome(p, file, t, options), '#troubleshooting');
     await page.locator('#close-troubleshooting').click();
     await expect(page.locator('#troubleshooting')).toHaveCount(0);
+  }
+
+  // Stations with stations in them (P9-screens): the list, the editor, a
+  // portable station at a park, and Home with a station active. Made after
+  // every capture above, so those show a profile with none. Saved through
+  // storage directly, as the stations suite proves the page saves them.
+  const save = station => page.evaluate(draft => window.storage.request({ type: 'save-station', station: draft }), station);
+  const home = await save({ name: 'Home', kind: 'Home', place: {
+    MY_GRIDSQUARE: 'DN13sm', MY_DXCC: '291', MY_STATE: 'ID', MY_CNTY: 'ID,Ada', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6' } });
+  expect(home, 'the Home station must save').toMatchObject({ ok: true });
+  expect(await save({ name: 'US-0001 Example Park', kind: 'Portable', place: {
+    MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sp', MY_DXCC: '291', MY_STATE: 'ID' } }), 'the park station must save').toMatchObject({ ok: true });
+  expect(await save({ name: 'Car', kind: 'Mobile', place: { MY_GRIDSQUARE: 'DN14' } }), 'the Car station must save').toMatchObject({ ok: true });
+  expect(await page.evaluate(([persona, id]) => window.storage.request({ type: 'set-default-station', persona, id }), [PERSONA.name, home.saved]))
+    .toMatchObject({ ok: true });
+  expect(await page.evaluate(id => window.storage.request({ type: 'set-active-station', id }), home.saved)).toMatchObject({ ok: true });
+  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
+  const blur = () => page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
+
+  for (const theme of THEMES) {
+    await rail('Settings').click();
+    await page.getByLabel('Theme', { exact: true }).selectOption(theme);
+    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(theme);
+
+    await rail('Stations').click();
+    await expect(page.locator('li.station-row')).toHaveCount(3, { timeout: 30_000 });
+    await blur();
+    await record(page, `stations-list-${theme}.png`, theme);
+
+    await page.getByRole('button', { name: 'Edit Home', exact: true }).click();
+    await expect(page.locator('#station-name')).toHaveValue('Home');
+    await blur();
+    await record(page, `station-editor-${theme}.png`, theme);
+    await recordScreens(page, 'station-editor', theme, record);
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+    await page.getByRole('button', { name: 'Edit US-0001 Example Park', exact: true }).click();
+    await expect(page.locator('#station-my-pota-ref')).toHaveValue('US-0001');
+    await blur();
+    await record(page, `station-park-${theme}.png`, theme);
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+    // Your station with a station active: its name and grid, and sunrise and
+    // sunset there, whose times are masked like the clock's.
+    await rail('Home').click();
+    await expect(page.locator('section.home-card[aria-label="Your station"]')).toContainText('Home · DN13sm', { timeout: 60_000 });
+    for (const card of ['Conditions', 'Your station']) {
+      await expect(page.locator(`section.home-card[aria-label="${card}"]`)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+    }
+    await blur();
+    await record(page, `home-station-${theme}.png`, theme);
   }
 
   if (approve) {
