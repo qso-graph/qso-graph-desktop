@@ -111,7 +111,7 @@
     -->
     <p class="hint">
       Everything you enter stays on this computer. Nothing of yours is sent anywhere
-      until you ask. The app fetches the ADIF and park reference lists when you load
+      until you ask. The app fetches the ADIF and park reference lists when you download
       or update them, and the data your pinned cards show, and nothing else.
     </p>
   </section>
