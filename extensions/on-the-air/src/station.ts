@@ -1,30 +1,48 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Your station (QGD-HOM-0009): UTC first, because ham radio is talked about in
-// UTC, then local time, then the callsign being operated as. Nothing about
-// where the station is: that waits for Stations (qso-graph-desktop#36).
+// UTC, then local time, the callsign being operated as, the active station,
+// and sunrise and sunset there.
 //
-// Pure: a clock and a persona in, a card answer out. No network.
-import type { CardAnswer } from '../../../packages/extension-api/cards.js';
-import type { PersonaBrief } from '../../../packages/extension-api/api-contract.js';
+// Pure: a clock, a persona and a station in, a card answer out. No network:
+// the sun is worked out here (sun.ts) from the station's position, which the
+// core gives as decimal degrees and never with the station's address.
+import type { CardAnswer, Figure } from '../../../packages/extension-api/cards.js';
+import type { PersonaBrief, StationBrief } from '../../../packages/extension-api/api-contract.js';
+import { sunDay } from './sun.js';
 
 const two = (value: number) => String(value).padStart(2, '0');
+const utc = (time: Date) => `${two(time.getUTCHours())}:${two(time.getUTCMinutes())}`;
 
-export function stationCard(now: Date, persona: PersonaBrief | null): CardAnswer {
+export function stationCard(now: Date, persona: PersonaBrief | null, station: StationBrief | null): CardAnswer {
   const observedAt = new Date(Math.floor(now.getTime() / 60_000) * 60_000).toISOString().replace('.000Z', 'Z');
+  const figures: Figure[] = [
+    { label: 'UTC', value: utc(now) },
+    { label: 'Local', value: `${two(now.getHours())}:${two(now.getMinutes())}` }
+  ];
+  let sunNote: string | undefined;
+  if (station && station.latitude !== undefined && station.longitude !== undefined) {
+    const day = sunDay(now, station.latitude, station.longitude);
+    if (day.sunrise) figures.push({ label: 'Sunrise', value: utc(day.sunrise), unit: 'UTC' });
+    if (day.sunset) figures.push({ label: 'Sunset', value: utc(day.sunset), unit: 'UTC' });
+    if (day.allDay) sunNote = day.allDay === 'up' ? 'The sun does not set there today.' : 'The sun does not rise there today.';
+  } else if (station) {
+    sunNote = 'Sunrise and sunset need the station\'s grid. Add it in Stations.';
+  }
   return {
     ok: true,
     data: {
       version: 1,
       observedAt,
       sections: [
-        { shape: 'figures', figures: [
-          { label: 'UTC', value: `${two(now.getUTCHours())}:${two(now.getUTCMinutes())}` },
-          { label: 'Local', value: `${two(now.getHours())}:${two(now.getMinutes())}` }
-        ] },
+        { shape: 'figures', figures },
         { shape: 'items', items: [
           persona
             ? { title: 'Operating as', detail: persona.callsign }
-            : { title: 'Operating as', detail: 'No persona is active yet.' }
+            : { title: 'Operating as', detail: 'No persona is active yet.' },
+          station
+            ? { title: 'Station', detail: station.grid ? `${station.name} · ${station.grid}` : station.name }
+            : { title: 'Station', detail: 'No station is active. Choose one in Stations.' },
+          ...(sunNote ? [{ title: 'Sun', detail: sunNote }] : [])
         ] }
       ]
     }

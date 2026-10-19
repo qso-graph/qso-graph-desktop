@@ -6,6 +6,8 @@
 // up (QGD-ENG-0003). Its status reaches the screen two ways: once when the
 // screen asks, and pushed whenever it changes (an exit, a restart, a finished
 // reference build). So nothing polls and nothing goes stale.
+import type { StationBrief } from '../extension-api/api-contract.js';
+import { activeStationBrief } from './station-brief.js';
 import { app, BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { allowsSender, type FetchedReference } from '../personas/persona-contract.js';
@@ -38,6 +40,11 @@ export interface StorageBrokerOptions {
 
 export interface StorageBroker {
   stop: () => Promise<void>;
+  // The active station as an extension may see it (station-brief.ts), and a
+  // listener told when that changes, so Home asks its cards again
+  // (QGD-STN-0005, QGD-HOM-0005).
+  activeStation: () => StationBrief | null;
+  onActiveStationChanged: (listener: () => void) => void;
   // The persona made active, whose default station QG Storage makes active
   // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
   personaActivated: (name: string) => void;
@@ -50,12 +57,31 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   let failures = 0;
   let last: StorageStatus = { state: 'starting' };
   let heldActivation: string | undefined;
+  let activeStation: StationBrief | null = null;
+  // What extensions were last told, as JSON: none, until storage says.
+  let activeSaid = 'null';
+  const stationListeners = new Set<() => void>();
   const pending = new Map<number, { settle: (reply: StorageReply) => void; timer: NodeJS.Timeout }>();
   let closed: (() => void) | undefined;
 
   // Pushed to every window. A window that is not listening ignores it.
   function push(status: StorageStatus) {
     last = status;
+    // The active station, as extensions see it, from the last status that
+    // carried the stations: a restart of QG Storage says nothing about where
+    // the operator is, so it does not take the station away from Home.
+    if (status.stations) {
+      const brief = activeStationBrief(status.stations);
+      const said = JSON.stringify(brief);
+      // Every change is told, the first included: Home may already have asked
+      // while storage was still opening and been answered with no station
+      // (found by Turing in review).
+      if (said !== activeSaid) {
+        activeStation = brief;
+        activeSaid = said;
+        for (const listener of stationListeners) listener();
+      }
+    }
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.webContents.send(STORAGE_STATUS_CHANNEL, status);
     }
@@ -196,6 +222,8 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   };
   return {
     stop,
+    activeStation: () => activeStation,
+    onActiveStationChanged: (listener) => { stationListeners.add(listener); },
     // A persona's name only, never anything about it. If QG Storage is not
     // running the active station simply stays as it was.
     // Kept until a process has it, so an activation made while QG Storage was

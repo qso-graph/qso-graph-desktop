@@ -28,6 +28,11 @@ export type ExtensionRequest =
   // Which persona is active: its name and callsign, or none. Under the same
   // grant as the list, because it is the same information (QGD-CRD-0010).
   | { readonly kind: 'persona.active' }
+  // Where the operator is operating from: the active station's name, grid and
+  // position, or none (QGD-STN-0005, QGD-HOM-0009). Never its street, city or
+  // postal code, which stay on this machine and out of every extension
+  // (QGD-STN-0003).
+  | { readonly kind: 'station.active' }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -59,10 +64,21 @@ export interface PersonaBrief {
   readonly callsign: string;
 }
 
+// The active station as an extension may see it. The position is the
+// station's own MY_LAT and MY_LON where it has them, otherwise the centre of
+// its grid square, in decimal degrees; absent when it has neither.
+export interface StationBrief {
+  readonly name: string;
+  readonly grid?: string;
+  readonly latitude?: number;
+  readonly longitude?: number;
+}
+
 export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'extension.info'; readonly info: ExtensionInfo }
   | { readonly ok: true; readonly kind: 'persona.list'; readonly personas: readonly PersonaBrief[] }
   | { readonly ok: true; readonly kind: 'persona.active'; readonly persona: PersonaBrief | null }
+  | { readonly ok: true; readonly kind: 'station.active'; readonly station: StationBrief | null }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the
@@ -90,6 +106,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'extension.info': return undefined;
     case 'persona.list': return 'persona:list';
     case 'persona.active': return 'persona:list';
+    case 'station.active': return 'station:active';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -98,7 +115,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'persona.list', 'persona.active', 'source.fetch', 'service.request'];
+  ['extension.info', 'persona.list', 'persona.active', 'station.active', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -145,17 +162,35 @@ function parameters(value: unknown): Record<string, string> {
   return out;
 }
 
+// Each kind's fields, and nothing else.
+const FIELDS: Readonly<Record<string, readonly string[]>> = {
+  'extension.info': ['kind'],
+  'persona.list': ['kind'],
+  'persona.active': ['kind'],
+  'station.active': ['kind'],
+  'source.fetch': ['kind', 'source'],
+  'service.request': ['kind', 'service', 'persona', 'operation', 'parameters']
+};
+
 export function validateRequest(value: unknown): ExtensionRequest {
   if (!isRecord(value)) throw new RequestError('a request is not an object');
   const { kind } = value;
   if (typeof kind !== 'string') throw new RequestError('a request has no kind', 'kind');
+  // A request is exactly its kind's fields: anything more is refused, not
+  // dropped (QGD-SEC-0006, found by Turing in review). An own "__proto__" from
+  // a parsed message is a field like any other here, and is refused.
+  const fields = FIELDS[kind];
+  if (fields) {
+    const extra = Object.keys(value).find(key => !fields.includes(key));
+    if (extra !== undefined) throw new RequestError(`${kind} takes no "${extra}"`, extra);
+  }
+  const bare = () => ({ kind }) as ExtensionRequest;
   switch (kind) {
     case 'extension.info':
-      return { kind };
     case 'persona.list':
-      return { kind };
     case 'persona.active':
-      return { kind };
+    case 'station.active':
+      return bare();
     case 'source.fetch': {
       if (typeof value.source !== 'string' || !NAME.test(value.source)) {
         throw new RequestError('source is not a registered source name', 'source');

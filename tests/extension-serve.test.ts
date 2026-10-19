@@ -42,6 +42,8 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
   const ports: ExtensionBrokerPorts = {
     allowed: () => { allowedReads += 1; return current; },
     personas: async () => { calls.push('personas'); return [{ name: 'Home station', callsign: 'W1AW' }]; },
+    activePersona: async () => { calls.push('activePersona'); return { name: 'Home station', callsign: 'W1AW' }; },
+    activeStation: async () => { calls.push('activeStation'); return { name: 'Home', grid: 'DN13sm', latitude: 43.6, longitude: -116.2 }; },
     fetchSource: async url => { calls.push(`fetchSource:${url}`); return { body: 'sfi 150', fresh: true }; },
     callService: async (service, persona, operation, parameters) => {
       calls.push(`callService:${service}/${persona}/${operation}/${JSON.stringify(parameters)}`);

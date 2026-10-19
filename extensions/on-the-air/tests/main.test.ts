@@ -29,12 +29,17 @@ describe('On the Air (QGD-HOM-0007)', () => {
   it('registers Conditions and Your station, and fetches NOAA only by registered source name', async () => {
     const { value, providers, asked } = context(request => request.kind === 'source.fetch'
       ? { ok: true, kind: 'source.fetch', body: readFileSync(`tests/fixtures/noaa/quiet/${FILES[request.source]}`, 'utf8'), fresh: true }
-      : { ok: true, kind: 'persona.active', persona: { name: 'Home', callsign: 'W1AW' } });
+      : request.kind === 'station.active'
+        ? { ok: true, kind: 'station.active', station: { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.2083 } }
+        : { ok: true, kind: 'persona.active', persona: { name: 'Home', callsign: 'W1AW' } });
     activate(value);
     expect([...providers.keys()]).toEqual(['conditions', 'your-station']);
     expect(await ask(providers, 'conditions')).toMatchObject({ ok: true });
     expect(asked.map(request => request.kind === 'source.fetch' ? request.source : request.kind).sort()).toEqual(['noaa-flux', 'noaa-kp', 'noaa-scales']);
-    expect(JSON.stringify(await ask(providers, 'your-station'))).toContain('W1AW');
+    const station = JSON.stringify(await ask(providers, 'your-station'));
+    expect(station).toContain('W1AW');
+    expect(station).toContain('Home · DN13sm');
+    expect(station).toContain('Sunrise');
     expect(value.subscriptions).toHaveLength(2);
   });
 

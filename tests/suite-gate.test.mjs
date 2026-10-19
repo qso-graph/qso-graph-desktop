@@ -98,3 +98,22 @@ describe('QGD-SEC-0021 the order this walks is the order that runs', () => {
     }
   });
 });
+
+// A test file no suite runs proves nothing, however green it is when run by
+// hand. On the Air's own tests were in no suite while P8's record called
+// P8-conditions and P8-your-station proven by them (found 2026-10-19). Every
+// test file is named by a suite, directly or by a directory a suite runs.
+describe('every test file is run by a suite', () => {
+  it('leaves none out', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const { suiteCommands } = await import('../scripts/suites.mjs');
+    const named = suiteCommands('npm').flatMap(([, args]) => args).filter(arg => typeof arg === 'string');
+    const files = [
+      ...(await readdir('tests', { recursive: true })).map(file => `tests/${file}`),
+      ...(await readdir('extensions', { recursive: true })).map(file => `extensions/${file}`)
+    ].map(file => file.replaceAll('\\', '/')).filter(file => /\.test\.(ts|mjs|mts)$/.test(file));
+    const covered = file => named.some(arg => arg === file || (arg.endsWith('/') && file.startsWith(arg)));
+    expect(files.length).toBeGreaterThan(40);
+    expect(files.filter(file => !covered(file))).toEqual([]);
+  });
+});

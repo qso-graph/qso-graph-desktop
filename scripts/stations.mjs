@@ -10,6 +10,9 @@
 //                (QGD-STN-0005)
 //   P9-record    stations, the default and the active one survive a restart
 //                (QGD-STN-0001)
+//   P9-your-station  Home's Your station shows the active station's name and
+//                grid and sunrise and sunset there, and a change of station is
+//                asked again (QGD-HOM-0009)
 //   P9-stays-local  a station's street, city and postal code appear in no log
 //                line (QGD-STN-0003)
 //
@@ -87,7 +90,10 @@ try {
   }, { message: 'ADIF\'s definitions must load', timeout: 180_000 }).toBe(true);
   await expect(page.locator('#stations-unchecked')).toHaveCount(0);
 
-  // A persona to be the default for.
+  // A persona to be the default for, once the persona service has started:
+  // it starts beside storage, and a request before then is answered "starting".
+  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the persona service must start', timeout: 60_000 }).toBe(true);
   const made = await page.evaluate(async () => {
     const upsert = await window.personas.request({ type: 'upsert', name: 'qg-stations-fixture', callsign: 'w1aw' });
     return upsert.ok ? window.personas.request({ type: 'set-active', name: 'qg-stations-fixture' }) : upsert;
@@ -137,6 +143,25 @@ try {
   await page.evaluate(() => window.personas.request({ type: 'set-active', name: 'qg-stations-fixture' }));
   await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
   console.log('P9-active: a station made active without changing the persona, and the persona\'s default made active with it; the status bar named both: PASS');
+
+  // ---- P9-your-station ------------------------------------------------
+  // Home's day-one card, answered by On the Air in the extension host from
+  // the active station: its name and grid, and sunrise and sunset there. A
+  // change of station is a new question for the card (QGD-STN-0005).
+  const yourStation = page.locator('section.home-card[aria-label="Your station"]');
+  await rail(page, 'Home').click();
+  await expect(yourStation).toContainText('Home · DN13', { timeout: 60_000 });
+  await expect(yourStation).toContainText('Sunrise');
+  await expect(yourStation).toContainText('Sunset');
+  await rail(page, 'Stations').click();
+  await row(page, 'Car').getByRole('button', { name: 'Make Car active' }).click();
+  await expect(page.locator('#active-station')).toHaveText('At: Car', { timeout: 30_000 });
+  await rail(page, 'Home').click();
+  await expect(yourStation).toContainText('Car · DN14', { timeout: 60_000 });
+  await rail(page, 'Stations').click();
+  await row(page, 'Home').getByRole('button', { name: 'Make Home active' }).click();
+  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
+  console.log('P9-your-station: Your station showed the active station and sunrise and sunset there, and the new station when it changed: PASS');
 
   // ---- P9-record -------------------------------------------------------
   await application.close();

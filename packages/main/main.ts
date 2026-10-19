@@ -188,6 +188,8 @@ if (!app.requestSingleInstanceLock()) {
           if (typeof brief === 'string') throw new Error(brief);
           return brief;
         },
+        // Name, grid and position only (station-brief.ts, QGD-STN-0003).
+        activeStation: async () => storageBroker.activeStation(),
         fetchSource: async url => {
           if (recorded) return recorded(url);
           const fetched = await personas.fetchReference(url);
@@ -218,7 +220,12 @@ if (!app.requestSingleInstanceLock()) {
       loaded: () => extensionBroker.loaded(),
       supervisor: extensionBroker.supervisor,
       enablement: extensionBroker.enablement,
-      onPersonasChanged: personas.onPersonasChanged
+      // A change of station is a new question for the cards, as a change of
+      // persona is (QGD-STN-0005, QGD-HOM-0005).
+      onPersonasChanged: listener => {
+        personas.onPersonasChanged(listener);
+        storageBroker.onActiveStationChanged(listener);
+      }
     }) : undefined;
 
     // Closing the stores is the one thing here worth waiting for: a clean

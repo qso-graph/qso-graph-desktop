@@ -21,6 +21,12 @@
       "needsOperator": true
     },
     {
+      "id": "station:active",
+      "what": "Where the operator is operating from: the active station's name, grid and position, so an extension can work out the sunrise and sunset there or the distance to another station.",
+      "notWhat": "Never the station's street, city or postal code, which stay on this machine (QGD-STN-0003), and no other station than the active one.",
+      "needsOperator": true
+    },
+    {
       "id": "service:qrz",
       "what": "Ask the frame to act with the operator's QRZ credential and return the answer.",
       "notWhat": "The secret itself never crosses the API (QGD-APP-0007).",

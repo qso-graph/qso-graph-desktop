@@ -186,6 +186,7 @@ describe('the decision', () => {
       'extension.info': { kind: 'extension.info' },
       'persona.list': { kind: 'persona.list' },
       'persona.active': { kind: 'persona.active' },
+      'station.active': { kind: 'station.active' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {} }
     };
@@ -272,6 +273,32 @@ describe('the grant register', () => {
 describe('persona.active (QGD-CRD-0010)', () => {
   it('needs the same grant as the persona list, because it is the same information', () => {
     expect(requiredGrant({ kind: 'persona.active' })).toBe('persona:list');
+  });
+});
+
+describe('a request is exactly its fields (QGD-SEC-0006)', () => {
+  it.each([
+    { kind: 'station.active', station: 'other' },
+    { kind: 'persona.active', name: 'x' },
+    { kind: 'extension.info', grants: ['all'] },
+    { kind: 'source.fetch', source: 'solar', url: 'https://example.invalid' },
+    { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {}, secret: 'x' },
+    JSON.parse('{"kind":"station.active","__proto__":{"x":1}}')
+  ])('refuses %j rather than dropping what it does not take', (value) => {
+    expect(() => validateRequest(value)).toThrowError(/takes no/);
+  });
+
+  it('still takes each kind with exactly its own fields', () => {
+    expect(validateRequest({ kind: 'station.active' })).toEqual({ kind: 'station.active' });
+    expect(validateRequest({ kind: 'source.fetch', source: 'solar' })).toEqual({ kind: 'source.fetch', source: 'solar' });
+  });
+});
+
+describe('station.active (QGD-STN-0003, QGD-HOM-0009)', () => {
+  it('needs its own grant, which the register names and says never carries the address', () => {
+    expect(requiredGrant({ kind: 'station.active' })).toBe('station:active');
+    const grant = register.grants.find((entry: { id: string }) => entry.id === 'station:active');
+    expect(grant?.notWhat).toMatch(/street, city or postal code/);
   });
 });
 

@@ -4,8 +4,8 @@
 //
 // It runs in the extension host (QGD-APP-0015) and reaches the core only
 // through `context` (QGD-APP-0002): NOAA's data is fetched by the core from
-// the sources the register names, and the persona comes from the API under
-// the persona:list grant. The core decides when each card is asked for
+// the sources the register names, the persona comes from the API under the
+// persona:list grant, and the active station under station:active. The core decides when each card is asked for
 // (QGD-HOM-0005); this module only answers.
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
 import type { CardAnswer } from '../../../packages/extension-api/cards.js';
@@ -30,8 +30,14 @@ export function activate(context: ExtensionContext): void {
   }));
 
   context.subscriptions.push(context.cards.register('your-station', async ({ signal }) => {
-    const reply = await context.request({ kind: 'persona.active' }, { signal });
-    const persona = reply.ok && reply.kind === 'persona.active' ? reply.persona : null;
-    return stationCard(new Date(), persona);
+    // Asked together: neither depends on the other, and a refusal of one
+    // leaves the card drawing the rest.
+    const [personaReply, stationReply] = await Promise.all([
+      context.request({ kind: 'persona.active' }, { signal }),
+      context.request({ kind: 'station.active' }, { signal })
+    ]);
+    const persona = personaReply.ok && personaReply.kind === 'persona.active' ? personaReply.persona : null;
+    const station = stationReply.ok && stationReply.kind === 'station.active' ? stationReply.station : null;
+    return stationCard(new Date(), persona, station);
   }));
 }

@@ -1,27 +1,63 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// P8-your-station: UTC first, local time, the callsign; with no persona it
-// says so; and it needs no network (QGD-HOM-0009).
+// Your station (QGD-HOM-0009): UTC first, local time, the callsign, the active
+// station, and sunrise and sunset there; with no persona or no station it says
+// so; and it needs no network. P8-your-station and P9-your-station.
 import { describe, expect, it } from 'vitest';
-import { validateCardAnswer } from '../../../packages/extension-api/cards.js';
+import { validateCardAnswer, type Section } from '../../../packages/extension-api/cards.js';
 import { stationCard } from '../src/station.js';
 
-describe('P8-your-station (QGD-HOM-0009)', () => {
-  const now = new Date('2026-10-11T18:05:42Z');
+const now = new Date('2026-06-21T19:44:42Z');
+const persona = { name: 'Home', callsign: 'W1AW' };
+const boise = { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.2083 };
 
-  it('shows UTC first, then local time, then the callsign', () => {
-    const card = validateCardAnswer(stationCard(now, { name: 'Home', callsign: 'W1AW' }));
-    if (!card.ok) throw new Error('expected a card');
-    const [figures, items] = card.data.sections;
-    expect(figures).toMatchObject({ shape: 'figures' });
-    if (figures.shape !== 'figures' || items.shape !== 'items') throw new Error('shapes');
-    expect(figures.figures[0]).toEqual({ label: 'UTC', value: '18:05' });
-    expect(figures.figures[1].label).toBe('Local');
-    expect(items.items).toEqual([{ title: 'Operating as', detail: 'W1AW' }]);
-    expect(card.data.observedAt).toBe('2026-10-11T18:05:00Z');
+function sections(card: ReturnType<typeof stationCard>): { figures: Extract<Section, { shape: 'figures' }>; items: Extract<Section, { shape: 'items' }> } {
+  const checked = validateCardAnswer(card);
+  if (!checked.ok) throw new Error('expected a card');
+  const [figures, items] = checked.data.sections;
+  if (figures.shape !== 'figures' || items.shape !== 'items') throw new Error('shapes');
+  return { figures, items };
+}
+
+describe('P8-your-station and P9-your-station (QGD-HOM-0009)', () => {
+  it('shows UTC first, then local time, the callsign, the station, and sunrise and sunset there', () => {
+    const { figures, items } = sections(stationCard(now, persona, boise));
+    expect(figures.figures.map(figure => figure.label)).toEqual(['UTC', 'Local', 'Sunrise', 'Sunset']);
+    expect(figures.figures[0]).toEqual({ label: 'UTC', value: '19:44' });
+    // Within a minute of PyEphem's 12:03:31 and 03:29:54 UTC
+    // (sun.test.ts holds the method to that for six places).
+    expect(figures.figures[2]).toEqual({ label: 'Sunrise', value: '12:03', unit: 'UTC' });
+    expect(figures.figures[3]).toEqual({ label: 'Sunset', value: '03:30', unit: 'UTC' });
+    expect(items.items).toEqual([
+      { title: 'Operating as', detail: 'W1AW' },
+      { title: 'Station', detail: 'Home · DN13sm' }
+    ]);
+    const checked = validateCardAnswer(stationCard(now, persona, boise));
+    if (!checked.ok) throw new Error('expected a card');
+    expect(checked.data.observedAt).toBe('2026-06-21T19:44:00Z');
   });
 
   it('says so when no persona is active', () => {
-    const card = stationCard(now, null);
-    expect(JSON.stringify(card)).toContain('No persona is active yet.');
+    expect(JSON.stringify(stationCard(now, null, boise))).toContain('No persona is active yet.');
+  });
+
+  it('with no station active, says so and shows the clock alone', () => {
+    const { figures, items } = sections(stationCard(now, persona, null));
+    expect(figures.figures.map(figure => figure.label)).toEqual(['UTC', 'Local']);
+    expect(items.items[1]).toEqual({ title: 'Station', detail: 'No station is active. Choose one in Stations.' });
+  });
+
+  it('names a station with no location, and says sunrise and sunset need it', () => {
+    const { figures, items } = sections(stationCard(now, persona, { name: 'Car' }));
+    expect(figures.figures.map(figure => figure.label)).toEqual(['UTC', 'Local']);
+    expect(items.items.slice(1)).toEqual([
+      { title: 'Station', detail: 'Car' },
+      { title: 'Sun', detail: 'Sunrise and sunset need the station\'s grid. Add it in Stations.' }
+    ]);
+  });
+
+  it('says when the sun does not set there', () => {
+    const svalbard = { name: 'Longyearbyen', grid: 'JQ78', latitude: 78.2232, longitude: 15.6267 };
+    const { items } = sections(stationCard(new Date('2026-06-21T12:00Z'), persona, svalbard));
+    expect(items.items[2]).toEqual({ title: 'Sun', detail: 'The sun does not set there today.' });
   });
 });
