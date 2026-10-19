@@ -48,7 +48,10 @@ async function tables(path: string): Promise<string[]> {
 const GOOD = { tag: '0001_good', sql: 'CREATE TABLE `good_one` (`x` text);' };
 const BAD = { tag: '0002_bad', sql: 'CREATE TABLE `good_two` (`x` text);\n--> statement-breakpoint\nTHIS IS NOT SQL;' };
 
-describe('P4-migrations (QGD-ENG-0013)', () => {
+// Each test opens a store and runs every migration on a fresh file, which a
+// hosted Windows runner has taken over five seconds to do: vitest's default
+// failed the rename test there with nothing wrong (CI, 2026-10-19).
+describe('P4-migrations (QGD-ENG-0013)', { timeout: 30_000 }, () => {
   it('applies the shipped migrations and records them in the file', async () => {
     const path = join(root, 'state.sqlite');
     const store = openStore(path);
