@@ -140,7 +140,7 @@ if (!app.requestSingleInstanceLock()) {
     // QGD-ENG-0003: started in the background and waited on by nothing. The
     // window below appears whether or not storage ever comes up.
     const storage = storageRoot();
-    const stopStorageBroker = startStorageBroker({
+    const storageBroker = startStorageBroker({
       distDirectory,
       root: storage.root,
       stateMigrations: join(app.getAppPath(), 'drizzle', 'state'),
@@ -155,6 +155,7 @@ if (!app.requestSingleInstanceLock()) {
       // credential core, the one process that reaches the network (QGD-SEC-0020).
       fetchReference: personas.fetchReference
     });
+    personas.onPersonaActivated(name => storageBroker.personaActivated(name));
     // The extension API (QGD-APP-0002). Started after the brokers it reaches
     // through, because its ports are their methods.
     //
@@ -232,7 +233,7 @@ if (!app.requestSingleInstanceLock()) {
       if (quitting) return;
       quitting = true;
       event.preventDefault();
-      void stopStorageBroker()
+      void storageBroker.stop()
         .catch(() => log.warn({}, 'storage did not close cleanly'))
         .finally(() => app.quit());
     });

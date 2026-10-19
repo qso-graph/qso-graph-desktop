@@ -8,6 +8,14 @@
 // changes, so the screen is never polling and never stale (QGD-ENG-0006).
 // QGD-SEC-0006 applies as at every boundary: checked on arrival, refused rather
 // than coerced.
+//
+// Stations (QGD-STN-*) are kept here too, and travel in the same status, so
+// the Stations page and the status bar are never polling and never stale.
+import {
+  isFieldProblems, isParkDraft, isPersonaName, isPotaReference, isStationDraft, isStationId, isStationsView,
+  type FieldProblem, type ParkDraft, type StationDraft, type StationsView
+} from './station-contract.js';
+
 export const STORAGE_STATES = ['starting', 'ready', 'failed', 'unavailable'] as const;
 export type StorageState = (typeof STORAGE_STATES)[number];
 
@@ -67,12 +75,25 @@ export interface StorageStatus {
   // there is none yet).
   sizes?: { state: number; reference: number | null };
   reference?: ReferenceSummary;
+  stations?: StationsView;
   // In words a person can act on. Never a value, a path or a stack (QGD-ENG-0016).
   reason?: string;
 }
 
-export type StorageCommand = { type: 'status' } | { type: 'update-reference'; resource: string };
-export type StorageReply = { ok: true; status: StorageStatus } | { ok: false; error: string };
+export type StorageCommand =
+  | { type: 'status' }
+  | { type: 'update-reference'; resource: string }
+  | { type: 'save-station'; station: StationDraft }
+  | { type: 'delete-station'; id: string }
+  | { type: 'set-default-station'; persona: string; id: string | null }
+  | { type: 'set-active-station'; id: string | null }
+  | { type: 'station-from-park'; reference: string };
+
+// A refused station says which fields and why, so the editor can show each
+// beside its own field. A park draft is what a station from a park would be.
+export type StorageReply =
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft }
+  | { ok: false; error: string; problems?: FieldProblem[] };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
 
@@ -114,7 +135,7 @@ function isResource(value: unknown): value is ResourceSummary {
 }
 
 export function isStorageStatus(value: unknown): value is StorageStatus {
-  if (!record(value) || !only(value, ['state', 'folder', 'sizes', 'reference', 'reason'])) return false;
+  if (!record(value) || !only(value, ['state', 'folder', 'sizes', 'reference', 'stations', 'reason'])) return false;
   if (!(STORAGE_STATES as readonly unknown[]).includes(value.state)) return false;
   if (value.folder !== undefined && typeof value.folder !== 'string') return false;
   if (value.reason !== undefined && typeof value.reason !== 'string') return false;
@@ -130,27 +151,44 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
     if (!Array.isArray(reference.resources) || reference.resources.length > 32 || !reference.resources.every(isResource)) return false;
     if (!DATASETS.every((name) => isDataset(reference[name]))) return false;
   }
-  return true;
+  return value.stations === undefined || isStationsView(value.stations);
 }
 
 // A reply from the storage process, checked whole before it is read or passed
 // on (QGD-SEC-0006). Null, an array, a missing field or an extra one: refused.
 export function isStorageReply(value: unknown): value is StorageReply {
   if (!record(value)) return false;
-  if (value.ok === true) return only(value, ['ok', 'status']) && isStorageStatus(value.status);
-  if (value.ok === false) return only(value, ['ok', 'error']) && typeof value.error === 'string';
+  if (value.ok === true) {
+    return only(value, ['ok', 'status', 'saved', 'park']) && isStorageStatus(value.status)
+      && (value.saved === undefined || isStationId(value.saved))
+      && (value.park === undefined || isParkDraft(value.park));
+  }
+  if (value.ok === false) {
+    return only(value, ['ok', 'error', 'problems']) && typeof value.error === 'string'
+      && (value.problems === undefined || isFieldProblems(value.problems));
+  }
   return false;
 }
 
-// Exactly { type: 'status' }, or { type: 'update-reference', resource } naming
-// one by id. A command
+// Exactly one of the commands above, with exactly its own fields. A command
 // carrying a path would be the renderer choosing where the stores are, and one
-// carrying a URL would be the renderer choosing what is fetched.
+// carrying a URL would be the renderer choosing what is fetched. A station
+// command names a station by id and a persona by name, nothing else.
 export function validateStorageCommand(value: unknown): value is StorageCommand {
   if (!record(value)) return false;
-  if (value.type === 'status') return Object.keys(value).length === 1;
-  return value.type === 'update-reference' && only(value, ['type', 'resource']) && Object.keys(value).length === 2
-    && typeof value.resource === 'string' && RESOURCE_ID.test(value.resource);
+  const exactly = (keys: string[]) => only(value, keys) && keys.every((key) => key in value);
+  switch (value.type) {
+    case 'status': return exactly(['type']);
+    case 'update-reference':
+      return exactly(['type', 'resource']) && typeof value.resource === 'string' && RESOURCE_ID.test(value.resource);
+    case 'save-station': return exactly(['type', 'station']) && isStationDraft(value.station);
+    case 'delete-station': return exactly(['type', 'id']) && isStationId(value.id);
+    case 'set-default-station':
+      return exactly(['type', 'persona', 'id']) && isPersonaName(value.persona) && (value.id === null || isStationId(value.id));
+    case 'set-active-station': return exactly(['type', 'id']) && (value.id === null || isStationId(value.id));
+    case 'station-from-park': return exactly(['type', 'reference']) && isPotaReference(value.reference);
+    default: return false;
+  }
 }
 
 export function referenceLoaded(status: StorageStatus | undefined): boolean | undefined {

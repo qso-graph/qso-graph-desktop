@@ -36,7 +36,14 @@ export interface StorageBrokerOptions {
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
 }
 
-export function startStorageBroker(options: StorageBrokerOptions): () => Promise<void> {
+export interface StorageBroker {
+  stop: () => Promise<void>;
+  // The persona made active, whose default station QG Storage makes active
+  // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
+  personaActivated: (name: string) => void;
+}
+
+export function startStorageBroker(options: StorageBrokerOptions): StorageBroker {
   let worker: UtilityProcess | undefined;
   let stopped = false;
   let nextId = 0;
@@ -167,7 +174,7 @@ export function startStorageBroker(options: StorageBrokerOptions): () => Promise
   // Awaited at quit: the stores are closed cleanly, or the process is killed
   // after SHUTDOWN_MS. SQLite recovers either way; a clean close leaves no
   // WAL for the next start to replay.
-  return async () => {
+  const stop = async () => {
     stopped = true;
     ipcMain.removeHandler(STORAGE_CHANNEL);
     failPending('The application is closing.');
@@ -182,6 +189,12 @@ export function startStorageBroker(options: StorageBrokerOptions): () => Promise
     }
     worker?.kill();
     worker = undefined;
+  };
+  return {
+    stop,
+    // A persona's name only, never anything about it. If QG Storage is not
+    // running the active station simply stays as it was.
+    personaActivated: (name) => { worker?.postMessage({ personaActive: name }); }
   };
 }
 

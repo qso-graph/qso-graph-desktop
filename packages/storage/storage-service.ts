@@ -19,10 +19,16 @@ import { StorageFailure, describe, reduce } from './errors.js';
 import { layout, openState } from './layout.js';
 import { Reference, isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus } from './reference.js';
 import { problemOf, summarize } from './reference-resources.js';
+import { readReferenceRuleset } from './reference-read.js';
+import { isPersonaName, type StationsView } from './station-contract.js';
+import {
+  deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation, setDefaultStation, viewStations,
+  type Definitions
+} from './stations.js';
 import type { Store } from './sqlite.js';
 import type { stateSchema } from './schema.js';
 import {
-  type DatasetSummary, type StorageReply, type StorageStatus, validateStorageCommand
+  type DatasetSummary, type StorageCommand, type StorageReply, type StorageStatus, validateStorageCommand
 } from './storage-contract.js';
 
 const [, , root, stateMigrations, referenceDdl, registerFile, referenceCache, appVersion] = process.argv;
@@ -105,8 +111,62 @@ function status(): StorageStatus {
         refreshing,
         resources: register ? summarize({ register, held: referenceStatus, checks, problems, updating, now: Date.now() }) : []
       }
-    } : {})
+    } : {}),
+    ...(stations ? { stations } : {})
   };
+}
+
+// ---- stations (QGD-STN-*) -------------------------------------------------
+let stations: StationsView | undefined;
+// ADIF's definitions, read once and again after a reference build, so a
+// station is checked against what is loaded now (QGD-STN-0002).
+let definitions: Definitions | undefined;
+
+async function currentDefinitions(): Promise<Definitions> {
+  definitions ??= await readReferenceRuleset(reference?.reader());
+  return definitions;
+}
+
+async function reloadStations(): Promise<void> {
+  if (!state) return;
+  stations = await viewStations(state, (await currentDefinitions()) !== 'not loaded');
+}
+
+// A station command, answered once it is done. Every failure is reduced: a
+// station's values are the operator's own and are never logged (QGD-STN-0003).
+async function stationCommand(command: Exclude<StorageCommand, { type: 'status' } | { type: 'update-reference' }>):
+  Promise<StorageReply> {
+  if (!state) return { ok: false, error: 'Storage is not open yet.' };
+  switch (command.type) {
+    case 'save-station': {
+      const outcome = await saveStation(state, command.station, await currentDefinitions());
+      if (!outcome.ok) return { ok: false, error: 'The station was not saved.', problems: outcome.problems };
+      await reloadStations();
+      publish();
+      return { ok: true, status: status(), saved: outcome.id };
+    }
+    case 'delete-station':
+      if (!(await deleteStation(state, command.id))) return { ok: false, error: 'That station no longer exists.' };
+      break;
+    case 'set-default-station':
+      if (!(await setDefaultStation(state, command.persona, command.id))) return { ok: false, error: 'That station no longer exists.' };
+      break;
+    case 'set-active-station':
+      if (!(await setActiveStation(state, command.id))) return { ok: false, error: 'That station no longer exists.' };
+      break;
+    case 'station-from-park': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.pota.parks.state !== 'loaded') {
+        return { ok: false, error: 'POTA parks are not downloaded. Download them in Settings, then try again.' };
+      }
+      const park = await draftFromPark(reader, command.reference, await currentDefinitions());
+      if (park === 'not found') return { ok: false, error: 'POTA\'s park list has no park with that reference.' };
+      return { ok: true, status: status(), park };
+    }
+  }
+  await reloadStations();
+  publish();
+  return { ok: true, status: status() };
 }
 
 const publish = () => process.parentPort.postMessage({ status: status() });
@@ -150,6 +210,11 @@ async function refresh(resource: ReferenceResource): Promise<void> {
   } finally {
     refreshing = false;
     updating = undefined;
+    // What a station is checked against may have changed with the build.
+    definitions = undefined;
+    try { await reloadStations(); } catch (error) {
+      log.warn({ failure: describe(reduce(error, 'query')) }, 'stations could not be read');
+    }
     publish();
   }
 }
@@ -161,6 +226,7 @@ async function start(): Promise<void> {
     reference = new Reference({ paths, ddl: referenceDdl, register, state, fetchArchive, fetchText });
     referenceStatus = await reference.status();
     checks = await reference.lastChecks();
+    await reloadStations();
     log.info({}, 'storage ready');
   } catch (error) {
     failed = 'Storage could not be opened.';
@@ -177,7 +243,18 @@ function close(): void {
 }
 
 process.parentPort.on('message', (event) => {
-  const data = event.data as { referenceAnswer?: unknown; id?: unknown; command?: unknown; close?: unknown };
+  const data = event.data as {
+    referenceAnswer?: unknown; id?: unknown; command?: unknown; close?: unknown; personaActive?: unknown
+  };
+  // From main, never from a window: the persona made active, whose default
+  // station becomes active with it (QGD-STN-0005).
+  if (data?.personaActive !== undefined) {
+    if (!state || !isPersonaName(data.personaActive)) return;
+    void personaActivated(state, data.personaActive)
+      .then(async (changed) => { if (changed) { await reloadStations(); publish(); } })
+      .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not applied'));
+    return;
+  }
   if (data?.referenceAnswer !== null && typeof data?.referenceAnswer === 'object') {
     const { id, result } = data.referenceAnswer as { id?: unknown; result?: unknown };
     if (!Number.isSafeInteger(id)) return;
@@ -195,6 +272,17 @@ process.parentPort.on('message', (event) => {
   if (!Number.isSafeInteger(data?.id)) return;
   if (!validateStorageCommand(data.command)) {
     process.parentPort.postMessage({ id: data.id, reply: { ok: false, error: 'Invalid storage request.' } });
+    return;
+  }
+  if (data.command.type !== 'status' && data.command.type !== 'update-reference') {
+    const id = data.id;
+    void stationCommand(data.command)
+      .catch((error: unknown): StorageReply => {
+        log.warn({ command: data.command && (data.command as StorageCommand).type, failure: describe(reduce(error, 'query')) },
+          'station command failed');
+        return { ok: false, error: 'The station could not be changed. Troubleshooting has the logs.' };
+      })
+      .then((reply) => process.parentPort.postMessage({ id, reply }));
     return;
   }
   if (data.command.type === 'update-reference') {

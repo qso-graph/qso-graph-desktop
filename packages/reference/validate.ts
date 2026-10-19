@@ -46,6 +46,10 @@ export interface FieldRule {
   enumerationName: string | null;
   enumerationParameter: string | null;
   importOnly: boolean;
+  // ADIF's Minimum Value and Maximum Value for the field, as published: CQZ
+  // is 1 to 40, ITUZ 1 to 90. Null where ADIF gives none.
+  minimumValue?: string | null;
+  maximumValue?: string | null;
 }
 
 export interface EnumerationValue {
@@ -129,7 +133,8 @@ function add(into: EnumerationIndex, value: EnumerationValue): void {
 export interface RulesetRows {
   version: string;
   fields: { name: string; dataTypes: string[]; enumerationName: string | null;
-    enumerationParameter: string | null; importOnly: boolean }[];
+    enumerationParameter: string | null; importOnly: boolean;
+    minimumValue?: string | null; maximumValue?: string | null }[];
   dataTypes: string[];
   enumerations: { name: string; valueColumn: string }[];
   values: { enumeration: string; key: string; value: Record<string, string>; deleted: boolean; importOnly: boolean }[];
@@ -151,7 +156,9 @@ export function rulesetFromRows(rows: RulesetRows): Ruleset {
       dataTypes: row.dataTypes,
       enumerationName: row.enumerationName,
       enumerationParameter: row.enumerationParameter,
-      importOnly: row.importOnly
+      importOnly: row.importOnly,
+      minimumValue: row.minimumValue ?? null,
+      maximumValue: row.maximumValue ?? null
     }])),
     dataTypes: new Set(rows.dataTypes),
     enumerations
@@ -173,7 +180,9 @@ export function rulesetOf(definitions: Definitions): Ruleset {
       dataTypes: row.dataTypes,
       enumerationName: row.enumerationName,
       enumerationParameter: row.enumerationParameter,
-      importOnly: row.importOnly
+      importOnly: row.importOnly,
+      minimumValue: row.minimumValue,
+      maximumValue: row.maximumValue
     }])),
     dataTypes: new Set(Object.keys(definitions.DataTypes.Records)),
     enumerations
@@ -587,6 +596,19 @@ export function parameterColumn(ruleset: Ruleset, parameter: string): string | u
   return field?.enumerationName?.replaceAll('_', ' ');
 }
 
+// A field's own range, from ADIF's Minimum Value and Maximum Value columns. The
+// value has already passed its data type, so it is a number here. Missing
+// from this validator until P9: a CQ zone of 41 passed as a PositiveInteger.
+function outsideRange(rule: FieldRule, value: string): string | undefined {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return undefined;
+  const minimum = rule.minimumValue === null || rule.minimumValue === undefined ? NaN : Number(rule.minimumValue);
+  const maximum = rule.maximumValue === null || rule.maximumValue === undefined ? NaN : Number(rule.maximumValue);
+  if (Number.isFinite(minimum) && number < minimum) return `below ADIF's minimum of ${rule.minimumValue}`;
+  if (Number.isFinite(maximum) && number > maximum) return `above ADIF's maximum of ${rule.maximumValue}`;
+  return undefined;
+}
+
 function byDataType(ruleset: Ruleset, tag: Tag, dataTypes: string[], rule?: FieldRule): Result {
   const unsupplied = dataTypes.find(type => UNSUPPLIED_LIST_TYPES[type]);
   if (unsupplied) {
@@ -606,6 +628,8 @@ function byDataType(ruleset: Ruleset, tag: Tag, dataTypes: string[], rule?: Fiel
   for (const type of withChecker) {
     const wrong = CHECKS[type](tag.value, ruleset);
     if (wrong === undefined) {
+      const outside = rule ? outsideRange(rule, tag.value) : undefined;
+      if (outside) return { field: tag.name, verdict: 'invalid', reason: outside };
       return { field: tag.name, verdict: 'valid', ...(rule?.importOnly ? { importOnly: true } : {}) };
     }
     if (wrong === UNSUPPLIED) {

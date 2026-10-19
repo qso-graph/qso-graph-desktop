@@ -24,6 +24,9 @@ export interface PersonaBroker {
   // Called after a persona was added, changed, removed or made active, so
   // what Home shows for the old one can be dropped (QGD-HOM-0005).
   onPersonasChanged: (listener: () => void) => void;
+  // Called with the persona's name after one is made active, so its default
+  // station becomes active with it (QGD-STN-0005).
+  onPersonaActivated: (listener: (name: string) => void) => void;
   // Reference data, fetched by the credential core because that is where all
   // of this product's outbound HTTPS goes (D-18, D-31). Handed to the engine
   // broker by main; never reachable from a renderer, which has no command for
@@ -48,6 +51,7 @@ const CHANGES_PERSONAS = new Set(['upsert', 'set-active', 'remove-persona', 'imp
 
 export function startPersonaBroker(distDirectory: string, registerFile: string): PersonaBroker {
   const changeListeners = new Set<() => void>();
+  const activationListeners = new Set<(name: string) => void>();
   let worker: UtilityProcess | undefined;
   let ready = false;
   let stopped = false;
@@ -208,6 +212,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
     }
     const told = (reply: PersonaReply): PersonaReply => {
       if (reply.ok && CHANGES_PERSONAS.has(command.type)) for (const listener of changeListeners) listener();
+      if (reply.ok && command.type === 'set-active') for (const listener of activationListeners) listener(command.name);
       return reply;
     };
     if (command.type === 'export-personas' || command.type === 'import-personas') {
@@ -217,6 +222,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   });
   return {
     onPersonasChanged: listener => { changeListeners.add(listener); },
+    onPersonaActivated: listener => { activationListeners.add(listener); },
     stop: () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); },
     async personaBriefs() {
       const reply = await ask({ type: 'list' });

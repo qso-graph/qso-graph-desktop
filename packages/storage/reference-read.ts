@@ -24,7 +24,8 @@ export async function readReferenceRuleset(
       version: adif.version,
       fields: await db.select({
         name: field.name, dataTypes: field.dataTypes, enumerationName: field.enumerationName,
-        enumerationParameter: field.enumerationParameter, importOnly: field.importOnly
+        enumerationParameter: field.enumerationParameter, importOnly: field.importOnly,
+        minimumValue: field.minimumValue, maximumValue: field.maximumValue
       }).from(field).all(),
       dataTypes: (await db.select({ name: dataType.name }).from(dataType).all()).map((row) => row.name),
       enumerations: await db.select({ name: enumeration.name, valueColumn: enumeration.valueColumn }).from(enumeration).all(),
