@@ -21,6 +21,8 @@ export const PACKAGE = '@fortawesome/fontawesome-free';
 export const ICONS = [
   { key: 'home', name: 'house', style: 'solid' },
   { key: 'personas', name: 'id-card', style: 'solid' },
+  // Stations (QGD-STN-*): where the operator is operating from.
+  { key: 'stations', name: 'location-dot', style: 'solid' },
   { key: 'settings', name: 'gear', style: 'solid' }
   // The Apps entry's icon went with the demonstration applications on
   // 2026-10-10 (QGD-APP-0014). tests/icons.test.mjs holds the list to the rail

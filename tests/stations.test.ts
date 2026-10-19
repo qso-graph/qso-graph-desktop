@@ -12,7 +12,7 @@ import { layout, openState } from '../packages/storage/layout.js';
 import { potaPark, referenceSchema } from '../packages/storage/reference-schema.js';
 import { openStore } from '../packages/storage/sqlite.js';
 import {
-  ADDRESS_FIELDS, STATION_FIELDS, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
+  ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
   adifLocation, checkStation, deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation,
@@ -207,6 +207,51 @@ describe('P9-active: defaults and the active station (QGD-STN-0005, QGD-STN-0001
       expect(view.active).toBeNull();
       expect(view.defaults).toEqual({});
       expect(isStationsView(view)).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('applies a persona activation and a station choice in the order they were asked', async () => {
+    const state = await open();
+    try {
+      const a = await saveStation(state, draft({}, { name: 'A' }), ruleset);
+      const b = await saveStation(state, draft({}, { name: 'B' }), ruleset);
+      if (!a.ok || !b.ok) throw new Error('not saved');
+      await setDefaultStation(state, 'ki7mt', a.id);
+      // Not awaited one by one: each is one unit of work, so neither can land
+      // between the other's check and its write.
+      await Promise.all([personaActivated(state, 'ki7mt'), setActiveStation(state, b.id)]);
+      expect((await viewStations(state, true)).active).toBe(b.id);
+      await Promise.all([setActiveStation(state, b.id), personaActivated(state, 'ki7mt')]);
+      expect((await viewStations(state, true)).active).toBe(a.id);
+      await Promise.all([setDefaultStation(state, 'ki7mt', b.id), personaActivated(state, 'ki7mt')]);
+      expect((await viewStations(state, true)).active).toBe(b.id);
+    } finally { state.close(); }
+  });
+
+  it('takes a persona name as long as the persona contract allows', async () => {
+    const state = await open();
+    try {
+      const a = await saveStation(state, draft({}), ruleset);
+      if (!a.ok) throw new Error('not saved');
+      const long = 'p'.repeat(128);
+      expect(await setDefaultStation(state, long, a.id)).toBe(true);
+      expect(isStationsView(await viewStations(state, true))).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('stops at the most stations a status can carry, and edits still save', async () => {
+    const state = await open();
+    try {
+      let first = '';
+      for (let at = 0; at < MAX_STATIONS; at += 1) {
+        const made = await saveStation(state, draft({}, { name: `S${at}` }), 'not loaded');
+        if (!made.ok) throw new Error(`station ${at} not saved`);
+        first ||= made.id;
+      }
+      const over = await saveStation(state, draft({}, { name: 'One too many' }), 'not loaded');
+      expect(over.ok).toBe(false);
+      expect((await saveStation(state, draft({}, { id: first, name: 'Renamed' }), 'not loaded')).ok).toBe(true);
+      expect(isStationsView(await viewStations(state, false))).toBe(true);
     } finally { state.close(); }
   });
 

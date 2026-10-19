@@ -6,7 +6,7 @@ import { INITIAL_SHELL, PAGES, createShellStore, isPageId, type ShellState, visi
 describe('the shell store', () => {
   it('starts on Home with no active persona and the system theme', () => {
     expect(INITIAL_SHELL).toEqual({
-      page: 'home', activePersona: '', themeChoice: 'system', logs: undefined, storage: undefined,
+      page: 'home', activePersona: '', activePersonaName: '', themeChoice: 'system', logs: undefined, storage: undefined,
       // Troubleshooting closed. It is in the store rather than local to the
       // shell because what it shows is fetched while it is open: the logs
       // (QGD-LOG-0013, QGD-FRM-0012).
@@ -98,14 +98,15 @@ describe('the shell store', () => {
 });
 
 describe('the rail', () => {
-  it('offers Personas and Settings, in that order', () => {
+  it('offers Personas, Stations and Settings, in that order', () => {
     // The whole of the navigation. QGD-LOG-0013 puts the logs behind
     // Troubleshooting on the status bar and QGD-FRM-0012 puts storage's
     // detail there too, so neither is a rail item; and the demonstration
     // applications that briefly added an Apps entry are gone
-    // (QGD-APP-0014).
-    expect(visiblePages().map(page => page.id)).toEqual(['home', 'personas', 'settings']);
-    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Personas', 'Settings']);
+    // (QGD-APP-0014). Stations sit beside Personas: who you are, and where
+    // you are operating from (QGD-STN-0001).
+    expect(visiblePages().map(page => page.id)).toEqual(['home', 'personas', 'stations', 'settings']);
+    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Personas', 'Stations', 'Settings']);
     // Home at the top, Settings at the foot: it is where you change how the
     // places you work behave, not one of them.
     expect(visiblePages()[0].placement).toBe('top');

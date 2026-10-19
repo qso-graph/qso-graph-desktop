@@ -15,6 +15,7 @@
   import HomePage from './pages/HomePage.svelte';
   import PersonaPage from './pages/PersonaPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
+  import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
@@ -22,6 +23,7 @@
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
+  import type { FieldProblem, ParkDraft, StationDraft } from '../storage/station-contract.js';
 
   interface Props {
     store: ShellStore;
@@ -32,6 +34,11 @@
     onSetExtension: (id: string, enabled: boolean) => Promise<boolean>;
     // Loading or updating one reference resource, when the operator asks.
     onUpdateReference: (resource: string) => Promise<string | undefined>;
+    // Stations (QGD-STN-*).
+    onSaveStation: (draft: StationDraft, makeDefault: boolean) => Promise<{ error: string; problems?: FieldProblem[] } | undefined>;
+    onDeleteStation: (id: string) => Promise<string | undefined>;
+    onSetActiveStation: (id: string | null) => Promise<string | undefined>;
+    onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
@@ -49,6 +56,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -81,6 +89,12 @@
   // Everything the rail offers except Home itself: the page is a way in, not a
   // way back to where you already are.
   const destinations = $derived(visiblePages().filter(page => page.id !== 'home'));
+
+  // The active station's name, for the status bar (QGD-STN-0005).
+  const activeStationName = $derived.by(() => {
+    const stations = shell.storage?.stations;
+    return stations?.list.find(station => station.id === stations.active)?.name ?? '';
+  });
 </script>
 
 <header>
@@ -163,12 +177,25 @@
         </div>
       </div>
     </div>
+    <div class="page" hidden={shell.page !== 'stations'}>
+      <StationsPage
+        stations={shell.storage?.stations}
+        personaName={shell.activePersonaName}
+        personaLabel={shell.activePersona}
+        parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
+        onSave={onSaveStation}
+        onDelete={onDeleteStation}
+        onSetActive={onSetActiveStation}
+        onFromPark={onStationFromPark}
+      />
+    </div>
     <div class="page" hidden={shell.page !== 'settings'}>
       <SettingsPage themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} />
     </div>
   </main>
 </div>
 <StatusBar activePersona={shell.activePersona}
+           activeStation={activeStationName}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
 {#if shell.troubleshooting}
   <TroubleshootingPanel storage={shell.storage}

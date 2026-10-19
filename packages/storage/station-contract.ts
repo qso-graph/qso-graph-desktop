@@ -72,7 +72,8 @@ export interface ParkDraft {
 export const MAX_STATIONS = 500;
 export const MAX_NAME = 64;
 export const MAX_VALUE = 100;
-export const MAX_PERSONA = 64;
+// The persona contract's own limit for a persona's name (persona-contract.ts).
+export const MAX_PERSONA = 128;
 
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PARK_CODE = /^[A-Z]{2}[0-9]{2}$/;

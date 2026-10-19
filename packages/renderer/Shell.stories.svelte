@@ -17,6 +17,10 @@
     onChooseTheme: () => Promise.resolve(true),
     onSetExtension: () => Promise.resolve(true),
     onUpdateReference: () => Promise.resolve(undefined),
+    onSaveStation: () => Promise.resolve(undefined),
+    onDeleteStation: () => Promise.resolve(undefined),
+    onSetActiveStation: () => Promise.resolve(undefined),
+    onStationFromPark: () => Promise.resolve('Not in a story.'),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
     onCreatePersona: () => Promise.resolve(undefined),
@@ -43,6 +47,7 @@
     store: createShellStore({
       page: 'settings',
       activePersona: 'W1AW · Home station',
+      activePersonaName: 'Home station',
       themeChoice: 'system',
       logs,
       storage: { state: 'ready' },

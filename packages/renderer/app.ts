@@ -6,6 +6,7 @@ import type {
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
+import type { FieldProblem, ParkDraft, StationDraft } from '../storage/station-contract.js';
 import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
@@ -57,7 +58,9 @@ home.start();
 mount(Shell, {
   target: document.body,
   props: {
-    store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference, onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark,
+    onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
@@ -93,6 +96,7 @@ export async function createPersona(callsign: string, name: string): Promise<str
   selected = made;
   shell.set({
     activePersona: `${callsign.toUpperCase()} · ${made}`,
+    activePersonaName: made,
     firstRun: false
   });
   return undefined;
@@ -214,6 +218,7 @@ function list() {
   // up because it was decided once at start (QGD-PSN-0004).
   shell.set({
     activePersona: active ? `${active.callsign} · ${active.name}` : '',
+    activePersonaName: active ? active.name : '',
     firstRun: snapshot.personas.length === 0
   });
 }
@@ -620,4 +625,67 @@ export async function updateReference(resource: string): Promise<string | undefi
   } catch {
     return 'The update could not be started.';
   }
+}
+
+// Stations (QGD-STN-*). Each command is QG Storage's to carry out, and the
+// changed list arrives pushed like every other change to its status. Each
+// returns undefined when it worked, or what to say when it did not.
+//
+// A reply's status is not taken: QG Storage pushes the changed list after
+// every change, and a reply composed before a newer push would put an older
+// list back on screen (found by Turing in review). And a reply from a storage
+// process that is not ready, which the broker gives when it is restarting or
+// did not answer in time, is a failure, never a success.
+async function stationRequest(command: StorageCommand): Promise<StorageReply> {
+  try {
+    const reply = await window.storage.request(command);
+    if (reply.ok && reply.status.state !== 'ready') {
+      return { ok: false, error: reply.status.reason ?? 'Storage is not ready. Try again shortly.' };
+    }
+    return reply;
+  } catch {
+    return { ok: false, error: 'Storage could not be reached.' };
+  }
+}
+
+export async function saveStation(
+  draft: StationDraft, makeDefault: boolean
+): Promise<{ error: string; problems?: FieldProblem[] } | undefined> {
+  // The persona the operator saw when they ticked the box, taken before the
+  // save is sent, so a persona changed meanwhile is not the one changed.
+  const persona = shell.get().activePersonaName;
+  const reply = await stationRequest({ type: 'save-station', station: draft });
+  if (!reply.ok) return { error: reply.error, ...(reply.problems ? { problems: reply.problems } : {}) };
+  const saved = reply.saved;
+  if (!saved) return { error: 'The station could not be saved: storage did not say it was.' };
+  if (!persona) return undefined;
+  // The checkbox is the whole answer: ticked makes it this persona's default,
+  // unticked on the station that is the default clears it, and unticked on
+  // any other station leaves the default where it is.
+  const current = shell.get().storage?.stations?.defaults[persona];
+  if (makeDefault && current !== saved) {
+    const set = await stationRequest({ type: 'set-default-station', persona, id: saved });
+    if (!set.ok) return { error: `Saved, but not made the default: ${set.error}` };
+  } else if (!makeDefault && current === saved) {
+    const cleared = await stationRequest({ type: 'set-default-station', persona, id: null });
+    if (!cleared.ok) return { error: `Saved, but still the default: ${cleared.error}` };
+  }
+  return undefined;
+}
+
+export async function deleteStation(id: string): Promise<string | undefined> {
+  const reply = await stationRequest({ type: 'delete-station', id });
+  return reply.ok ? undefined : reply.error;
+}
+
+export async function setActiveStation(id: string | null): Promise<string | undefined> {
+  const reply = await stationRequest({ type: 'set-active-station', id });
+  return reply.ok ? undefined : reply.error;
+}
+
+export async function stationFromPark(reference: string): Promise<ParkDraft | string> {
+  if (!/^[0-9A-Z]{1,4}-[0-9]{4,5}$/.test(reference)) return 'A POTA park reference looks like US-0001.';
+  const reply = await stationRequest({ type: 'station-from-park', reference });
+  if (!reply.ok) return reply.error;
+  return reply.park ?? 'The park could not be read.';
 }

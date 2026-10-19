@@ -35,6 +35,7 @@ export const SUITE_TIMEOUT_MS = {
   // inside a suite cannot quietly outgrow it.
   'electron-smoke': 1_200_000,    // 895s of waits across 29 of them
   'home-cards': 900_000,          // 620s of waits, plus three launches
+  stations: 900_000,              // the ADIF load's 180s and two launches
   'process-recovery': 360_000,    // 270s, with QG Storage's kill-and-recover (QGD-ENG-0006)
   screenshots: 420_000,           // 300s
   storybook: 900_000,             // a 600s build wait
@@ -69,7 +70,7 @@ export function suiteCommands(npmCli) {
   ['storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage.test.ts', 'tests/reference-resources.test.ts']],
   ['storage-migrations', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage-migrations.test.ts']],
   // Stations (QGD-STN-*), checked against ADIF's own definitions (P9).
-  ['stations', ['node_modules/vitest/vitest.mjs', 'run', 'tests/stations.test.ts']],
+  ['stations-storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/stations.test.ts']],
   ['reference-build', ['node_modules/vitest/vitest.mjs', 'run', 'tests/reference-build.test.ts']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
@@ -79,6 +80,7 @@ export function suiteCommands(npmCli) {
   ['persona-export', ['scripts/persona-export.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['home-cards', ['scripts/home-cards.mjs']],
+  ['stations', ['scripts/stations.mjs']],
   ['setup-walk', ['scripts/setup-walk.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],
   ['reference-load', ['scripts/reference-load.mjs']],

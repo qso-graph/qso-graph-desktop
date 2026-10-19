@@ -31,6 +31,13 @@ export const PAGES = [
     placement: 'top'
   },
   {
+    id: 'stations',
+    label: 'Stations',
+    icon: 'stations',
+    description: 'Where you operate from: home, a park, a summit, the car',
+    placement: 'top'
+  },
+  {
     id: 'settings',
     label: 'Settings',
     icon: 'settings',
@@ -59,6 +66,9 @@ export interface ShellState {
   // is none. Not the sentence: the status bar and Home say it differently, and
   // a string formatted for one of them read wrong in the other.
   activePersona: string;
+  // The active persona's name, which is how a persona is keyed, so a station
+  // can be made its default (QGD-STN-0005). Empty when there is none.
+  activePersonaName: string;
   themeChoice: ThemeChoice;
   // Undefined until the main process has answered. The Logs page shows that it
   // is still reading rather than a level that might be wrong.
@@ -109,6 +119,7 @@ export const INITIAL_SHELL: ShellState = {
   // half of why it is the right place to open (QGD-CRD-0009).
   page: 'home',
   activePersona: '',
+  activePersonaName: '',
   themeChoice: 'system',
   logs: undefined,
   storage: undefined,

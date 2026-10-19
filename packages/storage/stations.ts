@@ -13,7 +13,7 @@ import { potaPark, type referenceSchema } from './reference-schema.js';
 import { ACTIVE_STATION_ID, activeStation, station, stationDefault, type stateSchema } from './schema.js';
 import type { Store } from './sqlite.js';
 import {
-  STATION_FIELDS, isStation, type FieldProblem, type ParkDraft, type Place, type Station, type StationDraft,
+  MAX_STATIONS, STATION_FIELDS, isStation, type FieldProblem, type ParkDraft, type Place, type Station, type StationDraft,
   type StationsView
 } from './station-contract.js';
 
@@ -83,6 +83,11 @@ export async function saveStation(
     // Names are how the operator tells stations apart, as TQSL's location
     // names are, so two may not share one, whatever their case.
     const others = await db.select({ id: station.id, name: station.name }).from(station).all();
+    // Bounded, because the whole list travels in every status and a status
+    // over the contract's bound would be refused whole (QGD-SEC-0006).
+    if (!draft.id && others.length >= MAX_STATIONS) {
+      return { ok: false, problems: [{ field: 'name', reason: `There are already ${MAX_STATIONS} stations; delete one to add another.` }] };
+    }
     if (others.some(other => other.id !== draft.id && other.name.toLowerCase() === name.toLowerCase())) {
       return { ok: false, problems: [{ field: 'name', reason: 'Another station already has this name.' }] };
     }
@@ -114,41 +119,43 @@ export async function deleteStation(state: StateStore, id: string): Promise<bool
   });
 }
 
-async function exists(state: StateStore, id: string): Promise<boolean> {
-  return state.unit(async (db) =>
-    (await db.select({ id: station.id }).from(station).where(eq(station.id, id)).get()) !== undefined);
-}
-
+// Each of these is one unit of work: the check that the station exists and
+// the write happen together, so a persona made active while the operator picks
+// another station cannot interleave between them and leave the wrong one
+// active (found by Turing in review).
 export async function setDefaultStation(state: StateStore, persona: string, id: string | null): Promise<boolean> {
-  if (id !== null && !(await exists(state, id))) return false;
-  await state.unit(async (db) => {
+  return state.unit(async (db) => {
     if (id === null) {
       await db.delete(stationDefault).where(eq(stationDefault.persona, persona)).run();
-    } else {
-      await db.insert(stationDefault).values({ persona, stationId: id })
-        .onConflictDoUpdate({ target: stationDefault.persona, set: { stationId: id } }).run();
+      return true;
     }
+    if (!(await db.select({ id: station.id }).from(station).where(eq(station.id, id)).get())) return false;
+    await db.insert(stationDefault).values({ persona, stationId: id })
+      .onConflictDoUpdate({ target: stationDefault.persona, set: { stationId: id } }).run();
+    return true;
   });
-  return true;
 }
 
 export async function setActiveStation(state: StateStore, id: string | null): Promise<boolean> {
-  if (id !== null && !(await exists(state, id))) return false;
-  await state.unit(async (db) => {
+  return state.unit(async (db) => {
+    if (id !== null && !(await db.select({ id: station.id }).from(station).where(eq(station.id, id)).get())) return false;
     await db.insert(activeStation).values({ id: ACTIVE_STATION_ID, stationId: id })
       .onConflictDoUpdate({ target: activeStation.id, set: { stationId: id } }).run();
+    return true;
   });
-  return true;
 }
 
 // Making a persona active makes its default station active (QGD-STN-0005). A
 // persona with no default leaves the active station as it was: the operator
 // chose it, and nothing says it is wrong for this persona.
 export async function personaActivated(state: StateStore, persona: string): Promise<boolean> {
-  const row = await state.unit(async (db) =>
-    db.select().from(stationDefault).where(eq(stationDefault.persona, persona)).get());
-  if (!row) return false;
-  return setActiveStation(state, row.stationId);
+  return state.unit(async (db) => {
+    const row = await db.select().from(stationDefault).where(eq(stationDefault.persona, persona)).get();
+    if (!row) return false;
+    await db.insert(activeStation).values({ id: ACTIVE_STATION_ID, stationId: row.stationId })
+      .onConflictDoUpdate({ target: activeStation.id, set: { stationId: row.stationId } }).run();
+    return true;
+  });
 }
 
 // ADIF's Location: "XDDD MM.MMM", hemisphere first.

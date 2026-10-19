@@ -20,6 +20,10 @@
   interface Props {
     // Who it is, or empty. The sentence is this component's.
     activePersona: string;
+    // Where they are operating from: the active station's name, or empty
+    // (QGD-STN-0005). Named beside the persona, as TQSL pairs a certificate
+    // with a location.
+    activeStation?: string;
     // The data the operator is working in, named by the caller. Undefined
     // until an application holds data, and the slot is then empty.
     dataContext?: string;
@@ -29,6 +33,7 @@
   }
   const {
     activePersona,
+    activeStation = '',
     dataContext,
     onOpenTroubleshooting,
     // What the product actually does, which is now two things: a credential
@@ -41,6 +46,7 @@
 
 <footer>
   <span id="active-persona">{activePersona ? `Active: ${activePersona}` : 'No active persona'}</span>
+  <span id="active-station">{activeStation ? `At: ${activeStation}` : 'No active station'}</span>
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}

@@ -49,6 +49,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   let nextId = 0;
   let failures = 0;
   let last: StorageStatus = { state: 'starting' };
+  let heldActivation: string | undefined;
   const pending = new Map<number, { settle: (reply: StorageReply) => void; timer: NodeJS.Timeout }>();
   let closed: (() => void) | undefined;
 
@@ -79,6 +80,9 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     // spawn event: until then Electron does not know the pid.
     const spawned = worker;
     spawned.once('spawn', () => { log.info({ storagePid: spawned.pid }, 'storage service started'); });
+    // An activation made while there was no process, handed to this one. QG
+    // Storage holds it until its stores are open.
+    if (heldActivation) { spawned.postMessage({ personaActive: heldActivation }); heldActivation = undefined; }
 
     // This process, and no later one. An answer to something it asked for is
     // delivered to it only while it is still the current process: a fetch that
@@ -194,7 +198,12 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     stop,
     // A persona's name only, never anything about it. If QG Storage is not
     // running the active station simply stays as it was.
-    personaActivated: (name) => { worker?.postMessage({ personaActive: name }); }
+    // Kept until a process has it, so an activation made while QG Storage was
+    // restarting is applied when it is back rather than lost.
+    personaActivated: (name) => {
+      if (worker) worker.postMessage({ personaActive: name });
+      else heldActivation = name;
+    }
   };
 }
 

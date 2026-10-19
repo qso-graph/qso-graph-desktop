@@ -127,6 +127,16 @@ async function currentDefinitions(): Promise<Definitions> {
   return definitions;
 }
 
+// A persona made active before the stores were open, applied once they are.
+let heldActivation: string | undefined;
+
+function applyActivation(persona: string): void {
+  if (!state) return;
+  void personaActivated(state, persona)
+    .then(async (changed) => { if (changed) { await reloadStations(); publish(); } })
+    .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not applied'));
+}
+
 async function reloadStations(): Promise<void> {
   if (!state) return;
   stations = await viewStations(state, (await currentDefinitions()) !== 'not loaded');
@@ -227,6 +237,7 @@ async function start(): Promise<void> {
     referenceStatus = await reference.status();
     checks = await reference.lastChecks();
     await reloadStations();
+    if (heldActivation) { applyActivation(heldActivation); heldActivation = undefined; }
     log.info({}, 'storage ready');
   } catch (error) {
     failed = 'Storage could not be opened.';
@@ -249,10 +260,11 @@ process.parentPort.on('message', (event) => {
   // From main, never from a window: the persona made active, whose default
   // station becomes active with it (QGD-STN-0005).
   if (data?.personaActive !== undefined) {
-    if (!state || !isPersonaName(data.personaActive)) return;
-    void personaActivated(state, data.personaActive)
-      .then(async (changed) => { if (changed) { await reloadStations(); publish(); } })
-      .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not applied'));
+    if (!isPersonaName(data.personaActive)) return;
+    // Before the stores are open it is held, and applied once they are: an
+    // activation is never dropped for arriving early.
+    if (!state) { heldActivation = data.personaActive; return; }
+    applyActivation(data.personaActive);
     return;
   }
   if (data?.referenceAnswer !== null && typeof data?.referenceAnswer === 'object') {
