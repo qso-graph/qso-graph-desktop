@@ -55,7 +55,7 @@
     if (!resources) return 'being checked';
     if (resources.length === 0) return 'none offered';
     return resources.map(resource => `${resource.name}: ${resource.updating ? 'updating'
-      : resource.state === 'not loaded' ? 'not loaded' : resource.due ? 'out of date' : 'loaded'}`).join('; ');
+      : resource.state === 'not loaded' ? 'not downloaded' : resource.due ? 'out of date' : 'downloaded'}`).join('; ');
   });
 </script>
 
@@ -98,7 +98,7 @@
       <dt>Reference data</dt>
       <dd id="home-reference">
         {referenceWords}
-        <button type="button" class="secondary inline-action" id="manage-reference" onclick={() => onGo('settings')}>Load or update</button>
+        <button type="button" class="secondary inline-action" id="manage-reference" onclick={() => onGo('settings')}>Download or update</button>
         {#if storage?.reason}<span class="fact-note">{storage.reason}</span>{/if}
       </dd>
     </dl>

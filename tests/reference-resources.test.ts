@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { problemOf, summarize } from '../packages/storage/reference-resources.js';
+import { isStorageStatus } from '../packages/storage/storage-contract.js';
+import { RESOURCES_ADIF_AVAILABLE } from '../packages/renderer/pages/reference-fixtures.js';
 import type { ReferenceStatus, RefreshOutcome } from '../packages/storage/reference.js';
 
 const register = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
@@ -44,6 +46,31 @@ describe('QGD-REF-0017: out of date, measured from when a source last answered',
     const adif = summarize({ register, held: held(NOW, '3.1.6'), checks: {}, problems: new Map(), updating: undefined, now: NOW })[0];
     expect(adif.due).toBe(true);
   });
+});
+
+describe('#37: Update is offered only when it could bring something new', () => {
+  const adifOf = (version: string) =>
+    summarize({ register, held: held(NOW, version), checks: {}, problems: new Map(), updating: undefined, now: NOW })[0];
+
+  it('offers no ADIF Update while the installed version is the pinned one', () => {
+    const adif = adifOf(register.adif.version);
+    expect(adif.updatable).toBe(false);
+    expect(adif.version).toBe(register.adif.version);
+    expect(adif.available).toBeUndefined();
+  });
+
+  it('offers ADIF Update, and names the version, once the pinned version moves', () => {
+    const moved = { ...register, adif: { ...register.adif, version: '9.9.9' } };
+    const adif = summarize({ register: moved, held: held(NOW, register.adif.version), checks: {}, problems: new Map(), updating: undefined, now: NOW })[0];
+    expect(adif.updatable).toBe(true);
+    expect(adif.version).toBe(register.adif.version);
+    expect(adif.available).toBe('9.9.9');
+  });
+
+  it('always offers POTA an Update once downloaded, as its lists change daily', () => {
+    expect(pota(held(NOW - 1000)).updatable).toBe(true);
+    expect(pota(held(NOW - 1000)).version).toBeUndefined();
+  });
 
   it('carries the last attempt\'s problem, and offers Update again', () => {
     const summary = pota(held(NOW - 1000), {}, new Map([['pota', 'Could not be reached.']]));
@@ -56,6 +83,7 @@ describe('QGD-REF-0017: out of date, measured from when a source last answered',
     for (const resource of summarize({ register, held: none, checks: {}, problems: new Map(), updating: undefined, now: NOW })) {
       expect(resource.state).toBe('not loaded');
       expect(resource.due).toBe(false);
+      expect(resource.updatable).toBe(false);
     }
   });
 });
@@ -69,6 +97,24 @@ describe('the last attempt\'s problem, in words a person can act on', () => {
     expect(problemOf('adif', outcome)).toBeUndefined();
   });
   it('says which other resource to update when the build was deferred', () => {
-    expect(problemOf('pota', { ...base, deferred: true } as RefreshOutcome)).toMatch(/Update ADIF definitions/);
+    expect(problemOf('pota', { ...base, deferred: true } as RefreshOutcome)).toMatch(/Download ADIF definitions/);
+  });
+});
+
+describe('#37: the window checks the versions it is sent', () => {
+  const status = (resources: unknown[]) => ({
+    state: 'ready',
+    reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, refreshing: false, resources }
+  });
+  it('takes a version and an available version', () => {
+    expect(isStorageStatus(status(RESOURCES_ADIF_AVAILABLE))).toBe(true);
+  });
+  it.each(['3', '3.1.7.1.2', '3.1.<b>', '3.1.7 ', '', 3.17, '1234.1'])('refuses the version %j', (version) => {
+    expect(isStorageStatus(status([{ ...RESOURCES_ADIF_AVAILABLE[0], version }]))).toBe(false);
+    expect(isStorageStatus(status([{ ...RESOURCES_ADIF_AVAILABLE[0], available: version }]))).toBe(false);
+  });
+  it('refuses a summary without updatable', () => {
+    const { updatable: _, ...without } = RESOURCES_ADIF_AVAILABLE[0]!;
+    expect(isStorageStatus(status([without]))).toBe(false);
   });
 });

@@ -30,8 +30,11 @@
   Storage when QG Sync is built.
 
   Reference data: one row per resource the register lists, each with its own
-  Load or Update (KI7MT, 2026-10-11). Nothing is fetched at start, and someone
-  who never uses a resource never downloads it. The list is the register's, so
+  Download, then Update (KI7MT, 2026-10-11 and #37). The first press fetches
+  it from its source, so it is a download; "Load" undersold that and "Sync"
+  implies two-way. ADIF offers Update only when this release pins a newer ADIF
+  version; POTA, whose lists change daily, always. Nothing is fetched at start,
+  and someone who never uses a resource never downloads it. The list is the register's, so
   a new resource (EME, meteor scatter) appears here without a new screen.
 
   Extensions: one switch each, as VS Code's Disable and Podman Desktop's
@@ -72,9 +75,18 @@
   }
 
   function stateWords(resource: ResourceSummary): string {
-    if (resource.updating) return resource.state === 'loaded' ? 'Updating…' : 'Loading…';
-    if (resource.state === 'not loaded') return 'Not loaded';
-    return resource.due ? `Out of date, ${age(resource)}` : `Loaded, ${age(resource)}`;
+    if (resource.updating) return resource.state === 'loaded' ? 'Updating…' : 'Downloading…';
+    if (resource.state === 'not loaded') return 'Not downloaded';
+    if (resource.available) return `ADIF ${resource.version ?? ''} installed. ADIF ${resource.available} is available.`;
+    const installed = resource.version ? `ADIF ${resource.version}, ` : '';
+    return resource.due ? `Out of date, ${installed}${age(resource)}` : `Downloaded, ${installed}${age(resource)}`;
+  }
+
+  // Download while it is not on this computer, Update once it is and an
+  // update could bring something new, and nothing otherwise.
+  function action(resource: ResourceSummary): string | undefined {
+    if (resource.state === 'not loaded') return 'Download';
+    return resource.updatable ? 'Update' : undefined;
   }
 
   async function load(resource: ResourceSummary): Promise<void> {
@@ -123,9 +135,11 @@
               <span class="hint reference-state">{stateWords(resource)}</span>
               {#if resource.problem && !resource.updating}<span class="extension-error reference-problem" role="status">{resource.problem}</span>{/if}
             </span>
-            <button type="button" class="secondary" disabled={busy}
-              aria-label="{resource.state === 'loaded' ? 'Update' : 'Load'} {resource.name}"
-              onclick={() => { void load(resource); }}>{resource.state === 'loaded' ? 'Update' : 'Load'}</button>
+            {#if action(resource)}
+              <button type="button" class="secondary" disabled={busy}
+                aria-label="{action(resource)} {resource.name}"
+                onclick={() => { void load(resource); }}>{action(resource)}</button>
+            {/if}
           </li>
         {/each}
       </ul>

@@ -379,7 +379,7 @@ try {
   // resource; that is waited for, and then it is compared like any text.
   await expect.poll(() => page.locator('#home-reference').innerText(),
     { message: 'Home must say what reference data is loaded before anything is captured', timeout: 60_000 })
-    .toMatch(/ADIF definitions: not loaded; POTA parks: not loaded/);
+    .toMatch(/ADIF definitions: not downloaded; POTA parks: not downloaded/);
 
   for (const theme of THEMES) {
     await rail('Settings').click();

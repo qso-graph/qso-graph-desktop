@@ -47,6 +47,12 @@ export interface ResourceSummary {
   // Loaded, but older than its refresh interval or a version behind what this
   // release pins: worth an Update.
   due: boolean;
+  // Loaded, and an Update could bring something new: POTA always, ADIF only
+  // when this release pins a newer version than the one installed.
+  updatable: boolean;
+  // ADIF only: the version installed, and the newer one this release pins.
+  version?: string;
+  available?: string;
   updating: boolean;
   // What went wrong with the last attempt, in words a person can act on.
   problem?: string;
@@ -89,13 +95,21 @@ function isDataset(value: unknown): value is DatasetSummary {
 const RESOURCE_ID = /^[a-z][a-z0-9-]{1,30}$/;
 const words = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit;
 
+function isVersion(value: unknown): boolean {
+  if (typeof value !== 'string' || value.length > 15) return false;
+  const parts = value.split('.');
+  return parts.length >= 2 && parts.length <= 4 && parts.every(part => /^\d{1,3}$/.test(part));
+}
+
 function isResource(value: unknown): value is ResourceSummary {
-  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updating', 'problem'])) return false;
+  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updatable', 'version', 'available', 'updating', 'problem'])) return false;
   return typeof value.id === 'string' && RESOURCE_ID.test(value.id)
     && words(value.name, 64) && words(value.what, 200) && words(value.owner, 64) && words(value.size, 32)
     && (value.state === 'loaded' || value.state === 'not loaded')
     && (value.fetchedAt === undefined || (typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))))
-    && typeof value.due === 'boolean' && typeof value.updating === 'boolean'
+    && typeof value.due === 'boolean' && typeof value.updatable === 'boolean' && typeof value.updating === 'boolean'
+    && (value.version === undefined || isVersion(value.version))
+    && (value.available === undefined || isVersion(value.available))
     && (value.problem === undefined || (words(value.problem, 200) && !/[<>]/.test(value.problem as string)));
 }
 

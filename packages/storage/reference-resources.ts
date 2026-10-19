@@ -26,8 +26,8 @@ export function problemOf(resource: ReferenceResource, outcome: RefreshOutcome):
   const kept = inputs.filter((input) => input.state === 'kept');
   if (outcome.deferred) {
     return resource === 'adif'
-      ? 'Could not be added: the POTA parks it would be built with are missing. Update POTA parks, then this.'
-      : 'Could not be added: the ADIF definitions it would be built with are missing. Update ADIF definitions, then this.';
+      ? 'Could not be added: the POTA parks it would be built with are missing. Download POTA parks, then this.'
+      : 'Could not be added: the ADIF definitions it would be built with are missing. Download ADIF definitions, then this.';
   }
   if (outcome.buildFailure) return 'Could not be built. What was loaded before is kept.';
   if (kept.length > 0) return 'Could not be reached. What was loaded before is kept; try again later.';
@@ -67,12 +67,20 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
       ? held.adif.state === 'loaded' && held.adif.version !== register.adif.version
       : current === undefined || now - current >= limit;
     const problem = problems.get(id);
+    // ADIF's definitions change only with a new ADIF release, which reaches the
+    // app when a release pins it, so Update is offered only then; an Update of
+    // the pinned version would fetch nothing new (KI7MT, 2026-10-12, #37).
+    // POTA's lists change daily, so they can always be updated.
+    const version = id === 'adif' && held.adif.state === 'loaded' ? held.adif.version : undefined;
     return {
       id, name: entry.name, what: entry.what, owner: entry.owner, size: entry.size,
       state: loaded ? 'loaded' as const : 'not loaded' as const,
       ...(fetched.length > 0 ? { fetchedAt: new Date(current ?? Math.min(...fetched)).toISOString() } : {}),
       // A failed or deferred attempt leaves it worth trying again.
       due: loaded && (stale || problem !== undefined),
+      updatable: loaded && (id !== 'adif' || stale),
+      ...(version ? { version } : {}),
+      ...(version && stale ? { available: register.adif.version } : {}),
       updating: updating === id,
       ...(problem ? { problem } : {})
     };

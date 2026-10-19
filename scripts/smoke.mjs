@@ -470,7 +470,7 @@ try {
   // "not loaded" for each, and points to Settings to load them.
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Home', exact: true }).click();
   await expect.poll(() => page.locator('#home-reference').innerText(), { timeout: 10_000 })
-    .toMatch(/^ADIF definitions: not loaded; POTA parks: not loaded/);
+    .toMatch(/^ADIF definitions: not downloaded; POTA parks: not downloaded/);
   await expect(page.locator('#manage-reference')).toBeVisible();
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Personas', exact: true }).click();
 
