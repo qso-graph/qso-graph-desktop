@@ -8,7 +8,7 @@ const AT = '2026-10-11T18:00:00Z';
 const SECTIONS = [{ shape: 'alert', level: 'info', text: 'Quiet' }] as const;
 const STATE = {
   available: [{ key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air' }],
-  pins: ['air/conditions', 'gone/card'], cards: []
+  pins: ['air/conditions', 'gone/card'], cards: [], notice: null
 };
 
 function api() {

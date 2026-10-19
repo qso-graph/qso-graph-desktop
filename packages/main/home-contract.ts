@@ -11,6 +11,13 @@ import { isPins } from './settings-contract.js';
 
 export const HOME_CHANNEL = 'home:request';
 export const HOME_CARD_CHANNEL = 'home:card';
+// The extension host's notice, pushed when it changes (QGD-APP-0022).
+export const HOME_NOTICE_CHANNEL = 'home:notice';
+
+// Which extensions a stopped extension host affected, until the operator
+// dismisses it (home-notice.ts); the window words it (renderer/host-notice.ts).
+import type { HostNotice } from './home-notice.js';
+export type { HostNotice } from './home-notice.js';
 
 // A card some extension offers, as "Customize your pins" lists it.
 export interface AvailableCard {
@@ -30,12 +37,14 @@ export interface HomeState {
   readonly pins: readonly string[];
   // The pinned cards some extension offers, in pin order, as last known.
   readonly cards: readonly CardView[];
+  readonly notice: HostNotice | null;
 }
 
 export type HomeCommand =
   | { readonly type: 'read' }
   | { readonly type: 'visible'; readonly visible: boolean }
-  | { readonly type: 'pin'; readonly pins: readonly string[] };
+  | { readonly type: 'pin'; readonly pins: readonly string[] }
+  | { readonly type: 'dismiss'; readonly id: number };
 
 export type HomeReply = { readonly ok: true; readonly state: HomeState } | { readonly ok: false; readonly error: string };
 
@@ -53,7 +62,21 @@ export function validateHomeCommand(value: unknown): value is HomeCommand {
   if (value.type === 'read') return exactly(value, ['type']);
   if (value.type === 'visible') return exactly(value, ['type', 'visible']) && typeof value.visible === 'boolean';
   if (value.type === 'pin') return exactly(value, ['type', 'pins']) && isPins(value.pins);
+  if (value.type === 'dismiss') return exactly(value, ['type', 'id']) && Number.isSafeInteger(value.id) && (value.id as number) > 0;
   return false;
+}
+
+// Each name bounded as a manifest name is (64, no markup), and as many as
+// there can be extensions: so a notice the core makes always passes here.
+export function isHostNotice(value: unknown): value is HostNotice | null {
+  if (value === null) return true;
+  if (!record(value)) return false;
+  const keys = Object.keys(value).sort().join(',');
+  if (keys !== 'affected,id,kind' && keys !== 'affected,at,id,kind') return false;
+  return Number.isSafeInteger(value.id) && (value.id as number) > 0
+    && (value.kind === 'restarting' || value.kind === 'restarted' || value.kind === 'not restarted')
+    && (value.at === undefined || (typeof value.at === 'string' && !Number.isNaN(Date.parse(value.at))))
+    && Array.isArray(value.affected) && value.affected.length <= 64 && everyIndex(value.affected, name => plainText(name, 64));
 }
 
 export function isCardView(value: unknown): value is CardView {
@@ -88,7 +111,8 @@ export function isHomeReply(value: unknown): value is HomeReply {
   if (value.ok === false) return exactly(value, ['ok', 'error']) && typeof value.error === 'string';
   if (value.ok !== true || !exactly(value, ['ok', 'state']) || !record(value.state)) return false;
   const state = value.state;
-  return exactly(state, ['available', 'pins', 'cards'])
+  return exactly(state, ['available', 'pins', 'cards', 'notice'])
+    && isHostNotice(state.notice)
     && everyIndex(state.available, isAvailable)
     && isPins(state.pins)
     && Array.isArray(state.cards) && state.cards.length <= 6 && everyIndex(state.cards, isCardView);

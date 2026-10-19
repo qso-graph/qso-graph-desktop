@@ -20,9 +20,10 @@
         { shape: 'figures', figures: [{ label: 'UTC', value: '18:00' }, { label: 'Local', value: '12:00' }] },
         { shape: 'items', items: [{ title: 'Operating as', detail: 'W1AW' }] }
       ] } }
-    ]
+    ],
+    notice: null
   };
-  const nothingPinned: HomeModel = { available, pins: [], cards: [] };
+  const nothingPinned: HomeModel = { available, pins: [], cards: [], notice: null };
 
   const destinations = [
     { id: 'personas', label: 'Personas', description: 'Station identities and the logins saved for each', icon: 'personas' },
@@ -72,3 +73,4 @@
   { key: 'on-the-air/conditions', name: 'Conditions', shown: { state: 'failed', reason: 'The extension did not answer in time.' } },
   pinned.cards[1]
 ] } }} />
+<Story name="The extension host stopped" args={{ home: { ...pinned, notice: { id: 1, kind: 'restarted', at: '2026-10-19T18:04:00Z', affected: ['On the Air'] } } }} />

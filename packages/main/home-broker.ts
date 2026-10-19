@@ -9,7 +9,8 @@ import type { LoadedExtension } from './extension-runtime.js';
 import type { Supervisor } from './extension-host-supervisor.js';
 import type { Enablement } from './extension-enablement.js';
 import { createCardScheduler, keepHidden, type CatalogueCard } from './home-cards.js';
-import { HOME_CARD_CHANNEL, HOME_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
+import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
+import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
 
 export interface HomeBrokerOptions {
@@ -48,10 +49,24 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   // again, they come back to the pins they held.
   const stopListening = options.enablement.onChange(() => scheduler.changed());
 
+  // The extension host's notice (QGD-APP-0022): which extensions a stop
+  // affected, by name, until dismissed. Dismissing hides that stop only.
+  let dismissed = 0;
+  const nameOf = (id: string) => options.loaded().find(extension => extension.manifest.id === id)?.manifest.name ?? id;
+  const notice = () => hostNotice(options.supervisor.status(), nameOf, dismissed);
+  const pushNotice = () => {
+    const now = notice();
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send(HOME_NOTICE_CHANNEL, now);
+    }
+  };
+  const stopNotices = options.supervisor.onChange(pushNotice);
+
   const state = (): HomeState => ({
     available: catalogue().map(({ key, name, description, extensionName }) => ({ key, name, description, extensionName })),
     pins: load().pins,
-    cards: scheduler.views()
+    cards: scheduler.views(),
+    notice: notice()
   });
 
   // A window that closes while Home is showing stops the asking: on macOS the
@@ -86,10 +101,18 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
         scheduler.changed();
         return { ok: true, state: state() };
       }
+      case 'dismiss': {
+        // Only a stop that has happened can be dismissed; a later one shows.
+        const next = dismiss(dismissed, command.id, options.supervisor.status().stops);
+        if (next === undefined) return { ok: false, error: 'There is no such notice.' };
+        dismissed = next;
+        pushNotice();
+        return { ok: true, state: state() };
+      }
     }
   });
 
   return {
-    stop: () => { stopListening(); scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); }
+    stop: () => { stopListening(); stopNotices(); scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); }
   };
 }

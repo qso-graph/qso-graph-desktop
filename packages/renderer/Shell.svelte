@@ -119,6 +119,7 @@
         onGo={navigate}
         home={homeModel}
         onSavePins={pins => home.savePins(pins)}
+        onDismissNotice={id => home.dismissNotice(id)}
       />
     </div>
     <div class="page" hidden={shell.page !== 'personas'}>

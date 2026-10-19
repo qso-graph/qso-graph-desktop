@@ -24,6 +24,7 @@ declare global {
     home?: {
       request(command: unknown): Promise<unknown>;
       onCard(listener: (card: unknown) => void): () => void;
+      onNotice(listener: (notice: unknown) => void): () => void;
     };
     storage: {
       request(command: StorageCommand): Promise<StorageReply>;

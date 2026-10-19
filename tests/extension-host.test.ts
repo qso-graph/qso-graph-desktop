@@ -266,6 +266,18 @@ describe('P8-supervision (QGD-APP-0022)', () => {
     sup.stop();
   });
 
+  it('counts an extension still starting when the host stops as affected, and counts the stop', async () => {
+    const { sup, harness } = supervisor({ '/pkg/a/main.js': () => ({ activate: () => new Promise<void>(() => {}) }) });
+    void sup.ensureActive('a');
+    await flush();
+    harness.crash();
+    await flush();
+    expect(sup.status().affected).toEqual(['a']);
+    expect(sup.status().stops).toBe(1);
+    expect(sup.status().stoppedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    sup.stop();
+  });
+
   it('stops restarting at the budget and says so', async () => {
     const { sup, harness } = supervisor({ '/pkg/a/main.js': cardModule(() => GOOD) });
     for (let round = 0; round <= LIMITS.restartBudget; round++) {

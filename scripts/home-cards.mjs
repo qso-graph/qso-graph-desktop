@@ -96,6 +96,32 @@ try {
   expect(sockets.sockets, 'the extension host must open no connection of its own').toEqual([]);
   console.log(`P8-host: the cards were answered by QG Extensions (pid ${hosts[0]}), not main (${mainPid}) or the window (${windowPid}), with no socket of its own: PASS`);
 
+  // P8-supervision, on screen (QGD-APP-0022): the host is killed from
+  // outside, as a crash would end it. Home names what it affected, the host is
+  // restarted, the cards answer again, and Dismiss hides the notice.
+  process.kill(hosts[0]);
+  const notice = page.locator('#host-notice');
+  await expect(notice, 'Home must say the extension host stopped').toBeVisible({ timeout: 30_000 });
+  await expect(notice).toContainText('It affected On the Air', { timeout: 30_000 });
+  await expect(notice).toContainText('was restarted', { timeout: 30_000 });
+  await expect(notice).not.toContainText(/caused|because/i);
+  await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
+    { message: 'a new extension host must be running', timeout: 30_000 }).toBe(1);
+  // A fresh answer, which only the new host can give: Your station said no
+  // persona was active before the kill; a persona made active now asks every
+  // card again at once (QGD-HOM-0005), and its callsign must come back. The
+  // cards' earlier answers would pass any check on what they already showed.
+  await expect(card(page, 'Your station')).toContainText('No persona is active yet.');
+  const personaReply = await page.evaluate(async () => {
+    const made = await window.personas.request({ type: 'upsert', name: 'qg-home-cards-fixture', callsign: 'w1aw' });
+    return made.ok ? window.personas.request({ type: 'set-active', name: 'qg-home-cards-fixture' }) : made;
+  });
+  expect(personaReply, 'the test persona must be made active').toMatchObject({ ok: true });
+  await expect(card(page, 'Your station'), 'the new host must answer Your station').toContainText(/W1AW/i, { timeout: 30_000 });
+  await notice.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(notice).toHaveCount(0, { timeout: 30_000 });
+  console.log('P8-supervision: the extension host killed; Home named On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
+
   // Turned off in Settings: its cards leave Home and the list.
   await rail(page, 'Settings').click();
   const onTheAir = page.getByRole('switch', { name: /On the Air/ });

@@ -31,7 +31,7 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isCardView({ key: 'on-the-air/conditions', state: 'failed', reason: 'NOAA did not answer.' })).toBe(true);
     expect(isHomeReply({ ok: true, state: {
       available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air' }],
-      pins: ['on-the-air/conditions'], cards: [READY] } })).toBe(true);
+      pins: ['on-the-air/conditions'], cards: [READY], notice: null } })).toBe(true);
   });
 
   it('refuses a card whose data is off the shapes, carries markup, or has extra fields', () => {
@@ -39,9 +39,9 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isCardView({ key: 'on-the-air/conditions', state: 'failed', reason: '<img onerror=1>' })).toBe(false);
     expect(isCardView({ ...READY, colour: 'red' })).toBe(false);
     expect(isCardView({ key: '../x', state: 'waiting' })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e' }], pins: [], cards: [] } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e' }], pins: [], cards: [], notice: null } })).toBe(false);
     // Lists with gaps: every() would skip the holes and pass.
-    expect(isHomeReply({ ok: true, state: { available: new Array(1), pins: [], cards: [] } })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [], pins: [], cards: new Array(6) } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: new Array(1), pins: [], cards: [], notice: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [], pins: [], cards: new Array(6), notice: null } })).toBe(false);
   });
 });

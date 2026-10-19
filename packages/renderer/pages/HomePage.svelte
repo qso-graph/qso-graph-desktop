@@ -11,6 +11,7 @@
   import { ICONS } from '../../ui/icons.js';
   import HomeCard from '../../ui/HomeCard.svelte';
   import PinPicker from '../../ui/PinPicker.svelte';
+  import { noticeText } from '../host-notice.js';
   import type { StorageStatus } from '../../storage/storage-contract.js';
   import type { HomeModel } from '../home-store.js';
   import { MAX_PINS } from '../../main/settings-contract.js';
@@ -33,8 +34,10 @@
     // (QGD-HOM-0002), and the pins to change (QGD-HOM-0003).
     home: HomeModel;
     onSavePins: (pins: string[]) => void;
+    // Hide the extension host's notice for the stop it is about.
+    onDismissNotice?: (id: number) => void;
   }
-  const { version, activePersona, storage, destinations, onGo, home, onSavePins }: Props = $props();
+  const { version, activePersona, storage, destinations, onGo, home, onSavePins, onDismissNotice = () => {} }: Props = $props();
 
   let picking = $state(false);
   // Pins kept for an extension that is off hold their places, so the picker
@@ -62,6 +65,14 @@
     {#if home.error}<p class="hint" role="status">{home.error}</p>{:else}<span></span>{/if}
     <button type="button" class="secondary" id="customize-pins" onclick={() => { picking = true; }}>Customize your pins</button>
   </div>
+  <!-- QGD-APP-0022: a stopped extension host names what it affected, and
+       says so until dismissed, as VS Code does. -->
+  {#if home.notice}
+    <div class="home-notice" id="host-notice" role="alert">
+      <p>{noticeText(home.notice)}</p>
+      <button type="button" class="secondary" onclick={() => onDismissNotice(home.notice!.id)}>Dismiss</button>
+    </div>
+  {/if}
   {#if home.cards.length > 0}
     <div class="home-cards" id="home-cards" aria-labelledby="home-cards-title">
       {#each home.cards as card (card.key)}

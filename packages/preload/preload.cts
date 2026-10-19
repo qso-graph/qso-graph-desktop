@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
     const handler = (_event: unknown, card: unknown) => listener(card);
     ipcRenderer.on('home:card', handler);
     return () => { ipcRenderer.removeListener('home:card', handler); };
+  },
+  // The extension host's notice (QGD-APP-0022), checked by the window.
+  onNotice: (listener: (notice: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, notice: unknown) => listener(notice);
+    ipcRenderer.on('home:notice', handler);
+    return () => { ipcRenderer.removeListener('home:notice', handler); };
   }
 }));
 // The extension inventory, for Settings (QGD-APP-0012). There is no way for

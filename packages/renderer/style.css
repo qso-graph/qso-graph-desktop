@@ -261,3 +261,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .extension-error { color: var(--danger); margin: 8px 0 0; }
 .inline-action { margin-left: 10px; padding: 2px 10px; min-height: 0; font-size: 12px; }
 .reference-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
+
+/* The extension host's notice on Home (QGD-APP-0022). */
+.home-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: min(980px, 100%); margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--warn-border); border-radius: 8px; background: var(--warn-surface); color: var(--warn); font-size: 13px; }
+.home-notice p { margin: 0; }

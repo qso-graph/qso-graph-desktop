@@ -66,6 +66,10 @@ export interface SupervisorStatus {
   // The extensions the last host stop affected (QGD-APP-0022). Which one
   // caused it is not claimed.
   readonly affected: readonly string[];
+  // How many times the host has stopped, and when it last did: Home's notice
+  // is about one stop, and dismissing it hides that one only.
+  readonly stops: number;
+  readonly stoppedAt?: string;
 }
 
 // Fixed words, so nothing an extension sent reaches the screen or the log.
@@ -109,10 +113,15 @@ export function createSupervisor(deps: SupervisorDeps) {
   const disabled = new Set<string>();
   const restarts: number[] = [];
   let affected: string[] = [];
+  let stops = 0;
+  let stoppedAt: string | undefined;
   let restartTimer: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<(status: SupervisorStatus) => void>();
 
-  const status = (): SupervisorStatus => ({ host: state, failed: Object.fromEntries(failed), affected: [...affected] });
+  const status = (): SupervisorStatus => ({
+    host: state, failed: Object.fromEntries(failed), affected: [...affected], stops,
+    ...(stoppedAt ? { stoppedAt } : {})
+  });
   const changed = () => { const now = status(); for (const listener of listeners) listener(now); };
 
   function spawn(): Generation {
@@ -227,11 +236,16 @@ export function createSupervisor(deps: SupervisorDeps) {
     if (generation.heartbeat) clearInterval(generation.heartbeat);
     try { generation.link.kill(); } catch { /* already gone */ }
     for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
+    // An extension still starting when the host went is affected too: it was
+    // in the host, and its cards will say so (Turing, review of P8's notice).
+    const starting = [...generation.activations.values()].map(waiting => waiting.id);
     for (const waiting of generation.activations.values()) { clearTimeout(waiting.timer); waiting.settle(false); }
     for (const waiting of generation.deactivations.values()) { clearTimeout(waiting.timer); waiting.settle(); }
     for (const waiting of generation.cards.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
     generation.activations.clear(); generation.deactivations.clear(); generation.cards.clear();
-    affected = [...active].sort();
+    affected = [...new Set([...active, ...starting])].sort();
+    stops += 1;
+    stoppedAt = new Date().toISOString();
     const wanted = [...active];
     active.clear();
     if (current === generation) current = undefined;
