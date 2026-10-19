@@ -107,6 +107,15 @@
       "supersedes": "the P7 entry above, signed off on the PostgreSQL engine",
       "evidence": "make verify in a separate non-admin macOS account: 30 of 31 suites PASS at 21c3bfc, the one failure the screenshot baselines, which pass pixel for pixel at 90bbc6f once KI7MT approved them. P7's re-registered tests pass. P7-own-data-only (was P7-own-schema-only) is registered and is written with the first extension that holds data (P8), when the app-data request kinds exist. Recorded at KI7MT's direction to sign off on this evidence without a further run.",
       "recordedAtUtc": "2026-10-11T01:05:05Z"
+    },
+    {
+      "part": "P8",
+      "id": "QGD-PRT-0108",
+      "by": "KI7MT",
+      "date": "2026-10-19",
+      "commit": "dd458d1",
+      "evidence": "docs/P8.md: all nineteen P8 tests proven, nothing open. On a new install Conditions and Your station are pinned and drawn from On the Air's data; pins hold up to six, reorder and persist across a restart; only pinned cards fetch; a failing source fails its own card only; the extension host killed, Home names the affected extension, the host restarts and answers afresh; the extension can be turned off and on; reference data is fetched only when the operator asks, one resource at a time, with Download, then Update only when it brings something new (#37). connection-capture passed in a logged-in macOS session at 5527247. Measured on a Raspberry Pi 5 inside the ten seconds P8-pi5 sets. Screenshots approved by KI7MT in light and dark at 5527247. CI green on macOS, Linux x64 and arm64, and Windows.",
+      "recordedAtUtc": "2026-10-19T18:40:09Z"
     }
   ],
   "missionNote": "Work KI7MT has accepted that is not a Part. A Part is signed off against an exit gate in QGD-SPEC-001 \u00a72.1 and appears in the report; a mission is a piece of work he directed and accepted, so it is recorded here and not in signedOff, where it would claim a Part id and a gate it does not have. Changed only on his direction.",

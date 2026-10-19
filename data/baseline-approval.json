@@ -128,6 +128,36 @@
       },
       "said": "p8 set looks good.",
       "seen": "Captured at d90fd4e on macOS, with the A index on the Conditions card; the approved files are pixel-identical to the set KI7MT looked at. Home and the screens drawn over it changed; Personas and Settings were unchanged. Checked by Hopper before KI7MT saw them."
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-19",
+      "what": "20 baseline(s): home-light.png, home-end-light.png, personas-light.png, personas-2-light.png, personas-end-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, home-end-dark.png, personas-dark.png, personas-2-dark.png, personas-end-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png",
+      "recordedAtUtc": "2026-10-19T18:39:55.354Z",
+      "files": {
+        "home-light.png": "7bce22256f67ce8e8891649ec7c9995ad37808dd5b149fc728fbb7330f45c2be",
+        "home-end-light.png": "86b2bd3cc3cc48498085b7cf57018ec1d48454a8942d5d58d42860897ea2f710",
+        "personas-light.png": "26d5697e0e24d32f0ba06ec077a99a75f163513cba2e595d019342356af1cf76",
+        "personas-2-light.png": "456f1a4c17ee82471919f67891557b53cf44cb1243d56f6f6eff5ee3fd821d16",
+        "personas-end-light.png": "1c9eaa80a817524b5a856999479a27ee350ad9da98531d4d201c87d00d706e1c",
+        "settings-light.png": "181699fce343dd194b685a3a7f75d4c02047da7ad0284963877463423e626777",
+        "settings-extensions-light.png": "dc5fd8197238ea8fcd455c823e954279a7a2cc2610d4ea2d5ea897b817b00bd4",
+        "pins-light.png": "962d4304c6e58f03e28d1d58e969ae932bbaac0fc967a09f25634a02967be551",
+        "troubleshooting-light.png": "09e18fea057541078cc8471dec55fa0b4f5d5d319fb0d23d35bfda1c24d331ff",
+        "troubleshooting-end-light.png": "50634a4f068d66eb075cd6f03c5c4c0aea8d5d6172846523c6ddea74227e801d",
+        "home-dark.png": "3cf1102873b28b39bdff22fd4544e9685587bb8b7a071f44827630e3d93b1535",
+        "home-end-dark.png": "24d008dd0af68eba90ad8987f7e85648a1152dde325b9799740ec4349aad74b4",
+        "personas-dark.png": "48fb2b611659b3149538fcd1eeb38d2f6f766f65ee8284e413713387b4fe65f4",
+        "personas-2-dark.png": "f69f767e623cd687e980f7424e3fb0a4a98d5053ef2a284d8cfcc5ff771716bd",
+        "personas-end-dark.png": "85f82d213dae87bf50b2152995b67919b5e8c3b74c09ce7e672a0a9fa2a2b9ef",
+        "settings-dark.png": "f03f44eefc74e9c93fb0d50c6a85cdf373d313933831ec70ce86642b61f048b2",
+        "settings-extensions-dark.png": "863d3c90854935a786685379a8ed1f3549e7103e1edae7451fed8b2d2c90af8f",
+        "pins-dark.png": "44a7bc3126bc52db57104a0b062a555f4bdedfac0a53f4a69cc08a66b9059199",
+        "troubleshooting-dark.png": "048e85b60e174b6bdba35e5bdd9c9a75c3489d103e0c8bbe3170c19f8258d5fb",
+        "troubleshooting-end-dark.png": "77e6d51c5ef8a639b59483689c2cd551c29288cf7a4e06d6753ccc274d9dd869"
+      },
+      "said": "approved, sign off P8",
+      "seen": "Captured at 5527247 on macOS after #37: the reference-data buttons say Download, then Update, and Home says \"Download or update\". Home's end view and Settings changed; the other baselines were unchanged."
     }
   ],
   "awaiting": {
