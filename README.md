@@ -50,6 +50,12 @@ through the `node:sqlite` that Electron already carries (`QGD-ENG-0002`).
 `make package` produces the unpacked application under `out/`, and `make installer` the
 platform's installers. Signing and publication are deferred (`QGD-SCP-0003`).
 
+`make help` lists every target. To try a change someone has pushed, `make update` (this
+branch's latest, its dependencies and a build), then `make start`. `make suite SUITE=<name>`
+runs one suite as CI does, `make screenshots` captures the screens and compares them with the
+approved baselines, and `make approve-screenshots BY=<name>` records them as approved, by the
+person approving.
+
 `make verify` builds and packages the application, runs the unit and Electron smoke suites,
 and checks that the hardened native bundle launches and stops. It
 writes `report/report.md` and `report/summary.json`. Pending release,
