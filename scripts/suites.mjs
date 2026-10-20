@@ -35,7 +35,7 @@ export const SUITE_TIMEOUT_MS = {
   // inside a suite cannot quietly outgrow it.
   'electron-smoke': 1_200_000,    // 895s of waits across 29 of them
   'home-cards': 900_000,          // 620s of waits, plus three launches
-  stations: 900_000,              // the ADIF load's 180s and two launches
+  stations: 1_200_000,            // 1020s of waits: the ADIF load's 180s, two launches, the editor
   'process-recovery': 360_000,    // 270s, with QG Storage's kill-and-recover (QGD-ENG-0006)
   screenshots: 720_000,           // 510s, with the Stations captures (P9)
   storybook: 900_000,             // a 600s build wait
