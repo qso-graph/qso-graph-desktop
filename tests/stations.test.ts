@@ -317,6 +317,16 @@ describe('P9-pota: a portable station from a POTA park (QGD-STN-0006)', () => {
     } finally { store.close(); }
   });
 
+  it('identifies a station by its name: two may name the same park, and a two-fer is one station', async () => {
+    const state = await open();
+    try {
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sp' }, { name: 'Trailhead' }), ruleset)).ok).toBe(true);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sq' }, { name: 'Lake shore' }), ruleset)).ok).toBe(true);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001,US-0002' }, { name: 'Two-fer' }), ruleset)).ok).toBe(true);
+      expect((await viewStations(state, true)).list).toHaveLength(3);
+    } finally { state.close(); }
+  });
+
   it('writes ADIF\'s Location form', () => {
     expect(adifLocation(43.625, 'lat')).toBe('N043 37.500');
     expect(adifLocation(-33.8688, 'lat')).toBe('S033 52.128');
