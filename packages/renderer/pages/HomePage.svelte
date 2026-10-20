@@ -62,8 +62,10 @@
 <PageLayout title="QSO Graph Desktop" eyebrow="HOME">
   <div class="home-cards-head">
     <h2 class="visually-hidden" id="home-cards-title">Pinned cards</h2>
-    {#if home.error}<p class="hint" role="status">{home.error}</p>{:else}<span></span>{/if}
+    <!-- At the start of the line, under the title, rather than alone at the
+         right edge (KI7MT, 2026-10-20). -->
     <button type="button" class="secondary" id="customize-pins" onclick={() => { picking = true; }}>Customize your pins</button>
+    {#if home.error}<p class="hint" role="status">{home.error}</p>{/if}
   </div>
   <!-- QGD-APP-0022: a stopped extension host names what it affected, and
        says so until dismissed, as VS Code does. -->
