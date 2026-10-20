@@ -33,8 +33,14 @@ beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'qg-stations-')); });
 afterEach(() => { rmSync(root, { recursive: true, force: true }); });
 
 const open = () => openState(layout(root), MIGRATIONS, '0.0.0-test');
-const draft = (place: StationDraft['place'], extra: Partial<StationDraft> = {}): StationDraft =>
-  ({ name: 'Home', place, ...extra });
+// Every station has a grid (QGD-STN-0003); a test about other fields gets
+// one unless it gives its own. A test of a station with no grid says so with
+// MY_GRIDSQUARE: undefined.
+const draft = (place: StationDraft['place'], extra: Partial<StationDraft> = {}): StationDraft => {
+  const withGrid = 'MY_GRIDSQUARE' in place || 'MY_VUCC_GRIDS' in place ? { ...place } : { MY_GRIDSQUARE: 'DN13', ...place };
+  for (const key of Object.keys(withGrid) as (keyof typeof withGrid)[]) if (withGrid[key] === undefined) delete withGrid[key];
+  return { name: 'Home', place: withGrid, ...extra };
+};
 
 describe('P9-adif: values are ADIF\'s, checked against its definitions (QGD-STN-0002)', () => {
   it('takes a valid value in every field, at the bounds', () => {
@@ -107,7 +113,7 @@ describe('P9-tqsl: every TQSL station location field has its ADIF home (QGD-STN-
     try {
       const saved = await saveStation(state, draft(place), ruleset);
       expect(saved.ok).toBe(true);
-      expect((await viewStations(state, true)).list[0].place).toEqual(place);
+      expect((await viewStations(state, true)).list[0].place).toMatchObject(place);
     } finally { state.close(); }
   });
 
@@ -143,7 +149,7 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
     } finally { state.close(); }
   });
 
-  it('saves with only a name, only a grid or only a park; the address is never required', async () => {
+  it('saves with a name and a grid and nothing else; the address is never required', async () => {
     const state = await open();
     try {
       expect((await saveStation(state, draft({}, { name: 'Just a name' }), ruleset)).ok).toBe(true);
@@ -154,6 +160,13 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
       expect((await viewStations(state, true)).list).toHaveLength(4);
       expect(ADDRESS_FIELDS).toEqual(['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE']);
     } finally { state.close(); }
+  });
+
+  it('refuses a station with no grid, and takes the grids of a line or corner as its grid', () => {
+    expect(checkStation(draft({ MY_GRIDSQUARE: undefined, MY_POTA_REF: 'US-0001' }), ruleset).problems)
+      .toEqual([{ field: 'MY_GRIDSQUARE', reason: 'A station needs a grid.' }]);
+    expect(checkStation(draft({ MY_GRIDSQUARE: '  ' }), 'not loaded').problems.map(p => p.field)).toEqual(['MY_GRIDSQUARE']);
+    expect(checkStation(draft({ MY_VUCC_GRIDS: 'DN13,DN14' }), ruleset).problems).toEqual([]);
   });
 
   it('refuses a station with no name, or one of only spaces, made or edited', async () => {

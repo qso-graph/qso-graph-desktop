@@ -33,6 +33,11 @@ export interface Checked {
 export function checkStation(draft: StationDraft, definitions: Definitions): Checked {
   const problems: FieldProblem[] = [];
   if (draft.name.trim().length === 0) problems.push({ field: 'name', reason: 'A station needs a name.' });
+  // The grid is always required (KI7MT, 2026-10-20): one grid, or the grids
+  // of a line or corner (QGD-STN-0003).
+  if (!draft.place.MY_GRIDSQUARE?.trim() && !draft.place.MY_VUCC_GRIDS?.trim()) {
+    problems.push({ field: 'MY_GRIDSQUARE', reason: 'A station needs a grid.' });
+  }
   if (definitions === 'not loaded') return { problems, checked: false };
   const tags = STATION_FIELDS.flatMap(field => {
     const value = draft.place[field];
@@ -260,7 +265,7 @@ export async function draftFromPark(
     const lon = adifLocation(park.longitude, 'lon');
     if (lat && lon) { place.MY_LAT = lat; place.MY_LON = lon; }
   } else {
-    note = 'POTA publishes this park\'s coordinates as unusable, so its grid and position were not filled in.';
+    note = 'POTA publishes this park\'s coordinates as unusable, so its grid and position were not filled in. Add the grid before saving.';
   }
   // POTA names a park's location by ISO 3166-2 code (US-ID). Where that is
   // one place and its subdivision part is a code ADIF's list holds for the

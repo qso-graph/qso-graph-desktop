@@ -5,7 +5,8 @@
   callsign certificate.
 
   A station is a name, a kind (a label: Home, Portable, Mobile, Remote) and
-  ADIF's own MY_* fields. Every field is optional but the name. What a value
+  ADIF's own MY_* fields. It needs a name and a grid; every other field is
+  optional (KI7MT, 2026-10-20). What a value
   may be is ADIF's to say: QG Storage checks it against the definitions and
   the reason it gives is shown beside the field, never rewritten here.
 
@@ -16,7 +17,7 @@
   import PageLayout from '../../ui/PageLayout.svelte';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
-    STATION_KINDS, fromAdifLocation, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
+    STATION_KINDS, fromAdifLocation, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
     type StationChoices, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
     type StationKind, type StationsView
   } from '../../storage/station-contract.js';
@@ -116,7 +117,7 @@
         // One box for the grid, as an operator thinks of it (KI7MT,
         // 2026-10-20). What is typed is filed under ADIF's own fields when it
         // is saved: see gridFields below.
-        { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Your Maidenhead grid, as DN13 or DN13sm. On a grid line or corner, give them all: DN13,DN14.' },
+        { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Required. Your Maidenhead grid, as DN13 or DN13sm; on a grid line or corner, give them all: DN13,DN14.' },
         { field: 'MY_DXCC', label: 'DXCC entity' },
         { field: 'MY_STATE', label: 'State, province or prefecture', hint: 'The lists are ADIF\'s for the entity above.' },
         { field: 'MY_CNTY', label: 'County', hint: 'In ADIF\'s form, state and county: ID,Ada.' },
@@ -258,6 +259,7 @@
     // refused whole at the boundary, and would say less (QGD-SEC-0006).
     const own: FieldProblem[] = [];
     if (name.trim() === '') own.push({ field: 'name', reason: 'A station needs a name.' });
+    if (!(place.MY_GRIDSQUARE ?? '').trim()) own.push({ field: 'MY_GRIDSQUARE', reason: 'A station needs a grid.' });
     for (const [field, axis, example] of [['MY_LAT', 'lat', '43.625'], ['MY_LON', 'lon', '-116.2083']] as const) {
       const typed = (place[field] ?? '').trim();
       if (typed && typedLocation(typed, axis) === undefined) {
@@ -284,6 +286,13 @@
     } finally {
       working = false;
     }
+  }
+
+  function fillFromGrid() {
+    const position = gridPosition((place.MY_GRIDSQUARE ?? '').trim());
+    if (!position) return;
+    place.MY_LAT = String(Math.round(position.latitude * 1e5) / 1e5);
+    place.MY_LON = String(Math.round(position.longitude * 1e5) / 1e5);
   }
 
   async function fromPark() {
@@ -379,7 +388,7 @@
     <section class="card station-editor" aria-labelledby="station-editor-title">
       <h2 id="station-editor-title">{editingId ? `Edit ${name || 'station'}` : 'New station'}</h2>
       {#if note}<p class="hint" id="station-note" role="status">{note}</p>{/if}
-      <p class="hint">Every field is optional except the name. What a value may be is ADIF's to say, and it is checked when you save.</p>
+      <p class="hint">A station needs a name and a grid; every other field is optional. What a value may be is ADIF's to say, and it is checked when you save.</p>
 
       <label for="station-name">Name</label>
       <input id="station-name" type="text" maxlength="64" bind:value={name}
@@ -428,6 +437,17 @@
               {#if error}<p id="{id}-error" class="field-error" role="status">{error}</p>{/if}
             </div>
           {/each}
+          {#if group.title === 'Where it is'}
+            <!-- The grid is a position, so latitude and longitude can be
+                 filled from it: its centre, worked out here (KI7MT,
+                 2026-10-20). Only when asked: typed ones are never replaced
+                 unseen. -->
+            <div class="fill-from-grid">
+              <button type="button" class="secondary" id="fill-from-grid"
+                disabled={gridPosition((place.MY_GRIDSQUARE ?? '').trim()) === undefined}
+                onclick={fillFromGrid}>Fill latitude and longitude from the grid</button>
+            </div>
+          {/if}
           {#if group.title === 'Activity'}
             <div>
               <label for="station-lotw-park">LoTW park</label>

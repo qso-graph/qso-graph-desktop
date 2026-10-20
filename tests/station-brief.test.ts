@@ -30,6 +30,14 @@ describe('the active station for an extension', () => {
     expect(brief?.longitude).toBeCloseTo(-117, 6);
   });
 
+  it('gives a grid, or a line or corner of grids, a position', async () => {
+    const { gridPosition } = await import('../packages/storage/station-contract.js');
+    expect(gridPosition('DN13')).toEqual({ latitude: 43.5, longitude: -117 });
+    expect(gridPosition('DN13,DN14,DN23,DN24')).toEqual({ latitude: 44, longitude: -116 });
+    expect(gridPosition('DN1')).toBeUndefined();
+    expect(gridPosition(undefined)).toBeUndefined();
+  });
+
   it('puts a grid pair across the date line on the date line', () => {
     const brief = activeStationBrief(view({ MY_VUCC_GRIDS: 'RJ90,AJ00' }));
     expect(Math.abs(brief!.longitude!)).toBeCloseTo(180, 6);

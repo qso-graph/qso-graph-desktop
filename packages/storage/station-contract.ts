@@ -261,3 +261,47 @@ export function isNamedReferences(value: unknown): value is NamedReferences {
     && Array.isArray(value.found) && value.found.length <= 16 && value.found.every(entry =>
       record(entry) && only(entry, ['code', 'name']) && text(entry.code, 64) && text(entry.name, 200));
 }
+
+// The centre of a 2, 4, 6 or 8 character Maidenhead locator. Undefined for
+// anything else: the grid was checked against ADIF's definition when it was
+// saved, so this is a second line, not the first.
+export function gridCentre(grid: string | undefined): { latitude: number; longitude: number } | undefined {
+  if (!grid || grid.length % 2 !== 0 || grid.length < 2 || grid.length > 8) return undefined;
+  const upper = grid.toUpperCase();
+  let longitude = -180;
+  let latitude = -90;
+  // Each pair halves into finer cells: fields 20°×10°, squares 2°×1°,
+  // subsquares 5'×2.5', extended squares 30"×15".
+  const sizes = [[20, 10], [2, 1], [2 / 24, 1 / 24], [2 / 240, 1 / 240]];
+  for (let pair = 0; pair < upper.length / 2; pair += 1) {
+    const [width, height] = sizes[pair];
+    const a = upper[pair * 2];
+    const b = upper[pair * 2 + 1];
+    const letters = pair % 2 === 0;
+    const x = letters ? a.charCodeAt(0) - 65 : Number(a);
+    const y = letters ? b.charCodeAt(0) - 65 : Number(b);
+    const limit = pair === 0 ? 18 : letters ? 24 : 10;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= limit || y >= limit) return undefined;
+    longitude += x * width;
+    latitude += y * height;
+  }
+  const [width, height] = sizes[upper.length / 2 - 1];
+  return { latitude: latitude + height / 2, longitude: longitude + width / 2 };
+}
+
+// The position a grid gives: the centre of one grid, or for the grids of a
+// line or corner ("DN13,DN14") the middle of their centres, which is the line
+// or the corner itself. Longitudes are unwrapped against the first before they
+// are averaged, so a pair across the date line (RJ90,AJ00) lands on it.
+export function gridPosition(grid: string | undefined): { latitude: number; longitude: number } | undefined {
+  if (!grid) return undefined;
+  const centres = grid.split(',').map(entry => gridCentre(entry.trim()));
+  if (centres.length === 0 || centres.some(centre => centre === undefined)) return undefined;
+  const known = centres as { latitude: number; longitude: number }[];
+  const first = known[0].longitude;
+  const unwrapped = known.map(centre => centre.longitude - 360 * Math.round((centre.longitude - first) / 360));
+  let longitude = unwrapped.reduce((sum, value) => sum + value, 0) / known.length;
+  if (longitude > 180) longitude -= 360;
+  if (longitude <= -180) longitude += 360;
+  return { latitude: known.reduce((sum, centre) => sum + centre.latitude, 0) / known.length, longitude };
+}

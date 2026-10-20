@@ -128,8 +128,15 @@ try {
   await expect(field(page, 'MY_GRIDSQUARE')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#station-form-error')).toContainText('Grid:');
   expect((await status(page)).status.stations.list, 'nothing is saved while a value is refused').toEqual([]);
-  // Decimal degrees are taken and kept in ADIF's form.
+  // The grid is required, and latitude and longitude can be filled from it.
+  await field(page, 'MY_GRIDSQUARE').fill('');
+  await page.locator('#save-station').click();
+  await expect(page.locator('#station-my-gridsquare-error')).toHaveText('A station needs a grid.');
   await field(page, 'MY_GRIDSQUARE').fill('DN13');
+  await page.locator('#fill-from-grid').click();
+  await expect(field(page, 'MY_LAT')).toHaveValue('43.5');
+  await expect(field(page, 'MY_LON')).toHaveValue('-117');
+  // Decimal degrees are taken and kept in ADIF's form.
   await field(page, 'MY_LAT').fill('43.625');
   await field(page, 'MY_LON').fill('-116.2083');
   await page.locator('#save-station').click();
