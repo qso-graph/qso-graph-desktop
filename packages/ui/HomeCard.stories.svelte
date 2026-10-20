@@ -39,5 +39,10 @@
   { shape: 'figures', figures: [{ label: 'UTC', value: '18:00' }, { label: 'Local', value: '12:00' }] },
   { shape: 'items', items: [{ title: 'Operating as', detail: 'W1AW' }] }
 ] } }} />
+<Story name="Table" args={{ name: 'Conditions', shown: { state: 'ready', observedAt, sections: [
+  { shape: 'table', columns: ['Band', 'Status', 'Comment'], rows: [
+    ['80m', 'Good', 'Reliable night band'], ['20m', 'Excellent', 'Strong F-layer, long openings'], ['6m', 'Sporadic', 'Watch for Es openings']
+  ] }
+] } }} />
 <Story name="Waiting" args={{ shown: { state: 'waiting' } }} />
 <Story name="Failed" args={{ shown: { state: 'failed', reason: 'The extension did not answer in time.' } }} />

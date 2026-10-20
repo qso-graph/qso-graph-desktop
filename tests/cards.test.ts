@@ -31,7 +31,7 @@ describe('P8-shapes: the card shapes (QGD-HOM-0002)', () => {
     expect(() => validateCardAnswer(answer([FIGURES], { colour: 'red' }))).toThrowError(/"colour"/);
     expect(() => validateCardAnswer(answer([{ ...FIGURES, style: 'big' }]))).toThrowError(/"style"/);
     expect(() => validateCardAnswer(answer([{ shape: 'figures', figures: [{ label: 'K', value: 2 }] }]))).toThrowError(/value is not text/);
-    expect(() => validateCardAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items or alert section/);
+    expect(() => validateCardAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert or table section/);
     expect(() => validateCardAnswer(answer([{ ...ALERT, level: 'panic' }]))).toThrowError(/no level of info, warning or severe/);
     expect(() => validateCardAnswer({ ok: 'yes', data: {} })).toThrowError(/neither ok nor not/);
   });
@@ -40,7 +40,7 @@ describe('P8-shapes: the card shapes (QGD-HOM-0002)', () => {
     expect(() => validateCardAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validateCardAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validateCardAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validateCardAnswer(answer([FIGURES], { version: 2 }))).toThrowError(/version 2; this core draws version 1/);
+    expect(() => validateCardAnswer(answer([FIGURES], { version: 3 }))).toThrowError(/version 3; this core draws versions 1 and 2/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {
@@ -64,5 +64,31 @@ describe('P8-shapes: the card shapes (QGD-HOM-0002)', () => {
     expect(() => validateCardAnswer(answer([{ shape: 'figures', figures: [{ label: 'x'.repeat(41), value: '1' }] }]))).toThrowError(/at most 40/);
     const items = Array.from({ length: CARD_LIMITS.items + 1 }, (_, i) => ({ title: `I${i}` }));
     expect(() => validateCardAnswer(answer([{ shape: 'items', items }]))).toThrowError(/at most 10/);
+  });
+});
+
+describe('the table shape, card data version 2 (KI7MT, 2026-10-20)', () => {
+  const table = { shape: 'table', columns: ['Band', 'Status', 'Comment'], rows: [['20m', 'Good', 'Reliable daytime DX'], ['6m', 'Sporadic', 'Watch for Es']] };
+  const v2 = (sections: unknown[]) => ({ ok: true, data: { version: 2, observedAt: AT, sections } });
+
+  it('draws a table under named columns in version 2 data', () => {
+    expect(validateCardAnswer(v2([table]))).toEqual(v2([table]));
+  });
+
+  it('still draws version 1 data, and refuses a table in it rather than guessing', () => {
+    expect(validateCardAnswer({ ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'alert', level: 'info', text: 'Quiet' }] } }).ok).toBe(true);
+    expect(() => validateCardAnswer({ ok: true, data: { version: 1, observedAt: AT, sections: [table] } })).toThrowError(/version 1 does not have/);
+  });
+
+  it.each([
+    [{ ...table, rows: [['20m', 'Good']] }, /does not have 3 cells/],
+    [{ ...table, columns: [] }, /no columns/],
+    [{ ...table, columns: ['a', 'b', 'c', 'd', 'e'], rows: [] }, /more than 4/],
+    [{ ...table, rows: Array.from({ length: 13 }, () => ['a', 'b', 'c']) }, /at most 12/],
+    [{ ...table, rows: [['20m', 'Good', 'x'.repeat(81)]] }, /cell 3/],
+    [{ ...table, rows: [['20m', 'Good', '<b>x</b>']] }, /./],
+    [{ ...table, html: 'x' }, /./]
+  ])('refuses an off-shape table (%#)', (value, message) => {
+    expect(() => validateCardAnswer(v2([value]))).toThrowError(message);
   });
 });

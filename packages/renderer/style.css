@@ -279,3 +279,20 @@ dialog.pins h2 { margin: 0 0 6px; }
 .station-editor h3 { margin: 22px 0 6px; font-size: 13px; }
 .station-editor .fields { margin-top: 10px; }
 .fill-from-grid { grid-column: 1 / -1; margin: -4px 0 4px; }
+.home-card-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
+.home-card-table th, .home-card-table td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.home-card-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+.home-card-table tbody th { font-weight: 600; white-space: nowrap; }
+.home-card-table td:last-child { color: var(--ink-muted); }
+/* The table follows its card's own width, not the window's (KI7MT,
+   2026-10-20): a card can be about 300 px wide, and three columns there wrap
+   the comment one word to a line. When the card is narrow, each row keeps its
+   band and status on one line and the comment drops to its own line beneath. */
+.home-card { container-type: inline-size; }
+.home-card-table th, .home-card-table td:not(:last-child) { white-space: nowrap; }
+@container (max-width: 420px) {
+  .home-card-table thead th:last-child { display: none; }
+  .home-card-table tbody tr { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
+  .home-card-table tbody th, .home-card-table tbody td { border-top: 0; padding: 0; }
+  .home-card-table tbody td:last-child { grid-column: 1 / -1; font-size: 12px; }
+}

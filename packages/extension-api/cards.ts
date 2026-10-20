@@ -11,7 +11,11 @@
 // extension written against version 1 must still draw when the core grows a
 // version 2, so a new shape is added beside these, never by changing them.
 
-export const CARD_DATA_VERSION = 1;
+// Version 2 added the table (KI7MT, 2026-10-20). The core draws both: data
+// written against version 1 has no table and is drawn as it always was, and a
+// table in data that says version 1 is refused, not guessed at.
+export const CARD_DATA_VERSION = 2;
+export const CARD_DATA_VERSIONS: readonly number[] = [1, 2];
 
 // Bounds on everything an extension can put on Home. A card is a glance, so
 // these are small; and bounded content is content the core can draw without
@@ -26,7 +30,10 @@ export const CARD_LIMITS = {
   title: 80,
   detail: 120,
   alert: 200,
-  reason: 160
+  reason: 160,
+  columns: 4,
+  rows: 12,
+  cell: 80
 } as const;
 
 export interface Figure {
@@ -46,7 +53,9 @@ export type Section =
   // A short list: spots, activations, nets.
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   // Something happening now: a geomagnetic storm, a radio blackout.
-  | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string };
+  | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
+  // Rows under named columns: the bands with their outlook. Version 2.
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] };
 
 export interface CardData {
   readonly version: number;
@@ -112,7 +121,7 @@ function realTime(value: string): boolean {
   return written.slice(0, 16) === value.slice(0, 16) && (value.length < 20 || written.slice(0, 19) === value.slice(0, 19));
 }
 
-function section(value: unknown, at: number): Section {
+function section(value: unknown, at: number, version: number): Section {
   const where = `Section ${at + 1}`;
   if (!isRecord(value)) throw new CardError(`${where} is not an object.`);
   if (value.shape === 'figures') {
@@ -159,7 +168,27 @@ function section(value: unknown, at: number): Section {
     }
     return { shape: 'alert', level: value.level, text: text(value.text, CARD_LIMITS.alert, `${where}'s text`) };
   }
-  throw new CardError(`${where} is not a figures, items or alert section.`);
+  if (value.shape === 'table') {
+    if (version < 2) throw new CardError(`${where} is a table, which card data version ${version} does not have.`);
+    only(value, ['shape', 'columns', 'rows'], where);
+    if (!Array.isArray(value.columns) || value.columns.length === 0 || value.columns.length > CARD_LIMITS.columns) {
+      throw new CardError(`${where} has no columns, or more than ${CARD_LIMITS.columns}.`);
+    }
+    const columns = each(value.columns, where, (column: unknown, i: number) =>
+      text(column, CARD_LIMITS.label, `${where}, column ${i + 1}`));
+    if (!Array.isArray(value.rows) || value.rows.length > CARD_LIMITS.rows) {
+      throw new CardError(`${where} has rows as something other than a list of at most ${CARD_LIMITS.rows}.`);
+    }
+    const rows = each(value.rows, where, (row: unknown, i: number) => {
+      const name = `${where}, row ${i + 1}`;
+      // A row is exactly as wide as the columns: a short or long one would
+      // put a value under the wrong heading.
+      if (!Array.isArray(row) || row.length !== columns.length) throw new CardError(`${name} does not have ${columns.length} cells.`);
+      return each(row, name, (cell: unknown, c: number) => text(cell, CARD_LIMITS.cell, `${name}, cell ${c + 1}`));
+    });
+    return { shape: 'table', columns, rows };
+  }
+  throw new CardError(`${where} is not a figures, items, alert or table section.`);
 }
 
 // The whole answer, checked before anything of it is drawn. Refused rather
@@ -175,9 +204,10 @@ export function validateCardAnswer(value: unknown): CardAnswer {
   const data = value.data;
   if (!isRecord(data)) throw new CardError('A card answer has no data.');
   only(data, ['version', 'observedAt', 'sections'], 'Card data');
-  if (data.version !== CARD_DATA_VERSION) {
-    throw new CardError(`Card data is version ${String(data.version)}; this core draws version ${CARD_DATA_VERSION}.`);
+  if (typeof data.version !== 'number' || !CARD_DATA_VERSIONS.includes(data.version)) {
+    throw new CardError(`Card data is version ${String(data.version)}; this core draws versions ${CARD_DATA_VERSIONS.join(' and ')}.`);
   }
+  const version = data.version;
   if (typeof data.observedAt !== 'string' || !ISO_UTC.some(pattern => pattern.test(data.observedAt as string)) || !realTime(data.observedAt)) {
     throw new CardError('Card data does not say, as an ISO 8601 UTC time, when it was observed.');
   }
@@ -186,6 +216,6 @@ export function validateCardAnswer(value: unknown): CardAnswer {
   }
   return {
     ok: true,
-    data: { version: CARD_DATA_VERSION, observedAt: data.observedAt, sections: each(data.sections, 'Card data', section) }
+    data: { version, observedAt: data.observedAt, sections: each(data.sections, 'Card data', (entry, i) => section(entry, i, version)) }
   };
 }

@@ -8,7 +8,8 @@ export interface Item { readonly title: string; readonly detail?: string }
 export type Section =
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
-  | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string };
+  | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] };
 
 export type CardShown =
   | { readonly state: 'waiting' }

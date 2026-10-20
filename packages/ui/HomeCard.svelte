@@ -39,6 +39,15 @@
             </div>
           {/each}
         </dl>
+      {:else if section.shape === 'table'}
+        <table class="home-card-table">
+          <thead><tr>{#each section.columns as column, c (c)}<th scope="col">{column}</th>{/each}</tr></thead>
+          <tbody>
+            {#each section.rows as row, r (r)}
+              <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td>{cell}</td>{/if}{/each}</tr>
+            {/each}
+          </tbody>
+        </table>
       {:else}
         <ul class="home-card-items">
           {#each section.items as item, i (i)}
