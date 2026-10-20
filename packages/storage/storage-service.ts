@@ -22,7 +22,7 @@ import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
 import { isPersonaName, type StationsView } from './station-contract.js';
 import {
-  deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation, setDefaultStation, viewStations,
+  deleteStation, draftFromPark, lookUpParks, parkLocations, parksIn, personaActivated, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -137,6 +137,15 @@ function applyActivation(persona: string): void {
     .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not applied'));
 }
 
+// The lists a station's references are checked against, where they are on
+// this computer (KI7MT, 2026-10-20).
+function referenceLists(): ReferenceLists {
+  const reader = reference?.reader();
+  return reader && referenceStatus?.pota.parks.state === 'loaded'
+    ? { parks: (references) => lookUpParks(reader, references), locations: (park) => parkLocations(reader, park) }
+    : {};
+}
+
 async function reloadStations(): Promise<void> {
   if (!state) return;
   stations = await viewStations(state, (await currentDefinitions()) !== 'not loaded');
@@ -149,7 +158,7 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
   if (!state) return { ok: false, error: 'Storage is not open yet.' };
   switch (command.type) {
     case 'save-station': {
-      const outcome = await saveStation(state, command.station, await currentDefinitions());
+      const outcome = await saveStation(state, command.station, await currentDefinitions(), new Date(), referenceLists());
       if (!outcome.ok) return { ok: false, error: 'The station was not saved.', problems: outcome.problems };
       await reloadStations();
       publish();
@@ -164,6 +173,13 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
     case 'set-active-station':
       if (!(await setActiveStation(state, command.id))) return { ok: false, error: 'That station no longer exists.' };
       break;
+    case 'look-up-parks': {
+      const lists = referenceLists();
+      if (!lists.parks) return { ok: true, status: status(), named: { checked: false, found: [] } };
+      return { ok: true, status: status(), named: { checked: true, found: await lists.parks(parksIn(command.references)) } };
+    }
+    case 'station-choices':
+      return { ok: true, status: status(), choices: stationChoices(await currentDefinitions(), command.entity, command.state) };
     case 'station-from-park': {
       const reader = reference?.reader();
       if (!reader || referenceStatus?.pota.parks.state !== 'loaded') {

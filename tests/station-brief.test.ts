@@ -23,6 +23,18 @@ describe('the active station for an extension', () => {
     expect(activeStationBrief(view({ MY_GRIDSQUARE: 'DN13' }))).toEqual({ name: 'Home', grid: 'DN13', latitude: 43.5, longitude: -117 });
   });
 
+  it('takes a station on a grid line as its grids, at the line', () => {
+    const brief = activeStationBrief(view({ MY_VUCC_GRIDS: 'DN13,DN14' }));
+    expect(brief?.grid).toBe('DN13,DN14');
+    expect(brief?.latitude).toBeCloseTo(44, 6);
+    expect(brief?.longitude).toBeCloseTo(-117, 6);
+  });
+
+  it('puts a grid pair across the date line on the date line', () => {
+    const brief = activeStationBrief(view({ MY_VUCC_GRIDS: 'RJ90,AJ00' }));
+    expect(Math.abs(brief!.longitude!)).toBeCloseTo(180, 6);
+  });
+
   it('is the name alone with no grid or position, and none with no station active', () => {
     expect(activeStationBrief(view({ MY_POTA_REF: 'US-0001' }))).toEqual({ name: 'Home' });
     expect(activeStationBrief(view({ MY_GRIDSQUARE: 'DN13' }, null))).toBeNull();

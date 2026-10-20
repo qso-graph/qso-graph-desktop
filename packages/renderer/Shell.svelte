@@ -23,7 +23,7 @@
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
-  import type { FieldProblem, ParkDraft, StationDraft } from '../storage/station-contract.js';
+  import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
 
   interface Props {
     store: ShellStore;
@@ -39,6 +39,8 @@
     onDeleteStation: (id: string) => Promise<string | undefined>;
     onSetActiveStation: (id: string | null) => Promise<string | undefined>;
     onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
+    onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
+    onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
@@ -56,7 +58,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -187,6 +189,8 @@
         onDelete={onDeleteStation}
         onSetActive={onSetActiveStation}
         onFromPark={onStationFromPark}
+        onChoices={onStationChoices}
+        onLookUpParks={onLookUpParks}
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>

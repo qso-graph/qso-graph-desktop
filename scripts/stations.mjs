@@ -108,24 +108,51 @@ try {
   // ---- P9-adif ---------------------------------------------------------
   await page.locator('#add-station').click();
   await page.locator('#station-name').fill('Home');
-  await field(page, 'MY_GRIDSQUARE').fill('DN13');
-  await field(page, 'MY_DXCC').fill('291');
-  await field(page, 'MY_STATE').fill('ID');
-  await field(page, 'MY_CQ_ZONE').fill('41');
+  // The entity, state and zones are picked from ADIF's own lists, which follow
+  // one another: Idaho is CQ 3 and ITU 6 in ADIF's subdivision list, so
+  // choosing it fills both (KI7MT, 2026-10-20).
+  await expect(field(page, 'MY_DXCC').locator('option[value="291"]')).toHaveCount(1, { timeout: 30_000 });
+  await field(page, 'MY_DXCC').selectOption('291');
+  await expect(field(page, 'MY_STATE').locator('option[value="ID"]')).toHaveCount(1, { timeout: 30_000 });
+  await field(page, 'MY_STATE').selectOption('ID');
+  await expect(field(page, 'MY_CQ_ZONE')).toHaveValue('3', { timeout: 30_000 });
+  await expect(field(page, 'MY_ITU_ZONE')).toHaveValue('6');
+  // The grid is typed, and one ADIF refuses is refused beside it.
+  await field(page, 'MY_GRIDSQUARE').fill('DN1');
   await field(page, 'MY_STREET').fill(STREET);
   await field(page, 'MY_CITY').fill(CITY);
   await field(page, 'MY_POSTAL_CODE').fill(POSTAL);
   await page.locator('#station-default').check();
   await page.locator('#save-station').click();
-  await expect(page.locator('#station-my-cq-zone-error')).toContainText('maximum of 40', { timeout: 30_000 });
-  await expect(field(page, 'MY_CQ_ZONE')).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#station-form-error')).toContainText('CQ zone: above ADIF\'s maximum of 40');
+  await expect(page.locator('#station-my-gridsquare-error')).toContainText('Maidenhead', { timeout: 30_000 });
+  await expect(field(page, 'MY_GRIDSQUARE')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#station-form-error')).toContainText('Grid:');
   expect((await status(page)).status.stations.list, 'nothing is saved while a value is refused').toEqual([]);
-  await field(page, 'MY_CQ_ZONE').fill('3');
+  // Decimal degrees are taken and kept in ADIF's form.
+  await field(page, 'MY_GRIDSQUARE').fill('DN13');
+  await field(page, 'MY_LAT').fill('43.625');
+  await field(page, 'MY_LON').fill('-116.2083');
   await page.locator('#save-station').click();
   await expect(row(page, 'Home')).toBeVisible({ timeout: 30_000 });
   await expect(row(page, 'Home')).toContainText('Default for');
-  console.log('P9-adif: a CQ zone of 41 was refused beside its field with ADIF\'s reason and nothing saved; corrected, the station saved: PASS');
+  const saved = (await status(page)).status.stations.list.find(station => station.name === 'Home');
+  expect(saved.place).toMatchObject({ MY_DXCC: '291', MY_STATE: 'ID', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
+    MY_GRIDSQUARE: 'DN13', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498' });
+  // Opening a station and saving it unchanged changes nothing: a station
+  // holding a 12-character locator and a grid-line list keeps both (found by
+  // Turing in review: the one Grid box shows one of them).
+  const both = { MY_GRIDSQUARE: 'DN13sm46', MY_GRIDSQUARE_EXT: 'ab12', MY_VUCC_GRIDS: 'DN13,DN14' };
+  expect(await page.evaluate(place => window.storage.request({ type: 'save-station', station: { name: 'Both grids', place } }), both))
+    .toMatchObject({ ok: true });
+  await row(page, 'Both grids').getByRole('button', { name: 'Edit Both grids' }).click();
+  await expect(page.locator('#station-name')).toHaveValue('Both grids');
+  await page.locator('#save-station').click();
+  await expect(page.locator('#station-name')).toHaveCount(0, { timeout: 30_000 });
+  expect((await status(page)).status.stations.list.find(station => station.name === 'Both grids').place).toEqual(both);
+  await row(page, 'Both grids').getByRole('button', { name: 'Delete Both grids' }).click();
+  await page.getByRole('button', { name: 'Delete station' }).click();
+  await expect(row(page, 'Both grids')).toHaveCount(0, { timeout: 30_000 });
+  console.log('P9-adif: entity, state and zones picked from ADIF\'s lists, Idaho\'s zones filled in; a grid ADIF refuses was refused beside its field and nothing saved; corrected, it saved with the position in ADIF\'s form: PASS');
 
   // ---- P9-active -------------------------------------------------------
   await page.locator('#add-station').click();

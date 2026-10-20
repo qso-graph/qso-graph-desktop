@@ -9,19 +9,9 @@
 //
 // Pure, so every case is a unit test.
 import type { StationBrief } from '../extension-api/api-contract.js';
-import type { StationsView } from '../storage/station-contract.js';
+import { fromAdifLocation, type StationsView } from '../storage/station-contract.js';
+export { fromAdifLocation } from '../storage/station-contract.js';
 
-// ADIF's Location, "XDDD MM.MMM", to signed decimal degrees.
-export function fromAdifLocation(value: string | undefined): number | undefined {
-  if (!value || value.length !== 11) return undefined;
-  const hemisphere = value[0].toUpperCase();
-  const degrees = Number(value.slice(1, 4));
-  const minutes = Number(value.slice(5));
-  if (!'NSEW'.includes(hemisphere) || !Number.isFinite(degrees) || !Number.isFinite(minutes) || minutes >= 60) return undefined;
-  const magnitude = degrees + minutes / 60;
-  if (magnitude > ((hemisphere === 'N' || hemisphere === 'S') ? 90 : 180)) return undefined;
-  return hemisphere === 'S' || hemisphere === 'W' ? -magnitude : magnitude;
-}
 
 // The centre of a 2, 4, 6 or 8 character Maidenhead locator. Undefined for
 // anything else: the grid was checked against ADIF's definition when it was
@@ -50,14 +40,35 @@ export function gridCentre(grid: string | undefined): { latitude: number; longit
   return { latitude: latitude + height / 2, longitude: longitude + width / 2 };
 }
 
+function positionOf(place: StationsView['list'][number]['place']): { latitude: number; longitude: number } | undefined {
+  if (place.MY_GRIDSQUARE) return gridCentre(place.MY_GRIDSQUARE);
+  const centres = (place.MY_VUCC_GRIDS ?? '').split(',').map(grid => gridCentre(grid.trim()));
+  if (centres.length === 0 || centres.some(centre => centre === undefined)) return undefined;
+  const known = centres as { latitude: number; longitude: number }[];
+  // Longitudes unwrapped against the first before they are averaged, so a
+  // pair across the date line (RJ90,AJ00) lands on it, not at Greenwich.
+  const first = known[0].longitude;
+  const unwrapped = known.map(centre => centre.longitude - 360 * Math.round((centre.longitude - first) / 360));
+  let longitude = unwrapped.reduce((sum, value) => sum + value, 0) / known.length;
+  if (longitude > 180) longitude -= 360;
+  if (longitude <= -180) longitude += 360;
+  return {
+    latitude: known.reduce((sum, centre) => sum + centre.latitude, 0) / known.length,
+    longitude
+  };
+}
+
 export function activeStationBrief(view: StationsView | undefined): StationBrief | null {
   if (!view || view.active === null) return null;
   const station = view.list.find(entry => entry.id === view.active);
   if (!station) return null;
-  const grid = station.place.MY_GRIDSQUARE;
+  // A station on a grid line or corner names its grids in MY_VUCC_GRIDS and
+  // has no single MY_GRIDSQUARE: its grid is that list, and its position the
+  // middle of their centres, which is the line or the corner itself.
+  const grid = station.place.MY_GRIDSQUARE ?? station.place.MY_VUCC_GRIDS;
   const latitude = fromAdifLocation(station.place.MY_LAT);
   const longitude = fromAdifLocation(station.place.MY_LON);
-  const position = latitude !== undefined && longitude !== undefined ? { latitude, longitude } : gridCentre(grid);
+  const position = latitude !== undefined && longitude !== undefined ? { latitude, longitude } : positionOf(station.place);
   return {
     name: station.name,
     ...(grid ? { grid } : {}),

@@ -16,7 +16,8 @@
   import PageLayout from '../../ui/PageLayout.svelte';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
-    STATION_KINDS, isLotwPark, type FieldProblem, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
+    STATION_KINDS, fromAdifLocation, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
+    type StationChoices, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
     type StationKind, type StationsView
   } from '../../storage/station-contract.js';
 
@@ -31,10 +32,79 @@
     onDelete: (id: string) => Promise<string | undefined>;
     onSetActive: (id: string | null) => Promise<string | undefined>;
     onFromPark: (reference: string) => Promise<ParkDraft | string>;
+    // ADIF's pick lists for an entity and state; undefined when they could
+    // not be read, and the fields are then typed.
+    onChoices?: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
+    // The parks a POTA reference names, from POTA's list where it is here.
+    onLookUpParks?: (references: string) => Promise<NamedReferences | undefined>;
   }
   const {
-    stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark
+    stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
+    onChoices = () => Promise.resolve(undefined),
+    onLookUpParks = () => Promise.resolve(undefined)
   }: Props = $props();
+
+  // ---- references checked against their lists (KI7MT, 2026-10-20) ---------
+  // One rule for every reference: checked against its list where the list is
+  // on this computer, and said so; otherwise checked for its form, and said
+  // so. POTA's is checked here as it is typed, and again when it is saved.
+  let parks = $state<NamedReferences | undefined>();
+  let parksAsked = 0;
+  async function lookUpParks() {
+    const mine = ++parksAsked;
+    const typed = (place.MY_POTA_REF ?? '').trim();
+    if (!typed || !/^[0-9A-Za-z@,\- ]{1,100}$/.test(typed)) { parks = undefined; return; }
+    const answer = await onLookUpParks(typed);
+    if (mine === parksAsked) parks = answer;
+  }
+  const parkNote = $derived.by(() => {
+    if (!parks || !(place.MY_POTA_REF ?? '').trim()) return '';
+    if (!parks.checked) return 'POTA\'s parks are not downloaded, so this is checked for its form only.';
+    return parks.found.map(park => `${park.code}: ${park.name}`).join(' · ');
+  });
+
+  // ---- pick lists (KI7MT, 2026-10-20) ------------------------------------
+  // DXCC entity, state, county where ADIF lists them, ARRL section and the
+  // zones are chosen, not typed: the lists are ADIF's own, from reference
+  // data, and follow the entity and state chosen. Where a list is empty the
+  // field is typed, as before.
+  let choices = $state<StationChoices | undefined>();
+  let asked = 0;
+  async function loadChoices() {
+    const mine = ++asked;
+    loadingChoices = true;
+    const entity = place.MY_DXCC && /^[0-9]{1,3}$/.test(place.MY_DXCC) ? place.MY_DXCC : null;
+    const state = entity && place.MY_STATE && /^[0-9A-Za-z-]{1,8}$/.test(place.MY_STATE) ? place.MY_STATE : null;
+    const answer = await onChoices(entity, state);
+    if (mine !== asked) return;
+    choices = answer;
+    loadingChoices = false;
+    // A state with one zone has that zone: filled in, never over a choice.
+    if (answer?.cqZones.length === 1 && !place.MY_CQ_ZONE) place.MY_CQ_ZONE = answer.cqZones[0].code;
+    if (answer?.ituZones.length === 1 && !place.MY_ITU_ZONE) place.MY_ITU_ZONE = answer.ituZones[0].code;
+  }
+  // The options for a field, with what the station already holds kept in the
+  // list even if ADIF's list no longer has it, so opening a station never
+  // loses a value. Undefined: the field is typed.
+  function optionsFor(field: StationField): Choice[] | undefined {
+    if (!choices) return undefined;
+    const list = field === 'MY_DXCC' ? choices.entities : field === 'MY_STATE' ? choices.states
+      : field === 'MY_CNTY' ? choices.counties : field === 'MY_ARRL_SECT' ? choices.sections
+      : field === 'MY_CQ_ZONE' ? choices.cqZones : field === 'MY_ITU_ZONE' ? choices.ituZones : undefined;
+    if (!list || list.length === 0) return undefined;
+    const held = place[field];
+    return held && !list.some(option => option.code === held) ? [{ code: held, name: held }, ...list] : list;
+  }
+  // Nothing chosen is cleared by choosing something else: a value that no
+  // longer fits is refused on save with ADIF's reason, never wiped unseen
+  // (found by Turing in review). The lists that follow are reloaded, and
+  // held still while they load, so a choice is never made from a stale one.
+  function pick(field: StationField, value: string) {
+    place[field] = value;
+    if (field === 'MY_DXCC' || field === 'MY_STATE') void loadChoices();
+  }
+  const DEPENDENT: StationField[] = ['MY_STATE', 'MY_CNTY', 'MY_ARRL_SECT', 'MY_CQ_ZONE', 'MY_ITU_ZONE'];
+  let loadingChoices = $state(false);
 
   // The fields, grouped as the operator thinks of them, each with the words
   // that say what ADIF wants. The order inside a group is TQSL's.
@@ -43,18 +113,19 @@
     {
       title: 'Where it is',
       fields: [
-        { field: 'MY_GRIDSQUARE', label: 'Grid square', hint: '2, 4, 6 or 8 characters, as DN13 or DN13sm.' },
-        { field: 'MY_VUCC_GRIDS', label: 'Grids, on a line or corner', hint: 'Two or four grids, as DN13,DN14.' },
-        { field: 'MY_DXCC', label: 'DXCC entity code', hint: 'ADIF\'s number for the entity: 291 is the United States.' },
-        { field: 'MY_STATE', label: 'State, province or prefecture', hint: 'ADIF\'s code for it in the entity above, as ID.' },
-        { field: 'MY_CNTY', label: 'County', hint: 'ADIF\'s form for the entity, as ID,Ada.' },
-        { field: 'MY_CQ_ZONE', label: 'CQ zone', hint: '1 to 40.' },
-        { field: 'MY_ITU_ZONE', label: 'ITU zone', hint: '1 to 90.' },
+        // One box for the grid, as an operator thinks of it (KI7MT,
+        // 2026-10-20). What is typed is filed under ADIF's own fields when it
+        // is saved: see gridFields below.
+        { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Your Maidenhead grid, as DN13 or DN13sm. On a grid line or corner, give them all: DN13,DN14.' },
+        { field: 'MY_DXCC', label: 'DXCC entity' },
+        { field: 'MY_STATE', label: 'State, province or prefecture', hint: 'The lists are ADIF\'s for the entity above.' },
+        { field: 'MY_CNTY', label: 'County', hint: 'In ADIF\'s form, state and county: ID,Ada.' },
+        { field: 'MY_CQ_ZONE', label: 'CQ zone', hint: 'The state\'s own zones where ADIF gives them.' },
+        { field: 'MY_ITU_ZONE', label: 'ITU zone' },
         { field: 'MY_ARRL_SECT', label: 'ARRL section' },
-        { field: 'MY_LAT', label: 'Latitude', hint: 'ADIF\'s form: N043 37.500.' },
-        { field: 'MY_LON', label: 'Longitude', hint: 'ADIF\'s form: W116 12.500.' },
-        { field: 'MY_ALTITUDE', label: 'Altitude', hint: 'Metres above sea level.' },
-        { field: 'MY_GRIDSQUARE_EXT', label: 'Grid square extension', hint: 'The 9th and 10th characters of a 10-character locator.' }
+        { field: 'MY_LAT', label: 'Latitude', hint: 'In degrees, as 43.625; south is negative. Leave it empty and the grid gives the position.' },
+        { field: 'MY_LON', label: 'Longitude', hint: 'In degrees, as -116.2083; west is negative.' },
+        { field: 'MY_ALTITUDE', label: 'Altitude', hint: 'Metres above sea level.' }
       ]
     },
     {
@@ -98,9 +169,31 @@
   const list = $derived(stations?.list ?? []);
   const active = $derived(stations?.active ?? null);
   const defaultId = $derived(personaName ? stations?.defaults[personaName] : undefined);
-  const problemOf = (field: string) => problems.find(problem => problem.field === field)?.reason;
+  // A refusal of any of the grid's fields is shown on the one Grid box.
+  const problemOf = (field: string) => problems.find(problem =>
+    problem.field === field || (field === 'MY_GRIDSQUARE' && GRID_FIELDS.includes(problem.field)))?.reason;
   const labelOf = (field: string) => field === 'name' ? 'Name' : field === 'lotwPark' ? 'LoTW park'
+    : GRID_FIELDS.includes(field) ? 'Grid'
     : GROUPS.flatMap(group => group.fields).find(info => info.field === field)?.label ?? field;
+
+  // The one Grid box, filed under the field ADIF defines for it: two or four
+  // grids on a line or corner are MY_VUCC_GRIDS; a 10-character locator is
+  // MY_GRIDSQUARE's 8 and MY_GRIDSQUARE_EXT's last 2; anything else is
+  // MY_GRIDSQUARE. Nothing is corrected: whatever is typed is ADIF's to accept
+  // or refuse, and a refusal is shown on the Grid box.
+  const GRID_FIELDS = ['MY_GRIDSQUARE', 'MY_GRIDSQUARE_EXT', 'MY_VUCC_GRIDS'];
+  let gridShown = '';
+  let gridStored: Place = {};
+  function gridFields(typed: string): Place {
+    if (!typed.trim()) return {};
+    if (typed.includes(',')) return { MY_VUCC_GRIDS: typed };
+    // A 10- or 12-character locator: ADIF's grid holds 8, its extension the rest.
+    if (typed.length === 10 || typed.length === 12) return { MY_GRIDSQUARE: typed.slice(0, 8), MY_GRIDSQUARE_EXT: typed.slice(8) };
+    return { MY_GRIDSQUARE: typed };
+  }
+  function gridOf(stored: Place | undefined): string {
+    return stored?.MY_VUCC_GRIDS ?? `${stored?.MY_GRIDSQUARE ?? ''}${stored?.MY_GRIDSQUARE_EXT ?? ''}`;
+  }
 
   function open(draft?: StationDraft, withNote = '') {
     editing = true;
@@ -109,10 +202,26 @@
     kind = draft?.kind ?? '';
     lotwPark = draft?.lotwPark ?? '';
     place = { ...(draft?.place ?? {}) };
+    for (const field of GRID_FIELDS) delete place[field];
+    const grid = gridOf(draft?.place);
+    if (grid) place.MY_GRIDSQUARE = grid;
+    // What the Grid box showed, and the fields it came from: saved back as
+    // they were unless the box is changed, so opening and saving a station
+    // never rewrites its grid (found by Turing in review).
+    gridShown = grid;
+    gridStored = Object.fromEntries(GRID_FIELDS.flatMap(field => draft?.place[field as StationField] ? [[field, draft.place[field as StationField]]] : []));
+    // Shown in degrees; kept in ADIF's form (typedLocation, when saved).
+    for (const field of ['MY_LAT', 'MY_LON'] as const) {
+      const degrees = fromAdifLocation(place[field]);
+      if (degrees !== undefined) place[field] = String(Math.round(degrees * 1e5) / 1e5);
+    }
+    parks = undefined;
+    void lookUpParks();
     makeDefault = draft?.id !== undefined && draft.id === defaultId;
     problems = [];
     formError = '';
     note = withNote;
+    void loadChoices();
   }
 
   function close() {
@@ -128,7 +237,10 @@
     // page's to tidy into one it accepts (QGD-STN-0002); only a field left
     // empty, or holding nothing but spaces, is left out.
     for (const [field, value] of Object.entries(place)) {
-      if (value.trim()) filled[field as StationField] = value;
+      if (field === 'MY_GRIDSQUARE') Object.assign(filled, value === gridShown ? gridStored : gridFields(value));
+      else if ((field === 'MY_LAT' || field === 'MY_LON') && value.trim()) {
+        filled[field] = typedLocation(value, field === 'MY_LAT' ? 'lat' : 'lon') ?? value;
+      } else if (value.trim()) filled[field as StationField] = value;
     }
     return {
       ...(editingId ? { id: editingId } : {}),
@@ -145,6 +257,12 @@
     // refused whole at the boundary, and would say less (QGD-SEC-0006).
     const own: FieldProblem[] = [];
     if (name.trim() === '') own.push({ field: 'name', reason: 'A station needs a name.' });
+    for (const [field, axis, example] of [['MY_LAT', 'lat', '43.625'], ['MY_LON', 'lon', '-116.2083']] as const) {
+      const typed = (place[field] ?? '').trim();
+      if (typed && typedLocation(typed, axis) === undefined) {
+        own.push({ field, reason: `A ${axis === 'lat' ? 'latitude' : 'longitude'} in degrees, as ${example}.` });
+      }
+    }
     if (lotwPark.trim() && !isLotwPark(lotwPark.trim().toUpperCase())) {
       own.push({ field: 'lotwPark', reason: 'TQSL\'s park codes are two letters and two digits, as NP33, separated by commas.' });
     }
@@ -184,7 +302,7 @@
   // One line saying where it is: what an operator reads to tell two apart.
   function summary(station: Station): string {
     const parts = [
-      station.place.MY_GRIDSQUARE, station.place.MY_STATE, station.place.MY_POTA_REF, station.place.MY_SOTA_REF
+      gridOf(station.place), station.place.MY_STATE, station.place.MY_POTA_REF, station.place.MY_SOTA_REF
     ].filter(Boolean);
     return parts.length ? parts.join(' · ') : 'No place given yet';
   }
@@ -283,14 +401,29 @@
           {#each group.fields as info (info.field)}
             {@const id = `station-${info.field.toLowerCase().replaceAll('_', '-')}`}
             {@const error = problemOf(info.field)}
+            {@const options = optionsFor(info.field)}
             <div>
               <label for={id}>{info.label}</label>
-              <input {id} type="text" maxlength="100" autocomplete="off"
-                value={place[info.field] ?? ''}
-                oninput={(event) => { place[info.field] = (event.currentTarget as HTMLInputElement).value; }}
-                aria-describedby={[info.hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined}
-                aria-invalid={error ? true : undefined} />
+              {#if options}
+                <select {id} value={place[info.field] ?? ''} disabled={loadingChoices && DEPENDENT.includes(info.field)}
+                  onchange={(event) => { pick(info.field, (event.currentTarget as HTMLSelectElement).value); }}
+                  aria-describedby={[info.hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined}
+                  aria-invalid={error ? true : undefined}>
+                  <option value="">Not given</option>
+                  {#each options as option (option.code)}
+                    <option value={option.code}>{option.code === option.name ? option.name : `${option.name} (${option.code})`}</option>
+                  {/each}
+                </select>
+              {:else}
+                <input {id} type="text" maxlength="100" autocomplete="off"
+                  value={place[info.field] ?? ''}
+                  oninput={(event) => { place[info.field] = (event.currentTarget as HTMLInputElement).value; }}
+                  onchange={() => { if (info.field === 'MY_POTA_REF') void lookUpParks(); }}
+                  aria-describedby={[info.hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined}
+                  aria-invalid={error ? true : undefined} />
+              {/if}
               {#if info.hint}<p id="{id}-hint" class="hint">{info.hint}</p>{/if}
+              {#if info.field === 'MY_POTA_REF' && parkNote}<p id="station-park-names" class="hint" role="status">{parkNote}</p>{/if}
               {#if error}<p id="{id}-error" class="field-error" role="status">{error}</p>{/if}
             </div>
           {/each}

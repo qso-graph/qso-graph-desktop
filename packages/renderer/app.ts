@@ -6,7 +6,7 @@ import type {
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
-import type { FieldProblem, ParkDraft, StationDraft } from '../storage/station-contract.js';
+import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
 import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
 import { mount } from 'svelte';
@@ -59,7 +59,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
@@ -688,4 +688,16 @@ export async function stationFromPark(reference: string): Promise<ParkDraft | st
   const reply = await stationRequest({ type: 'station-from-park', reference });
   if (!reply.ok) return reply.error;
   return reply.park ?? 'The park could not be read.';
+}
+
+// ADIF's pick lists for the station editor, for an entity and a state.
+export async function stationChoices(entity: string | null, state: string | null): Promise<StationChoices | undefined> {
+  const reply = await stationRequest({ type: 'station-choices', entity, state });
+  return reply.ok ? reply.choices : undefined;
+}
+
+// The names of the parks a POTA reference names, from POTA's list.
+export async function lookUpParks(references: string): Promise<NamedReferences | undefined> {
+  const reply = await stationRequest({ type: 'look-up-parks', references });
+  return reply.ok ? reply.named : undefined;
 }

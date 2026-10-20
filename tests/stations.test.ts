@@ -10,13 +10,14 @@ import { definitionsOf } from '../packages/reference/adif.js';
 import { rulesetOf, type Ruleset } from '../packages/reference/validate.js';
 import { layout, openState } from '../packages/storage/layout.js';
 import { potaPark, referenceSchema } from '../packages/storage/reference-schema.js';
+import { validateStorageCommand } from '../packages/storage/storage-contract.js';
 import { openStore } from '../packages/storage/sqlite.js';
 import {
-  ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
+  ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
   adifLocation, checkStation, deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation,
-  setDefaultStation, viewStations
+  setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
 } from '../packages/storage/stations.js';
 
 const MIGRATIONS = resolve('drizzle/state');
@@ -39,13 +40,25 @@ describe('P9-adif: values are ADIF\'s, checked against its definitions (QGD-STN-
   it('takes a valid value in every field, at the bounds', () => {
     const place = {
       MY_GRIDSQUARE: 'DN13sm46', MY_GRIDSQUARE_EXT: 'ab', MY_VUCC_GRIDS: 'DN13,DN14', MY_LAT: 'N043 37.500',
-      MY_LON: 'W116 12.500', MY_ALTITUDE: '824', MY_DXCC: '291', MY_CQ_ZONE: '40', MY_ITU_ZONE: '90',
+      MY_LON: 'W116 12.500', MY_ALTITUDE: '824', MY_DXCC: '291', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
       MY_STATE: 'ID', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID', MY_POTA_REF: 'US-0001', MY_SOTA_REF: 'W7I/SI-001',
       MY_WWFF_REF: 'KFF-0001', MY_IOTA: 'NA-001', MY_STREET: '1 Main', MY_CITY: 'Boise', MY_POSTAL_CODE: '83702'
     };
     expect(Object.keys(place).sort()).toEqual([...STATION_FIELDS].sort());
     expect(checkStation(draft(place), ruleset).problems).toEqual([]);
     expect(checkStation(draft({ MY_GRIDSQUARE: 'DN', MY_CQ_ZONE: '1', MY_ITU_ZONE: '1' }), ruleset).problems).toEqual([]);
+    expect(checkStation(draft({ MY_CQ_ZONE: '40', MY_ITU_ZONE: '90' }), ruleset).problems).toEqual([]);
+  });
+
+  it('refuses a zone that is not the state\'s own where ADIF lists the state\'s zones', () => {
+    const problems = checkStation(draft({ MY_DXCC: '291', MY_STATE: 'ID', MY_CQ_ZONE: '40', MY_ITU_ZONE: '90' }), ruleset).problems;
+    expect(problems).toEqual([
+      { field: 'MY_CQ_ZONE', reason: "Idaho is in CQ zone 3 in ADIF's list" },
+      { field: 'MY_ITU_ZONE', reason: "Idaho is in ITU zone 6 in ADIF's list" }
+    ]);
+    // Québec spans two: either is right.
+    expect(checkStation(draft({ MY_DXCC: '1', MY_STATE: 'QC', MY_CQ_ZONE: '2' }), ruleset).problems).toEqual([]);
+    expect(checkStation(draft({ MY_DXCC: '1', MY_STATE: 'QC', MY_CQ_ZONE: '5' }), ruleset).problems).toEqual([]);
   });
 
   it.each([
@@ -351,5 +364,119 @@ describe('P9-contract: off-shape stations are refused at the boundary (QGD-SEC-0
     [{ name: 'x', place: {}, lotwPark: 'NP33,' }]
   ])('refuses %j', (value) => {
     expect(isStationDraft(value)).toBe(false);
+  });
+});
+
+describe('the editor\'s pick lists are ADIF\'s own (QGD-STN-0002, KI7MT 2026-10-20)', () => {
+  it('lists the DXCC entities ADIF has not deleted, without "no entity"', () => {
+    const { entities } = stationChoices(ruleset, null);
+    expect(entities.length).toBeGreaterThan(300);
+    expect(entities.find(entry => entry.code === '291')?.name).toMatch(/UNITED STATES/);
+    expect(entities.some(entry => entry.code === '0')).toBe(false);
+  });
+
+  it('follows the entity for states, sections and counties', () => {
+    const us = stationChoices(ruleset, '291');
+    expect(us.states.find(entry => entry.code === 'ID')?.name).toBe('Idaho');
+    expect(us.states.some(entry => entry.code === 'ON')).toBe(false);
+    expect(us.sections.some(entry => entry.code === 'ID')).toBe(true);
+    // ADIF lists counties only for Alaska; the US's are not ADIF's to give.
+    expect(us.counties).toEqual([]);
+    expect(stationChoices(ruleset, '6').counties.length).toBeGreaterThan(20);
+    expect(stationChoices(ruleset, '1').states.some(entry => entry.code === 'ON')).toBe(true);
+  });
+
+  it('narrows the zones to the state\'s own, and otherwise offers ADIF\'s whole range', () => {
+    const idaho = stationChoices(ruleset, '291', 'ID');
+    expect(idaho.cqZones).toEqual([{ code: '3', name: '3' }]);
+    expect(idaho.ituZones).toEqual([{ code: '6', name: '6' }]);
+    const quebec = stationChoices(ruleset, '1', 'QC');
+    expect(quebec.cqZones.map(zone => zone.code)).toEqual(['2', '5']);
+    const anywhere = stationChoices(ruleset, null);
+    expect(anywhere.cqZones.map(zone => zone.code)).toEqual(Array.from({ length: 40 }, (_, at) => String(at + 1)));
+    expect(anywhere.ituZones).toHaveLength(90);
+  });
+
+  it('offers nothing to pick from without the definitions', () => {
+    expect(stationChoices('not loaded', '291', 'ID')).toEqual({ entities: [], states: [], sections: [], counties: [], cqZones: [], ituZones: [] });
+  });
+
+  it('takes the command with exactly an entity and a state, each well formed or none', () => {
+    expect(validateStorageCommand({ type: 'station-choices', entity: '291', state: 'ID' })).toBe(true);
+    expect(validateStorageCommand({ type: 'station-choices', entity: null, state: null })).toBe(true);
+    for (const bad of [{ type: 'station-choices', entity: '291' }, { type: 'station-choices', entity: 'US', state: null },
+      { type: 'station-choices', entity: '291', state: 'I D;' }, { type: 'station-choices', entity: null, state: null, more: 1 }]) {
+      expect(validateStorageCommand(bad)).toBe(false);
+    }
+  });
+});
+
+describe('references are checked against their lists where the list is here (KI7MT 2026-10-20)', () => {
+  const lists = {
+    parks: async (wanted: string[]) => wanted.filter(code => code === 'US-0001').map(code => ({ code, name: 'Example Park' })),
+    locations: async (park: string) => (park === 'US-0001' ? ['US-ID', 'US-WY'] : [])
+  };
+
+  it('refuses a location after "@" that POTA does not list for the park', async () => {
+    const state = await open();
+    try {
+      const wrong = await saveStation(state, draft({ MY_POTA_REF: 'US-0001@US-CA' }), ruleset, new Date(), lists);
+      expect(wrong).toEqual({ ok: false, problems: [{ field: 'MY_POTA_REF', reason: 'POTA lists US-0001 in US-ID and US-WY, not US-CA.' }] });
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001@US-WY' }), ruleset, new Date(), lists)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('refuses a well-formed park POTA\'s list does not have, naming it, and takes one it has', async () => {
+    const state = await open();
+    try {
+      const missing = await saveStation(state, draft({ MY_POTA_REF: 'US-0001,US-9999' }), ruleset, new Date(), lists);
+      expect(missing).toEqual({ ok: false, problems: [{ field: 'MY_POTA_REF', reason: 'POTA\'s park list has no park US-9999.' }] });
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001@US-ID' }), ruleset, new Date(), lists)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('gives a malformed park ADIF\'s reason, not the list\'s, and checks the form only without the list', async () => {
+    const state = await open();
+    try {
+      const malformed = await saveStation(state, draft({ MY_POTA_REF: 'K0001' }), ruleset, new Date(), lists);
+      expect(malformed.ok).toBe(false);
+      if (!malformed.ok) expect(malformed.problems[0].reason).not.toMatch(/park list/);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-9999' }, { name: 'No list' }), ruleset)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('reads a park field as its parks, without the location within one', () => {
+    expect(parksIn('us-0001@US-ID, US-0002')).toEqual(['US-0001', 'US-0002']);
+    expect(parksIn(undefined)).toEqual([]);
+  });
+
+  it('looks parks up in POTA\'s list with their names', async () => {
+    const store = openStore(join(root, 'reference.sqlite'), { schema: referenceSchema });
+    try {
+      for (const statement of readFileSync('drizzle/reference/0000_reference.sql', 'utf8').split('--> statement-breakpoint')) store.connection.exec(statement);
+      await store.unit(db => db.insert(potaPark).values({ reference: 'US-0001', name: 'Example Park', active: true, entityId: 291,
+        adifEntity: 291, locationDesc: 'US-ID', latitude: 43.6, longitude: -116.2, grid: 'DN13sp', coordinatesUsable: true, coordinatesNote: null }).run());
+      expect(await lookUpParks(store, ['US-0001', 'US-9999'])).toEqual([{ code: 'US-0001', name: 'Example Park' }]);
+    } finally { store.close(); }
+  });
+
+  it('takes the look-up command with a plain reference text only', () => {
+    expect(validateStorageCommand({ type: 'look-up-parks', references: 'US-0001@US-ID,US-0002' })).toBe(true);
+    for (const bad of ['', 'US-0001<b>', 'x'.repeat(101)]) {
+      expect(validateStorageCommand({ type: 'look-up-parks', references: bad })).toBe(false);
+    }
+  });
+});
+
+describe('latitude and longitude in degrees, kept in ADIF\'s form', () => {
+  it.each([
+    ['43.625', 'lat', 'N043 37.500'], ['-116.2083', 'lon', 'W116 12.498'], ['-33.8688', 'lat', 'S033 52.128'],
+    ['0', 'lon', 'E000 00.000'], ['n043 37.500', 'lat', 'N043 37.500']
+  ] as const)('%s as a %s is %s', (typed, axis, adif) => {
+    expect(typedLocation(typed, axis)).toBe(adif);
+  });
+
+  it.each([['91', 'lat'], ['181', 'lon'], ['43,6', 'lat'], ['W116 12.500', 'lat'], ['north', 'lat']] as const)('refuses %s as a %s', (typed, axis) => {
+    expect(typedLocation(typed, axis)).toBeUndefined();
   });
 });

@@ -12,8 +12,8 @@
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
 import {
-  isFieldProblems, isParkDraft, isPersonaName, isPotaReference, isStationDraft, isStationId, isStationsView,
-  type FieldProblem, type ParkDraft, type StationDraft, type StationsView
+  isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isPersonaName, isPotaReference, isStationChoices, isStationDraft,
+  isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
 } from './station-contract.js';
 
 export const STORAGE_STATES = ['starting', 'ready', 'failed', 'unavailable'] as const;
@@ -87,12 +87,16 @@ export type StorageCommand =
   | { type: 'delete-station'; id: string }
   | { type: 'set-default-station'; persona: string; id: string | null }
   | { type: 'set-active-station'; id: string | null }
-  | { type: 'station-from-park'; reference: string };
+  | { type: 'station-from-park'; reference: string }
+  // The editor's pick lists, for an entity or for none.
+  | { type: 'station-choices'; entity: string | null; state: string | null }
+  // The names of the parks a MY_POTA_REF value names, from POTA's list.
+  | { type: 'look-up-parks'; references: string };
 
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
@@ -159,7 +163,9 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
 export function isStorageReply(value: unknown): value is StorageReply {
   if (!record(value)) return false;
   if (value.ok === true) {
-    return only(value, ['ok', 'status', 'saved', 'park']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named']) && isStorageStatus(value.status)
+      && (value.named === undefined || isNamedReferences(value.named))
+      && (value.choices === undefined || isStationChoices(value.choices))
       && (value.saved === undefined || isStationId(value.saved))
       && (value.park === undefined || isParkDraft(value.park));
   }
@@ -187,6 +193,12 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
       return exactly(['type', 'persona', 'id']) && isPersonaName(value.persona) && (value.id === null || isStationId(value.id));
     case 'set-active-station': return exactly(['type', 'id']) && (value.id === null || isStationId(value.id));
     case 'station-from-park': return exactly(['type', 'reference']) && isPotaReference(value.reference);
+    case 'look-up-parks':
+      return exactly(['type', 'references']) && typeof value.references === 'string' && value.references.length > 0
+        && value.references.length <= 100 && /^[0-9A-Za-z@,\- ]+$/.test(value.references);
+    case 'station-choices':
+      return exactly(['type', 'entity', 'state']) && (value.entity === null || isEntityCode(value.entity))
+        && (value.state === null || isSubdivisionCode(value.state));
     default: return false;
   }
 }

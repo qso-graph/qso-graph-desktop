@@ -69,6 +69,29 @@ export interface ParkDraft {
   note?: string;
 }
 
+// What the editor's pick lists offer, from ADIF's own enumerations: the code
+// a station stores and the name ADIF gives it, as ADIF writes it.
+export interface Choice {
+  code: string;
+  name: string;
+}
+
+export interface StationChoices {
+  // Every DXCC entity ADIF has not deleted.
+  entities: Choice[];
+  // The entity's primary subdivisions, ARRL sections and secondary
+  // subdivisions, where ADIF lists them; empty where it lists none.
+  states: Choice[];
+  sections: Choice[];
+  counties: Choice[];
+  // The zones a station may be in: the chosen state's own, where ADIF gives
+  // them, otherwise ADIF's whole range for the field (CQ 1–40, ITU 1–90).
+  cqZones: Choice[];
+  ituZones: Choice[];
+}
+
+export const MAX_CHOICES = 2000;
+
 export const MAX_STATIONS = 500;
 export const MAX_NAME = 64;
 export const MAX_VALUE = 100;
@@ -163,4 +186,78 @@ export function isFieldProblems(value: unknown): value is FieldProblem[] {
 export function isParkDraft(value: unknown): value is ParkDraft {
   return record(value) && only(value, ['draft', 'note']) && isStationDraft(value.draft)
     && (value.note === undefined || text(value.note, 300));
+}
+
+function isChoices(value: unknown): value is Choice[] {
+  return Array.isArray(value) && value.length <= MAX_CHOICES && value.every(entry =>
+    record(entry) && only(entry, ['code', 'name']) && text(entry.code, 64) && entry.code.length > 0 && text(entry.name, 200));
+}
+
+export function isStationChoices(value: unknown): value is StationChoices {
+  return record(value) && only(value, ['entities', 'states', 'sections', 'counties', 'cqZones', 'ituZones'])
+    && isChoices(value.entities) && isChoices(value.states) && isChoices(value.sections) && isChoices(value.counties)
+    && isChoices(value.cqZones) && isChoices(value.ituZones);
+}
+
+// A DXCC entity code as ADIF writes it: a whole number.
+export function isEntityCode(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9]{1,3}$/.test(value);
+}
+
+// A primary subdivision's code as ADIF writes it: short and plain.
+export function isSubdivisionCode(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9A-Za-z-]{1,8}$/.test(value);
+}
+
+// ---- latitude and longitude ----------------------------------------------
+// ADIF writes a position as "XDDD MM.MMM", hemisphere first, which nobody
+// types. The editor takes decimal degrees and the station keeps ADIF's form.
+
+// ADIF's Location: "XDDD MM.MMM", hemisphere first.
+export function adifLocation(degrees: number, axis: 'lat' | 'lon'): string | undefined {
+  if (!Number.isFinite(degrees) || Math.abs(degrees) > (axis === 'lat' ? 90 : 180)) return undefined;
+  const hemisphere = axis === 'lat' ? (degrees < 0 ? 'S' : 'N') : (degrees < 0 ? 'W' : 'E');
+  const whole = Math.abs(degrees);
+  let degreePart = Math.floor(whole);
+  let minutes = Math.round((whole - degreePart) * 60 * 1000) / 1000;
+  if (minutes >= 60) { degreePart += 1; minutes = 0; }
+  return `${hemisphere}${String(degreePart).padStart(3, '0')} ${minutes.toFixed(3).padStart(6, '0')}`;
+}
+
+// ADIF's Location, "XDDD MM.MMM", to signed decimal degrees.
+export function fromAdifLocation(value: string | undefined): number | undefined {
+  if (!value || value.length !== 11) return undefined;
+  const hemisphere = value[0].toUpperCase();
+  const degrees = Number(value.slice(1, 4));
+  const minutes = Number(value.slice(5));
+  if (!'NSEW'.includes(hemisphere) || !Number.isFinite(degrees) || !Number.isFinite(minutes) || minutes >= 60) return undefined;
+  const magnitude = degrees + minutes / 60;
+  if (magnitude > ((hemisphere === 'N' || hemisphere === 'S') ? 90 : 180)) return undefined;
+  return hemisphere === 'S' || hemisphere === 'W' ? -magnitude : magnitude;
+}
+
+// What an operator types for a latitude or longitude: decimal degrees, as
+// 43.625 or -116.2083, or ADIF's own form. Undefined: neither.
+export function typedLocation(value: string, axis: 'lat' | 'lon'): string | undefined {
+  const typed = value.trim();
+  if (fromAdifLocation(typed) !== undefined) {
+    const hemisphere = typed[0].toUpperCase();
+    return (axis === 'lat') === (hemisphere === 'N' || hemisphere === 'S') ? typed.toUpperCase() : undefined;
+  }
+  const [whole, fraction, ...rest] = typed.replace(/^[+-]/, '').split('.');
+  if (rest.length > 0 || !/^[0-9]{1,3}$/.test(whole) || (fraction !== undefined && !/^[0-9]{1,8}$/.test(fraction))) return undefined;
+  return adifLocation(Number(typed), axis);
+}
+
+// What the editor shows beside a reference: whether its list was there to
+// check against, and the entries found in it, with their names.
+export interface NamedReferences {
+  checked: boolean;
+  found: Choice[];
+}
+
+export function isNamedReferences(value: unknown): value is NamedReferences {
+  return record(value) && only(value, ['checked', 'found']) && typeof value.checked === 'boolean'
+    && Array.isArray(value.found) && value.found.length <= 16 && value.found.every(entry =>
+      record(entry) && only(entry, ['code', 'name']) && text(entry.code, 64) && text(entry.name, 200));
 }

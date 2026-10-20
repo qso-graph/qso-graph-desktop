@@ -9,13 +9,15 @@
 import { randomUUID } from 'node:crypto';
 import { asc, eq } from 'drizzle-orm';
 import { validateRecord, type Ruleset } from '../reference/validate.js';
-import { potaPark, type referenceSchema } from './reference-schema.js';
+import { potaPark, potaParkLocation, type referenceSchema } from './reference-schema.js';
 import { ACTIVE_STATION_ID, activeStation, station, stationDefault, type stateSchema } from './schema.js';
 import type { Store } from './sqlite.js';
 import {
-  MAX_STATIONS, STATION_FIELDS, isStation, type FieldProblem, type ParkDraft, type Place, type Station, type StationDraft,
+  MAX_STATIONS, STATION_FIELDS, isStation, type Choice, type FieldProblem, type StationChoices, type ParkDraft, type Place, type Station, type StationDraft,
   type StationsView
 } from './station-contract.js';
+export { adifLocation } from './station-contract.js';
+import { adifLocation } from './station-contract.js';
 
 export type Definitions = Ruleset | 'not loaded';
 
@@ -39,6 +41,22 @@ export function checkStation(draft: StationDraft, definitions: Definitions): Che
   for (const result of validateRecord(definitions, { tags })) {
     if (result.verdict === 'invalid') {
       problems.push({ field: result.field, reason: result.reason ?? 'ADIF does not allow this value.' });
+    }
+  }
+  // A zone must be one of the state's own where ADIF lists the state's
+  // zones: Idaho is CQ 3 and ITU 6 in ADIF's subdivision list, so Idaho in
+  // CQ 40 is refused (KI7MT, 2026-10-20: what can be checked must be right).
+  const { MY_DXCC: entity, MY_STATE: state } = draft.place;
+  if (entity && state) {
+    const choices = stationChoices(definitions, entity, state);
+    const named = choices.states.find(choice => choice.code.toUpperCase() === state.toUpperCase());
+    for (const [field, column] of [['MY_CQ_ZONE', 'CQ'], ['MY_ITU_ZONE', 'ITU']] as const) {
+      const value = draft.place[field];
+      if (!named || value === undefined || problems.some(problem => problem.field === field)) continue;
+      const listed = subdivisionZones(definitions, entity, state, column === 'CQ' ? 'CQ Zone' : 'ITU Zone');
+      if (listed.length > 0 && !listed.includes(String(Number(value)))) {
+        problems.push({ field, reason: `${named.name} is in ${column} zone ${listed.join(' or ')} in ADIF's list` });
+      }
     }
   }
   return { problems, checked: true };
@@ -73,10 +91,74 @@ export async function viewStations(state: StateStore, checked: boolean): Promise
 
 export type SaveOutcome = { ok: true; id: string } | { ok: false; problems: FieldProblem[] };
 
+// The parks a MY_POTA_REF names, as references alone: "US-0001@US-ID,US-0002"
+// is US-0001 and US-0002 (the "@" part is the location within a park ADIF
+// allows, not another park).
+export function parksIn(value: string | undefined): string[] {
+  return entriesIn(value).map(entry => entry.park);
+}
+
+// Each park with the location it names after "@", if any.
+export function entriesIn(value: string | undefined): { park: string; location?: string }[] {
+  if (!value) return [];
+  return value.split(',').map(entry => entry.trim()).filter(Boolean).map(entry => {
+    const [park, location] = entry.split('@');
+    return { park: park.toUpperCase(), ...(location ? { location: location.toUpperCase() } : {}) };
+  });
+}
+
+// The locations POTA lists for a park (US-ID; more than one where a park
+// crosses a border).
+export async function parkLocations(reference: Store<typeof referenceSchema>, park: string): Promise<string[]> {
+  const rows = await reference.unit(async (db) =>
+    db.select({ location: potaParkLocation.locationDesc }).from(potaParkLocation).where(eq(potaParkLocation.reference, park)).all());
+  return rows.map(row => row.location.toUpperCase());
+}
+
+// The parks POTA's list has for those references, with their names.
+export async function lookUpParks(reference: Store<typeof referenceSchema>, references: string[]): Promise<Choice[]> {
+  const found: Choice[] = [];
+  for (const wanted of references.slice(0, 16)) {
+    const park = await reference.unit(async (db) =>
+      db.select({ reference: potaPark.reference, name: potaPark.name }).from(potaPark).where(eq(potaPark.reference, wanted)).get());
+    if (park) found.push({ code: park.reference, name: park.name });
+  }
+  return found;
+}
+
+// How a station's references are checked against their lists where the list
+// is on this computer (KI7MT, 2026-10-20): undefined where it is not, and the
+// reference is then checked for its form only.
+export interface ReferenceLists {
+  parks?: (references: string[]) => Promise<Choice[]>;
+  // The locations POTA lists for a park, for the "@" part of a reference.
+  locations?: (park: string) => Promise<string[]>;
+}
+
 export async function saveStation(
-  state: StateStore, draft: StationDraft, definitions: Definitions, now = new Date()
+  state: StateStore, draft: StationDraft, definitions: Definitions, now = new Date(), lists: ReferenceLists = {}
 ): Promise<SaveOutcome> {
   const { problems } = checkStation(draft, definitions);
+  // A park that is well formed and is not in POTA's list is refused, naming
+  // it. Only once its form has passed: a malformed one has ADIF's reason.
+  const wanted = parksIn(draft.place.MY_POTA_REF);
+  if (lists.parks && wanted.length > 0 && !problems.some(problem => problem.field === 'MY_POTA_REF')) {
+    const known = new Set((await lists.parks(wanted)).map(park => park.code));
+    const missing = wanted.filter(park => !known.has(park));
+    if (missing.length > 0) {
+      problems.push({ field: 'MY_POTA_REF', reason: `POTA's park list has no park ${missing.join(' or ')}.` });
+    } else if (lists.locations) {
+      // A location named after "@" must be one POTA lists for that park.
+      for (const entry of entriesIn(draft.place.MY_POTA_REF)) {
+        if (!entry.location) continue;
+        const listed = await lists.locations(entry.park);
+        if (!listed.includes(entry.location)) {
+          problems.push({ field: 'MY_POTA_REF', reason: `POTA lists ${entry.park} in ${listed.join(' and ') || 'no location'}, not ${entry.location}.` });
+          break;
+        }
+      }
+    }
+  }
   if (problems.length > 0) return { ok: false, problems };
   const name = draft.name.trim();
   return state.unit(async (db) => {
@@ -158,16 +240,6 @@ export async function personaActivated(state: StateStore, persona: string): Prom
   });
 }
 
-// ADIF's Location: "XDDD MM.MMM", hemisphere first.
-export function adifLocation(degrees: number, axis: 'lat' | 'lon'): string | undefined {
-  if (!Number.isFinite(degrees) || Math.abs(degrees) > (axis === 'lat' ? 90 : 180)) return undefined;
-  const hemisphere = axis === 'lat' ? (degrees < 0 ? 'S' : 'N') : (degrees < 0 ? 'W' : 'E');
-  const whole = Math.abs(degrees);
-  let degreePart = Math.floor(whole);
-  let minutes = Math.round((whole - degreePart) * 60 * 1000) / 1000;
-  if (minutes >= 60) { degreePart += 1; minutes = 0; }
-  return `${hemisphere}${String(degreePart).padStart(3, '0')} ${minutes.toFixed(3).padStart(6, '0')}`;
-}
 
 // A station started from a POTA park (QGD-STN-0006): what POTA's list says
 // about the park, for the operator to change before saving. A value ADIF's
@@ -204,4 +276,56 @@ export async function draftFromPark(
     }
   }
   return { draft, ...(note ? { note } : {}) };
+}
+
+// The zones ADIF lists on a subdivision ("02,05"), as plain numbers; empty
+// where it lists none.
+function subdivisionZones(definitions: Ruleset, entity: string, state: string, column: string): string[] {
+  const rows = [...(definitions.enumerations.get('Primary_Administrative_Subdivision')?.byValue.values() ?? [])].flat();
+  const row = rows.find(value => !value.deleted && value.row['DXCC Entity Code'] === entity
+    && value.row['Code']?.toUpperCase() === state.toUpperCase());
+  return (row?.row[column] ?? '').split(',').map(zone => String(Number(zone.trim()))).filter(zone => zone !== 'NaN' && zone !== '0');
+}
+
+// The editor's pick lists, from ADIF's own enumerations as loaded: nothing
+// here names an entity, a state or a section (QGD-REF-0005). Deleted entries
+// are left out, because a station is somewhere now. Names are ADIF's, as ADIF
+// writes them.
+export function stationChoices(definitions: Definitions, entity: string | null, state: string | null = null): StationChoices {
+  const none: StationChoices = { entities: [], states: [], sections: [], counties: [], cqZones: [], ituZones: [] };
+  if (definitions === 'not loaded') return none;
+  const rows = (name: string) => [...(definitions.enumerations.get(name)?.byValue.values() ?? [])].flat()
+    .filter(value => !value.deleted && !value.row['Deleted'] && !value.row['Deleted Date']);
+  const choose = (name: string, code: string, label: string, forEntity: boolean): Choice[] => rows(name)
+    .filter(value => !forEntity || (entity !== null && value.row['DXCC Entity Code'] === entity))
+    .map(value => ({ code: value.row[code] ?? '', name: value.row[label] ?? '' }))
+    .filter(choice => choice.code !== '' && choice.name !== '')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  // A zone field's whole range, from ADIF's Minimum Value and Maximum Value.
+  const range = (field: string): Choice[] => {
+    const rule = definitions.fields.get(field);
+    const low = Number(rule?.minimumValue);
+    const high = Number(rule?.maximumValue);
+    if (!Number.isInteger(low) || !Number.isInteger(high) || high < low || high - low > 200) return [];
+    return Array.from({ length: high - low + 1 }, (_, at) => ({ code: String(low + at), name: String(low + at) }));
+  };
+  // The chosen state's zones, as ADIF lists them on the subdivision ("02,05").
+  const subdivision = entity !== null && state !== null
+    ? rows('Primary_Administrative_Subdivision').find(value =>
+      value.row['DXCC Entity Code'] === entity && value.row['Code']?.toUpperCase() === state.toUpperCase())
+    : undefined;
+  const zones = (column: string, field: string): Choice[] => {
+    const listed = (subdivision?.row[column] ?? '').split(',').map(zone => String(Number(zone.trim())))
+      .filter(zone => zone !== 'NaN' && zone !== '0');
+    return listed.length ? listed.map(zone => ({ code: zone, name: zone })) : range(field);
+  };
+  return {
+    cqZones: zones('CQ Zone', 'MY_CQ_ZONE'),
+    ituZones: zones('ITU Zone', 'MY_ITU_ZONE'),
+    // Code 0 is "no DXCC entity", which is not a place to operate from.
+    entities: choose('DXCC_Entity_Code', 'Entity Code', 'Entity Name', false).filter(choice => choice.code !== '0'),
+    states: choose('Primary_Administrative_Subdivision', 'Code', 'Primary Administrative Subdivision', true),
+    sections: choose('ARRL_Section', 'Abbreviation', 'Section Name', true),
+    counties: choose('Secondary_Administrative_Subdivision', 'Code', 'Secondary Administrative Subdivision', true)
+  };
 }

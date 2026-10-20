@@ -21,6 +21,8 @@
     onDeleteStation: () => Promise.resolve(undefined),
     onSetActiveStation: () => Promise.resolve(undefined),
     onStationFromPark: () => Promise.resolve('Not in a story.'),
+    onStationChoices: () => Promise.resolve(undefined),
+    onLookUpParks: () => Promise.resolve(undefined),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
     onCreatePersona: () => Promise.resolve(undefined),
