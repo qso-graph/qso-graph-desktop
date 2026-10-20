@@ -239,7 +239,9 @@ describe('P9-active: defaults and the active station (QGD-STN-0005, QGD-STN-0001
     } finally { state.close(); }
   });
 
-  it('stops at the most stations a status can carry, and edits still save', async () => {
+  // Five hundred saves, each its own write to disk: a hosted Windows runner
+  // took over five seconds, vitest's default (CI, 2026-10-20).
+  it('stops at the most stations a status can carry, and edits still save', { timeout: 60_000 }, async () => {
     const state = await open();
     try {
       let first = '';
