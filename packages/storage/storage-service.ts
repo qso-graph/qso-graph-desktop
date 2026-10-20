@@ -22,7 +22,7 @@ import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
 import { isPersonaName, type StationsView } from './station-contract.js';
 import {
-  deleteStation, draftFromPark, personaActivated, stationForPark, saveStation, setActiveStation, setDefaultStation, viewStations,
+  deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -168,15 +168,6 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       const reader = reference?.reader();
       if (!reader || referenceStatus?.pota.parks.state !== 'loaded') {
         return { ok: false, error: 'POTA parks are not downloaded. Download them in Settings, then try again.' };
-      }
-      // Going back to a park is the same station: it is made active, and no
-      // second one is started (KI7MT, 2026-10-19).
-      const known = await stationForPark(state, command.reference);
-      if (known) {
-        await setActiveStation(state, known.id);
-        await reloadStations();
-        publish();
-        return { ok: true, status: status(), activated: known.id };
       }
       const park = await draftFromPark(reader, command.reference, await currentDefinitions());
       if (park === 'not found') return { ok: false, error: 'POTA\'s park list has no park with that reference.' };

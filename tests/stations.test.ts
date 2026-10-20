@@ -15,7 +15,7 @@ import {
   ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
-  adifLocation, checkStation, deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation, stationForPark,
+  adifLocation, checkStation, deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation,
   setDefaultStation, viewStations
 } from '../packages/storage/stations.js';
 
@@ -315,25 +315,6 @@ describe('P9-pota: a portable station from a POTA park (QGD-STN-0006)', () => {
       expect(made.draft.place.MY_STATE).toBeUndefined();
       expect(await draftFromPark(store, 'US-9999', ruleset)).toBe('not found');
     } finally { store.close(); }
-  });
-
-  it('is one station per park: a second station naming the same park or parks is refused', async () => {
-    const state = await open();
-    try {
-      const first = await saveStation(state, draft({ MY_POTA_REF: 'US-0001' }, { name: 'Example Park' }), ruleset);
-      if (!first.ok) throw new Error('not saved');
-      const again = await saveStation(state, draft({ MY_POTA_REF: 'us-0001' }, { name: 'Example Park, again' }), ruleset);
-      expect(again.ok).toBe(false);
-      if (!again.ok) expect(again.problems).toEqual([{ field: 'MY_POTA_REF', reason: 'This is already Example Park. A park is one station; make that one active.' }]);
-      // A two-park station is its own place, and the same two in either
-      // order are the same place.
-      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001,US-0002' }, { name: 'Two-fer' }), ruleset)).ok).toBe(true);
-      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0002,US-0001' }, { name: 'Two-fer again' }), ruleset)).ok).toBe(false);
-      // Editing the park's own station keeps its park.
-      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13' }, { id: first.id, name: 'Example Park' }), ruleset)).ok).toBe(true);
-      expect((await stationForPark(state, 'US-0001'))?.id).toBe(first.id);
-      expect(await stationForPark(state, 'US-0003')).toBeUndefined();
-    } finally { state.close(); }
   });
 
   it('writes ADIF\'s Location form', () => {

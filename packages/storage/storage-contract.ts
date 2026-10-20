@@ -92,7 +92,7 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; activated?: string }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
@@ -159,9 +159,8 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
 export function isStorageReply(value: unknown): value is StorageReply {
   if (!record(value)) return false;
   if (value.ok === true) {
-    return only(value, ['ok', 'status', 'saved', 'park', 'activated']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park']) && isStorageStatus(value.status)
       && (value.saved === undefined || isStationId(value.saved))
-      && (value.activated === undefined || isStationId(value.activated))
       && (value.park === undefined || isParkDraft(value.park));
   }
   if (value.ok === false) {
