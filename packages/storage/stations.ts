@@ -46,6 +46,14 @@ export function checkStation(draft: StationDraft, definitions: Definitions): Che
 
 type StateStore = Store<typeof stateSchema>;
 
+// A station's parks as a set, so "US-0001,US-0002" and "US-0002,US-0001" are
+// the same place. Empty when it names none.
+function parksOf(place: Place | undefined): string {
+  const value = place?.MY_POTA_REF;
+  if (!value) return '';
+  return value.split(',').map(entry => entry.trim().toUpperCase()).filter(Boolean).sort().join(',');
+}
+
 function rowToStation(row: typeof station.$inferSelect): Station | undefined {
   const value = {
     id: row.id, name: row.name, place: row.place as Place,
@@ -87,6 +95,17 @@ export async function saveStation(
     // over the contract's bound would be refused whole (QGD-SEC-0006).
     if (!draft.id && others.length >= MAX_STATIONS) {
       return { ok: false, problems: [{ field: 'name', reason: `There are already ${MAX_STATIONS} stations; delete one to add another.` }] };
+    }
+    // A park is a park (KI7MT, 2026-10-19): going back to it is the same
+    // station, and what tells one activation from the next is the date in the
+    // log. So no two stations name the same park or parks.
+    const parks = parksOf(draft.place);
+    if (parks) {
+      const rows = await db.select({ id: station.id, name: station.name, place: station.place }).from(station).all();
+      const same = rows.find(row => row.id !== draft.id && parksOf(row.place as Place) === parks);
+      if (same) {
+        return { ok: false, problems: [{ field: 'MY_POTA_REF', reason: `This is already ${same.name}. A park is one station; make that one active.` }] };
+      }
     }
     if (others.some(other => other.id !== draft.id && other.name.toLowerCase() === name.toLowerCase())) {
       return { ok: false, problems: [{ field: 'name', reason: 'Another station already has this name.' }] };
@@ -156,6 +175,15 @@ export async function personaActivated(state: StateStore, persona: string): Prom
       .onConflictDoUpdate({ target: activeStation.id, set: { stationId: row.stationId } }).run();
     return true;
   });
+}
+
+// The station for a park, if there is one: the station whose parks are that
+// park alone (QGD-STN-0006).
+export async function stationForPark(state: StateStore, parkReference: string): Promise<Station | undefined> {
+  const wanted = parksOf({ MY_POTA_REF: parkReference });
+  const rows = await state.unit(async (db) => db.select().from(station).all());
+  const row = rows.find(entry => parksOf(entry.place as Place) === wanted);
+  return row ? rowToStation(row) : undefined;
 }
 
 // ADIF's Location: "XDDD MM.MMM", hemisphere first.

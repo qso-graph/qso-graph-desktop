@@ -30,7 +30,8 @@
     onSave: (draft: StationDraft, makeDefault: boolean) => Promise<{ error: string; problems?: FieldProblem[] } | undefined>;
     onDelete: (id: string) => Promise<string | undefined>;
     onSetActive: (id: string | null) => Promise<string | undefined>;
-    onFromPark: (reference: string) => Promise<ParkDraft | string>;
+    // A park that is already a station comes back as that station, made active.
+    onFromPark: (reference: string) => Promise<ParkDraft | { activated: string } | string>;
   }
   const {
     stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark
@@ -92,6 +93,7 @@
 
   let parkReference = $state('');
   let parkError = $state('');
+  let parkNotice = $state('');
   let pageError = $state('');
   let deleting = $state<Station | undefined>();
 
@@ -169,9 +171,17 @@
 
   async function fromPark() {
     parkError = '';
-    const answer = await onFromPark(parkReference.trim().toUpperCase());
+    parkNotice = '';
+    const reference = parkReference.trim().toUpperCase();
+    const answer = await onFromPark(reference);
     if (typeof answer === 'string') { parkError = answer; return; }
     parkReference = '';
+    // A park is a park: going back to it is the same station, made active.
+    if ('activated' in answer) {
+      const name = list.find(station => station.id === answer.activated)?.name ?? reference;
+      parkNotice = `${reference} is already your station ${name}. It is now the active station.`;
+      return;
+    }
     open(answer.draft, answer.note ?? '');
   }
 
@@ -251,7 +261,8 @@
             onclick={fromPark}>Fill in from the park</button>
         </div>
         {#if parkError}<p id="park-reference-error" class="field-error" role="status">{parkError}</p>{/if}
-        <p class="hint">The park's grid, position and state come from POTA's park list. You can change any of it before saving.</p>
+        {#if parkNotice}<p id="park-notice" class="hint" role="status">{parkNotice}</p>{/if}
+        <p class="hint">The park's grid, position and state come from POTA's park list. You can change any of it before saving. A park you already have is that station again, made active.</p>
       {:else}
         <p class="hint" id="parks-not-downloaded">POTA parks are not downloaded. Download them in Settings to start a station from a park.</p>
       {/if}

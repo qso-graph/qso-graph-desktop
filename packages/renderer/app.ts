@@ -683,9 +683,11 @@ export async function setActiveStation(id: string | null): Promise<string | unde
   return reply.ok ? undefined : reply.error;
 }
 
-export async function stationFromPark(reference: string): Promise<ParkDraft | string> {
+// A park already a station is that station, made active: { activated }.
+export async function stationFromPark(reference: string): Promise<ParkDraft | { activated: string } | string> {
   if (!/^[0-9A-Z]{1,4}-[0-9]{4,5}$/.test(reference)) return 'A POTA park reference looks like US-0001.';
   const reply = await stationRequest({ type: 'station-from-park', reference });
   if (!reply.ok) return reply.error;
+  if (reply.activated) return { activated: reply.activated };
   return reply.park ?? 'The park could not be read.';
 }

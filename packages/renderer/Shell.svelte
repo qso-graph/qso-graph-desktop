@@ -38,7 +38,7 @@
     onSaveStation: (draft: StationDraft, makeDefault: boolean) => Promise<{ error: string; problems?: FieldProblem[] } | undefined>;
     onDeleteStation: (id: string) => Promise<string | undefined>;
     onSetActiveStation: (id: string | null) => Promise<string | undefined>;
-    onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
+    onStationFromPark: (reference: string) => Promise<ParkDraft | { activated: string } | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
