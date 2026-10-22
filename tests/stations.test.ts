@@ -5,7 +5,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definitionsOf } from '../packages/reference/adif.js';
 import { rulesetOf, type Ruleset } from '../packages/reference/validate.js';
 import { layout, openState } from '../packages/storage/layout.js';
@@ -25,6 +25,11 @@ const register = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'))
 // From `make setup` (CI runs scripts/fetch-adif.mjs before the checks). Not
 // skipped when missing: a station check that never met ADIF's definitions
 // proves nothing.
+// Each test opens state.sqlite and commits to it, and Windows' runners commit
+// slowly: four saves took 11.5 s there against vitest's 5 s default
+// (2026-10-22). A bound, still, so a hang fails rather than waits.
+vi.setConfig({ testTimeout: 30_000 });
+
 const ruleset: Ruleset = rulesetOf(definitionsOf(JSON.parse(readFileSync(
   `vendor/adif/${register.adif.version}/${register.adif.source.definitions}`, 'utf8'))));
 
