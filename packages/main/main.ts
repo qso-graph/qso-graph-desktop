@@ -273,7 +273,18 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'QSO Graph Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
-      { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] }
+      { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] },
+      // Help, as every desktop application has (KI7MT, 2026-10-22): the way
+      // to Troubleshooting from the menu, beside the status bar's button
+      // (QGD-LOG-0013). The window opens the panel; this only says so.
+      { role: 'help', submenu: [{
+        id: 'troubleshooting',
+        label: 'Troubleshooting…',
+        click: () => {
+          const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+          if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
+        }
+      }] }
     ]));
     createWindow();
     app.on('activate', () => {

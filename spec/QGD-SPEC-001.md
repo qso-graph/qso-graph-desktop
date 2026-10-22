@@ -264,7 +264,7 @@ How this section came to land ahead of the rest: `QGD-HDBK-001` §6.
 | `QGD-LOG-0009` | The default level is `info`. | Test |
 | `QGD-LOG-0010` | A raised debug level reverts on its own, both after a set time and at restart, so it cannot be left on. | Test |
 | `QGD-LOG-0012` | Exporting diagnostics produces one redacted archive for the user to send. Nothing leaves the machine unless the user sends it. | Test |
-| `QGD-LOG-0013` | **The logs, the level switch and the export action are reached from Troubleshooting on the status bar, and are not in Settings** (KI7MT, 2026-10-10). Settings holds the operator's preferences; a log viewer is something they need on one occasion, which is reporting a fault. The behaviour it drives is `QGD-LOG-0009`–`QGD-LOG-0012`. | Demo |
+| `QGD-LOG-0013` | **The logs, the level switch and the export action are reached from Troubleshooting on the status bar, and are not in Settings** (KI7MT, 2026-10-10). Troubleshooting is also in the application's Help menu, as Help → Troubleshooting… (KI7MT, 2026-10-22); the status bar's button stays. Settings holds the operator's preferences; a log viewer is something they need on one occasion, which is reporting a fault. The behaviour it drives is `QGD-LOG-0009`–`QGD-LOG-0012`. | Demo |
 
 **Retired and never reused:** `QGD-LOG-0011`, the engine's log (2026-10-10, with the engine).
 

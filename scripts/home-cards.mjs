@@ -185,6 +185,13 @@ try {
     }
     expect((await settings()).extensionsOff).toEqual([]);
   }
+  // Help → Troubleshooting… opens the same panel as the status bar's
+  // button (QGD-LOG-0013, KI7MT 2026-10-22).
+  await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById('troubleshooting')?.click());
+  await expect(page.locator('#troubleshooting')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#close-troubleshooting').click();
+  await expect(page.locator('#troubleshooting')).toHaveCount(0);
+  console.log('Help menu: Troubleshooting… opened the Troubleshooting panel: PASS');
   console.log('P8-built-in: On the Air is on by default; off, its cards leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
   console.error('P8 Home cards suite failed.');

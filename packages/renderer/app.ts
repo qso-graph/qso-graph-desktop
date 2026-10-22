@@ -35,6 +35,7 @@ declare global {
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
+    menu?: { onTroubleshooting(listener: () => void): () => void };
   }
 }
 // QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
@@ -701,3 +702,6 @@ export async function lookUpParks(references: string): Promise<NamedReferences |
   const reply = await stationRequest({ type: 'look-up-parks', references });
   return reply.ok ? reply.named : undefined;
 }
+
+// Help → Troubleshooting… opens the same panel as the status bar's button.
+window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });

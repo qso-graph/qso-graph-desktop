@@ -43,6 +43,16 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
     return () => { ipcRenderer.removeListener('home:notice', handler); };
   }
 }));
+// The Help menu's Troubleshooting (KI7MT, 2026-10-22): main says it was
+// chosen and the window opens the panel. No payload: the signal is all.
+contextBridge.exposeInMainWorld('menu', Object.freeze({
+  onTroubleshooting: (listener: () => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = () => listener();
+    ipcRenderer.on('menu:troubleshooting', handler);
+    return () => { ipcRenderer.removeListener('menu:troubleshooting', handler); };
+  }
+}));
 // The extension inventory, for Settings (QGD-APP-0012). There is no way for
 // the window to make an extension request: extension code runs only in the
 // extension host (QGD-APP-0015), on channels the broker binds (QGD-APP-0018).
