@@ -167,6 +167,11 @@ describe('the map, page data version 6 (KI7MT, 2026-10-22)', () => {
     expect(validatePageAnswer(v(6, [{ ...map, marks: [] }]))).toEqual(v(6, [{ ...map, marks: [] }]));
   });
 
+  it('carries the moon and a twilight band when the extension gives them', () => {
+    const full = { shape: 'map', sun: map.sun, moon: { latitude: 18.2, longitude: 40.1 }, twilight: -10.1, marks: map.marks };
+    expect(validatePageAnswer(v(6, [full]))).toEqual(v(6, [full]));
+  });
+
   it('refuses a map in older data rather than guessing', () => {
     expect(() => validatePageAnswer(v(5, [map]))).toThrowError(/version 5 does not have/);
   });
@@ -182,7 +187,13 @@ describe('the map, page data version 6 (KI7MT, 2026-10-22)', () => {
     [{ ...map, marks: [{ label: '<b>Home</b>', latitude: 0, longitude: 0 }] }, /markup/],
     [{ ...map, marks: [{ label: 'Home', latitude: 0, longitude: 0, colour: 'red' }] }, /"colour"/],
     [{ ...map, marks: [{ latitude: 0, longitude: 0 }] }, /label/],
-    [{ ...map, svg: '<path/>' }, /"svg"/]
+    [{ ...map, svg: '<path/>' }, /"svg"/],
+    [{ ...map, moon: { latitude: 0, longitude: 200 } }, /moon.*longitude|longitude/],
+    [{ ...map, moon: { latitude: 0, longitude: 0, phase: 1 } }, /"phase"/],
+    [{ ...map, twilight: 0 }, /twilight/],
+    [{ ...map, twilight: 5 }, /twilight/],
+    [{ ...map, twilight: -19 }, /twilight/],
+    [{ ...map, twilight: '-6' }, /twilight/]
   ])('refuses an off-shape map (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [value]))).toThrowError(message);
   });

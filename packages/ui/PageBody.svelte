@@ -55,7 +55,7 @@
           {/each}
         </table>
       {:else if section.shape === 'map'}
-        <WorldMap sun={section.sun} marks={section.marks} />
+        <WorldMap sun={section.sun} moon={section.moon} twilight={section.twilight} marks={section.marks} />
       {:else}
         <ul class="page-items">
           {#each section.items as item, i (i)}

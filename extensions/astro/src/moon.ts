@@ -111,6 +111,15 @@ function sidereal(julianDay: number): number {
   return norm(280.46061837 + 360.98564736629 * (julianDay - 2451545) + 0.000387933 * t * t - t ** 3 / 38710000);
 }
 
+// Where the moon is overhead, for the map: its declination, and the
+// longitude where its hour angle is nought (geocentric, which the map's scale
+// cannot tell from the topocentric).
+export function sublunar(julianDay: number): { latitude: number; longitude: number } {
+  const moon = moonAt(julianDay);
+  const longitude = ((moon.rightAscension - sidereal(julianDay)) % 360 + 540) % 360 - 180;
+  return { latitude: moon.declination, longitude };
+}
+
 // The moon's geocentric altitude above Meeus's h0 for it: positive above
 // the moment of rise or set.
 function aboveRiseSet(julianDay: number, latitude: number, longitude: number): number {

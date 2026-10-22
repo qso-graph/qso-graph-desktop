@@ -88,8 +88,10 @@ export type Section = (
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[] }
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
   // The world, with the night greyed out from where the sun is overhead, and
-  // up to four places marked. Version 6.
-  | { readonly shape: 'map'; readonly sun: Place; readonly marks: readonly Mark[] }
+  // up to four places marked. Version 6. Optionally the moon, where it is
+  // overhead, and a twilight band from the horizon down to a depth, as the
+  // grey line: the extension says which depth it means.
+  | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
 ) & { readonly heading?: string };
 
 export type Row = readonly string[];
@@ -293,7 +295,13 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
   }
   if (value.shape === 'map') {
     if (version < 6) throw new PageError(`${where} is a map, which page data version ${version} does not have.`);
-    only(value, ['shape', 'sun', 'marks'], where);
+    only(value, ['shape', 'sun', 'moon', 'twilight', 'marks'], where);
+    // A depth below the horizon, no deeper than astronomical twilight's: past
+    // that it is night, and a band would say otherwise.
+    if (value.twilight !== undefined && (typeof value.twilight !== 'number' || !Number.isFinite(value.twilight)
+      || value.twilight >= 0 || value.twilight < -18)) {
+      throw new PageError(`${where}'s twilight is not a depth below the horizon, to −18°.`);
+    }
     if (!Array.isArray(value.marks) || value.marks.length > PAGE_LIMITS.marks) {
       throw new PageError(`${where} has marks as something other than a list of at most ${PAGE_LIMITS.marks}.`);
     }
@@ -304,7 +312,13 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
       return { label: text(mark.label, PAGE_LIMITS.label, `${name}'s label`), ...place(mark, name) };
     });
     if (isRecord(value.sun)) only(value.sun, ['latitude', 'longitude'], `${where}'s sun`);
-    return { shape: 'map', sun: place(value.sun, `${where}'s sun`), marks };
+    if (isRecord(value.moon)) only(value.moon, ['latitude', 'longitude'], `${where}'s moon`);
+    return {
+      shape: 'map', sun: place(value.sun, `${where}'s sun`),
+      ...(value.moon !== undefined ? { moon: place(value.moon, `${where}'s moon`) } : {}),
+      ...(value.twilight !== undefined ? { twilight: value.twilight as number } : {}),
+      marks
+    };
   }
   throw new PageError(`${where} is not a figures, items, alert, table or map section.`);
 }

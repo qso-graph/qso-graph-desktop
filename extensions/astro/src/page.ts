@@ -6,7 +6,7 @@
 import type { PageAnswer, Section, TableGroup } from '../../../packages/extension-api/pages.js';
 import type { StationBrief } from '../../../packages/extension-api/api-contract.js';
 import { greyLine, gridCentre } from './greyline.js';
-import { moonAt, moonCrossings, moonPhase } from './moon.js';
+import { moonAt, moonCrossings, moonPhase, sublunar } from './moon.js';
 import {
   ASTRONOMICAL, CIVIL, D_LAYER, F2_LAYER, HORIZON, NAUTICAL, julian, solarNoon, sunAltitude, sunAt, sunCrossings, type Crossings
 } from './sun.js';
@@ -123,8 +123,10 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
   }
 
   // The grey line on the map (KI7MT, 2026-10-22): the night greyed out, the
+  // twilight to the D and E layers' depth lighter, which is the band the
+  // windows below are worked out for, the moon where it is overhead, the
   // Location marked, and the DX grid when there is one.
-  const map: Section = { shape: 'map', heading: 'Grey line now', sun: subsolar(now), marks: [
+  const map: Section = { shape: 'map', heading: 'Grey line now', sun: subsolar(now), moon: sublunar(at), twilight: D_LAYER, marks: [
     { label: station!.name.slice(0, 40), latitude, longitude },
     ...(inputs.dx && dx ? [{ label: inputs.dx, latitude: dx.latitude, longitude: dx.longitude }] : [])
   ] };

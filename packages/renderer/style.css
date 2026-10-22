@@ -56,6 +56,9 @@
   --map-sea: #e4edf4;
   --map-land: #c8d3c6;
   --map-night: rgba(20, 30, 45, 0.42);
+  --map-twilight: rgba(20, 30, 45, 0.2);
+  --map-deep: rgba(20, 30, 45, 0.3);
+  --map-moon: #57667a;
   --map-terminator: #203046;
   --map-sun: #c98a00;
   --map-mark: #a53232;
@@ -96,6 +99,12 @@
     --map-sea: #0f1a24;
     --map-land: #2b3a44;
     --map-night: rgba(0, 0, 0, 0.55);
+  --map-twilight: rgba(0, 0, 0, 0.3);
+  --map-deep: rgba(0, 0, 0, 0.38);
+  --map-moon: #d8dee6;
+    --map-twilight: rgba(0, 0, 0, 0.3);
+    --map-deep: rgba(0, 0, 0, 0.38);
+    --map-moon: #d8dee6;
     --map-terminator: #a3b2c4;
     --map-sun: #f0c674;
     --map-mark: #f08a8a;
@@ -136,6 +145,9 @@
   --map-sea: #0f1a24;
   --map-land: #2b3a44;
   --map-night: rgba(0, 0, 0, 0.55);
+  --map-twilight: rgba(0, 0, 0, 0.3);
+  --map-deep: rgba(0, 0, 0, 0.38);
+  --map-moon: #d8dee6;
   --map-terminator: #a3b2c4;
   --map-sun: #f0c674;
   --map-mark: #f08a8a;
@@ -462,6 +474,9 @@ dialog.pins h2 { margin: 0 0 6px; }
 .map-sea { fill: var(--map-sea); }
 .map-land { fill: var(--map-land); }
 .map-night { fill: var(--map-night); }
+.map-twilight { fill: var(--map-twilight); }
+.map-deep { fill: var(--map-deep); }
+.map-moon { fill: var(--map-moon); stroke: var(--surface); stroke-width: 0.6; }
 .map-terminator { fill: none; stroke: var(--map-terminator); stroke-width: 0.6; }
 .map-sun { fill: var(--map-sun); }
 .map-mark { fill: var(--map-mark); }

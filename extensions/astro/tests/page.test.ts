@@ -4,6 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
 import { astroPage, subsolar, type Clock } from '../src/page.js';
+import { sublunar } from '../src/moon.js';
+import { julian } from '../src/sun.js';
 
 const BOISE = { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.2083 };
 const NOW = new Date('2026-10-22T18:00:00Z');
@@ -84,7 +86,7 @@ describe('Astro\'s page', () => {
 
   it('draws the grey line on the map, with the Location and the DX grid marked', () => {
     const found = sections(astroPage(BOISE, NOW, { dx: 'IO91' }, UTC_CLOCK));
-    expect(found[1]).toMatchObject({ shape: 'map', heading: 'Grey line now', marks: [
+    expect(found[1]).toMatchObject({ shape: 'map', heading: 'Grey line now', twilight: -10.1, moon: expect.any(Object), marks: [
       { label: 'Home', latitude: 43.625, longitude: -116.2083 },
       { label: 'IO91', latitude: expect.closeTo(51.5, 1), longitude: expect.closeTo(-1, 1) }
     ] });
@@ -99,6 +101,18 @@ describe('Astro\'s page', () => {
     const june = subsolar(new Date('2026-06-21T18:00:00Z'));
     expect(june.latitude).toBeCloseTo(23.4, 0);
     expect(june.longitude).toBeCloseTo(-90, 0);
+  });
+
+  it('puts the moon opposite the sun at full moon, and beside it at new moon', () => {
+    const apart = (at: Date) => {
+      const sun = subsolar(at);
+      const moon = sublunar(julian(at.getTime()));
+      const r = Math.PI / 180;
+      return Math.acos(Math.sin(sun.latitude * r) * Math.sin(moon.latitude * r)
+        + Math.cos(sun.latitude * r) * Math.cos(moon.latitude * r) * Math.cos((sun.longitude - moon.longitude) * r)) / r;
+    };
+    expect(apart(new Date('2026-10-26T04:12:00Z'))).toBeGreaterThan(172);
+    expect(apart(new Date('2026-11-09T07:02:00Z'))).toBeLessThan(8);
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {

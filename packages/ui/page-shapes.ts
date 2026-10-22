@@ -15,7 +15,7 @@ export type Section = (
   // In named groups, and a two-cell row across a wider table (version 5).
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
   // The world with the night greyed out, and places marked (version 6).
-  | { readonly shape: 'map'; readonly sun: Place; readonly marks: readonly Mark[] }
+  | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
 ) & { readonly heading?: string };
 export interface Place { readonly latitude: number; readonly longitude: number }
 export interface Mark extends Place { readonly label: string }
