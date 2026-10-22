@@ -56,7 +56,7 @@
       logs,
       storage: { state: 'ready' },
       troubleshooting: false,
-      privacy: false, setup: false,
+      help: null, setup: false,
       firstRun: false,
       services: [],
       extensions: undefined

@@ -59,13 +59,13 @@
     onSetExtension?: (id: string, enabled: boolean) => Promise<boolean>;
     storage?: StorageStatus;
     onUpdateReference?: (resource: string) => Promise<string | undefined>;
-    // Opens Privacy and Licences (QGD-FRM-0015).
-    onOpenPrivacy?: () => void;
+    // Opens one of Help's windows (QGD-FRM-0015).
+    onOpenHelp?: (topic: 'privacy' | 'attributions' | 'contributors') => void;
   }
   const {
     version = '', themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
     storage, onUpdateReference = () => Promise.resolve('The update could not be started.'),
-    onOpenPrivacy = () => {}
+    onOpenHelp = () => {}
   }: Props = $props();
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
@@ -144,7 +144,11 @@
       until you ask. The app fetches the ADIF and park reference lists when you download
       or update them, and the data your pinned cards show, and nothing else.
     </p>
-    <button type="button" class="secondary" id="open-privacy" onclick={onOpenPrivacy}>Privacy and Licences</button>
+    <div class="about-links">
+      <button type="button" class="secondary" id="open-privacy" onclick={() => onOpenHelp('privacy')}>Privacy</button>
+      <button type="button" class="secondary" id="open-attributions" onclick={() => onOpenHelp('attributions')}>Attributions</button>
+      <button type="button" class="secondary" id="open-contributors" onclick={() => onOpenHelp('contributors')}>Contributors</button>
+    </div>
   </section>
 
   <section class="card" aria-labelledby="appearance-title">

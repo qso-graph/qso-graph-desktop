@@ -11,7 +11,7 @@ describe('the shell store', () => {
       // shell because what it shows is fetched while it is open: the logs
       // (QGD-LOG-0013, QGD-FRM-0012).
       troubleshooting: false,
-      privacy: false,
+      help: null,
       // Not setup: that is decided once the personas have been read, so a
       // machine with personas never sees a frame of the setup screen
       // (QGD-PSN-0004).

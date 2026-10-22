@@ -52,11 +52,15 @@ contextBridge.exposeInMainWorld('menu', Object.freeze({
     ipcRenderer.on('menu:troubleshooting', handler);
     return () => { ipcRenderer.removeListener('menu:troubleshooting', handler); };
   },
-  onPrivacy: (listener: () => void) => {
+  // Privacy, Attributions or Contributors: the topic, and nothing else, is
+  // passed on (QGD-SEC-0006).
+  onHelp: (listener: (topic: string) => void) => {
     if (typeof listener !== 'function') return () => undefined;
-    const handler = () => listener();
-    ipcRenderer.on('menu:privacy', handler);
-    return () => { ipcRenderer.removeListener('menu:privacy', handler); };
+    const handler = (_event: unknown, topic: unknown) => {
+      if (topic === 'privacy' || topic === 'attributions' || topic === 'contributors') listener(topic);
+    };
+    ipcRenderer.on('menu:help', handler);
+    return () => { ipcRenderer.removeListener('menu:help', handler); };
   }
 }));
 // The extension inventory, for Settings (QGD-APP-0012). There is no way for

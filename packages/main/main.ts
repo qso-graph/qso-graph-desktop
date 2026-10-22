@@ -277,7 +277,8 @@ if (!app.requestSingleInstanceLock()) {
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button
       // (QGD-LOG-0013). The window opens the panel; this only says so.
-      // Privacy and Licences beside it (QGD-FRM-0015, KI7MT 2026-10-22).
+      // Privacy, Attributions and Contributors beside it (QGD-FRM-0015,
+      // KI7MT 2026-10-22). The window opens each; this only says which.
       { role: 'help', submenu: [{
         id: 'troubleshooting',
         label: 'Troubleshooting…',
@@ -285,14 +286,15 @@ if (!app.requestSingleInstanceLock()) {
           const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
           if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
         }
-      }, {
-        id: 'privacy',
-        label: 'Privacy and Licences…',
+      }, { type: 'separator' },
+      ...(['privacy', 'attributions', 'contributors'] as const).map(topic => ({
+        id: topic,
+        label: `${topic[0].toUpperCase()}${topic.slice(1)}…`,
         click: () => {
           const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-          if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:privacy'); }
+          if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:help', topic); }
         }
-      }] }
+      }))] }
     ]));
     createWindow();
     app.on('activate', () => {

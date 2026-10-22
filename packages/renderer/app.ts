@@ -35,7 +35,7 @@ declare global {
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
-    menu?: { onTroubleshooting(listener: () => void): () => void; onPrivacy(listener: () => void): () => void };
+    menu?: { onTroubleshooting(listener: () => void): () => void; onHelp(listener: (topic: string) => void): () => void };
   }
 }
 // QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
@@ -716,5 +716,7 @@ export async function lookUpParks(references: string): Promise<NamedReferences |
 
 // Help → Troubleshooting… opens the same panel as the status bar's button.
 window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
-// Help → Privacy and Licences… (QGD-FRM-0015).
-window.menu?.onPrivacy(() => { shell.set({ privacy: true }); });
+// Help → Privacy…, Attributions… or Contributors… (QGD-FRM-0015).
+window.menu?.onHelp(topic => {
+  if (topic === 'privacy' || topic === 'attributions' || topic === 'contributors') shell.set({ help: topic });
+});
