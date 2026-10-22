@@ -7,7 +7,7 @@ can be turned off.
 | Card | What it shows | Refreshed at most every |
 |---|---|---|
 | **Conditions** | Solar flux, the planetary K and A indices, NOAA's space weather scales (R, S, G) with an alert when any is above 0, and the band-by-band outlook as Band, Status and Comment, graded on the scale in [BAND-OUTLOOK.md](BAND-OUTLOOK.md) (`QGD-HOM-0008`) | 15 minutes |
-| **Your station** | UTC first, then local time, the callsign you are operating as, the active station, and sunrise and sunset there, worked out on this computer (`QGD-HOM-0009`) | 1 minute |
+| **Your station** | UTC first, then local time, the callsign you are operating as, the active station, and sunrise and sunset there on your local clock, worked out on this computer (`QGD-HOM-0009`) | 1 minute |
 
 It runs in the extension host and reaches the core only through the extension
 API (`QGD-APP-0002`). NOAA's data is fetched by the core from the sources the

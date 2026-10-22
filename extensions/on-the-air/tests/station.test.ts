@@ -2,9 +2,14 @@
 // Your station (QGD-HOM-0009): UTC first, local time, the callsign, the active
 // station, and sunrise and sunset there; with no persona or no station it says
 // so; and it needs no network. P8-your-station and P9-your-station.
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { validateCardAnswer, type Section } from '../../../packages/extension-api/cards.js';
 import { stationCard } from '../src/station.js';
+
+// Local time is the machine's, so the tests set one: Boise, UTC-6 in June.
+const zone = process.env.TZ;
+beforeAll(() => { process.env.TZ = 'America/Boise'; });
+afterAll(() => { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone; });
 
 const now = new Date('2026-06-21T19:44:42Z');
 const persona = { name: 'Home', callsign: 'W1AW' };
@@ -25,8 +30,11 @@ describe('P8-your-station and P9-your-station (QGD-HOM-0009)', () => {
     expect(figures.figures[0]).toEqual({ label: 'UTC', value: '19:44' });
     // Within a minute of PyEphem's 12:03:31 and 03:29:54 UTC
     // (sun.test.ts holds the method to that for six places).
-    expect(figures.figures[2]).toEqual({ label: 'Sunrise', value: '12:03', unit: 'UTC' });
-    expect(figures.figures[3]).toEqual({ label: 'Sunset', value: '03:30', unit: 'UTC' });
+    // On the local clock (KI7MT, 2026-10-22): 12:03 and 03:30 UTC are
+    // 06:03 and 21:30 in Boise.
+    expect(figures.figures[1]).toEqual({ label: 'Local', value: '13:44' });
+    expect(figures.figures[2]).toEqual({ label: 'Sunrise', value: '06:03', unit: 'local' });
+    expect(figures.figures[3]).toEqual({ label: 'Sunset', value: '21:30', unit: 'local' });
     expect(items.items).toEqual([
       { title: 'Operating as', detail: 'W1AW' },
       { title: 'Station', detail: 'Home · DN13sm' }
