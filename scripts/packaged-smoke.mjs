@@ -65,14 +65,14 @@ try {
   await launch();
   // The application opens on Home now (QGD-FRM-0011).
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
-  await page.getByLabel('Persona name', { exact: true }).fill(persona);
+  await page.getByLabel('Description', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
-  await page.getByRole('button', { name: 'Create persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -120,7 +120,7 @@ try {
   await expect(page.locator('#message')).toHaveText('Preferred credential saved.');
   await stop(); await launch();
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
@@ -166,20 +166,20 @@ try {
   await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   page.once('dialog', dialog => dialog.dismiss());
-  await page.getByRole('button', { name: 'Remove persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Remove persona', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('#active-persona')).toHaveText('No active persona');
+  await page.getByRole('button', { name: 'Remove callsign', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#active-persona')).toHaveText('No active callsign');
   credentialSaved = false;
   await stop(); await launch();
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
-  await page.getByLabel('Persona name', { exact: true }).fill(persona);
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
+  await page.getByLabel('Description', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('W1AW');
-  await page.getByRole('button', { name: 'Create persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
   await page.getByLabel('Service', { exact: true }).selectOption('eqsl');

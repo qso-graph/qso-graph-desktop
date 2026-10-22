@@ -19,7 +19,7 @@
   name="Icon missing"
   args={{
     pages: [
-      { id: 'personas', label: 'Personas', icon: 'nothing-here', description: 'No icon for this one', placement: 'top' },
+      { id: 'personas', label: 'Callsigns', icon: 'nothing-here', description: 'No icon for this one', placement: 'top' },
       { id: 'settings', label: 'Settings', icon: 'settings', description: 'Appearance, and the logs this Mac keeps', placement: 'bottom' }
     ]
   }}

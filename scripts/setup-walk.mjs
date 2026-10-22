@@ -46,12 +46,12 @@ try {
   const page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'setup-walk');
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
 
   // The offer, which is an offer: the page P1 built is underneath it and the
   // form on it still works. Both are on screen at once.
   await expect(page.getByRole('heading', { name: 'New to QSO Graph Desktop?' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   notes.push('a machine with no personas is offered setup, with the ordinary page still under it');
 
   await page.getByRole('button', { name: 'Set up step by step' }).click();
@@ -66,7 +66,7 @@ try {
 
   // A callsign and nothing else. The name is left empty on purpose.
   await card.getByLabel('Callsign', { exact: true }).fill(callsign);
-  await page.getByRole('button', { name: 'Create this persona' }).click();
+  await page.getByRole('button', { name: 'Add this callsign' }).click();
   // Waited for, not polled: creating the persona is a round trip to the
   // credential core, and asking what is on screen the instant after the click
   // asks before the answer.
@@ -106,7 +106,7 @@ try {
       await page.getByRole('navigation', { name: 'Sections' })
         .getByRole('button', { name: 'Home', exact: true }).click();
       await page.getByRole('navigation', { name: 'Sections' })
-        .getByRole('button', { name: 'Personas', exact: true }).click();
+        .getByRole('button', { name: 'Callsigns', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Set up QSO Graph Desktop' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Skip for now' })).toBeVisible();
       notes.push('leaving setup part way and returning comes back to it, not to the callsign');

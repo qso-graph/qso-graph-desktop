@@ -159,19 +159,19 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
   switch (command.type) {
     case 'save-station': {
       const outcome = await saveStation(state, command.station, await currentDefinitions(), new Date(), referenceLists());
-      if (!outcome.ok) return { ok: false, error: 'The station was not saved.', problems: outcome.problems };
+      if (!outcome.ok) return { ok: false, error: 'The location was not saved.', problems: outcome.problems };
       await reloadStations();
       publish();
       return { ok: true, status: status(), saved: outcome.id };
     }
     case 'delete-station':
-      if (!(await deleteStation(state, command.id))) return { ok: false, error: 'That station no longer exists.' };
+      if (!(await deleteStation(state, command.id))) return { ok: false, error: 'That location no longer exists.' };
       break;
     case 'set-default-station':
-      if (!(await setDefaultStation(state, command.persona, command.id))) return { ok: false, error: 'That station no longer exists.' };
+      if (!(await setDefaultStation(state, command.persona, command.id))) return { ok: false, error: 'That location no longer exists.' };
       break;
     case 'set-active-station':
-      if (!(await setActiveStation(state, command.id))) return { ok: false, error: 'That station no longer exists.' };
+      if (!(await setActiveStation(state, command.id))) return { ok: false, error: 'That location no longer exists.' };
       break;
     case 'look-up-parks': {
       const lists = referenceLists();
@@ -308,7 +308,7 @@ process.parentPort.on('message', (event) => {
       .catch((error: unknown): StorageReply => {
         log.warn({ command: data.command && (data.command as StorageCommand).type, failure: describe(reduce(error, 'query')) },
           'station command failed');
-        return { ok: false, error: 'The station could not be changed. Troubleshooting has the logs.' };
+        return { ok: false, error: 'The location could not be changed. Troubleshooting has the logs.' };
       })
       .then((reply) => process.parentPort.postMessage({ id, reply }));
     return;

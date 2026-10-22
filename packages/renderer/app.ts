@@ -114,7 +114,7 @@ export async function saveSetupCredential(
   values: Record<string, string>
 ): Promise<string | undefined> {
   const persona = snapshot.active ?? snapshot.personas[0]?.name;
-  if (!persona) return 'Create a persona first.';
+  if (!persona) return 'Add a callsign first.';
   const reply = await window.personas.request({
     type: 'save-credentials',
     persona,
@@ -211,7 +211,7 @@ function list() {
     const name = document.createElement('span'); name.textContent = persona.name + (persona.name === snapshot.active ? ' · Active' : '');
     button.append(call, name); button.addEventListener('click', () => select(persona.name)); container.append(button);
   }
-  if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No personas yet. Start with your station callsign.'; container.append(empty); }
+  if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No callsigns yet. Start with your own.'; container.append(empty); }
   const active = snapshot.personas.find(p => p.name === snapshot.active);
   // Both read from the personas every time they are drawn, so the offer of
   // guided setup goes away the moment there is a persona rather than staying
@@ -284,12 +284,12 @@ function showCredentialStatus(status: CredentialStatus) {
 }
 function select(name: string | null) {
   selected = name; const persona = current(); list(); message('');
-  element('page-title').textContent = persona ? persona.callsign : 'Create a persona';
+  element('page-title').textContent = persona ? persona.callsign : 'Add a callsign';
   input('persona-name').value = persona?.name ?? ''; input('persona-name').readOnly = Boolean(persona);
   input('callsign').value = persona?.callsign ?? '';
   input('start-date').value = persona?.start ?? new Date().toISOString().slice(0, 10);
   input('end-date').value = persona?.end ?? '';
-  element('save-persona').textContent = persona ? 'Save persona details' : 'Create persona';
+  element('save-persona').textContent = persona ? 'Save callsign details' : 'Add callsign';
   element('use-persona').hidden = !persona || persona.name === snapshot.active;
   element('remove-persona').hidden = !persona;
   element('credential-card').hidden = !persona;
@@ -318,21 +318,21 @@ element('persona-form').addEventListener('submit', event => {
     const name = input('persona-name').value.trim();
     if (!selected && snapshot.personas.some(p => p.name === name.toLowerCase())) throw new Error('That persona exists. Select it to edit its details.');
     snapshot = await request({ type: 'upsert', name, callsign: input('callsign').value, start: input('start-date').value || undefined, end: input('end-date').value || undefined }) as Snapshot;
-    select(name.toLowerCase()); message('Persona saved.');
+    select(name.toLowerCase()); message('Callsign saved.');
   });
 });
 element('use-persona').addEventListener('click', () => void busy('use-persona', async () => {
   if (!selected) return;
   snapshot = await request({ type: 'set-active', name: selected }) as Snapshot;
-  select(selected); message('Active persona selected.');
+  select(selected); message('Active callsign selected.');
 }));
 element('remove-persona').addEventListener('click', () => void busy('remove-persona', async () => {
-  if (!selected || !window.confirm(forStore('Remove this persona and ALL its saved service credentials from Keychain? This cannot be undone.', PLATFORM))) return;
+  if (!selected || !window.confirm(forStore('Remove this callsign and ALL its saved service credentials from Keychain? This cannot be undone.', PLATFORM))) return;
   const name = selected;
   snapshot = await request({ type: 'remove-persona', name }) as Snapshot;
   for (const key of testResults.keys()) if (key.startsWith(`${name}:`)) testResults.delete(key);
   select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
-  message('Persona and its saved service credentials removed.');
+  message('Callsign and its saved service credentials removed.');
 }));
 element('provider').addEventListener('change', () => { clearSecretFields(); message(''); void credentialStatus(); });
 for (const id of ['password', 'api-key']) {
@@ -361,7 +361,7 @@ element('credential-form').addEventListener('submit', event => {
   });
 });
 element('remove-credential').addEventListener('click', () => void busy('remove-credential', async () => {
-  if (!selected || !window.confirm('Remove the saved credential for this persona and service?')) return;
+  if (!selected || !window.confirm('Remove the saved credential for this callsign and service?')) return;
   const persona = selected;
   const provider = element<HTMLSelectElement>('provider').value;
   const status = await request({ type: 'delete-credentials', persona, provider }) as CredentialStatus;
@@ -372,7 +372,7 @@ element('remove-credential').addEventListener('click', () => void busy('remove-c
 }));
 for (const [id, field, label] of [['remove-password', 'password', 'password'], ['remove-api-key', 'api_key', 'API key']] as const) {
   element(id).addEventListener('click', () => void busy(id, async () => {
-    if (!selected || !window.confirm(`Remove only the saved ${label} for this persona and service?`)) return;
+    if (!selected || !window.confirm(`Remove only the saved ${label} for this callsign and service?`)) return;
     const persona = selected;
     const provider = element<HTMLSelectElement>('provider').value;
     const status = await request({ type: 'remove-secret', persona, provider, field }) as CredentialStatus;
@@ -657,7 +657,7 @@ export async function saveStation(
   const reply = await stationRequest({ type: 'save-station', station: draft });
   if (!reply.ok) return { error: reply.error, ...(reply.problems ? { problems: reply.problems } : {}) };
   const saved = reply.saved;
-  if (!saved) return { error: 'The station could not be saved: storage did not say it was.' };
+  if (!saved) return { error: 'The location could not be saved: storage did not say it was.' };
   if (!persona) return undefined;
   // The checkbox is the whole answer: ticked makes it this persona's default,
   // unticked on the station that is the default clears it, and unticked on

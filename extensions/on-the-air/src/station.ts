@@ -32,7 +32,7 @@ export function stationCard(now: Date, persona: PersonaBrief | null, station: St
     if (day.sunset) figures.push({ label: 'Sunset', value: local(day.sunset), unit: 'local' });
     if (day.allDay) sunNote = day.allDay === 'up' ? 'The sun does not set there today.' : 'The sun does not rise there today.';
   } else if (station) {
-    sunNote = 'Sunrise and sunset need the station\'s grid. Add it in Stations.';
+    sunNote = 'Sunrise and sunset need the location\'s grid. Add it in Locations.';
   }
   return {
     ok: true,
@@ -44,10 +44,10 @@ export function stationCard(now: Date, persona: PersonaBrief | null, station: St
         { shape: 'items', items: [
           persona
             ? { title: 'Operating as', detail: persona.callsign }
-            : { title: 'Operating as', detail: 'No persona is active yet.' },
+            : { title: 'Operating as', detail: 'No callsign is active yet.' },
           station
-            ? { title: 'Station', detail: station.grid ? `${station.name} · ${station.grid}` : station.name }
-            : { title: 'Station', detail: 'No station is active. Choose one in Stations.' },
+            ? { title: 'Location', detail: station.grid ? `${station.name} · ${station.grid}` : station.name }
+            : { title: 'Location', detail: 'No location is active. Choose one in Locations.' },
           ...(sunNote ? [{ title: 'Sun', detail: sunNote }] : [])
         ] }
       ]

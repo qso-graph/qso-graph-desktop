@@ -197,7 +197,7 @@ try {
   failures.push('dist/renderer/app.js is not in the archive');
 }
 if (bundle) {
-  const expected = ['Personas', 'Settings'];
+  const expected = ['Callsigns', 'Settings'];
   const missing = expected.filter(word => !bundle.includes(word));
   if (missing.length > 0) failures.push(`the bundle is missing the shell's own words (${missing.join(', ')}); this check would pass on an empty bundle`);
   else notes.push(`the bundle holds the shell's own words, so an absent marker means absent (${(bundle.length / 1024).toFixed(0)} kB)`);

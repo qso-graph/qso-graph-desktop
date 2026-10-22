@@ -106,7 +106,7 @@ describe('the rail', () => {
     // (QGD-APP-0014). Stations sit beside Personas: who you are, and where
     // you are operating from (QGD-STN-0001).
     expect(visiblePages().map(page => page.id)).toEqual(['home', 'personas', 'stations', 'settings']);
-    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Personas', 'Stations', 'Settings']);
+    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Callsigns', 'Locations', 'Settings']);
     // Home at the top, Settings at the foot: it is where you change how the
     // places you work behave, not one of them.
     expect(visiblePages()[0].placement).toBe('top');
@@ -155,12 +155,12 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
 
   it('keeps the labels and roles the packaged suite drives it by', async () => {
     const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
-    for (const label of ['Persona name', 'Callsign', 'Username', 'Password', 'API key',
+    for (const label of ['Description', 'Callsign', 'Username', 'Password', 'API key',
                          'Service', 'Preferred credential', 'Start date', 'End date']) {
       expect(page, `${label} must still label a field`).toContain(label);
     }
-    for (const name of ['Create persona', 'Use this persona', 'Save in Keychain', 'Test credential',
-                        'Remove persona', 'Remove password', 'Remove API key', 'Remove saved credential']) {
+    for (const name of ['Add callsign', 'Use this callsign', 'Save in Keychain', 'Test credential',
+                        'Remove callsign', 'Remove password', 'Remove API key', 'Remove saved credential']) {
       expect(page, `${name} must still name a button`).toContain(name);
     }
     expect(page).toContain('aria-labelledby="identity-title"');

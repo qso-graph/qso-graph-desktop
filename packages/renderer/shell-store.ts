@@ -25,14 +25,16 @@ export const PAGES = [
   },
   {
     id: 'personas',
-    label: 'Personas',
+    // Named as hams see them in LoTW, QRZ, eQSL and their loggers (KI7MT,
+    // 2026-10-22): the code keeps 'personas' and 'stations' as its own names.
+    label: 'Callsigns',
     icon: 'personas',
-    description: 'Station personas and the credentials saved for each',
+    description: 'Your callsigns and the logins saved for each',
     placement: 'top'
   },
   {
     id: 'stations',
-    label: 'Stations',
+    label: 'Locations',
     icon: 'stations',
     description: 'Where you operate from: home, a park, a summit, the car',
     placement: 'top'

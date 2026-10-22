@@ -34,7 +34,7 @@ let checked = 0;
 
 // What a run looks at. The inactive page is `hidden`, and axe skips what is
 // not rendered, so each of these is one page's worth of findings and not two.
-const PAGES = ['Home', 'Personas', 'Settings'];
+const PAGES = ['Home', 'Callsigns', 'Locations', 'Settings'];
 const THEMES = ['light', 'dark'];
 
 // `collect` is false for the control, whose violation is the point of it.
@@ -66,8 +66,8 @@ try {
   await assertNoVisibleWindow(application, page, 'axe');
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   await page.evaluate(axeSource);
   expect(await page.evaluate(() => typeof globalThis.axe?.run)).toBe('function');
 
@@ -114,12 +114,12 @@ try {
   // perfectly healthy. scripts/smoke.mjs has always waited; these did not.
   await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
     { message: 'the persona service must be answering before the form is used', timeout: 30_000 }).toBe(true);
-  await page.getByLabel('Persona name', { exact: true }).fill(persona);
+  await page.getByLabel('Description', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('W1AW');
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');
-  await page.getByRole('button', { name: 'Create persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });

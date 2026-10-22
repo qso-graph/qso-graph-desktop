@@ -53,8 +53,8 @@ try {
   await assertNoVisibleWindow(application, page, 'smoke');
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   expect(application.windows()).toHaveLength(1);
   const preferences = await application.evaluate(({ BrowserWindow, session }) => {
     const prefs = BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences();
@@ -104,12 +104,12 @@ try {
   await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
     { message: 'the persona service must answer', timeout: 30_000 }).toBe(true);
   expect(await page.evaluate(() => window.personas.request({ type: 'require-credential', persona: 'home', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid persona request.' });
-  await page.getByLabel('Persona name', { exact: true }).fill(persona);
+  await page.getByLabel('Description', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');
-  await page.getByRole('button', { name: 'Create persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const editRoles = await application.evaluate(({ Menu }) => Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.map(item => item.role));
@@ -230,7 +230,7 @@ try {
   // A restart opens on Home (QGD-FRM-0011), which is the point: the status
   // below is read after navigating there deliberately, not on the way past.
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
@@ -241,7 +241,7 @@ try {
   {
     // Every page, and the persona selected again, with nothing decrypted.
     const railItem = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
-    for (const name of ['Settings', 'Personas', 'Settings', 'Personas']) {
+    for (const name of ['Settings', 'Callsigns', 'Settings', 'Callsigns']) {
       await railItem(name).click();
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
     }
@@ -298,7 +298,7 @@ try {
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Persona details', exact: true })).toBeHidden();
   expect(await rail('Settings').getAttribute('aria-current')).toBe('page');
-  expect(await rail('Personas').getAttribute('aria-current')).toBeNull();
+  expect(await rail('Callsigns').getAttribute('aria-current')).toBeNull();
   // P3-status-bar: the active persona is on every page, not just its own.
   await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
   // QGD-PRC-0006: one bundled page. Navigating a section is not navigation.
@@ -306,10 +306,10 @@ try {
   expect(await page.evaluate(() => history.length)).toBe(1);
 
   // P3-keyboard: every rail item is reachable and operable from the keyboard.
-  await rail('Personas').focus();
+  await rail('Callsigns').focus();
   // Trimmed: the button is an icon above a label, so its text carries the
   // whitespace between them.
-  expect((await page.evaluate(() => document.activeElement?.textContent ?? '')).trim()).toBe('Personas');
+  expect((await page.evaluate(() => document.activeElement?.textContent ?? '')).trim()).toBe('Callsigns');
   const outline = await page.evaluate(() => getComputedStyle(document.activeElement, null).outlineWidth);
   expect(parseFloat(outline), 'the focused rail item must show a focus indicator').toBeGreaterThan(0);
   await page.keyboard.press('Enter');
@@ -320,7 +320,7 @@ try {
   // read aloud: getByRole resolves these by accessible name, so every rail()
   // call above already proves the names. The tooltips and the ordering are
   // what is left.
-  for (const name of ['Personas', 'Settings']) {
+  for (const name of ['Callsigns', 'Settings']) {
     const tooltip = await rail(name).getAttribute('title');
     expect(tooltip && tooltip.length > name.length, `${name} must carry a tooltip`).toBe(true);
     // An icon is drawn and hidden from assistive technology, which reads the
@@ -330,7 +330,7 @@ try {
   // Settings sits at the bottom of the rail, below everything else and near
   // the foot of it.
   const railBox = await page.getByRole('navigation', { name: 'Sections' }).boundingBox();
-  const personasBox = await rail('Personas').boundingBox();
+  const personasBox = await rail('Callsigns').boundingBox();
   const settingsBox = await rail('Settings').boundingBox();
   expect(settingsBox.y).toBeGreaterThan(personasBox.y);
   const gapBelow = railBox.y + railBox.height - (settingsBox.y + settingsBox.height);
@@ -411,7 +411,7 @@ try {
   // checked, not the one that was reported.
   {
     await page.getByRole('navigation', { name: 'Sections' })
-      .getByRole('button', { name: 'Personas', exact: true }).click();
+      .getByRole('button', { name: 'Callsigns', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
 
     const services = await page.getByLabel('Service', { exact: true })
@@ -476,7 +476,7 @@ try {
   await expect(page.getByRole('button', { name: 'Download ADIF definitions' })).toBeVisible();
   await expect(page.locator('#about-version')).not.toBeEmpty();
   await expect(page.locator('#about-privacy')).toContainText('Everything you enter stays on this computer');
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Personas', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Callsigns', exact: true }).click();
 
   // ---- P3-logs-page (QGD-LOG-0013) --------------------------------------
   // The switch writes the level the running process then uses. Read back from
@@ -549,7 +549,7 @@ try {
   await page.getByRole('button', { name: 'Export diagnostics', exact: true }).click();
   await expect(page.locator('#export-result')).toHaveText('Export cancelled.', { timeout: 30_000 });
 
-  await railAgain('Personas').click();
+  await railAgain('Callsigns').click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   // P3-personas-intact: the P1 screen still works after all of that.
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');

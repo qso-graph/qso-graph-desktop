@@ -98,8 +98,8 @@ try {
   const mainPid = await application.evaluate(() => process.pid);
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok)).toBe(true);
 
   // The fixture is created over IPC and never selected. Selecting a persona in

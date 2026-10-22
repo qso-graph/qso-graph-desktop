@@ -228,8 +228,8 @@ try {
 
   // The application opens on Home now (QGD-FRM-0011).
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
 
   // One whole navigation inside instrumentation. The application's very first
   // load can complete before the listeners and the poll exist, so the same
@@ -239,8 +239,8 @@ try {
   await page.reload();
   // A reload is a fresh start, so it lands on Home again.
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   const navigation = await application.evaluate(() => globalThis.__qgRequests ?? []);
   expect(navigation.length, 'the request history recorded no navigation at all').toBeGreaterThan(0);
   expect(navigation.every(entry => entry.url.startsWith('qg://desktop/')),

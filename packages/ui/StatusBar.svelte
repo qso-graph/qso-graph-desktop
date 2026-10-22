@@ -45,8 +45,8 @@
 </script>
 
 <footer>
-  <span id="active-persona">{activePersona ? `Active: ${activePersona}` : 'No active persona'}</span>
-  <span id="active-station">{activeStation ? `At: ${activeStation}` : 'No active station'}</span>
+  <span id="active-persona">{activePersona ? `Active: ${activePersona}` : 'No active callsign'}</span>
+  <span id="active-station">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}

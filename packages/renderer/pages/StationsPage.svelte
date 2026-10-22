@@ -258,8 +258,8 @@
     // checked here before the request is sent: a request off its shape is
     // refused whole at the boundary, and would say less (QGD-SEC-0006).
     const own: FieldProblem[] = [];
-    if (name.trim() === '') own.push({ field: 'name', reason: 'A station needs a name.' });
-    if (!(place.MY_GRIDSQUARE ?? '').trim()) own.push({ field: 'MY_GRIDSQUARE', reason: 'A station needs a grid.' });
+    if (name.trim() === '') own.push({ field: 'name', reason: 'A location needs a name.' });
+    if (!(place.MY_GRIDSQUARE ?? '').trim()) own.push({ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' });
     for (const [field, axis, example] of [['MY_LAT', 'lat', '43.625'], ['MY_LON', 'lon', '-116.2083']] as const) {
       const typed = (place[field] ?? '').trim();
       if (typed && typedLocation(typed, axis) === undefined) {
@@ -318,17 +318,17 @@
   }
 </script>
 
-<PageLayout eyebrow="WHERE YOU OPERATE" title="Stations">
+<PageLayout eyebrow="WHERE YOU OPERATE" title="Station Locations">
   <section class="card" aria-labelledby="stations-title">
     <div class="section-title">
-      <h2 id="stations-title">Your stations</h2>
-      {#if !editing}<button type="button" id="add-station" onclick={() => open()}>Add a station</button>{/if}
+      <h2 id="stations-title">Your locations</h2>
+      {#if !editing}<button type="button" id="add-station" onclick={() => open()}>Add a location</button>{/if}
     </div>
     {#if stations === undefined}
-      <p class="hint">Reading the stations…</p>
+      <p class="hint">Reading the locations…</p>
     {:else if list.length === 0}
       <p class="hint" id="no-stations">
-        No stations yet. Add one for each place you operate from: home, a park, a summit, the car.
+        No locations yet. Add one for each place you operate from: home, a park, a summit, the car.
       </p>
     {:else}
       <ul class="extension-list station-list">
@@ -356,19 +356,19 @@
           </li>
         {/each}
       </ul>
-      {#if active === null}<p class="hint" id="no-active-station">No station is active.</p>{/if}
+      {#if active === null}<p class="hint" id="no-active-station">No location is active.</p>{/if}
     {/if}
     {#if pageError}<p class="extension-error" role="alert">{pageError}</p>{/if}
     {#if stations && !stations.checked}
       <p class="hint" id="stations-unchecked">
-        ADIF's definitions are not downloaded, so station values cannot be checked yet. Download them in Settings.
+        ADIF's definitions are not downloaded, so location values cannot be checked yet. Download them in Settings.
       </p>
     {/if}
   </section>
 
   {#if !editing}
     <section class="card" aria-labelledby="from-park-title">
-      <h2 id="from-park-title">A station from a POTA park</h2>
+      <h2 id="from-park-title">A location from a POTA park</h2>
       {#if parksLoaded}
         <label for="park-reference">Park reference</label>
         <div class="inline-form">
@@ -381,14 +381,14 @@
         {#if parkError}<p id="park-reference-error" class="field-error" role="status">{parkError}</p>{/if}
         <p class="hint">The park's grid, position and state come from POTA's park list. You can change any of it before saving.</p>
       {:else}
-        <p class="hint" id="parks-not-downloaded">POTA parks are not downloaded. Download them in Settings to start a station from a park.</p>
+        <p class="hint" id="parks-not-downloaded">POTA parks are not downloaded. Download them in Settings to start a location from a park.</p>
       {/if}
     </section>
   {:else}
     <section class="card station-editor" aria-labelledby="station-editor-title">
-      <h2 id="station-editor-title">{editingId ? `Edit ${name || 'station'}` : 'New station'}</h2>
+      <h2 id="station-editor-title">{editingId ? `Edit ${name || 'location'}` : 'New location'}</h2>
       {#if note}<p class="hint" id="station-note" role="status">{note}</p>{/if}
-      <p class="hint">A station needs a name and a grid; every other field is optional. What a value may be is ADIF's to say, and it is checked when you save.</p>
+      <p class="hint">A location needs a name and a grid; every other field is optional. What a value may be is ADIF's to say, and it is checked when you save.</p>
 
       <label for="station-name">Name</label>
       <input id="station-name" type="text" maxlength="64" bind:value={name}
@@ -464,14 +464,14 @@
       {#if personaName}
         <label class="checkbox-row">
           <input id="station-default" type="checkbox" bind:checked={makeDefault} />
-          The default station for {personaLabel}
+          The default location for {personaLabel}
         </label>
       {/if}
 
       {#if formError}<p class="extension-error" role="alert" id="station-form-error">{formError}</p>{/if}
       <div class="form-footer">
         <button type="button" class="secondary" onclick={close}>Cancel</button>
-        <button type="button" id="save-station" disabled={working} onclick={save}>{working ? 'Saving…' : 'Save station'}</button>
+        <button type="button" id="save-station" disabled={working} onclick={save}>{working ? 'Saving…' : 'Save location'}</button>
       </div>
     </section>
   {/if}
@@ -479,9 +479,9 @@
 
 <ConfirmDialog
   open={deleting !== undefined}
-  title="Delete this station?"
-  message={deleting ? `${deleting.name} is deleted from this computer. A persona that has it as its default will have none.` : ''}
-  confirmLabel="Delete station"
+  title="Delete this location?"
+  message={deleting ? `${deleting.name} is deleted from this computer. A callsign that has it as its default will have none.` : ''}
+  confirmLabel="Delete location"
   destructive
   onConfirm={() => { const station = deleting; deleting = undefined; if (station) void act(onDelete(station.id)); }}
   onCancel={() => { deleting = undefined; }}

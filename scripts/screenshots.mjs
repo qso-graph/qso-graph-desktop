@@ -139,7 +139,7 @@ async function stableShot(page, path, masks = VOLATILE) {
 const PERSONA = { name: 'qg-baseline-fixture', callsign: 'W1AW', start: '2026-01-01' };
 const VIEW = { width: 1100, height: 740 };
 const THEMES = ['light', 'dark'];
-const PAGES = ['Home', 'Personas', 'Stations', 'Settings'];
+const PAGES = ['Home', 'Callsigns', 'Locations', 'Settings'];
 // Not a rail destination — an overlay opened from the status bar
 // (QGD-LOG-0013, QGD-FRM-0012) — so it is captured by opening it rather than
 // by navigating to it. Its own baseline, because it is where the logs, the
@@ -321,8 +321,8 @@ try {
   await assertNoVisibleWindow(application, page, 'screenshots');
   // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
-    .getByRole('button', { name: 'Personas', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create a persona' })).toBeVisible();
+    .getByRole('button', { name: 'Callsigns', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   await page.setViewportSize(VIEW);
 
   // The one thing on these pages that moves. A blinking caret is two pixels
@@ -350,15 +350,15 @@ try {
   // perfectly healthy. scripts/smoke.mjs has always waited; these did not.
   await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
     { message: 'the persona service must be answering before the form is used', timeout: 30_000 }).toBe(true);
-  await page.getByLabel('Persona name', { exact: true }).fill(PERSONA.name);
+  await page.getByLabel('Description', { exact: true }).fill(PERSONA.name);
   await page.getByLabel('Callsign', { exact: true }).fill(PERSONA.callsign);
   await page.getByLabel('Start date', { exact: true }).fill(PERSONA.start);
-  await page.getByRole('button', { name: 'Create persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   // The persona round-trips through the Rust core. Five seconds is Playwright's
   // default and it is not enough on a machine that is busy — this assertion
   // failed twice that way while the application was behaving correctly.
   await expect(page.getByRole('heading', { name: PERSONA.callsign, exact: true })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: 'Use this persona', exact: true }).click();
+  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText(`Active: ${PERSONA.callsign}`);
   // The status line is a line of text in the baseline, and it was the last
   // thing moving between runs. app.ts retries its first persona list for up to
@@ -470,7 +470,7 @@ try {
   expect(await page.evaluate(([persona, id]) => window.storage.request({ type: 'set-default-station', persona, id }), [PERSONA.name, home.saved]))
     .toMatchObject({ ok: true });
   expect(await page.evaluate(id => window.storage.request({ type: 'set-active-station', id }), home.saved)).toMatchObject({ ok: true });
-  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText('Location: Home', { timeout: 30_000 });
   const blur = () => page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
 
   for (const theme of THEMES) {
@@ -478,7 +478,7 @@ try {
     await page.getByLabel('Theme', { exact: true }).selectOption(theme);
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(theme);
 
-    await rail('Stations').click();
+    await rail('Locations').click();
     await expect(page.locator('li.station-row')).toHaveCount(3, { timeout: 30_000 });
     await blur();
     await record(page, `stations-list-${theme}.png`, theme);

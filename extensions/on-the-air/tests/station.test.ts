@@ -37,7 +37,7 @@ describe('P8-your-station and P9-your-station (QGD-HOM-0009)', () => {
     expect(figures.figures[3]).toEqual({ label: 'Sunset', value: '21:30', unit: 'local' });
     expect(items.items).toEqual([
       { title: 'Operating as', detail: 'W1AW' },
-      { title: 'Station', detail: 'Home · DN13sm' }
+      { title: 'Location', detail: 'Home · DN13sm' }
     ]);
     const checked = validateCardAnswer(stationCard(now, persona, boise));
     if (!checked.ok) throw new Error('expected a card');
@@ -45,21 +45,21 @@ describe('P8-your-station and P9-your-station (QGD-HOM-0009)', () => {
   });
 
   it('says so when no persona is active', () => {
-    expect(JSON.stringify(stationCard(now, null, boise))).toContain('No persona is active yet.');
+    expect(JSON.stringify(stationCard(now, null, boise))).toContain('No callsign is active yet.');
   });
 
   it('with no station active, says so and shows the clock alone', () => {
     const { figures, items } = sections(stationCard(now, persona, null));
     expect(figures.figures.map(figure => figure.label)).toEqual(['UTC', 'Local']);
-    expect(items.items[1]).toEqual({ title: 'Station', detail: 'No station is active. Choose one in Stations.' });
+    expect(items.items[1]).toEqual({ title: 'Location', detail: 'No location is active. Choose one in Locations.' });
   });
 
   it('names a station with no location, and says sunrise and sunset need it', () => {
     const { figures, items } = sections(stationCard(now, persona, { name: 'Car' }));
     expect(figures.figures.map(figure => figure.label)).toEqual(['UTC', 'Local']);
     expect(items.items.slice(1)).toEqual([
-      { title: 'Station', detail: 'Car' },
-      { title: 'Sun', detail: 'Sunrise and sunset need the station\'s grid. Add it in Stations.' }
+      { title: 'Location', detail: 'Car' },
+      { title: 'Sun', detail: 'Sunrise and sunset need the location\'s grid. Add it in Locations.' }
     ]);
   });
 

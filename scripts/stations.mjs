@@ -74,11 +74,11 @@ try {
 
   // The page before anything is downloaded: no stations, and it says why
   // values cannot be checked yet and why a park cannot be used.
-  await rail(page, 'Stations').click();
+  await rail(page, 'Locations').click();
   await expect(page.locator('#no-stations')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#stations-unchecked')).toBeVisible();
   await expect(page.locator('#parks-not-downloaded')).toBeVisible();
-  await expect(page.locator('#active-station')).toHaveText('No active station');
+  await expect(page.locator('#active-station')).toHaveText('No active location');
 
   // ADIF's definitions, as the operator downloads them.
   const accepted = await page.evaluate(() => window.storage.request({ type: 'update-reference', resource: 'adif' }));
@@ -103,7 +103,7 @@ try {
   // read the personas as it does at start.
   await page.reload();
   await expect(page.locator('#active-persona')).toContainText('W1AW', { timeout: 30_000 });
-  await rail(page, 'Stations').click();
+  await rail(page, 'Locations').click();
 
   // ---- P9-adif ---------------------------------------------------------
   await page.locator('#add-station').click();
@@ -131,7 +131,7 @@ try {
   // The grid is required, and latitude and longitude can be filled from it.
   await field(page, 'MY_GRIDSQUARE').fill('');
   await page.locator('#save-station').click();
-  await expect(page.locator('#station-my-gridsquare-error')).toHaveText('A station needs a grid.');
+  await expect(page.locator('#station-my-gridsquare-error')).toHaveText('A location needs a grid.');
   await field(page, 'MY_GRIDSQUARE').fill('DN13');
   await page.locator('#fill-from-grid').click();
   await expect(field(page, 'MY_LAT')).toHaveValue('43.5');
@@ -157,7 +157,7 @@ try {
   await expect(page.locator('#station-name')).toHaveCount(0, { timeout: 30_000 });
   expect((await status(page)).status.stations.list.find(station => station.name === 'Both grids').place).toEqual(both);
   await row(page, 'Both grids').getByRole('button', { name: 'Delete Both grids' }).click();
-  await page.getByRole('button', { name: 'Delete station' }).click();
+  await page.getByRole('button', { name: 'Delete location' }).click();
   await expect(row(page, 'Both grids')).toHaveCount(0, { timeout: 30_000 });
   console.log('P9-adif: entity, state and zones picked from ADIF\'s lists, Idaho\'s zones filled in; a grid ADIF refuses was refused beside its field and nothing saved; corrected, it saved with the position in ADIF\'s form: PASS');
 
@@ -169,13 +169,13 @@ try {
   await page.locator('#save-station').click();
   await expect(row(page, 'Car')).toBeVisible({ timeout: 30_000 });
   await row(page, 'Home').getByRole('button', { name: 'Make Home active' }).click();
-  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText('Location: Home', { timeout: 30_000 });
   await row(page, 'Car').getByRole('button', { name: 'Make Car active' }).click();
-  await expect(page.locator('#active-station')).toHaveText('At: Car', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText('Location: Car', { timeout: 30_000 });
   await expect(page.locator('#active-persona')).toContainText('W1AW');
   // Making the persona active again makes its default active with it.
   await page.evaluate(() => window.personas.request({ type: 'set-active', name: 'qg-stations-fixture' }));
-  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText('Location: Home', { timeout: 30_000 });
   console.log('P9-active: a station made active without changing the persona, and the persona\'s default made active with it; the status bar named both: PASS');
 
   // ---- P9-your-station ------------------------------------------------
@@ -187,21 +187,21 @@ try {
   await expect(yourStation).toContainText('Home · DN13', { timeout: 60_000 });
   await expect(yourStation).toContainText('Sunrise');
   await expect(yourStation).toContainText('Sunset');
-  await rail(page, 'Stations').click();
+  await rail(page, 'Locations').click();
   await row(page, 'Car').getByRole('button', { name: 'Make Car active' }).click();
-  await expect(page.locator('#active-station')).toHaveText('At: Car', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText('Location: Car', { timeout: 30_000 });
   await rail(page, 'Home').click();
   await expect(yourStation).toContainText('Car · DN14', { timeout: 60_000 });
-  await rail(page, 'Stations').click();
+  await rail(page, 'Locations').click();
   await row(page, 'Home').getByRole('button', { name: 'Make Home active' }).click();
-  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText('Location: Home', { timeout: 30_000 });
   console.log('P9-your-station: Your station showed the active station and sunrise and sunset there, and the new station when it changed: PASS');
 
   // ---- P9-record -------------------------------------------------------
   await application.close();
   ({ application, page } = await launch());
-  await expect(page.locator('#active-station')).toHaveText('At: Home', { timeout: 60_000 });
-  await rail(page, 'Stations').click();
+  await expect(page.locator('#active-station')).toHaveText('Location: Home', { timeout: 60_000 });
+  await rail(page, 'Locations').click();
   await expect(row(page, 'Home')).toBeVisible({ timeout: 30_000 });
   await expect(row(page, 'Car')).toContainText('Mobile');
   await expect(row(page, 'Home')).toContainText('Default for');
@@ -209,10 +209,10 @@ try {
 
   // Deleting the active station leaves none active, and says so.
   await row(page, 'Home').getByRole('button', { name: 'Delete Home' }).click();
-  await page.getByRole('button', { name: 'Delete station' }).click();
+  await page.getByRole('button', { name: 'Delete location' }).click();
   await expect(row(page, 'Home')).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator('#no-active-station')).toBeVisible();
-  await expect(page.locator('#active-station')).toHaveText('No active station');
+  await expect(page.locator('#active-station')).toHaveText('No active location');
   console.log('P9-active: deleting the active station left none active, said on the page and the status bar: PASS');
 
   // ---- P9-stays-local --------------------------------------------------

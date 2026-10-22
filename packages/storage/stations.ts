@@ -32,11 +32,11 @@ export interface Checked {
 // depend on each other (a county is a county of the station's MY_DXCC).
 export function checkStation(draft: StationDraft, definitions: Definitions): Checked {
   const problems: FieldProblem[] = [];
-  if (draft.name.trim().length === 0) problems.push({ field: 'name', reason: 'A station needs a name.' });
+  if (draft.name.trim().length === 0) problems.push({ field: 'name', reason: 'A location needs a name.' });
   // The grid is always required (KI7MT, 2026-10-20): one grid, or the grids
   // of a line or corner (QGD-STN-0003).
   if (!draft.place.MY_GRIDSQUARE?.trim() && !draft.place.MY_VUCC_GRIDS?.trim()) {
-    problems.push({ field: 'MY_GRIDSQUARE', reason: 'A station needs a grid.' });
+    problems.push({ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' });
   }
   if (definitions === 'not loaded') return { problems, checked: false };
   const tags = STATION_FIELDS.flatMap(field => {
@@ -173,10 +173,10 @@ export async function saveStation(
     // Bounded, because the whole list travels in every status and a status
     // over the contract's bound would be refused whole (QGD-SEC-0006).
     if (!draft.id && others.length >= MAX_STATIONS) {
-      return { ok: false, problems: [{ field: 'name', reason: `There are already ${MAX_STATIONS} stations; delete one to add another.` }] };
+      return { ok: false, problems: [{ field: 'name', reason: `There are already ${MAX_STATIONS} locations; delete one to add another.` }] };
     }
     if (others.some(other => other.id !== draft.id && other.name.toLowerCase() === name.toLowerCase())) {
-      return { ok: false, problems: [{ field: 'name', reason: 'Another station already has this name.' }] };
+      return { ok: false, problems: [{ field: 'name', reason: 'Another location already has this name.' }] };
     }
     const at = now.toISOString();
     const values = {
@@ -184,7 +184,7 @@ export async function saveStation(
     };
     if (draft.id) {
       if (!others.some(other => other.id === draft.id)) {
-        return { ok: false, problems: [{ field: 'id', reason: 'That station no longer exists.' }] };
+        return { ok: false, problems: [{ field: 'id', reason: 'That location no longer exists.' }] };
       }
       await db.update(station).set(values).where(eq(station.id, draft.id)).run();
       return { ok: true, id: draft.id };

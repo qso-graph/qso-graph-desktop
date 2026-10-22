@@ -15,7 +15,7 @@
   const { Story } = defineMeta({
     title: 'patterns/StateList',
     component: StateList,
-    args: { label: 'Personas', state: 'ready', items: personas }
+    args: { label: 'Callsigns', state: 'ready', items: personas }
   });
 </script>
 
@@ -36,6 +36,6 @@
      get written differently every time they are needed. -->
 <Story name="Populated" args={{ item: row }} />
 <Story name="Loading" args={{ item: row, state: 'loading' }} />
-<Story name="Empty" args={{ item: row, items: [], empty: 'No personas yet. Start with your station callsign.' }} />
+<Story name="Empty" args={{ item: row, items: [], empty: 'No callsigns yet. Start with your own.' }} />
 <Story name="Failed" args={{ item: row, state: 'error', error: 'The persona list could not be read.' }} />
 <Story name="Failed, with a way back" args={{ item: row, state: 'error', error: 'The persona list could not be read.', retry }} />

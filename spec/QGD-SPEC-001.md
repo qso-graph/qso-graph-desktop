@@ -216,6 +216,13 @@ feature that does is built before it.
 
 The area is `QGD-STN`. Stations are core, not an extension's (`QGD-REP-0003`, `QGD-PRT-0005`).
 
+**What the operator sees** (KI7MT, 2026-10-22): the words hams already know from LoTW, QRZ, eQSL and
+their loggers. A persona (§3.2) is shown as a **callsign**, on a page called **Callsigns**; a station is
+shown as a **station location**, on a page called **Station Locations**, and **Locations** in the rail
+(TQSL's own term, which LoTW users already know). "Station" alone is not used for a place: in ADIF,
+`STATION_CALLSIGN` is a callsign. This specification and the code keep "persona" and "station" as
+their own names, and the requirement IDs (`QGD-PSN`, `QGD-STN`) are unchanged.
+
 | ID | Requirement | Verify |
 |---|---|---|
 | `QGD-STN-0001` | **A station is its own named record, separate from a persona.** An operator has as many as they need — home, a park, a summit, the car — and one station may be used by more than one persona. Stations are kept by QG Storage in `state.sqlite` (`QGD-ENG-0001`); none of a station is in the credential core or the OS credential store, because none of it is secret. | Test |

@@ -164,7 +164,7 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
 
   it('refuses a station with no grid, and takes the grids of a line or corner as its grid', () => {
     expect(checkStation(draft({ MY_GRIDSQUARE: undefined, MY_POTA_REF: 'US-0001' }), ruleset).problems)
-      .toEqual([{ field: 'MY_GRIDSQUARE', reason: 'A station needs a grid.' }]);
+      .toEqual([{ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' }]);
     expect(checkStation(draft({ MY_GRIDSQUARE: '  ' }), 'not loaded').problems.map(p => p.field)).toEqual(['MY_GRIDSQUARE']);
     expect(checkStation(draft({ MY_VUCC_GRIDS: 'DN13,DN14' }), ruleset).problems).toEqual([]);
   });
@@ -186,7 +186,7 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
     try {
       expect((await saveStation(state, draft({}), ruleset)).ok).toBe(true);
       const second = await saveStation(state, draft({}, { name: 'HOME' }), ruleset);
-      expect(second).toEqual({ ok: false, problems: [{ field: 'name', reason: 'Another station already has this name.' }] });
+      expect(second).toEqual({ ok: false, problems: [{ field: 'name', reason: 'Another location already has this name.' }] });
     } finally { state.close(); }
   });
 });

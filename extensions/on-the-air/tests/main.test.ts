@@ -49,7 +49,7 @@ describe('On the Air (QGD-HOM-0007)', () => {
       : { ok: false, error: 'refused', refused: 'persona:list' });
     activate(value);
     expect(await ask(providers, 'conditions')).toEqual({ ok: false, reason: 'NOAA could not be reached just now.' });
-    expect(JSON.stringify(await ask(providers, 'your-station'))).toContain('No persona is active yet.');
+    expect(JSON.stringify(await ask(providers, 'your-station'))).toContain('No callsign is active yet.');
   });
 
   it('says the data could not be read when NOAA sends something else', async () => {

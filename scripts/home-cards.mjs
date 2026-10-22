@@ -111,7 +111,7 @@ try {
   // persona was active before the kill; a persona made active now asks every
   // card again at once (QGD-HOM-0005), and its callsign must come back. The
   // cards' earlier answers would pass any check on what they already showed.
-  await expect(card(page, 'Your station')).toContainText('No persona is active yet.');
+  await expect(card(page, 'Your station')).toContainText('No callsign is active yet.');
   const personaReply = await page.evaluate(async () => {
     const made = await window.personas.request({ type: 'upsert', name: 'qg-home-cards-fixture', callsign: 'w1aw' });
     return made.ok ? window.personas.request({ type: 'set-active', name: 'qg-home-cards-fixture' }) : made;

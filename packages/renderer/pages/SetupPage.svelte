@@ -126,11 +126,11 @@
       id="setup-name"
       label="A name for it"
       optional
-      hint="So you can tell two personas apart — &ldquo;Home station&rdquo;, &ldquo;Portable&rdquo;. The callsign is used if you leave this empty."
+      hint="So you can tell two callsigns apart — &ldquo;Home station&rdquo;, &ldquo;Portable&rdquo;. The callsign is used if you leave this empty."
       control={nameControl}
     />
     <button type="button" class:working disabled={callsignProblem !== '' || working} onclick={createPersona}
-    >{working ? 'Creating…' : 'Create this persona'}</button>
+    >{working ? 'Creating…' : 'Add this callsign'}</button>
 
   {:else if service}
     <p class="hint" id="setup-progress">
@@ -173,10 +173,10 @@
     <p id="setup-done">
       {callsign || persona} is ready.
       {savedCount === 0
-        ? 'No credentials were saved — you can add them from Personas whenever you like.'
+        ? 'No credentials were saved — you can add them from Callsigns whenever you like.'
         : `${savedCount} credential${savedCount === 1 ? '' : 's'} saved.`}
       {skippedCount > 0
-        ? `${skippedCount} service${skippedCount === 1 ? '' : 's'} skipped; they are waiting for you in Personas.`
+        ? `${skippedCount} service${skippedCount === 1 ? '' : 's'} skipped; they are waiting for you in Callsigns.`
         : ''}
     </p>
     <button type="button" onclick={onDone}>Finish</button>

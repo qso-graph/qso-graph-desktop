@@ -81,7 +81,7 @@
       const answer = await onImport(importPassphrase);
       importResult = typeof answer === 'string'
         ? answer
-        : `Imported ${answer.personas} persona${answer.personas === 1 ? '' : 's'} ` +
+        : `Imported ${answer.personas} callsign${answer.personas === 1 ? '' : 's'} ` +
           `and ${answer.credentials} credential${answer.credentials === 1 ? '' : 's'}.`;
       if (typeof answer !== 'string') { preview = undefined; importPassphrase = ''; }
     } finally {
@@ -106,9 +106,9 @@
 {/snippet}
 
 <section class="card" aria-labelledby="move-title">
-  <h2 id="move-title">Move personas to another machine</h2>
+  <h2 id="move-title">Move callsigns to another computer</h2>
   <p class="hint">
-    One encrypted file holding your personas, their service settings and the
+    One encrypted file holding your callsigns, their service settings and the
     credentials saved for them. Nothing is sent anywhere — the file goes where
     you choose.
   </p>
@@ -150,7 +150,7 @@
     <div class="preview">
       <p>
         This file was made on {preview.created.slice(0, 10)} and holds
-        {preview.personas} persona{preview.personas === 1 ? '' : 's'} and
+        {preview.personas} callsign{preview.personas === 1 ? '' : 's'} and
         {preview.credentials} credential{preview.credentials === 1 ? '' : 's'}.
       </p>
       {#if preview.arriving.length}

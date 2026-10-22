@@ -11,7 +11,7 @@
       open: true,
       title: 'Remove this persona?',
       message: 'W1AW · Home station and the credentials saved for it will be removed from this Mac. This cannot be undone.',
-      confirmLabel: 'Remove persona',
+      confirmLabel: 'Remove callsign',
       destructive: true,
       onConfirm: () => {},
       onCancel: () => {}

@@ -38,21 +38,21 @@
   const { onExportPersonas, onInspectImport, onApplyImport }: Props = $props();
 </script>
 
-<aside aria-label="Personas">
-  <div class="sidebar-title"><h2>Personas</h2><button id="new-persona" type="button">+ New</button></div>
+<aside aria-label="Callsigns">
+  <div class="sidebar-title"><h2>Callsigns</h2><button id="new-persona" type="button">+ New</button></div>
   <div id="persona-list"></div>
   <p class="sidebar-note">Your own call, a club station, or a special-event call. Each has its own logins.</p>
 </aside>
 <div class="page-main">
-  <div class="page-title"><div><p class="eyebrow">STATION IDENTITY</p><h1 id="page-title">Create a persona</h1></div><button id="use-persona" class="secondary" type="button" hidden>Use this persona</button></div>
+  <div class="page-title"><div><p class="eyebrow">STATION IDENTITY</p><h1 id="page-title">Add a callsign</h1></div><button id="use-persona" class="secondary" type="button" hidden>Use this callsign</button></div>
   <p id="message" role="status" aria-live="polite"></p>
   <section class="card" aria-labelledby="identity-title">
-    <h2 id="identity-title">Persona details</h2>
+    <h2 id="identity-title">Callsign details</h2>
     <form id="persona-form">
-      <div class="fields"><label>Persona name<input id="persona-name" name="name" required maxlength="128" placeholder="Home station" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off"></label></div>
+      <div class="fields"><label>Description<input id="persona-name" name="name" required maxlength="128" placeholder="Home station" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off"></label></div>
       <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label><span>End date <span class="optional">optional</span></span><input id="end-date" type="date" name="end"></label></div>
       <p class="hint">The dates identify when this callsign belongs to this persona.</p>
-      <div class="form-footer"><button id="remove-persona" class="danger" type="button" hidden>Remove persona</button><button id="save-persona" type="submit">Create persona</button></div>
+      <div class="form-footer"><button id="remove-persona" class="danger" type="button" hidden>Remove callsign</button><button id="save-persona" type="submit">Add callsign</button></div>
     </form>
   </section>
   <section id="credential-card" class="card" aria-labelledby="credentials-title" hidden>
