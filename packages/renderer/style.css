@@ -137,6 +137,11 @@ main { flex: 1; min-height: 0; display: flex; }
 .page-stack > .offer { margin: 24px 36px 0; flex-shrink: 0; }
 .page-row { flex: 1; display: flex; min-height: 0; }
 .page-main { flex: 1; padding: 30px 36px 40px; overflow-y: auto; }
+/* The page's own width, which is what a layout inside it should answer to:
+   the rail and the callsign list take some of the window, so a query on the
+   window switches too early (Watson, 2026-10-22). Named, so a card's own
+   container queries still bind to the card. */
+.page-main { container: page / inline-size; }
 .page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: 1.4px; margin: 0 0 6px; color: var(--ink-muted); }
 h1 { font-size: 26px; letter-spacing: -.5px; margin: 0; font-weight: 650; }
@@ -212,17 +217,23 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
-/* A card is never narrower than 400 px where there is room: Conditions'
-   band table needs that for its three columns. At 300 px a wider window fit
-   more, narrower cards, and the table collapsed as the window grew (KI7MT,
-   2026-10-22). */
 /* A page that fills the window: cards are not held to the reading width. */
 .page-full .card { max-width: none; }
-/* Home's one flow of columns: each at least 400 px, as many as fit, every
-   card whole in one column, and a short card's gap filled by the next. */
-.home-flow { column-width: 400px; column-gap: 16px; }
+/* Home's pins are a grid, as GitHub's pinned repositories are (KI7MT,
+   2026-10-22): cards in rows, equal height across a row, and the next card
+   starting a new row rather than lengthening a column. At most three to a
+   row, so the six pins QGD-HOM-0003 allows read as three by two.
+   A card is comfortable at 400 px (Conditions' band table needs it), so
+   three of them and two gaps, 1232 px, is the most Home is ever as wide; on a
+   larger monitor the rest is a margin on the right, left-aligned as every
+   other page is, so nothing moves sideways between pages. Below 1232 there
+   are two to a row, and below 816 (two cards and a gap) one. */
+.home-flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1232px; align-items: stretch; }
+@container page (min-width: 816px) { .home-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 1232px) { .home-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .home-cards { display: contents; }
-.home-flow > .card, .home-flow .home-card { break-inside: avoid; display: block; width: 100%; margin: 0 0 16px; }
+.home-flow .home-card { margin: 0; min-width: 0; }
+.home-flow > .hint { grid-column: 1 / -1; margin: 0; }
 .home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .home-card-head h2 { margin: 0; }
 .home-card-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
@@ -283,7 +294,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .reference-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
 
 /* The extension host's notice on Home (QGD-APP-0022). */
-.home-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: min(980px, 100%); margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--warn-border); border-radius: 8px; background: var(--warn-surface); color: var(--warn); font-size: 13px; }
+.home-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: min(1232px, 100%); margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--warn-border); border-radius: 8px; background: var(--warn-surface); color: var(--warn); font-size: 13px; }
 .home-notice p { margin: 0; }
 
 /* Stations (QGD-STN-*). */

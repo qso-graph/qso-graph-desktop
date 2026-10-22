@@ -50,10 +50,8 @@
       <button type="button" class="secondary" onclick={() => onDismissNotice(home.notice!.id)}>Dismiss</button>
     </div>
   {/if}
-  <!-- One flow of columns for everything on Home (KI7MT, 2026-10-22):
-       each column at least 400 px, as many as the window holds, and a short
-       card leaves no gap, because the next fills the space beneath it.
-       The pinned cards, in the order the operator set them. -->
+  <!-- The pinned cards, in the order the operator set them, as a grid of at
+       most three to a row (KI7MT, 2026-10-22; style.css .home-flow). -->
   <div class="home-flow">
   {#if home.cards.length === 0}
     <p class="hint" id="nothing-pinned">Nothing is pinned. Customize your pins to choose what Home shows.</p>
