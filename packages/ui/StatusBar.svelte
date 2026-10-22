@@ -31,19 +31,16 @@
     dataContext?: string;
     // Opens the Troubleshooting panel.
     onOpenTroubleshooting?: () => void;
-    note?: string;
   }
   const {
     activeCallsign,
     activeStation = '',
     dataContext,
-    onOpenTroubleshooting,
-    // What the product actually does, which is now two things: a credential
-    // test, and fetching the reference data POTA and ADIF publish
-    // (QGD-REF-0001, QGD-REF-0009, QGD-SEC-0020). It said "only when you test
-    // a credential" until the reference load made that false.
-    note = 'Stored locally · Connects to test a credential or update reference data'
+    onOpenTroubleshooting
   }: Props = $props();
+  // The line that said when the application goes online is gone: Home's cards
+  // made it untrue, and it is said in full under Help → Privacy and Licences
+  // (QGD-FRM-0015, KI7MT 2026-10-22).
 </script>
 
 <footer>
@@ -54,7 +51,6 @@
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}
     >Troubleshooting</button>
   {/if}
-  <span id="connection-note">{note}</span>
 </footer>
 
 <style>

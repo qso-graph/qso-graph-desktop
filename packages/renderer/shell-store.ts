@@ -91,6 +91,8 @@ export interface ShellState {
   // while `page === 'settings'`, which is where they used to be shown. Found
   // in review.
   troubleshooting: boolean;
+  // Whether Privacy and Licences is open (QGD-FRM-0015).
+  privacy: boolean;
   // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
   // never imposed: the Personas page a machine with no personas shows is the
   // one P1 built and P3 was signed off with, and guided setup is a thing to
@@ -134,6 +136,7 @@ export const INITIAL_SHELL: ShellState = {
   // opened on an offer and then withdrew it would flash it at somebody who
   // already has personas.
   troubleshooting: false,
+  privacy: false,
   setup: false,
   firstRun: false,
   services: [],

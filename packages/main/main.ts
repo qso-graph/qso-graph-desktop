@@ -277,12 +277,20 @@ if (!app.requestSingleInstanceLock()) {
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button
       // (QGD-LOG-0013). The window opens the panel; this only says so.
+      // Privacy and Licences beside it (QGD-FRM-0015, KI7MT 2026-10-22).
       { role: 'help', submenu: [{
         id: 'troubleshooting',
         label: 'Troubleshooting…',
         click: () => {
           const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
           if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
+        }
+      }, {
+        id: 'privacy',
+        label: 'Privacy and Licences…',
+        click: () => {
+          const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+          if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:privacy'); }
         }
       }] }
     ]));

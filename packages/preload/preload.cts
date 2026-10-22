@@ -51,6 +51,12 @@ contextBridge.exposeInMainWorld('menu', Object.freeze({
     const handler = () => listener();
     ipcRenderer.on('menu:troubleshooting', handler);
     return () => { ipcRenderer.removeListener('menu:troubleshooting', handler); };
+  },
+  onPrivacy: (listener: () => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = () => listener();
+    ipcRenderer.on('menu:privacy', handler);
+    return () => { ipcRenderer.removeListener('menu:privacy', handler); };
   }
 }));
 // The extension inventory, for Settings (QGD-APP-0012). There is no way for

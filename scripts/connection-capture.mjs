@@ -512,16 +512,20 @@ try {
     offScheme.map(entry => `${entry.kind} ${entry.url} ${entry.error}`).join(', '))
     .toEqual([`error http://127.0.0.1:${port}/control/filtered`]);
 
-  // The footer makes a claim to the operator about when this application talks
-  // to the outside world. This suite is what evidences it, so the claim and the
-  // evidence are asserted together: the wording must be the one the measurement
-  // supports, and the measurement above must have found no connection during a
-  // workflow that included a credential test.
-  stage = 'the footer claim matches what this suite measured';
-  const footer = await page.locator('#connection-note').innerText();
-  expect(footer).toBe('Stored locally · Connects to test a credential or update reference data');
+  // Privacy and Licences makes a claim to the operator about when this
+  // application goes online (QGD-FRM-0015; until 2026-10-22 a line on the
+  // status bar). This suite is what evidences it, so the claim and the
+  // evidence are asserted together: the wording must be the one the
+  // measurement supports, and the measurement above must have found no
+  // connection during a workflow that included a credential test.
+  stage = 'the privacy claim matches what this suite measured';
+  await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById('privacy')?.click());
+  const online = await page.locator('#privacy-online').innerText();
+  expect(online).toBe('Only when you test a login, when you download or update reference data, and for the cards you ' +
+    'pin on Home, such as Conditions from NOAA. Nothing about you is sent with them. There is no analytics, no tracking and no account.');
   // An absolute claim would be false the moment a user tests a credential.
-  expect(footer).not.toContain('No service connection made');
+  expect(online).not.toMatch(/never goes online|no connection/i);
+  await page.locator('#close-privacy').click();
 
   stage = 'no outbound-network API in the product TypeScript but the two named';
   // The scope is walked, not listed (QGD-SEC-0021): this gate scanned seven

@@ -55,7 +55,8 @@
       themeChoice: 'system',
       logs,
       storage: { state: 'ready' },
-      troubleshooting: false, setup: false,
+      troubleshooting: false,
+      privacy: false, setup: false,
       firstRun: false,
       services: [],
       extensions: undefined

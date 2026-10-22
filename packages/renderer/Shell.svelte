@@ -18,6 +18,7 @@
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
+  import PrivacyPanel from './pages/PrivacyPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { HomeModel, HomeStore } from './home-store.js';
@@ -179,7 +180,7 @@
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
-      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} />
+      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenPrivacy={() => store.set({ privacy: true })} />
     </div>
   </main>
 </div>
@@ -190,4 +191,7 @@
   <TroubleshootingPanel storage={shell.storage}
                         logs={shell.logs} {onSetLevel} {onExport}
                         onClose={() => store.set({ troubleshooting: false })} />
+{/if}
+{#if shell.privacy}
+  <PrivacyPanel {version} onClose={() => store.set({ privacy: false })} />
 {/if}
