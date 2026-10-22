@@ -6,7 +6,7 @@ import { INITIAL_SHELL, PAGES, createShellStore, isPageId, type ShellState, visi
 describe('the shell store', () => {
   it('starts on Home with no active persona and the system theme', () => {
     expect(INITIAL_SHELL).toEqual({
-      page: 'home', activePersona: '', activeCallsign: '', activePersonaName: '', themeChoice: 'system', logs: undefined, storage: undefined,
+      page: 'home', activePersona: '', activeCallsign: '', activePersonaName: '', themeChoice: 'dark', logs: undefined, storage: undefined,
       // Troubleshooting closed. It is in the store rather than local to the
       // shell because what it shows is fetched while it is open: the logs
       // (QGD-LOG-0013, QGD-FRM-0012).
@@ -43,7 +43,7 @@ describe('the shell store', () => {
     store.set({ activePersona: 'W1AW · Home station' });
     store.set({ page: 'settings' });
     expect(store.get()).toMatchObject({
-      page: 'settings', activePersona: 'W1AW · Home station', themeChoice: 'system'
+      page: 'settings', activePersona: 'W1AW · Home station', themeChoice: 'dark'
     });
   });
 

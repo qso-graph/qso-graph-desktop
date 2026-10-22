@@ -39,7 +39,7 @@
 <Field
   id="theme-choice"
   label="Theme"
-  hint="System follows this computer's appearance and changes with it while QSO Graph Desktop is running. Light and dark are both first class: dark is for night nets and contests, light carries the contrast for daylight field use."
+  hint="Dark is the default, as rig and SDR software is. System follows this computer's appearance and changes with it while QSO Graph Desktop is running. Light and dark are both first class: dark is for night nets and contests, light carries the contrast for daylight field use."
   error={failed ? 'The theme could not be saved. It is unchanged.' : undefined}
 >
   {#snippet control({ describedBy, invalid }: ControlAttributes)}

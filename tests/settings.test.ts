@@ -28,8 +28,8 @@ describe('QGD-FRM-0001 and QGD-FRM-0002 which theme is in force', () => {
     expect(resolveTheme(choice, prefersDark)).toBe(expected);
   });
 
-  it('defaults to following the system', () => {
-    expect(DEFAULT_SETTINGS.theme).toBe('system');
+  it('defaults to dark, as rig and SDR software is', () => {
+    expect(DEFAULT_SETTINGS.theme).toBe('dark');
   });
 
   it('marks a named theme as pinned and System as followed', () => {
@@ -129,15 +129,15 @@ describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () =>
   it('reads what is valid and defaults the rest, key by key', () => {
     expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
-    expect(readSettings(null)).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
-    expect(readSettings('not an object')).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'system', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
   });
 });
 

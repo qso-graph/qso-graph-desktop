@@ -146,8 +146,8 @@
 | `QGD-SEC-0016` | **Never** "FIPS compliant", "FIPS certified", "FIPS approved application", or "validated" for any module version or platform that is not on a CMVP certificate. | Static | ✓ |
 | `QGD-SEC-0017` | Release evidence records the built module version, the crate version, the platform, and the CMVP validated and submitted lists with the date they were checked. | Test | ✓ |
 | `QGD-SEC-0018` | When a 4.x module version is CMVP-validated, `aws-lc-rs` is pinned to exactly that version and the wording steps up to "validated". An older validated version is not pinned in the meantime. | Inspection |  |
-| `QGD-FRM-0001` | The default theme follows the operating system — light when the system is light, dark when it is dark — and changes with it while the application is running, without a restart. | Test | ✓ |
-| `QGD-FRM-0002` | Settings offers System, Light and Dark. System is the default, and the choice is remembered for that user. | Test | ✓ |
+| `QGD-FRM-0001` | The default theme is Dark (KI7MT, 2026-10-22: rig control and SDR software is dark, day or night). System follows the operating system — light when the system is light, dark when it is dark — and changes with it while the application is running, without a restart. | Test | ✓ |
+| `QGD-FRM-0002` | Settings offers System, Light and Dark. Dark is the default, and the choice is remembered for that user. | Test | ✓ |
 | `QGD-FRM-0003` | Light and dark are equally first class. Dark is properly dark, for night nets and contests, not grey; light carries strong contrast for daylight field use. Both are approved by KI7MT under `QGD-PRT-0103`. | Demo, Inspection |  |
 | `QGD-FRM-0004` | A low-light or red night theme is not built in Release 1. | Inspection |  |
 | `QGD-FRM-0005` | The shell is built in Svelte. | Inspection |  |

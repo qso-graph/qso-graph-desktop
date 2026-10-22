@@ -458,7 +458,7 @@ void initialize();
 
 // QGD-FRM-0001 and QGD-FRM-0002: follow the operating system unless the user
 // has chosen otherwise, and change with it while running.
-let themeChoice: ThemeChoice = 'system';
+let themeChoice: ThemeChoice = 'dark';
 let stopFollowing: (() => void) | undefined;
 
 function startTheme(): void {

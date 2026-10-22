@@ -127,7 +127,7 @@ export const INITIAL_SHELL: ShellState = {
   activePersona: '',
   activeCallsign: '',
   activePersonaName: '',
-  themeChoice: 'system',
+  themeChoice: 'dark',
   logs: undefined,
   storage: undefined,
   // Both decided once the personas have been read, not before: a shell that

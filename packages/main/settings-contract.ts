@@ -11,7 +11,7 @@ import { THEME_CHOICES, isThemeChoice, type ThemeChoice } from '../ui/theme-choi
 export { THEME_CHOICES, isThemeChoice, type ThemeChoice };
 
 export interface Settings {
-  // QGD-FRM-0002: System is the default.
+  // QGD-FRM-0002: Dark is the default.
   theme: ThemeChoice;
   // Which grants the operator has allowed, per application id (QGD-APP-0012).
   // Here rather than in the database because the core decides what an
@@ -37,7 +37,9 @@ export const MAX_PINS = 6;
 // The day-one cards (QGD-HOM-0004): what a new install starts with.
 export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions', 'on-the-air/your-station'];
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] };
+// Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
+// day or night. Light and System stay one choice away (QGD-FRM-0002).
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] };
 
 const CARD_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
 

@@ -336,9 +336,10 @@ try {
   const gapBelow = railBox.y + railBox.height - (settingsBox.y + settingsBox.height);
   expect(gapBelow, 'Settings must sit at the foot of the rail').toBeLessThan(40);
 
-  // P3-theme-override: System, Light and Dark, with System the default.
+  // P3-theme-override: System, Light and Dark, with Dark the default
+  // (KI7MT, 2026-10-22; it was System until then).
   const theme = page.getByLabel('Theme', { exact: true });
-  await expect(theme).toHaveValue('system');
+  await expect(theme).toHaveValue('dark');
   expect(await theme.locator('option').allTextContents()).toEqual(['System', 'Light', 'Dark']);
 
   // P3-theme-contrast's measurement, and the reason the palette exists at all:
