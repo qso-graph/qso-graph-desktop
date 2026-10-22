@@ -67,6 +67,8 @@ const VOLATILE = [
   // checkout, but the baselines are committed and compared from any checkout
   // (~/qgd-bob, a maintainer's own clone), so the path differs between them.
   '#log-directory',
+  // The header's clock: its times, not its "UTC" and "Local" labels.
+  '#header-clock .clock-time',
   // Your station's clock: the times, not the "UTC" and "Local" labels above them.
   'section.home-card[aria-label="Your station"] .home-card-figures dd',
   'section.home-card .home-card-time'

@@ -12,6 +12,7 @@
   import { untrack } from 'svelte';
   import Rail from '../ui/Rail.svelte';
   import StatusBar from '../ui/StatusBar.svelte';
+  import HeaderClock from '../ui/HeaderClock.svelte';
   import HomePage from './pages/HomePage.svelte';
   import PersonaPage from './pages/PersonaPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
@@ -118,6 +119,7 @@
     </svg>
     <strong class="app-title">QSO Graph Desktop</strong>
   </span>
+  <HeaderClock />
 </header>
 <div class="workspace">
   <Rail pages={visiblePages()} current={shell.page} onNavigate={navigate} />
