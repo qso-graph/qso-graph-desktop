@@ -91,6 +91,28 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
   const [sunrise, sunset] = pair(sun, 'Sunrise', 'Sunset', 'None: the sun does not rise today', 'None: the sun does not set today');
   const sunRows: Row[] = [sunrise, ['Solar noon', noon], sunset, ['Length of day', dayLength]];
 
+  // The DX question (QGD-AST-0041): when both ends are inside the same depth.
+  // Drawn under the figures, just below the field it answers, not after the
+  // day's whole table (KI7MT, 2026-10-22).
+  const dx = inputs.dx ? gridCentre(inputs.dx) : undefined;
+  const greyLineSection: Section[] = [];
+  if (inputs.dx && dx) {
+    const heading = `Grey line with ${inputs.dx}, the next 24 hours`.slice(0, 60);
+    const found = greyLine(now, position, dx);
+    const rows: [string, string][] = [];
+    for (const { depth, windows } of found) {
+      const name = depth === D_LAYER ? 'D and E layers (−10.1°)' : 'F2 layer (−17.2°)';
+      if (windows.length === 0) rows.push([name, 'No window']);
+      for (const window of windows) rows.push([name, `${utcText(window.start)} to ${utcText(window.end).split(' ').pop()}`]);
+    }
+    // Neither depth shared: said once, in words, rather than as a table of
+    // two empty rows that reads as if nothing happened.
+    greyLineSection.push(found.every(({ windows }) => windows.length === 0)
+      ? { shape: 'alert', level: 'info', heading,
+          text: `${station!.name.slice(0, 40)} and ${inputs.dx} are not in twilight at the same time in the next 24 hours.` }
+      : { shape: 'table', heading, columns: ['Depth both ends are within', 'UTC'], rows });
+  }
+
   const sections: Section[] = [
     { shape: 'figures', figures: [
       { label: 'Location', value: station!.name.slice(0, 32) },
@@ -100,6 +122,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       { label: 'Sun now', value: signed(sunAltitude(at, latitude, longitude)) },
       { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%` }
     ] },
+    ...greyLineSection,
     { shape: 'alert', level: 'info', text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
       : 'Times are in UTC, which is what this computer\'s clock is set to. The Location\'s own time zone is not known yet.' },
@@ -128,21 +151,6 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     ] }
   ];
 
-  // The DX question (QGD-AST-0041): when both ends are inside the same depth.
-  const dx = inputs.dx ? gridCentre(inputs.dx) : undefined;
-  if (inputs.dx && dx) {
-    const found = greyLine(now, position, dx);
-    const rows: [string, string][] = [];
-    for (const { depth, windows } of found) {
-      const name = depth === D_LAYER ? 'D and E layers (−10.1°)' : 'F2 layer (−17.2°)';
-      if (windows.length === 0) rows.push([name, 'No window in the next 24 hours']);
-      for (const window of windows) rows.push([name, `${utcText(window.start)} to ${utcText(window.end).split(' ').pop()}`]);
-    }
-    sections.push({
-      shape: 'table', heading: `Grey line with ${inputs.dx}, the next 24 hours`.slice(0, 60),
-      columns: ['Depth both ends are within', 'UTC'], rows
-    });
-  }
   return { ok: true, data: { version: 5, observedAt, sections } };
 }
 
