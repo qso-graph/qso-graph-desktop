@@ -35,9 +35,6 @@
     { id: 'welcome-locations', icon: 'stations', hue: 'locations', text: 'Locations ready for LoTW, POTA and SOTA', go: () => onGo('stations') },
     { id: 'welcome-pins', icon: 'extension', hue: 'general', text: 'Pin what you use', go: onCustomize }
   ]);
-  // A step in its place's hue until done; done, in the success colour with
-  // its tick (Watson, 2026-10-22).
-  const STEP_HUE = { callsign: 'callsigns', location: 'locations', adif: 'general', parks: 'general', summits: 'general' } as const;
   const STEP_PLACE = { callsign: 'callsigns', location: 'stations', adif: 'settings', parks: 'settings', summits: 'settings' } as const;
 </script>
 
@@ -103,7 +100,7 @@
       <h3>Get started</h3>
       <ul>
         {#each steps as step (step.id)}
-          <li class:done={step.done} data-hue={STEP_HUE[step.id]}>
+          <li class:done={step.done}>
             <button type="button" class="link-button" id="welcome-step-{step.id}" onclick={() => onGo(STEP_PLACE[step.id])}
               aria-label={step.done ? `${step.label}: done` : step.label}>
               <span class="welcome-box" aria-hidden="true">{step.done ? '✓' : ''}</span>{step.label}
