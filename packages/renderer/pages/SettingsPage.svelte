@@ -50,6 +50,8 @@
   import type { ResourceSummary, StorageStatus } from '../../storage/storage-contract.js';
 
   interface Props {
+    // For About (KI7MT, 2026-10-22: moved here from Home).
+    version?: string;
     themeChoice: Choice;
     onChooseTheme: (choice: Choice) => Promise<boolean>;
     // Undefined while the main process has not answered.
@@ -59,7 +61,7 @@
     onUpdateReference?: (resource: string) => Promise<string | undefined>;
   }
   const {
-    themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
+    version = '', themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
     storage, onUpdateReference = () => Promise.resolve('The update could not be started.')
   }: Props = $props();
 
@@ -116,6 +118,25 @@
 </script>
 
 <PageLayout eyebrow="PREFERENCES" title="Settings">
+  <!-- About, first on the page, as macOS has About This Mac (KI7MT,
+       2026-10-22: moved from Home, and at the top of Settings): the version,
+       and what the application sends anywhere, said precisely, because it
+       reaches out on its own for reference data and pinned cards
+       (QGD-REF-0001, QGD-REF-0009). The menu's own About panel keeps the
+       third-party attribution. -->
+  <section class="card" aria-labelledby="about-title">
+    <h2 id="about-title">About QSO Graph Desktop</h2>
+    <dl class="facts">
+      <dt>Version</dt>
+      <dd id="about-version">{version}</dd>
+    </dl>
+    <p class="hint" id="about-privacy">
+      Everything you enter stays on this computer. Nothing of yours is sent anywhere
+      until you ask. The app fetches the ADIF and park reference lists when you download
+      or update them, and the data your pinned cards show, and nothing else.
+    </p>
+  </section>
+
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />

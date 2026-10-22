@@ -374,12 +374,13 @@ try {
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 
-  // Home's reference line settles once storage answers. Nothing is fetched at
-  // start, so in this run its answer is always "not loaded" for each
-  // resource; that is waited for, and then it is compared like any text.
-  await expect.poll(() => page.locator('#home-reference').innerText(),
-    { message: 'Home must say what reference data is loaded before anything is captured', timeout: 60_000 })
-    .toMatch(/ADIF definitions: not downloaded; POTA parks: not downloaded/);
+  // Settings' reference rows settle once storage answers. Nothing is fetched
+  // at start, so in this run each says "Not downloaded"; that is waited for,
+  // and then it is compared like any text.
+  await rail('Settings').click();
+  await expect.poll(() => page.locator('.reference-state').allInnerTexts(),
+    { message: 'Settings must say what reference data is downloaded before anything is captured', timeout: 60_000 })
+    .toEqual(['Not downloaded', 'Not downloaded']);
 
   for (const theme of THEMES) {
     await rail('Settings').click();
@@ -407,7 +408,7 @@ try {
       if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
       // Home and Personas run past the first screen; what is below it is
-      // captured too (Home's facts and "Where to go"; the credentials and
+      // captured too (the credentials and
       // export). Settings' end is its own capture below.
       if (name !== 'Settings') await recordScreens(page, name.toLowerCase(), theme, record);
     }

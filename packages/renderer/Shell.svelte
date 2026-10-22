@@ -88,10 +88,6 @@
     if (isPageId(id)) store.set({ page: id });
   }
 
-  // Everything the rail offers except Home itself: the page is a way in, not a
-  // way back to where you already are.
-  const destinations = $derived(visiblePages().filter(page => page.id !== 'home'));
-
   // The active station's name, for the status bar (QGD-STN-0005).
   const activeStationName = $derived.by(() => {
     const stations = shell.storage?.stations;
@@ -128,11 +124,6 @@
   <main>
     <div class="page" hidden={shell.page !== 'home'}>
       <HomePage
-        {version}
-        activePersona={shell.activePersona}
-        storage={shell.storage}
-        {destinations}
-        onGo={navigate}
         home={homeModel}
         onSavePins={pins => home.savePins(pins)}
         onDismissNotice={id => home.dismissNotice(id)}
@@ -194,7 +185,7 @@
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
-      <SettingsPage themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} />
+      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} />
     </div>
   </main>
 </div>

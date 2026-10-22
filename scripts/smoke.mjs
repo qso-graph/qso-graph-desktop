@@ -465,13 +465,17 @@ try {
   await expect(page.locator('#troubleshooting').getByRole('button', { name: /^(Start|Stop)$/ })).toHaveCount(0);
   await expect(page.locator('#reference-datasets')).toBeVisible();
   await page.locator('#close-troubleshooting').click();
-  // QGD-FRM-0011: Home says, per resource, whether reference data is loaded.
-  // Nothing is fetched at start (KI7MT, 2026-10-11), so a new profile says
-  // "not loaded" for each, and points to Settings to load them.
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Home', exact: true }).click();
-  await expect.poll(() => page.locator('#home-reference').innerText(), { timeout: 10_000 })
-    .toMatch(/^ADIF definitions: not downloaded; POTA parks: not downloaded/);
-  await expect(page.locator('#manage-reference')).toBeVisible();
+  // QGD-REF-0017: Settings says, per resource, whether reference data is
+  // downloaded. Nothing is fetched at start (KI7MT, 2026-10-11), so a new
+  // profile says "Not downloaded" for each, with Download beside it. Home
+  // holds the pinned cards only (QGD-FRM-0011, 2026-10-22); the version and
+  // what the application sends are in Settings' About.
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect.poll(() => page.locator('.reference-state').allInnerTexts(), { timeout: 10_000 })
+    .toEqual(['Not downloaded', 'Not downloaded']);
+  await expect(page.getByRole('button', { name: 'Download ADIF definitions' })).toBeVisible();
+  await expect(page.locator('#about-version')).not.toBeEmpty();
+  await expect(page.locator('#about-privacy')).toContainText('Everything you enter stays on this computer');
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Personas', exact: true }).click();
 
   // ---- P3-logs-page (QGD-LOG-0013) --------------------------------------
