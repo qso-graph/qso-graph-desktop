@@ -126,7 +126,7 @@
       id="setup-name"
       label="A name for it"
       optional
-      hint="So you can tell two callsigns apart — &ldquo;Home station&rdquo;, &ldquo;Portable&rdquo;. The callsign is used if you leave this empty."
+      hint="So you can tell two callsigns apart — &ldquo;Personal&rdquo;, &ldquo;Club&rdquo;. The callsign is used if you leave this empty."
       control={nameControl}
     />
     <button type="button" class:working disabled={callsignProblem !== '' || working} onclick={createPersona}
