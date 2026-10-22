@@ -202,7 +202,11 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
-.home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; align-items: start; max-width: min(980px, 100%); margin-bottom: 20px; }
+/* A card is never narrower than 400 px where there is room: Conditions'
+   band table needs that for its three columns. At 300 px a wider window fit
+   more, narrower cards, and the table collapsed as the window grew (KI7MT,
+   2026-10-22). */
+.home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr)); gap: 16px; align-items: start; max-width: min(980px, 100%); margin-bottom: 20px; }
 .home-cards .card { margin-bottom: 0; max-width: none; }
 .home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .home-card-head h2 { margin: 0; }
