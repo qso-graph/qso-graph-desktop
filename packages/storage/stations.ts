@@ -57,6 +57,19 @@ export function checkStation(draft: StationDraft, definitions: Definitions, coun
       problems.push({ field: 'MY_CNTY', reason: `${list} has no ${county}. Pick it from the list.` });
     }
   }
+  // The ARRL section is the state's, or where ARRL splits the state, the
+  // county's (ARRL's Section Boundaries, QGD-STN-0010).
+  const section = draft.place.MY_ARRL_SECT;
+  if (counties && countyEntity && US_ENTITIES.has(countyEntity) && countyState && section) {
+    const state = countyState.toUpperCase();
+    const allowed = counties.sectionsOf(state);
+    const known = county && counties.has(county) ? counties.sectionOf(state, county) : undefined;
+    if (known && section.toUpperCase() !== known) {
+      problems.push({ field: 'MY_ARRL_SECT', reason: `${county} is in ARRL's ${known} section.` });
+    } else if (!known && allowed.length > 0 && !allowed.includes(section.toUpperCase())) {
+      problems.push({ field: 'MY_ARRL_SECT', reason: `${state} is in ARRL's ${allowed.join(' or ')} section${allowed.length > 1 ? 's' : ''}.` });
+    }
+  }
   if (definitions === 'not loaded') return { problems, checked: false };
   const tags = STATION_FIELDS.flatMap(field => {
     const value = draft.place[field];
@@ -357,7 +370,11 @@ export function stationChoices(
     // Code 0 is "no DXCC entity", which is not a place to operate from.
     entities: choose('DXCC_Entity_Code', 'Entity Code', 'Entity Name', false).filter(choice => choice.code !== '0'),
     states: choose('Primary_Administrative_Subdivision', 'Code', 'Primary Administrative Subdivision', true),
-    sections: choose('ARRL_Section', 'Abbreviation', 'Section Name', true),
+    // A US state's own sections where the counties' data has them; elsewhere
+    // the entity's.
+    sections: choose('ARRL_Section', 'Abbreviation', 'Section Name', true).filter(choice =>
+      !(counties && entity !== null && US_ENTITIES.has(entity) && state !== null)
+      || counties.sectionsOf(state.toUpperCase()).includes(choice.code)),
     // A US state's counties from the list LoTW accepts (QGD-STN-0010);
     // elsewhere, what ADIF lists.
     counties: counties && entity !== null && US_ENTITIES.has(entity) && state !== null

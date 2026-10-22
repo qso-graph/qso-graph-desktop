@@ -39,13 +39,13 @@
     // The parks a POTA reference names, from POTA's list where it is here.
     onLookUpParks?: (references: string) => Promise<NamedReferences | undefined>;
     // The US counties at a position or over a grid square (QGD-STN-0010).
-    onCountiesAt?: (area: { south: number; west: number; north: number; east: number }) => Promise<string[] | string>;
+    onCountiesAt?: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
   }
   const {
     stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
     onChoices = () => Promise.resolve(undefined),
     onLookUpParks = () => Promise.resolve(undefined),
-    onCountiesAt = () => Promise.resolve([])
+    onCountiesAt = () => Promise.resolve({ counties: [], sections: {} })
   }: Props = $props();
 
   // ---- references checked against their lists (KI7MT, 2026-10-20) ---------
@@ -86,6 +86,8 @@
     // A state with one zone has that zone: filled in, never over a choice.
     if (answer?.cqZones.length === 1 && !place.MY_CQ_ZONE) place.MY_CQ_ZONE = answer.cqZones[0].code;
     if (answer?.ituZones.length === 1 && !place.MY_ITU_ZONE) place.MY_ITU_ZONE = answer.ituZones[0].code;
+    // And a state with one ARRL section has that section (QGD-STN-0010).
+    if (state && answer?.sections.length === 1 && !place.MY_ARRL_SECT) place.MY_ARRL_SECT = answer.sections[0].code;
   }
   // The options for a field, with what the station already holds kept in the
   // list even if ADIF's list no longer has it, so opening a station never
@@ -357,6 +359,7 @@
   // position in another state is said, not acted on.
   let countyNote = $state('');
   let countyChoices = $state<string[]>([]);
+  let countySections: Record<string, string> = {};
   const countyGrid = $derived((place.MY_GRIDSQUARE ?? '').split(',')[0].trim());
   const countyArea = $derived.by(() => {
     if (typedPosition) {
@@ -377,6 +380,8 @@
     // entities of their own.
     if (!place.MY_DXCC) place.MY_DXCC = state === 'AK' ? '6' : state === 'HI' ? '110' : '291';
     place.MY_CNTY = cnty;
+    // The county's ARRL section with it, where the Section field is empty.
+    if (!place.MY_ARRL_SECT && countySections[cnty]) place.MY_ARRL_SECT = countySections[cnty];
     countyChoices = [];
     void loadChoices();
     return true;
@@ -389,12 +394,14 @@
     const fromPosition = typedPosition !== undefined;
     const answer = await onCountiesAt(area);
     if (typeof answer === 'string') { countyNote = answer; return; }
-    if (answer.length === 0) {
+    countySections = answer.sections;
+    const found = answer.counties;
+    if (found.length === 0) {
       countyNote = fromPosition ? 'There is no US county at that latitude and longitude.' : `There is no US county in ${countyGrid}.`;
-    } else if (answer.length === 1) {
-      if (setCounty(answer[0])) countyNote = `${countyName(answer[0])}, from the ${fromPosition ? 'latitude and longitude' : 'grid'}.`;
+    } else if (found.length === 1) {
+      if (setCounty(found[0])) countyNote = `${countyName(found[0])}, from the ${fromPosition ? 'latitude and longitude' : 'grid'}.`;
     } else {
-      countyChoices = answer;
+      countyChoices = found;
       countyNote = `${countyGrid} crosses a county line. Pick the county, or fill in latitude and longitude for the one you are in:`;
     }
   }

@@ -701,10 +701,11 @@ export async function stationChoices(entity: string | null, state: string | null
 
 // The US counties at a position or over a grid square, as LoTW names them
 // (QGD-STN-0010). A string is why there is no answer.
-export async function countiesAt(area: { south: number; west: number; north: number; east: number }): Promise<string[] | string> {
+export async function countiesAt(area: { south: number; west: number; north: number; east: number }):
+  Promise<{ counties: string[]; sections: Record<string, string> } | string> {
   const reply = await stationRequest({ type: 'counties-at', ...area });
   if (!reply.ok) return reply.error;
-  return reply.counties ?? [];
+  return { counties: reply.counties ?? [], sections: reply.sections ?? {} };
 }
 
 // The names of the parks a POTA reference names, from POTA's list.

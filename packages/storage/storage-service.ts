@@ -206,7 +206,13 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       const point = south === north && west === east;
       const found = point ? [list.at(south, west)].filter((county): county is string => county !== undefined)
         : list.inGrid(south, west, north, east);
-      return { ok: true, status: status(), counties: found };
+      // Each county's ARRL section, where it has one, so the editor can fill
+      // it with the county (QGD-STN-0010).
+      const sections = Object.fromEntries(found.flatMap(cnty => {
+        const section = list.sectionOf(cnty.slice(0, cnty.indexOf(',')), cnty);
+        return section ? [[cnty, section]] : [];
+      }));
+      return { ok: true, status: status(), counties: found, sections };
     }
     case 'station-from-park': {
       const reader = reference?.reader();

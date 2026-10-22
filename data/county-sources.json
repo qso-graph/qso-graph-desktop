@@ -24,8 +24,33 @@
   },
   "rules": {
     "territories": "Puerto Rico, American Samoa, Guam, the Northern Mariana Islands and the US Virgin Islands are separate DXCC entities and are left out. So is the District of Columbia, which TQSL gives no county.",
-    "alaskaRenamed": { "Copper River": "Valdez-Cordova", "Chugach": "Valdez-Cordova" },
+    "alaskaRenamed": {
+      "Copper River": "Valdez-Cordova",
+      "Chugach": "Valdez-Cordova"
+    },
     "simplifiedTo": "0.0003 degrees, about 30 m",
-    "quantum": "0.0001 degrees, about 11 m"
+    "quantum": "0.0001 degrees, about 11 m",
+    "sectionCorrections": {
+      "note": "Where ARRL's page names a county differently from Census and LoTW, or runs two together. Each is a spelling, not a change of section.",
+      "PA": {
+        "Northhampton": "Northampton"
+      },
+      "FL": {
+        "Dade": "Miami-Dade"
+      },
+      "NJ": {
+        "Mercer Ocean": [
+          "Mercer",
+          "Ocean"
+        ]
+      }
+    }
+  },
+  "sections": {
+    "what": "ARRL's Section Boundaries page: which sections each state has, and in states with more than one, which counties each section holds. ARRL's page varies from one request to the next, so the copy pinned is the Internet Archive's of 2026-06-15, which is served byte for byte. scripts/arrl-sections.mjs compares it with ARRL's live page.",
+    "url": "https://web.archive.org/web/20260615180350id_/https://www.arrl.org/section-boundaries",
+    "live": "https://www.arrl.org/section-boundaries",
+    "sha256": "e4c3ba436436e2c9f198de3c9df259eb67cccabc82877de273a91d830d0f84b9",
+    "archived": "2026-06-15"
   }
 }

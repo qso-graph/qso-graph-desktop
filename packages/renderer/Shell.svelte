@@ -42,7 +42,7 @@
     onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
     onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
-    onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<string[] | string>;
+    onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because

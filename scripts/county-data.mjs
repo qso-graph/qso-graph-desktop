@@ -183,3 +183,97 @@ export function contains(rings, x, y) {
   }
   return inside;
 }
+
+// ---- ARRL sections -----------------------------------------------------------
+// ARRL's Section Boundaries page as text: division headings, each section's
+// name on its own line, and for a section that is part of a state, a line
+// after it starting "--" that lists its counties. Returns the sections in
+// page order: { name, counties } with counties null for a whole-state
+// section, or the line's other text where it lists none ("Hawaii and U.S.
+// possessions in the Pacific").
+export function parseSections(html) {
+  const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '')
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;|&rsquo;/g, "'")
+    .split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const start = text.indexOf('Atlantic Division');
+  if (start < 0) throw new Error('ARRL\'s page has no Atlantic Division: not the shape this reads');
+  const sections = [];
+  for (let i = start; i < text.length; i++) {
+    const line = text[i];
+    if (line === 'Back to Top') break;
+    if (/ Division$/.test(line)) continue;
+    if (line.startsWith('--') || line.startsWith('-DC')) {
+      const last = sections.at(-1);
+      if (!last) continue;
+      if (line === '-DC') { last.name += '-DC'; continue; }
+      const listed = /counties of (.*)$/.exec(line);
+      if (listed) {
+        last.counties = listed[1].replace(/\s+and\s+/g, ', ').split(',').map(name => name.trim()).filter(Boolean);
+      } else {
+        last.note = line.replace(/^--\s*/, '');
+      }
+      continue;
+    }
+    // The section list ends where the page's own text resumes.
+    if (sections.length > 0 && !/^[A-Z][A-Za-z.\- ]+$/.test(line)) break;
+    if (line.length > 40) break;
+    sections.push({ name: line, counties: null });
+  }
+  return sections;
+}
+
+// Every US county's ARRL section (ADIF's abbreviation), from the page's
+// sections, ADIF's ARRL_Section list and the county names the data uses.
+// Whole-state sections are matched to a state by name; listed counties to
+// the one state holding them all; Los Angeles, which the page lists without
+// counties, is its county. Returns { byState, byCounty, problems }: byState
+// for a state with one section, byCounty for a state with several.
+export function assignSections({ sections, adifSections, countiesOf, stateNames, corrections }) {
+  const problems = [];
+  const abbreviation = new Map(adifSections.map(entry => [comparable(entry.name), entry.abbreviation]));
+  const byState = {};
+  const byCounty = {};
+  const split = new Map();
+  for (const section of sections) {
+    // Puerto Rico and the US Virgin Islands are DXCC entities of their own,
+    // with no counties here.
+    if (['Puerto Rico', 'US Virgin Islands'].includes(section.name)) continue;
+    const code = abbreviation.get(comparable(section.name));
+    if (!code) { problems.push(`ARRL's section "${section.name}" is not in ADIF's ARRL_Section list`); continue; }
+    if (section.counties) {
+      // The one state that has every county listed.
+      const fits = Object.keys(countiesOf).filter(state => {
+        const have = new Set(countiesOf[state].map(comparable));
+        const listed = section.counties.flatMap(name => [corrections[state]?.[name] ?? name].flat());
+        return listed.every(name => have.has(comparable(name)));
+      });
+      if (fits.length !== 1) { problems.push(`${section.name}: its counties fit ${fits.length} states`); continue; }
+      const state = fits[0];
+      const names = new Map(countiesOf[state].map(name => [comparable(name), name]));
+      for (const listedName of section.counties.flatMap(name => [corrections[state]?.[name] ?? name].flat())) {
+        const county = `${state},${names.get(comparable(listedName))}`;
+        if (byCounty[county]) problems.push(`${county} is in two sections`);
+        byCounty[county] = code;
+      }
+      split.set(state, [...(split.get(state) ?? []), code]);
+      continue;
+    }
+    const state = Object.entries(stateNames).find(([, name]) => comparable(name) === comparable(section.name))?.[0];
+    if (state) { byState[state] = code; continue; }
+    if (section.name === 'Maryland-DC') { byState.MD = code; continue; }
+    if (section.name === 'Pacific') { byState.HI = code; continue; }
+    if (section.name === 'Los Angeles') { byCounty['CA,Los Angeles'] = code; split.set('CA', [...(split.get('CA') ?? []), code]); continue; }
+    problems.push(`ARRL's section "${section.name}" names no state this list has`);
+  }
+  // A state split into sections has every county in one of them.
+  for (const state of split.keys()) {
+    for (const name of countiesOf[state]) {
+      if (!byCounty[`${state},${name}`]) problems.push(`${state},${name} is in no section`);
+    }
+  }
+  for (const state of Object.keys(countiesOf)) {
+    if (!split.has(state) && !byState[state]) problems.push(`${state} has no section`);
+  }
+  return { byState, byCounty, problems };
+}

@@ -14,6 +14,9 @@ export interface CountyData {
   quantum: number;
   counties: { cnty: string; codes: string[]; box: [number, number, number, number]; rings: number[][] }[];
   names: Record<string, string[]>;
+  // ARRL sections (ADIF's abbreviations): a state's one section, or for a
+  // state with several, each county's.
+  sections: { byState: Record<string, string>; byCounty: Record<string, string> };
 }
 
 interface Shape {
@@ -30,6 +33,10 @@ export interface Counties {
   inGrid(south: number, west: number, north: number, east: number): string[];
   // A state's counties, by name, for a pick list; empty for a state with none.
   of(state: string): string[];
+  // A state's ARRL sections: one for most, several where ARRL splits it.
+  sectionsOf(state: string): string[];
+  // The ARRL section a county is in, or a state's where it has one.
+  sectionOf(state: string, cnty?: string): string | undefined;
   // Whether a MY_CNTY value names a county this list has, spelled exactly as
   // the list spells it: a value is refused, never altered to fit (QGD-STN-0002).
   has(cnty: string): boolean;
@@ -38,7 +45,9 @@ export interface Counties {
 function isData(value: unknown): value is CountyData {
   const data = value as CountyData;
   return typeof value === 'object' && value !== null && data.format === 1 && typeof data.quantum === 'number'
-    && Array.isArray(data.counties) && typeof data.names === 'object' && data.names !== null;
+    && Array.isArray(data.counties) && typeof data.names === 'object' && data.names !== null
+    && typeof data.sections === 'object' && data.sections !== null
+    && typeof data.sections.byState === 'object' && typeof data.sections.byCounty === 'object';
 }
 
 function decode(ring: number[], quantum: number): Float64Array {
@@ -106,6 +115,15 @@ export function countiesFrom(parsed: unknown): Counties {
     },
     of(state) {
       return [...(names.get(state) ?? [])];
+    },
+    sectionsOf(state) {
+      const whole = parsed.sections.byState[state];
+      if (whole) return [whole];
+      return [...new Set(Object.entries(parsed.sections.byCounty)
+        .filter(([cnty]) => cnty.startsWith(`${state},`)).map(([, section]) => section))].sort();
+    },
+    sectionOf(state, cnty) {
+      return parsed.sections.byState[state] ?? (cnty ? parsed.sections.byCounty[cnty] : undefined);
     },
     has(cnty) {
       return all.has(cnty);

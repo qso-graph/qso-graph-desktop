@@ -99,7 +99,7 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[] }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string> }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
@@ -166,7 +166,10 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
 export function isStorageReply(value: unknown): value is StorageReply {
   if (!record(value)) return false;
   if (value.ok === true) {
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections']) && isStorageStatus(value.status)
+      && (value.sections === undefined || (typeof value.sections === 'object' && value.sections !== null && !Array.isArray(value.sections)
+        && Object.keys(value.sections).length <= 200
+        && Object.entries(value.sections).every(([county, code]) => county.length <= 64 && typeof code === 'string' && /^[A-Z]{1,4}$/.test(code))))
       && (value.counties === undefined || (Array.isArray(value.counties) && value.counties.length <= 200
         && value.counties.every(county => typeof county === 'string' && county.length <= 64)))
       && (value.named === undefined || isNamedReferences(value.named))

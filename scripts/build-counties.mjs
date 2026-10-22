@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import {
-  cachedSource, encodeRing, nameCounties, readDbf, readShp, simplify, tqslCounties
+  assignSections, cachedSource, encodeRing, nameCounties, parseSections, readDbf, readShp, simplify, tqslCounties
 } from './county-data.mjs';
 
 const OUT = resolve('dist', 'reference', 'us-counties.json');
@@ -96,19 +96,36 @@ for (const county of counties) (names[county.cnty.slice(0, 2)] ??= []).push(coun
 names.AK = [...new Set([...(names.AK ?? []), ...alaska])];
 for (const state of Object.keys(names)) names[state].sort((a, b) => a.localeCompare(b));
 
+// Each county's ARRL section (QGD-STN-0010): from ARRL's Section Boundaries
+// page, matched to ADIF's ARRL_Section list. A partial answer is refused.
+const adifSections = Object.values(adif.Adif.Enumerations.ARRL_Section.Records)
+  .filter(row => !row.Deleted && !row['Deleted Date'])
+  .map(row => ({ abbreviation: row.Abbreviation, name: row['Section Name'] }));
+const stateNames = Object.fromEntries(rows.map(row => [row.STUSPS, row.STATE_NAME]));
+const { byState, byCounty, problems } = assignSections({
+  sections: parseSections((await source('sections')).toString('utf8')),
+  adifSections, countiesOf: names, stateNames, corrections: sources.rules.sectionCorrections
+});
+if (problems.length) {
+  console.error(`ARRL's sections do not cover the counties: ${problems.join('; ')}`);
+  process.exit(1);
+}
+
 const data = {
   format: 1,
   quantum: QUANTUM,
   sources: {
     boundaries: sources.boundaries.sha256, connecticut: sources.connecticut.sha256,
-    names: sources.names.sha256, adif: adifSources.source.sha256
+    names: sources.names.sha256, sections: sources.sections.sha256, adif: adifSources.source.sha256
   },
   counties,
-  names
+  names,
+  sections: { byState, byCounty }
 };
 await mkdir(dirname(OUT), { recursive: true });
 const text = JSON.stringify(data);
 await writeFile(OUT, text);
 const total = Object.values(names).reduce((sum, list) => sum + list.length, 0);
 console.log(`US counties: ${counties.length} with boundaries, ${total} names in ${Object.keys(names).length} states, ` +
+  `ARRL sections for ${Object.keys(byState).length} whole states and ${Object.keys(byCounty).length} counties, ` +
   `${(text.length / 1e6).toFixed(1)} MB: PASS`);

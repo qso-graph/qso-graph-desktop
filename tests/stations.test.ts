@@ -568,6 +568,28 @@ describe('US counties: LoTW\'s list, filled and checked (QGD-STN-0010)', () => {
     } finally { state.close(); }
   });
 
+  it('offers a US state\'s own ARRL sections, and takes the right one', () => {
+    expect(stationChoices(ruleset, '291', 'ID', counties).sections.map(choice => choice.code)).toEqual(['ID']);
+    expect(stationChoices(ruleset, '291', 'PA', counties).sections.map(choice => choice.code)).toEqual(['EPA', 'WPA']);
+    expect(checkStation(draft({ ...idaho, MY_ARRL_SECT: 'ID' }), ruleset, counties).problems).toEqual([]);
+  });
+
+  it('refuses a section of another state', () => {
+    expect(checkStation(draft({ ...idaho, MY_ARRL_SECT: 'OR' }), ruleset, counties).problems)
+      .toEqual([{ field: 'MY_ARRL_SECT', reason: 'ID is in ARRL\'s ID section.' }]);
+  });
+
+  it('holds a split state\'s section to its county', () => {
+    const pennsylvania = { MY_GRIDSQUARE: 'FN20', MY_DXCC: '291', MY_STATE: 'PA' };
+    expect(checkStation(draft({ ...pennsylvania, MY_CNTY: 'PA,Adams', MY_ARRL_SECT: 'EPA' }), ruleset, counties).problems).toEqual([]);
+    expect(checkStation(draft({ ...pennsylvania, MY_CNTY: 'PA,Adams', MY_ARRL_SECT: 'WPA' }), ruleset, counties).problems)
+      .toEqual([{ field: 'MY_ARRL_SECT', reason: 'PA,Adams is in ARRL\'s EPA section.' }]);
+    // With no county, either of the state's.
+    expect(checkStation(draft({ ...pennsylvania, MY_ARRL_SECT: 'WPA' }), ruleset, counties).problems).toEqual([]);
+    expect(checkStation(draft({ ...pennsylvania, MY_ARRL_SECT: 'NTX' }), ruleset, counties).problems)
+      .toEqual([{ field: 'MY_ARRL_SECT', reason: 'PA is in ARRL\'s EPA or WPA sections.' }]);
+  });
+
   it('asks for counties at a point or over a grid square, and nothing larger', () => {
     expect(validateStorageCommand({ type: 'counties-at', south: 43.6, west: -116.2, north: 43.6, east: -116.2 })).toBe(true);
     expect(validateStorageCommand({ type: 'counties-at', south: 43, west: -118, north: 44, east: -116 })).toBe(true);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Fetches what the US county data is built from (data/county-sources.json):
-// two Census boundary files and TQSL's configuration. Each is checked against
+// two Census boundary files, TQSL's configuration and ARRL's section
+// boundaries. Each is checked against
 // its SHA-256 before it is kept, and kept under vendor/.cache/, which is not
 // in the repository. Run by `make setup` and `make update`; a file already
 // there and matching is not fetched again, so it goes to the network once.
@@ -17,7 +18,7 @@ await mkdir(cache, { recursive: true });
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 
-for (const key of ['boundaries', 'connecticut', 'names']) {
+for (const key of ['boundaries', 'connecticut', 'names', 'sections']) {
   const source = sources[key];
   const path = cachedSource(source);
   const have = await readFile(path).catch(() => undefined);
@@ -50,4 +51,4 @@ for (const key of ['boundaries', 'connecticut', 'names']) {
   await rename(`${path}.part`, path);
   console.log(`${key}: fetched, ${body.length} bytes, SHA-256 checked.`);
 }
-console.log('US county sources: all three present and checked: PASS');
+console.log('US county sources: all four present and checked: PASS');

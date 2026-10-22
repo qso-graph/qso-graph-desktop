@@ -169,7 +169,7 @@ try {
   await expect(row(page, 'Home')).toContainText('Default for');
   const saved = (await status(page)).status.stations.list.find(station => station.name === 'Home');
   expect(saved.place).toMatchObject({ MY_DXCC: '291', MY_STATE: 'ID', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
-    MY_GRIDSQUARE: 'DN13', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498', MY_CNTY: 'ID,Ada' });
+    MY_GRIDSQUARE: 'DN13', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID' });
   // Opening a station and saving it unchanged changes nothing: a station
   // holding a 12-character locator and a grid-line list keeps both (found by
   // Turing in review: the one Grid box shows one of them).

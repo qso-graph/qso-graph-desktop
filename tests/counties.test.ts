@@ -106,3 +106,37 @@ describe('the data file', () => {
     expect(() => countiesFrom(null)).toThrow(/not the shape/);
   });
 });
+
+describe('ARRL sections, from ARRL\'s Section Boundaries page (QGD-STN-0010)', () => {
+  it('gives a state with one section that section', () => {
+    expect(counties.sectionsOf('ID')).toEqual(['ID']);
+    expect(counties.sectionOf('ID', 'ID,Ada')).toBe('ID');
+    expect(counties.sectionOf('MD')).toBe('MDC');
+    expect(counties.sectionOf('HI')).toBe('PAC');
+    expect(counties.sectionOf('AK')).toBe('AK');
+  });
+
+  it('gives a split state its sections, and each county its own', () => {
+    expect(counties.sectionsOf('PA')).toEqual(['EPA', 'WPA']);
+    expect(counties.sectionsOf('CA')).toEqual(['EB', 'LAX', 'ORG', 'SB', 'SCV', 'SDG', 'SF', 'SJV', 'SV']);
+    expect(counties.sectionsOf('TX')).toEqual(['NTX', 'STX', 'WTX']);
+    expect(counties.sectionOf('PA', 'PA,Adams')).toBe('EPA');
+    expect(counties.sectionOf('PA', 'PA,Allegheny')).toBe('WPA');
+    expect(counties.sectionOf('CA', 'CA,Los Angeles')).toBe('LAX');
+    expect(counties.sectionOf('NY', 'NY,Kings')).toBe('NLI');
+    expect(counties.sectionOf('PA')).toBeUndefined();
+  });
+
+  it('takes ARRL\'s spellings as corrected: Northampton, Miami-Dade, and Mercer and Ocean apart', () => {
+    expect(counties.sectionOf('PA', 'PA,Northampton')).toBe('EPA');
+    expect(counties.sectionOf('FL', 'FL,Miami-Dade')).toBe('SFL');
+    expect(counties.sectionOf('NJ', 'NJ,Mercer')).toBe('SNJ');
+    expect(counties.sectionOf('NJ', 'NJ,Ocean')).toBe('SNJ');
+  });
+
+  it('gives every county of every split state a section', () => {
+    for (const state of ['PA', 'NY', 'NJ', 'MA', 'WA', 'CA', 'FL', 'TX']) {
+      for (const name of counties.of(state)) expect(counties.sectionOf(state, `${state},${name}`), `${state},${name}`).toBeDefined();
+    }
+  });
+});
