@@ -166,6 +166,8 @@ if (!app.requestSingleInstanceLock()) {
     // The suites' recorded responses, never in a packaged application
     // (source-fixtures.ts).
     const recorded = sourceFixtures(app.isPackaged, process.env.QG_DESKTOP_SOURCE_FIXTURES);
+    // The persona service's answer while it is still starting (until-ready.ts).
+    const starting = (answer: unknown): boolean => answer === PERSONA_STARTING;
     const extensionBroker = await startExtensionBroker({
       // The package's own extensions, and in a development run any more
       // directories the environment names; those are never official, and a
@@ -179,13 +181,17 @@ if (!app.requestSingleInstanceLock()) {
       writeOff: off => save({ ...load(), extensionsOff: [...off] }),
       ports: {
         allowed: () => load().grants,
+        // Every request through the persona service waits for it at a start,
+        // as a source fetch does: Your station said "No persona is active
+        // yet" at every launch because it asked before the service was up
+        // (KI7MT, 2026-10-22). 10 s, inside the 15 s request deadline.
         personas: async () => {
-          const briefs = await personas.personaBriefs();
+          const briefs = await untilReady(() => personas.personaBriefs(), starting, { withinMs: 10_000 });
           if (typeof briefs === 'string') throw new Error(briefs);
           return briefs;
         },
         activePersona: async () => {
-          const brief = await personas.activeBrief();
+          const brief = await untilReady(() => personas.activeBrief(), starting, { withinMs: 10_000 });
           if (typeof brief === 'string') throw new Error(brief);
           return brief;
         },
@@ -196,8 +202,7 @@ if (!app.requestSingleInstanceLock()) {
           // At a start the credential core may not be up yet: the request
           // waits for it, up to 30 s, rather than failing a card that then
           // waits fifteen minutes to ask again (until-ready.ts).
-          const fetched = await untilReady(() => personas.fetchReference(url),
-            answer => answer === PERSONA_STARTING, { withinMs: 30_000 });
+          const fetched = await untilReady(() => personas.fetchReference(url), starting, { withinMs: 30_000 });
           if (typeof fetched === 'string') throw new Error(fetched);
           // The core hands back bytes, because reference data includes a zip.
           // A source an application reads is text, decoded here rather than in
@@ -205,7 +210,8 @@ if (!app.requestSingleInstanceLock()) {
           return { body: new TextDecoder('utf-8', { fatal: false }).decode(fetched.body), fresh: fetched.fresh };
         },
         callService: async (service, persona, operation, parameters) => {
-          const answer = await personas.serviceLookup(service, persona, operation, parameters);
+          const answer = await untilReady(() => personas.serviceLookup(service, persona, operation, parameters),
+            starting, { withinMs: 10_000 });
           if (typeof answer === 'string') throw new Error(answer);
           return answer;
         }
