@@ -235,6 +235,7 @@
     parks = undefined;
     void lookUpParks();
     makeDefault = draft?.id !== undefined && draft.id === defaultId;
+    parkFillNote = '';
     problems = [];
     formError = '';
     note = withNote;
@@ -318,6 +319,30 @@
     if (!typedPosition) return;
     const grid = gridFromPosition(typedPosition.latitude, typedPosition.longitude, 6);
     if (grid) place.MY_GRIDSQUARE = grid;
+  }
+
+  // The place from the first park in the POTA field, for a location being
+  // edited, as "Fill in from the park" does for a new one (KI7MT,
+  // 2026-10-22): grid, latitude, longitude, state and DXCC from POTA's list.
+  // The parks themselves are left as they are.
+  let parkFillNote = $state('');
+  const firstPark = $derived(((place.MY_POTA_REF ?? '').split(',')[0] ?? '').split('@')[0].trim().toUpperCase());
+  async function fillFromPark() {
+    parkFillNote = '';
+    if (!firstPark) return;
+    const answer = await onFromPark(firstPark);
+    if (typeof answer === 'string') { parkFillNote = answer; return; }
+    const filled = answer.draft.place;
+    for (const field of ['MY_DXCC', 'MY_STATE', 'MY_LAT', 'MY_LON'] as const) {
+      if (filled[field]) place[field] = filled[field];
+    }
+    if (filled.MY_GRIDSQUARE) place.MY_GRIDSQUARE = filled.MY_GRIDSQUARE;
+    for (const field of ['MY_LAT', 'MY_LON'] as const) {
+      const degrees = fromAdifLocation(place[field]);
+      if (degrees !== undefined) place[field] = String(Math.round(degrees * 1e5) / 1e5);
+    }
+    parkFillNote = answer.note ?? `Filled in from ${firstPark}.`;
+    void loadChoices();
   }
 
   function fillFromGrid() {
@@ -502,6 +527,12 @@
               <button type="button" class="secondary" id="fill-grid-from-position"
                 disabled={typedPosition === undefined}
                 onclick={fillGridFromPosition}>Fill the grid from latitude and longitude</button>
+              {#if parksLoaded}
+                <button type="button" class="secondary" id="fill-from-park"
+                  disabled={!firstPark}
+                  onclick={() => { void fillFromPark(); }}>Fill from the POTA park</button>
+              {/if}
+              {#if parkFillNote}<p class="hint" id="fill-from-park-note" role="status">{parkFillNote}</p>{/if}
             </div>
           {/if}
           {#if group.title === 'Activity'}
