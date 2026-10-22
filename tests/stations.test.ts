@@ -162,6 +162,19 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
     } finally { state.close(); }
   });
 
+  it('keeps the operator\'s notes, over several lines, and refuses notes off their shape', async () => {
+    const state = await open();
+    try {
+      const notes = 'Park at the north lot.\nPicnic table 4, shade after 2 pm.';
+      const made = await saveStation(state, draft({}, { notes }), ruleset);
+      if (!made.ok) throw new Error('not saved');
+      expect((await viewStations(state, true)).list[0].notes).toBe(notes);
+    } finally { state.close(); }
+    for (const bad of ['<script>', 'tab\there', 'x'.repeat(2001), '']) {
+      expect(isStationDraft({ name: 'x', place: { MY_GRIDSQUARE: 'DN13' }, notes: bad }), JSON.stringify(bad)).toBe(false);
+    }
+  });
+
   it('refuses a station with no grid, and takes the grids of a line or corner as its grid', () => {
     expect(checkStation(draft({ MY_GRIDSQUARE: undefined, MY_POTA_REF: 'US-0001' }), ruleset).problems)
       .toEqual([{ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' }]);

@@ -36,6 +36,8 @@ export interface Station {
   kind?: StationKind;
   place: Place;
   lotwPark?: string;
+  // The operator's own notes about the place (KI7MT, 2026-10-22).
+  notes?: string;
 }
 
 // What the editor sends: a station without an id is a new one.
@@ -45,6 +47,8 @@ export interface StationDraft {
   kind?: StationKind;
   place: Place;
   lotwPark?: string;
+  // The operator's own notes about the place (KI7MT, 2026-10-22).
+  notes?: string;
 }
 
 export interface StationsView {
@@ -141,6 +145,18 @@ export function isLotwPark(value: unknown): value is string {
   return value.split(',').every(code => PARK_CODE.test(code));
 }
 
+// Notes: free text over several lines, bounded, with no other control
+// character and nothing that reads as markup.
+export const MAX_NOTES = 2000;
+export function isNotes(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_NOTES || /[<>]/.test(value)) return false;
+  for (let at = 0; at < value.length; at += 1) {
+    const code = value.charCodeAt(at);
+    if ((code < 0x20 && code !== 0x0a) || code === 0x7f) return false;
+  }
+  return true;
+}
+
 export function isPotaReference(value: unknown): value is string {
   return typeof value === 'string' && POTA_REFERENCE.test(value);
 }
@@ -157,16 +173,17 @@ function isKind(value: unknown): value is StationKind {
 function stationShape(value: Record<string, unknown>): boolean {
   return isName(value.name) && isPlace(value.place)
     && (value.kind === undefined || isKind(value.kind))
-    && (value.lotwPark === undefined || isLotwPark(value.lotwPark));
+    && (value.lotwPark === undefined || isLotwPark(value.lotwPark))
+    && (value.notes === undefined || isNotes(value.notes));
 }
 
 export function isStation(value: unknown): value is Station {
-  return record(value) && only(value, ['id', 'name', 'kind', 'place', 'lotwPark'])
+  return record(value) && only(value, ['id', 'name', 'kind', 'place', 'lotwPark', 'notes'])
     && isStationId(value.id) && stationShape(value);
 }
 
 export function isStationDraft(value: unknown): value is StationDraft {
-  return record(value) && only(value, ['id', 'name', 'kind', 'place', 'lotwPark'])
+  return record(value) && only(value, ['id', 'name', 'kind', 'place', 'lotwPark', 'notes'])
     && (value.id === undefined || isStationId(value.id)) && stationShape(value);
 }
 

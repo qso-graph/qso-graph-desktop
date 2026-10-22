@@ -316,3 +316,5 @@ dialog.pins h2 { margin: 0 0 6px; }
 }
 /* A button straight after a field and its message, with room between. */
 .after-field { margin-top: 16px; }
+textarea { width: 100%; font: inherit; color: var(--ink); border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); padding: 9px 10px; resize: vertical; }
+.add-park { margin-top: 8px; }

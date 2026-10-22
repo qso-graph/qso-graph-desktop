@@ -6,17 +6,17 @@ import { activeStationBrief, fromAdifLocation, gridCentre } from '../packages/ma
 import type { StationsView } from '../packages/storage/station-contract.js';
 
 const ID = '0b6f4a2e-1c3d-4e5f-8a9b-0c1d2e3f4a5b';
-const view = (place: Record<string, string>, active: string | null = ID): StationsView =>
-  ({ list: [{ id: ID, name: 'Home', place }], defaults: {}, active, checked: true });
+const view = (place: Record<string, string>, active: string | null = ID, notes?: string): StationsView =>
+  ({ list: [{ id: ID, name: 'Home', place, ...(notes ? { notes } : {}) }], defaults: {}, active, checked: true });
 
 describe('the active station for an extension', () => {
   it('carries the name, grid and position, and never the street, city or postal code', () => {
     const brief = activeStationBrief(view({
       MY_GRIDSQUARE: 'DN13sm', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.500',
       MY_STREET: '1 Main', MY_CITY: 'Boise', MY_POSTAL_CODE: '83702', MY_STATE: 'ID'
-    }));
+    }, ID, 'Gate code 4417'));
     expect(brief).toEqual({ name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -(116 + 12.5 / 60) });
-    expect(JSON.stringify(brief)).not.toMatch(/Main|Boise|83702/);
+    expect(JSON.stringify(brief)).not.toMatch(/Main|Boise|83702|4417/);
   });
 
   it('takes the position from the grid\'s centre when the station has no MY_LAT and MY_LON', () => {

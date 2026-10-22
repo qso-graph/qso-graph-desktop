@@ -73,7 +73,8 @@ function rowToStation(row: typeof station.$inferSelect): Station | undefined {
   const value = {
     id: row.id, name: row.name, place: row.place as Place,
     ...(row.kind ? { kind: row.kind } : {}),
-    ...(row.lotwPark ? { lotwPark: row.lotwPark } : {})
+    ...(row.lotwPark ? { lotwPark: row.lotwPark } : {}),
+    ...(row.notes ? { notes: row.notes } : {})
   };
   // What was written was checked on the way in; what is read back is checked
   // again, so a file edited by hand cannot put an off-shape station on screen.
@@ -180,7 +181,8 @@ export async function saveStation(
     }
     const at = now.toISOString();
     const values = {
-      name, kind: draft.kind ?? null, place: draft.place, lotwPark: draft.lotwPark ?? null, updatedAt: at
+      name, kind: draft.kind ?? null, place: draft.place, lotwPark: draft.lotwPark ?? null, notes: draft.notes ?? null,
+      updatedAt: at
     };
     if (draft.id) {
       if (!others.some(other => other.id === draft.id)) {

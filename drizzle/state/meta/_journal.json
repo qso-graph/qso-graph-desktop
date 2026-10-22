@@ -29,6 +29,13 @@
       "when": 1792436831626,
       "tag": "0003_stations",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792648995184,
+      "tag": "0004_station_notes",
+      "breakpoints": true
     }
   ]
 }

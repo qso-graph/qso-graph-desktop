@@ -57,6 +57,9 @@ export const station = sqliteTable(
     place: text('place', { mode: 'json' }).notNull(),
     // TQSL's Park, which ADIF has no field for (QGD-STN-0009).
     lotwPark: text('lotw_park'),
+    // The operator's own notes: directions, parking, what worked (KI7MT,
+    // 2026-10-22). Not an ADIF field, never written into a log.
+    notes: text('notes'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull()
   },

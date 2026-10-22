@@ -47,6 +47,7 @@ await cp(archive, join(referenceCache, `adif-${register.adif.version}.zip`))
 const STREET = 'QG Stations Street 4f1c9a';
 const CITY = 'QG Stations City 4f1c9a';
 const POSTAL = 'QG-POSTAL-4F1C9A';
+const NOTES = 'QG notes 4f1c9a: north lot';
 
 const launch = async () => {
   const application = await electron.launch({
@@ -122,6 +123,7 @@ try {
   await field(page, 'MY_STREET').fill(STREET);
   await field(page, 'MY_CITY').fill(CITY);
   await field(page, 'MY_POSTAL_CODE').fill(POSTAL);
+  await page.locator('#station-notes').fill(NOTES);
   await page.locator('#station-default').check();
   await page.locator('#save-station').click();
   await expect(page.locator('#station-my-gridsquare-error')).toContainText('Maidenhead', { timeout: 30_000 });
@@ -222,8 +224,8 @@ try {
   let logged = '';
   for (const file of files) logged += await readFile(join(logs, file), 'utf8').catch(() => '');
   expect(logged.length, 'the run must have written log lines to search').toBeGreaterThan(0);
-  for (const value of [STREET, CITY, POSTAL]) expect(logged.includes(value), 'an address value reached the log').toBe(false);
-  console.log('P9-stays-local: the station\'s street, city and postal code are in no log line: PASS');
+  for (const value of [STREET, CITY, POSTAL, NOTES]) expect(logged.includes(value), 'an address or notes value reached the log').toBe(false);
+  console.log('P9-stays-local: the station\'s street, city, postal code and notes are in no log line: PASS');
 } catch (error) {
   console.error('P9 Stations suite failed.');
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));

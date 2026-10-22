@@ -133,7 +133,7 @@
     {
       title: 'Activity',
       fields: [
-        { field: 'MY_POTA_REF', label: 'POTA park', hint: 'As US-0001; more than one, separated by commas.' },
+        { field: 'MY_POTA_REF', label: 'POTA park', hint: 'As US-0001. On a two-fer or three-fer, every park, each counting the same: add them below.' },
         { field: 'MY_SOTA_REF', label: 'SOTA summit', hint: 'As W7I/SI-001.' },
         { field: 'MY_WWFF_REF', label: 'WWFF reference', hint: 'As KFF-0001.' },
         { field: 'MY_IOTA', label: 'IOTA', hint: 'As NA-001.' }
@@ -156,6 +156,19 @@
   let name = $state('');
   let kind = $state<StationKind | ''>('');
   let lotwPark = $state('');
+  let notes = $state('');
+  // A second or third park, for a two-fer or three-fer: added to the one
+  // POTA field ADIF defines as a list, never a separate "primary" (KI7MT,
+  // 2026-10-22).
+  let anotherPark = $state('');
+  function addPark() {
+    const park = anotherPark.trim().toUpperCase();
+    if (!park) return;
+    const current = (place.MY_POTA_REF ?? '').trim();
+    place.MY_POTA_REF = current ? `${current},${park}` : park;
+    anotherPark = '';
+    void lookUpParks();
+  }
   let place = $state<Record<string, string>>({});
   let makeDefault = $state(false);
   let problems = $state<FieldProblem[]>([]);
@@ -174,7 +187,7 @@
   // A refusal of any of the grid's fields is shown on the one Grid box.
   const problemOf = (field: string) => problems.find(problem =>
     problem.field === field || (field === 'MY_GRIDSQUARE' && GRID_FIELDS.includes(problem.field)))?.reason;
-  const labelOf = (field: string) => field === 'name' ? 'Name' : field === 'lotwPark' ? 'LoTW park'
+  const labelOf = (field: string) => field === 'name' ? 'Name' : field === 'lotwPark' ? 'LoTW park' : field === 'notes' ? 'Notes'
     : GRID_FIELDS.includes(field) ? 'Grid'
     : GROUPS.flatMap(group => group.fields).find(info => info.field === field)?.label ?? field;
 
@@ -203,6 +216,8 @@
     name = draft?.name ?? '';
     kind = draft?.kind ?? '';
     lotwPark = draft?.lotwPark ?? '';
+    notes = draft?.notes ?? '';
+    anotherPark = '';
     place = { ...(draft?.place ?? {}) };
     for (const field of GRID_FIELDS) delete place[field];
     const grid = gridOf(draft?.place);
@@ -249,7 +264,8 @@
       name: name.trim(),
       ...(kind ? { kind } : {}),
       place: filled,
-      ...(lotwPark.trim() ? { lotwPark: lotwPark.trim().toUpperCase() } : {})
+      ...(lotwPark.trim() ? { lotwPark: lotwPark.trim().toUpperCase() } : {}),
+      ...(notes.trim() ? { notes: notes.replace(/\r\n?/g, '\n') } : {})
     };
   }
 
@@ -266,6 +282,7 @@
         own.push({ field, reason: `A ${axis === 'lat' ? 'latitude' : 'longitude'} in degrees, as ${example}.` });
       }
     }
+    if (/[<>]/.test(notes)) own.push({ field: 'notes', reason: 'Notes cannot hold < or >.' });
     if (lotwPark.trim() && !isLotwPark(lotwPark.trim().toUpperCase())) {
       own.push({ field: 'lotwPark', reason: 'TQSL\'s park codes are two letters and two digits, as NP33, separated by commas.' });
     }
@@ -295,12 +312,25 @@
     place.MY_LON = String(Math.round(position.longitude * 1e5) / 1e5);
   }
 
+  // One park, or a two-fer or three-fer as "US-0001,US-0002" (KI7MT,
+  // 2026-10-22): the first park gives the grid, position and state, and
+  // every park goes into the POTA field, each checked when it is saved. The
+  // editor opens so the place can be checked before it is: where parks
+  // meet, the grid may be either's.
   async function fromPark() {
     parkError = '';
-    const answer = await onFromPark(parkReference.trim().toUpperCase());
+    const parks = parkReference.split(',').map(entry => entry.trim().toUpperCase()).filter(Boolean);
+    if (parks.length === 0) return;
+    const answer = await onFromPark(parks[0]);
     if (typeof answer === 'string') { parkError = answer; return; }
     parkReference = '';
-    open(answer.draft, answer.note ?? '');
+    const draft = parks.length > 1
+      ? { ...answer.draft, name: parks.join(' ').slice(0, 64), place: { ...answer.draft.place, MY_POTA_REF: parks.join(',') } }
+      : answer.draft;
+    const note = parks.length > 1
+      ? `Filled in from ${parks[0]}; ${parks.slice(1).join(' and ')} added. Check the grid: where parks meet it may be either's.`
+      : answer.note ?? '';
+    open(draft, [answer.note, parks.length > 1 ? note : ''].filter(Boolean).join(' '));
   }
 
   async function act(work: Promise<string | undefined>) {
@@ -372,14 +402,14 @@
       {#if parksLoaded}
         <label for="park-reference">Park reference</label>
         <div class="inline-form">
-          <input id="park-reference" type="text" autocapitalize="characters" placeholder="US-0001"
+          <input id="park-reference" type="text" autocapitalize="characters" placeholder="US-0001, or US-0001,US-0002"
             bind:value={parkReference} aria-describedby={parkError ? 'park-reference-error' : undefined}
             aria-invalid={parkError ? true : undefined} />
           <button type="button" class="secondary" id="from-park" disabled={parkReference.trim() === ''}
             onclick={fromPark}>Fill in from the park</button>
         </div>
         {#if parkError}<p id="park-reference-error" class="field-error" role="status">{parkError}</p>{/if}
-        <p class="hint">The park's grid, position and state come from POTA's park list. You can change any of it before saving.</p>
+        <p class="hint">The park's grid, position and state come from POTA's park list. For a two-fer or three-fer, give every park, separated by commas. You can change any of it before saving.</p>
       {:else}
         <p class="hint" id="parks-not-downloaded">POTA parks are not downloaded. Download them in Settings to start a location from a park.</p>
       {/if}
@@ -434,6 +464,14 @@
               {/if}
               {#if info.hint}<p id="{id}-hint" class="hint">{info.hint}</p>{/if}
               {#if info.field === 'MY_POTA_REF' && parkNote}<p id="station-park-names" class="hint" role="status">{parkNote}</p>{/if}
+              {#if info.field === 'MY_POTA_REF'}
+                <div class="inline-form add-park">
+                  <input id="station-another-park" type="text" maxlength="20" autocapitalize="characters" placeholder="US-0002"
+                    aria-label="Another park, for a two-fer or three-fer" bind:value={anotherPark}
+                    onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addPark(); } }} />
+                  <button type="button" class="secondary" id="add-park" disabled={anotherPark.trim() === ''} onclick={addPark}>Add a park</button>
+                </div>
+              {/if}
               {#if error}<p id="{id}-error" class="field-error" role="status">{error}</p>{/if}
             </div>
           {/each}
@@ -460,6 +498,13 @@
           {/if}
         </div>
       {/each}
+
+      <h3>Notes</h3>
+      <label for="station-notes" class="visually-hidden">Notes</label>
+      <textarea id="station-notes" rows="4" maxlength="2000" bind:value={notes}
+        aria-describedby="station-notes-hint"></textarea>
+      <p id="station-notes-hint" class="hint">Your own: directions, parking, access, what worked. They stay on this computer.</p>
+      {#if problemOf('notes')}<p id="station-notes-error" class="field-error" role="status">{problemOf('notes')}</p>{/if}
 
       {#if personaName}
         <label class="checkbox-row">
