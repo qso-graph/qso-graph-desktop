@@ -264,6 +264,45 @@ rather than in whichever one happened to be set.
 and writing it down as out of scope is cheaper than discovering halfway through P3 that somebody
 started it.
 
+### 10.1 The operating position is already dark
+
+KI7MT, 2026-10-22: the remote rig displays are all black or grey based. That is the second leg
+under `QGD-FRM-0003`, and it is the stronger one, because it is about where this application
+actually runs rather than about when.
+
+This application does not get a screen to itself. It sits beside the rig's own control surface,
+and that surface is dark for a reason that is not fashion: a panadapter or waterfall draws signal
+energy as brightness, so it needs a dark field for the traces to read at all and for the dynamic
+range to mean anything. The whole SDR and remote-control generation inherited dark from the
+display that had no choice, and everything arranged around the panadapter followed it.
+
+The concrete case is KI7MT's own position: a **Yaesu FT-710** run from **710 Console**
+(`https://710console.co.uk/`). From its own description, verified 2026-10-22, it is full-featured
+Windows control software for that rig with CAT control, remote operation, audio, and a live
+spectrum scope and waterfall read directly from the FT-710's internal scope over the USB SPI
+bridge and drawn with Direct3D; the layout replicates the radio's front panel, with dual VFO
+displays and analogue-style S, power-out, SWR and ALC meters carrying numeric readouts. **That it
+is black and grey based is KI7MT's first-hand report, not something that page states** — the
+vendor text says nothing about colour, and the distinction is kept because the mechanism above is
+checkable and the palette of a particular product is a thing an operator sees and we do not.
+
+Two things follow from that example rather than from the general claim. The window QG Desktop
+will share a screen with is a dark panel carrying a waterfall and a set of meters — so the
+adaptation cycle below is an everyday event at this position, not a hypothetical. And the pattern
+`QGD-FRM-0013` describes, an analogue-style readout with a numeric value on a dark ground, is
+already the convention in the software the operator has open; the requirement follows the
+equipment rather than introducing anything.
+
+So a light QG Desktop window next to that is not merely inconsistent. The operator glances
+across, their pupils constrict, they glance back, and the pupils dilate again — a light
+adaptation cycle on every look, which is the mechanism behind the fatigue, not the brightness
+itself. Matching the instruments the operator already has open costs nothing and removes the
+cycle.
+
+This is also why `QGD-FRM-0013` puts the rig readout on its own near-black ground in *both*
+themes rather than letting it follow the page. An instrument that goes white in daylight mode
+stops matching the equipment beside it, which is the one thing it has to do.
+
 
 ## 11. Why TypeScript is pinned behind the current release
 
