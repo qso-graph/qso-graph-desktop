@@ -90,7 +90,7 @@
             <button type="button" class="link-button" id="welcome-step-{step.id}" onclick={() => onGo(STEP_PLACE[step.id])}
               aria-label={step.done ? `${step.label}: done` : step.label}>
               <span class="welcome-box" aria-hidden="true">{step.done ? '✓' : ''}</span>{step.label}
-            </button>{#if step.optional}<span class="optional"> optional</span>{/if}
+            </button>
           </li>
         {/each}
       </ul>
