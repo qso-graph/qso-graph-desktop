@@ -9,7 +9,7 @@ const load = name => readFile(`baselines/${name}.png`).then(decode);
 
 describe('reading a screenshot', () => {
   it('reads the size the window was captured at', async () => {
-    const image = await load('personas-light');
+    const image = await load('callsigns-light');
     expect([image.width, image.height]).toEqual([1100, 740]);
     expect(image.pixels.length).toBe(1100 * 740 * 4);
   });
@@ -17,7 +17,7 @@ describe('reading a screenshot', () => {
   it('reads pixels rather than returning a blank image', async () => {
     // A decoder that returned zeroes would make every baseline comparison
     // pass, which is the failure this guards.
-    const image = await load('personas-light');
+    const image = await load('callsigns-light');
     const distinct = new Set();
     for (let i = 0; i < image.pixels.length; i += 4) {
       distinct.add(image.pixels.readUInt32BE(i));
@@ -27,7 +27,7 @@ describe('reading a screenshot', () => {
   });
 
   it('refuses what it cannot read instead of guessing', async () => {
-    const file = await readFile('baselines/personas-light.png');
+    const file = await readFile('baselines/callsigns-light.png');
     expect(() => decode(Buffer.from('not a png at all'))).toThrow(/not a PNG/);
 
     const depth = Buffer.from(file);
@@ -57,8 +57,8 @@ describe('comparing two screenshots', () => {
   });
 
   it('notices that light and dark are not the same picture', async () => {
-    const light = await load('personas-light');
-    const dark = await load('personas-dark');
+    const light = await load('callsigns-light');
+    const dark = await load('callsigns-dark');
     const result = compare(light, dark);
     expect(result.same).toBe(false);
     // Most of the page, not a handful of pixels: these are two themes.
@@ -66,7 +66,7 @@ describe('comparing two screenshots', () => {
   });
 
   it('reports a size change rather than comparing the wrong pixels', async () => {
-    const image = await load('personas-light');
+    const image = await load('callsigns-light');
     const smaller = { width: image.width, height: image.height - 1, pixels: image.pixels };
     expect(compare(image, smaller)).toMatchObject({ same: false, differing: null });
     expect(compare(image, smaller).reason).toMatch(/size changed/);

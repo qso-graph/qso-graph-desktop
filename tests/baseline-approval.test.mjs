@@ -47,10 +47,23 @@ describe('who approved what', () => {
     const governing = new Map();
     for (const entry of register.approved) {
       for (const [file, hash] of Object.entries(entry.files ?? {})) {
-        governing.set(file, { hash, by: entry.by, date: entry.date });
+        governing.set(file, { hash, by: entry.by, date: entry.date, at: entry.recordedAtUtc });
       }
     }
+    // A screen renamed or removed takes its baseline with it. That is recorded
+    // as a retirement after the file's last approval, never by editing the
+    // approval, so the history of what KI7MT approved stays as it was.
+    const retiredAt = new Map();
+    for (const entry of register.retired ?? []) {
+      for (const file of entry.files) retiredAt.set(file, entry.recordedAtUtc);
+    }
     for (const [file, approval] of governing) {
+      if (!files.includes(file)) {
+        expect(retiredAt.has(file), `${file} was approved and is gone, with no retirement recorded`).toBe(true);
+        expect(retiredAt.get(file) > approval.at,
+          `${file} is retired before its last approval, so the retirement cannot account for it`).toBe(true);
+        continue;
+      }
       // A file openly recorded as awaiting is the opposite of a silent swap,
       // and its own hash is checked below. Without this exemption a legitimate
       // change to an approved screen could never land until KI7MT happened to

@@ -158,6 +158,51 @@
       },
       "said": "approved, sign off P8",
       "seen": "Captured at 5527247 on macOS after #37: the reference-data buttons say Download, then Update, and Home says \"Download or update\". Home's end view and Settings changed; the other baselines were unchanged."
+    },
+    {
+      "by": "KI7MT",
+      "date": "2026-10-22",
+      "what": "36 baseline(s): home-light.png, callsigns-light.png, callsigns-2-light.png, callsigns-end-light.png, locations-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, callsigns-dark.png, callsigns-2-dark.png, callsigns-end-dark.png, locations-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png, stations-list-light.png, station-editor-light.png, station-editor-2-light.png, station-editor-3-light.png, station-editor-4-light.png, station-editor-end-light.png, station-park-light.png, home-station-light.png, stations-list-dark.png, station-editor-dark.png, station-editor-2-dark.png, station-editor-3-dark.png, station-editor-4-dark.png, station-editor-end-dark.png, station-park-dark.png, home-station-dark.png",
+      "said": "Looks good",
+      "recordedAtUtc": "2026-10-22T07:48:04.063Z",
+      "files": {
+        "home-light.png": "952b565337a2c8e198c97f3c44c6f0aad058ed8559f1ec1487fbeef325123e9f",
+        "callsigns-light.png": "e5a724844200d26025568ed90f81bbd07dbd79b298297e74ecd5f27866bd2406",
+        "callsigns-2-light.png": "0d4f4c1d2967fc5f2d9efd99be32edbf69642951a2e52cebdfdbccc74074dd44",
+        "callsigns-end-light.png": "0cde42fe373fc8a6049a621ffc26f76dd1943e392da1ba73c55f784cc50ced7c",
+        "locations-light.png": "49c680eb7f229e4b8df6bb1f5d5497ccc167b579f2207534b5c2c18ca9e4fc94",
+        "settings-light.png": "f3e62d74f581cbe9b65e2f5cd5153f6687bd5b3444d0aa8023f86810e978af13",
+        "settings-extensions-light.png": "8349bad62f1846f3011895a4294758917c0aba81cbaf02cbbef070d56fd4a3d6",
+        "pins-light.png": "ec89b20d9e0bf0121e7860b181c631d73b846eb718d5385533c5fe06c00d4606",
+        "troubleshooting-light.png": "7bed9f81af6af1d03de9d2ed3c3dc17e1986ca163fe9f9c72af8df67c46b557f",
+        "troubleshooting-end-light.png": "e948e16ce937f64756d1be06e5c559f8141bd1aeff6e69286249a3d09509b1d2",
+        "home-dark.png": "2c53f3151e43fe02a9fe216a1fb3be0f1de735d57741eeea3d6c3a530ba4416d",
+        "callsigns-dark.png": "470735837451e80ec88c8a614535719c8891edecb3e4c966c2205ae32e613043",
+        "callsigns-2-dark.png": "c37455ee357d04e658f0fe371d648fe0279da093182bfb37413766307645c025",
+        "callsigns-end-dark.png": "adc2429d14a4a7254363ce40e462d16c924834aeb4c96978dae203cf0c1e729b",
+        "locations-dark.png": "31a0002c744c2d3356c3f2daf4a9246bcf13b0748facca984075227be9f4af23",
+        "settings-dark.png": "c95c1a270a8ecef16d85d3f6b5014cd5689333055f656263499eb3d1fa356f8c",
+        "settings-extensions-dark.png": "b9878972ffa342b5f0efff87c07402f4801a403ed564d2d162a766e547fe226f",
+        "pins-dark.png": "752f9ec389cdf0610355ca5a9f99ddee3b5a4ed1ab52d31acf6d9cee00803a0b",
+        "troubleshooting-dark.png": "c5b3da74460ec8572aa715b7671ab0c1c50dc19bc861b78b9fde94824b28a2a0",
+        "troubleshooting-end-dark.png": "bcca7ae43586add02e90825ced634a03b01af3f26e4b36bdad6f98a66e1618cb",
+        "stations-list-light.png": "07e12dfaac7796548164be2cc3cf194c4bcc9578cc6bee63a6b29e327a8b9e80",
+        "station-editor-light.png": "074cb7a6ad2935700e9c3599be32b5bf74ae44b2284a5aa440d89b0c35642742",
+        "station-editor-2-light.png": "9d7c9f851b19f7460dad3001e3a21cb8b2cba85c7ef4e2f632fd07995b3e5865",
+        "station-editor-3-light.png": "5cd362ca54884c71ac55a43f9b0d3f3f149f3fe85f5a1619f1b8002a7297287a",
+        "station-editor-4-light.png": "cb78f13cd0e8f58bd5459d206ffdeec1ff8e38af888ba32206df8820cf02ef55",
+        "station-editor-end-light.png": "d14465204dde21513bbe01e26e37d42e52c438df4cbffe6e4acbbd573882139f",
+        "station-park-light.png": "71ad65937a6d98a5853e86fb999bb47f2a2c7b617b733b540cc394bf86200e6b",
+        "home-station-light.png": "602dcc9e88addea43d3bc2b932e8c20c56d3e9d44ee13a8d790fe359bbb5c007",
+        "stations-list-dark.png": "9d88200bebc9564c9b0405ea529b11ecc533c872b73213fcc111bf9bb53e15e2",
+        "station-editor-dark.png": "dbea17df92393623b781332d96e408e878a4062369761edce5aa363e73a43fcf",
+        "station-editor-2-dark.png": "2f83212bc39533c796a7e60908616b2374044331432a995e17cc913dffa2bc9d",
+        "station-editor-3-dark.png": "9ebaaa0af3b69d7fa669c245ef224209b5086a131a923be6a333eb129ebaf3a7",
+        "station-editor-4-dark.png": "5dacff3f9a69dc726e75140344d2fb20330f98620cb230331324a82d9cf52df8",
+        "station-editor-end-dark.png": "ac7e259b28ab2a7b99bb046a0d48eaefc713454f6e226573f3642acddd57dedd",
+        "station-park-dark.png": "23806cd17d627f1b85c8472f9aac1b56a236a0e8555eb69a45c8d74af92377cd",
+        "home-station-dark.png": "cab80dd386a45f6d765476af1015f76992576ef1d01d7088a89f94714e333e6b"
+      }
     }
   ],
   "awaiting": {
@@ -165,5 +210,28 @@
     "files": {},
     "whyTheyChanged": [],
     "approvedByAnAgentInError": "An agent ran scripts/screenshots.mjs --approve on these during P5 and P6. That approval was not an agent's to give (QGD-PRT-0103), and review caught it. The images are kept because they are what the product now draws, and this register records that KI7MT has not yet seen them."
-  }
+  },
+  "retired": [
+    {
+      "note": "Baselines removed because the screen they show was renamed or no longer exists. A retirement is not an approval: it only says a file is gone on purpose, and is held after the file's last approval.",
+      "files": [
+        "personas-light.png",
+        "personas-dark.png",
+        "personas-2-light.png",
+        "personas-2-dark.png",
+        "personas-end-light.png",
+        "personas-end-dark.png"
+      ],
+      "replacedBy": [
+        "callsigns-light.png",
+        "callsigns-dark.png",
+        "callsigns-2-light.png",
+        "callsigns-2-dark.png",
+        "callsigns-end-light.png",
+        "callsigns-end-dark.png"
+      ],
+      "reason": "The Personas page is called Callsigns on screen (KI7MT, 2026-10-22), so its captures are named callsigns-*; KI7MT approved those the same day.",
+      "recordedAtUtc": "2026-10-22T07:49:05.509Z"
+    }
+  ]
 }
