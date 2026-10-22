@@ -152,8 +152,9 @@ else notes.push(`${scanned.length} dist entr(ies) read, including every source m
   if (!resources.includes('icon.png')) failures.push('icon.png is not beside the archive, so the About panel has no icon on Linux and Windows');
   else notes.push('the About panel\'s icon is beside the archive');
   // And what replaced it is there: the storage process and the SQL it applies.
+  // And the US county data a Location is filled from (QGD-STN-0010).
   for (const wanted of ['dist/storage/storage-service.js', 'dist/storage/reference-worker.js',
-    'drizzle/state/meta/_journal.json', 'drizzle/reference/meta/_journal.json']) {
+    'drizzle/state/meta/_journal.json', 'drizzle/reference/meta/_journal.json', 'dist/reference/us-counties.json']) {
     if (!entries.some(entry => entry.replace(/^\//, '') === wanted)) failures.push(`${wanted} is not in the archive`);
   }
   if (stale.length === 0 && !resources.includes('postgres')) {

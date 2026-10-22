@@ -70,7 +70,7 @@ export function suiteCommands(npmCli) {
   ['storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage.test.ts', 'tests/reference-resources.test.ts']],
   ['storage-migrations', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage-migrations.test.ts']],
   // Stations (QGD-STN-*), checked against ADIF's own definitions (P9).
-  ['stations-storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/stations.test.ts', 'tests/station-gates.test.ts']],
+  ['stations-storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/stations.test.ts', 'tests/station-gates.test.ts', 'tests/counties.test.ts', 'tests/county-data.test.mjs']],
   // The built-in extensions' own tests: On the Air's Conditions against the
   // NOAA responses shared with solar-mcp, Your station, and the sun. P8's
   // record called these proven while no suite ran them (found 2026-10-19).

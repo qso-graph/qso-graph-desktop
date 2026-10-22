@@ -12,7 +12,7 @@
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && node scripts/build-native.mjs && tsc && tsc -p tsconfig.extensions.json && node scripts/build-extensions.mjs && tsc -p tsconfig.renderer.json && node scripts/svelte-check.mjs && vite build",
+    "build": "node scripts/clean-dist.mjs && node scripts/build-native.mjs && tsc && node scripts/build-counties.mjs && tsc -p tsconfig.extensions.json && node scripts/build-extensions.mjs && tsc -p tsconfig.renderer.json && node scripts/svelte-check.mjs && vite build",
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir --publish never",
     "installer": "npm run build && electron-builder --publish never",
