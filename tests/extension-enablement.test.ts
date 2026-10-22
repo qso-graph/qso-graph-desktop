@@ -93,7 +93,7 @@ describe('P8-built-in: turning an extension off and on (QGD-HOM-0007)', () => {
 describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
   const page = (key: string): CataloguePage => {
     const [extension, id] = key.split('/');
-    return { key, extension, extensionName: extension, page: id, name: id, description: 'A page.', refreshSeconds: 60, icon: 'extension', rail: false };
+    return { key, extension, extensionName: extension, page: id, name: id, description: 'A page.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [] };
   };
 
   it('drops an off extension\'s page, cancelling what it had in flight, and offers it again when on', async () => {

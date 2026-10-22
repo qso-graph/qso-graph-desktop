@@ -34,7 +34,8 @@ export type FromExtension =
 // On an extension's channel, broker to extension.
 export type ToExtension =
   | { readonly type: 'reply'; readonly cid: number; readonly reply: unknown }
-  | { readonly type: 'page'; readonly cid: number; readonly pageId: string }
+  // `inputs` are the page's fields as the core checked them (inputs.ts).
+  | { readonly type: 'page'; readonly cid: number; readonly pageId: string; readonly inputs: Readonly<Record<string, string>> }
   | { readonly type: 'page-cancel'; readonly cid: number };
 
 // One end of a message channel, whichever kind: Electron's MessagePortMain in

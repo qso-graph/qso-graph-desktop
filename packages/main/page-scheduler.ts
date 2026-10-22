@@ -10,6 +10,7 @@
 //
 // No Electron here, and the clock and the supervisor are passed in, so all of
 // it runs under unit tests with time the test controls.
+import type { PageInput } from '../extension-api/inputs.js';
 import type { PageView } from './home-contract.js';
 import type { PageOutcome } from './extension-host-supervisor.js';
 import { MAX_PINS } from './settings-contract.js';
@@ -26,6 +27,7 @@ export interface CataloguePage {
   readonly refreshSeconds: number;
   readonly icon: string;
   readonly rail: boolean;
+  readonly inputs: readonly PageInput[];
 }
 
 export type { PageView } from './home-contract.js';
@@ -34,7 +36,10 @@ export interface PageSchedulerDeps {
   catalogue(): readonly CataloguePage[];
   // The pages on screen: the open one, or none.
   pins(): readonly string[];
-  page(extension: string, page: string, signal: AbortSignal): Promise<PageOutcome>;
+  page(extension: string, page: string, signal: AbortSignal, inputs: Readonly<Record<string, string>>): Promise<PageOutcome>;
+  // What is in a page's fields now, checked by kind (inputs.ts); none when
+  // it has no fields or they are empty.
+  inputs?(key: string): Readonly<Record<string, string>>;
   publish(view: PageView): void;
   now(): number;
 }
@@ -112,7 +117,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     if (!entry.view) publish(entry, { key: page.key, state: 'waiting' });
     let outcome: PageOutcome;
     try {
-      outcome = await deps.page(page.extension, page.page, work.signal);
+      outcome = await deps.page(page.extension, page.page, work.signal, deps.inputs?.(page.key) ?? {});
     } finally {
       if (entry.work === work) entry.work = undefined;
     }
@@ -163,6 +168,16 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       }
       lastAsked.clear();
       kept.clear();
+      reconcile();
+    },
+    // The operator changed what is in a page's fields (inputs.ts): a new
+    // question, asked now rather than when the interval allows, and what was
+    // shown for the old values is dropped.
+    inputsChanged(key: string): void {
+      const entry = tracked.get(key);
+      if (entry) { halt(entry); publish(entry, { key, state: 'waiting' }); }
+      lastAsked.delete(key);
+      kept.delete(key);
       reconcile();
     },
     // What each shown page last said, for a screen that has just opened.

@@ -7,6 +7,7 @@
 // the pins. Home itself shows tiles drawn from the manifests and fetches
 // nothing (KI7MT, 2026-10-22); the open page's data arrives unasked, pushed as
 // the broker gets it, so the window never polls.
+import { INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from '../extension-api/inputs.js';
 import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
 import { isPins } from './settings-contract.js';
 
@@ -31,6 +32,8 @@ export interface AvailablePage {
   readonly icon: string;
   // Whether it also has an item in the rail.
   readonly rail: boolean;
+  // The fields the page asks for, which the window draws (inputs.ts).
+  readonly inputs: readonly PageInput[];
 }
 
 export type PageView =
@@ -48,8 +51,9 @@ export interface HomeState {
 
 export type HomeCommand =
   | { readonly type: 'read' }
-  // The extension page now on screen, or null when none is.
-  | { readonly type: 'open'; readonly key: string | null }
+  // The extension page now on screen, or null when none is, and what is in
+  // its fields: checked by kind against the page's own fields by the broker.
+  | { readonly type: 'open'; readonly key: string | null; readonly inputs?: Readonly<Record<string, string>> }
   | { readonly type: 'pin'; readonly pins: readonly string[] }
   | { readonly type: 'dismiss'; readonly id: number };
 
@@ -67,7 +71,15 @@ const plainText = (value: unknown, limit: number) => typeof value === 'string' &
 export function validateHomeCommand(value: unknown): value is HomeCommand {
   if (!record(value)) return false;
   if (value.type === 'read') return exactly(value, ['type']);
-  if (value.type === 'open') return exactly(value, ['type', 'key']) && (value.key === null || (typeof value.key === 'string' && KEY.test(value.key)));
+  if (value.type === 'open') {
+    const shape = exactly(value, ['type', 'key']) || exactly(value, ['type', 'key', 'inputs']);
+    const key = value.key === null || (typeof value.key === 'string' && KEY.test(value.key));
+    // The shape only: at most four plain strings. Which ids, and whether each
+    // value is one its kind takes, is the broker's to check against the page.
+    const inputs = value.inputs === undefined || (record(value.inputs) && Object.keys(value.inputs).length <= MAX_INPUTS
+      && Object.entries(value.inputs).every(([id, entry]) => /^[a-z][a-z0-9-]{1,30}$/.test(id) && typeof entry === 'string' && entry.length <= TEXT_MAX));
+    return shape && key && inputs;
+  }
   if (value.type === 'pin') return exactly(value, ['type', 'pins']) && isPins(value.pins);
   if (value.type === 'dismiss') return exactly(value, ['type', 'id']) && Number.isSafeInteger(value.id) && (value.id as number) > 0;
   return false;
@@ -97,11 +109,21 @@ export function isPageView(value: unknown): value is PageView {
   return false;
 }
 
+function isInput(value: unknown): boolean {
+  if (!record(value)) return false;
+  const keys = Object.keys(value).sort().join(',');
+  if (keys !== 'id,kind,label' && keys !== 'id,kind,label,max') return false;
+  return typeof value.id === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.id) && plainText(value.label, 32)
+    && (INPUT_KINDS as readonly unknown[]).includes(value.kind)
+    && (value.max === undefined || (Number.isInteger(value.max) && (value.max as number) >= 1 && (value.max as number) <= TEXT_MAX));
+}
+
 function isAvailable(value: unknown): value is AvailablePage {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail'])
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs'])
     && typeof value.key === 'string' && KEY.test(value.key)
     && plainText(value.name, 40) && plainText(value.description, 120) && plainText(value.extensionName, 64)
-    && typeof value.icon === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.icon) && typeof value.rail === 'boolean';
+    && typeof value.icon === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.icon) && typeof value.rail === 'boolean'
+    && everyIndex(value.inputs, isInput) && (value.inputs as unknown[]).length <= MAX_INPUTS;
 }
 
 // Every index, holes included: every() skips a hole, so a list with gaps in it

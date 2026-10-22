@@ -13,6 +13,7 @@ import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, validateHomeComma
 import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
 import { isExtensionIcon } from '../ui/icons.js';
+import { inputValues } from '../extension-api/inputs.js';
 
 export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
@@ -31,15 +32,19 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
     extension.manifest.contributes.pages.map(page => ({
       key: `${extension.manifest.id}/${page.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
       page: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
-      icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true
+      icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true,
+      inputs: page.inputs ?? []
     })));
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
   let open: string | null = null;
+  // What is in the open page's fields, as checked (inputs.ts).
+  let openInputs: Readonly<Record<string, string>> = {};
   const scheduler = createPageScheduler({
     catalogue,
     pins: () => (open === null ? [] : [open]),
-    page: (extension, page, signal) => options.supervisor.page(extension, page, signal),
+    page: (extension, page, signal, inputs) => options.supervisor.page(extension, page, signal, inputs),
+    inputs: key => (key === open ? openInputs : {}),
     // Pushed to every window; a window not showing Home ignores it.
     publish: view => {
       for (const window of BrowserWindow.getAllWindows()) {
@@ -67,7 +72,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   const stopNotices = options.supervisor.onChange(pushNotice);
 
   const state = (): HomeState => ({
-    available: catalogue().map(({ key, name, description, extensionName, icon, rail }) => ({ key, name, description, extensionName, icon, rail })),
+    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs }) => ({ key, name, description, extensionName, icon, rail, inputs })),
     pins: load().pins,
     pages: scheduler.views(),
     notice: notice()
@@ -90,12 +95,22 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
     switch (command.type) {
       case 'read':
         return { ok: true, state: state() };
-      case 'open':
+      case 'open': {
         watch(event.sender);
+        // The fields' values, checked by kind against the page's own fields
+        // before the extension is asked with them (inputs.ts).
+        const page = command.key === null ? undefined : catalogue().find(entry => entry.key === command.key);
+        const inputs = page ? inputValues(page.inputs, command.inputs) : {};
+        if (inputs === undefined) return { ok: false, error: 'That is not something this page can look up.' };
+        const sameInputs = JSON.stringify(inputs) === JSON.stringify(openInputs);
+        const samePage = command.key === open;
         open = command.key;
+        openInputs = inputs;
         scheduler.changed();
         scheduler.setVisible(open !== null);
+        if (open !== null && samePage && !sameInputs) scheduler.inputsChanged(open);
         return { ok: true, state: state() };
+      }
       case 'pin': {
         // Saved in the operator's order (QGD-HOM-0003), with the pins of an
         // extension that is off kept after them while there is room, so its

@@ -19,7 +19,11 @@ export interface Disposable {
 // Asked by the core for a pinned page's data; the core decides when
 // (QGD-HOM-0005). `signal` is aborted when the core no longer wants the
 // answer: the page was unpinned, Home was left, or its deadline passed.
-export type PageProvider = (request: { readonly pageId: string; readonly signal: AbortSignal }) => Promise<PageAnswer> | PageAnswer;
+// `inputs` holds what the operator typed in the page's fields, each checked
+// by its kind by the core (inputs.ts); a field left empty is absent.
+export type PageProvider = (request: {
+  readonly pageId: string; readonly signal: AbortSignal; readonly inputs: Readonly<Record<string, string>>
+}) => Promise<PageAnswer> | PageAnswer;
 
 export interface ExtensionContext {
   readonly extensionId: string;

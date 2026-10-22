@@ -80,7 +80,7 @@ export function createHostRuntime(options: HostRuntimeOptions) {
     };
   }
 
-  async function providePage(extension: Loaded, cid: number, pageId: string): Promise<void> {
+  async function providePage(extension: Loaded, cid: number, pageId: string, inputs: Readonly<Record<string, string>>): Promise<void> {
     const provider = extension.active ? extension.providers.get(pageId) : undefined;
     if (!provider) {
       extension.port.post({ type: 'page-answer', cid, answer: { ok: false, reason: NOT_PROVIDED } satisfies PageAnswer });
@@ -90,7 +90,7 @@ export function createHostRuntime(options: HostRuntimeOptions) {
     extension.pageWork.set(cid, work);
     let answer: unknown;
     try {
-      answer = await provider({ pageId, signal: work.signal });
+      answer = await provider({ pageId, signal: work.signal, inputs: Object.freeze({ ...inputs }) });
     } catch {
       answer = work.signal.aborted ? undefined : { ok: false, reason: PROVIDER_FAILED };
       if (!work.signal.aborted) log('warn', 'a page provider failed', extension.id);
@@ -113,7 +113,12 @@ export function createHostRuntime(options: HostRuntimeOptions) {
       extension.waiting.delete(message.cid);
       waiting.resolve(message.reply as ExtensionReply);
     } else if (message.type === 'page' && typeof message.pageId === 'string' && Number.isSafeInteger(message.cid)) {
-      void providePage(extension, message.cid, message.pageId);
+      // The core checked the fields; a message without them is a page with
+      // none filled in.
+      const inputs = typeof message.inputs === 'object' && message.inputs !== null && !Array.isArray(message.inputs)
+        ? Object.fromEntries(Object.entries(message.inputs).filter(([, value]) => typeof value === 'string'))
+        : {};
+      void providePage(extension, message.cid, message.pageId, inputs);
     } else if (message.type === 'page-cancel') {
       extension.pageWork.get(message.cid)?.abort();
     }

@@ -331,7 +331,7 @@ export function createSupervisor(deps: SupervisorDeps) {
 
   // Ask an extension for a page's data. The core decides when (QGD-HOM-0005);
   // `signal` asks the extension to stop, which only it can confirm.
-  async function page(id: string, pageId: string, signal?: AbortSignal): Promise<PageOutcome> {
+  async function page(id: string, pageId: string, signal?: AbortSignal, inputs: Readonly<Record<string, string>> = {}): Promise<PageOutcome> {
     // Cancelled before it was sent: nothing happened, so that is confirmed.
     if (signal?.aborted) return { outcome: 'cancelled' };
     const ready = await ensureActive(id);
@@ -356,7 +356,7 @@ export function createSupervisor(deps: SupervisorDeps) {
       }, limits.requestDeadlineMs);
       generation.pages.set(key, { settle, timer });
       signal?.addEventListener('abort', onAbort, { once: true });
-      port.post({ type: 'page', cid, pageId });
+      port.post({ type: 'page', cid, pageId, inputs: { ...inputs } });
     });
   }
 

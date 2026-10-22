@@ -10,9 +10,9 @@ import type { PageOutcome } from '../packages/main/extension-host-supervisor.js'
 const AT = '2026-10-11T18:00:00Z';
 const answer = (text: string): PageAnswer => ({ ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'alert', level: 'info', text }] } });
 const CARDS: CataloguePage[] = [
-  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', page: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false },
-  { key: 'air/station', extension: 'air', extensionName: 'On the Air', page: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false },
-  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', page: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false }
+  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', page: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false, inputs: [] },
+  { key: 'air/station', extension: 'air', extensionName: 'On the Air', page: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [] },
+  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', page: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [] }
 ];
 
 function harness(options: { pins?: string[]; respond?: (page: string, signal: AbortSignal) => Promise<PageOutcome> } = {}) {
@@ -210,6 +210,34 @@ describe('review findings, each held by a test (S3)', () => {
     expect(asked).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(asked).toHaveLength(2);
+    scheduler.stop();
+  });
+});
+
+describe('a page\'s fields (inputs.ts, KI7MT 2026-10-22)', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('asks with what is in the fields, and asks again at once when they change, not when the interval allows', async () => {
+    let inputs: Record<string, string> = {};
+    const asked: Record<string, string>[] = [];
+    const published: PageView[] = [];
+    const scheduler = createPageScheduler({
+      catalogue: () => CARDS,
+      pins: () => ['air/conditions'],
+      page: (_extension, _page, _signal, given) => { asked.push({ ...given }); return Promise.resolve({ outcome: 'completed', answer: answer('x') }); },
+      inputs: () => inputs,
+      publish: view => published.push(view),
+      now: () => Date.now()
+    });
+    scheduler.setVisible(true);
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+    inputs = { dx: 'FN31' };
+    scheduler.inputsChanged('air/conditions');
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+    expect(asked).toEqual([{}, { dx: 'FN31' }]);
+    // What was shown for the old values was dropped before the new answer.
+    expect(published.map(view => view.state)).toContain('waiting');
     scheduler.stop();
   });
 });

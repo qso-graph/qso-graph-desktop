@@ -26,6 +26,8 @@ export const LOADABLE_TIERS: readonly Tier[] = ['official'];
 // The manifest format this core reads, and the extension API version it
 // serves (QGD-APP-0019). A manifest states both, so a manifest written for a
 // later core is refused with the version it needs rather than half-understood.
+import { INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from './inputs.js';
+
 export const MANIFEST_VERSION = 1;
 export const API_VERSION = '1.0.0';
 
@@ -52,6 +54,9 @@ export interface PageContribution {
   // artwork. An unknown name is drawn as a generic icon.
   readonly icon?: string;
   readonly rail?: boolean;
+  // The fields the page asks the operator for, drawn and checked by the core
+  // (inputs.ts).
+  readonly inputs?: readonly PageInput[];
 }
 
 export interface ExtensionManifest {
@@ -121,7 +126,8 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail'];
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs'];
+const INPUT_FIELDS = ['id', 'label', 'kind', 'max'];
 const MAX_PAGES = 16;
 // A tile shows the name on one line and the description on two (KI7MT,
 // 2026-10-22: every extension conforms to one tile).
@@ -163,7 +169,7 @@ export function satisfiesApi(range: unknown, api: string = API_VERSION): boolean
 function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
   onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
-  const { id: page, name, description, refreshSeconds, icon, rail } = value;
+  const { id: page, name, description, refreshSeconds, icon, rail, inputs } = value;
   if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
   if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
   seen.add(page);
@@ -188,10 +194,41 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (rail !== undefined && typeof rail !== 'boolean') {
     throw new ManifestError(`The page "${page}" in "${id}" says whether it is in the rail with something other than true or false.`, page);
   }
+  const fields = validInputs(inputs, page, id);
   return {
     id: page, name, description, refreshSeconds: refreshSeconds as number,
-    ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {})
+    ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {}),
+    ...(fields.length > 0 ? { inputs: fields } : {})
   };
+}
+
+// A page's fields: at most four, each with an id, a plain label and a kind
+// the core can check; a text with the longest value it takes.
+function validInputs(value: unknown, page: string, id: string): PageInput[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_INPUTS) {
+    throw new ManifestError(`The page "${page}" in "${id}" lists its fields as something other than a list of at most ${MAX_INPUTS}.`, page);
+  }
+  const seen = new Set<string>();
+  return value.map((entry: unknown): PageInput => {
+    if (!isRecord(entry)) throw new ManifestError(`The page "${page}" in "${id}" has a field that is not an object.`, page);
+    onlyKnown(entry, INPUT_FIELDS, `A field on the page "${page}" in "${id}"`, id);
+    const { id: field, label, kind, max } = entry;
+    if (typeof field !== 'string' || !APP_ID.test(field) || seen.has(field)) {
+      throw new ManifestError(`The page "${page}" in "${id}" has a field with no well-formed, unique id.`, page);
+    }
+    seen.add(field);
+    if (typeof label !== 'string' || label.trim() === '' || label.length > 32 || /[<>]/.test(label)) {
+      throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" has no plain label of at most 32 characters.`, field);
+    }
+    if (!(INPUT_KINDS as readonly unknown[]).includes(kind)) {
+      throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" is not a grid, a callsign or a text.`, field);
+    }
+    if (max !== undefined && (kind !== 'text' || !Number.isInteger(max) || (max as number) < 1 || (max as number) > TEXT_MAX)) {
+      throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" gives a longest value that is not a whole number from 1 to ${TEXT_MAX}, or is not a text.`, field);
+    }
+    return { id: field, label, kind: kind as PageInput['kind'], ...(max !== undefined ? { max: max as number } : {}) };
+  });
 }
 
 function validPath(value: unknown): value is string {

@@ -32,7 +32,11 @@ export interface HomeModel {
   // The pages that also have a rail item.
   readonly railPages: readonly AvailablePage[];
   // The open page and what it last said, or null on Home.
-  readonly page: { readonly key: string; readonly name: string; readonly shown: PageShown } | null;
+  readonly page: {
+    readonly key: string; readonly name: string; readonly shown: PageShown;
+    // The page's fields, and what was last asked with them.
+    readonly inputs: AvailablePage['inputs']; readonly values: Readonly<Record<string, string>>;
+  } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
   readonly error?: string;
@@ -47,7 +51,7 @@ export function shownOf(view: PageView): PageShown {
   return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections };
 }
 
-function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, error?: string): HomeModel {
+function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, error?: string): HomeModel {
   const offered = new Map(state.available.map(page => [page.key, page]));
   const opened = open === null ? undefined : offered.get(open);
   return {
@@ -58,7 +62,10 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
       return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
     }),
     railPages: state.available.filter(page => page.rail),
-    page: opened ? { key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }) } : null,
+    page: opened ? {
+      key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
+      inputs: opened.inputs, values
+    } : null,
     notice,
     ...(error ? { error } : {})
   };
@@ -73,6 +80,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   const listeners = new Set<(value: HomeModel) => void>();
   // The extension page on screen, or null.
   let open: string | null = null;
+  let values: Readonly<Record<string, string>> = {};
   // Pushes are numbered, so a snapshot read before a push cannot replace it.
   let pushes = 0;
   const pushedAt = new Map<string, number>();
@@ -82,7 +90,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   let notice: HostNotice | null = state.notice;
   let noticePushes = 0;
 
-  const current = () => model(state, views, notice, open, error);
+  const current = () => model(state, views, notice, open, values, error);
   const changed = () => { const value = current(); for (const listener of listeners) listener(value); };
 
   // `asked` is how many pushes had arrived when the request was sent: a page
@@ -131,14 +139,18 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
     },
     // Which extension page is on screen, or null. Only it is asked for
     // (QGD-HOM-0005).
-    openPage(key: string | null): void {
-      if (open === key) return;
+    // With `inputs`, what is in its fields (inputs.ts): a new question.
+    openPage(key: string | null, inputs?: Readonly<Record<string, string>>): void {
+      const next = key === open ? (inputs ?? values) : (inputs ?? {});
+      if (open === key && JSON.stringify(next) === JSON.stringify(values)) return;
       open = key;
+      values = next;
       changed();
       if (!api) return;
       const asked = pushes;
       const askedNotice = noticePushes;
-      void api.request({ type: 'open', key }).then(reply => take(reply, 'The page could not be opened.', asked, askedNotice), () => undefined);
+      const command = Object.keys(next).length > 0 ? { type: 'open', key, inputs: { ...next } } : { type: 'open', key };
+      void api.request(command).then(reply => take(reply, 'The page could not be opened.', asked, askedNotice), () => undefined);
     },
     // Read the state again: what extensions offer changes when one is turned
     // on or off in Settings, and Home is drawn from it, so Home asks each time

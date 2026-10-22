@@ -9,8 +9,8 @@ const AT = '2026-10-11T18:00:00Z';
 const SECTIONS = [{ shape: 'alert', level: 'info', text: 'Quiet' }] as const;
 const STATE = {
   available: [
-    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false },
-    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true }
+    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [] },
+    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [] }
   ],
   pins: ['air/conditions', 'gone/page'], pages: [], notice: null
 };
@@ -51,7 +51,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     store.start();
     await flush();
     store.openPage('air/conditions');
-    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' } });
+    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, inputs: [], values: {} });
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });

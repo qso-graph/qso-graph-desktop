@@ -13,6 +13,11 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
     expect(validateHomeCommand({ type: 'read' })).toBe(true);
     expect(validateHomeCommand({ type: 'open', key: 'on-the-air/conditions' })).toBe(true);
     expect(validateHomeCommand({ type: 'open', key: null })).toBe(true);
+    expect(validateHomeCommand({ type: 'open', key: 'astro/astro', inputs: { dx: 'FN31' } })).toBe(true);
+    // The shape only: which fields, and what each takes, the broker checks.
+    for (const inputs of [{ dx: 7 }, { 'Bad Id': 'x' }, { dx: 'x'.repeat(65) }, ['FN31'], { a1: '', b1: '', c1: '', d1: '', e1: '' }]) {
+      expect(validateHomeCommand({ type: 'open', key: 'astro/astro', inputs }), JSON.stringify(inputs)).toBe(false);
+    }
     expect(validateHomeCommand({ type: 'pin', pins: ['on-the-air/conditions'] })).toBe(true);
     // Eight pins: two rows of four (KI7MT, 2026-10-22).
     expect(validateHomeCommand({ type: 'pin', pins: Array.from({ length: 8 }, (_, i) => `a-x/c-${i}`) })).toBe(true);
@@ -34,7 +39,7 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: 'on-the-air/conditions', state: 'waiting' })).toBe(true);
     expect(isPageView({ key: 'on-the-air/conditions', state: 'failed', reason: 'NOAA did not answer.' })).toBe(true);
     expect(isHomeReply({ ok: true, state: {
-      available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air', icon: 'sun', rail: false }],
+      available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [] }],
       pins: ['on-the-air/conditions'], pages: [READY], notice: null } })).toBe(true);
   });
 
@@ -43,8 +48,8 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: 'on-the-air/conditions', state: 'failed', reason: '<img onerror=1>' })).toBe(false);
     expect(isPageView({ ...READY, colour: 'red' })).toBe(false);
     expect(isPageView({ key: '../x', state: 'waiting' })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false }], pins: [], pages: [], notice: null } })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false }], pins: [], pages: [], notice: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
     // One page open at most, so at most one view.
     expect(isHomeReply({ ok: true, state: { available: [], pins: [], pages: [READY, READY], notice: null } })).toBe(false);
     // Lists with gaps: every() would skip the holes and pass.
