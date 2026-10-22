@@ -101,6 +101,14 @@ async function visibleMasks(page, selectors) {
 }
 
 async function stableShot(page, path, masks = VOLATILE) {
+  // The pointer off every control first. A button under it is drawn hovered,
+  // and a hovered button is drawn through a filter (brightness), whose edges
+  // are not rasterised the same way twice: after a click on Home the pointer
+  // stayed on it, and the rail icons' edges came out up to 33 shades
+  // different from one run to the next, 14 pixels, a different capture
+  // failing each run (2026-10-22). The middle of the header holds nothing
+  // that reacts to the pointer.
+  await page.mouse.move(Math.round(VIEW.width / 2), 28);
   let previous;
   let last;
   const mask = await visibleMasks(page, masks);
