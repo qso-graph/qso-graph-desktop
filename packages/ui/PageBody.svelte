@@ -25,6 +25,7 @@
     <p class="page-failed" role="status">{shown.reason}</p>
   {:else}
     {#each shown.sections as section, at (at)}
+      {#if section.heading}<h2 class="page-section-heading">{section.heading}</h2>{/if}
       {#if section.shape === 'alert'}
         <p class="page-alert {section.level}" role={section.level === 'info' ? 'status' : 'alert'}>{section.text}</p>
       {:else if section.shape === 'figures'}

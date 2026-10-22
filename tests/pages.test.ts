@@ -40,7 +40,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validatePageAnswer(answer([FIGURES], { version: 4 }))).toThrowError(/version 4; this core draws versions 1, 2 and 3/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 5 }))).toThrowError(/version 5; this core draws versions 1, 2, 3 and 4/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {
@@ -58,12 +58,12 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
 
   it('holds every page to its bounds', () => {
     expect(() => validatePageAnswer(answer([]))).toThrowError(/no sections/);
-    expect(() => validatePageAnswer(answer([FIGURES, FIGURES, FIGURES, FIGURES]))).toThrowError(/more than 3/);
+    expect(() => validatePageAnswer(answer(Array.from({ length: PAGE_LIMITS.sections + 1 }, () => FIGURES)))).toThrowError(/more than 12/);
     const tooMany = Array.from({ length: PAGE_LIMITS.figures + 1 }, (_, i) => ({ label: `F${i}`, value: '1' }));
     expect(() => validatePageAnswer(answer([{ shape: 'figures', figures: tooMany }]))).toThrowError(/more than 8/);
     expect(() => validatePageAnswer(answer([{ shape: 'figures', figures: [{ label: 'x'.repeat(41), value: '1' }] }]))).toThrowError(/at most 40/);
     const items = Array.from({ length: PAGE_LIMITS.items + 1 }, (_, i) => ({ title: `I${i}` }));
-    expect(() => validatePageAnswer(answer([{ shape: 'items', items }]))).toThrowError(/at most 10/);
+    expect(() => validatePageAnswer(answer([{ shape: 'items', items }]))).toThrowError(/at most 40/);
   });
 });
 
@@ -100,11 +100,26 @@ describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
     [{ ...table, rows: [['20m', 'Good']] }, /does not have 3 cells/],
     [{ ...table, columns: [] }, /no columns/],
     [{ ...table, columns: ['a', 'b', 'c', 'd', 'e'], rows: [] }, /more than 4/],
-    [{ ...table, rows: Array.from({ length: 13 }, () => ['a', 'b', 'c']) }, /at most 12/],
+    [{ ...table, rows: Array.from({ length: 61 }, () => ['a', 'b', 'c']) }, /at most 60/],
     [{ ...table, rows: [['20m', 'Good', 'x'.repeat(81)]] }, /cell 3/],
     [{ ...table, rows: [['20m', 'Good', '<b>x</b>']] }, /./],
     [{ ...table, html: 'x' }, /./]
   ])('refuses an off-shape table (%#)', (value, message) => {
     expect(() => validatePageAnswer(v2([value]))).toThrowError(message);
+  });
+});
+
+describe('a section\'s heading, page data version 4 (KI7MT, 2026-10-22)', () => {
+  const headed = { shape: 'table', heading: 'Sun', columns: ['Event', 'UTC'], rows: [['Sunrise', '12:03']] };
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+
+  it('carries a heading on a section in version 4 data', () => {
+    expect(validatePageAnswer(v(4, [headed]))).toEqual(v(4, [headed]));
+  });
+
+  it('refuses a heading in older data, one with markup, and one too long', () => {
+    expect(() => validatePageAnswer(v(3, [headed]))).toThrowError(/version 3 does not have/);
+    expect(() => validatePageAnswer(v(4, [{ ...headed, heading: '<b>Sun</b>' }]))).toThrowError(/markup/);
+    expect(() => validatePageAnswer(v(4, [{ ...headed, heading: 'x'.repeat(61) }]))).toThrowError(/heading/);
   });
 });

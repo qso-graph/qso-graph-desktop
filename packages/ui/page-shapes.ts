@@ -6,11 +6,13 @@
 // observedAt: when this figure was observed, where it differs from the page (page data version 3).
 export interface Figure { readonly label: string; readonly value: string; readonly unit?: string; readonly observedAt?: string }
 export interface Item { readonly title: string; readonly detail?: string }
-export type Section =
+// Any section may carry a heading (page data version 4).
+export type Section = (
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] };
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] }
+) & { readonly heading?: string };
 
 export type PageShown =
   | { readonly state: 'waiting' }

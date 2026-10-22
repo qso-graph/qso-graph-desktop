@@ -19,16 +19,20 @@
 // a page whose figures come from feeds that update at different times, as
 // Conditions' daily solar flux and three-hourly K index do, says each one's
 // time, which a single page time cannot.
-export const PAGE_DATA_VERSION = 3;
-export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3];
+//
+// Version 4 let a section carry a heading (KI7MT, 2026-10-22): a page is a
+// page now, not a card on Home, and Astro's is Sun, Twilight, Radio depths and
+// Moon, each under its own name.
+export const PAGE_DATA_VERSION = 4;
+export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4];
 
-// Bounds on everything an extension can put on Home. A page is a glance, so
-// these are small; and bounded content is content the core can draw without
-// trusting the sender (QGD-SEC-0006).
+// Bounds on everything an extension can put on a page. A page fills the main
+// pane, so these are a page's and not a card's; and bounded content is
+// content the core can draw without trusting the sender (QGD-SEC-0006).
 export const PAGE_LIMITS = {
-  sections: 3,
+  sections: 12,
   figures: 8,
-  items: 10,
+  items: 40,
   label: 40,
   value: 32,
   unit: 12,
@@ -37,8 +41,9 @@ export const PAGE_LIMITS = {
   alert: 200,
   reason: 160,
   columns: 4,
-  rows: 12,
-  cell: 80
+  rows: 60,
+  cell: 80,
+  heading: 60
 } as const;
 
 export interface Figure {
@@ -55,7 +60,8 @@ export interface Item {
   readonly detail?: string;
 }
 
-export type Section =
+// Any section may have a heading, from version 4.
+export type Section = (
   // A few numbers with their names: solar flux, K index.
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   // A short list: spots, activations, nets.
@@ -63,7 +69,8 @@ export type Section =
   // Something happening now: a geomagnetic storm, a radio blackout.
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
   // Rows under named columns: the bands with their outlook. Version 2.
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] };
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] }
+) & { readonly heading?: string };
 
 export interface PageData {
   readonly version: number;
@@ -133,9 +140,18 @@ function isUtcTime(value: unknown): value is string {
   return typeof value === 'string' && ISO_UTC.some(pattern => pattern.test(value)) && realTime(value);
 }
 
+// A section's heading, checked and taken off, then the section itself as its
+// shape has it.
 function section(value: unknown, at: number, version: number): Section {
   const where = `Section ${at + 1}`;
   if (!isRecord(value)) throw new PageError(`${where} is not an object.`);
+  if (!Object.hasOwn(value, 'heading')) return shape(value, where, version);
+  const { heading, ...rest } = value;
+  if (version < 4) throw new PageError(`${where} has a heading, which page data version ${version} does not have.`);
+  return { ...shape(rest, where, version), heading: text(heading, PAGE_LIMITS.heading, `${where}'s heading`) };
+}
+
+function shape(value: Record<string, unknown>, where: string, version: number): Section {
   if (value.shape === 'figures') {
     only(value, ['shape', 'figures'], where);
     if (!Array.isArray(value.figures) || value.figures.length === 0 || value.figures.length > PAGE_LIMITS.figures) {
