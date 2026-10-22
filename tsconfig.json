@@ -19,6 +19,6 @@
   ],
   "exclude": [
     "packages/renderer",
-    "packages/callsign-core/target"
+    "packages/*/target"
   ]
 }
