@@ -4,9 +4,9 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import StateList from './StateList.svelte';
 
-  interface Persona { callsign: string; name: string }
+  interface Callsign { callsign: string; name: string }
 
-  const personas: Persona[] = [
+  const callsigns: Callsign[] = [
     { callsign: 'W1AW', name: 'Home station' },
     { callsign: 'K1ABC/P', name: 'Portable' },
     { callsign: 'W1AW/4', name: 'Field Day' }
@@ -15,7 +15,7 @@
   const { Story } = defineMeta({
     title: 'patterns/StateList',
     component: StateList,
-    args: { label: 'Callsigns', state: 'ready', items: personas }
+    args: { label: 'Callsigns', state: 'ready', items: callsigns }
   });
 </script>
 
@@ -23,9 +23,9 @@
      snippet is narrowed here. In the application StateList is generic and a
      caller's snippet is typed by the items it was given. -->
 {#snippet row(entry: unknown)}
-  {@const persona = entry as Persona}
-  <strong>{persona.callsign}</strong>
-  <span>{persona.name}</span>
+  {@const callsign = entry as Callsign}
+  <strong>{callsign.callsign}</strong>
+  <span>{callsign.name}</span>
 {/snippet}
 
 {#snippet retry()}
@@ -37,5 +37,5 @@
 <Story name="Populated" args={{ item: row }} />
 <Story name="Loading" args={{ item: row, state: 'loading' }} />
 <Story name="Empty" args={{ item: row, items: [], empty: 'No callsigns yet. Start with your own.' }} />
-<Story name="Failed" args={{ item: row, state: 'error', error: 'The persona list could not be read.' }} />
-<Story name="Failed, with a way back" args={{ item: row, state: 'error', error: 'The persona list could not be read.', retry }} />
+<Story name="Failed" args={{ item: row, state: 'error', error: 'The callsign list could not be read.' }} />
+<Story name="Failed, with a way back" args={{ item: row, state: 'error', error: 'The callsign list could not be read.', retry }} />

@@ -47,13 +47,13 @@ try {
   const fromFilename = module.match(/fips_([\d_]+)_crypto/)[1].replaceAll('_', '.');
 
   // 2. The same version, from the dependency lock.
-  const lock = await readFile('packages/persona-core/Cargo.lock', 'utf8');
+  const lock = await readFile('packages/callsign-core/Cargo.lock', 'utf8');
   const locked = name => lock.match(new RegExp(String.raw`name = "${name}"\nversion = "([^"]+)"`))?.[1];
   const fromLock = locked('aws-lc-fips-sys');
   expect(fromLock, 'aws-lc-fips-sys is not in the lock file').toBeTruthy();
 
   // 3. The same version again, from what the addon links against.
-  const linkage = run('/usr/bin/otool', ['-L', 'dist/native/persona.node']);
+  const linkage = run('/usr/bin/otool', ['-L', 'dist/native/callsign.node']);
   const linked = linkage.match(/@loader_path\/(libaws_lc_fips_[\d_]+_crypto\.dylib)/)?.[1];
   expect(linked, 'the addon does not link the bundled crypto module by loader path').toBe(module);
 
@@ -124,15 +124,15 @@ try {
       rustls: locked('rustls'),
       'webpki-roots': locked('webpki-roots'),
       rustlsFeatures: 'std, fips',
-      assertedBy: 'packages/persona-core/src/validation.rs::tests::secure_client_requires_fips_crypto_and_only_tls13, run by the rust-unit suite: the provider and the client config both report fips(), and a real ClientHello advertises TLS 1.3 only. It builds the hello in memory and opens no connection.',
+      assertedBy: 'packages/callsign-core/src/validation.rs::tests::secure_client_requires_fips_crypto_and_only_tls13, run by the rust-unit suite: the provider and the client config both report fips(), and a real ClientHello advertises TLS 1.3 only. It builds the hello in memory and opens no connection.',
       whatFipsReportsMean: 'fips() is the library reporting the build configuration it was compiled with. It is not a statement that this is a supported FIPS build on this platform — see fipsBuildOnThisPlatform.'
     },
     transport: {
       versions: 'TLS 1.3 only for credentials; TLS 1.3 or 1.2 (FIPS-approved ECDHE + AES-GCM) for public reference data',
-      referenceTransportAssertedBy: 'packages/persona-core/src/reference.rs::tests::the_reference_client_is_fips_and_offers_only_approved_suites',
+      referenceTransportAssertedBy: 'packages/callsign-core/src/reference.rs::tests::the_reference_client_is_fips_and_offers_only_approved_suites',
       httpsOnly: true, proxies: false, redirects: false,
       destinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],
-      source: 'packages/persona-core/src/validation.rs'
+      source: 'packages/callsign-core/src/validation.rs'
     },
     operationalEnvironment: {
       product: run('/usr/bin/sw_vers', ['-productName']),

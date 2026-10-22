@@ -7,10 +7,10 @@
 // until 2026-10-09, long after KI7MT ended Python and MCP interoperability
 // (QGD-CRD-0004). The requirement said one thing, the code said another, and
 // nothing compared them, so the desktop read and wrote the MCP servers' own
-// credentials: two real personas' entries sat in the
+// credentials: two real callsigns' entries sat in the
 // namespace the suites were writing synthetic fixtures into, seventeen of
 // which were still there. Either product could have overwritten the other's
-// entry for the same persona and provider.
+// entry for the same callsign and provider.
 //
 // A requirement whose Verify column says Test needs a test that fails when the
 // code disagrees with it. This one fails three ways: on the name, on the name
@@ -58,7 +58,7 @@ describe('the credential core owns its namespace', () => {
   it('holds no reference to another product’s namespace anywhere in the product', async () => {
     const files = await sources('packages', ['.rs', '.ts', '.cts', '.svelte']);
     // Not vacuous: the walk has to be finding the core.
-    expect(files.some(file => file.endsWith('persona-core/src/lib.rs'))).toBe(true);
+    expect(files.some(file => file.endsWith('callsign-core/src/lib.rs'))).toBe(true);
     for (const file of files) {
       const text = await readFile(file, 'utf8');
       // The Rust test module names it on purpose, to assert it is not used.
@@ -74,14 +74,14 @@ describe('the credential core owns its namespace', () => {
 
   it('asks the platform where its own data goes, and names no other product’s directory', async () => {
     // The third instance of the drift, found while fixing the first two: the
-    // profile directory was `~/.config/adif-mcp`, so personas.json — holding
-    // real personas — was a file both products wrote.
+    // profile directory was `~/.config/adif-mcp`, so callsigns.json — holding
+    // real callsigns — was a file both products wrote.
     //
     // The first fix moved it to `~/.config/qso-graph-desktop`, which stopped
     // the sharing and was still wrong: a Linux convention on macOS, and not
     // where the rest of this application keeps its data. The rule asserted
     // here is the correction — ask the platform.
-    const broker = await readFile('packages/main/persona-broker.ts', 'utf8');
+    const broker = await readFile('packages/main/callsign-broker.ts', 'utf8');
     const live = broker.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
     expect(live, 'the profile directory must come from the platform').toContain("app.getPath('userData')");
     expect(live, `the broker names ${FOREIGN_SERVICE}`).not.toContain(FOREIGN_SERVICE);
@@ -127,7 +127,7 @@ describe('the credential core owns its namespace', () => {
       const text = await readFile(file, 'utf8');
       // Instantiating the core, or driving the credential surface — not
       // merely naming the addon file. scripts/build-native.mjs copies
-      // persona.node and never opens it, and flagging it would have made this
+      // callsign.node and never opens it, and flagging it would have made this
       // check noise somebody switches off.
       if (/CallsignCore|Save in Keychain|save-credentials/.test(text)) touching.push({ file, text });
     }
@@ -150,7 +150,7 @@ describe('the credential core owns its namespace', () => {
     // A variable that supplied the service name would be a route back to
     // `adif-mcp`, or to any other product's namespace, from outside the
     // process — which would make every check above worthless.
-    const core = await readFile('packages/persona-core/src/lib.rs', 'utf8');
+    const core = await readFile('packages/callsign-core/src/lib.rs', 'utf8');
     const selector = core.split('\n').find(line => line.includes(TEST_KEYCHAIN_ENV) && !line.trimStart().startsWith('//'));
     expect(selector, 'the test-mode selector must exist').toBeTruthy();
     expect(selector).toContain('var_os');

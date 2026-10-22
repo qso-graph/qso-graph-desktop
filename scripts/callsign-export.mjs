@@ -29,7 +29,7 @@ import { enableTestKeychain } from './keychain-service.mjs';
 enableTestKeychain();
 
 const require = createRequire(import.meta.url);
-const { CallsignCore } = require('../dist/native/persona.node');
+const { CallsignCore } = require('../dist/native/callsign.node');
 
 const first = await mkdtemp(join(tmpdir(), 'qg-export-from-'));
 const second = await mkdtemp(join(tmpdir(), 'qg-export-to-'));

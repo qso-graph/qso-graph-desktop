@@ -5,10 +5,10 @@ import { basename, join } from 'node:path';
 import {
   allowsSender, isReply, validateCommand,
   type FetchedReference, type CallsignCommand, type CallsignReply, type SealedExport, type ServiceCommand
-} from '../personas/persona-contract.js';
-import { readServices, serviceIds } from '../personas/services.js';
-import { deadlineFor } from '../personas/deadlines.js';
-import { forStore } from '../personas/credential-store.js';
+} from '../callsigns/callsign-contract.js';
+import { readServices, serviceIds } from '../callsigns/services.js';
+import { deadlineFor } from '../callsigns/deadlines.js';
+import { forStore } from '../callsigns/credential-store.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 
 const log = createLogger('broker');
@@ -37,7 +37,7 @@ export interface CallsignBroker {
   // Reference data, fetched by the credential core because that is where all
   // of this product's outbound HTTPS goes (D-18, D-31). Handed to the engine
   // broker by main; never reachable from a renderer, which has no command for
-  // it (see validateCommand in persona-contract.ts).
+  // it (see validateCommand in callsign-contract.ts).
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
   // The callsigns an application may be shown (QGD-CRD-0010). Reached only
   // through the extension API with its list grant.
@@ -112,7 +112,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
   function start() {
     if (stopped) return;
     ready = false;
-    worker = utilityProcess.fork(join(distDirectory, 'personas', 'persona-service.js'), [profileDirectory, registerFile], {
+    worker = utilityProcess.fork(join(distDirectory, 'callsigns', 'callsign-service.js'), [profileDirectory, registerFile], {
       serviceName: 'QG Callsigns', stdio: 'ignore', allowLoadingUnsignedLibraries: true
     });
     worker.on('message', (message: unknown) => {

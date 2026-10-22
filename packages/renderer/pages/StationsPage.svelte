@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
   Stations (QGD-STN-*): where the operator is operating from, beside the
-  persona that says who they are, as TQSL keeps station locations beside the
+  callsign that says who they are, as TQSL keeps station locations beside the
   callsign certificate.
 
   A station is a name, a kind (a label: Home, Portable, Mobile, Remote) and

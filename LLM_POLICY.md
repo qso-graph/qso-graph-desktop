@@ -26,7 +26,7 @@ held to the same standard as any other, and what we expect from contributors who
 - **Agents never handle real credentials.** Tests use synthetic values in their own namespace.
   When debugging, print an allowlist of fields, never "everything except the secret".
 - **Agents don't touch other products' data**, on disk or in the credential store.
-- **No operator data** (logs, personas, credentials) is ever sent to an AI service for development
+- **No operator data** (logs, callsigns, credentials) is ever sent to an AI service for development
   purposes.
 
 ## For outside contributors using AI tools

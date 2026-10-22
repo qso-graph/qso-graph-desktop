@@ -234,7 +234,7 @@ export function violations(source, fileName = 'input.ts') {
     }
 
     if (is(token, 'name') && CLIENTS.has(token.value) && is(tokens[position + 1], 'punct', '(')) {
-      // Not a property of something else: `personas.fetch(` is not global fetch.
+      // Not a property of something else: `callsigns.fetch(` is not global fetch.
       if (!is(tokens[position - 1], 'punct', '.')) add(token.line, `calls ${token.value}`);
       continue;
     }

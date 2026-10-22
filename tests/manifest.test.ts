@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { API_VERSION, MANIFEST_VERSION, satisfiesApi, validateManifest } from '../packages/extension-api/manifest.js';
 
-const known = new Set(['source:noaa-swpc', 'persona:list']);
+const known = new Set(['source:noaa-swpc', 'callsign:list']);
 const CARD = { id: 'conditions', name: 'Conditions', description: 'Solar flux, K and A, and the band outlook.', refreshSeconds: 900 };
 const BASE = {
   manifestVersion: 1, id: 'on-the-air', name: 'On the Air', tier: 'official', version: '1.0.0',

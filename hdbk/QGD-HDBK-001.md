@@ -160,7 +160,7 @@ catalogue is the build order, and a Part's scope has to be visible in it.
 `logging` became a package of its own at the restructure, and was not in the version of
 `QGD-REP-0001` written before it. Every process logs into one stream (`QGD-LOG-0001`), and the
 log directory's caps cover the engine's files as well as the application's (`QGD-LOG-0011`), so
-the logger is shared by `main`, `engine` and `personas`. It had no home among the nine packages
+the logger is shared by `main`, `engine` and `callsigns`. It had no home among the nine packages
 that existed: putting it in `main` would have made the engine depend on the main process to
 write a log line. The naming of the engine's own log files moved with it, having lived in the
 engine's endpoint module — which is what had made the logger depend on the engine to sweep its
@@ -185,7 +185,7 @@ planning.
 **P0 to P7 are the core and P8 onward are extensions on its API** (`QGD-PRT-0005`). That line
 is what the rest follows from. (The core was called the frame, and an extension an application,
 until 2026-10-10; §14 says why the words changed.) Reference data moves to P5 and depends on P4 alone, because
-definitions and zone tables are stored data and need nothing else. Personas becomes P6
+definitions and zone tables are stored data and need nothing else. Callsigns becomes P6
 and the extension runtime P7. P7 was first to be signed off on a test extension that used the API
 and nothing else. On 2026-10-10 KI7MT replaced that test extension with unit tests over the
 runtime and the first real extension (`QGD-APP-0014`), because an extension that exists only
@@ -418,7 +418,7 @@ The vocabulary table and how it maps onto manifest tiers are in the specificatio
 section records why.
 
 **What differs, and why it keeps the same words.** This core holds more than VS Code's does:
-personas, the credential core, storage and reference data. That is why shared concerns such as HCL
+callsigns, the credential core, storage and reference data. That is why shared concerns such as HCL
 configuration belong to the core, the way VS Code's own settings and keybindings are core and not
 an extension. Extensions here are also fenced in. A VS Code extension runs with full access to the
 machine; an extension here reaches the core only by message, with grants, because the core holds

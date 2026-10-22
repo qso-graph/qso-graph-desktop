@@ -11,7 +11,7 @@
 // dialog, which is what the application uses.
 import { app, dialog, ipcMain } from 'electron';
 import { join } from 'node:path';
-import { allowsSender } from '../personas/persona-contract.js';
+import { allowsSender } from '../callsigns/callsign-contract.js';
 import { exportDiagnostics } from './diagnostics.js';
 import { createLogger, currentLevel, logDirectory, setLevel } from '../logging/logger.js';
 import { DEFAULT_LEVEL, RAISED_LEVEL_MS } from '../logging/logging.js';

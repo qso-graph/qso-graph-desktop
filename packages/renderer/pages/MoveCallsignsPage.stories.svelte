@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import MovePersonasPage from './MovePersonasPage.svelte';
+  import MoveCallsignsPage from './MoveCallsignsPage.svelte';
 
   // The states worth looking at are the ones an operator meets when something
   // is wrong, so most of these are refusals. A refusal here is a sentence the
   // caller returns, not a thrown error: each is something to act on.
   const { Story } = defineMeta({
-    title: 'pages/MovePersonasPage',
-    component: MovePersonasPage,
+    title: 'pages/MoveCallsignsPage',
+    component: MoveCallsignsPage,
     args: {
       onExport: () => Promise.resolve({ written: 'qso-graph-callsigns.qgp', bytes: 1195 }),
       onInspect: () => Promise.resolve({

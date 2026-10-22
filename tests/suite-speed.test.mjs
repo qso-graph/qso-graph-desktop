@@ -52,7 +52,7 @@ describe('the development pass', () => {
     for (const name of [
       'electron-smoke', 'setup-walk', 'screenshots', 'axe', 'story-themes',
       'package', 'packaged-launch', 'electron-audit', 'package-contents',
-      'keychain-roundtrip', 'credential-editing', 'persona-export', 'storybook'
+      'keychain-roundtrip', 'credential-editing', 'callsign-export', 'storybook'
     ]) {
       expect(slow(name), `${name} is not something to run on every save`).toBe(true);
     }

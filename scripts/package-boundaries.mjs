@@ -12,9 +12,9 @@
 //
 // The direction, from QGD-REP-0006:
 //
-//   persona-core, logging, reference, ui, preload, extension-api   depend on no package
-//   personas, storage                                        depend only on those
-//   main                                                     adds personas, storage, extension-api
+//   callsign-core, logging, reference, ui, preload, extension-api   depend on no package
+//   callsigns, storage                                        depend only on those
+//   main                                                     adds callsigns, storage, extension-api
 //   renderer                                                 may depend on any of them
 //   an application                                           extension-api and ui, nothing else
 //
@@ -28,7 +28,7 @@ import { normalize, join, dirname, relative, sep } from 'node:path';
 // What each package is allowed to reach. Absent from a value means refused;
 // absent as a key means the package may reach nothing.
 export const ALLOWED = {
-  'persona-core': [],
+  'callsign-core': [],
   'logging': [],
   'reference': [],
   'ui': [],
@@ -41,12 +41,12 @@ export const ALLOWED = {
   // The extension host (QGD-APP-0015): it runs extensions, so it reaches only
   // the contract they are written against.
   'extension-host': ['extension-api'],
-  'personas': ['logging', 'persona-core'],
+  'callsigns': ['logging', 'callsign-core'],
   // The SQLite stores (QGD-ENG-0001). extension-api only for the shape of an
   // application id, which names a folder (QGD-ENG-0018).
   'storage': ['extension-api', 'logging', 'reference'],
-  'main': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'extension-api', 'extension-host'],
-  'renderer': ['logging', 'personas', 'storage', 'reference', 'persona-core', 'ui', 'main', 'extension-api']
+  'main': ['logging', 'callsigns', 'storage', 'reference', 'callsign-core', 'ui', 'extension-api', 'extension-host'],
+  'renderer': ['logging', 'callsigns', 'storage', 'reference', 'callsign-core', 'ui', 'main', 'extension-api']
 };
 
 // An application is not a package: QGD-REP-0003 says a built-in application
@@ -106,7 +106,7 @@ export async function crossings(root = 'packages') {
 // rule the first application will meet, not a rule being enforced on code
 // that exists.
 //
-// An application reaching into `personas`, `storage`, `reference` or `main`
+// An application reaching into `callsigns`, `storage`, `reference` or `main`
 // would be using the core directly, which is the thing the extension API exists to
 // prevent. A built-in application gets no shortcut a contributed one lacks
 // (D-33).

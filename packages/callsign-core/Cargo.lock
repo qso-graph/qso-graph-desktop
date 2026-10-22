@@ -1382,7 +1382,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "qg-persona-core"
+name = "qg-callsign-core"
 version = "0.1.0"
 dependencies = [
  "aws-lc-rs",

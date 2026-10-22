@@ -9,7 +9,7 @@
     component: ConfirmDialog,
     args: {
       open: true,
-      title: 'Remove this persona?',
+      title: 'Remove this callsign?',
       message: 'W1AW · Home station and the credentials saved for it will be removed from this Mac. This cannot be undone.',
       confirmLabel: 'Remove callsign',
       destructive: true,
@@ -20,5 +20,5 @@
 </script>
 
 <Story name="Destructive" />
-<Story name="Ordinary" args={{ title: 'Use this persona?', message: 'W1AW becomes the active persona.', confirmLabel: 'Use persona', destructive: false }} />
+<Story name="Ordinary" args={{ title: 'Use this callsign?', message: 'W1AW becomes the active callsign.', confirmLabel: 'Use callsign', destructive: false }} />
 <Story name="Closed" args={{ open: false }} />

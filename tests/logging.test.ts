@@ -116,7 +116,7 @@ describe('QGD-LOG-0003 redaction happens in the logger', () => {
       log.warn({
         password: 'QG_FAKE_CREDENTIAL_top',
         credentials: { apiKey: 'QG_FAKE_CREDENTIAL_nested' },
-        persona: 'home'
+        callsign: 'home'
       }, 'a caller passed secrets');
       const text = await readFile(join(directory, ACTIVE_LOG), 'utf8');
       expect(text).not.toContain('QG_FAKE_CREDENTIAL');
@@ -135,14 +135,14 @@ describe('QGD-LOG-0003 redaction happens in the logger', () => {
     const { join } = await import('node:path');
     const directory = await mkdtemp(join(tmpdir(), 'qg-log-shape-'));
     try {
-      const log = createLogger('persona', directory);
+      const log = createLogger('callsign', directory);
       log.info({ command: 'list' }, 'first');
       log.info({ command: 'upsert' }, 'second');
       const lines = (await readFile(join(directory, ACTIVE_LOG), 'utf8')).split('\n').filter(Boolean);
       expect(lines).toHaveLength(2);
       for (const line of lines) {
         const record = JSON.parse(line);
-        expect(record.process).toBe('persona');
+        expect(record.process).toBe('callsign');
         expect(typeof record.time).toBe('string');
         expect(typeof record.pid).toBe('number');
       }
@@ -229,12 +229,12 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
       const main = createLogger('main', directory);
       main.info({}, 'from main');
       // The utility hands lines to the writer, exactly as the broker does.
-      const utility = createForwardingLogger('persona', line => writeForwarded(line), directory);
+      const utility = createForwardingLogger('callsign', line => writeForwarded(line), directory);
       utility.info({ command: 'list' }, 'from the utility');
       main.stop(); utility.stop();
 
       const lines = (await readFile(join(directory, ACTIVE_LOG), 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line));
-      expect(lines.map(record => record.process)).toEqual(['main', 'persona']);
+      expect(lines.map(record => record.process)).toEqual(['main', 'callsign']);
       expect(lines[1].msg).toBe('from the utility');
     } finally {
       const { rm: remove } = await import('node:fs/promises');
@@ -248,7 +248,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
     const directory = await temp('qg-log-forward-redact-');
     try {
       const sent: string[] = [];
-      const utility = createForwardingLogger('persona', line => sent.push(line), directory);
+      const utility = createForwardingLogger('callsign', line => sent.push(line), directory);
       utility.warn({ password: 'QG_FAKE_CREDENTIAL_crossing' }, 'attempted');
       utility.stop();
       expect(sent.join('')).not.toContain('QG_FAKE_CREDENTIAL');
@@ -268,7 +268,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
       // Raised now, so this process may use it.
       await writeFile(join(directory, 'level.json'), JSON.stringify({ level: 'debug', raisedAtMs: Date.now() }));
       const sent: string[] = [];
-      const logger = createForwardingLogger('persona', line => sent.push(line), directory, { levelMs: 10 });
+      const logger = createForwardingLogger('callsign', line => sent.push(line), directory, { levelMs: 10 });
       logger.debug({}, 'while raised');
       expect(sent.join('')).toContain('while raised');
 
@@ -292,7 +292,7 @@ describe('QGD-LOG-0006 to QGD-LOG-0010 while the process runs', () => {
     const { rm } = await import('node:fs/promises');
     const directory = await temp('qg-log-throwing-');
     try {
-      const logger = createForwardingLogger('persona', () => { throw new Error('disk full'); }, directory);
+      const logger = createForwardingLogger('callsign', () => { throw new Error('disk full'); }, directory);
       // The broker logs from inside its exit handler; a throw here would stop
       // the restart that handler exists to perform.
       expect(() => logger.warn({}, 'service exited')).not.toThrow();
@@ -313,7 +313,7 @@ describe('one writer per process', () => {
     const { join } = await import('node:path');
     const directory = await mkdtemp(join(tmpdir(), 'qg-log-single-'));
     try {
-      // main.ts and persona-broker.ts both ask for one at startup.
+      // main.ts and callsign-broker.ts both ask for one at startup.
       const main = createLogger('main', directory);
       const broker = createLogger('broker', directory);
       main.info({}, 'from main');

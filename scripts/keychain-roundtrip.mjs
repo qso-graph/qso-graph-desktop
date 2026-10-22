@@ -21,7 +21,7 @@ import { enableTestKeychain } from './keychain-service.mjs';
 enableTestKeychain();
 
 const require = createRequire(import.meta.url);
-const { CallsignCore } = require('../dist/native/persona.node');
+const { CallsignCore } = require('../dist/native/callsign.node');
 const directory = await mkdtemp(join(tmpdir(), 'qg-callsign-roundtrip-'));
 const core = new CallsignCore(directory);
 // The callsigns' ids, which the core chooses.

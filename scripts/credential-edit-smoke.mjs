@@ -11,7 +11,7 @@ import { enableTestKeychain } from './keychain-service.mjs';
 // loaded, because the service name is read when an entry is made.
 enableTestKeychain();
 const require = createRequire(import.meta.url);
-const { CallsignCore } = require('../dist/native/persona.node');
+const { CallsignCore } = require('../dist/native/callsign.node');
 const directory = await mkdtemp(join(tmpdir(), 'qg-credential-edit-'));
 const core = new CallsignCore(directory);
 // The callsigns' ids, which the core chooses.

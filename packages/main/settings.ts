@@ -3,13 +3,13 @@
 // application starts before the engine is up.
 //
 // The main process owns the file, as it owns the log. The renderer asks over
-// the same kind of channel the persona broker uses, with the same two checks:
+// the same kind of channel the callsign broker uses, with the same two checks:
 // the sender has to be the bundled page (QGD-SEC-0007, QGD-PRC-0006) and the
 // command has to pass its contract (QGD-SEC-0006).
 import { app, ipcMain } from 'electron';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { allowsSender } from '../personas/persona-contract.js';
+import { allowsSender } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
 import {
   DEFAULT_SETTINGS, readSettings, validateSettingsCommand,

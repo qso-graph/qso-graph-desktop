@@ -240,8 +240,8 @@ describe('the grants the operator has allowed', () => {
   });
 
   it('accepts a well-formed map and refuses anything else', () => {
-    expect(readSettings({ grants: { 'qrz-lookup': ['service:qrz', 'persona:list'] } }).grants)
-      .toEqual({ 'qrz-lookup': ['service:qrz', 'persona:list'] });
+    expect(readSettings({ grants: { 'qrz-lookup': ['service:qrz', 'callsign:list'] } }).grants)
+      .toEqual({ 'qrz-lookup': ['service:qrz', 'callsign:list'] });
     // Not a map at all, or an entry for no extension id: nothing is read.
     for (const bad of [[], 'service:qrz', null, { 'QRZ-Lookup': ['service:qrz'] }]) {
       expect(readSettings({ grants: bad }).grants, JSON.stringify(bad)).toEqual({});
@@ -305,15 +305,15 @@ describe('pins change only through Home (QGD-HOM-0005)', () => {
 
 describe('grants in a damaged settings file fail closed (QGD-APP-0012, QGD-APP-0012.1)', () => {
   it('keeps every readable entry, and reads an unreadable one as everything withdrawn', () => {
-    const settings = readSettings({ grants: { 'on-the-air': [], 'another-one': 'typo', 'third-one': ['persona:list'] } });
-    expect(settings.grants).toEqual({ 'on-the-air': [], 'another-one': [], 'third-one': ['persona:list'] });
+    const settings = readSettings({ grants: { 'on-the-air': [], 'another-one': 'typo', 'third-one': ['callsign:list'] } });
+    expect(settings.grants).toEqual({ 'on-the-air': [], 'another-one': [], 'third-one': ['callsign:list'] });
   });
 });
 
 describe('a withdrawal is never lost to a long grants map', () => {
   it('reads every entry, however many there are', () => {
     const grants: Record<string, unknown> = {};
-    for (let i = 0; i < 70; i++) grants[`ext-${i}`] = ['persona:list'];
+    for (let i = 0; i < 70; i++) grants[`ext-${i}`] = ['callsign:list'];
     grants['on-the-air'] = 'damaged';
     expect(readSettings({ grants }).grants['on-the-air']).toEqual([]);
   });

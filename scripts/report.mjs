@@ -19,7 +19,7 @@ export function signOff(signedOff) {
 
 export function markdown(report) {
   return [
-    `# QSO Graph Desktop verify — ${report.sha} — Rust personas Mac preview`,
+    `# QSO Graph Desktop verify — ${report.sha} — Rust callsigns Mac preview`,
     '', `${report.date} · ${report.os}/${report.arch}`,
     '', `LOCAL RESULT: **${report.result}**`,
     '', signOff(report.partSignOff),

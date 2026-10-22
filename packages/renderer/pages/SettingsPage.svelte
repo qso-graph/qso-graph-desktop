@@ -22,7 +22,7 @@
     - the logs, the level and the support bundle: Troubleshooting on the
       status bar (`QGD-LOG-0013`), which is where Podman Desktop puts its
       Logs tab and its "collect logs as .zip".
-    - export and import of personas: the Personas page, beside the personas
+    - export and import of callsigns: the Callsigns page, beside the callsigns
       they are about. Bitwarden's desktop client keeps vault export under the
       application menu rather than in preferences.
 

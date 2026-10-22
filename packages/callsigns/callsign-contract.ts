@@ -18,7 +18,7 @@ export function callsignLabel(callsign: Pick<Callsign, 'call' | 'description'>):
   return callsign.description ? `${callsign.call} · ${callsign.description}` : callsign.call;
 }
 // Imported and re-exported so the renderer has one import for everything it
-// is told about a service. The shape itself is packages/personas/services.ts's, which is
+// is told about a service. The shape itself is packages/callsigns/services.ts's, which is
 // where the register is read and checked.
 export type { ServiceSummary };
 export interface CredentialStatus { testable: boolean; stored: boolean; kindsKnown: boolean; hasUsername: boolean; hasPassword: boolean; hasApiKey: boolean; preferred: 'service' | 'password' | 'api_key'; effective?: 'password' | 'api_key' | null }

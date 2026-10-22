@@ -20,16 +20,17 @@ open-source practice.
 **Status:** a preview. macOS on Apple silicon is the primary platform, and every change is also
 built and tested on Windows and on Linux, x64 and arm64 (a Raspberry Pi 5 is the floor,
 `QGD-SCP-0009`). Each CI run carries unsigned installers to try: a DMG, a Windows installer, and an
-AppImage, `.deb` and `.rpm`. Create or edit station personas, select the active persona, and save
+AppImage, `.deb` and `.rpm`. Create or edit callsigns, select the active callsign, and save
 or remove service credentials in the system's own store: Keychain on macOS, Credential Manager on
 Windows, the keyring on Linux. Saved passwords and API keys are never displayed.
 Remove password and API key independently, choose which to prefer, or remove a
-persona together with its credentials. Saving one secret keeps the other saved
+callsign together with its credentials. Saving one secret keeps the other saved
 secret; use the explicit removal controls to delete it.
 
 The credential core owns its own entry names in that store: the `io.qso-graph.desktop` service
-with `persona:provider` accounts, a `personas.json` index and a `current.txt` active marker
-(`QGD-CRD-0003`). Those live in a `personas` directory inside the one the operating system
+with `<id>:<service>` accounts, where the id is each callsign's own random id, a `callsigns.json`
+index and a `current.txt` active marker
+(`QGD-CRD-0003`). Those live in a `callsigns` directory inside the one the operating system
 gives the application — `~/Library/Application Support/QSO Graph Desktop` on macOS — beside the
 application's own SQLite stores and the reference cache (`QGD-ENG-0001`).
 It never reads or writes the qso-graph MCP servers' data (`QGD-CRD-0004`).
@@ -62,7 +63,7 @@ writes `report/report.md` and `report/summary.json`. Pending release,
 cross-platform and clean-machine gates remain explicit in the report.
 
 The renderer has no Node integration, networking or permissions. A narrow preload
-API sends validated persona commands through the main process to a utility
+API sends validated callsign commands through the main process to a utility
 process that owns the Rust addon. It exposes credential presence, never saved
 secret values. Only bundled HTML, CSS and JavaScript can load. The packaged build
 uses ASAR and hardened Electron fuses.

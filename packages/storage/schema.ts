@@ -43,10 +43,10 @@ export const referenceRefresh = sqliteTable('reference_refresh', {
 });
 
 // Stations (QGD-STN-0001): where the operator is operating from, beside the
-// persona that says who they are. The place is ADIF's own MY_* fields, kept
+// callsign that says who they are. The place is ADIF's own MY_* fields, kept
 // as one JSON object under ADIF's field names (QGD-STN-0002), so a field ADIF
 // adds is a change to the list in stations.ts and not to this table. The
-// callsign is never here: it is the active persona's (QGD-STN-0009).
+// callsign is never here: it is the active callsign's (QGD-STN-0009).
 export const station = sqliteTable(
   'station',
   {

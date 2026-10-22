@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { LOOKUP_OUTCOMES, type LookupOutcome } from './persona-contract.js';
+import { LOOKUP_OUTCOMES, type LookupOutcome } from './callsign-contract.js';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateServiceCommand, type ServiceCommand, type CallsignReply } from './persona-contract.js';
+import { validateServiceCommand, type ServiceCommand, type CallsignReply } from './callsign-contract.js';
 import { serviceIds, summarise, validateRegister, type ServiceRegister } from './services.js';
-import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from '../persona-core/native.js';
-import type { CredentialStatus, CredentialTest } from './persona-contract.js';
+import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from '../callsign-core/native.js';
+import type { CredentialStatus, CredentialTest } from './callsign-contract.js';
 import { createForwardingLogger } from '../logging/logger.js';
 import { forStore } from './credential-store.js';
 
 const require = createRequire(import.meta.url);
 // One explicit assertion at the boundary, against the declared shape in
 // native.d.ts, rather than `any` spreading through every call into the core.
-// dist/personas/persona-service.js, so the addon is a sibling directory of
+// dist/callsigns/callsign-service.js, so the addon is a sibling directory of
 // this one: build-native.mjs puts it in dist/native (QGD-REP-0001).
-const native = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'native', 'persona.node')) as NativeModule;
+const native = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'native', 'callsign.node')) as NativeModule;
 const { CallsignCore, initCoreLogging, drainCoreLogs } = native;
 const core = new CallsignCore(process.argv[2]);
 // The same register the broker read, checked again here (QGD-SEC-0006: this

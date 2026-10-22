@@ -3,7 +3,7 @@
 // cards exist and when each is asked for is home-cards.ts; how an extension is
 // asked is the extension host's supervisor.
 import { BrowserWindow, ipcMain } from 'electron';
-import { allowsSender } from '../personas/persona-contract.js';
+import { allowsSender } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
 import type { LoadedExtension } from './extension-runtime.js';
 import type { Supervisor } from './extension-host-supervisor.js';

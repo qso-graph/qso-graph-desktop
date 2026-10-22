@@ -32,8 +32,8 @@
 //
 // What this does not do, deliberately: transmit a synthetic credential to a
 // live provider. The core's destinations are two fixed HTTPS URLs under
-// https_only with no proxy, no redirects and TLS 1.3 only (packages/persona-core/
-// packages/persona-core/src/validation.rs), and its ClientHello is asserted by the rust-unit suite
+// https_only with no proxy, no redirects and TLS 1.3 only (packages/callsign-core/
+// packages/callsign-core/src/validation.rs), and its ClientHello is asserted by the rust-unit suite
 // without connecting. A real external request happens only when a user presses
 // Test credential with a real credential, which no automated suite does.
 import { _electron as electron, expect } from '@playwright/test';

@@ -2,7 +2,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import SetupPage from './SetupPage.svelte';
-  import type { ServiceSummary } from '../../personas/persona-contract.js';
+  import type { ServiceSummary } from '../../callsigns/callsign-contract.js';
 
   // Two services, drawn the way the register describes them: one with a
   // username and a password and a test, one with a key and no test. The
@@ -49,11 +49,11 @@
      wait (QGD-PSN-0004). -->
 <Story name="Asking for a callsign" />
 
-<!-- Returning to a setup whose persona already exists starts at the first
+<!-- Returning to a setup whose callsign already exists starts at the first
      service rather than asking for the callsign again. -->
-<Story name="At the first service" args={{ persona: 'home' }} />
+<Story name="At the first service" args={{ existing: 'W1AW' }} />
 
-<!-- A persona that cannot be created says why, and stays where it is. -->
+<!-- A callsign that cannot be created says why, and stays where it is. -->
 <Story name="The callsign was refused" args={{
   onCreateCallsign: () => Promise.resolve('Enter a callsign.')
 }} />
@@ -61,6 +61,6 @@
 <!-- A credential the Keychain refused. The step does not advance, so nothing
      is skipped by accident. -->
 <Story name="A credential could not be saved" args={{
-  persona: 'home',
+  existing: 'W1AW',
   onSaveCredential: () => Promise.resolve('Keychain could not save this credential.')
 }} />

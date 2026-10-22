@@ -10,10 +10,10 @@
 // with the wrong fields in it.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { validateCommand } from '../packages/personas/persona-contract.js';
+import { validateCommand } from '../packages/callsigns/callsign-contract.js';
 import {
   FIELD_NAMES, RegisterError, serviceIds, validateRegister, type ServiceRegister
-} from '../packages/personas/services.js';
+} from '../packages/callsigns/services.js';
 
 const text = await readFile('data/service-profiles.json', 'utf8');
 const shipped = validateRegister(JSON.parse(text));

@@ -5,7 +5,7 @@
 // operator's, so this is not the application going online (QGD-SEC-0020).
 import { readFileSync } from 'node:fs';
 import { ipcMain, shell } from 'electron';
-import { allowsSender } from '../personas/persona-contract.js';
+import { allowsSender } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
 import { LINKS_CHANNEL, linkFor, validateLinkCommand, validateLinkRegister, type LinkCommand } from './links-contract.js';
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // What a service profile is, with nothing that reads a file.
 //
-// Separate from packages/personas/services.ts because the renderer is told about services
+// Separate from packages/callsigns/services.ts because the renderer is told about services
 // and must not import a module that touches the file system: the renderer's
 // tsconfig has no Node types, and pulling `node:fs/promises` into it through
 // a type import is how a screen ends up depending on something it can never

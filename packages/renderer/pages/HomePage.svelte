@@ -4,7 +4,7 @@
 
   The operator's pinned cards, and nothing else (KI7MT, 2026-10-22): the
   version and what the application sends are in Settings' About, the active
-  persona and station are on the status bar on every page, reference data is
+  callsign and station are on the status bar on every page, reference data is
   in Settings, and the rail is the way to each place. No credential is read
   to draw it (QGD-CRD-0009), and it waits on nothing (QGD-FRM-0011).
 -->

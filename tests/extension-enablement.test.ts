@@ -155,7 +155,7 @@ describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
     on = true; scheduler.changed();
     expect(scheduler.views()[0].state).toBe('ready');
     expect(asked).toBe(1);
-    // A persona change drops it.
+    // A callsign change drops it.
     scheduler.setVisible(false);
     on = false; scheduler.changed();
     scheduler.callsignsChanged();

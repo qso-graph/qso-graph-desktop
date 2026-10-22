@@ -190,7 +190,7 @@ export function isStorageReply(value: unknown): value is StorageReply {
 // Exactly one of the commands above, with exactly its own fields. A command
 // carrying a path would be the renderer choosing where the stores are, and one
 // carrying a URL would be the renderer choosing what is fetched. A station
-// command names a station by id and a persona by name, nothing else.
+// command names a station by id and a callsign by name, nothing else.
 export function validateStorageCommand(value: unknown): value is StorageCommand {
   if (!record(value)) return false;
   const exactly = (keys: string[]) => only(value, keys) && keys.every((key) => key in value);

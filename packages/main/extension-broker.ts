@@ -28,7 +28,7 @@ import { createSupervisor, type Supervisor } from './extension-host-supervisor.j
 import { parseLimits } from './extension-limits.js';
 import { createEnablement, type Enablement } from './extension-enablement.js';
 import type { ExtensionDirectories } from './extension-directories.js';
-import { allowsSender } from '../personas/persona-contract.js';
+import { allowsSender } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
 import { validateGrantRegister, type GrantRegister } from '../extension-api/grants.js';
 import { validateExtensionsCommand, type ExtensionsReply } from './extensions-contract.js';

@@ -46,7 +46,7 @@
   });
 </script>
 
-<Story name="Personas" />
+<Story name="Callsigns" />
 <Story
   name="Settings"
   args={{

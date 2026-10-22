@@ -81,7 +81,7 @@ describe('QGD-LOG-0012 the archive', () => {
 
 describe('QGD-LOG-0012 redaction before export', () => {
   it('removes a secret from a structured line', () => {
-    const line = '{"level":30,"password":"hunter2","apiKey":"abcd","persona":"home","msg":"saved"}';
+    const line = '{"level":30,"password":"hunter2","apiKey":"abcd","callsign":"home","msg":"saved"}';
     const out = redactForExport(line);
     expect(out).not.toContain('hunter2');
     expect(out).not.toContain('abcd');
@@ -102,7 +102,7 @@ describe('QGD-LOG-0012 redaction before export', () => {
   });
 
   it('leaves an ordinary line alone', () => {
-    const line = '{"level":30,"process":"persona","command":"list","msg":"handled"}';
+    const line = '{"level":30,"process":"callsign","command":"list","msg":"handled"}';
     expect(redactForExport(line)).toBe(line);
   });
 });
@@ -118,7 +118,7 @@ describe('QGD-LOG-0012 the export', () => {
       // A line as the logger writes it, and one that reached the folder some
       // other way carrying a secret the logger never saw.
       await writeFile(join(logs, 'qg-desktop.log'),
-        '{"level":30,"process":"persona","command":"list","msg":"handled"}\n' +
+        '{"level":30,"process":"callsign","command":"list","msg":"handled"}\n' +
         '{"level":40,"password":"QG_FAKE_CREDENTIAL_slipped","msg":"something"}\n');
       await writeFile(join(logs, 'foreign.log'), 'FATAL password=s3cret for user qg\n');
 
@@ -215,7 +215,7 @@ describe('QGD-LOG-0012 the lines that do not take the structured path', () => {
   });
 
   it('still leaves an ordinary message intact', () => {
-    const line = '{"level":30,"process":"persona","command":"list","msg":"handled"}';
+    const line = '{"level":30,"process":"callsign","command":"list","msg":"handled"}';
     expect(redactForExport(line)).toBe(line);
   });
 

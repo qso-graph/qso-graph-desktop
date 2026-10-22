@@ -2,7 +2,7 @@
 import {
   callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
   type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
-} from '../personas/persona-contract.js';
+} from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
@@ -15,7 +15,7 @@ import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from 
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
-import { forStore } from '../personas/credential-store.js';
+import { forStore } from '../callsigns/credential-store.js';
 declare const __QG_VERSION__: string;
 
 declare global {
@@ -42,8 +42,8 @@ declare global {
   }
 }
 // QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
-// below looks for an element. The Persona screen's markup moved into
-// PersonaPage.svelte unchanged and this file still finds it by id, so the
+// below looks for an element. The Callsign screen's markup moved into
+// CallsignsPage.svelte unchanged and this file still finds it by id, so the
 // workflow signed off at P1 is the same code driving the same markup.
 // The inventory and the grant writer were here until 2026-10-10, feeding the
 // Applications section of Settings. Both are gone with it (QGD-APP-0012.1): an
@@ -74,7 +74,7 @@ mount(Shell, {
   }
 });
 
-// Guided setup's two actions. Both are the real ones: the persona is created
+// Guided setup's two actions. Both are the real ones: the callsign is created
 // when it is named and the credential is saved when it is entered, so there
 // is nothing in setup that is lost by leaving it. A refusal comes back as its
 // sentence for the screen to show.
@@ -97,7 +97,7 @@ export async function createCallsign(call: string, description: string): Promise
   return undefined;
 }
 
-// Drawing the Personas screen again, once it is back on screen. Called when
+// Drawing the Callsigns screen again, once it is back on screen. Called when
 // setup finishes, which is the first moment its markup exists again.
 export function finishSetup(): void {
   shell.endSetup();
@@ -198,9 +198,9 @@ async function request(command: CallsignCommand) {
 }
 function current(): Callsign | undefined { return snapshot.callsigns.find(entry => entry.id === selected); }
 function list() {
-  const container = element('persona-list'); container.replaceChildren();
+  const container = element('callsign-list'); container.replaceChildren();
   for (const callsign of snapshot.callsigns) {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'persona-item';
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'callsign-item';
     button.classList.toggle('selected', callsign.id === selected);
     button.setAttribute('aria-pressed', String(callsign.id === selected));
     const call = document.createElement('strong'); call.textContent = callsign.call;
@@ -285,15 +285,16 @@ function select(id: string | null) {
   element('page-title').textContent = callsign ? callsign.call : 'Add a callsign';
   // Both the description and the call can be changed: the id is what is
   // kept (KI7MT, 2026-10-22).
-  input('persona-name').value = callsign?.description ?? '';
+  input('callsign-description').value = callsign?.description ?? '';
   input('callsign').value = callsign?.call ?? '';
   input('start-date').value = callsign?.start ?? new Date().toISOString().slice(0, 10);
   input('end-date').value = callsign?.end ?? '';
-  element('save-persona').textContent = callsign ? 'Save callsign details' : 'Add callsign';
-  element('use-persona').hidden = !callsign || callsign.id === snapshot.active;
-  element('remove-persona').hidden = !callsign;
+  element('save-callsign').textContent = callsign ? 'Save callsign details' : 'Add callsign';
+  element('use-callsign').hidden = !callsign || callsign.id === snapshot.active;
+  element('remove-callsign').hidden = !callsign;
   element('credential-card').hidden = !callsign;
   input('username').value = callsign?.call ?? '';
+  element('keychain-id').textContent = callsign?.id ?? '';
   clearSecretFields();
   if (callsign) void credentialStatus(); else input('callsign').focus();
 }
@@ -312,11 +313,11 @@ async function busy(buttonId: string, action: () => Promise<void>) {
     else button.disabled = false;
   }
 }
-element('new-persona').addEventListener('click', () => select(null));
-element('persona-form').addEventListener('submit', event => {
-  event.preventDefault(); void busy('save-persona', async () => {
+element('new-callsign').addEventListener('click', () => select(null));
+element('callsign-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-callsign', async () => {
     const details = {
-      call: input('callsign').value, description: input('persona-name').value,
+      call: input('callsign').value, description: input('callsign-description').value,
       start: input('start-date').value || undefined, end: input('end-date').value || undefined
     };
     if (selected) {
@@ -330,12 +331,12 @@ element('persona-form').addEventListener('submit', event => {
     message('Callsign saved.');
   });
 });
-element('use-persona').addEventListener('click', () => void busy('use-persona', async () => {
+element('use-callsign').addEventListener('click', () => void busy('use-callsign', async () => {
   if (!selected) return;
   snapshot = await request({ type: 'set-active', id: selected }) as Snapshot;
   select(selected); message('Active callsign selected.');
 }));
-element('remove-persona').addEventListener('click', () => void busy('remove-persona', async () => {
+element('remove-callsign').addEventListener('click', () => void busy('remove-callsign', async () => {
   if (!selected || !window.confirm(forStore('Remove this callsign and ALL its saved service credentials from Keychain? This cannot be undone.', PLATFORM))) return;
   const id = selected;
   snapshot = await request({ type: 'remove-callsign', id }) as Snapshot;

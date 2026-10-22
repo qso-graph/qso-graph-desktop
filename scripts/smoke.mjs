@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { redact } from './report.mjs';
 import { freeze } from './platform-process.mjs';
 // What the screens say on this platform: Keychain, Credential Manager or the keyring.
-import { forStore } from '../dist/personas/credential-store.js';
+import { forStore } from '../dist/callsigns/credential-store.js';
 const said = text => forStore(text, process.platform);
 import { entries } from './unzip.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
@@ -248,7 +248,7 @@ try {
       await railItem(name).click();
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
     }
-    await page.locator('.persona-item').first().click();
+    await page.locator('.callsign-item').first().click();
     await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
     for (const provider of ['eqsl', 'qrz_logbook']) {
       await page.getByLabel('Service', { exact: true }).selectOption(provider);
@@ -564,7 +564,7 @@ try {
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
 
   await mkdir('report', { recursive: true });
-  await page.screenshot({ path: resolve('report/personas-preview.png') });
+  await page.screenshot({ path: resolve('report/callsigns-preview.png') });
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Remove saved credential', exact: true }).click();
   await expect(page.locator('#credential-status')).toContainText('No credential saved', { timeout: 30_000 });
@@ -658,7 +658,7 @@ try {
   if (application) await application.close().catch(() => {});
   try {
     const require = createRequire(import.meta.url);
-    const { CallsignCore } = require('../dist/native/persona.node');
+    const { CallsignCore } = require('../dist/native/callsign.node');
     const core = new CallsignCore(profile);
     const fixture = core.list().find(entry => entry.description === description);
     if (fixture) core.deleteCredentials(fixture.id, 'qrz_logbook');

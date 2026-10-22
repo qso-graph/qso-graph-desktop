@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  The status bar. P3-status-bar requires the active persona to be visible on
+  The status bar. P3-status-bar requires the active callsign to be visible on
   every page, which is why it sits outside the pages rather than in one.
 
   It also carries, as of 2026-10-10 (`QGD-FRM-0012`, `QGD-LOG-0013`):
@@ -23,7 +23,7 @@
     // callsign here (KI7MT, 2026-10-22).
     activeCallsign: string;
     // Where they are operating from: the active station's name, or empty
-    // (QGD-STN-0005). Named beside the persona, as TQSL pairs a certificate
+    // (QGD-STN-0005). Named beside the callsign, as TQSL pairs a certificate
     // with a location.
     activeStation?: string;
     // The data the operator is working in, named by the caller. Undefined

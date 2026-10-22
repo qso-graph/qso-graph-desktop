@@ -12,8 +12,8 @@ describe('the shell store', () => {
       // (QGD-LOG-0013, QGD-FRM-0012).
       troubleshooting: false,
       welcome: false,
-      // Not setup: that is decided once the personas have been read, so a
-      // machine with personas never sees a frame of the setup screen
+      // Not setup: that is decided once the callsigns have been read, so a
+      // machine with callsigns never sees a frame of the setup screen
       // (QGD-PSN-0004).
       setup: false, firstRun: false, services: [], extensions: undefined
     });
@@ -49,7 +49,7 @@ describe('the shell store', () => {
   });
 
   it('publishes nothing when nothing moved', () => {
-    // app.ts reports the active persona on every list refresh, which is most of
+    // app.ts reports the active callsign on every list refresh, which is most of
     // them, and the same value must not redraw the shell.
     const store = createShellStore();
     let notifications = 0;
@@ -99,14 +99,14 @@ describe('the shell store', () => {
 });
 
 describe('the rail', () => {
-  it('offers Personas, Stations and Settings, in that order', () => {
+  it('offers Callsigns, Stations and Settings, in that order', () => {
     // The whole of the navigation. QGD-LOG-0013 puts the logs behind
     // Troubleshooting on the status bar and QGD-FRM-0012 puts storage's
     // detail there too, so neither is a rail item; and the demonstration
     // applications that briefly added an Apps entry are gone
-    // (QGD-APP-0014). Stations sit beside Personas: who you are, and where
+    // (QGD-APP-0014). Stations sit beside Callsigns: who you are, and where
     // you are operating from (QGD-STN-0001).
-    expect(visiblePages().map(page => page.id)).toEqual(['home', 'personas', 'stations', 'settings']);
+    expect(visiblePages().map(page => page.id)).toEqual(['home', 'callsigns', 'stations', 'settings']);
     expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Callsigns', 'Locations', 'Settings']);
     // Home at the top, Settings at the foot: it is where you change how the
     // places you work behave, not one of them.
@@ -125,7 +125,7 @@ describe('the rail', () => {
 
   it('accepts only a page that exists', () => {
     for (const page of PAGES) expect(isPageId(page.id)).toBe(true);
-    for (const value of ['logs', 'Personas', '', '__proto__', 'constructor', 'toString', 0, null, undefined, {}]) {
+    for (const value of ['logs', 'Callsigns', '', '__proto__', 'constructor', 'toString', 0, null, undefined, {}]) {
       expect(isPageId(value), `${String(value)} must not be a page`).toBe(false);
     }
   });
@@ -136,7 +136,7 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
     // Read out of app.ts rather than listed here, so renaming an element in
     // one file and not the other fails this test instead of the application.
     const app = await readFile('packages/renderer/app.ts', 'utf8');
-    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
+    const page = await readFile('packages/renderer/pages/CallsignsPage.svelte', 'utf8');
     const looked = new Set<string>();
     for (const match of app.matchAll(/\b(?:element|input)(?:<[^>]*>)?\('([a-z0-9-]+)'\)/g)) {
       looked.add(match[1]);
@@ -155,7 +155,7 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
   });
 
   it('keeps the labels and roles the packaged suite drives it by', async () => {
-    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
+    const page = await readFile('packages/renderer/pages/CallsignsPage.svelte', 'utf8');
     for (const label of ['Description', 'Callsign', 'Username', 'Password', 'API key',
                          'Service', 'Preferred credential', 'Start date', 'End date']) {
       expect(page, `${label} must still label a field`).toContain(label);
@@ -170,7 +170,7 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
 
   it('holds no behaviour of its own', async () => {
     // app.ts owns this screen. A handler appearing here would mean two owners.
-    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
+    const page = await readFile('packages/renderer/pages/CallsignsPage.svelte', 'utf8');
     expect(page).not.toMatch(/\bon(?:click|submit|change|input)=\s*\{(?!on[A-Z])/);
     expect(page).not.toContain('$state');
     expect(page).not.toContain('$effect');
@@ -180,16 +180,16 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
   });
 
   it('takes props only to pass them straight to a child', async () => {
-    // `$props` was forbidden outright until 2026-10-10, when moving personas
+    // `$props` was forbidden outright until 2026-10-10, when moving callsigns
     // to another machine came out of Settings and onto this page — it is
-    // something you do to the personas, so it belongs with them.
+    // something you do to the callsigns, so it belongs with them.
     //
     // The rule that matters is the one above: no behaviour here, because
     // app.ts owns this screen. A prop that is handed to a child component
     // unchanged is not behaviour. So this asserts the narrower thing: every
     // prop it declares is passed on, and none is read by this file for
     // anything else.
-    const page = await readFile('packages/renderer/pages/PersonaPage.svelte', 'utf8');
+    const page = await readFile('packages/renderer/pages/CallsignsPage.svelte', 'utf8');
     const destructured = page.match(/const \{([^}]*)\}: Props = \$props\(\);/);
     if (!destructured) {
       // Still propless, which is also fine — the point is that it has no
@@ -244,7 +244,7 @@ describe('one page, one framework, one Svelte configuration', () => {
 
 describe('QGD-CRD-0003: a fixture callsign cannot collide with a real one', () => {
   it('names every Keychain entry by a random id, never by anything typed', async () => {
-    // Until 2026-10-22 an entry was named by the persona's name and the
+    // Until 2026-10-22 an entry was named by the callsign's name and the
     // service, and the profile directory was not part of that name, so a
     // suite's "Home station" read the operator's own credentials into a
     // screenshot baseline. Every suite fixture had to start with qg- to stay
@@ -253,7 +253,7 @@ describe('QGD-CRD-0003: a fixture callsign cannot collide with a real one', () =
     // whatever they are called; the suites' fixture service (QGD-CRD-0003's
     // TEST_SERVICE) still keeps them apart from the real one as well.
     const { readFile } = await import('node:fs/promises');
-    const core = await readFile('packages/persona-core/src/lib.rs', 'utf8');
+    const core = await readFile('packages/callsign-core/src/lib.rs', 'utf8');
     const subject = /fn subject\(id: &str, provider: &str\) -> CoreResult<String> \{\s*Ok\(format!\("\{\}:\{\}", callsign_id\(id\)\?, identifier\(provider\)\?\)\)/;
     expect(core).toMatch(subject);
     expect(core).toMatch(/aws_lc_rs::rand::fill\(&mut bytes\)/);
@@ -261,9 +261,9 @@ describe('QGD-CRD-0003: a fixture callsign cannot collide with a real one', () =
 });
 
 describe('QGD-PSN-0004 guided setup', () => {
-  it('is off until the personas have been read', () => {
+  it('is off until the callsigns have been read', () => {
     // A shell that opened on setup and then swapped to the list would show
-    // setup for a frame to somebody who already has personas.
+    // setup for a frame to somebody who already has callsigns.
     expect(createShellStore().get().setup).toBe(false);
   });
 
@@ -275,12 +275,12 @@ describe('QGD-PSN-0004 guided setup', () => {
     expect(store.get().setup).toBe(false);
   });
 
-  it('offers setup only on a machine with no personas', () => {
+  it('offers setup only on a machine with no callsigns', () => {
     const store = createShellStore();
-    expect(store.get().firstRun, 'not before the personas have been read').toBe(false);
+    expect(store.get().firstRun, 'not before the callsigns have been read').toBe(false);
     store.set({ firstRun: true });
     // Entering setup does not withdraw the offer, because leaving setup
-    // without making a persona has to come back to it.
+    // without making a callsign has to come back to it.
     store.beginSetup();
     expect(store.get().firstRun).toBe(true);
   });

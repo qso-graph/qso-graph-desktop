@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
-import { CALLSIGNS_STARTING, startCallsignBroker } from './persona-broker.js';
+import { CALLSIGNS_STARTING, startCallsignBroker } from './callsign-broker.js';
 import { untilReady } from './until-ready.js';
 import { createLogger } from '../logging/logger.js';
 import { load, save, startSettingsBroker } from './settings.js';

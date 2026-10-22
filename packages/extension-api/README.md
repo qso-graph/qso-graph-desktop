@@ -17,7 +17,7 @@ and a component library that could also reach the core would collapse the two.
 
 - **One path, no private shortcut.** A built-in extension uses this API and its
   grants exactly as a third-party one would (D-33, `QGD-APP-0002`,
-  `QGD-REP-0003`). That is why personas, storage and reference data are part of
+  `QGD-REP-0003`). That is why callsigns, storage and reference data are part of
   the core and not extensions: the core is what enforces the grants.
 - **Built-in, official and third-party** (`QGD-HDBK-001` §14). Built-in
   extensions ship on by default; official ones are installed by choice and

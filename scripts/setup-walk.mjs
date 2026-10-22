@@ -26,7 +26,7 @@ import { assertNoVisibleWindow } from './no-visible-window.mjs';
 enableTestKeychain();
 
 const require = createRequire(import.meta.url);
-const { CallsignCore } = require('../dist/native/persona.node');
+const { CallsignCore } = require('../dist/native/callsign.node');
 
 const directory = await mkdtemp(join(tmpdir(), 'qg-setup-walk-'));
 const profile = join(directory, 'profile');
@@ -125,7 +125,7 @@ try {
   await expect(page.locator('#setup-done')).toContainText(callsign);
   await page.getByRole('button', { name: 'Finish' }).click();
   await expect(page.locator('#page-title')).toHaveText(callsign.toUpperCase());
-  await expect(page.locator('#persona-list')).toContainText(callsign.toUpperCase());
+  await expect(page.locator('#callsign-list')).toContainText(callsign.toUpperCase());
   await expect(page.locator('#callsign')).toHaveValue(callsign.toUpperCase());
   await expect(page.locator('#credential-card')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'New to QSO Graph Desktop?' })).toHaveCount(0);
@@ -133,9 +133,9 @@ try {
   notes.push('the callsign setup made is on the page afterwards, selected, not only in the status bar');
 
   // And the page is usable at the window the product opens at. The offer was
-  // a sibling of the persona page in a row layout, which left the form 75
+  // a sibling of the callsign page in a row layout, which left the form 75
   // pixels wide — KI7MT found that on a clean account, and no baseline could
-  // have, because the screenshot fixture makes a persona and that withdraws
+  // have, because the screenshot fixture makes a callsign and that withdraws
   // the offer.
   await page.setViewportSize({ width: 1100, height: 740 });
   const widths = await page.evaluate(() => {

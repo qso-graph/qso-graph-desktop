@@ -41,7 +41,7 @@ let stage = 'launch';
 // dist/, which a SIGTERM mid-outage would otherwise leave without a service
 // module — verify.mjs sends exactly that on its per-suite timeout.
 const application_directory = join(directory, 'app');
-const service = join(application_directory, 'dist/personas/persona-service.js');
+const service = join(application_directory, 'dist/callsigns/callsign-service.js');
 const disabled = `${service}.disabled`;
 
 // Two utility processes are children of main and `ps` names them the same:
@@ -132,7 +132,7 @@ try {
   // The broker's sender rule, exercised rather than inspected. A subframe cannot
   // construct an IPC request at all (no preload runs there), so the frame
   // identity half of the rule is only reachable as a unit test —
-  // allowsSender in tests/persona-contract.test.ts. The URL half is reachable
+  // allowsSender in tests/callsign-contract.test.ts. The URL half is reachable
   // from here: pushState moves the frame off the bundled page's exact URL while
   // keeping the same frame, and the broker must refuse. Delete the rule and this
   // assertion fails, which is the point of it.

@@ -62,7 +62,7 @@ make verify    # the full gate; must be green before anything is committed
 ## Coding conventions
 
 - **TypeScript** for the core and extensions (pinned version in `package.json`), **Svelte** for
-  screens, **Rust** only in `packages/persona-core`. No Python.
+  screens, **Rust** only in `packages/callsign-core`. No Python.
 - **Dependencies:** each new runtime dependency is a reviewed decision, pinned exactly
   (`QGD-SEC-0012`). Prefer none.
 - **Security rules** are `QGD-SEC-*` with `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*`. Lint and

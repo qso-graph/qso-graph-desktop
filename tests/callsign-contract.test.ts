@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { allowsSender, RENDERER_URL, validateCommand as check } from '../packages/personas/persona-contract.js';
-import { serviceIds, validateRegister } from '../packages/personas/services.js';
+import { allowsSender, RENDERER_URL, validateCommand as check } from '../packages/callsigns/callsign-contract.js';
+import { serviceIds, validateRegister } from '../packages/callsigns/services.js';
 
 // The services come from the register the product ships, not from a list here
 // (QGD-PSN-0002). A service dropped from it must stop being accepted, which is
@@ -64,7 +64,7 @@ describe('QGD-PRC-0006 sender rule', () => {
 
 describe('QGD-SEC-0020: a reference fetch carries no credential', () => {
   it('refuses a reference URL with a user name or password, which would be sent as Basic auth', async () => {
-    const { validateServiceCommand } = await import('../packages/personas/persona-contract.js');
+    const { validateServiceCommand } = await import('../packages/callsigns/callsign-contract.js');
     const ask = (url: string) => validateServiceCommand({ type: 'fetch-reference', url }, services);
     expect(ask('https://adif.org.uk/317/x.zip')).toBe(true);
     for (const url of ['https://user:secret@adif.org.uk/x.zip', 'https://user@adif.org.uk/x.zip', 'https://:secret@adif.org.uk/x.zip', 'https://us%65r@adif.org.uk/x.zip']) {

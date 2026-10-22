@@ -9,5 +9,5 @@ import { cargoPath } from './cargo-path.mjs';
 
 const cargo = await cargoPath();
 // --release reuses the profile scripts/build-native.mjs already built.
-const run = spawnSync(cargo, ['test', '--release', '--manifest-path', 'packages/persona-core/Cargo.toml'], { stdio: 'inherit' });
+const run = spawnSync(cargo, ['test', '--release', '--manifest-path', 'packages/callsign-core/Cargo.toml'], { stdio: 'inherit' });
 process.exitCode = run.status === 0 ? 0 : run.status || 1;

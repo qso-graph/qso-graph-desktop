@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  Moving personas to another machine (QGD-PSN-0007 to QGD-PSN-0011).
+  Moving callsigns to another machine (QGD-PSN-0007 to QGD-PSN-0011).
 
   Two things this screen is careful about:
 
@@ -11,13 +11,13 @@
   that looks like a backup and is not one.
 
   **An import says what it would do before it does it.** Choosing a file shows
-  what is in it and which personas it would overwrite; nothing changes until
+  what is in it and which callsigns it would overwrite; nothing changes until
   that is confirmed. The file is chosen and read by the main process — a
   renderer never touches one (QGD-PSN-0011).
 -->
 <script lang="ts">
   import Field, { type ControlAttributes } from '../../ui/Field.svelte';
-  import type { ExportResult, ImportPreview, ImportResult } from '../../personas/persona-contract.js';
+  import type { ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
 
   interface Props {
     onExport: (passphrase: string) => Promise<ExportResult | string>;
@@ -126,7 +126,7 @@
        export."). -->
   <button type="button" class="after-field" class:working={exporting} disabled={!canExport} onclick={runExport}
   >{exporting ? 'Exporting…' : 'Export…'}</button>
-  <p id="export-personas-result" role="status">{exportResult}</p>
+  <p id="export-callsigns-result" role="status">{exportResult}</p>
 
   <h3>Import</h3>
   <Field
@@ -166,7 +166,7 @@
       <button type="button" disabled={importing} onclick={() => { preview = undefined; }}>Cancel</button>
     </div>
   {/if}
-  <p id="import-personas-result" role="status">{importResult}</p>
+  <p id="import-callsigns-result" role="status">{importResult}</p>
 </section>
 
 <style>

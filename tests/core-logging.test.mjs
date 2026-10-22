@@ -8,9 +8,9 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 const SOURCES = [
-  'packages/persona-core/src/lib.rs',
-  'packages/persona-core/src/validation.rs',
-  'packages/persona-core/src/corelog.rs'
+  'packages/callsign-core/src/lib.rs',
+  'packages/callsign-core/src/validation.rs',
+  'packages/callsign-core/src/corelog.rs'
 ];
 
 // What a secret is called in this core.

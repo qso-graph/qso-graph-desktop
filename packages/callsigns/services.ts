@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Reading the register of services a persona can hold a credential for.
+// Reading the register of services a callsign can hold a credential for.
 //
 // QGD-PSN-0002: what a service needs is data, not branches. This reads
 // data/service-profiles.json and checks it; everything else — the command
@@ -13,7 +13,7 @@
 // product has to know which fields it is about to ask an operator to fill in
 // (QGD-SEC-0006: validated, never coerced).
 //
-// The shapes are packages/personas/service-contract.ts, which the renderer imports and this
+// The shapes are packages/callsigns/service-contract.ts, which the renderer imports and this
 // does not re-declare.
 import { readFile } from 'node:fs/promises';
 import {

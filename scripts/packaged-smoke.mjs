@@ -9,7 +9,7 @@ import { setTimeout } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { redact } from './report.mjs';
 // What the screens say on this platform: Keychain, Credential Manager or the keyring.
-import { forStore } from '../dist/personas/credential-store.js';
+import { forStore } from '../dist/callsigns/credential-store.js';
 const said = text => forStore(text, process.platform);
 import { enableTestKeychain } from './keychain-service.mjs';
 

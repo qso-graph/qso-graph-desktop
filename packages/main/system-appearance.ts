@@ -19,7 +19,7 @@
 // Two named functions, no channel the caller chooses, and the reply is a
 // boolean — QGD-SEC-0007 applies here exactly as it does to the other brokers.
 import { BrowserWindow, ipcMain, nativeTheme } from 'electron';
-import { allowsSender } from '../personas/persona-contract.js';
+import { allowsSender } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
 
 const log = createLogger('appearance');

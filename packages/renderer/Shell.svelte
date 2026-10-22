@@ -3,7 +3,7 @@
   The shell: header, rail, pages, status bar.
 
   Every page stays mounted and is hidden rather than destroyed. app.ts attaches
-  the Persona screen's listeners once at startup, so a page rebuilt on each
+  the Callsign screen's listeners once at startup, so a page rebuilt on each
   visit would come back with its markup intact and nothing wired to it — the
   rail would work and the screen would not. Hiding also keeps exactly one
   <main> and one <nav> in the document, which is what P3-axe needs.
@@ -14,7 +14,7 @@
   import StatusBar from '../ui/StatusBar.svelte';
   import HeaderClock from '../ui/HeaderClock.svelte';
   import HomePage from './pages/HomePage.svelte';
-  import PersonaPage from './pages/PersonaPage.svelte';
+  import CallsignsPage from './pages/CallsignsPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
@@ -25,7 +25,7 @@
   import type { LinkCommand } from '../main/links-contract.js';
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
-  import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
+  import type { ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
   import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
 
   interface Props {
@@ -55,7 +55,7 @@
     // they are read after the shell is mounted; the two actions are the real
     // ones, so nothing in setup is held in limbo.
     onCreateCallsign: (call: string, description: string) => Promise<string | undefined>;
-    // Setup finishing: the Personas screen has to be drawn again, and only
+    // Setup finishing: the Callsigns screen has to be drawn again, and only
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
@@ -128,10 +128,10 @@
         onDismissNotice={id => home.dismissNotice(id)}
       />
     </div>
-    <div class="page" hidden={shell.page !== 'personas'}>
+    <div class="page" hidden={shell.page !== 'callsigns'}>
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
            underneath is the one P1 built and P3 was signed off with; a
-           machine with no personas gets an offer above it, and the offer is
+           machine with no callsigns gets an offer above it, and the offer is
            what opens the flow. -->
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
            underneath is the one P1 built and P3 was signed off with.
@@ -139,14 +139,14 @@
            Three things this structure is load-bearing for, all found on a
            clean account by KI7MT:
 
-           1. .page is a ROW. An offer placed as a sibling of PersonaPage
-              became a third column and crushed the persona form to a sliver.
+           1. .page is a ROW. An offer placed as a sibling of CallsignsPage
+              became a third column and crushed the callsign form to a sliver.
               Hence the stack.
-           2. PersonaPage stays mounted and is hidden, never put inside an
+           2. CallsignsPage stays mounted and is hidden, never put inside an
               {#if}. That is this file's own rule, stated at the top, and it
               exists because app.ts drives P1's markup by hand: a component
               rebuilt under it loses that work silently. Toggling the offer
-              rebuilt it once and took the "No personas yet" line with it.
+              rebuilt it once and took the "No callsigns yet" line with it.
            3. Hidden rather than destroyed also means select() can draw into
               the page the moment setup finishes, with no waiting for Svelte
               to put the markup back. -->
@@ -165,7 +165,7 @@
           </section>
         {/if}
         <div class="page-row">
-          <PersonaPage {onExportCallsigns} {onInspectImport} {onApplyImport} />
+          <CallsignsPage {onExportCallsigns} {onInspectImport} {onApplyImport} />
         </div>
       </div>
     </div>

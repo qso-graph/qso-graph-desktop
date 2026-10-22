@@ -20,7 +20,7 @@ export const PACKAGE = '@fortawesome/fontawesome-free';
 // The icons the rail uses, by their Font Awesome names.
 export const ICONS = [
   { key: 'home', name: 'house', style: 'solid' },
-  { key: 'personas', name: 'id-card', style: 'solid' },
+  { key: 'callsigns', name: 'id-card', style: 'solid' },
   // Stations (QGD-STN-*): where the operator is operating from.
   { key: 'stations', name: 'location-dot', style: 'solid' },
   { key: 'settings', name: 'gear', style: 'solid' }

@@ -19,9 +19,9 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { productSources } from '../scripts/network-static.mjs';
-import { validateRegister } from '../packages/personas/services.js';
+import { validateRegister } from '../packages/callsigns/services.js';
 
-const cargo = await readFile('packages/persona-core/Cargo.toml', 'utf8');
+const cargo = await readFile('packages/callsign-core/Cargo.toml', 'utf8');
 const register = validateRegister(JSON.parse(await readFile('data/service-profiles.json', 'utf8')));
 
 describe('the credential core signs in as nobody else', () => {

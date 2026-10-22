@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// How long the persona service is given to answer one command, and what the
+// How long the callsign service is given to answer one command, and what the
 // operator is told when the time runs out.
 //
 // A table rather than a number, because one number was wrong. Every command
@@ -11,7 +11,7 @@
 // twice over, and QGD-PSN-0013 does not permit the second: a message must not
 // send someone looking for something that was never there. Found in review.
 //
-// Pure, and in `personas` rather than beside the broker, for one reason: the
+// Pure, and in `callsigns` rather than beside the broker, for one reason: the
 // broker imports Electron, and a number no test can read is a number that
 // drifts. tests/deadlines.test.mjs reads the core's own 120s out of
 // reference.rs and fails if this stops exceeding it.

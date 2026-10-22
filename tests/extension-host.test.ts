@@ -230,10 +230,10 @@ describe('P8-messages (QGD-APP-0021)', () => {
     const hold = new Promise<void>(settle => { release = settle; });
     const { sup, served } = supervisor({
       '/pkg/a/main.js': () => ({ activate: context => {
-        for (let i = 0; i < 3; i++) void context.request({ kind: 'persona.list' }).then(reply => replies.push(reply));
+        for (let i = 0; i < 3; i++) void context.request({ kind: 'callsign.list' }).then(reply => replies.push(reply));
         void context.request({ kind: 'source.fetch', source: 'x'.repeat(5_000) }).then(reply => replies.push(reply));
       } })
-    }, { serve: async (id, request) => { served.push({ id, request }); await hold; return { ok: true, kind: 'persona.list', personas: [] }; } } as Partial<SupervisorDeps>);
+    }, { serve: async (id, request) => { served.push({ id, request }); await hold; return { ok: true, kind: 'callsign.list', callsigns: [] }; } } as Partial<SupervisorDeps>);
     await sup.ensureActive('a');
     await flush();
     expect(replies).toContainEqual({ ok: false, error: 'That request is larger than an extension may send.' });
@@ -373,22 +373,22 @@ describe('review findings, each held by a test (S2)', () => {
     let ctx: Parameters<ExtensionModule['activate']>[0] | undefined;
     const { sup } = supervisor({
       '/pkg/a/main.js': () => ({ activate: context => { ctx = context; } })
-    }, { serve: async () => { started++; await hold; return { ok: true, kind: 'persona.list', personas: [] }; } } as Partial<SupervisorDeps>);
+    }, { serve: async () => { started++; await hold; return { ok: true, kind: 'callsign.list', callsigns: [] }; } } as Partial<SupervisorDeps>);
     await sup.ensureActive('a');
-    for (let i = 0; i < LIMITS.inFlight; i++) void ctx!.request({ kind: 'persona.list' }).then(reply => replies.push(reply));
+    for (let i = 0; i < LIMITS.inFlight; i++) void ctx!.request({ kind: 'callsign.list' }).then(reply => replies.push(reply));
     await flush();
     await vi.advanceTimersByTimeAsync(LIMITS.requestDeadlineMs + 10);
     await flush();
     expect(replies.filter(reply => JSON.stringify(reply).includes('did not answer in time'))).toHaveLength(LIMITS.inFlight);
     // The deadline has passed but the work has not ended, so the slots are
     // still taken: the next request is refused, not started.
-    const next = await ctx!.request({ kind: 'persona.list' });
+    const next = await ctx!.request({ kind: 'callsign.list' });
     expect(next).toEqual({ ok: false, error: 'This extension has too many requests waiting.' });
     expect(started).toBe(LIMITS.inFlight);
     // When the work ends the slots come back.
     release();
     await flush();
-    const after = ctx!.request({ kind: 'persona.list' });
+    const after = ctx!.request({ kind: 'callsign.list' });
     await flush();
     expect(started).toBe(LIMITS.inFlight + 1);
     sup.stop();

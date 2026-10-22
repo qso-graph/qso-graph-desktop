@@ -2,7 +2,7 @@
 // The store a credential is kept in is named for the platform the operator is
 // on, and macOS's own wording is left exactly as it was.
 import { describe, expect, it } from 'vitest';
-import { credentialStore, credentialStoreTitle, forStore } from '../packages/personas/credential-store.js';
+import { credentialStore, credentialStoreTitle, forStore, findInStore } from '../packages/callsigns/credential-store.js';
 
 describe('the credential store, named for the platform', () => {
   it('names each platform\'s own store', () => {
@@ -33,8 +33,18 @@ describe('the credential store, named for the platform', () => {
 
   it('leaves no Keychain behind off macOS', () => {
     for (const platform of ['win32', 'linux']) {
-      expect(forStore('Remove this persona and ALL its saved service credentials from Keychain? This cannot be undone.', platform))
+      expect(forStore('Remove this callsign and ALL its saved service credentials from Keychain? This cannot be undone.', platform))
         .not.toMatch(/Keychain|macOS/);
     }
+  });
+});
+
+describe('where to find a callsign\'s entries (QGD-CRD-0003, QGD-CRD-0014)', () => {
+  it('names each platform\'s own tool and the service, and never another platform\'s', () => {
+    expect(findInStore('darwin')).toMatch(/^In Keychain Access, search io\.qso-graph\.desktop/);
+    expect(findInStore('win32')).toMatch(/^In Credential Manager/);
+    expect(findInStore('linux')).toMatch(/keyring/);
+    for (const platform of ['win32', 'linux']) expect(findInStore(platform)).not.toMatch(/Keychain/);
+    for (const platform of ['darwin', 'win32', 'linux']) expect(findInStore(platform)).toContain('io.qso-graph.desktop');
   });
 });

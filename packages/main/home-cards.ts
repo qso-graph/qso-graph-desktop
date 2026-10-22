@@ -5,7 +5,7 @@
 // The broker decides when a card refreshes; an extension never polls on its
 // own. A card is asked for only when it is pinned, Home is showing, and its
 // interval has passed. Leaving Home or unpinning a card cancels what is in
-// flight, and an answer that arrives after the persona changed is dropped.
+// flight, and an answer that arrives after the callsign changed is dropped.
 //
 // No Electron here, and the clock and the supervisor are passed in, so all of
 // it runs under unit tests with time the test controls.
@@ -41,7 +41,7 @@ interface Tracked {
   // is never asked twice at once.
   work?: AbortController;
   // Bumped whenever an answer in flight stops being wanted: Home hidden, the
-  // card unpinned, the persona changed. An answer to an older question is
+  // card unpinned, the callsign changed. An answer to an older question is
   // recognised and dropped.
   generation: number;
   view?: CardView;
@@ -53,13 +53,13 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
   const tracked = new Map<string, Tracked>();
   // When each card was last asked, kept apart from everything else: unpinning
   // and re-pinning or hiding Home never let a card be asked sooner than its
-  // interval allows (QGD-HOM-0005). A persona change is the one exception,
+  // interval allows (QGD-HOM-0005). A callsign change is the one exception,
   // below.
   const lastAsked = new Map<string, number>();
   // What a card last said, kept when it stops being shown (unpinned, or its
   // extension turned off), so that shown again inside its interval it shows
   // that rather than "Getting the latest…" until the interval runs out. A
-  // persona change drops it with everything else.
+  // callsign change drops it with everything else.
   const kept = new Map<string, CardView>();
 
   // The pinned cards that some extension offers, in pin order.
@@ -145,12 +145,12 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
     },
     // The pins changed, or an extension was turned on or off.
     changed(): void { reconcile(); },
-    // A persona was added, changed, removed or made active. What is shown and
+    // A callsign was added, changed, removed or made active. What is shown and
     // what is in flight belong to the old one: both are dropped, and each card
     // is asked again, once, when Home shows (QGD-HOM-0005). Waiting out the
     // interval instead left Conditions saying "Getting the latest…" for
-    // fifteen minutes after a new user made their first persona. Persona
-    // changes are made on the Personas page, while Home is hidden, so this
+    // fifteen minutes after a new user made their first callsign. Callsign
+    // changes are made on the Callsigns page, while Home is hidden, so this
     // costs at most one question per card per return to Home.
     callsignsChanged(): void {
       for (const [key, entry] of tracked) {

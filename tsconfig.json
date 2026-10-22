@@ -19,6 +19,6 @@
   ],
   "exclude": [
     "packages/renderer",
-    "packages/persona-core/target"
+    "packages/callsign-core/target"
   ]
 }

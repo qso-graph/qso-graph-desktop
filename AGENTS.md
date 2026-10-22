@@ -29,14 +29,14 @@ QSO Graph Desktop is an extensible Electron desktop platform for hams: a **core*
 **extensions** build on, layered and named the way Podman Desktop and VS Code are. The **core**
 (Parts P0–P7) holds only what every extension needs and what protects the user: the Rust
 **credential core**, the process map, the shell, storage (SQLite files the core opens in one utility
-process), reference data, personas, and the **extension API** with its grants. **Extensions** (P8
+process), reference data, callsigns, and the **extension API** with its grants. **Extensions** (P8
 onward) do the ham work and reach the core only through the extension API, exactly as a third-party
 extension would (`QGD-PRT-0005`, `QGD-REP-0003`). They come as **built-in**, **official** (ours,
 installed by choice) or **third-party**: spec §4.5 has the table, `QGD-HDBK-001` §14 the reasons.
 The build order is the catalogue in spec §2.1 and nowhere else.
 
 Two words to keep apart: **the core** is the platform; **the credential core** is the Rust addon
-in `packages/persona-core`. Never call the second one "the core".
+in `packages/callsign-core`. Never call the second one "the core".
 
 The code uses the same words (`packages/extension-api`, `extensions/`, the extension broker), renamed
 in one pass in `qso-graph-desktop#34`. Requirement IDs keep the `QGD-APP` prefix and registered test
@@ -49,12 +49,12 @@ This section is navigation; the requirements themselves are in the spec.
 
 | If the change touches… | It belongs in… | Read first |
 |---|---|---|
-| Credentials, outbound network, cryptography | `persona-core` (Rust) | `QGD-CRD-*`, `QGD-SEC-0020`, §4.3.1 |
+| Credentials, outbound network, cryptography | `callsign-core` (Rust) | `QGD-CRD-*`, `QGD-SEC-0020`, §4.3.1 |
 | Windows, IPC brokering, process supervision | `main` | `QGD-PRC-*`, `QGD-SEC-*` |
 | Screens and components | `renderer`, `ui` | `QGD-FRM-*`, `QGD-CRD-0007`, `QGD-PRC-0006` |
 | Storage, schema, migrations, reference data files | `storage` | `QGD-ENG-*` |
 | Reference data (ADIF, POTA…) | `reference` | `QGD-REF-*` |
-| Personas and services | `personas` | `QGD-PSN-*` |
+| Callsigns and services | `callsigns` | `QGD-PSN-*` |
 | Anything a ham *does* | an extension in `extensions/`, through `extension-api` only | `QGD-APP-*`, `QGD-REP-0003` |
 
 Four things are easy to get wrong, so check them on every change:
@@ -86,14 +86,14 @@ The floor is a Raspberry Pi 5 (`QGD-SCP-0009`); Linux packages target glibc 2.28
 ```text
 qso-graph-desktop/
 ├── packages/            the core (P0–P7); extensions may depend only on extension-api and ui
-│   ├── persona-core/    Rust (napi-rs): OS credential store, outbound HTTPS, crypto
+│   ├── callsign-core/    Rust (napi-rs): OS credential store, outbound HTTPS, crypto
 │   ├── main/            Electron main: windows, IPC brokers, process supervision
 │   ├── preload/         the only bridge to the renderer: named, typed functions
 │   ├── renderer/        the Svelte shell and pages
 │   ├── ui/              shared Svelte components and patterns
 │   ├── storage/         SQLite through node:sqlite: QG Storage, the adapter, migrations, reference.sqlite
 │   ├── reference/       reference data: ADIF definitions, POTA parks, loaders
-│   ├── personas/        personas and the service register
+│   ├── callsigns/        callsigns and the service register
 │   ├── logging/         the structured, redacted log stream
 │   └── extension-api/   the extension API: manifest, grants, messages
 ├── extensions/          built-in extensions (P8 onward), each self-contained
@@ -135,7 +135,7 @@ Worked example, from the 2026-10-10 cleanup: the per-grant permission list in Se
 because VS Code has no per-permission screen for extensions at all and asks once whether a
 publisher is trusted; the logs and storage's detail moved behind a status-bar affordance because that
 is where Podman Desktop keeps Troubleshooting, with its Logs tab and "collect logs as .zip"; and
-export of personas moved out of preferences because Bitwarden keeps vault export under the
+export of callsigns moved out of preferences because Bitwarden keeps vault export under the
 application's own menu. Podman Desktop's `extensions/` directory holds nine real shipped features
 and no demonstration extension, which is why this repository now has none either.
 
@@ -154,7 +154,7 @@ and no demonstration extension, which is why this repository now has none either
   database, reached only through the API (`QGD-ENG-0018`, `QGD-APP-0009`). `reference.sqlite` is
   derived, never migrated: change its schema and raise `REFERENCE_SCHEMA_VERSION`
   (`QGD-ENG-0015`).
-- **A new service** for personas is a data change in the service register, not new code paths.
+- **A new service** for callsigns is a data change in the service register, not new code paths.
 - **A new UI component** arrives with its Storybook story, in both themes (`QGD-FRM-0006`/`0007`).
   Reuse an existing pattern before inventing one.
 - **Secrets:** a secret is read only on an explicit user action that needs it, never at startup,
@@ -200,7 +200,7 @@ Versions change, so pick the current ones rather than the names here.
 ## Code standards
 
 - **Language:** TypeScript (pinned at 6.0.3 until typescript-eslint supports 7; see
-  `QGD-HDBK-001`), Svelte for screens, Rust only in `persona-core` (D-17). No Python anywhere
+  `QGD-HDBK-001`), Svelte for screens, Rust only in `callsign-core` (D-17). No Python anywhere
   (`QGD-CRD-0004`).
 - **Dependencies:** runtime dependencies are deliberately few. Each new one is a reviewed
   decision, pinned exactly, installed with `npm ci` (`QGD-SEC-0012`).

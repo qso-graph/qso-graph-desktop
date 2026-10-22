@@ -3,7 +3,7 @@
 //
 // A station is a name, a kind, ADIF's own MY_* fields under ADIF's names, and
 // TQSL's park, which ADIF has no field for. Nothing else: no callsign, which
-// is the active persona's (QGD-STN-0009), and no GPS field, which ADIF does not
+// is the active callsign's (QGD-STN-0009), and no GPS field, which ADIF does not
 // have (QGD-STN-0007). What a value may be is ADIF's to say and is checked in
 // stations.ts against the loaded definitions; what is checked here is only the
 // shape, so nothing off it is passed on.

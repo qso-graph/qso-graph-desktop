@@ -5,7 +5,7 @@
   A native <dialog> opened with showModal, which is what gives the focus trap,
   the Escape key and the inert background for nothing — written by hand these
   are the three things that get missed. The destructive action is named, not
-  called "OK": a button that says "Remove persona" tells the reader what is
+  called "OK": a button that says "Remove callsign" tells the reader what is
   about to happen when the sentence above it has already been skipped.
 
   Cancel is the default focus, so Enter on a dialog nobody read does nothing.

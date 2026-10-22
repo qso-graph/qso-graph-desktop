@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The shell's state, and the only channel between the Persona screen's
+// The shell's state, and the only channel between the Callsign screen's
 // imperative code and the Svelte components that draw it.
 //
 // Plain TypeScript rather than a rune, so `tsc -p tsconfig.renderer.json`
@@ -8,7 +8,7 @@
 import type { ThemeChoice } from '../main/settings-contract.js';
 import type { LogsStatus } from '../main/logs-contract.js';
 import type { StorageStatus } from '../storage/storage-contract.js';
-import type { ServiceSummary } from '../personas/service-contract.js';
+import type { ServiceSummary } from '../callsigns/service-contract.js';
 
 // The rail's items. Each carries the Font Awesome icon key it draws, the
 // short label shown under it, a longer description for the tooltip, and where
@@ -24,11 +24,11 @@ export const PAGES = [
     placement: 'top'
   },
   {
-    id: 'personas',
+    id: 'callsigns',
     // Named as hams see them in LoTW, QRZ, eQSL and their loggers (KI7MT,
-    // 2026-10-22): the code keeps 'personas' and 'stations' as its own names.
+    // 2026-10-22): the code keeps 'callsigns' and 'stations' as its own names.
     label: 'Callsigns',
-    icon: 'personas',
+    icon: 'callsigns',
     description: 'Your callsigns and the logins saved for each',
     placement: 'top'
   },
@@ -92,17 +92,17 @@ export interface ShellState {
   // Whether the welcome is showing (QGD-FRM-0016).
   welcome: boolean;
   // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
-  // never imposed: the Personas page a machine with no personas shows is the
+  // never imposed: the Callsigns page a machine with no callsigns shows is the
   // one P1 built and P3 was signed off with, and guided setup is a thing to
   // accept from it. Replacing that page was the first version of this, and
-  // five suites caught it — rightly, because "the P1 persona workflow
+  // five suites caught it — rightly, because "the P1 callsign workflow
   // unchanged inside the shell" is part of what KI7MT signed off.
   setup: boolean;
-  // Whether this machine has no personas yet, which is when the offer is
-  // worth making. Read from the personas, not assumed at start.
+  // Whether this machine has no callsigns yet, which is when the offer is
+  // worth making. Read from the callsigns, not assumed at start.
   firstRun: boolean;
   // The services setup walks (QGD-PSN-0002), read from the register once the
-  // persona service answers. Here rather than handed to the shell at mount,
+  // callsign service answers. Here rather than handed to the shell at mount,
   // because it arrives afterwards: an array passed as a prop and filled in
   // later is a prop that was empty when it mattered, which is what the first
   // version of this did — setup had a callsign step and no services at all.
@@ -130,9 +130,9 @@ export const INITIAL_SHELL: ShellState = {
   themeChoice: 'dark',
   logs: undefined,
   storage: undefined,
-  // Both decided once the personas have been read, not before: a shell that
+  // Both decided once the callsigns have been read, not before: a shell that
   // opened on an offer and then withdrew it would flash it at somebody who
-  // already has personas.
+  // already has callsigns.
   troubleshooting: false,
   welcome: false,
   setup: false,

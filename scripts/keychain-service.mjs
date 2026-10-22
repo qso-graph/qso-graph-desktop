@@ -8,13 +8,13 @@
 // because a constant and a requirement disagreed and nothing compared them.
 import { readFile } from 'node:fs/promises';
 
-const source = await readFile('packages/persona-core/src/lib.rs', 'utf8');
+const source = await readFile('packages/callsign-core/src/lib.rs', 'utf8');
 
 function constantOf(name) {
   // `const NAME: &str = "value";` — matched on the declaration, so a mention
   // in a comment cannot be picked up instead.
   const found = new RegExp(`^const ${name}: &str = "([^"]+)";`, 'm').exec(source);
-  if (!found) throw new Error(`packages/persona-core/src/lib.rs declares no ${name}`);
+  if (!found) throw new Error(`packages/callsign-core/src/lib.rs declares no ${name}`);
   return found[1];
 }
 

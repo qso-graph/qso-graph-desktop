@@ -136,7 +136,7 @@ async function stableShot(page, path, masks = VOLATILE) {
 }
 
 // The fixture callsign. Until 2026-10-22 Keychain entries were named by a
-// persona's name, so a fixture called "Home station" would have read the
+// callsign's name, so a fixture called "Home station" would have read the
 // operator's own saved credentials into the baseline, and this had to be
 // called something nobody would choose. An entry is now named by the
 // callsign's random id (QGD-CRD-0003), so the fixture can read as an
@@ -374,7 +374,7 @@ try {
   // Converged on deliberately rather than raced: selecting the callsign clears
   // the line, and so does the late startup list, so both orderings end in the
   // same state and the baseline shows a page at rest.
-  await page.locator('.persona-item').first().click();
+  await page.locator('.callsign-item').first().click();
   await expect(page.locator('#message')).toHaveText('');
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });

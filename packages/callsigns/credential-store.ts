@@ -17,6 +17,16 @@ export function credentialStoreTitle(platform: string): string {
   return 'System keyring';
 }
 
+// Where to look for a callsign's entries, in the tool each platform has
+// (QGD-CRD-0003, QGD-CRD-0014). Every entry's account starts with the
+// callsign's id; on Windows the keyring crate writes the target as
+// account.service.
+export function findInStore(platform: string): string {
+  if (platform === 'darwin') return 'In Keychain Access, search io.qso-graph.desktop: this callsign\'s entries start with this ID.';
+  if (platform === 'win32') return 'In Credential Manager, under Windows Credentials, this callsign\'s entries start with this ID and end in io.qso-graph.desktop.';
+  return 'In your keyring\'s manager (Passwords and Keys), search io.qso-graph.desktop: this callsign\'s entries start with this ID.';
+}
+
 // A sentence written for macOS, said for this platform. Unchanged on macOS.
 export function forStore(text: string, platform: string): string {
   if (platform === 'darwin') return text;

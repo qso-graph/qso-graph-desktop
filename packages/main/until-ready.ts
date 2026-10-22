@@ -3,7 +3,7 @@
 //
 // Every outbound request goes through the credential core (QGD-SEC-0020), and
 // at a start Home asks its cards before that core is up. The answer then was
-// "the persona service is starting", the card said "NOAA could not be
+// "the callsign service is starting", the card said "NOAA could not be
 // reached" although nothing had asked NOAA, and it said so until its next
 // refresh fifteen minutes later (KI7MT, 2026-10-22). So a request that meets
 // a service still starting waits for it, a bounded while, and only a service

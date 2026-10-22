@@ -7,7 +7,7 @@
   cannot be left half-done is a setup an operator abandons, and this one is in
   front of somebody who has just installed the thing.
 
-  Nothing is held in limbo. The persona is created the moment it is named, and
+  Nothing is held in limbo. The callsign is created the moment it is named, and
   each credential is saved the moment it is entered, so leaving the flow and
   returning loses nothing: what is on screen is a position in a list, not
   unsaved work. That is what makes "can be returned to" true rather than
@@ -22,29 +22,29 @@
   import { caseAsTyped } from '../../ui/typed-case.js';
   import { untrack } from 'svelte';
   import Field, { type ControlAttributes } from '../../ui/Field.svelte';
-  import type { ServiceSummary } from '../../personas/persona-contract.js';
+  import type { ServiceSummary } from '../../callsigns/callsign-contract.js';
 
   interface Props {
     services: ServiceSummary[];
-    // The callsign this setup is for, once it exists. Present when returning
-    // to a setup that already made one.
-    persona?: string;
+    // The callsign this setup is for, as it is shown, once it exists. Present
+    // when returning to a setup that already made one.
+    existing?: string;
     onCreateCallsign: (call: string, description: string) => Promise<string | undefined>;
     onSaveCredential: (
       service: string, values: Record<string, string>
     ) => Promise<string | undefined>;
     onDone: () => void;
   }
-  const { services, persona, onCreateCallsign, onSaveCredential, onDone }: Props = $props();
+  const { services, existing, onCreateCallsign, onSaveCredential, onDone }: Props = $props();
 
   // Where we are: 0 is the callsign, 1..services.length are the services, and
   // one past the end is the summary. Starting past the callsign when the
-  // persona already exists is what returning to a half-done setup looks like.
+  // callsign already exists is what returning to a half-done setup looks like.
   //
   // untrack, because reading a prop to decide where to start is not a
-  // reactive read and Svelte is right to ask: a later change to `persona`
+  // reactive read and Svelte is right to ask: a later change to `existing`
   // must not move the operator to another step while they are typing.
-  let step = $state(untrack(() => (persona ? 1 : 0)));
+  let step = $state(untrack(() => (existing ? 1 : 0)));
   let callsign = $state('');
   let name = $state('');
   let working = $state(false);
@@ -69,7 +69,7 @@
       .every(field => valueOf(summary.id, field.name).trim() !== '');
   }
 
-  async function createPersona() {
+  async function createCallsign() {
     working = true;
     problem = '';
     try {
@@ -130,7 +130,7 @@
       hint="So you can tell two of the same callsign apart — &ldquo;Home&rdquo;, &ldquo;Portable&rdquo;. You can change it later."
       control={nameControl}
     />
-    <button type="button" class:working disabled={callsignProblem !== '' || working} onclick={createPersona}
+    <button type="button" class:working disabled={callsignProblem !== '' || working} onclick={createCallsign}
     >{working ? 'Creating…' : 'Add this callsign'}</button>
 
   {:else if service}
@@ -172,7 +172,7 @@
 
   {:else}
     <p id="setup-done">
-      {callsign || persona} is ready.
+      {callsign || existing} is ready.
       {savedCount === 0
         ? 'No credentials were saved — you can add them from Callsigns whenever you like.'
         : `${savedCount} credential${savedCount === 1 ? '' : 's'} saved.`}

@@ -10,10 +10,10 @@
 // reintroducing the defect.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { DEADLINES, KEYCHAIN_DEADLINE, deadlineFor } from '../packages/personas/deadlines.js';
+import { DEADLINES, KEYCHAIN_DEADLINE, deadlineFor } from '../packages/callsigns/deadlines.js';
 
 const coreSeconds = async () => {
-  const source = await readFile('packages/persona-core/src/reference.rs', 'utf8');
+  const source = await readFile('packages/callsign-core/src/reference.rs', 'utf8');
   // `.connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(120))`
   const connect = source.match(/connect_timeout\(Duration::from_secs\((\d+)\)\)/);
   const total = source.match(/\.timeout\(Duration::from_secs\((\d+)\)\)/);
@@ -22,7 +22,7 @@ const coreSeconds = async () => {
   return { connect: Number(connect[1]), total: Number(total[1]) };
 };
 
-describe('the persona service deadlines', () => {
+describe('the callsign service deadlines', () => {
   it('gives a reference fetch longer than the core itself will take', async () => {
     const { total } = await coreSeconds();
     const fetch = deadlineFor('fetch-reference');
@@ -38,7 +38,7 @@ describe('the persona service deadlines', () => {
     // and then the session key and the callsign, each with its own ceiling.
     // Adding a third request there, or raising one, fails this instead of
     // silently overrunning the broker.
-    const source = await readFile('packages/persona-core/src/validation.rs', 'utf8');
+    const source = await readFile('packages/callsign-core/src/validation.rs', 'utf8');
     const requests = [...source.matchAll(/\.timeout\(Duration::from_secs\((\d+)\)\)/g)]
       .map(match => Number(match[1]));
     expect(requests.length, 'validation.rs must still declare its request timeouts')
@@ -65,7 +65,7 @@ describe('the persona service deadlines', () => {
     // Everything not named in the table, which is every credential command.
     for (const type of [
       'list', 'upsert', 'save-credentials', 'status',
-      'test-credential', 'delete-credentials', 'export-personas'
+      'test-credential', 'delete-credentials', 'export-callsigns'
     ]) {
       expect(deadlineFor(type), `${type} reaches the credential store`).toBe(KEYCHAIN_DEADLINE);
     }

@@ -10,8 +10,8 @@ import type { StationBrief } from '../extension-api/api-contract.js';
 import { activeStationBrief } from './station-brief.js';
 import { app, BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
-import { allowsSender, type FetchedReference } from '../personas/persona-contract.js';
-import { CALLSIGNS_STARTING } from './persona-broker.js';
+import { allowsSender, type FetchedReference } from '../callsigns/callsign-contract.js';
+import { CALLSIGNS_STARTING } from './callsign-broker.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 import {
   STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus,
@@ -169,7 +169,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       worker = undefined;
       failPending('The storage service stopped.');
       if (stopped) return;
-      // The same back-off as the persona broker: a process that cannot start
+      // The same back-off as the callsign broker: a process that cannot start
       // must not become a restart loop writing a log file a minute.
       const wait = Math.min(500 * 2 ** failures++, 30_000);
       push({ state: 'unavailable', reason: 'The storage service stopped and is being restarted.' });
