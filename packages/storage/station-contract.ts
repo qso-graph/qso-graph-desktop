@@ -67,9 +67,10 @@ export interface FieldProblem {
 
 // A station started from a POTA park, for the operator to change before
 // saving (QGD-STN-0006).
+// A location drafted from a POTA park or a SOTA summit.
 export interface ParkDraft {
   draft: StationDraft;
-  // Said when the park's coordinates could not be used.
+  // Said when something could not be filled in, or the summit is retired.
   note?: string;
 }
 
@@ -155,6 +156,12 @@ export function isNotes(value: unknown): value is string {
     if ((code < 0x20 && code !== 0x0a) || code === 0x7f) return false;
   }
   return true;
+}
+
+// A SOTA summit reference as SOTA writes it: W7I/SI-001 (QGD-REF-0018).
+const SUMMIT_REFERENCE = /^[0-9A-Z]{1,7}\/[0-9A-Z]{2}-[0-9]{3}$/;
+export function isSummitReference(value: unknown): value is string {
+  return typeof value === 'string' && SUMMIT_REFERENCE.test(value);
 }
 
 export function isPotaReference(value: unknown): value is string {

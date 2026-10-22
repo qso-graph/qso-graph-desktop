@@ -45,6 +45,7 @@
     onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
     onCloseWelcome: (hideForThisRelease: boolean) => void;
+    onStationFromSummit: (reference: string) => Promise<ParkDraft | string>;
     onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
@@ -63,7 +64,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -172,6 +173,8 @@
         personaName={shell.activePersonaName}
         personaLabel={shell.activeCallsign}
         parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
+        summitsLoaded={shell.storage?.reference?.summits.state === 'loaded'}
+        onFromSummit={onStationFromSummit}
         onSave={onSaveStation}
         onDelete={onDeleteStation}
         onSetActive={onSetActiveStation}

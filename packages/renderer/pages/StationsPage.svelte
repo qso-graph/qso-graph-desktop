@@ -39,6 +39,10 @@
     onChoices?: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     // The parks a POTA reference names, from POTA's list where it is here.
     onLookUpParks?: (references: string) => Promise<NamedReferences | undefined>;
+    // Whether SOTA's summits are downloaded, and a location from one
+    // (QGD-REF-0018).
+    summitsLoaded?: boolean;
+    onFromSummit?: (reference: string) => Promise<ParkDraft | string>;
     // The US counties at a position or over a grid square (QGD-STN-0010).
     onCountiesAt?: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
   }
@@ -46,7 +50,9 @@
     stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
     onChoices = () => Promise.resolve(undefined),
     onLookUpParks = () => Promise.resolve(undefined),
-    onCountiesAt = () => Promise.resolve({ counties: [], sections: {} })
+    onCountiesAt = () => Promise.resolve({ counties: [], sections: {} }),
+    summitsLoaded = false,
+    onFromSummit = () => Promise.resolve('SOTA summits are not downloaded.')
   }: Props = $props();
 
   // ---- references checked against their lists (KI7MT, 2026-10-20) ---------
@@ -184,6 +190,8 @@
 
   let parkReference = $state('');
   let parkError = $state('');
+  let summitReference = $state('');
+  let summitError = $state('');
   let pageError = $state('');
   let deleting = $state<Station | undefined>();
 
@@ -242,6 +250,7 @@
     void lookUpParks();
     makeDefault = draft?.id !== undefined && draft.id === defaultId;
     parkFillNote = '';
+    summitFillNote = '';
     countyNote = '';
     countyChoices = [];
     problems = [];
@@ -445,6 +454,36 @@
     open(draft, [answer.note, parks.length > 1 ? note : ''].filter(Boolean).join(' '));
   }
 
+  // A new location from a SOTA summit: its grid, position and elevation
+  // from SOTA's list (QGD-REF-0018), each changeable before saving.
+  async function fromSummit() {
+    summitError = '';
+    const code = summitReference.trim().toUpperCase();
+    if (!code) return;
+    const answer = await onFromSummit(code);
+    if (typeof answer === 'string') { summitError = answer; return; }
+    summitReference = '';
+    open(answer.draft, answer.note ?? '');
+  }
+
+  // The place from the summit in the SOTA field, for a location being edited:
+  // grid, latitude, longitude and elevation.
+  let summitFillNote = $state('');
+  async function fillFromSummit() {
+    summitFillNote = '';
+    const code = (place.MY_SOTA_REF ?? '').trim().toUpperCase();
+    if (!code) return;
+    const answer = await onFromSummit(code);
+    if (typeof answer === 'string') { summitFillNote = answer; return; }
+    const filled = answer.draft.place;
+    for (const field of ['MY_GRIDSQUARE', 'MY_ALTITUDE'] as const) { if (filled[field]) place[field] = filled[field]; }
+    for (const field of ['MY_LAT', 'MY_LON'] as const) {
+      const degrees = fromAdifLocation(filled[field]);
+      if (degrees !== undefined) place[field] = String(Math.round(degrees * 1e5) / 1e5);
+    }
+    summitFillNote = answer.note ?? `Filled in from ${code}.`;
+  }
+
   async function act(work: Promise<string | undefined>) {
     pageError = '';
     const failed = await work;
@@ -524,6 +563,23 @@
         <p class="hint">The park's grid, position and state come from POTA's park list. For a two-fer or three-fer, give every park, separated by commas. You can change any of it before saving.</p>
       {:else}
         <p class="hint" id="parks-not-downloaded">POTA parks are not downloaded. Download them in Settings to start a location from a park.</p>
+      {/if}
+    </section>
+    <section class="card" aria-labelledby="from-summit-title">
+      <h2 id="from-summit-title">A location from a SOTA summit</h2>
+      {#if summitsLoaded}
+        <label for="summit-reference">Summit reference</label>
+        <div class="inline-form">
+          <input id="summit-reference" type="text" autocapitalize="characters" placeholder="W7I/SI-001" use:caseAsTyped={'upper'}
+            bind:value={summitReference} aria-describedby={summitError ? 'summit-reference-error' : undefined}
+            aria-invalid={summitError ? true : undefined} />
+          <button type="button" class="secondary" id="from-summit" disabled={summitReference.trim() === ''}
+            onclick={fromSummit}>Fill in from the summit</button>
+        </div>
+        {#if summitError}<p id="summit-reference-error" class="field-error" role="status">{summitError}</p>{/if}
+        <p class="hint">The summit's grid, position and elevation come from SOTA's summit list. You can change any of it before saving.</p>
+      {:else}
+        <p class="hint" id="summits-not-downloaded">SOTA summits are not downloaded. Download them in Settings to start a location from a summit.</p>
       {/if}
     </section>
   {:else}
@@ -608,7 +664,13 @@
               <button type="button" class="secondary" id="fill-county"
                 disabled={countyArea === undefined}
                 onclick={() => { void fillCounty(); }}>Fill the county</button>
+              {#if summitsLoaded}
+                <button type="button" class="secondary" id="fill-from-summit"
+                  disabled={!(place.MY_SOTA_REF ?? '').trim()}
+                  onclick={() => { void fillFromSummit(); }}>Fill from the SOTA summit</button>
+              {/if}
               {#if parkFillNote}<p class="hint" id="fill-from-park-note" role="status">{parkFillNote}</p>{/if}
+              {#if summitFillNote}<p class="hint" id="fill-from-summit-note" role="status">{summitFillNote}</p>{/if}
               {#if countyNote}<p class="hint" id="fill-county-note" role="status">{countyNote}</p>{/if}
               {#if countyChoices.length}
                 <div class="county-choices" role="group" aria-label="Counties in the grid">

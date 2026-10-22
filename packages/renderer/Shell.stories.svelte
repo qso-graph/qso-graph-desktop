@@ -24,6 +24,7 @@
     onStationChoices: () => Promise.resolve(undefined),
     onLookUpParks: () => Promise.resolve(undefined),
     onCloseWelcome: () => {},
+    onStationFromSummit: () => Promise.resolve('Not in a story.'),
     onCountiesAt: () => Promise.resolve({ counties: [], sections: {} }),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),

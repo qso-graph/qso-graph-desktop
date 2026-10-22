@@ -12,7 +12,7 @@
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
 import {
-  isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isPersonaName, isPotaReference, isStationChoices, isStationDraft,
+  isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isPersonaName, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
   isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
 } from './station-contract.js';
 
@@ -89,6 +89,8 @@ export type StorageCommand =
   | { type: 'set-default-station'; persona: string; id: string | null }
   | { type: 'set-active-station'; id: string | null }
   | { type: 'station-from-park'; reference: string }
+  // A location from a SOTA summit (QGD-REF-0018).
+  | { type: 'station-from-summit'; reference: string }
   // The editor's pick lists, for an entity or for none.
   | { type: 'station-choices'; entity: string | null; state: string | null }
   // The names of the parks a MY_POTA_REF value names, from POTA's list.
@@ -202,6 +204,7 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
       return exactly(['type', 'persona', 'id']) && isPersonaName(value.persona) && (value.id === null || isStationId(value.id));
     case 'set-active-station': return exactly(['type', 'id']) && (value.id === null || isStationId(value.id));
     case 'station-from-park': return exactly(['type', 'reference']) && isPotaReference(value.reference);
+    case 'station-from-summit': return exactly(['type', 'reference']) && isSummitReference(value.reference);
     case 'look-up-parks':
       return exactly(['type', 'references']) && typeof value.references === 'string' && value.references.length > 0
         && value.references.length <= 100 && /^[0-9A-Za-z@,\- ]+$/.test(value.references);

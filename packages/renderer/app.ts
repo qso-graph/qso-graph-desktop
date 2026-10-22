@@ -60,7 +60,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
@@ -686,6 +686,14 @@ export async function deleteStation(id: string): Promise<string | undefined> {
 export async function setActiveStation(id: string | null): Promise<string | undefined> {
   const reply = await stationRequest({ type: 'set-active-station', id });
   return reply.ok ? undefined : reply.error;
+}
+
+// A location from a SOTA summit (QGD-REF-0018).
+export async function stationFromSummit(reference: string): Promise<ParkDraft | string> {
+  if (!/^[0-9A-Z]{1,7}\/[0-9A-Z]{2}-[0-9]{3}$/.test(reference)) return 'A SOTA summit reference looks like W7I/SI-001.';
+  const reply = await stationRequest({ type: 'station-from-summit', reference });
+  if (!reply.ok) return reply.error;
+  return reply.park ?? 'The summit could not be read.';
 }
 
 export async function stationFromPark(reference: string): Promise<ParkDraft | string> {

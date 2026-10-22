@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { asc, eq } from 'drizzle-orm';
 import { validateRecord, type Ruleset } from '../reference/validate.js';
 import type { Counties } from '../reference/counties.js';
-import { potaPark, potaParkLocation, type referenceSchema } from './reference-schema.js';
+import { potaPark, potaParkLocation, sotaSummit, type referenceSchema } from './reference-schema.js';
 import { ACTIVE_STATION_ID, activeStation, station, stationDefault, type stateSchema } from './schema.js';
 import type { Store } from './sqlite.js';
 import {
@@ -18,7 +18,7 @@ import {
   type StationsView
 } from './station-contract.js';
 export { adifLocation } from './station-contract.js';
-import { adifLocation } from './station-contract.js';
+import { adifLocation, gridOf } from './station-contract.js';
 
 export type Definitions = Ruleset | 'not loaded';
 
@@ -173,6 +173,9 @@ export interface ReferenceLists {
   parks?: (references: string[]) => Promise<Choice[]>;
   // The US counties (QGD-STN-0010), which ship with the application.
   counties?: Counties;
+  // A SOTA summit by its reference, where SOTA's summits are downloaded
+  // (QGD-REF-0018).
+  summit?: (code: string) => Promise<{ validFrom: string; validTo: string } | undefined>;
   // The locations POTA lists for a park, for the "@" part of a reference.
   locations?: (park: string) => Promise<string[]>;
 }
@@ -199,6 +202,17 @@ export async function saveStation(
           break;
         }
       }
+    }
+  }
+  // A summit that is well formed must be one SOTA lists, and valid today.
+  const summitCode = draft.place.MY_SOTA_REF;
+  if (lists.summit && summitCode && !problems.some(problem => problem.field === 'MY_SOTA_REF')) {
+    const summit = await lists.summit(summitCode);
+    const today = now.toISOString().slice(0, 10);
+    if (!summit) {
+      problems.push({ field: 'MY_SOTA_REF', reason: `SOTA's summit list has no summit ${summitCode}.` });
+    } else if (today < summit.validFrom || today > summit.validTo) {
+      problems.push({ field: 'MY_SOTA_REF', reason: `SOTA lists ${summitCode} as a summit from ${summit.validFrom} to ${summit.validTo}, not today.` });
     }
   }
   if (problems.length > 0) return { ok: false, problems };
@@ -313,6 +327,39 @@ export async function draftFromPark(
     place.MY_STATE = locations[0].slice(locations[0].indexOf('-') + 1);
   }
   const draft: StationDraft = { name: `${park.reference} ${park.name}`.slice(0, 64).trim(), kind: 'Portable', place };
+  if (definitions !== 'not loaded') {
+    for (const problem of checkStation(draft, definitions).problems) {
+      if (problem.field in place) delete place[problem.field as keyof Place];
+    }
+  }
+  return { draft, ...(note ? { note } : {}) };
+}
+
+// A summit, from SOTA's list (QGD-REF-0018), or undefined.
+export async function summitOf(reference: Store<typeof referenceSchema>, code: string) {
+  return reference.unit(async (db) => db.select().from(sotaSummit).where(eq(sotaSummit.code, code)).get());
+}
+
+// A portable location from a SOTA summit: its reference, its six-character
+// grid, its position and its height (MY_ALTITUDE, shown as Elevation), each
+// editable before it is saved. A retired summit is still drafted, and says so:
+// saving it is refused, with the reason (QGD-REF-0018).
+export async function draftFromSummit(
+  reference: Store<typeof referenceSchema>, code: string, definitions: Definitions, now = new Date()
+): Promise<ParkDraft | 'not found'> {
+  const summit = await summitOf(reference, code);
+  if (!summit) return 'not found';
+  const place: Place = { MY_SOTA_REF: summit.code };
+  const grid = gridOf(summit.latitude, summit.longitude, 6);
+  if (grid) place.MY_GRIDSQUARE = grid;
+  const lat = adifLocation(summit.latitude, 'lat');
+  const lon = adifLocation(summit.longitude, 'lon');
+  if (lat && lon) { place.MY_LAT = lat; place.MY_LON = lon; }
+  if (summit.altitudeM !== null) place.MY_ALTITUDE = String(summit.altitudeM);
+  const today = now.toISOString().slice(0, 10);
+  const note = today > summit.validTo ? `SOTA retired ${summit.code} on ${summit.validTo}.`
+    : today < summit.validFrom ? `${summit.code} is a SOTA summit from ${summit.validFrom}.` : undefined;
+  const draft: StationDraft = { name: `${summit.code} ${summit.name}`.slice(0, 64).trim(), kind: 'Portable', place };
   if (definitions !== 'not loaded') {
     for (const problem of checkStation(draft, definitions).problems) {
       if (problem.field in place) delete place[problem.field as keyof Place];

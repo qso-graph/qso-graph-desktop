@@ -23,7 +23,7 @@ import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
 import { isPersonaName, type StationsView } from './station-contract.js';
 import {
-  deleteStation, draftFromPark, lookUpParks, parkLocations, parksIn, personaActivated, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
+  deleteStation, draftFromPark, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, personaActivated, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -160,7 +160,9 @@ async function referenceLists(): Promise<ReferenceLists> {
   const pota: ReferenceLists = reader && referenceStatus?.pota.parks.state === 'loaded'
     ? { parks: (references) => lookUpParks(reader, references), locations: (park) => parkLocations(reader, park) }
     : {};
-  return { ...pota, counties: await usCounties() };
+  const summits = reader && referenceStatus?.sota.summits.state === 'loaded'
+    ? { summit: (code: string) => summitOf(reader, code) } : {};
+  return { ...pota, ...summits, counties: await usCounties() };
 }
 
 async function reloadStations(): Promise<void> {
@@ -214,6 +216,15 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
         return section ? [[cnty, section]] : [];
       }));
       return { ok: true, status: status(), counties: found, sections };
+    }
+    case 'station-from-summit': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.sota.summits.state !== 'loaded') {
+        return { ok: false, error: 'SOTA summits are not downloaded. Download them in Settings, then try again.' };
+      }
+      const summit = await draftFromSummit(reader, command.reference, await currentDefinitions());
+      if (summit === 'not found') return { ok: false, error: 'SOTA\'s summit list has no summit with that reference.' };
+      return { ok: true, status: status(), park: summit };
     }
     case 'station-from-park': {
       const reader = reference?.reader();

@@ -10,14 +10,14 @@ import { definitionsOf } from '../packages/reference/adif.js';
 import { countiesFrom } from '../packages/reference/counties.js';
 import { rulesetOf, type Ruleset } from '../packages/reference/validate.js';
 import { layout, openState } from '../packages/storage/layout.js';
-import { potaPark, referenceSchema } from '../packages/storage/reference-schema.js';
+import { potaPark, referenceSchema, sotaSummit } from '../packages/storage/reference-schema.js';
 import { validateStorageCommand } from '../packages/storage/storage-contract.js';
 import { openStore } from '../packages/storage/sqlite.js';
 import {
   ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
-  adifLocation, checkStation, deleteStation, draftFromPark, personaActivated, saveStation, setActiveStation,
+  adifLocation, checkStation, deleteStation, draftFromPark, draftFromSummit, personaActivated, saveStation, setActiveStation,
   setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
 } from '../packages/storage/stations.js';
 
@@ -380,6 +380,70 @@ describe('P9-pota: a portable station from a POTA park (QGD-STN-0006)', () => {
     expect(adifLocation(-0.0001, 'lon')).toBe('W000 00.006');
     expect(adifLocation(179.99999999, 'lon')).toBe('E180 00.000');
     expect(adifLocation(91, 'lat')).toBeUndefined();
+  });
+});
+
+describe('a portable location from a SOTA summit (QGD-REF-0018)', () => {
+  const reference = () => {
+    const store = openStore(join(root, 'reference.sqlite'), { schema: referenceSchema });
+    const ddl = readFileSync('drizzle/reference/0000_reference.sql', 'utf8');
+    for (const statement of ddl.split('--> statement-breakpoint')) store.connection.exec(statement);
+    return store;
+  };
+  // Made up, as the reader's tests are: no row of SOTA's list is copied here.
+  const summit = {
+    association: 'Example', region: 'Example Region', name: 'Example Peak', altitudeM: 2842,
+    latitude: 43.625, longitude: -116.2083, validFrom: '2010-01-01', validTo: '2099-12-31'
+  };
+  const now = new Date('2026-10-22T12:00:00Z');
+
+  it('takes the summit\'s reference, grid, position and height', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(sotaSummit).values({ code: 'W7I/SI-001', ...summit }).run());
+      const made = await draftFromSummit(store, 'W7I/SI-001', ruleset, now);
+      if (made === 'not found') throw new Error('no summit');
+      expect(made.draft).toEqual({
+        name: 'W7I/SI-001 Example Peak', kind: 'Portable',
+        place: { MY_SOTA_REF: 'W7I/SI-001', MY_GRIDSQUARE: 'DN13vp', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498', MY_ALTITUDE: '2842' }
+      });
+      expect(made.note).toBeUndefined();
+      expect(checkStation(made.draft, ruleset).problems).toEqual([]);
+    } finally { store.close(); }
+  });
+
+  it('drafts a retired summit and says so, and answers for one it does not have', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(sotaSummit).values({ code: 'W7I/SI-002', ...summit, validTo: '2020-06-30' }).run());
+      const made = await draftFromSummit(store, 'W7I/SI-002', ruleset, now);
+      if (made === 'not found') throw new Error('no summit');
+      expect(made.note).toBe('SOTA retired W7I/SI-002 on 2020-06-30.');
+      expect(await draftFromSummit(store, 'W7I/SI-999', ruleset, now)).toBe('not found');
+    } finally { store.close(); }
+  });
+
+  it('refuses a summit SOTA does not list, or not today, and takes one it does', async () => {
+    const lists = {
+      summit: async (code: string) => code === 'W7I/SI-001' ? { validFrom: '2010-01-01', validTo: '2099-12-31' }
+        : code === 'W7I/SI-002' ? { validFrom: '2010-01-01', validTo: '2020-06-30' } : undefined
+    };
+    const state = await open();
+    try {
+      expect(await saveStation(state, draft({ MY_SOTA_REF: 'W7I/SI-999' }), ruleset, now, lists))
+        .toEqual({ ok: false, problems: [{ field: 'MY_SOTA_REF', reason: 'SOTA\'s summit list has no summit W7I/SI-999.' }] });
+      expect(await saveStation(state, draft({ MY_SOTA_REF: 'W7I/SI-002' }), ruleset, now, lists))
+        .toEqual({ ok: false, problems: [{ field: 'MY_SOTA_REF', reason: 'SOTA lists W7I/SI-002 as a summit from 2010-01-01 to 2020-06-30, not today.' }] });
+      expect((await saveStation(state, draft({ MY_SOTA_REF: 'W7I/SI-001' }), ruleset, now, lists)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('takes a summit reference at the boundary only in SOTA\'s form', () => {
+    expect(validateStorageCommand({ type: 'station-from-summit', reference: 'W7I/SI-001' })).toBe(true);
+    for (const bad of ['w7i/si-001', 'W7I/SI-1', 'W7ISI-001', 'W7I/SI-001; x', 'ABCDEFGH/SI-001']) {
+      expect(validateStorageCommand({ type: 'station-from-summit', reference: bad })).toBe(false);
+    }
+    expect(validateStorageCommand({ type: 'station-from-summit', reference: 'W7I/SI-001', extra: 1 })).toBe(false);
   });
 });
 
