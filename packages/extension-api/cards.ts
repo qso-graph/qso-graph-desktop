@@ -14,8 +14,13 @@
 // Version 2 added the table (KI7MT, 2026-10-20). The core draws both: data
 // written against version 1 has no table and is drawn as it always was, and a
 // table in data that says version 1 is refused, not guessed at.
-export const CARD_DATA_VERSION = 2;
-export const CARD_DATA_VERSIONS: readonly number[] = [1, 2];
+//
+// Version 3 let a figure carry the time it was observed (KI7MT, 2026-10-22):
+// a card whose figures come from feeds that update at different times, as
+// Conditions' daily solar flux and three-hourly K index do, says each one's
+// time, which a single card time cannot.
+export const CARD_DATA_VERSION = 3;
+export const CARD_DATA_VERSIONS: readonly number[] = [1, 2, 3];
 
 // Bounds on everything an extension can put on Home. A card is a glance, so
 // these are small; and bounded content is content the core can draw without
@@ -40,6 +45,9 @@ export interface Figure {
   readonly label: string;
   readonly value: string;
   readonly unit?: string;
+  // When this figure was observed, as ISO 8601 UTC, where it differs from
+  // the card's. Version 3. The core writes it out.
+  readonly observedAt?: string;
 }
 
 export interface Item {
@@ -121,6 +129,10 @@ function realTime(value: string): boolean {
   return written.slice(0, 16) === value.slice(0, 16) && (value.length < 20 || written.slice(0, 19) === value.slice(0, 19));
 }
 
+function isUtcTime(value: unknown): value is string {
+  return typeof value === 'string' && ISO_UTC.some(pattern => pattern.test(value)) && realTime(value);
+}
+
 function section(value: unknown, at: number, version: number): Section {
   const where = `Section ${at + 1}`;
   if (!isRecord(value)) throw new CardError(`${where} is not an object.`);
@@ -134,11 +146,16 @@ function section(value: unknown, at: number, version: number): Section {
       figures: each(value.figures, where, (figure: unknown, i: number): Figure => {
         const name = `${where}, figure ${i + 1}`;
         if (!isRecord(figure)) throw new CardError(`${name} is not an object.`);
-        only(figure, ['label', 'value', 'unit'], name);
+        only(figure, ['label', 'value', 'unit', 'observedAt'], name);
+        if (figure.observedAt !== undefined) {
+          if (version < 3) throw new CardError(`${name} has a time, which card data version ${version} does not have.`);
+          if (!isUtcTime(figure.observedAt)) throw new CardError(`${name}'s time is not an ISO 8601 UTC time.`);
+        }
         return {
           label: text(figure.label, CARD_LIMITS.label, `${name}'s label`),
           value: text(figure.value, CARD_LIMITS.value, `${name}'s value`),
-          ...(figure.unit !== undefined ? { unit: text(figure.unit, CARD_LIMITS.unit, `${name}'s unit`) } : {})
+          ...(figure.unit !== undefined ? { unit: text(figure.unit, CARD_LIMITS.unit, `${name}'s unit`) } : {}),
+          ...(figure.observedAt !== undefined ? { observedAt: figure.observedAt as string } : {})
         };
       })
     };
@@ -205,10 +222,10 @@ export function validateCardAnswer(value: unknown): CardAnswer {
   if (!isRecord(data)) throw new CardError('A card answer has no data.');
   only(data, ['version', 'observedAt', 'sections'], 'Card data');
   if (typeof data.version !== 'number' || !CARD_DATA_VERSIONS.includes(data.version)) {
-    throw new CardError(`Card data is version ${String(data.version)}; this core draws versions ${CARD_DATA_VERSIONS.join(' and ')}.`);
+    throw new CardError(`Card data is version ${String(data.version)}; this core draws versions ${CARD_DATA_VERSIONS.slice(0, -1).join(', ')} and ${CARD_DATA_VERSIONS.at(-1)}.`);
   }
   const version = data.version;
-  if (typeof data.observedAt !== 'string' || !ISO_UTC.some(pattern => pattern.test(data.observedAt as string)) || !realTime(data.observedAt)) {
+  if (!isUtcTime(data.observedAt)) {
     throw new CardError('Card data does not say, as an ISO 8601 UTC time, when it was observed.');
   }
   if (!Array.isArray(data.sections) || data.sections.length === 0 || data.sections.length > CARD_LIMITS.sections) {

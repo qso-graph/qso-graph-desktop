@@ -13,7 +13,7 @@
         state: 'ready', observedAt,
         sections: [
           { shape: 'figures', figures: [
-            { label: 'Solar flux', value: '148', unit: 'sfu' }, { label: 'K index', value: '2' }, { label: 'A index', value: '6' }
+            { label: 'Solar flux', value: '148', observedAt: '2026-10-10T20:00:00Z' }, { label: 'K index', value: '2', observedAt }, { label: 'A index', value: '6', observedAt }
           ] },
           { shape: 'items', items: [
             { title: '80–40 m', detail: 'Good at night' }, { title: '20 m', detail: 'Good by day' }, { title: '15–10 m', detail: 'Fair' }

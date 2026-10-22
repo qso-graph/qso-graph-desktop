@@ -161,10 +161,21 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     expect(parseConditions({ ...bodies('quiet'), kp: JSON.stringify(kp) })!.kp).toBeUndefined();
   });
 
-  it('dates the card by the oldest feed it rests on', () => {
+  it('dates each reading by its own feed, and the card by the newest (KI7MT, 2026-10-22)', () => {
     const got = parseConditions(bodies('quiet'))!;
-    const kp = JSON.parse(bodies('quiet').kp);
-    expect(got.observedAt).toBe(`${kp[kp.length - 1].time_tag}Z`);
+    // The recorded flux is the 20:00 daily reading; the K index's last row is 18:00.
+    expect(got.sfiAt).toBe('2026-10-11T20:00:00Z');
+    expect(got.kpAt).toBe('2026-10-11T18:00:00Z');
+    expect(got.observedAt).toBe('2026-10-11T20:00:00Z');
+    const card = validateCardAnswer(conditionsCard(got));
+    if (!card.ok) throw new Error('expected a card');
+    const figures = card.data.sections.find(section => section.shape === 'figures');
+    if (!figures || figures.shape !== 'figures') throw new Error('no figures');
+    expect(figures.figures.slice(0, 3).map(figure => [figure.label, figure.observedAt])).toEqual([
+      ['Solar flux', got.sfiAt], ['K index', got.kpAt], ['A index', got.kpAt]
+    ]);
+    // The flux is the number alone (KI7MT, 2026-10-22).
+    expect(figures.figures[0].unit).toBeUndefined();
   });
 
   it('strips the NUL padding NOAA sometimes sends, as solar-mcp does', () => {

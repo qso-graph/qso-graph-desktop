@@ -230,6 +230,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .home-card-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
 .home-card-figures dd { margin: 2px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .home-card-figures .unit { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
+.home-card-figures dd.figure-time { font-size: 11px; font-weight: 400; color: var(--ink-muted); }
 .home-card-items { list-style: none; margin: 0 0 12px; padding: 0; font-size: 13px; }
 .home-card-items li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); }
 .home-card-items li:first-child { border-top: 0; }

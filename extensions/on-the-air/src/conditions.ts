@@ -28,7 +28,13 @@ export interface Conditions {
   readonly a?: number;
   readonly scales: { readonly R: string; readonly S: string; readonly G: string };
   readonly scaleText: { readonly R: string; readonly S: string; readonly G: string };
+  // The newest of the times below: when the card last changed.
   readonly observedAt: string;
+  // Each reading's own time (KI7MT, 2026-10-22): NOAA measures the flux once
+  // a day, at 20:00 UTC, and the K index every three hours, so one time for
+  // both would make one of them look a day old or a day new.
+  readonly sfiAt?: string;
+  readonly kpAt?: string;
   readonly bands?: Readonly<Record<string, string>>;
 }
 
@@ -160,14 +166,14 @@ export function parseConditions(bodies: NoaaBodies): Conditions | undefined {
   const sfi = parseFlux(parse(bodies.flux));
   const k = parseKp(parse(bodies.kp));
   if (!sfi && !k) return undefined;
-  // The oldest of the times it rests on: a fresh flux must not make a stale
-  // K index look current.
+  // Each reading carries its own time, so the card's is the newest: a stale
+  // K index still says how old it is, on its own figure.
   const times = [sfi?.at, k?.at].filter((at): at is string => at !== undefined).sort();
-  const observedAt = times[0];
+  const observedAt = times.at(-1);
   if (!observedAt) return undefined;
   return {
-    ...(sfi ? { sfi: sfi.sfi } : {}),
-    ...(k ? { kp: k.kp } : {}),
+    ...(sfi ? { sfi: sfi.sfi, sfiAt: sfi.at } : {}),
+    ...(k ? { kp: k.kp, kpAt: k.at } : {}),
     ...(k?.a !== undefined ? { a: k.a } : {}),
     ...parseScales(parse(bodies.scales)),
     observedAt,
@@ -176,6 +182,10 @@ export function parseConditions(bodies: NoaaBodies): Conditions | undefined {
 }
 
 const KIND = { R: 'radio blackout', S: 'solar radiation storm', G: 'geomagnetic storm' } as const;
+
+function at(time: string | undefined): { observedAt?: string } {
+  return time ? { observedAt: time } : {};
+}
 
 // The card. An alert first when any scale is above 0: warning for levels 1
 // and 2, severe from 3 (NOAA's own "strong").
@@ -193,9 +203,11 @@ export function conditionsCard(conditions: Conditions): CardAnswer {
     sections.push({ shape: 'alert', level: worst >= 3 ? 'severe' : 'warning', text: `${text}.` });
   }
   sections.push({ shape: 'figures', figures: [
-    conditions.sfi !== undefined ? { label: 'Solar flux', value: String(conditions.sfi), unit: 'sfu' } : { label: 'Solar flux', value: 'not read' },
-    conditions.kp !== undefined ? { label: 'K index', value: String(conditions.kp) } : { label: 'K index', value: 'not read' },
-    conditions.a !== undefined ? { label: 'A index', value: String(conditions.a) } : { label: 'A index', value: 'not read' },
+    // No unit after the flux: hams read the number alone (KI7MT, 2026-10-22).
+    conditions.sfi !== undefined ? { label: 'Solar flux', value: String(conditions.sfi), ...at(conditions.sfiAt) } : { label: 'Solar flux', value: 'not read' },
+    conditions.kp !== undefined ? { label: 'K index', value: String(conditions.kp), ...at(conditions.kpAt) } : { label: 'K index', value: 'not read' },
+    // The A index is from the K index's row, so it has the K index's time.
+    conditions.a !== undefined ? { label: 'A index', value: String(conditions.a), ...at(conditions.kpAt) } : { label: 'A index', value: 'not read' },
     { label: 'Scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
   ] });
   // Band | Status | Comment, the status on the scale in BAND-OUTLOOK.md
@@ -204,5 +216,5 @@ export function conditionsCard(conditions: Conditions): CardAnswer {
     sections.push({ shape: 'table', columns: ['Band', 'Status', 'Comment'],
       rows: outlookRows(conditions.bands).map(row => [row.band, row.status, row.comment]) });
   }
-  return { ok: true, data: { version: 2, observedAt: conditions.observedAt, sections } };
+  return { ok: true, data: { version: 3, observedAt: conditions.observedAt, sections } };
 }

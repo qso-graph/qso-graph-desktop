@@ -3,7 +3,8 @@
 // them. Declared here rather than imported: ui depends on nothing
 // (QGD-REP-0006), and these are checked against the extension API's own
 // types where the renderer hands them over.
-export interface Figure { readonly label: string; readonly value: string; readonly unit?: string }
+// observedAt: when this figure was observed, where it differs from the card (card data version 3).
+export interface Figure { readonly label: string; readonly value: string; readonly unit?: string; readonly observedAt?: string }
 export interface Item { readonly title: string; readonly detail?: string }
 export type Section =
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }

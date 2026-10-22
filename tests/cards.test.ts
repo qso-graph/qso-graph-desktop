@@ -40,7 +40,7 @@ describe('P8-shapes: the card shapes (QGD-HOM-0002)', () => {
     expect(() => validateCardAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validateCardAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validateCardAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validateCardAnswer(answer([FIGURES], { version: 3 }))).toThrowError(/version 3; this core draws versions 1 and 2/);
+    expect(() => validateCardAnswer(answer([FIGURES], { version: 4 }))).toThrowError(/version 4; this core draws versions 1, 2 and 3/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {
@@ -64,6 +64,22 @@ describe('P8-shapes: the card shapes (QGD-HOM-0002)', () => {
     expect(() => validateCardAnswer(answer([{ shape: 'figures', figures: [{ label: 'x'.repeat(41), value: '1' }] }]))).toThrowError(/at most 40/);
     const items = Array.from({ length: CARD_LIMITS.items + 1 }, (_, i) => ({ title: `I${i}` }));
     expect(() => validateCardAnswer(answer([{ shape: 'items', items }]))).toThrowError(/at most 10/);
+  });
+});
+
+describe('a figure\'s own time, card data version 3 (KI7MT, 2026-10-22)', () => {
+  const timed = { shape: 'figures', figures: [{ label: 'Solar flux', value: '115', observedAt: '2026-10-21T20:00:00Z' }] };
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+
+  it('carries a figure\'s time in version 3 data', () => {
+    expect(validateCardAnswer(v(3, [timed]))).toEqual(v(3, [timed]));
+  });
+
+  it('refuses a figure\'s time in older data, or one that is not a real UTC time', () => {
+    expect(() => validateCardAnswer(v(2, [timed]))).toThrowError(/version 2 does not have/);
+    for (const observedAt of ['2026-02-30T20:00:00Z', '2026-10-21 20:00', 'yesterday', 20]) {
+      expect(() => validateCardAnswer(v(3, [{ shape: 'figures', figures: [{ label: 'x', value: '1', observedAt }] }]))).toThrowError(/time/);
+    }
   });
 });
 

@@ -13,7 +13,7 @@
     available, pins: available.map(card => card.key),
     cards: [
       { key: 'on-the-air/conditions', name: 'Conditions', shown: { state: 'ready', observedAt, sections: [
-        { shape: 'figures', figures: [{ label: 'Solar flux', value: '148', unit: 'sfu' }, { label: 'K index', value: '2' }, { label: 'A index', value: '6' }] }
+        { shape: 'figures', figures: [{ label: 'Solar flux', value: '148', observedAt: '2026-10-10T20:00:00Z' }, { label: 'K index', value: '2', observedAt }, { label: 'A index', value: '6', observedAt }] }
       ] } },
       { key: 'on-the-air/parks', name: 'Parks and summits', shown: { state: 'ready', observedAt, sections: [
         { shape: 'items', items: [{ title: 'US-0001', detail: 'W1AW · 14.074 FT8' }, { title: 'W7I/SI-001', detail: 'W1AW · 7.032 CW' }] }

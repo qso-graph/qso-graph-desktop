@@ -36,6 +36,7 @@
             <div>
               <dt>{figure.label}</dt>
               <dd>{figure.value}{#if figure.unit}<span class="unit"> {figure.unit}</span>{/if}</dd>
+              {#if figure.observedAt}<dd class="figure-time">{utc(figure.observedAt)}</dd>{/if}
             </div>
           {/each}
         </dl>
