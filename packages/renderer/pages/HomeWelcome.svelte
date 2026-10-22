@@ -53,6 +53,15 @@
       </li>
     {/each}
   </ul>
+  <!-- The services a callsign's logins are kept for (KI7MT, 2026-10-22:
+       integrations sell). The services the register lists, and what is true
+       of all of them: kept per callsign, in the operator's own store. -->
+  <p class="welcome-runs" id="welcome-services">
+    <strong>Your services, set up once.</strong> LoTW, QRZ (lookups and the logbook), eQSL, HamQTH and
+    Club Log, each login kept with the callsign it belongs to, {forStore('its password or key in your Keychain and never in a file', platform)}.
+    Run more than one call? Each has its own.
+    <button type="button" class="link-button" id="welcome-services-link" onclick={() => onGo('callsigns')}>Set them up</button>
+  </p>
   <!-- The standards and programs it speaks (KI7MT, 2026-10-22), each to its
        own home page. Said as it is: IOTA is next, not here yet. -->
   <p class="welcome-runs" id="welcome-speaks">
