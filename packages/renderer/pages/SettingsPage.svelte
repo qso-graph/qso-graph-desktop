@@ -204,8 +204,8 @@
             <label class="extension-switch">
               <span class="extension-text">
                 <span class="extension-name">{extension.name}</span>
-                {#if extension.cards.length > 0}
-                  <span class="hint">Cards: {extension.cards.join(', ')}</span>
+                {#if extension.pages.length > 0}
+                  <span class="hint">Pages: {extension.pages.join(', ')}</span>
                 {/if}
               </span>
               <input type="checkbox" role="switch" checked={extension.enabled}

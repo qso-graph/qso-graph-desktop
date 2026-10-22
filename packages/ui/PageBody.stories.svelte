@@ -1,14 +1,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import HomeCard from './HomeCard.svelte';
+  import PageBody from './PageBody.svelte';
 
   const observedAt = '2026-10-11T18:00:00Z';
   const { Story } = defineMeta({
-    title: 'components/HomeCard',
-    component: HomeCard,
+    title: 'components/PageBody',
+    component: PageBody,
     args: {
-      name: 'Conditions',
       shown: {
         state: 'ready', observedAt,
         sections: [
@@ -24,7 +23,7 @@
   });
 </script>
 
-<!-- Every state a card can be in: drawn, with an alert of each level,
+<!-- Every state a page can be in: drawn, with an alert of each level,
      waiting for its first answer, and failed in words (QGD-HOM-0002,
      QGD-HOM-0006). -->
 <Story name="Figures and items" />
@@ -35,7 +34,7 @@
 <Story name="Severe alert" args={{ shown: { state: 'ready', observedAt, sections: [
   { shape: 'alert', level: 'severe', text: 'R3 radio blackout: HF on the sunlit side is out.' }
 ] } }} />
-<Story name="Table" args={{ name: 'Conditions', shown: { state: 'ready', observedAt, sections: [
+<Story name="Table" args={{ shown: { state: 'ready', observedAt, sections: [
   { shape: 'table', columns: ['Band', 'Status', 'Comment'], rows: [
     ['80m', 'Good', 'Reliable night band'], ['20m', 'Excellent', 'Strong F-layer, long openings'], ['6m', 'Sporadic', 'Watch for Es openings']
   ] }

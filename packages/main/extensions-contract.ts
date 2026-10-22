@@ -31,11 +31,11 @@ export interface ExtensionEntry {
   readonly name: string;
   readonly tier: string;
   readonly version: string;
-  // The names of the cards it offers Home, so Settings can say what turning
-  // it off takes away.
-  readonly cards: readonly string[];
+  // The names of the pages it offers, so Settings can say what turning it off
+  // takes away.
+  readonly pages: readonly string[];
   // Off when the operator turned it off (QGD-HOM-0007): it stays installed,
-  // offers no cards and is not started.
+  // offers no pages and is not started.
   readonly enabled: boolean;
   // Every grant the manifest asked for, each with whether it is held.
   readonly grants: readonly GrantOffer[];
@@ -84,7 +84,7 @@ function isShownEntry(value: unknown): boolean {
   const entry = value as Record<string, unknown>;
   return typeof entry.id === 'string' && EXTENSION_ID.test(entry.id) && plain(entry.name, 64)
     && typeof entry.enabled === 'boolean'
-    && Array.isArray(entry.cards) && entry.cards.length <= 32 && entry.cards.every(card => plain(card, 48));
+    && Array.isArray(entry.pages) && entry.pages.length <= 32 && entry.pages.every(page => plain(page, 48));
 }
 
 export function isExtensionsReply(value: unknown): value is ExtensionsReply {

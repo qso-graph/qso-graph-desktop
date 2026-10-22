@@ -38,7 +38,7 @@ describe('a manifest is read before any code is', () => {
     const manifest = validateManifest(SOLAR, known);
     // What it declared, with the parts it left out filled in as empty rather
     // than invented (QGD-APP-0019).
-    expect(manifest).toEqual({ ...SOLAR, contributes: { cards: [] }, activationEvents: [] });
+    expect(manifest).toEqual({ ...SOLAR, contributes: { pages: [] }, activationEvents: [] });
   });
 
   it('refuses a grant this product does not define, and names it', () => {

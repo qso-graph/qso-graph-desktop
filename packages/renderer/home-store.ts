@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Home's state in the window (QGD-HOM-0001 to QGD-HOM-0006): the cards on
-// offer, the pins, and what each pinned card last said.
+// Home's state in the window (QGD-HOM-0001 to QGD-HOM-0006): the pages on
+// offer, the pins drawn as tiles, and what the open page last said. Home
+// itself fetches nothing (KI7MT, 2026-10-22).
 //
 // Everything arriving here is checked before it is kept (QGD-SEC-0006): the
 // state against the Home contract, and each pushed card against the card
@@ -15,11 +16,23 @@ export interface HomeApi {
   onNotice?(listener: (notice: unknown) => void): () => void;
 }
 
+// A pinned page, as its tile draws it: from the manifest, nothing fetched.
+export interface Tile {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly icon: string;
+}
+
 export interface HomeModel {
   readonly available: readonly AvailableCard[];
   readonly pins: readonly string[];
-  // The pinned cards some extension offers, in pin order.
-  readonly cards: readonly { readonly key: string; readonly name: string; readonly shown: CardShown }[];
+  // The pinned pages some extension offers, in pin order.
+  readonly tiles: readonly Tile[];
+  // The pages that also have a rail item.
+  readonly railPages: readonly AvailableCard[];
+  // The open page and what it last said, or null on Home.
+  readonly page: { readonly key: string; readonly name: string; readonly shown: CardShown } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
   readonly error?: string;
@@ -34,16 +47,18 @@ export function shownOf(view: CardView): CardShown {
   return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections };
 }
 
-function model(state: HomeState, views: ReadonlyMap<string, CardView>, notice: HostNotice | null, error?: string): HomeModel {
-  const names = new Map(state.available.map(card => [card.key, card.name]));
+function model(state: HomeState, views: ReadonlyMap<string, CardView>, notice: HostNotice | null, open: string | null, error?: string): HomeModel {
+  const offered = new Map(state.available.map(card => [card.key, card]));
+  const opened = open === null ? undefined : offered.get(open);
   return {
     available: state.available,
     pins: state.pins,
-    cards: state.pins.flatMap(key => {
-      const name = names.get(key);
-      if (name === undefined) return [];
-      return [{ key, name, shown: shownOf(views.get(key) ?? { key, state: 'waiting' }) }];
+    tiles: state.pins.flatMap(key => {
+      const page = offered.get(key);
+      return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
     }),
+    railPages: state.available.filter(page => page.rail),
+    page: opened ? { key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }) } : null,
     notice,
     ...(error ? { error } : {})
   };
@@ -56,7 +71,8 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   let error = initial?.error;
   const views = new Map<string, CardView>(state.cards.map(card => [card.key, card]));
   const listeners = new Set<(value: HomeModel) => void>();
-  let visible: boolean | undefined;
+  // The extension page on screen, or null.
+  let open: string | null = null;
   // Pushes are numbered, so a snapshot read before a push cannot replace it.
   let pushes = 0;
   const pushedAt = new Map<string, number>();
@@ -66,7 +82,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   let notice: HostNotice | null = state.notice;
   let noticePushes = 0;
 
-  const current = () => model(state, views, notice, error);
+  const current = () => model(state, views, notice, open, error);
   const changed = () => { const value = current(); for (const listener of listeners) listener(value); };
 
   // `asked` is how many pushes had arrived when the request was sent: a card
@@ -113,13 +129,16 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));
       return stop;
     },
-    // Whether Home is on screen. Only then are cards asked for (QGD-HOM-0005).
-    setVisible(showing: boolean): void {
-      if (!api || visible === showing) return;
-      visible = showing;
+    // Which extension page is on screen, or null. Only it is asked for
+    // (QGD-HOM-0005).
+    openPage(key: string | null): void {
+      if (open === key) return;
+      open = key;
+      changed();
+      if (!api) return;
       const asked = pushes;
       const askedNotice = noticePushes;
-      void api.request({ type: 'visible', visible: showing }).then(reply => take(reply, 'Home could not be updated.', asked, askedNotice), () => undefined);
+      void api.request({ type: 'open', key }).then(reply => take(reply, 'The page could not be opened.', asked, askedNotice), () => undefined);
     },
     // Hide the extension host's notice for the stop it is about.
     dismissNotice(id: number): void {

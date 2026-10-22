@@ -146,7 +146,7 @@ export function buildInventory(deps: ServeDeps, off: readonly string[] = []): Ex
       const { id, name, tier, version } = extension.manifest;
       return {
         id, name, tier, version,
-        cards: extension.manifest.contributes.cards.map(card => card.name),
+        pages: extension.manifest.contributes.pages.map(page => page.name),
         enabled: !off.includes(id),
         grants: extension.manifest.grants.map(grantId => {
           const grant = findGrant(deps.register, grantId);

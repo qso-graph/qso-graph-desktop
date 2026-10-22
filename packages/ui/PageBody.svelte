@@ -1,27 +1,24 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  One Home card, drawn by the core from data (QGD-HOM-0002).
+  An extension's page, drawn by the core from data (KI7MT, 2026-10-22;
+  QGD-HOM-0002): the page a pin or a rail item opens.
 
   Text only: every string here is an expression in the template, which Svelte
-  escapes, and nothing is inserted as raw HTML. An extension decides what a card
-  says, never what it looks like, so every card reads like the rest of the
-  application.
+  escapes, and nothing is inserted as raw HTML. An extension decides what its
+  page says, never what it looks like, so every page reads like the rest of
+  the application, and no extension code runs in the window.
 -->
 <script lang="ts">
   import { utc, type CardShown } from './home-card.js';
 
   interface Props {
-    name: string;
     shown: CardShown;
   }
-  const { name, shown }: Props = $props();
+  const { shown }: Props = $props();
 </script>
 
-<section class="card home-card" aria-label={name} aria-busy={shown.state === 'waiting'}>
-  <div class="home-card-head">
-    <h2>{name}</h2>
-    {#if shown.state === 'ready'}<span class="home-card-time">{utc(shown.observedAt)}</span>{/if}
-  </div>
+<section class="card page-body" aria-busy={shown.state === 'waiting'}>
+  {#if shown.state === 'ready'}<p class="home-card-time" id="page-observed">Updated {utc(shown.observedAt)}</p>{/if}
   {#if shown.state === 'waiting'}
     <p class="hint">Getting the latest…</p>
   {:else if shown.state === 'failed'}

@@ -51,7 +51,7 @@
   name="Settings"
   args={{
     store: createShellStore({
-      page: 'settings',
+      page: 'settings', extensionPage: null,
       activeCallsign: 'W1AW',
       activeCallsignId: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
       activeCallsignLabel: 'W1AW · Home station',

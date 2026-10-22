@@ -36,7 +36,7 @@
 
   // A missing icon draws nothing rather than throwing: a rail item with no
   // picture is still usable, and it still has its label.
-  const glyph = (key: string): Icon | undefined => ICONS[key];
+  const glyph = (key: string): Icon | undefined => ICONS[key] ?? ICONS.extension;
 </script>
 
 {#snippet item(page: Page)}

@@ -10,9 +10,9 @@ import type { CardOutcome } from '../packages/main/extension-host-supervisor.js'
 const AT = '2026-10-11T18:00:00Z';
 const answer = (text: string): CardAnswer => ({ ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'alert', level: 'info', text }] } });
 const CARDS: CatalogueCard[] = [
-  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', card: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900 },
-  { key: 'air/station', extension: 'air', extensionName: 'On the Air', card: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60 },
-  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', card: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60 }
+  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', card: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false },
+  { key: 'air/station', extension: 'air', extensionName: 'On the Air', card: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false },
+  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', card: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false }
 ];
 
 function harness(options: { pins?: string[]; respond?: (card: string, signal: AbortSignal) => Promise<CardOutcome> } = {}) {

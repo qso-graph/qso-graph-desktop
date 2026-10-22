@@ -23,11 +23,27 @@ export const ICONS = [
   { key: 'callsigns', name: 'id-card', style: 'solid' },
   // Stations (QGD-STN-*): where the operator is operating from.
   { key: 'stations', name: 'location-dot', style: 'solid' },
-  { key: 'settings', name: 'gear', style: 'solid' }
+  { key: 'settings', name: 'gear', style: 'solid' },
   // The Apps entry's icon went with the demonstration applications on
-  // 2026-10-10 (QGD-APP-0014). tests/icons.test.mjs holds the list to the rail
-  // in both directions, so an icon nothing uses fails the run — which is how
-  // this one was found.
+  // 2026-10-10 (QGD-APP-0014). tests/icons.test.mjs holds the rail's icons to
+  // the rail in both directions, so an icon nothing uses fails the run — which
+  // is how that one was found.
+  //
+  // The icons an extension's page may name (KI7MT, 2026-10-22): a tile on
+  // Home and a rail item are drawn by the core, and the window draws no
+  // extension artwork (QGD-SEC-0008), so an extension picks from these. A
+  // name not here is drawn as `extension`. Held by tests/icons.test.mjs to
+  // the manifests that use them, plus the fallback.
+  { key: 'extension', name: 'puzzle-piece', style: 'solid', forExtensions: true },
+  { key: 'sun', name: 'sun', style: 'solid', forExtensions: true },
+  { key: 'moon', name: 'moon', style: 'solid', forExtensions: true },
+  { key: 'tower-broadcast', name: 'tower-broadcast', style: 'solid', forExtensions: true },
+  { key: 'satellite-dish', name: 'satellite-dish', style: 'solid', forExtensions: true },
+  { key: 'map', name: 'map-location-dot', style: 'solid', forExtensions: true },
+  { key: 'chart', name: 'chart-line', style: 'solid', forExtensions: true },
+  { key: 'list', name: 'list', style: 'solid', forExtensions: true },
+  { key: 'calendar', name: 'calendar-days', style: 'solid', forExtensions: true },
+  { key: 'book', name: 'book', style: 'solid', forExtensions: true }
 ];
 
 export function fontAwesomeVersion() {
@@ -72,7 +88,7 @@ export function render() {
   const version = fontAwesomeVersion();
   const entries = ICONS.map(icon => {
     const { viewBox, path } = extract(icon);
-    return `  ${icon.key}: {\n` +
+    return `  '${icon.key}': {\n` +
       `    name: '${icon.name}',\n` +
       `    viewBox: '${viewBox}',\n` +
       `    path: '${path}'\n` +
@@ -99,5 +115,13 @@ export const FONT_AWESOME_VERSION = '${version}';
 export const ICONS: Record<string, Icon> = {
 ${entries}
 };
+
+// The icons an extension's page may name; any other name is drawn as
+// 'extension'. A tile and a rail item are the core's to draw.
+export const EXTENSION_ICONS: readonly string[] = [${ICONS.filter(icon => icon.forExtensions).map(icon => `'${icon.key}'`).join(', ')}];
+
+export function isExtensionIcon(name: string): boolean {
+  return EXTENSION_ICONS.includes(name);
+}
 `;
 }

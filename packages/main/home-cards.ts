@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Home's cards: which are available, and when each pinned one is refreshed
+// Extension pages: which are available, and when the open one is refreshed
 // (QGD-HOM-0001, QGD-HOM-0005, QGD-HOM-0006).
 //
-// The broker decides when a card refreshes; an extension never polls on its
-// own. A card is asked for only when it is pinned, Home is showing, and its
-// interval has passed. Leaving Home or unpinning a card cancels what is in
-// flight, and an answer that arrives after the callsign changed is dropped.
+// The broker decides when a page refreshes; an extension never polls on its
+// own. A page is asked for only while it is open on screen and its interval
+// has passed (KI7MT, 2026-10-22: Home is tiles, and asks for nothing).
+// Leaving the page cancels what is in flight, and an answer that arrives
+// after the callsign changed is dropped.
 //
 // No Electron here, and the clock and the supervisor are passed in, so all of
 // it runs under unit tests with time the test controls.
@@ -23,12 +24,15 @@ export interface CatalogueCard {
   readonly name: string;
   readonly description: string;
   readonly refreshSeconds: number;
+  readonly icon: string;
+  readonly rail: boolean;
 }
 
 export type { CardView } from './home-contract.js';
 
 export interface CardSchedulerDeps {
   catalogue(): readonly CatalogueCard[];
+  // The pages on screen: the open one, or none.
   pins(): readonly string[];
   card(extension: string, card: string, signal: AbortSignal): Promise<CardOutcome>;
   publish(view: CardView): void;

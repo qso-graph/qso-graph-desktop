@@ -34,14 +34,24 @@ export const API_VERSION = '1.0.0';
 // an event nobody defined would be a trigger nothing checks.
 export const ACTIVATION_EVENTS = ['onStartupFinished'] as const;
 
-// A card an extension offers Home (QGD-HOM-0001). Its identifier, once
-// published, never changes, because a pin names it (QGD-APP-0019).
-export interface CardContribution {
+// A page an extension offers (KI7MT, 2026-10-22): the core draws it from the
+// data the extension answers with, and no extension code or markup runs in
+// the window. It can be pinned to Home, where it is a tile drawn from this
+// entry alone, its name, description and icon, the same shape for every
+// extension; clicking the tile opens the page. With `rail` it also has an
+// item in the rail. Its identifier, once published, never changes, because
+// a pin names it (QGD-APP-0019).
+export interface PageContribution {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  // The shortest interval the broker may refresh it at (QGD-HOM-0005).
+  // The shortest interval the broker may refresh it at while it is open
+  // (QGD-HOM-0005).
   readonly refreshSeconds: number;
+  // A name from the core's own icon set; the window draws no extension
+  // artwork. An unknown name is drawn as a generic icon.
+  readonly icon?: string;
+  readonly rail?: boolean;
 }
 
 export interface ExtensionManifest {
@@ -58,7 +68,7 @@ export interface ExtensionManifest {
   // Its code, relative to its own directory; run only in the extension host
   // (QGD-APP-0015). Absent for an extension with nothing to run.
   readonly main?: string;
-  readonly contributes: { readonly cards: readonly CardContribution[] };
+  readonly contributes: { readonly pages: readonly PageContribution[] };
   readonly activationEvents: readonly string[];
   // Its own page, if it has one: a sandboxed webview (QGD-APP-0015).
   readonly page?: string;
@@ -111,8 +121,12 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const CARD_FIELDS = ['id', 'name', 'description', 'refreshSeconds'];
-const MAX_CARDS = 16;
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail'];
+const MAX_PAGES = 16;
+// A tile shows the name on one line and the description on two (KI7MT,
+// 2026-10-22: every extension conforms to one tile).
+export const PAGE_NAME_MAX = 40;
+export const PAGE_DESCRIPTION_MAX = 120;
 
 function onlyKnown(value: Record<string, unknown>, allowed: readonly string[], where: string, subject?: string): void {
   for (const key of Object.keys(value)) {
@@ -146,29 +160,38 @@ export function satisfiesApi(range: unknown, api: string = API_VERSION): boolean
   return true;
 }
 
-function validCard(value: unknown, id: string, seen: Set<string>): CardContribution {
-  if (!isRecord(value)) throw new ManifestError(`"${id}" offers a card that is not an object.`, id);
-  onlyKnown(value, CARD_FIELDS, `A card in "${id}"`, id);
-  const { id: card, name, description, refreshSeconds } = value;
-  if (typeof card !== 'string' || !APP_ID.test(card)) throw new ManifestError(`"${id}" offers a card with no well-formed id.`, id);
-  if (seen.has(card)) throw new ManifestError(`"${id}" offers the card "${card}" twice.`, card);
-  seen.add(card);
-  if (typeof name !== 'string' || name.trim() === '' || name.length > 48) {
-    throw new ManifestError(`The card "${card}" in "${id}" has no name to show.`, card);
+function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
+  if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
+  onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
+  const { id: page, name, description, refreshSeconds, icon, rail } = value;
+  if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
+  if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
+  seen.add(page);
+  if (typeof name !== 'string' || name.trim() === '' || name.length > PAGE_NAME_MAX) {
+    throw new ManifestError(`The page "${page}" in "${id}" has no name of at most ${PAGE_NAME_MAX} characters to show.`, page);
   }
-  if (typeof description !== 'string' || description.trim() === '' || description.length > 120) {
-    throw new ManifestError(`The card "${card}" in "${id}" has no one-line description.`, card);
+  if (typeof description !== 'string' || description.trim() === '' || description.length > PAGE_DESCRIPTION_MAX) {
+    throw new ManifestError(`The page "${page}" in "${id}" has no description of at most ${PAGE_DESCRIPTION_MAX} characters.`, page);
   }
-  // Drawn by Home, which refuses markup in anything it draws (QGD-HOM-0002).
-  // Refused here, where it is the extension's to fix, rather than there,
-  // where one card's text would make all of Home unreadable.
+  // Drawn by the core, which refuses markup in anything it draws
+  // (QGD-HOM-0002). Refused here, where it is the extension's to fix, rather
+  // than there, where one page's text would make all of Home unreadable.
   if (/[<>]/.test(name) || /[<>]/.test(description)) {
-    throw new ManifestError(`The card "${card}" in "${id}" has markup in its name or description.`, card);
+    throw new ManifestError(`The page "${page}" in "${id}" has markup in its name or description.`, page);
   }
   if (!Number.isInteger(refreshSeconds) || (refreshSeconds as number) < 60 || (refreshSeconds as number) > 86_400) {
-    throw new ManifestError(`The card "${card}" in "${id}" has no refresh interval between a minute and a day.`, card);
+    throw new ManifestError(`The page "${page}" in "${id}" has no refresh interval between a minute and a day.`, page);
   }
-  return { id: card, name, description, refreshSeconds: refreshSeconds as number };
+  if (icon !== undefined && (typeof icon !== 'string' || !APP_ID.test(icon))) {
+    throw new ManifestError(`The page "${page}" in "${id}" names an icon that is not a plain name.`, page);
+  }
+  if (rail !== undefined && typeof rail !== 'boolean') {
+    throw new ManifestError(`The page "${page}" in "${id}" says whether it is in the rail with something other than true or false.`, page);
+  }
+  return {
+    id: page, name, description, refreshSeconds: refreshSeconds as number,
+    ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {})
+  };
 }
 
 function validPath(value: unknown): value is string {
@@ -225,16 +248,16 @@ export function validateManifest(value: unknown, known: ReadonlySet<string>): Ex
     if (asked.includes(grant)) throw new ManifestError(`"${id}" asks for "${grant}" twice.`, grant);
     asked.push(grant);
   }
-  const cards: CardContribution[] = [];
+  const pages: PageContribution[] = [];
   if (contributes !== undefined) {
     if (!isRecord(contributes)) throw new ManifestError(`"${id}" has contributions that are not an object.`, id);
-    onlyKnown(contributes, ['cards'], `"${id}" contributes`, id);
-    if (contributes.cards !== undefined) {
-      if (!Array.isArray(contributes.cards) || contributes.cards.length > MAX_CARDS) {
-        throw new ManifestError(`"${id}" offers its cards as something other than a list of at most ${MAX_CARDS}.`, id);
+    onlyKnown(contributes, ['pages'], `"${id}" contributes`, id);
+    if (contributes.pages !== undefined) {
+      if (!Array.isArray(contributes.pages) || contributes.pages.length > MAX_PAGES) {
+        throw new ManifestError(`"${id}" offers its pages as something other than a list of at most ${MAX_PAGES}.`, id);
       }
       const seen = new Set<string>();
-      for (const card of contributes.cards) cards.push(validCard(card, id, seen));
+      for (const entry of contributes.pages) pages.push(validPage(entry, id, seen));
     }
   }
   const events: string[] = [];
@@ -250,10 +273,10 @@ export function validateManifest(value: unknown, known: ReadonlySet<string>): Ex
   if (main !== undefined && (!validPath(main) || !main.endsWith('.js'))) {
     throw new ManifestError(`"${id}" names code that is not a .js file inside itself.`, id);
   }
-  // Cards are drawn from data the extension's code returns, so offering one
+  // Pages are drawn from data the extension's code returns, so offering one
   // with no code to answer for it is a manifest that cannot be kept.
-  if (cards.length > 0 && main === undefined) {
-    throw new ManifestError(`"${id}" offers cards and has no main module to provide them.`, id);
+  if (pages.length > 0 && main === undefined) {
+    throw new ManifestError(`"${id}" offers pages and has no main module to provide them.`, id);
   }
   if (page !== undefined && !validPath(page)) {
     throw new ManifestError(`"${id}" names a page that points outside itself.`, id);
@@ -261,7 +284,7 @@ export function validateManifest(value: unknown, known: ReadonlySet<string>): Ex
   return {
     manifestVersion: MANIFEST_VERSION, id, name, tier, version, engines: { qgd: engines.qgd as string }, grants: asked,
     ...(main !== undefined ? { main: main as string } : {}),
-    contributes: { cards },
+    contributes: { pages },
     activationEvents: events,
     ...(page !== undefined ? { page: page as string } : {})
   };

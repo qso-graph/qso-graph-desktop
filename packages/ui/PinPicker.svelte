@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  Customize your pins (QGD-HOM-0003), as a GitHub profile does it: every card
-  any extension offers, with its name and a line saying what it is, up to six
+  Customize your pins (QGD-HOM-0003), as a GitHub profile does it: every page
+  any extension offers, with its name and a line saying what it is, up to eight
   pinned, in an order the operator sets.
 
   Ordered with Move up and Move down rather than by dragging alone: a button
@@ -24,7 +24,7 @@
     onSave: (pins: string[]) => void;
     onCancel: () => void;
   }
-  const { open, available, pins, max = 6, onSave, onCancel }: Props = $props();
+  const { open, available, pins, max = 8, onSave, onCancel }: Props = $props();
 
   let dialog: HTMLDialogElement | undefined = $state();
   // A working copy, taken each time the dialog opens.
@@ -63,9 +63,9 @@
 
 <dialog bind:this={dialog} class="pins" aria-labelledby="pins-title" oncancel={onCancel}>
   <h2 id="pins-title">Customize your pins</h2>
-  <p class="hint" id="pins-count">{chosen.length} of {max} pinned. {#if full}Unpin a card to pin another.{/if}</p>
+  <p class="hint" id="pins-count">{chosen.length} of {max} pinned. {#if full}Unpin a page to pin another.{/if}</p>
   {#if available.length === 0}
-    <p>No card is offered yet.</p>
+    <p>No page is offered yet.</p>
   {:else}
     <ul class="pins-list" aria-describedby="pins-count">
       {#each rows as card (card.key)}

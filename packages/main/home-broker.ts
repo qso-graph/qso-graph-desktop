@@ -12,6 +12,7 @@ import { createCardScheduler, keepHidden, type CatalogueCard } from './home-card
 import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
 import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
+import { isExtensionIcon } from '../ui/icons.js';
 
 export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
@@ -24,17 +25,20 @@ export interface HomeBrokerOptions {
 export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void } {
   const log = createLogger('home', options.logDirectory);
 
-  // Every card a loaded extension offers. An extension that is turned off
+  // Every page a loaded extension offers. An extension that is turned off
   // offers none (QGD-HOM-0007).
   const catalogue = (): CatalogueCard[] => options.loaded().filter(extension => options.enablement.isOn(extension.manifest.id)).flatMap(extension =>
-    extension.manifest.contributes.cards.map(card => ({
-      key: `${extension.manifest.id}/${card.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
-      card: card.id, name: card.name, description: card.description, refreshSeconds: card.refreshSeconds
+    extension.manifest.contributes.pages.map(page => ({
+      key: `${extension.manifest.id}/${page.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
+      card: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
+      icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true
     })));
 
+  // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
+  let open: string | null = null;
   const scheduler = createCardScheduler({
     catalogue,
-    pins: () => load().pins,
+    pins: () => (open === null ? [] : [open]),
     card: (extension, card, signal) => options.supervisor.card(extension, card, signal),
     // Pushed to every window; a window not showing Home ignores it.
     publish: view => {
@@ -63,13 +67,13 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   const stopNotices = options.supervisor.onChange(pushNotice);
 
   const state = (): HomeState => ({
-    available: catalogue().map(({ key, name, description, extensionName }) => ({ key, name, description, extensionName })),
+    available: catalogue().map(({ key, name, description, extensionName, icon, rail }) => ({ key, name, description, extensionName, icon, rail })),
     pins: load().pins,
     cards: scheduler.views(),
     notice: notice()
   });
 
-  // A window that closes while Home is showing stops the asking: on macOS the
+  // A window that closes while a page is open stops the asking: on macOS the
   // application keeps running with no window at all.
   const watched = new WeakSet<Electron.WebContents>();
   const watch = (contents: Electron.WebContents) => {
@@ -86,14 +90,16 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
     switch (command.type) {
       case 'read':
         return { ok: true, state: state() };
-      case 'visible':
+      case 'open':
         watch(event.sender);
-        scheduler.setVisible(command.visible);
+        open = command.key;
+        scheduler.changed();
+        scheduler.setVisible(open !== null);
         return { ok: true, state: state() };
       case 'pin': {
         // Saved in the operator's order (QGD-HOM-0003), with the pins of an
         // extension that is off kept after them while there is room, so its
-        // cards come back when it is turned on (QGD-HOM-0007).
+        // tiles come back when it is turned on (QGD-HOM-0007).
         const settings = load();
         const pins = keepHidden(command.pins, settings.pins, catalogue());
         if (!pins) return { ok: false, error: 'There is no room for that many pins beside those kept for extensions that are off.' };

@@ -14,6 +14,7 @@
   import StatusBar from '../ui/StatusBar.svelte';
   import HeaderClock from '../ui/HeaderClock.svelte';
   import HomePage from './pages/HomePage.svelte';
+  import ExtensionPage from './pages/ExtensionPage.svelte';
   import CallsignsPage from './pages/CallsignsPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
@@ -90,11 +91,36 @@
   $effect(() => home.subscribe(next => { homeModel = next; }));
   // Home is "showing" only while it is the page on screen: only then are its
   // cards asked for (QGD-HOM-0005).
-  $effect(() => { home.setVisible(shell.page === 'home'); });
+  // The extension page on screen is the only one asked for; Home asks for
+  // nothing. A page whose extension was turned off goes back to Home.
+  $effect(() => {
+    const key = shell.page === 'extension' ? shell.extensionPage : null;
+    if (key !== null && !homeModel.available.some(page => page.key === key) && homeModel.available.length + homeModel.pins.length > 0) {
+      store.set({ page: 'home', extensionPage: null });
+      return;
+    }
+    home.openPage(key);
+  });
 
+  // A rail item is a core page's id, or "ext:" and an extension page's key.
   function navigate(id: string): void {
-    if (isPageId(id)) store.set({ page: id });
+    if (isPageId(id)) store.set({ page: id, extensionPage: null });
+    else if (id.startsWith('ext:')) openPage(id.slice(4));
   }
+  function openPage(key: string): void {
+    if (homeModel.available.some(page => page.key === key)) store.set({ page: 'extension', extensionPage: key });
+  }
+  // The rail: the core's pages, then the extension pages that ask for a rail
+  // item, then Settings at the foot (KI7MT, 2026-10-22).
+  const railPages = $derived.by(() => {
+    const core = visiblePages();
+    const extensions = homeModel.railPages.map(page => ({
+      id: `ext:${page.key}`, label: page.name, icon: page.icon, description: page.description, placement: 'top' as const
+    }));
+    return [...core.filter(page => page.placement !== 'bottom'), ...extensions, ...core.filter(page => page.placement === 'bottom')];
+  });
+  const railCurrent = $derived(shell.page === 'extension' ? `ext:${shell.extensionPage}` : shell.page);
+  const openExtension = $derived(homeModel.available.find(page => page.key === shell.extensionPage));
 
   // The active station's name, for the status bar (QGD-STN-0005).
   const activeStation = $derived.by(() => {
@@ -119,14 +145,18 @@
   <HeaderClock />
 </header>
 <div class="workspace">
-  <Rail pages={visiblePages()} current={shell.page} onNavigate={navigate} />
+  <Rail pages={railPages} current={railCurrent} onNavigate={navigate} />
   <main>
     <div class="page" hidden={shell.page !== 'home'}>
       <HomePage
         home={homeModel}
         onSavePins={pins => home.savePins(pins)}
         onDismissNotice={id => home.dismissNotice(id)}
+        onOpenPage={openPage}
       />
+    </div>
+    <div class="page" hidden={shell.page !== 'extension'}>
+      <ExtensionPage page={homeModel.page} extensionName={openExtension?.extensionName ?? ''} />
     </div>
     <div class="page" hidden={shell.page !== 'callsigns'}>
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page

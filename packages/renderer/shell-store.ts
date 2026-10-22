@@ -63,7 +63,11 @@ export function isPageId(value: unknown): value is PageId {
 }
 
 export interface ShellState {
-  page: PageId;
+  // A core page, or 'extension' for an extension's page, named below.
+  page: PageId | 'extension';
+  // The extension page on screen ("extension/page"), when page is
+  // 'extension' (KI7MT, 2026-10-22); null otherwise.
+  extensionPage: string | null;
   // The active callsign's call alone, which is all the status bar names: the
   // description is the operator's own label and read as a second callsign
   // there (KI7MT, 2026-10-22). Empty when there is none.
@@ -116,7 +120,7 @@ export interface ExtensionSwitch {
   readonly id: string;
   readonly name: string;
   // The cards it offers, named, so the switch says what it takes away.
-  readonly cards: readonly string[];
+  readonly pages: readonly string[];
   readonly enabled: boolean;
 }
 
@@ -124,6 +128,7 @@ export const INITIAL_SHELL: ShellState = {
   // The application opens on Home. Nothing there reads a credential, which is
   // half of why it is the right place to open (QGD-CRD-0009).
   page: 'home',
+  extensionPage: null,
   activeCallsign: '',
   activeCallsignId: '',
   activeCallsignLabel: '',

@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// P8 in the running application: Home's cards drawn from On the Air, its code
-// in the QG Extensions process and nowhere else, the host not started while
-// nothing is pinned, and On the Air turned off and on.
+// P8 in the running application: Home's pins as tiles from On the Air's
+// manifest, its page drawn from the data its code answers in the QG Extensions
+// process and nowhere else, Home asking for nothing, and On the Air turned off
+// and on (KI7MT, 2026-10-22: a pin opens a page; Home is not a dashboard).
 //
 //   P8-window      the window is ready with nothing pinned, and no extension
-//                  host starts (QGD-APP-0023)
-//   P8-host        the cards are answered by the QG Extensions utility process,
-//                  which is neither main nor the window's, and which opens no
-//                  connection of its own (QGD-APP-0015, QGD-PRC-0004,
-//                  QGD-SEC-0020)
-//   P8-built-in    On the Air is on in a new profile; turned off, its cards
+//                  host starts (QGD-APP-0023); with a pin, Home still asks
+//                  for nothing and starts no host
+//   P8-host        the open page is answered by the QG Extensions utility
+//                  process, which is neither main nor the window's, and which
+//                  opens no connection of its own (QGD-APP-0015,
+//                  QGD-PRC-0004, QGD-SEC-0020)
+//   P8-built-in    On the Air is on in a new profile; turned off, its tiles
 //                  leave Home and "Customize your pins", and stay gone across a
 //                  restart; turned on, they come back to their pins
 //                  (QGD-HOM-0007)
@@ -62,7 +64,15 @@ const extensionHost = application => application.evaluate(({ app }) =>
   app.getAppMetrics().filter(metric => metric.type === 'Utility' && (metric.serviceName === 'QG Extensions' || metric.name === 'QG Extensions'))
     .map(metric => metric.pid));
 
-const card = (page, name) => page.locator(`section.home-card[aria-label="${name}"]`);
+const tile = (page, name) => page.locator('.pin-tile', { hasText: name });
+const tiles = page => page.locator('.pin-tile');
+const body = page => page.locator('section.page-body');
+// Opens a pinned page from its tile, and waits for its answer.
+const openPin = async (page, name) => {
+  await tile(page, name).click();
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible({ timeout: 30_000 });
+  await expect(body(page)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+};
 const rail = (page, name) => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 const settings = async () => JSON.parse(await readFile(settingsFile, 'utf8'));
 
@@ -73,7 +83,7 @@ try {
   ({ application } = await launch());
   let page = await application.firstWindow();
   await expect(page.locator('#customize-pins')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('section.home-card')).toHaveCount(0);
+  await expect(tiles(page)).toHaveCount(0);
   // Long enough for a host that was going to start to have started.
   await page.waitForTimeout(3_000);
   expect(await extensionHost(application), 'with nothing pinned, no extension host may start').toEqual([]);
@@ -82,17 +92,21 @@ try {
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
   // P8-built-in, first half: a new profile has On the Air on and Conditions
-  // pinned (QGD-HOM-0004). Its other card, Your station, was retired on
-  // 2026-10-22 (KI7MT): the header and the status bar carry all of it.
+  // pinned (QGD-HOM-0004), drawn as a tile from the manifest alone. Home asks
+  // no extension for anything, so no host starts until the page is opened.
   await rm(settingsFile, { force: true });
   ({ application, page } = await launch());
-  await expect(card(page, 'Conditions')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
-  await expect(card(page, 'Conditions')).toContainText(String(expected.sfi));
-  await expect(page.locator('section.home-card')).toHaveCount(1);
+  await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
+  await expect(tiles(page)).toHaveCount(1);
+  await page.waitForTimeout(3_000);
+  expect(await extensionHost(application), 'Home asks for nothing, so with a pin no host starts either').toEqual([]);
+  console.log('P8-window: a pinned tile is drawn from the manifest, and Home starts no extension host: PASS');
+  await openPin(page, 'Conditions');
+  await expect(body(page)).toContainText(String(expected.sfi));
 
   // P8-host: the answers came from QG Extensions, which is its own process.
   const hosts = await extensionHost(application);
-  expect(hosts, 'the cards must have been answered by one QG Extensions process').toHaveLength(1);
+  expect(hosts, 'the page must have been answered by one QG Extensions process').toHaveLength(1);
   const mainPid = await application.evaluate(() => process.pid);
   const windowPid = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getOSProcessId());
   expect(hosts[0]).not.toBe(mainPid);
@@ -102,12 +116,13 @@ try {
   const sockets = socketsOf(hosts[0]);
   expect(sockets.ok, 'the host\'s sockets must be readable').toBe(true);
   expect(sockets.sockets, 'the extension host must open no connection of its own').toEqual([]);
-  console.log(`P8-host: the cards were answered by QG Extensions (pid ${hosts[0]}), not main (${mainPid}) or the window (${windowPid}), with no socket of its own: PASS`);
+  console.log(`P8-host: the page was answered by QG Extensions (pid ${hosts[0]}), not main (${mainPid}) or the window (${windowPid}), with no socket of its own: PASS`);
 
   // P8-supervision, on screen (QGD-APP-0022): the host is killed from
   // outside, as a crash would end it. Home names what it affected, the host is
-  // restarted, the cards answer again, and Dismiss hides the notice.
+  // restarted, the page answers again, and Dismiss hides the notice.
   process.kill(hosts[0]);
+  await rail(page, 'Home').click();
   const notice = page.locator('#host-notice');
   await expect(notice, 'Home must say the extension host stopped').toBeVisible({ timeout: 30_000 });
   await expect(notice).toContainText('It affected On the Air', { timeout: 30_000 });
@@ -116,23 +131,25 @@ try {
   await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
     { message: 'a new extension host must be running', timeout: 30_000 }).toBe(1);
   // A fresh answer, which only the new host can give: NOAA's recorded day is
-  // changed to the storm, and a callsign made active asks every card again at
-  // once (QGD-HOM-0005), so Conditions must show the storm's solar flux. Its
-  // earlier answer would pass any check on what it already showed.
+  // changed to the storm, and a callsign made active asks the open page again
+  // at once (QGD-HOM-0005), so Conditions must show the storm's solar flux.
+  // Its earlier answer would pass any check on what it already showed.
   await recorded(STORM);
+  await tile(page, 'Conditions').click();
   const callsignReply = await page.evaluate(async () => {
     const made = await window.callsigns.request({ type: 'create', call: 'w1aw', description: 'qg-home-cards-fixture' });
     const id = made.ok ? made.data.callsigns.find(entry => entry.description === 'qg-home-cards-fixture')?.id : undefined;
     return id ? window.callsigns.request({ type: 'set-active', id }) : made;
   });
   expect(callsignReply, 'the test callsign must be made active').toMatchObject({ ok: true });
-  await expect(card(page, 'Conditions'), 'the new host must answer Conditions afresh').toContainText(String(stormExpected.sfi), { timeout: 30_000 });
+  await expect(body(page), 'the new host must answer Conditions afresh').toContainText(String(stormExpected.sfi), { timeout: 30_000 });
   await recorded(QUIET);
+  await rail(page, 'Home').click();
   await notice.getByRole('button', { name: 'Dismiss' }).click();
   await expect(notice).toHaveCount(0, { timeout: 30_000 });
   console.log('P8-supervision: the extension host killed; Home named On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
 
-  // Turned off in Settings: its cards leave Home and the list.
+  // Turned off in Settings: its tiles leave Home and the list.
   await rail(page, 'Settings').click();
   const onTheAir = page.getByRole('switch', { name: /On the Air/ });
   await expect(onTheAir).toBeChecked({ timeout: 30_000 });
@@ -140,7 +157,7 @@ try {
   await expect(onTheAir).not.toBeChecked({ timeout: 30_000 });
   expect((await settings()).extensionsOff).toEqual(['on-the-air']);
   await rail(page, 'Home').click();
-  await expect(page.locator('section.home-card')).toHaveCount(0, { timeout: 30_000 });
+  await expect(tiles(page)).toHaveCount(0, { timeout: 30_000 });
   await page.locator('#customize-pins').click();
   const dialog = page.getByRole('dialog', { name: 'Customize your pins' });
   await expect(dialog).toBeVisible();
@@ -149,14 +166,23 @@ try {
   // The pins are kept, so they come back where they were.
   expect((await settings()).pins).toEqual(['on-the-air/conditions']);
 
-  // On again in the same run: the cards come back at once with what they last
-  // said, not "Getting the latest…" until Conditions' fifteen minutes run out.
+  // On again in the same run: its page shows at once what it last said, not
+  // "Getting the latest…" until Conditions' fifteen minutes run out.
   await rail(page, 'Settings').click();
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
+  await tile(page, 'Conditions').click();
   // What it last said was the storm, answered by the restarted host above.
-  await expect(card(page, 'Conditions')).toContainText(String(stormExpected.sfi), { timeout: 10_000 });
+  await expect(body(page)).toContainText(String(stormExpected.sfi), { timeout: 10_000 });
+
+  // A page open when its extension is turned off goes back to Home.
+  await rail(page, 'Settings').click();
+  await page.getByRole('switch', { name: /On the Air/ }).click();
+  await expect(page.getByRole('switch', { name: /On the Air/ })).not.toBeChecked({ timeout: 30_000 });
+  await page.getByRole('switch', { name: /On the Air/ }).click();
+  await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
+  await rail(page, 'Home').click();
 
   // And off again, for the restart below.
   await rail(page, 'Settings').click();
@@ -168,18 +194,18 @@ try {
   ({ application, page } = await launch());
   await expect(page.locator('#customize-pins')).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(3_000);
-  await expect(page.locator('section.home-card')).toHaveCount(0);
+  await expect(tiles(page)).toHaveCount(0);
   expect(await extensionHost(application), 'an extension that is off is not started').toEqual([]);
 
-  // Turned on again: the card back, in its place.
+  // Turned on again: the tile back, in its place, and its page answering.
   await rail(page, 'Settings').click();
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
-  await expect(page.locator('section.home-card')).toHaveCount(1, { timeout: 30_000 });
-  expect(await page.locator('section.home-card').evaluateAll(cards => cards.map(each => each.getAttribute('aria-label'))))
-    .toEqual(['Conditions']);
-  await expect(card(page, 'Conditions')).toContainText(String(expected.sfi), { timeout: 30_000 });
+  await expect(tiles(page)).toHaveCount(1, { timeout: 30_000 });
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions']);
+  await openPin(page, 'Conditions');
+  await expect(body(page)).toContainText(String(expected.sfi), { timeout: 30_000 });
   // A change that cannot be saved leaves the switch showing what was
   // recorded. The settings folder made read-only stops the write; Windows has
   // no such mode for a folder, so this part runs on macOS and Linux.
@@ -202,9 +228,9 @@ try {
   await page.locator('#close-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toHaveCount(0);
   console.log('Help menu: Troubleshooting… opened the Troubleshooting panel: PASS');
-  console.log('P8-built-in: On the Air is on by default; off, its cards leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
+  console.log('P8-built-in: On the Air is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
-  console.error('P8 Home cards suite failed.');
+  console.error('P8 Home pins suite failed.');
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
   const at = String(error.stack ?? '').split('\n').find(line => line.includes('home-cards.mjs'));
   if (at) console.error(redact(at.trim()));

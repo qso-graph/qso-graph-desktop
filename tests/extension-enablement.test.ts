@@ -83,7 +83,7 @@ describe('P8-built-in: turning an extension off and on (QGD-HOM-0007)', () => {
   });
 
   it('the window refuses a reply it cannot show', () => {
-    const entry = { id: 'on-the-air', name: 'On the Air', tier: 'official', version: '0.1.0', cards: ['Conditions'], enabled: true, grants: [] };
+    const entry = { id: 'on-the-air', name: 'On the Air', tier: 'official', version: '0.1.0', pages: ['Conditions'], enabled: true, grants: [] };
     expect(isExtensionsReply({ ok: true, inventory: { extensions: [entry], refused: [] } })).toBe(true);
     expect(isExtensionsReply({ ok: true, inventory: { extensions: [{ ...entry, enabled: 'yes' }], refused: [] } })).toBe(false);
     expect(isExtensionsReply({ ok: true, inventory: { extensions: [{ ...entry, name: '<img>' }], refused: [] } })).toBe(false);
@@ -93,7 +93,7 @@ describe('P8-built-in: turning an extension off and on (QGD-HOM-0007)', () => {
 describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
   const card = (key: string): CatalogueCard => {
     const [extension, id] = key.split('/');
-    return { key, extension, extensionName: extension, card: id, name: id, description: 'A card.', refreshSeconds: 60 };
+    return { key, extension, extensionName: extension, card: id, name: id, description: 'A page.', refreshSeconds: 60, icon: 'extension', rail: false };
   };
 
   it('drops an off extension\'s card, cancelling what it had in flight, and offers it again when on', async () => {
@@ -133,9 +133,9 @@ describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
   });
 
   it('refuses rather than drops a kept pin when there is no room', () => {
-    const six = ['x/a', 'x/b', 'x/c', 'x/d', 'x/e', 'x/f'];
-    expect(keepHidden(six, ['on-the-air/conditions'], six.map(card))).toBeUndefined();
-    expect(keepHidden(six.slice(0, 5), ['on-the-air/conditions'], six.map(card))).toEqual(['on-the-air/conditions', ...six.slice(0, 5)]);
+    const eight = ['x/a', 'x/b', 'x/c', 'x/d', 'x/e', 'x/f', 'x/g', 'x/h'];
+    expect(keepHidden(eight, ['on-the-air/conditions'], eight.map(card))).toBeUndefined();
+    expect(keepHidden(eight.slice(0, 7), ['on-the-air/conditions'], eight.map(card))).toEqual(['on-the-air/conditions', ...eight.slice(0, 7)]);
   });
 
   it('shows what a card last said when its extension comes back on, without asking early', async () => {

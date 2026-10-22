@@ -25,8 +25,22 @@ describe('the vendored Font Awesome icons', () => {
 
   it('names an icon for every rail item', async () => {
     const store = await readFile('packages/renderer/shell-store.ts', 'utf8');
-    for (const icon of ICONS) {
+    for (const icon of ICONS.filter(entry => !entry.forExtensions)) {
       expect(store, `${icon.key} must be used by a page`).toContain(`icon: '${icon.key}'`);
+    }
+  });
+
+  it('offers extensions a set of icons, and every icon a shipped extension names is in it', async () => {
+    // A tile and a rail item are drawn by the core (KI7MT, 2026-10-22), so an
+    // extension names one of these rather than shipping artwork.
+    const offered = new Set(ICONS.filter(entry => entry.forExtensions).map(entry => entry.key));
+    expect(offered.has('extension'), 'the fallback for a name not in the set').toBe(true);
+    for (const folder of await readdir('extensions', { withFileTypes: true })) {
+      if (!folder.isDirectory()) continue;
+      const manifest = JSON.parse(await readFile(join('extensions', folder.name, 'manifest.json'), 'utf8'));
+      for (const page of manifest.contributes?.pages ?? []) {
+        if (page.icon !== undefined) expect(offered.has(page.icon), `${folder.name}/${page.id} names "${page.icon}"`).toBe(true);
+      }
     }
   });
 });

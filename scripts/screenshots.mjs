@@ -55,10 +55,11 @@ const captures = resolve('report/screenshots');
 // themselves are the smoke suite's to assert. A mask is a box drawn over the
 // element in the capture, so it hides content and nothing else.
 //
-// Home's cards (P8) are drawn from recorded NOAA responses
-// (tests/fixtures/noaa/quiet), so Conditions is the same every run. Every
-// card's time is masked: it gains the date once the day it shows is not
-// today, so the recorded responses would redraw Conditions at midnight.
+// Conditions' page (P8) is drawn from recorded NOAA responses
+// (tests/fixtures/noaa/quiet), so it is the same every run. Its times are
+// masked: they gain the date once the day they show is not today, so the
+// recorded responses would redraw the page at midnight. Home itself is tiles
+// drawn from the manifest and has nothing that moves (KI7MT, 2026-10-22).
 const VOLATILE = [
   // The operator's folder (a temporary one here) and the stores' sizes: only
   // the values, so the words around them are still compared.
@@ -69,7 +70,7 @@ const VOLATILE = [
   '#log-directory',
   // The header's clock: its times, not its "UTC" and "Local" labels.
   '#header-clock .clock-time',
-  'section.home-card .home-card-time'
+  '#page-observed', '.figure-time'
 ];
 // Not masked, because in this run they do not change: nothing is fetched at
 // start, so Home's reference line and Storage's reference list both say "not
@@ -173,19 +174,11 @@ const captured = [];
 // A capture of something drawn over Home: the pin dialog, Troubleshooting. A
 // mask is painted over its element even where the overlay covers it, which
 // put grey blocks across Troubleshooting's text and its Close button. So the
-// moving values on Home's cards are hidden instead, through the CSSOM as the
-// caret is, and put back afterwards; the masks for Home's cards are left out.
-const OVER_HOME_MASKS = VOLATILE.filter(selector => !selector.startsWith('section.home-card'));
+// masks of a page's times are left out; Home has no moving values of its own
+// since its pins became tiles (KI7MT, 2026-10-22).
+const OVER_HOME_MASKS = VOLATILE.filter(selector => selector !== '#page-observed' && selector !== '.figure-time');
 async function recordOverHome(page, file, theme, options = {}) {
-  const hidden = await page.evaluate(() => {
-    const sheet = document.styleSheets[0];
-    return sheet.insertRule('section.home-card .home-card-time { visibility: hidden !important; }', sheet.cssRules.length);
-  });
-  try {
-    await record(page, file, theme, OVER_HOME_MASKS, options);
-  } finally {
-    await page.evaluate(index => document.styleSheets[0].deleteRule(index), hidden);
-  }
+  await record(page, file, theme, OVER_HOME_MASKS, options);
 }
 
 // Everything below the first screen, a screen at a time with an overlap, so
@@ -345,7 +338,7 @@ try {
     // for the capture; what is under the mask is not compared anyway.
     sheet.insertRule('#storage-folder, #log-directory { display: inline-block; width: 40ch; overflow: hidden; white-space: nowrap; vertical-align: bottom; }', sheet.cssRules.length);
     sheet.insertRule('.storage-size { display: inline-block; width: 8ch; overflow: hidden; white-space: nowrap; vertical-align: bottom; }', sheet.cssRules.length);
-    sheet.insertRule('section.home-card .home-card-time { display: inline-block; width: 16ch; overflow: hidden; white-space: nowrap; text-align: right; }', sheet.cssRules.length);
+    sheet.insertRule('#page-observed, .figure-time { display: inline-block; width: 16ch; overflow: hidden; white-space: nowrap; }', sheet.cssRules.length);
   });
 
   // The callsign broker owns a utility process that starts after the window
@@ -401,13 +394,9 @@ try {
       // taken while it still read "Reading which applications are
       // installed…" was a different page from the baseline — the failure this
       // suite had 4 runs in 8. That section is gone (QGD-APP-0012.1), and
-      // with it the precondition. P8 brought two more answers, Home's cards
+      // with it the precondition. P8 brought two more answers, Home's pins
       // and Settings' extension switch, and both are waited for below.
-      // What these pages show from the main process is waited for, not
-      // raced: Home's two cards, answered, and Settings' extension switch.
-      if (name === 'Home') {
-        await expect(page.locator('section.home-card[aria-label="Conditions"]')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
-      }
+      if (name === 'Home') await expect(page.locator('.pin-tile', { hasText: 'Conditions' })).toBeVisible({ timeout: 30_000 });
       if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
       // Home and Callsigns run past the first screen; what is below it is
@@ -415,6 +404,15 @@ try {
       // export). Settings' end is its own capture below.
       if (name !== 'Settings') await recordScreens(page, name.toLowerCase(), theme, record);
     }
+
+    // Conditions' page, opened from its pin (KI7MT, 2026-10-22): the data
+    // that used to be on Home, drawn by the core from On the Air's answer.
+    await rail('Home').click();
+    await page.locator('.pin-tile', { hasText: 'Conditions' }).click();
+    await expect(page.locator('section.page-body')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+    await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
+    await record(page, `conditions-${theme}.png`, theme);
+    await recordScreens(page, 'conditions', theme, record);
 
     // Settings' last card, Extensions, is below the fold: Playwright calls the
     // switch visible there, but no capture from the top contains it. Captured
@@ -509,7 +507,7 @@ try {
 
     // Home with a location active: the status bar names it with its grid.
     await rail('Home').click();
-    await expect(page.locator('section.home-card[aria-label="Conditions"]')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+    await expect(page.locator('.pin-tile', { hasText: 'Conditions' })).toBeVisible({ timeout: 30_000 });
     await blur();
     await record(page, `home-station-${theme}.png`, theme);
   }

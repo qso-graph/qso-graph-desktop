@@ -500,7 +500,7 @@ void loadTheme();
 // what was clicked.
 function takeExtensions(reply: unknown): boolean {
   if (!isExtensionsReply(reply) || !reply.ok) return false;
-  shell.set({ extensions: reply.inventory.extensions.map(({ id, name, cards, enabled }) => ({ id, name, cards: [...cards], enabled })) });
+  shell.set({ extensions: reply.inventory.extensions.map(({ id, name, pages, enabled }) => ({ id, name, pages: [...pages], enabled })) });
   return true;
 }
 

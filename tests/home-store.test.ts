@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Home in the window: what each card's view means on screen, and that
-// nothing off the contract is kept (QGD-HOM-0002, QGD-HOM-0006, QGD-SEC-0006).
+// Home in the window: the pins as tiles, what the open page's view means on
+// screen, and that nothing off the contract is kept (QGD-HOM-0002,
+// QGD-HOM-0006, QGD-SEC-0006).
 import { describe, expect, it } from 'vitest';
 import { createHomeStore, shownOf, type HomeApi } from '../packages/renderer/home-store.js';
 
 const AT = '2026-10-11T18:00:00Z';
 const SECTIONS = [{ shape: 'alert', level: 'info', text: 'Quiet' }] as const;
 const STATE = {
-  available: [{ key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air' }],
+  available: [
+    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false },
+    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true }
+  ],
   pins: ['air/conditions', 'gone/card'], cards: [], notice: null
 };
 
@@ -31,14 +35,25 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     expect(shownOf({ key: 'a-a/b-b', state: 'waiting' })).toEqual({ state: 'waiting' });
   });
 
-  it('draws pinned cards in pin order, skipping a pin no extension offers, and takes pushed cards', async () => {
+  it('draws the pins as tiles in pin order from the manifests alone, skipping a pin no extension offers', async () => {
+    const { value } = api();
+    const store = createHomeStore(value);
+    store.start();
+    await flush();
+    expect(store.get().tiles).toEqual([{ key: 'air/conditions', name: 'Conditions', description: 'Solar.', icon: 'sun' }]);
+    expect(store.get().railPages.map(page => page.key)).toEqual(['air/astro']);
+    expect(store.get().page).toBeNull();
+  });
+
+  it('shows the open page, waiting until its answer is pushed', async () => {
     const { value, push } = api();
     const store = createHomeStore(value);
     store.start();
     await flush();
-    expect(store.get().cards).toEqual([{ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' } }]);
+    store.openPage('air/conditions');
+    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' } });
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
-    expect(store.get().cards[0].shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
+    expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
 
   it('ignores a pushed card that is off the contract', async () => {
@@ -46,18 +61,19 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     const store = createHomeStore(value);
     store.start();
     await flush();
+    store.openPage('air/conditions');
     push({ key: 'air/conditions', state: 'failed', reason: '<img src=x onerror=1>' });
     push({ key: 'air/conditions', state: 'ready', fetchedAt: AT, answer: { ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'html', html: 'x' }] } } });
-    expect(store.get().cards[0].shown).toEqual({ state: 'waiting' });
+    expect(store.get().page?.shown).toEqual({ state: 'waiting' });
   });
 
-  it('says Home is showing only when it changes, and sends the pins as given', async () => {
+  it('says which page is open only when it changes, and sends the pins as given', async () => {
     const { value, sent } = api();
     const store = createHomeStore(value);
-    store.setVisible(true); store.setVisible(true); store.setVisible(false);
+    store.openPage('air/conditions'); store.openPage('air/conditions'); store.openPage(null);
     store.savePins(['air/conditions']);
     await flush();
-    expect(sent).toEqual([{ type: 'visible', visible: true }, { type: 'visible', visible: false }, { type: 'pin', pins: ['air/conditions'] }]);
+    expect(sent).toEqual([{ type: 'open', key: 'air/conditions' }, { type: 'open', key: null }, { type: 'pin', pins: ['air/conditions'] }]);
   });
 
   it('never lets a snapshot read before a push replace the pushed card', async () => {
@@ -68,10 +84,11 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
       onCard: listener => { push = listener; return () => {}; }
     });
     store.start();
+    store.openPage('air/conditions');
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
     answer({ ok: true, state: { ...STATE, cards: [{ key: 'air/conditions', state: 'waiting' }] } });
     await flush();
-    expect(store.get().cards[0].shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
+    expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
 
   it('puts the date in front of a time that is not today, in UTC', async () => {

@@ -3,9 +3,10 @@
 // QGD-HOM-0006). Checked on both sides, refused rather than coerced
 // (QGD-SEC-0006).
 //
-// The window asks for the state, says whether Home is showing, and sets the
-// pins. Each card's data arrives unasked, pushed as the broker gets it, so
-// Home never polls.
+// The window asks for the state, says which extension page is open, and sets
+// the pins. Home itself shows tiles drawn from the manifests and fetches
+// nothing (KI7MT, 2026-10-22); the open page's data arrives unasked, pushed as
+// the broker gets it, so the window never polls.
 import { validateCardAnswer, type CardAnswer } from '../extension-api/cards.js';
 import { isPins } from './settings-contract.js';
 
@@ -19,12 +20,17 @@ export const HOME_NOTICE_CHANNEL = 'home:notice';
 import type { HostNotice } from './home-notice.js';
 export type { HostNotice } from './home-notice.js';
 
-// A card some extension offers, as "Customize your pins" lists it.
+// A page some extension offers: what its tile, its rail item and "Customize
+// your pins" are drawn from. Nothing here is fetched; it is the manifest's.
 export interface AvailableCard {
   readonly key: string;
   readonly name: string;
   readonly description: string;
   readonly extensionName: string;
+  // A key in the core's icon set, or 'extension'.
+  readonly icon: string;
+  // Whether it also has an item in the rail.
+  readonly rail: boolean;
 }
 
 export type CardView =
@@ -35,14 +41,15 @@ export type CardView =
 export interface HomeState {
   readonly available: readonly AvailableCard[];
   readonly pins: readonly string[];
-  // The pinned cards some extension offers, in pin order, as last known.
+  // What the open page last said, if a page is open: at most one.
   readonly cards: readonly CardView[];
   readonly notice: HostNotice | null;
 }
 
 export type HomeCommand =
   | { readonly type: 'read' }
-  | { readonly type: 'visible'; readonly visible: boolean }
+  // The extension page now on screen, or null when none is.
+  | { readonly type: 'open'; readonly key: string | null }
   | { readonly type: 'pin'; readonly pins: readonly string[] }
   | { readonly type: 'dismiss'; readonly id: number };
 
@@ -60,7 +67,7 @@ const plainText = (value: unknown, limit: number) => typeof value === 'string' &
 export function validateHomeCommand(value: unknown): value is HomeCommand {
   if (!record(value)) return false;
   if (value.type === 'read') return exactly(value, ['type']);
-  if (value.type === 'visible') return exactly(value, ['type', 'visible']) && typeof value.visible === 'boolean';
+  if (value.type === 'open') return exactly(value, ['type', 'key']) && (value.key === null || (typeof value.key === 'string' && KEY.test(value.key)));
   if (value.type === 'pin') return exactly(value, ['type', 'pins']) && isPins(value.pins);
   if (value.type === 'dismiss') return exactly(value, ['type', 'id']) && Number.isSafeInteger(value.id) && (value.id as number) > 0;
   return false;
@@ -91,9 +98,10 @@ export function isCardView(value: unknown): value is CardView {
 }
 
 function isAvailable(value: unknown): value is AvailableCard {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName'])
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail'])
     && typeof value.key === 'string' && KEY.test(value.key)
-    && plainText(value.name, 48) && plainText(value.description, 120) && plainText(value.extensionName, 64);
+    && plainText(value.name, 40) && plainText(value.description, 120) && plainText(value.extensionName, 64)
+    && typeof value.icon === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.icon) && typeof value.rail === 'boolean';
 }
 
 // Every index, holes included: every() skips a hole, so a list with gaps in it
@@ -115,5 +123,5 @@ export function isHomeReply(value: unknown): value is HomeReply {
     && isHostNotice(state.notice)
     && everyIndex(state.available, isAvailable)
     && isPins(state.pins)
-    && Array.isArray(state.cards) && state.cards.length <= 6 && everyIndex(state.cards, isCardView);
+    && Array.isArray(state.cards) && state.cards.length <= 1 && everyIndex(state.cards, isCardView);
 }

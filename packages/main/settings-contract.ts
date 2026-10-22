@@ -37,7 +37,8 @@ export interface Settings {
   welcomeHidden: string;
 }
 
-export const MAX_PINS = 6;
+// Two rows of four on Home (KI7MT, 2026-10-22; was six).
+export const MAX_PINS = 8;
 // The day-one cards (QGD-HOM-0004): what a new install starts with. Your
 // station was the second until it was retired (KI7MT, 2026-10-22); a pin for
 // it in an older settings.json names no card, and Home skips it.

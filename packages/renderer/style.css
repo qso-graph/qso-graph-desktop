@@ -219,21 +219,41 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
 /* A page that fills the window: cards are not held to the reading width. */
 .page-full .card { max-width: none; }
-/* Home's pins are a grid, as GitHub's pinned repositories are (KI7MT,
-   2026-10-22): cards in rows, equal height across a row, and the next card
-   starting a new row rather than lengthening a column. At most three to a
-   row, so the six pins QGD-HOM-0003 allows read as three by two.
-   A card is comfortable at 400 px (Conditions' band table needs it), so
-   three of them and two gaps, 1232 px, is the most Home is ever as wide; on a
-   larger monitor the rest is a margin on the right, left-aligned as every
-   other page is, so nothing moves sideways between pages. Below 1232 there
-   are two to a row, and below 816 (two cards and a gap) one. */
-.home-flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1232px; align-items: stretch; }
-@container page (min-width: 816px) { .home-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@container page (min-width: 1232px) { .home-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.home-cards { display: contents; }
-.home-flow .home-card { margin: 0; min-width: 0; }
-.home-flow > .hint { grid-column: 1 / -1; margin: 0; }
+/* Home, laid out as a GitHub profile is (KI7MT, 2026-10-22): our welcome at
+   the top, then the operator's pins under a "Pinned" heading. The welcome is
+   reserved and draws nothing while it is empty. */
+.home-welcome:empty { display: none; }
+.home-welcome { max-width: 1088px; margin: 0 0 24px; }
+.home-pinned-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; max-width: 1088px; margin: 0 0 12px; }
+.home-pinned-head h2 { margin: 0; font-size: 16px; }
+/* The pins: tiles of one size, in rows, at most four to a row so eight read
+   as two rows of four. A tile is comfortable at 260 px, so four of them and
+   three gaps, 1088 px, is the most Home is ever as wide; on a larger monitor
+   the rest is a margin on the right, left-aligned as every other page is.
+   Four on a 14-15" laptop's full screen, the target (KI7MT, 2026-10-22);
+   three, two and one as the page narrows. The breakpoints are the page's
+   width, not the window's: the rail and the callsign list take some of it. */
+.home-pins { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1088px; }
+@container page (min-width: 536px) { .home-pins { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 812px) { .home-pins { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container page (min-width: 1088px) { .home-pins { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.home-pins li { display: flex; min-width: 0; }
+.home-pins li.dragging { opacity: 0.5; }
+.pin-tile {
+  display: flex; flex-direction: column; gap: 6px; width: 100%; min-height: 96px; padding: 14px 16px;
+  text-align: left; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+}
+.pin-tile:hover { border-color: var(--border-strong); }
+.pin-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pin-tile-icon { width: 16px; height: 16px; flex: none; color: var(--ink-muted); }
+.pin-tile-name { font-weight: 650; color: var(--focus); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin-tile-description {
+  font-size: 12px; color: var(--ink-muted); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* An extension's page: its data in one card at the page's width. */
+.page-body { max-width: 1088px; }
 .home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .home-card-head h2 { margin: 0; }
 .home-card-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
@@ -250,7 +270,6 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .home-card-alert.warning { color: var(--warn); background: var(--warn-surface); border-color: var(--warn-border); }
 .home-card-alert.severe { color: var(--danger); border-color: var(--danger-border); }
 .home-card-failed { margin: 0; font-size: 13px; color: var(--ink-muted); }
-.home-cards-head { display: flex; align-items: center; justify-content: flex-start; gap: 16px; margin-bottom: 12px; }
 
 /* Customize your pins (QGD-HOM-0003). */
 /* The look of ConfirmDialog: without it the dialog had the browser's own
@@ -294,7 +313,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .reference-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
 
 /* The extension host's notice on Home (QGD-APP-0022). */
-.home-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: min(1232px, 100%); margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--warn-border); border-radius: 8px; background: var(--warn-surface); color: var(--warn); font-size: 13px; }
+.home-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: min(1088px, 100%); margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--warn-border); border-radius: 8px; background: var(--warn-surface); color: var(--warn); font-size: 13px; }
 .home-notice p { margin: 0; }
 
 /* Stations (QGD-STN-*). */
@@ -328,7 +347,7 @@ dialog.pins h2 { margin: 0 0 6px; }
    2026-10-20): a card can be about 300 px wide, and three columns there wrap
    the comment one word to a line. When the card is narrow, each row keeps its
    band and status on one line and the comment drops to its own line beneath. */
-.home-card { container-type: inline-size; }
+.page-body { container-type: inline-size; }
 .home-card-table th, .home-card-table td:not(:last-child) { white-space: nowrap; }
 @container (max-width: 340px) {
   .home-card-table, .home-card-table tbody { display: block; }

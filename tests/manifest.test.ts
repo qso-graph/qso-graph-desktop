@@ -6,17 +6,17 @@ import { describe, expect, it } from 'vitest';
 import { API_VERSION, MANIFEST_VERSION, satisfiesApi, validateManifest } from '../packages/extension-api/manifest.js';
 
 const known = new Set(['source:noaa-swpc', 'callsign:list']);
-const CARD = { id: 'conditions', name: 'Conditions', description: 'Solar flux, K and A, and the band outlook.', refreshSeconds: 900 };
+const PAGE = { id: 'conditions', name: 'Conditions', description: 'Solar flux, K and A, and the band outlook.', refreshSeconds: 900 };
 const BASE = {
   manifestVersion: 1, id: 'on-the-air', name: 'On the Air', tier: 'official', version: '1.0.0',
   engines: { qgd: '^1.0.0' }, grants: ['source:noaa-swpc'], main: 'dist/main.js',
-  contributes: { cards: [CARD] }
+  contributes: { pages: [PAGE] }
 };
 
 describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
-  it('accepts a well-formed manifest with cards and no page', () => {
+  it('accepts a well-formed manifest with pages and no webview', () => {
     const manifest = validateManifest(BASE, known);
-    expect(manifest.contributes.cards).toEqual([CARD]);
+    expect(manifest.contributes.pages).toEqual([PAGE]);
     expect(manifest.main).toBe('dist/main.js');
     expect(manifest.page).toBeUndefined();
     expect(manifest.manifestVersion).toBe(MANIFEST_VERSION);
@@ -25,8 +25,11 @@ describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
   it('refuses an unknown field anywhere, naming it, rather than ignoring it', () => {
     expect(() => validateManifest({ ...BASE, colour: 'blue' }, known)).toThrowError(/does not know: "colour"/);
     expect(() => validateManifest({ ...BASE, engines: { qgd: '^1.0.0', node: '>=20' } }, known)).toThrowError(/does not know: "node"/);
-    expect(() => validateManifest({ ...BASE, contributes: { cards: [CARD], views: [] } }, known)).toThrowError(/does not know: "views"/);
-    expect(() => validateManifest({ ...BASE, contributes: { cards: [{ ...CARD, html: '<b>' }] } }, known)).toThrowError(/does not know: "html"/);
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [PAGE], views: [] } }, known)).toThrowError(/does not know: "views"/);
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, html: '<b>' }] } }, known)).toThrowError(/does not know: "html"/);
+    // Cards were Home's live panels until 2026-10-22; a manifest offering
+    // them is refused by name rather than read as pages.
+    expect(() => validateManifest({ ...BASE, contributes: { cards: [PAGE] } }, known)).toThrowError(/does not know: "cards"/);
   });
 
   it('refuses a missing or different manifestVersion, saying which it reads', () => {
@@ -64,36 +67,45 @@ describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
     expect(() => validateManifest({ ...BASE, activationEvents: ['onEverything'] }, known)).toThrowError(/"onEverything", which is not an event/);
   });
 
-  it('refuses code outside the extension or not JavaScript, and cards with no code to answer them', () => {
+  it('refuses code outside the extension or not JavaScript, and pages with no code to answer them', () => {
     for (const main of ['../main/main.js', '/etc/x.js', 'main.ts', '']) {
       expect(() => validateManifest({ ...BASE, main }, known), main).toThrowError(/names code that is not a \.js file inside itself/);
     }
     const { main: _none, ...noMain } = BASE;
-    expect(() => validateManifest(noMain, known)).toThrowError(/offers cards and has no main module/);
+    expect(() => validateManifest(noMain, known)).toThrowError(/offers pages and has no main module/);
   });
 });
 
-describe('P8-contribution: the cards a manifest offers (QGD-HOM-0001)', () => {
-  it('refuses a card with no name, description or refresh interval, naming the card', () => {
+describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
+  it('refuses a page with no name, description or refresh interval, naming the page', () => {
     for (const [field, value, message] of [
-      ['name', '', /has no name to show/], ['description', ' ', /no one-line description/],
+      ['name', '', /has no name of at most 40/], ['description', ' ', /no description of at most 120/],
+      // One line and two on a tile: every extension conforms (KI7MT, 2026-10-22).
+      ['name', 'x'.repeat(41), /at most 40/], ['description', 'x'.repeat(121), /at most 120/],
+      ['icon', 'Sun!', /icon that is not a plain name/], ['rail', 'yes', /true or false/],
       ['refreshSeconds', 30, /no refresh interval between a minute and a day/], ['refreshSeconds', 1.5, /refresh interval/],
       ['refreshSeconds', undefined, /refresh interval/]
     ] as const) {
-      expect(() => validateManifest({ ...BASE, contributes: { cards: [{ ...CARD, [field]: value }] } }, known), String(field))
+      expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, [field]: value }] } }, known), String(field))
         .toThrowError(message);
     }
   });
 
-  it('refuses markup in a card\'s name or description, which Home would refuse to draw', () => {
-    expect(() => validateManifest({ ...BASE, contributes: { cards: [{ ...CARD, description: 'SFI < 100' }] } }, known)).toThrowError(/markup in its name or description/);
-    expect(() => validateManifest({ ...BASE, contributes: { cards: [{ ...CARD, name: '<b>Bold</b>' }] } }, known)).toThrowError(/markup/);
+  it('refuses markup in a page\'s name or description, which Home would refuse to draw', () => {
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, description: 'SFI < 100' }] } }, known)).toThrowError(/markup in its name or description/);
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, name: '<b>Bold</b>' }] } }, known)).toThrowError(/markup/);
     expect(() => validateManifest({ ...BASE, name: 'On <the> Air' }, known)).toThrowError(/no name to show/);
   });
 
-  it('refuses a card offered twice, and a list that is not a short list', () => {
-    expect(() => validateManifest({ ...BASE, contributes: { cards: [CARD, CARD] } }, known)).toThrowError(/offers the card "conditions" twice/);
-    const many = Array.from({ length: 17 }, (_, i) => ({ ...CARD, id: `card-${i}` }));
-    expect(() => validateManifest({ ...BASE, contributes: { cards: many } }, known)).toThrowError(/at most 16/);
+  it('refuses a page offered twice, and a list that is not a short list', () => {
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [PAGE, PAGE] } }, known)).toThrowError(/offers the page "conditions" twice/);
+    const many = Array.from({ length: 17 }, (_, i) => ({ ...PAGE, id: `page-${i}` }));
+    expect(() => validateManifest({ ...BASE, contributes: { pages: many } }, known)).toThrowError(/at most 16/);
+  });
+
+  it('keeps an icon name and a rail item when given, and leaves them out when not', () => {
+    const manifest = validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, icon: 'sun', rail: true }] } }, known);
+    expect(manifest.contributes.pages[0]).toEqual({ ...PAGE, icon: 'sun', rail: true });
+    expect(validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, rail: false }] } }, known).contributes.pages[0]).toEqual(PAGE);
   });
 });
