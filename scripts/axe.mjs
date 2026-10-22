@@ -120,7 +120,7 @@ try {
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 

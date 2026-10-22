@@ -97,6 +97,7 @@ export async function createPersona(callsign: string, name: string): Promise<str
   selected = made;
   shell.set({
     activePersona: `${callsign.toUpperCase()} · ${made}`,
+    activeCallsign: callsign.toUpperCase(),
     activePersonaName: made,
     firstRun: false
   });
@@ -219,6 +220,7 @@ function list() {
   // up because it was decided once at start (QGD-PSN-0004).
   shell.set({
     activePersona: active ? `${active.callsign} · ${active.name}` : '',
+    activeCallsign: active ? active.callsign : '',
     activePersonaName: active ? active.name : '',
     firstRun: snapshot.personas.length === 0
   });

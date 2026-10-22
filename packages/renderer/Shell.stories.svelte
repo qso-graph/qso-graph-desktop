@@ -49,6 +49,7 @@
     store: createShellStore({
       page: 'settings',
       activePersona: 'W1AW · Home station',
+      activeCallsign: 'W1AW',
       activePersonaName: 'Home station',
       themeChoice: 'system',
       logs,

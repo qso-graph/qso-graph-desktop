@@ -68,6 +68,10 @@ export interface ShellState {
   // is none. Not the sentence: the status bar and Home say it differently, and
   // a string formatted for one of them read wrong in the other.
   activePersona: string;
+  // The active callsign alone, which is all the status bar names: the
+  // description is the operator's own label and read as a second callsign
+  // there (KI7MT, 2026-10-22). Empty when there is none.
+  activeCallsign: string;
   // The active persona's name, which is how a persona is keyed, so a station
   // can be made its default (QGD-STN-0005). Empty when there is none.
   activePersonaName: string;
@@ -121,6 +125,7 @@ export const INITIAL_SHELL: ShellState = {
   // half of why it is the right place to open (QGD-CRD-0009).
   page: 'home',
   activePersona: '',
+  activeCallsign: '',
   activePersonaName: '',
   themeChoice: 'system',
   logs: undefined,

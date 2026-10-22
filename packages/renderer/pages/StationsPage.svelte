@@ -24,7 +24,7 @@
 
   interface Props {
     stations?: StationsView;
-    // The active persona's name and how it is shown, or empty when there is none.
+    // The active persona's name, and its callsign, which is how it is shown; empty when there is none.
     personaName: string;
     personaLabel: string;
     // Whether POTA's parks are downloaded, so "from a park" can be offered.

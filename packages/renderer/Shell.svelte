@@ -158,7 +158,7 @@
       <StationsPage
         stations={shell.storage?.stations}
         personaName={shell.activePersonaName}
-        personaLabel={shell.activePersona}
+        personaLabel={shell.activeCallsign}
         parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
         onSave={onSaveStation}
         onDelete={onDeleteStation}
@@ -173,7 +173,7 @@
     </div>
   </main>
 </div>
-<StatusBar activePersona={shell.activePersona}
+<StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
 {#if shell.troubleshooting}

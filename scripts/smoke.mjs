@@ -110,7 +110,7 @@ try {
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const editRoles = await application.evaluate(({ Menu }) => Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.map(item => item.role));
   for (const role of ['cut', 'copy', 'paste', 'selectall']) expect(editRoles).toContain(role);
@@ -232,7 +232,7 @@ try {
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   // The status is drawn, and drawn correctly, from metadata alone.
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
@@ -300,7 +300,7 @@ try {
   expect(await rail('Settings').getAttribute('aria-current')).toBe('page');
   expect(await rail('Callsigns').getAttribute('aria-current')).toBeNull();
   // P3-status-bar: the active persona is on every page, not just its own.
-  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
   // QGD-PRC-0006: one bundled page. Navigating a section is not navigation.
   expect(page.url()).toBe(before);
   expect(await page.evaluate(() => history.length)).toBe(1);

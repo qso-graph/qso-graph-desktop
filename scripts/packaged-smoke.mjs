@@ -73,7 +73,7 @@ try {
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const username = page.getByLabel('Username', { exact: true });
@@ -121,7 +121,7 @@ try {
   await stop(); await launch();
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Active: W1AW');
+  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();

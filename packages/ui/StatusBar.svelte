@@ -18,8 +18,10 @@
 -->
 <script lang="ts">
   interface Props {
-    // Who it is, or empty. The sentence is this component's.
-    activePersona: string;
+    // The active callsign, or empty. The sentence is this component's. Only
+    // the callsign: the operator's description beside it read as a second
+    // callsign here (KI7MT, 2026-10-22).
+    activeCallsign: string;
     // Where they are operating from: the active station's name, or empty
     // (QGD-STN-0005). Named beside the persona, as TQSL pairs a certificate
     // with a location.
@@ -32,7 +34,7 @@
     note?: string;
   }
   const {
-    activePersona,
+    activeCallsign,
     activeStation = '',
     dataContext,
     onOpenTroubleshooting,
@@ -45,7 +47,7 @@
 </script>
 
 <footer>
-  <span id="active-persona">{activePersona ? `Active: ${activePersona}` : 'No active callsign'}</span>
+  <span id="active-persona">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
   <span id="active-station">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}

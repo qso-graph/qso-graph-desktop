@@ -361,7 +361,7 @@ try {
   // failed twice that way while the application was behaving correctly.
   await expect(page.getByRole('heading', { name: PERSONA.callsign, exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText(`Active: ${PERSONA.callsign}`);
+  await expect(page.locator('#active-persona')).toContainText(`Callsign: ${PERSONA.callsign}`);
   // The status line is a line of text in the baseline, and it was the last
   // thing moving between runs. app.ts retries its first persona list for up to
   // two and a half seconds, and when that finally lands it selects the active
