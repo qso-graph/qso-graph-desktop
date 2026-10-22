@@ -58,9 +58,6 @@
     --ok-border: #1f4a35;
     --danger: #ff9b9b;
     --danger-border: #5c2d2d;
-  --warn: #f0c674;
-  --warn-surface: #241c0c;
-  --warn-border: #4d3d1a;
     --warn: #f0c674;
     --warn-surface: #241c0c;
     --warn-border: #4d3d1a;
@@ -85,6 +82,9 @@
   --ok-border: #1f4a35;
   --danger: #ff9b9b;
   --danger-border: #5c2d2d;
+  --warn: #f0c674;
+  --warn-surface: #241c0c;
+  --warn-border: #4d3d1a;
 }
 
 :root { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--page); }
