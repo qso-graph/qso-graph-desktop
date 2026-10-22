@@ -31,7 +31,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { colour: 'red' }))).toThrowError(/"colour"/);
     expect(() => validatePageAnswer(answer([{ ...FIGURES, style: 'big' }]))).toThrowError(/"style"/);
     expect(() => validatePageAnswer(answer([{ shape: 'figures', figures: [{ label: 'K', value: 2 }] }]))).toThrowError(/value is not text/);
-    expect(() => validatePageAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert or table section/);
+    expect(() => validatePageAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert, table or map section/);
     expect(() => validatePageAnswer(answer([{ ...ALERT, level: 'panic' }]))).toThrowError(/no level of info, warning or severe/);
     expect(() => validatePageAnswer({ ok: 'yes', data: {} })).toThrowError(/neither ok nor not/);
   });
@@ -40,7 +40,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validatePageAnswer(answer([FIGURES], { version: 6 }))).toThrowError(/version 6; this core draws versions 1, 2, 3, 4 and 5/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7 }))).toThrowError(/version 7; this core draws versions 1, 2, 3, 4, 5 and 6/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {
@@ -155,5 +155,35 @@ describe('a table in groups, and a value across its columns, page data version 5
     [{ ...grouped, groups: [0, 1].map(() => ({ heading: 'x', rows: Array.from({ length: 31 }, () => ['a', 'b']) })) }, /at most 60/]
   ])('refuses an off-shape grouped table (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(5, [value]))).toThrowError(message);
+  });
+});
+
+describe('the map, page data version 6 (KI7MT, 2026-10-22)', () => {
+  const map = { shape: 'map', sun: { latitude: -11.4, longitude: -158.2 }, marks: [{ label: 'Home', latitude: 43.6, longitude: -116.2 }, { label: 'IO91', latitude: 51.5, longitude: -1 }] };
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+
+  it('carries where the sun is overhead and the places marked, in version 6 data', () => {
+    expect(validatePageAnswer(v(6, [map]))).toEqual(v(6, [map]));
+    expect(validatePageAnswer(v(6, [{ ...map, marks: [] }]))).toEqual(v(6, [{ ...map, marks: [] }]));
+  });
+
+  it('refuses a map in older data rather than guessing', () => {
+    expect(() => validatePageAnswer(v(5, [map]))).toThrowError(/version 5 does not have/);
+  });
+
+  it.each([
+    [{ ...map, sun: { latitude: 91, longitude: 0 } }, /latitude from −90 to 90/],
+    [{ ...map, sun: { latitude: 0, longitude: 180.5 } }, /longitude from −180 to 180/],
+    [{ ...map, sun: { latitude: Number.NaN, longitude: 0 } }, /latitude/],
+    [{ ...map, sun: { latitude: '10', longitude: 0 } }, /latitude/],
+    [{ ...map, sun: { latitude: 0, longitude: 0, image: 'x' } }, /"image"/],
+    [{ ...map, sun: undefined }, /not a place/],
+    [{ ...map, marks: Array.from({ length: 5 }, () => ({ label: 'x', latitude: 0, longitude: 0 })) }, /at most 4/],
+    [{ ...map, marks: [{ label: '<b>Home</b>', latitude: 0, longitude: 0 }] }, /markup/],
+    [{ ...map, marks: [{ label: 'Home', latitude: 0, longitude: 0, colour: 'red' }] }, /"colour"/],
+    [{ ...map, marks: [{ latitude: 0, longitude: 0 }] }, /label/],
+    [{ ...map, svg: '<path/>' }, /"svg"/]
+  ])('refuses an off-shape map (%#)', (value, message) => {
+    expect(() => validatePageAnswer(v(6, [value]))).toThrowError(message);
   });
 });

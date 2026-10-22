@@ -3,7 +3,7 @@
 // own validator.
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
-import { astroPage, type Clock } from '../src/page.js';
+import { astroPage, subsolar, type Clock } from '../src/page.js';
 
 const BOISE = { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.2083 };
 const NOW = new Date('2026-10-22T18:00:00Z');
@@ -61,13 +61,13 @@ describe('Astro\'s page', () => {
     if (!grey || grey.shape !== 'table') throw new Error('no grey line');
     expect(grey.rows.map(row => row[0])).toEqual(expect.arrayContaining(['D and E layers (−10.1°)', 'F2 layer (−17.2°)']));
     expect(grey.rows.some(row => /UTC|\d\d:\d\d/.test(row[1]))).toBe(true);
-    // Just under the figures, below the field it answers.
-    expect(found[1]).toBe(grey);
+    // Under the map, below the field it answers.
+    expect(found[2]).toBe(grey);
   });
 
   it('says in words when the two ends share no twilight, rather than two empty rows', () => {
     const found = sections(astroPage(BOISE, new Date('2026-10-22T00:00:00Z'), { dx: 'IO91' }, UTC_CLOCK));
-    expect(found[1]).toEqual({
+    expect(found[2]).toEqual({
       shape: 'alert', level: 'info', heading: 'Grey line with IO91, the next 24 hours',
       text: 'Home and IO91 are not in twilight at the same time in the next 24 hours.'
     });
@@ -80,6 +80,25 @@ describe('Astro\'s page', () => {
     };
     expect(height(new Date('2026-10-22T19:00:00Z'))).toMatch(/^\+\d+\.\d°$/);
     expect(height(new Date('2026-10-22T08:00:00Z'))).toMatch(/^−\d+\.\d°$/);
+  });
+
+  it('draws the grey line on the map, with the Location and the DX grid marked', () => {
+    const found = sections(astroPage(BOISE, NOW, { dx: 'IO91' }, UTC_CLOCK));
+    expect(found[1]).toMatchObject({ shape: 'map', heading: 'Grey line now', marks: [
+      { label: 'Home', latitude: 43.625, longitude: -116.2083 },
+      { label: 'IO91', latitude: expect.closeTo(51.5, 1), longitude: expect.closeTo(-1, 1) }
+    ] });
+    expect(sections(astroPage(BOISE, NOW, {}, UTC_CLOCK))[1]).toMatchObject({ shape: 'map', marks: [{ label: 'Home' }] });
+  });
+
+  it('puts the sun overhead where it is: over the equator near the meridian at noon UTC on an equinox', () => {
+    const march = subsolar(new Date('2026-03-20T12:00:00Z'));
+    expect(Math.abs(march.latitude)).toBeLessThan(0.5);
+    expect(Math.abs(march.longitude)).toBeLessThan(2.5);
+    // June solstice, 18:00 UTC: the Tropic of Cancer, a quarter turn west.
+    const june = subsolar(new Date('2026-06-21T18:00:00Z'));
+    expect(june.latitude).toBeCloseTo(23.4, 0);
+    expect(june.longitude).toBeCloseTo(-90, 0);
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {

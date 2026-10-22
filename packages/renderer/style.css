@@ -51,6 +51,14 @@
   --clock-ink: #39ff6a;
   --clock-ground: #000000;
   --clock-label: #5fa86f;
+  /* The world map (page data version 6): sea, land, the night over both, the
+     terminator, the sun and the places marked. */
+  --map-sea: #e4edf4;
+  --map-land: #c8d3c6;
+  --map-night: rgba(20, 30, 45, 0.42);
+  --map-terminator: #203046;
+  --map-sun: #c98a00;
+  --map-mark: #a53232;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -85,6 +93,12 @@
     --clock-ink: #39ff6a;
     --clock-ground: #000000;
     --clock-label: #5fa86f;
+    --map-sea: #0f1a24;
+    --map-land: #2b3a44;
+    --map-night: rgba(0, 0, 0, 0.55);
+    --map-terminator: #a3b2c4;
+    --map-sun: #f0c674;
+    --map-mark: #f08a8a;
   }
 }
 
@@ -119,6 +133,12 @@
   --clock-ink: #39ff6a;
   --clock-ground: #000000;
   --clock-label: #5fa86f;
+  --map-sea: #0f1a24;
+  --map-land: #2b3a44;
+  --map-night: rgba(0, 0, 0, 0.55);
+  --map-terminator: #a3b2c4;
+  --map-sun: #f0c674;
+  --map-mark: #f08a8a;
 }
 
 :root { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--page); }
@@ -436,6 +456,16 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-table .page-table-group th { padding-top: 18px; font-size: 15px; font-weight: 600; border-top: 0; }
 .page-table tbody:first-of-type .page-table-group th { padding-top: 6px; }
 .page-table td[colspan] { color: inherit; white-space: normal; }
+/* The world map fills the page's width at its own 2:1 shape. */
+.world-map { margin: 4px 0 14px; }
+.world-map svg { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+.map-sea { fill: var(--map-sea); }
+.map-land { fill: var(--map-land); }
+.map-night { fill: var(--map-night); }
+.map-terminator { fill: none; stroke: var(--map-terminator); stroke-width: 0.6; }
+.map-sun { fill: var(--map-sun); }
+.map-mark { fill: var(--map-mark); }
+.map-label { fill: var(--ink); font-size: 6px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 1.5px; }
 /* The table follows its card's own width, not the window's (KI7MT,
    2026-10-20): a card can be about 300 px wide, and three columns there wrap
    the comment one word to a line. When the card is narrow, each row keeps its

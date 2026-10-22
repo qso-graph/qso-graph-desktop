@@ -22,3 +22,6 @@ verify-env.sh
 
 # The pinned ADIF release and POTA's lists, fetched by make setup (QGD-REF-0003).
 vendor/
+
+# The world map's coastlines, written by scripts/build-map.mjs from vendor/.
+packages/ui/generated/

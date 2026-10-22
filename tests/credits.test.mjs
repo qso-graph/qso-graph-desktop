@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 const reference = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
 const counties = JSON.parse(readFileSync('data/county-sources.json', 'utf8'));
 const sources = JSON.parse(readFileSync('data/extension-sources.json', 'utf8'));
+const map = JSON.parse(readFileSync('data/map-sources.json', 'utf8'));
 const notice = readFileSync('NOTICE', 'utf8');
 const keys = new Set([...notice.matchAll(/<!-- credit: ([a-z/]+) -->\n- \*\*[^*]+\*\*: \S/g)].map(match => match[1]));
 
@@ -36,13 +37,18 @@ describe('NOTICE credits every data source', () => {
     }
   });
 
+  it('credits the world map\'s coastlines', () => {
+    expect(map.land).toBeDefined();
+    expect(keys).toContain('map/land');
+  });
+
   it('credits the icons, which CC BY 4.0 requires', () => {
     expect(keys).toContain('icons');
   });
 
   it('credits nothing that is not a source', () => {
     const known = new Set([...reference.resources.map(resource => `reference/${resource.id}`),
-      'county/boundaries', 'county/names', 'county/sections', 'noaa', 'icons']);
+      'county/boundaries', 'county/names', 'county/sections', 'map/land', 'noaa', 'icons']);
     expect([...keys].filter(key => !known.has(key))).toEqual([]);
   });
 });

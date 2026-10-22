@@ -10,7 +10,7 @@ can be turned off, and has an item in the rail as well as a page you can pin.
 | **Twilight** | Civil, nautical and astronomical dawn and dusk (−6°, −12°, −18°) |
 | **Radio depths** | When the absorbing D and E layers (−10.1°) and the reflecting F2 layer (−17.2°) go dark and come back into sunlight |
 | **Moon** | Moonrise and moonset, phase and how much is lit, declination and distance |
-| **Grey line** | Given a DX grid, the windows in the next 24 hours when both ends are within the same depth |
+| **Grey line** | A world map with the night greyed out and the terminator drawn, the Location marked; given a DX grid, that grid marked too, and the windows in the next 24 hours when both ends are within the same depth |
 
 Everything is worked out on this computer: Astro makes no network request at all
 (`QGD-AST-0004`). It holds one grant, to read the active Location's name, grid and

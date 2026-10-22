@@ -30,8 +30,13 @@
 // left and right down the page. One table in four groups lines them up by
 // construction; and a distance or a phase has no clock, so it is said once
 // rather than printed under UTC and again under Your clock.
-export const PAGE_DATA_VERSION = 5;
-export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5];
+//
+// Version 6 added the map (KI7MT, 2026-10-22): a flat world map with the
+// night greyed out and the terminator drawn, for Astro's grey line. The
+// extension says where the sun is overhead and which places to mark; the core
+// has the map and works out the night itself, so no extension draws a picture.
+export const PAGE_DATA_VERSION = 6;
+export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
 // Bounds on everything an extension can put on a page. A page fills the main
 // pane, so these are a page's and not a card's; and bounded content is
@@ -50,6 +55,7 @@ export const PAGE_LIMITS = {
   columns: 4,
   rows: 60,
   groups: 8,
+  marks: 4,
   cell: 80,
   heading: 60
 } as const;
@@ -81,9 +87,22 @@ export type Section = (
   // cells in a wider table gives one value across the columns after its first.
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[] }
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
+  // The world, with the night greyed out from where the sun is overhead, and
+  // up to four places marked. Version 6.
+  | { readonly shape: 'map'; readonly sun: Place; readonly marks: readonly Mark[] }
 ) & { readonly heading?: string };
 
 export type Row = readonly string[];
+
+// A place on the earth, in degrees: north and east positive.
+export interface Place {
+  readonly latitude: number;
+  readonly longitude: number;
+}
+
+export interface Mark extends Place {
+  readonly label: string;
+}
 
 export interface TableGroup {
   readonly heading: string;
@@ -152,6 +171,18 @@ function realTime(value: string): boolean {
   if (Number.isNaN(parsed)) return false;
   const written = new Date(parsed).toISOString();
   return written.slice(0, 16) === value.slice(0, 16) && (value.length < 20 || written.slice(0, 19) === value.slice(0, 19));
+}
+
+// A latitude and longitude, both in range: a map refuses a place off it
+// rather than wrapping it round to somewhere the extension never meant.
+function place(value: unknown, where: string): Place {
+  if (!isRecord(value)) throw new PageError(`${where} is not a place.`);
+  const { latitude, longitude } = value;
+  if (typeof latitude !== 'number' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
+    || typeof longitude !== 'number' || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new PageError(`${where} is not a latitude from −90 to 90 and a longitude from −180 to 180.`);
+  }
+  return { latitude, longitude };
 }
 
 function isUtcTime(value: unknown): value is string {
@@ -260,7 +291,22 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     });
     return { shape: 'table', columns, groups };
   }
-  throw new PageError(`${where} is not a figures, items, alert or table section.`);
+  if (value.shape === 'map') {
+    if (version < 6) throw new PageError(`${where} is a map, which page data version ${version} does not have.`);
+    only(value, ['shape', 'sun', 'marks'], where);
+    if (!Array.isArray(value.marks) || value.marks.length > PAGE_LIMITS.marks) {
+      throw new PageError(`${where} has marks as something other than a list of at most ${PAGE_LIMITS.marks}.`);
+    }
+    const marks = each(value.marks, where, (mark: unknown, i: number): Mark => {
+      const name = `${where}, mark ${i + 1}`;
+      if (!isRecord(mark)) throw new PageError(`${name} is not an object.`);
+      only(mark, ['label', 'latitude', 'longitude'], name);
+      return { label: text(mark.label, PAGE_LIMITS.label, `${name}'s label`), ...place(mark, name) };
+    });
+    if (isRecord(value.sun)) only(value.sun, ['latitude', 'longitude'], `${where}'s sun`);
+    return { shape: 'map', sun: place(value.sun, `${where}'s sun`), marks };
+  }
+  throw new PageError(`${where} is not a figures, items, alert, table or map section.`);
 }
 
 // The whole answer, checked before anything of it is drawn. Refused rather

@@ -10,6 +10,7 @@
 -->
 <script lang="ts">
   import { tableGroups, utc, type PageShown } from './page-shapes.js';
+  import WorldMap from './WorldMap.svelte';
 
   interface Props {
     shown: PageShown;
@@ -53,6 +54,8 @@
             </tbody>
           {/each}
         </table>
+      {:else if section.shape === 'map'}
+        <WorldMap sun={section.sun} marks={section.marks} />
       {:else}
         <ul class="page-items">
           {#each section.items as item, i (i)}

@@ -8,7 +8,7 @@ import type { StationBrief } from '../../../packages/extension-api/api-contract.
 import { greyLine, gridCentre } from './greyline.js';
 import { moonAt, moonCrossings, moonPhase } from './moon.js';
 import {
-  ASTRONOMICAL, CIVIL, D_LAYER, F2_LAYER, HORIZON, NAUTICAL, julian, solarNoon, sunAltitude, sunCrossings, type Crossings
+  ASTRONOMICAL, CIVIL, D_LAYER, F2_LAYER, HORIZON, NAUTICAL, julian, solarNoon, sunAltitude, sunAt, sunCrossings, type Crossings
 } from './sun.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -60,6 +60,15 @@ function signed(degrees: number): string {
   return value === '0.0' ? '0.0°' : `${degrees > 0 ? '+' : '−'}${value}°`;
 }
 
+// Where the sun is overhead at a moment: its declination north or south, and
+// the longitude where it is solar noon, from the equation of time.
+export function subsolar(now: Date): { latitude: number; longitude: number } {
+  const sun = sunAt(julian(now.getTime()));
+  const minutesUtc = now.getUTCHours() * 60 + now.getUTCMinutes() + now.getUTCSeconds() / 60;
+  const longitude = (((720 - minutesUtc - sun.equationOfTime) / 4 + 540) % 360) - 180;
+  return { latitude: sun.declination, longitude };
+}
+
 function duration(minutes: number): string {
   return `${Math.floor(minutes / 60)} h ${two(Math.round(minutes % 60))} min`;
 }
@@ -73,7 +82,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     const text = station
       ? `${station.name} has no grid or coordinates. Add one in Locations, and Astro works out the sun and the moon there.`
       : 'Astro needs a Location. Make one active in Locations, with its grid, and Astro works out the sun and the moon there.';
-    return { ok: true, data: { version: 5, observedAt, sections: [{ shape: 'alert', level: 'info', text }] } };
+    return { ok: true, data: { version: 6, observedAt, sections: [{ shape: 'alert', level: 'info', text }] } };
   }
   const { latitude, longitude } = position;
   const yourClock = clock.offset(now) !== 0 ? clock : undefined;
@@ -113,6 +122,13 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       : { shape: 'table', heading, columns: ['Depth both ends are within', 'UTC'], rows });
   }
 
+  // The grey line on the map (KI7MT, 2026-10-22): the night greyed out, the
+  // Location marked, and the DX grid when there is one.
+  const map: Section = { shape: 'map', heading: 'Grey line now', sun: subsolar(now), marks: [
+    { label: station!.name.slice(0, 40), latitude, longitude },
+    ...(inputs.dx && dx ? [{ label: inputs.dx, latitude: dx.latitude, longitude: dx.longitude }] : [])
+  ] };
+
   const sections: Section[] = [
     { shape: 'figures', figures: [
       { label: 'Location', value: station!.name.slice(0, 32) },
@@ -122,6 +138,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       { label: 'Sun now', value: signed(sunAltitude(at, latitude, longitude)) },
       { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%` }
     ] },
+    map,
     ...greyLineSection,
     { shape: 'alert', level: 'info', text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
@@ -151,6 +168,6 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     ] }
   ];
 
-  return { ok: true, data: { version: 5, observedAt, sections } };
+  return { ok: true, data: { version: 6, observedAt, sections } };
 }
 
