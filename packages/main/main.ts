@@ -4,7 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowsResource, resourceName } from './policy.js';
-import { startPersonaBroker } from './persona-broker.js';
+import { PERSONA_STARTING, startPersonaBroker } from './persona-broker.js';
+import { untilReady } from './until-ready.js';
 import { createLogger } from '../logging/logger.js';
 import { load, save, startSettingsBroker } from './settings.js';
 import { windowBackground } from './window-background.js';
@@ -192,7 +193,11 @@ if (!app.requestSingleInstanceLock()) {
         activeStation: async () => storageBroker.activeStation(),
         fetchSource: async url => {
           if (recorded) return recorded(url);
-          const fetched = await personas.fetchReference(url);
+          // At a start the credential core may not be up yet: the request
+          // waits for it, up to 30 s, rather than failing a card that then
+          // waits fifteen minutes to ask again (until-ready.ts).
+          const fetched = await untilReady(() => personas.fetchReference(url),
+            answer => answer === PERSONA_STARTING, { withinMs: 30_000 });
           if (typeof fetched === 'string') throw new Error(fetched);
           // The core hands back bytes, because reference data includes a zip.
           // A source an application reads is text, decoded here rather than in
