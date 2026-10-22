@@ -53,43 +53,47 @@
       </li>
     {/each}
   </ul>
-  <!-- The services a callsign's logins are kept for (KI7MT, 2026-10-22:
-       integrations sell). The services the register lists, and what is true
-       of all of them: kept per callsign, in the operator's own store. -->
-  <p class="welcome-runs" id="welcome-services">
-    <strong>Your services, set up once.</strong> LoTW, QRZ (lookups and the logbook), eQSL, HamQTH and
-    Club Log, each login kept with the callsign it belongs to, {forStore('its password or key in your Keychain and never in a file', platform)}.
-    Run more than one call? Each has its own.
-    <button type="button" class="link-button" id="welcome-services-link" onclick={() => onGo('callsigns')}>Set them up</button>
-  </p>
-  <!-- The standards and programs it speaks (KI7MT, 2026-10-22), each to its
-       own home page. Said as it is: IOTA is next, not here yet. -->
-  <p class="welcome-runs" id="welcome-speaks">
-    <strong>Speaks what hams use.</strong>
-    <button type="button" class="link-button" onclick={() => onSite('adif')}>ADIF</button> definitions straight
-    from the ADIF Development Group, every location checked against them;
-    <button type="button" class="link-button" onclick={() => onSite('pota')}>POTA</button> parks and
-    <button type="button" class="link-button" onclick={() => onSite('sota')}>SOTA</button> summits, a location
-    made from either in a click; and <button type="button" class="link-button" onclick={() => onSite('iota')}>IOTA</button> islands next.
-  </p>
-  <!-- Where it runs (KI7MT, 2026-10-22: brag about the AppImage), with a way
-       to get it for the next computer, which is what makes the line useful
-       inside an application that is already installed. -->
-  <p class="welcome-runs" id="welcome-runs">
-    <strong>Runs where you do.</strong> macOS, Windows and Linux, down to a Raspberry Pi 5. On Linux it's
-    a single AppImage: no installer, no root, nothing to set up. Download it and run it, at home or off
-    a USB stick in the field. Rather install it? There's a .deb and an .rpm too.
-    <button type="button" class="link-button" id="welcome-downloads" onclick={onDownloads}>Get it for another computer</button>
-  </p>
-  <!-- Extensibility (KI7MT, 2026-10-22: hams are not locked in to what we
-       provide). Said as it is: this release runs only official extensions,
-       and other authors' arrive with the sandbox they need (QGD-APP-0004). -->
-  <p class="welcome-runs" id="welcome-extensions">
-    <strong>No vendor or developer lock-in.</strong> Everything past the core, Conditions included, is an extension, built
-    on the same extension API other hams will build on, and you choose which ones run. Extensions by other
-    authors arrive once the sandbox they run in is finished.
-    <button type="button" class="link-button" id="welcome-contributing" onclick={onContributing}>Write one</button>
-  </p>
+  <!-- The selling points (KI7MT, 2026-10-22), each a heading and then its
+       message, and each with a link that does something. Said as it is:
+       IOTA is next, other authors' extensions arrive with their sandbox, and
+       a login's secret, not its username, is what never touches a file. -->
+  <div class="welcome-features">
+    <section class="welcome-feature" id="welcome-speaks" aria-labelledby="welcome-speaks-title">
+      <h3 id="welcome-speaks-title">Speaks the Language Hams Use</h3>
+      <p>
+        <button type="button" class="link-button" onclick={() => onSite('adif')}>ADIF</button> definitions straight
+        from the ADIF Development Group, every location checked against them;
+        <button type="button" class="link-button" onclick={() => onSite('pota')}>POTA</button> parks and
+        <button type="button" class="link-button" onclick={() => onSite('sota')}>SOTA</button> summits, a location
+        made from either in a click; and <button type="button" class="link-button" onclick={() => onSite('iota')}>IOTA</button> islands next.
+      </p>
+    </section>
+    <section class="welcome-feature" id="welcome-runs" aria-labelledby="welcome-runs-title">
+      <h3 id="welcome-runs-title">Runs Where You Run</h3>
+      <p>
+        macOS, Windows and Linux, down to a Raspberry Pi 5. On Linux it's a single AppImage: no installer,
+        no root, nothing to set up. Download it and run it, at home or off a USB stick in the field. Rather
+        install it? There's a .deb and an .rpm too.
+        <button type="button" class="link-button" id="welcome-downloads" onclick={onDownloads}>Get it for another computer</button>
+      </p>
+    </section>
+    <section class="welcome-feature" id="welcome-extensions" aria-labelledby="welcome-extensions-title">
+      <h3 id="welcome-extensions-title">No Vendor or Developer Lock-In</h3>
+      <p>
+        Everything past the core, Conditions included, is an extension, built on the same extension API
+        other hams will build on, and you choose which ones run. Extensions by other authors arrive once
+        the sandbox they run in is finished.
+        <button type="button" class="link-button" id="welcome-contributing" onclick={onContributing}>Write one</button>
+      </p>
+    </section>
+    <section class="welcome-feature" id="welcome-services" aria-labelledby="welcome-services-title">
+      <h3 id="welcome-services-title">Major Online Log Integration</h3>
+      <p>
+        {forStore('LoTW, QRZ (lookups and the logbook), eQSL, HamQTH and Club Log, set up once for each callsign, with every password and API key kept secure in your Keychain and never in a file.', platform)}
+        <button type="button" class="link-button" id="welcome-services-link" onclick={() => onGo('callsigns')}>Set them up</button>
+      </p>
+    </section>
+  </div>
   {#if steps && steps.length > 0}
     <div class="welcome-steps" id="welcome-steps">
       <h3>Get started</h3>

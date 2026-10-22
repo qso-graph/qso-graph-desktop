@@ -237,9 +237,14 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .welcome-steps ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
 .welcome-steps li.done .link-button { color: var(--ink-muted); text-decoration: line-through; }
 .welcome-box { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border: 1px solid var(--border-strong); border-radius: 3px; font-size: 11px; line-height: 13px; text-align: center; vertical-align: -2px; }
-.welcome-runs { margin: 0 0 14px; font-size: 13px; color: var(--ink-muted); max-width: 90ch; line-height: 1.5; }
-.welcome-runs strong { color: var(--ink); }
-.welcome-runs .link-button { margin-left: 6px; font-size: 13px; }
+/* The selling points: a heading, then its message (KI7MT, 2026-10-22), two
+   to a row where the page has room and one where it has not. */
+.welcome-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 28px; margin: 4px 0 16px; }
+@container page (min-width: 760px) { .welcome-features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.welcome-feature h3 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
+.welcome-feature p { margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 1.5; }
+.welcome-feature .link-button { font-size: 13px; }
+.welcome-feature p > .link-button:last-child { margin-left: 4px; }
 .welcome-new { margin: 0; font-size: 13px; color: var(--ink-muted); }
 .welcome-new strong { color: var(--ink); }
 .welcome-new .link-button { margin-left: 8px; font-size: 13px; }
