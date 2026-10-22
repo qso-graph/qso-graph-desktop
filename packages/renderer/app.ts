@@ -36,7 +36,7 @@ declare global {
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
-    menu?: { onTroubleshooting(listener: () => void): () => void };
+    menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void };
     // A page in the browser, built by main from its register (QGD-SEC-0009).
     links?: { open(command: LinkCommand): Promise<boolean> };
   }
@@ -745,3 +745,15 @@ export function closeWelcome(hideForThisRelease: boolean): void {
 
 // Help → Troubleshooting… opens the same panel as the status bar's button.
 window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
+// The Setup menu (KI7MT, 2026-10-22): the places, the reference data, and
+// the pins. A reference download starts, and Settings shows it going.
+window.menu?.onSetup?.(action => {
+  if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
+  else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
+  else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
+  else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
+  else if (action === 'adif' || action === 'pota' || action === 'sota') {
+    shell.set({ page: 'settings', extensionPage: null });
+    void updateReference(action);
+  }
+});

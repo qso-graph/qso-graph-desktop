@@ -42,13 +42,17 @@
     onDownloads?: () => void;
     onContributing?: () => void;
     onSite?: (name: 'adif' | 'pota' | 'sota' | 'iota') => void;
+    // Whether "Customize your pins" is open, kept by the shell so the Setup
+    // menu can open it too.
+    picking?: boolean;
+    onPicking?: (open: boolean) => void;
   }
   const {
     home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {},
-    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {}
+    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {},
+    picking = false, onPicking = () => {}
   }: Props = $props();
 
-  let picking = $state(false);
   // Pins kept for an extension that is off hold their places, so the picker
   // offers only the room left beside them (QGD-HOM-0007).
   const room = $derived(MAX_PINS - home.pins.filter(pin => !home.available.some(card => card.key === pin)).length);
@@ -73,11 +77,11 @@
 </script>
 
 <PageLayout title="Home" width="full" titleShown={false}>
-  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => { picking = true; }} {onWhatsNew} {onDownloads} {onContributing} {onSite} />
+  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => onPicking(true)} {onWhatsNew} {onDownloads} {onContributing} {onSite} />
 
   <div class="home-pinned-head">
     <h2 id="home-pinned-title">Pinned</h2>
-    <button type="button" class="link-button" id="customize-pins" onclick={() => { picking = true; }}>Customize your pins</button>
+    <button type="button" class="link-button" id="customize-pins" onclick={() => onPicking(true)}>Customize your pins</button>
   </div>
   {#if home.error}<p class="hint" role="status">{home.error}</p>{/if}
   <!-- QGD-APP-0022: a stopped extension host names what it affected, and
@@ -115,7 +119,7 @@
     available={home.available}
     pins={home.pins}
     max={room}
-    onSave={pins => { picking = false; onSavePins(pins); }}
-    onCancel={() => { picking = false; }}
+    onSave={pins => { onPicking(false); onSavePins(pins); }}
+    onCancel={() => onPicking(false)}
   />
 </PageLayout>

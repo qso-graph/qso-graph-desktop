@@ -95,6 +95,8 @@ export interface ShellState {
   troubleshooting: boolean;
   // Whether the welcome is showing (QGD-FRM-0016).
   welcome: boolean;
+  // Whether "Customize your pins" is open, from Home or the Setup menu.
+  customizing: boolean;
   // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
   // never imposed: the Callsigns page a machine with no callsigns shows is the
   // one P1 built and P3 was signed off with, and guided setup is a thing to
@@ -140,6 +142,7 @@ export const INITIAL_SHELL: ShellState = {
   // already has callsigns.
   troubleshooting: false,
   welcome: false,
+  customizing: false,
   setup: false,
   firstRun: false,
   services: [],

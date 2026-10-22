@@ -45,12 +45,23 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
 }));
 // The Help menu's Troubleshooting (KI7MT, 2026-10-22): main says it was
 // chosen and the window opens the panel. No payload: the signal is all.
+const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins', 'settings'];
 contextBridge.exposeInMainWorld('menu', Object.freeze({
   onTroubleshooting: (listener: () => void) => {
     if (typeof listener !== 'function') return () => undefined;
     const handler = () => listener();
     ipcRenderer.on('menu:troubleshooting', handler);
     return () => { ipcRenderer.removeListener('menu:troubleshooting', handler); };
+  },
+  // The Setup menu (KI7MT, 2026-10-22): an action from a fixed list, and
+  // nothing else, is passed on (QGD-SEC-0006).
+  onSetup: (listener: (action: string) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, action: unknown) => {
+      if (typeof action === 'string' && SETUP_ACTIONS.includes(action)) listener(action);
+    };
+    ipcRenderer.on('menu:setup', handler);
+    return () => { ipcRenderer.removeListener('menu:setup', handler); };
   }
 }));
 // A page in the operator's browser (QGD-SEC-0009): a name, or a park or summit

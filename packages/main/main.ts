@@ -21,6 +21,17 @@ import { FONT_AWESOME_CREDIT } from './attribution.js';
 import { startLinksBroker } from './links-broker.js';
 import type { DocumentName } from './links-contract.js';
 
+// A Setup menu item: the window is told which action, by name, and does it.
+function setupItem(action: string, label: string): Electron.MenuItemConstructorOptions {
+  return {
+    id: `setup-${action}`, label,
+    click: () => {
+      const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+      if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:setup', action); }
+    }
+  };
+}
+
 // Help's documents, in the menu's order.
 const HELP_DOCUMENTS: readonly (readonly [DocumentName, string])[] = [
   ['privacy', 'Privacy'], ['security', 'Security'], ['license', 'License'],
@@ -285,6 +296,24 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'QSO Graph Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+      // Setup (KI7MT, 2026-10-22): everything Home's welcome offers, from the
+      // menu as well. The window does each; this only says which, by a name
+      // from a fixed list (preload.cts, SETUP_ACTIONS). IOTA is shown and
+      // greyed out until its reference data exists.
+      { label: 'Setup', submenu: [
+        setupItem('callsigns', 'Callsigns…'),
+        setupItem('locations', 'Locations…'),
+        { type: 'separator' },
+        { label: 'Reference Data', submenu: [
+          setupItem('adif', 'ADIF Definitions'),
+          setupItem('pota', 'POTA Parks'),
+          setupItem('sota', 'SOTA Summits'),
+          { id: 'setup-iota', label: 'IOTA Islands (coming)', enabled: false }
+        ] },
+        { type: 'separator' },
+        setupItem('pins', 'Customize Your Pins…'),
+        setupItem('settings', 'Settings…')
+      ] },
       { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] },
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button

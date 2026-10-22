@@ -239,6 +239,18 @@ try {
   await page.locator('#close-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toHaveCount(0);
   console.log('Help menu: Troubleshooting… opened the Troubleshooting panel: PASS');
+  // The Setup menu (KI7MT, 2026-10-22): the welcome's places, from the menu.
+  const setup = id => application.evaluate(({ Menu }, item) => Menu.getApplicationMenu()?.getMenuItemById(item)?.click(), id);
+  await setup('setup-callsigns');
+  await expect(page.getByRole('heading', { level: 1, name: 'Add a callsign' })).toBeVisible({ timeout: 30_000 });
+  await setup('setup-locations');
+  await expect(page.getByRole('heading', { level: 1, name: 'Station Locations' })).toBeVisible({ timeout: 30_000 });
+  await setup('setup-pins');
+  await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('dialog', { name: 'Customize your pins' }).getByRole('button', { name: 'Cancel' }).click();
+  expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById('setup-iota')?.enabled),
+    'IOTA is named and greyed out until it exists').toBe(false);
+  console.log('Setup menu: Callsigns, Locations and Customize your pins opened, IOTA shown greyed out: PASS');
   console.log('P8-built-in: On the Air is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
   console.error('P8 Home pins suite failed.');

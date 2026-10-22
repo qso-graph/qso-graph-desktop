@@ -59,7 +59,7 @@
       logs,
       storage: { state: 'ready' },
       troubleshooting: false,
-      welcome: false, setup: false,
+      welcome: false, customizing: false, setup: false,
       firstRun: false,
       services: [],
       extensions: undefined
