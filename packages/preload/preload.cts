@@ -4,8 +4,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 // never anything that forwards a channel the caller chooses.
 // The platform, so the screens name the credential store the operator has
 // (packages/personas/credential-store.ts). A fixed string, not a capability.
-contextBridge.exposeInMainWorld('personas', Object.freeze({
-  request: (command: unknown) => ipcRenderer.invoke('persona:request', command),
+contextBridge.exposeInMainWorld('callsigns', Object.freeze({
+  request: (command: unknown) => ipcRenderer.invoke('callsigns:request', command),
   platform: process.platform
 }));
 contextBridge.exposeInMainWorld('settings', Object.freeze({

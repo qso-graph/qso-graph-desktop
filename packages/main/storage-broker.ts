@@ -11,7 +11,7 @@ import { activeStationBrief } from './station-brief.js';
 import { app, BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { join } from 'node:path';
 import { allowsSender, type FetchedReference } from '../personas/persona-contract.js';
-import { PERSONA_STARTING } from './persona-broker.js';
+import { CALLSIGNS_STARTING } from './persona-broker.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 import {
   STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus,
@@ -45,9 +45,11 @@ export interface StorageBroker {
   // (QGD-STN-0005, QGD-HOM-0005).
   activeStation: () => StationBrief | null;
   onActiveStationChanged: (listener: () => void) => void;
-  // The persona made active, whose default station QG Storage makes active
+  // The callsign made active, whose default station QG Storage makes active
   // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
-  personaActivated: (name: string) => void;
+  callsignActivated: (id: string) => void;
+  // A callsign removed, whose default goes with it (KI7MT, 2026-10-22).
+  callsignRemoved: (id: string) => void;
 }
 
 export function startStorageBroker(options: StorageBrokerOptions): StorageBroker {
@@ -57,6 +59,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   let failures = 0;
   let last: StorageStatus = { state: 'starting' };
   let heldActivation: string | undefined;
+  const heldRemovals = new Set<string>();
   let activeStation: StationBrief | null = null;
   // What extensions were last told, as JSON: none, until storage says.
   let activeSaid = 'null';
@@ -108,7 +111,9 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     spawned.once('spawn', () => { log.info({ storagePid: spawned.pid }, 'storage service started'); });
     // An activation made while there was no process, handed to this one. QG
     // Storage holds it until its stores are open.
-    if (heldActivation) { spawned.postMessage({ personaActive: heldActivation }); heldActivation = undefined; }
+    for (const id of heldRemovals) spawned.postMessage({ callsignRemoved: id });
+    heldRemovals.clear();
+    if (heldActivation) { spawned.postMessage({ callsignActive: heldActivation }); heldActivation = undefined; }
 
     // This process, and no later one. An answer to something it asked for is
     // delivered to it only while it is still the current process: a fetch that
@@ -141,7 +146,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
           // Not ready yet means nothing was asked of any server: said as such,
           // so QG Storage may try again soon without spending a request against
           // a source's daily limit (QGD-REF-0010).
-          result => answer(result === PERSONA_STARTING ? { notReady: true } : result),
+          result => answer(result === CALLSIGNS_STARTING ? { notReady: true } : result),
           () => answer('The reference source could not be reached.'));
         return;
       }
@@ -224,13 +229,16 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     stop,
     activeStation: () => activeStation,
     onActiveStationChanged: (listener) => { stationListeners.add(listener); },
-    // A persona's name only, never anything about it. If QG Storage is not
-    // running the active station simply stays as it was.
-    // Kept until a process has it, so an activation made while QG Storage was
+    // A callsign's id only, never anything about it. Kept until a process
+    // has it, so an activation or a removal made while QG Storage was
     // restarting is applied when it is back rather than lost.
-    personaActivated: (name) => {
-      if (worker) worker.postMessage({ personaActive: name });
-      else heldActivation = name;
+    callsignActivated: (id) => {
+      if (worker) worker.postMessage({ callsignActive: id });
+      else heldActivation = id;
+    },
+    callsignRemoved: (id) => {
+      if (worker) worker.postMessage({ callsignRemoved: id });
+      else heldRemovals.add(id);
     }
   };
 }

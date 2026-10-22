@@ -54,12 +54,12 @@
     // Guided setup (QGD-PSN-0004). The services come from the store, because
     // they are read after the shell is mounted; the two actions are the real
     // ones, so nothing in setup is held in limbo.
-    onCreatePersona: (callsign: string, name: string) => Promise<string | undefined>;
+    onCreateCallsign: (call: string, description: string) => Promise<string | undefined>;
     // Setup finishing: the Personas screen has to be drawn again, and only
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
-    onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
+    onExportCallsigns: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
     onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
     version: string;
@@ -67,8 +67,8 @@
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
     onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit, onOpenPage,
-    onCreatePersona, onSaveCredential, onFinishSetup,
-    onExportPersonas, onInspectImport, onApplyImport, version
+    onCreateCallsign, onSaveCredential, onFinishSetup,
+    onExportCallsigns, onInspectImport, onApplyImport, version
   }: Props = $props();
 
   // Named `shell`, not `state`: `$state` is both Svelte's rune and the
@@ -151,7 +151,7 @@
               the page the moment setup finishes, with no waiting for Svelte
               to put the markup back. -->
       {#if shell.setup}
-        <SetupPage services={shell.services} {onCreatePersona} {onSaveCredential} onDone={onFinishSetup} />
+        <SetupPage services={shell.services} {onCreateCallsign} {onSaveCredential} onDone={onFinishSetup} />
       {/if}
       <div class="page-stack" hidden={shell.setup}>
         {#if shell.firstRun && shell.services.length > 0}
@@ -165,15 +165,15 @@
           </section>
         {/if}
         <div class="page-row">
-          <PersonaPage {onExportPersonas} {onInspectImport} {onApplyImport} />
+          <PersonaPage {onExportCallsigns} {onInspectImport} {onApplyImport} />
         </div>
       </div>
     </div>
     <div class="page" hidden={shell.page !== 'stations'}>
       <StationsPage
         stations={shell.storage?.stations}
-        personaName={shell.activePersonaName}
-        personaLabel={shell.activeCallsign}
+        callsignId={shell.activeCallsignId}
+        callsignLabel={shell.activeCallsignLabel}
         parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
         summitsLoaded={shell.storage?.reference?.summits.state === 'loaded'}
         onFromSummit={onStationFromSummit}

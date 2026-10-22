@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { INITIAL_SHELL, PAGES, createShellStore, isPageId, type ShellState, visiblePages } from '../packages/renderer/shell-store.js';
 
 describe('the shell store', () => {
-  it('starts on Home with no active persona and the system theme', () => {
+  it('starts on Home with no active callsign and the system theme', () => {
     expect(INITIAL_SHELL).toEqual({
-      page: 'home', activePersona: '', activeCallsign: '', activePersonaName: '', themeChoice: 'dark', logs: undefined, storage: undefined,
+      page: 'home', activeCallsign: '', activeCallsignId: '', activeCallsignLabel: '', themeChoice: 'dark', logs: undefined, storage: undefined,
       // Troubleshooting closed. It is in the store rather than local to the
       // shell because what it shows is fetched while it is open: the logs
       // (QGD-LOG-0013, QGD-FRM-0012).
@@ -41,10 +41,10 @@ describe('the shell store', () => {
 
   it('merges rather than replaces, so one writer does not erase another', () => {
     const store = createShellStore();
-    store.set({ activePersona: 'W1AW · Home station' });
+    store.set({ activeCallsignLabel: 'W1AW · Home station' });
     store.set({ page: 'settings' });
     expect(store.get()).toMatchObject({
-      page: 'settings', activePersona: 'W1AW · Home station', themeChoice: 'dark'
+      page: 'settings', activeCallsignLabel: 'W1AW · Home station', themeChoice: 'dark'
     });
   });
 
@@ -56,7 +56,7 @@ describe('the shell store', () => {
     store.subscribe(() => { notifications += 1; });
     expect(notifications).toBe(1);
     store.set({ page: 'home' });
-    store.set({ activePersona: '' });
+    store.set({ activeCallsignLabel: '' });
     store.set({});
     expect(notifications).toBe(1);
     store.set({ page: 'settings' });
@@ -146,9 +146,9 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
     for (const id of ['password-saved', 'api-key-saved', 'remove-password', 'remove-api-key']) looked.add(id);
     expect(looked.size).toBeGreaterThan(15);
 
-    // active-persona is the status bar's, which is StatusBar.svelte now and
+    // active-callsign is the status bar's, which is StatusBar.svelte now and
     // reached through the store rather than the document.
-    expect(app).not.toMatch(/element\('active-persona'\)/);
+    expect(app).not.toMatch(/element\('active-callsign'\)/);
 
     const missing = [...looked].filter(id => !page.includes(`id="${id}"`)).sort();
     expect(missing).toEqual([]);
@@ -242,32 +242,21 @@ describe('one page, one framework, one Svelte configuration', () => {
   });
 });
 
-describe('QGD-CRD-0003: a fixture persona cannot collide with a real one', () => {
-  it('names every suite persona in the reserved qg- space', async () => {
-    // The credential core keys Keychain entries by the service and
-    // `persona:provider`. The profile directory is NOT part of that key, so a
-    // temporary profile does not isolate a suite's persona from the operator's
-    // own. A fixture called "Home station" — which is the placeholder text in
-    // the persona name field — read the operator's saved credentials into a
-    // screenshot baseline and could have raised a Keychain prompt in the
-    // middle of a verification run.
-    //
-    // Reserved rather than remembered: every persona a suite creates starts
-    // with qg-, which no operator would type.
-    const { readdir, readFile } = await import('node:fs/promises');
-    const names: { file: string; name: string }[] = [];
-    for (const file of await readdir('scripts')) {
-      if (!file.endsWith('.mjs')) continue;
-      const text = await readFile(`scripts/${file}`, 'utf8');
-      for (const match of text.matchAll(/\bconst\s+(?:persona|PERSONA)\s*=\s*(.+)/g)) {
-        const literal = /`([^`]*)`/.exec(match[1]) ?? /name:\s*'([^']*)'/.exec(match[1]) ?? /'([^']*)'/.exec(match[1]);
-        if (literal) names.push({ file, name: literal[1] });
-      }
-    }
-    expect(names.length, 'the scan must be finding the suites that create personas').toBeGreaterThan(5);
-    for (const { file, name } of names) {
-      expect(name.startsWith('qg-'), `${file} names a persona "${name}", outside the reserved qg- space`).toBe(true);
-    }
+describe('QGD-CRD-0003: a fixture callsign cannot collide with a real one', () => {
+  it('names every Keychain entry by a random id, never by anything typed', async () => {
+    // Until 2026-10-22 an entry was named by the persona's name and the
+    // service, and the profile directory was not part of that name, so a
+    // suite's "Home station" read the operator's own credentials into a
+    // screenshot baseline. Every suite fixture had to start with qg- to stay
+    // clear of them. An entry is now named by the callsign's random id, which
+    // no suite and no operator chooses, so two callsigns cannot share an entry
+    // whatever they are called; the suites' fixture service (QGD-CRD-0003's
+    // TEST_SERVICE) still keeps them apart from the real one as well.
+    const { readFile } = await import('node:fs/promises');
+    const core = await readFile('packages/persona-core/src/lib.rs', 'utf8');
+    const subject = /fn subject\(id: &str, provider: &str\) -> CoreResult<String> \{\s*Ok\(format!\("\{\}:\{\}", callsign_id\(id\)\?, identifier\(provider\)\?\)\)/;
+    expect(core).toMatch(subject);
+    expect(core).toMatch(/aws_lc_rs::rand::fill\(&mut bytes\)/);
   });
 });
 

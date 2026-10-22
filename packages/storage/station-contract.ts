@@ -53,7 +53,7 @@ export interface StationDraft {
 
 export interface StationsView {
   list: Station[];
-  // Persona name to station id (QGD-STN-0005).
+  // Callsign id to station id (QGD-STN-0005).
   defaults: Record<string, string>;
   active: string | null;
   // Whether ADIF's definitions were there to check values against.
@@ -100,8 +100,6 @@ export const MAX_CHOICES = 2000;
 export const MAX_STATIONS = 500;
 export const MAX_NAME = 64;
 export const MAX_VALUE = 100;
-// The persona contract's own limit for a persona's name (persona-contract.ts).
-export const MAX_PERSONA = 128;
 
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PARK_CODE = /^[A-Z]{2}[0-9]{2}$/;
@@ -135,8 +133,10 @@ export function isName(value: unknown): value is string {
   return text(value, MAX_NAME) && value.trim().length > 0;
 }
 
-export function isPersonaName(value: unknown): value is string {
-  return text(value, MAX_PERSONA) && value.length > 0;
+// A callsign's id, as the credential core writes one: a version 4 UUID.
+const CALLSIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export function isCallsignId(value: unknown): value is string {
+  return typeof value === 'string' && CALLSIGN_ID.test(value);
 }
 
 // TQSL's park codes are two letters and two digits, joined by commas where a
@@ -198,7 +198,7 @@ export function isStationsView(value: unknown): value is StationsView {
   if (!record(value) || !only(value, ['list', 'defaults', 'active', 'checked'])) return false;
   if (!Array.isArray(value.list) || value.list.length > MAX_STATIONS || !value.list.every(isStation)) return false;
   if (!record(value.defaults) || Object.keys(value.defaults).length > MAX_STATIONS) return false;
-  if (!Object.entries(value.defaults).every(([persona, id]) => isPersonaName(persona) && isStationId(id))) return false;
+  if (!Object.entries(value.defaults).every(([callsign, id]) => isCallsignId(callsign) && isStationId(id))) return false;
   return (value.active === null || isStationId(value.active)) && typeof value.checked === 'boolean';
 }
 

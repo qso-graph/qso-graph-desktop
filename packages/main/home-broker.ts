@@ -17,7 +17,7 @@ export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
   supervisor: Supervisor;
   enablement: Pick<Enablement, 'isOn' | 'onChange'>;
-  onPersonasChanged: (listener: () => void) => void;
+  onCallsignsChanged: (listener: () => void) => void;
   logDirectory?: string;
 }
 
@@ -44,7 +44,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
     },
     now: () => Date.now()
   });
-  options.onPersonasChanged(() => scheduler.personasChanged());
+  options.onCallsignsChanged(() => scheduler.callsignsChanged());
   // Turned off, its cards go and what they had in flight is cancelled; on
   // again, they come back to the pins they held.
   const stopListening = options.enablement.onChange(() => scheduler.changed());

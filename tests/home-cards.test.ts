@@ -107,36 +107,36 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     scheduler.stop();
   });
 
-  it('drops what was shown and asked for the old persona, and asks again for the new one', async () => {
+  it('drops what was shown and asked for the old callsign, and asks again for the new one', async () => {
     let finish: (outcome: CardOutcome) => void = () => {};
     let calls = 0;
     const { scheduler, published, asked } = harness({
       pins: ['air/station'],
-      respond: () => { calls++; return calls === 1 ? new Promise(settle => { finish = settle; }) : Promise.resolve({ outcome: 'completed', answer: answer('new persona') }); }
+      respond: () => { calls++; return calls === 1 ? new Promise(settle => { finish = settle; }) : Promise.resolve({ outcome: 'completed', answer: answer('new callsign') }); }
     });
     scheduler.setVisible(true);
     await flush();
-    scheduler.personasChanged();
+    scheduler.callsignsChanged();
     await flush();
-    finish({ outcome: 'completed', answer: answer('old persona') });
+    finish({ outcome: 'completed', answer: answer('old callsign') });
     await flush();
-    expect(JSON.stringify(published)).not.toContain('old persona');
+    expect(JSON.stringify(published)).not.toContain('old callsign');
     // Asked again as soon as the old question settled, not after the
     // interval: a card must not sit on "Getting the latest…" for fifteen
-    // minutes because a persona was made.
+    // minutes because a callsign was made.
     expect(asked).toHaveLength(2);
-    expect(JSON.stringify(scheduler.views())).toContain('new persona');
+    expect(JSON.stringify(scheduler.views())).toContain('new callsign');
     scheduler.stop();
   });
 
-  it('asks again after a persona change only when Home shows, and once', async () => {
+  it('asks again after a callsign change only when Home shows, and once', async () => {
     const { scheduler, asked } = harness({ pins: ['air/conditions'] });
     scheduler.setVisible(true);
     await flush();
     expect(asked).toEqual(['conditions']);
     scheduler.setVisible(false);
-    scheduler.personasChanged();
-    scheduler.personasChanged();
+    scheduler.callsignsChanged();
+    scheduler.callsignsChanged();
     await flush();
     expect(asked).toHaveLength(1);
     scheduler.setVisible(true);

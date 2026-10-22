@@ -94,7 +94,7 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
 // A lookup: act with the operator's stored credential and return what the
 // service answered (QGD-APP-0007).
 //
-// The secret never leaves this process. An application names a persona, a
+// The secret never leaves this process. An application names a callsign, a
 // service and an operation; what comes back is the service's answer.
 //
 // QGD-PII-0007, and the distinction KI7MT drew: QRZ's response carries a street

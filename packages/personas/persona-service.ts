@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateServiceCommand, type ServiceCommand, type PersonaReply } from './persona-contract.js';
+import { validateServiceCommand, type ServiceCommand, type CallsignReply } from './persona-contract.js';
 import { serviceIds, summarise, validateRegister, type ServiceRegister } from './services.js';
 import type { NativeModule, NativeCredentialStatus, NativeCredentialTest } from '../persona-core/native.js';
 import type { CredentialStatus, CredentialTest } from './persona-contract.js';
@@ -17,8 +17,8 @@ const require = createRequire(import.meta.url);
 // dist/personas/persona-service.js, so the addon is a sibling directory of
 // this one: build-native.mjs puts it in dist/native (QGD-REP-0001).
 const native = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'native', 'persona.node')) as NativeModule;
-const { PersonaCore, initCoreLogging, drainCoreLogs } = native;
-const core = new PersonaCore(process.argv[2]);
+const { CallsignCore, initCoreLogging, drainCoreLogs } = native;
+const core = new CallsignCore(process.argv[2]);
 // The same register the broker read, checked again here (QGD-SEC-0006: this
 // process validates what reaches it rather than trusting the one before it).
 // Read synchronously at start because nothing can be served without it.
@@ -31,7 +31,7 @@ try {
 } catch (error) {
   registerProblem = error instanceof Error ? error.message : String(error);
 }
-const log = createForwardingLogger('persona', line => process.parentPort.postMessage({ log: line }));
+const log = createForwardingLogger('callsigns', line => process.parentPort.postMessage({ log: line }));
 if (registerProblem !== undefined) {
   // Said once, loudly: every command naming a service will be refused, and a
   // refusal with no reason anywhere is the thing nobody can diagnose.
@@ -62,9 +62,9 @@ function forwardCoreLogs(): void {
   }
 }
 
-log.info({}, 'persona service started');
+log.info({}, 'callsign service started');
 forwardCoreLogs();
-function snapshot() { return { personas: core.list(), active: core.active() ?? null }; }
+function snapshot() { return { callsigns: core.list(), active: core.active() ?? null }; }
 
 // The core speaks strings; the IPC contract speaks unions. Narrowing here is
 // the point of typing the boundary: the two shapes are not the same, and until
@@ -94,7 +94,7 @@ function toTest(native: NativeCredentialTest): CredentialTest {
   if (!outcome) throw new Error('The callsign request could not be completed.');
   return { outcome };
 }
-function execute(command: ServiceCommand): PersonaReply {
+function execute(command: ServiceCommand): CallsignReply {
   try {
     switch (command.type) {
       case 'list': return { ok: true, data: snapshot() };
@@ -102,15 +102,16 @@ function execute(command: ServiceCommand): PersonaReply {
       // is already said once in the log, and a screen that gets nothing shows
       // no services instead of a failure it cannot explain.
       case 'services': return { ok: true, data: register ? summarise(register) : [] };
-      case 'upsert': core.upsert(command.name, command.callsign, command.start, command.end); return { ok: true, data: snapshot() };
-      case 'set-active': core.setActive(command.name); return { ok: true, data: snapshot() };
-      case 'remove-persona': core.removePersona(command.name); return { ok: true, data: snapshot() };
-      case 'status': return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
-      case 'test-credential': return { ok: true, data: toTest(core.testCredential(command.persona, command.provider)) };
-      case 'save-credentials': core.saveCredentials(command.persona, command.provider, command.credentials); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
-      case 'delete-credentials': core.deleteCredentials(command.persona, command.provider); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
-      case 'remove-secret': core.removeSecret(command.persona, command.provider, command.field); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
-      case 'set-preference': core.setPreference(command.persona, command.provider, command.preferred); return { ok: true, data: toStatus(core.credentialStatus(command.persona, command.provider)) };
+      case 'create': core.create(command.call, command.description, command.start, command.end); return { ok: true, data: snapshot() };
+      case 'update': core.update(command.id, command.call, command.description, command.start, command.end); return { ok: true, data: snapshot() };
+      case 'set-active': core.setActive(command.id); return { ok: true, data: snapshot() };
+      case 'remove-callsign': core.removeCallsign(command.id); return { ok: true, data: snapshot() };
+      case 'status': return { ok: true, data: toStatus(core.credentialStatus(command.id, command.provider)) };
+      case 'test-credential': return { ok: true, data: toTest(core.testCredential(command.id, command.provider)) };
+      case 'save-credentials': core.saveCredentials(command.id, command.provider, command.credentials); return { ok: true, data: toStatus(core.credentialStatus(command.id, command.provider)) };
+      case 'delete-credentials': core.deleteCredentials(command.id, command.provider); return { ok: true, data: toStatus(core.credentialStatus(command.id, command.provider)) };
+      case 'remove-secret': core.removeSecret(command.id, command.provider, command.field); return { ok: true, data: toStatus(core.credentialStatus(command.id, command.provider)) };
+      case 'set-preference': core.setPreference(command.id, command.provider, command.preferred); return { ok: true, data: toStatus(core.credentialStatus(command.id, command.provider)) };
       // The sealed bytes, handed to the broker to put where the operator
       // chose. Nothing of the bundle is in this reply but its ciphertext.
       case 'fetch-reference': {
@@ -125,7 +126,7 @@ function execute(command: ServiceCommand): PersonaReply {
       // fields the service sent.
       case 'service-lookup': {
         const callsign = command.parameters.callsign ?? '';
-        const looked = core.serviceLookup(command.persona, command.service, command.operation, callsign);
+        const looked = core.serviceLookup(command.id, command.service, command.operation, callsign);
         // The core's outcome is one of a fixed set; checked rather than cast,
         // because it crosses a process boundary (QGD-SEC-0006).
         const outcome = (LOOKUP_OUTCOMES as readonly string[]).includes(looked.outcome)
@@ -133,8 +134,8 @@ function execute(command: ServiceCommand): PersonaReply {
           : 'invalid-response';
         return { ok: true, data: { outcome, fields: looked.fields } };
       }
-      case 'export-personas': return { ok: true, data: { bytes: core.exportPersonas(command.passphrase) } };
-      case 'import-personas': {
+      case 'export-callsigns': return { ok: true, data: { bytes: core.exportCallsigns(command.passphrase) } };
+      case 'import-callsigns': {
         const file = Buffer.from(command.file);
         if (!command.apply) {
           const preview = core.inspectImport(file, command.passphrase);
@@ -147,7 +148,8 @@ function execute(command: ServiceCommand): PersonaReply {
     // Native methods emit static, credential-free messages. Unexpected errors
     // use a fixed message; never return a stack or the command payload.
     const messages = [
-      'Use a non-empty name without colons or control characters.', 'Enter a callsign.',
+      'Use a non-empty name without colons or control characters.', 'Enter a callsign: letters, digits and /.',
+      'Keep the description to 64 characters, on one line.', 'A callsign could not be created.',
       'Use YYYY-MM-DD for dates.', 'End date must not precede start date.', 'Callsign not found.',
       'Keychain is unavailable.', 'Keychain could not read this credential.',
       'Keychain could not save this credential.', 'Keychain could not remove this credential.',
@@ -157,7 +159,7 @@ function execute(command: ServiceCommand): PersonaReply {
       'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
       'The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
       'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
-      // Moving personas between machines. Each is a fixed sentence from the
+      // Moving callsigns between machines. Each is a fixed sentence from the
       // core, carrying no value (QGD-PSN-0010's is the one that must reach the
       // operator intact, because it is the one that says what it cannot tell).
       'Choose a passphrase. An export is encrypted or it is not written.',
@@ -180,7 +182,7 @@ function execute(command: ServiceCommand): PersonaReply {
       'The reference source could not be read.'
     ];
     const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The callsign request could not be completed.';
-    log.warn({ command: command.type, reason: message }, 'persona operation failed');
+    log.warn({ command: command.type, reason: message }, 'callsign operation failed');
     // Named for the store this platform has (Keychain, Credential Manager,
     // the keyring); the sentence is still one of the fixed ones above.
     return { ok: false, error: forStore(message, process.platform) };

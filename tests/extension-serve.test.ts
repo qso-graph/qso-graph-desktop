@@ -22,7 +22,7 @@ const register = validateGrantRegister(JSON.parse(await readFile('data/extension
 const known = grantIds(register);
 
 const SOLAR = { id: 'solar', name: 'Space weather', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['source:solar'], page: 'SolarPage.svelte' };
-const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
+const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'callsign:list'], page: 'LookupPage.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Every port records what it was asked and by whom, so "nothing was touched"
@@ -41,12 +41,12 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
   let current: Record<string, readonly string[]> = { ...allowed };
   const ports: ExtensionBrokerPorts = {
     allowed: () => { allowedReads += 1; return current; },
-    personas: async () => { calls.push('personas'); return [{ name: 'Home station', callsign: 'W1AW' }]; },
-    activePersona: async () => { calls.push('activePersona'); return { name: 'Home station', callsign: 'W1AW' }; },
+    callsigns: async () => { calls.push('callsigns'); return [{ id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', call: 'W1AW', description: 'Home station' }]; },
+    activeCallsign: async () => { calls.push('activeCallsign'); return { id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', call: 'W1AW', description: 'Home station' }; },
     activeStation: async () => { calls.push('activeStation'); return { name: 'Home', grid: 'DN13sm', latitude: 43.6, longitude: -116.2 }; },
     fetchSource: async url => { calls.push(`fetchSource:${url}`); return { body: 'sfi 150', fresh: true }; },
-    callService: async (service, persona, operation, parameters) => {
-      calls.push(`callService:${service}/${persona}/${operation}/${JSON.stringify(parameters)}`);
+    callService: async (service, callsign, operation, parameters) => {
+      calls.push(`callService:${service}/${callsign}/${operation}/${JSON.stringify(parameters)}`);
       return { outcome: 'success', call: 'W1AW' };
     }
   };
@@ -75,7 +75,7 @@ describe('a refused request reaches nothing', () => {
     // by default (QGD-APP-0012.1), so this is how one is withheld.
     const it0 = recorder({ 'qrz-lookup': [] });
     const reply = await it0.serve('qrz-lookup', {
-      kind: 'service.request', service: 'qrz', persona: 'Home station',
+      kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
       operation: 'lookup', parameters: { callsign: 'W1AW' }
     });
     expect(reply.ok).toBe(false);
@@ -86,11 +86,11 @@ describe('a refused request reaches nothing', () => {
   });
 
   it('touches no port when the extension never declared the grant', async () => {
-    const it0 = recorder({ bare: ['persona:list'] });
-    const reply = await it0.serve('bare', { kind: 'persona.list' });
+    const it0 = recorder({ bare: ['callsign:list'] });
+    const reply = await it0.serve('bare', { kind: 'callsign.list' });
     expect(reply.ok).toBe(false);
     // Allowed in settings, never declared in the manifest: still refused, and
-    // the personas are not read.
+    // the callsigns are not read.
     expect(it0.calls).toEqual([]);
   });
 
@@ -115,14 +115,14 @@ describe('a refused request reaches nothing', () => {
 
 describe('an allowed request reaches the one port it names', () => {
   it('reaches the credential core with exactly the values the core validated', async () => {
-    const it0 = recorder({ 'qrz-lookup': ['service:qrz', 'persona:list'] });
+    const it0 = recorder({ 'qrz-lookup': ['service:qrz', 'callsign:list'] });
     const reply = await it0.serve('qrz-lookup', {
-      kind: 'service.request', service: 'qrz', persona: 'Home station',
+      kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
       operation: 'lookup', parameters: { callsign: 'W1AW' }
     });
     expect(reply.ok).toBe(true);
     expect(it0.calls).toEqual([
-      'callService:qrz/Home station/lookup/{"callsign":"W1AW"}'
+      'callService:qrz/3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b/lookup/{"callsign":"W1AW"}'
     ]);
   });
 
@@ -154,31 +154,31 @@ describe('an allowed request reaches the one port it names', () => {
 describe('a grant is read again on every request', () => {
   it('starts working when it is allowed again, with nothing reloaded', async () => {
     const it0 = recorder({ 'qrz-lookup': [] });
-    const before = await it0.serve('qrz-lookup', { kind: 'persona.list' });
+    const before = await it0.serve('qrz-lookup', { kind: 'callsign.list' });
     expect(before.ok).toBe(false);
 
-    it0.setAllowed({ 'qrz-lookup': ['persona:list'] });
+    it0.setAllowed({ 'qrz-lookup': ['callsign:list'] });
     // The same serve function, the same loaded application, no restart.
-    const after = await it0.serve('qrz-lookup', { kind: 'persona.list' });
+    const after = await it0.serve('qrz-lookup', { kind: 'callsign.list' });
     expect(after.ok).toBe(true);
-    expect(it0.calls).toEqual(['personas']);
+    expect(it0.calls).toEqual(['callsigns']);
   });
 
   it('stops working when it is withdrawn, with nothing restarted', async () => {
-    const it0 = recorder({ 'qrz-lookup': ['persona:list', 'service:qrz'] });
-    expect((await it0.serve('qrz-lookup', { kind: 'persona.list' })).ok).toBe(true);
+    const it0 = recorder({ 'qrz-lookup': ['callsign:list', 'service:qrz'] });
+    expect((await it0.serve('qrz-lookup', { kind: 'callsign.list' })).ok).toBe(true);
 
-    it0.setAllowed({ 'qrz-lookup': ['persona:list'] });
+    it0.setAllowed({ 'qrz-lookup': ['callsign:list'] });
     const refused = await it0.serve('qrz-lookup', {
-      kind: 'service.request', service: 'qrz', persona: 'Home station',
+      kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
       operation: 'lookup', parameters: { callsign: 'W1AW' }
     });
     expect(refused.ok).toBe(false);
     expect(refused.ok === false && refused.refused).toBe('service:qrz');
     // And the grant that was left alone still works, so a withdrawal takes
     // only what it names.
-    expect((await it0.serve('qrz-lookup', { kind: 'persona.list' })).ok).toBe(true);
-    expect(it0.calls).toEqual(['personas', 'personas']);
+    expect((await it0.serve('qrz-lookup', { kind: 'callsign.list' })).ok).toBe(true);
+    expect(it0.calls).toEqual(['callsigns', 'callsigns']);
   });
 
   it('reads the allowed set once per request, not once at load', async () => {
@@ -200,7 +200,7 @@ describe('what comes back when a port fails', () => {
       throw new Error('QRZ refused the stored credential.');
     };
     const reply = await it0.serve('qrz-lookup', {
-      kind: 'service.request', service: 'qrz', persona: 'Home station',
+      kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
       operation: 'lookup', parameters: { callsign: 'W1AW' }
     });
     expect(reply.ok).toBe(false);
@@ -211,12 +211,12 @@ describe('what comes back when a port fails', () => {
 
 describe('the inventory the core shows itself', () => {
   it('says what each application asked for and whether it is held', () => {
-    const deps = recorder({ 'qrz-lookup': ['persona:list'] }).deps;
+    const deps = recorder({ 'qrz-lookup': ['callsign:list'] }).deps;
     const inventory = buildInventory(deps);
     const lookup = inventory.extensions.find(extension => extension.id === 'qrz-lookup');
     expect(lookup?.grants.map(grant => [grant.id, grant.held])).toEqual([
       ['service:qrz', false],
-      ['persona:list', true]
+      ['callsign:list', true]
     ]);
     // A grant needing nobody is held without being allowed.
     const solar = inventory.extensions.find(extension => extension.id === 'solar');

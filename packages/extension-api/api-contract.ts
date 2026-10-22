@@ -22,12 +22,13 @@ export type ExtensionRequest =
   // to know what it was given, and showing it is how QGD-APP-0012's Settings
   // page and an extension's own "why can I not do this" agree.
   | { readonly kind: 'extension.info' }
-  // The personas the operator has, so an extension can ask which to act as.
-  // Callsigns and names only — never a credential (QGD-CRD-0010).
-  | { readonly kind: 'persona.list' }
-  // Which persona is active: its name and callsign, or none. Under the same
-  // grant as the list, because it is the same information (QGD-CRD-0010).
-  | { readonly kind: 'persona.active' }
+  // The callsigns the operator has, so an extension can ask which to act as.
+  // Each one's id, call and description only — never a credential
+  // (QGD-CRD-0010).
+  | { readonly kind: 'callsign.list' }
+  // Which callsign is active, or none. Under the same grant as the list,
+  // because it is the same information (QGD-CRD-0010).
+  | { readonly kind: 'callsign.active' }
   // Where the operator is operating from: the active station's name, grid and
   // position, or none (QGD-STN-0005, QGD-HOM-0009). Never its street, city or
   // postal code, which stay on this machine and out of every extension
@@ -42,7 +43,8 @@ export type ExtensionRequest =
   | {
       readonly kind: 'service.request';
       readonly service: string;
-      readonly persona: string;
+      // The id of the callsign whose credential is used.
+      readonly callsign: string;
       readonly operation: string;
       readonly parameters: Readonly<Record<string, string>>;
     };
@@ -59,9 +61,12 @@ export interface ExtensionInfo {
   readonly grants: readonly string[];
 }
 
-export interface PersonaBrief {
-  readonly name: string;
-  readonly callsign: string;
+// A callsign as an extension sees it. `id` is permanent, and is what a
+// service request names; the call and the description may change.
+export interface CallsignBrief {
+  readonly id: string;
+  readonly call: string;
+  readonly description: string;
 }
 
 // The active station as an extension may see it. The position is the
@@ -76,8 +81,8 @@ export interface StationBrief {
 
 export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'extension.info'; readonly info: ExtensionInfo }
-  | { readonly ok: true; readonly kind: 'persona.list'; readonly personas: readonly PersonaBrief[] }
-  | { readonly ok: true; readonly kind: 'persona.active'; readonly persona: PersonaBrief | null }
+  | { readonly ok: true; readonly kind: 'callsign.list'; readonly callsigns: readonly CallsignBrief[] }
+  | { readonly ok: true; readonly kind: 'callsign.active'; readonly callsign: CallsignBrief | null }
   | { readonly ok: true; readonly kind: 'station.active'; readonly station: StationBrief | null }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
@@ -104,8 +109,8 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     // Knowing what you hold needs nothing (QGD-APP-0005: an extension with
     // no grants can still draw its page and read its own standing).
     case 'extension.info': return undefined;
-    case 'persona.list': return 'persona:list';
-    case 'persona.active': return 'persona:list';
+    case 'callsign.list': return 'callsign:list';
+    case 'callsign.active': return 'callsign:list';
     case 'station.active': return 'station:active';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
@@ -115,7 +120,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'persona.list', 'persona.active', 'station.active', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -125,9 +130,8 @@ export const REQUEST_KINDS: readonly RequestKind[] =
 // or a grant id of its own making.
 const NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 const OPERATION = /^[a-z][a-z0-9-]{0,31}$/;
-// A persona name is the operator's own text, so it is bounded and free of
-// control characters rather than restricted to a shape.
-const PERSONA_MAX = 64;
+// A callsign's id, as the credential core writes one: a version 4 UUID.
+const CALLSIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export class RequestError extends Error {
   constructor(message: string, readonly field?: string) { super(message); }
@@ -137,10 +141,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isPersonaName(value: unknown): value is string {
-  return typeof value === 'string'
-    && value.length > 0 && value.length <= PERSONA_MAX
-    && ![...value].some(character => character.codePointAt(0)! < 0x20);
+function isCallsignId(value: unknown): value is string {
+  return typeof value === 'string' && CALLSIGN_ID.test(value);
 }
 
 function parameters(value: unknown): Record<string, string> {
@@ -165,11 +167,11 @@ function parameters(value: unknown): Record<string, string> {
 // Each kind's fields, and nothing else.
 const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'extension.info': ['kind'],
-  'persona.list': ['kind'],
-  'persona.active': ['kind'],
+  'callsign.list': ['kind'],
+  'callsign.active': ['kind'],
   'station.active': ['kind'],
   'source.fetch': ['kind', 'source'],
-  'service.request': ['kind', 'service', 'persona', 'operation', 'parameters']
+  'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
 
 export function validateRequest(value: unknown): ExtensionRequest {
@@ -187,8 +189,8 @@ export function validateRequest(value: unknown): ExtensionRequest {
   const bare = () => ({ kind }) as ExtensionRequest;
   switch (kind) {
     case 'extension.info':
-    case 'persona.list':
-    case 'persona.active':
+    case 'callsign.list':
+    case 'callsign.active':
     case 'station.active':
       return bare();
     case 'source.fetch': {
@@ -201,8 +203,8 @@ export function validateRequest(value: unknown): ExtensionRequest {
       if (typeof value.service !== 'string' || !NAME.test(value.service)) {
         throw new RequestError('service is not a service name', 'service');
       }
-      if (!isPersonaName(value.persona)) {
-        throw new RequestError('persona is not a persona name', 'persona');
+      if (!isCallsignId(value.callsign)) {
+        throw new RequestError('callsign is not a callsign id', 'callsign');
       }
       if (typeof value.operation !== 'string' || !OPERATION.test(value.operation)) {
         throw new RequestError('operation is not an operation name', 'operation');
@@ -210,7 +212,7 @@ export function validateRequest(value: unknown): ExtensionRequest {
       return {
         kind,
         service: value.service,
-        persona: value.persona,
+        callsign: value.callsign,
         operation: value.operation,
         parameters: parameters(value.parameters)
       };

@@ -81,7 +81,7 @@
       const answer = await onImport(importPassphrase);
       importResult = typeof answer === 'string'
         ? answer
-        : `Imported ${answer.personas} callsign${answer.personas === 1 ? '' : 's'} ` +
+        : `Imported ${answer.callsigns} callsign${answer.callsigns === 1 ? '' : 's'} ` +
           `and ${answer.credentials} credential${answer.credentials === 1 ? '' : 's'}.`;
       if (typeof answer !== 'string') { preview = undefined; importPassphrase = ''; }
     } finally {
@@ -150,7 +150,7 @@
     <div class="preview">
       <p>
         This file was made on {preview.created.slice(0, 10)} and holds
-        {preview.personas} callsign{preview.personas === 1 ? '' : 's'} and
+        {preview.callsigns} callsign{preview.callsigns === 1 ? '' : 's'} and
         {preview.credentials} credential{preview.credentials === 1 ? '' : 's'}.
       </p>
       {#if preview.arriving.length}

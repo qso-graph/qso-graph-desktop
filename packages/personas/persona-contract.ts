@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type { ServiceSummary } from './service-contract.js';
-export interface Persona {
-  name: string;
-  callsign: string;
+// One of the operator's callsigns (KI7MT, 2026-10-22: "persona" is retired).
+// `id` is permanent and is what everything keys on; the call and the
+// description are the operator's and may change.
+export interface Callsign {
+  id: string;
+  call: string;
+  description: string;
   start?: string | null;
   end?: string | null;
   providers: Record<string, { username: string }>;
 }
-export interface Snapshot { personas: Persona[]; active: string | null }
+// `active` is the active callsign's id.
+export interface Snapshot { callsigns: Callsign[]; active: string | null }
+// How a callsign is named on screen: the call, then the description.
+export function callsignLabel(callsign: Pick<Callsign, 'call' | 'description'>): string {
+  return callsign.description ? `${callsign.call} · ${callsign.description}` : callsign.call;
+}
 // Imported and re-exported so the renderer has one import for everything it
 // is told about a service. The shape itself is packages/personas/services.ts's, which is
 // where the register is read and checked.
@@ -29,30 +38,31 @@ export interface FetchedReference {
 // operator chose it; nothing else about the file is.
 export interface ExportResult { written: string; bytes: number }
 // What an import would do, or did. Counts and names, never a value.
-export interface ImportPreview { created: string; personas: number; credentials: number; arriving: string[]; overwritten: string[] }
-export interface ImportResult { personas: number; credentials: number }
-export type PersonaCommand =
+export interface ImportPreview { created: string; callsigns: number; credentials: number; arriving: string[]; overwritten: string[] }
+export interface ImportResult { callsigns: number; credentials: number }
+export type CallsignCommand =
   | { type: 'list' }
   // The services this product can hold a credential for, with the fields and
   // the instructions for each (QGD-PSN-0002). The screens draw themselves
   // from this rather than from anything written into the renderer.
   | { type: 'services' }
-  | { type: 'upsert'; name: string; callsign: string; start?: string; end?: string }
-  | { type: 'set-active'; name: string }
-  | { type: 'remove-persona'; name: string }
-  | { type: 'status'; persona: string; provider: string }
-  | { type: 'test-credential'; persona: string; provider: string }
-  | { type: 'delete-credentials'; persona: string; provider: string }
-  | { type: 'remove-secret'; persona: string; provider: string; field: 'password' | 'api_key' }
-  | { type: 'set-preference'; persona: string; provider: string; preferred: 'service' | 'password' | 'api_key' }
-  | { type: 'save-credentials'; persona: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } }
-  // Moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011). The
+  | { type: 'create'; call: string; description: string; start?: string; end?: string }
+  | { type: 'update'; id: string; call: string; description: string; start?: string; end?: string }
+  | { type: 'set-active'; id: string }
+  | { type: 'remove-callsign'; id: string }
+  | { type: 'status'; id: string; provider: string }
+  | { type: 'test-credential'; id: string; provider: string }
+  | { type: 'delete-credentials'; id: string; provider: string }
+  | { type: 'remove-secret'; id: string; provider: string; field: 'password' | 'api_key' }
+  | { type: 'set-preference'; id: string; provider: string; preferred: 'service' | 'password' | 'api_key' }
+  | { type: 'save-credentials'; id: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } }
+  // Moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011). The
   // passphrase travels the same path a credential already does — collected by
   // the renderer, held by nothing, forwarded to the core. The file itself does
   // not: the main process shows the dialog and reads or writes the bytes, so
   // the renderer never touches an export.
-  | { type: 'export-personas'; passphrase: string }
-  | { type: 'import-personas'; passphrase: string; apply: boolean };
+  | { type: 'export-callsigns'; passphrase: string }
+  | { type: 'import-callsigns'; passphrase: string; apply: boolean };
 // What a service lookup answers (QGD-APP-0007). Its own outcome set, not the
 // credential test's: a lookup can come back "not-found", which is an answer
 // about a callsign rather than anything about the credential, and
@@ -70,7 +80,7 @@ export interface LookupAnswer {
   fields: { name: string; value: string }[];
 }
 
-export type PersonaReply =
+export type CallsignReply =
   | {
       ok: true;
       data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
@@ -105,29 +115,37 @@ function passphrase(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 4096;
 }
 function date(value: unknown): boolean { return value === undefined || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)); }
+// A callsign's id: a version 4 UUID, as the core writes one.
+const CALLSIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export function isCallsignId(value: unknown): value is string { return typeof value === 'string' && CALLSIGN_ID.test(value); }
+// The call letters as typed; the core puts them in capitals and checks them.
+function call(value: unknown): value is string { return text(value, 32); }
+// What the operator calls it; may be empty.
+function description(value: unknown): value is string { return typeof value === 'string' && value.length <= 64 && !CONTROL.test(value); }
 
-export function validateCommand(value: unknown, providers: Services): value is PersonaCommand {
+export function validateCommand(value: unknown, providers: Services): value is CallsignCommand {
   if (!record(value)) return false;
   switch (value.type) {
     case 'list':
     case 'services': return keys(value, ['type']);
-    case 'upsert': return keys(value, ['type', 'name', 'callsign', 'start', 'end']) && text(value.name) && text(value.callsign, 64) && date(value.start) && date(value.end);
+    case 'create': return keys(value, ['type', 'call', 'description', 'start', 'end']) && call(value.call) && description(value.description) && date(value.start) && date(value.end);
+    case 'update': return keys(value, ['type', 'id', 'call', 'description', 'start', 'end']) && isCallsignId(value.id) && call(value.call) && description(value.description) && date(value.start) && date(value.end);
     case 'set-active':
-    case 'remove-persona': return keys(value, ['type', 'name']) && text(value.name);
+    case 'remove-callsign': return keys(value, ['type', 'id']) && isCallsignId(value.id);
     case 'status':
     case 'test-credential':
-    case 'delete-credentials': return keys(value, ['type', 'persona', 'provider']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider);
-    case 'remove-secret': return keys(value, ['type', 'persona', 'provider', 'field']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider) && ['password', 'api_key'].includes(value.field as string);
-    case 'set-preference': return keys(value, ['type', 'persona', 'provider', 'preferred']) && text(value.persona) && typeof value.provider === 'string' && providers.has(value.provider) && ['service', 'password', 'api_key'].includes(value.preferred as string);
+    case 'delete-credentials': return keys(value, ['type', 'id', 'provider']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider);
+    case 'remove-secret': return keys(value, ['type', 'id', 'provider', 'field']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider) && ['password', 'api_key'].includes(value.field as string);
+    case 'set-preference': return keys(value, ['type', 'id', 'provider', 'preferred']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider) && ['service', 'password', 'api_key'].includes(value.preferred as string);
     // A passphrase is a secret the operator types, so it is bounded the way
     // the other secrets are and nothing else travels with it.
-    case 'export-personas':
+    case 'export-callsigns':
       return keys(value, ['type', 'passphrase']) && passphrase(value.passphrase);
-    case 'import-personas':
+    case 'import-callsigns':
       return keys(value, ['type', 'passphrase', 'apply'])
         && passphrase(value.passphrase) && typeof value.apply === 'boolean';
     case 'save-credentials': {
-      if (!keys(value, ['type', 'persona', 'provider', 'credentials']) || !text(value.persona) || typeof value.provider !== 'string' || !providers.has(value.provider) || !record(value.credentials) || !keys(value.credentials, ['username', 'password', 'apiKey'])) return false;
+      if (!keys(value, ['type', 'id', 'provider', 'credentials']) || !isCallsignId(value.id) || typeof value.provider !== 'string' || !providers.has(value.provider) || !record(value.credentials) || !keys(value.credentials, ['username', 'password', 'apiKey'])) return false;
       return Object.values(value.credentials).every(item => item === undefined || (typeof item === 'string' && item.length <= 4096));
     }
     default: return false;
@@ -137,7 +155,7 @@ export function validateCommand(value: unknown, providers: Services): value is P
 // QGD-SEC-0006, in the other direction: a reply arriving from the utility
 // process is checked before it is handed to whoever is waiting, rather than
 // asserted to be what it should be.
-export function isReply(value: unknown): value is PersonaReply {
+export function isReply(value: unknown): value is CallsignReply {
   if (!record(value)) return false;
   if (value.ok === true) return 'data' in value;
   return value.ok === false && typeof value.error === 'string';
@@ -153,23 +171,24 @@ export function isReply(value: unknown): value is PersonaReply {
 // they actually receive rather than trusting the one before them
 // (QGD-SEC-0006).
 export type ServiceCommand =
-  | Exclude<PersonaCommand, { type: 'import-personas' }>
-  | { type: 'import-personas'; passphrase: string; apply: boolean; file: Uint8Array }
+  | Exclude<CallsignCommand, { type: 'import-callsigns' }>
+  | { type: 'import-callsigns'; passphrase: string; apply: boolean; file: Uint8Array }
   // Fetching reference data, which the credential core does because KI7MT
   // decided all outbound HTTPS goes through it (D-18, D-31). It is not a
-  // PersonaCommand: a renderer may not ask this product to fetch a URL, and
+  // CallsignCommand: a renderer may not ask this product to fetch a URL, and
   // validateCommand — which is what the renderer's requests are held to —
   // does not accept it.
   | { type: 'fetch-reference'; url: string; etag?: string; lastModified?: string }
   // Acting with a stored credential on an application's behalf, and returning
-  // the answer (QGD-APP-0007). Not a PersonaCommand either, and for the same
+  // the answer (QGD-APP-0007). Not a CallsignCommand either, and for the same
   // reason: a renderer may not ask this product to use a credential directly.
   // An application reaches it only through the extension API, with a service grant
   // the operator allowed, and the secret never comes back — only the result.
   | {
       type: 'service-lookup';
       service: string;
-      persona: string;
+      // The id of the callsign whose credential is used.
+      id: string;
       operation: string;
       parameters: Record<string, string>;
     };
@@ -186,12 +205,12 @@ function noUserinfo(url: string): boolean {
 export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
   if (!record(value)) return false;
   if (value.type === 'service-lookup') {
-    if (!keys(value, ['type', 'service', 'persona', 'operation', 'parameters'])) return false;
+    if (!keys(value, ['type', 'service', 'id', 'operation', 'parameters'])) return false;
     // The service must be one the register holds, the same set every other
     // command is held to (QGD-PSN-0003). A grant named a service; this checks
     // the service exists.
     if (typeof value.service !== 'string' || !providers.has(value.service)) return false;
-    if (typeof value.persona !== 'string' || value.persona === '' || value.persona.length > 64) return false;
+    if (!isCallsignId(value.id)) return false;
     if (typeof value.operation !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(value.operation)) return false;
     if (!record(value.parameters)) return false;
     const entries = Object.entries(value.parameters);
@@ -211,7 +230,7 @@ export function validateServiceCommand(value: unknown, providers: Services): val
       && (value.lastModified === undefined
         || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));
   }
-  if (value.type === 'import-personas') {
+  if (value.type === 'import-callsigns') {
     return keys(value, ['type', 'passphrase', 'apply', 'file'])
       && passphrase(value.passphrase)
       && typeof value.apply === 'boolean'

@@ -12,7 +12,7 @@
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
 import {
-  isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isPersonaName, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
+  isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
   isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
 } from './station-contract.js';
 
@@ -86,7 +86,7 @@ export type StorageCommand =
   | { type: 'update-reference'; resource: string }
   | { type: 'save-station'; station: StationDraft }
   | { type: 'delete-station'; id: string }
-  | { type: 'set-default-station'; persona: string; id: string | null }
+  | { type: 'set-default-station'; callsign: string; id: string | null }
   | { type: 'set-active-station'; id: string | null }
   | { type: 'station-from-park'; reference: string }
   // A location from a SOTA summit (QGD-REF-0018).
@@ -201,7 +201,7 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'save-station': return exactly(['type', 'station']) && isStationDraft(value.station);
     case 'delete-station': return exactly(['type', 'id']) && isStationId(value.id);
     case 'set-default-station':
-      return exactly(['type', 'persona', 'id']) && isPersonaName(value.persona) && (value.id === null || isStationId(value.id));
+      return exactly(['type', 'callsign', 'id']) && isCallsignId(value.callsign) && (value.id === null || isStationId(value.id));
     case 'set-active-station': return exactly(['type', 'id']) && (value.id === null || isStationId(value.id));
     case 'station-from-park': return exactly(['type', 'reference']) && isPotaReference(value.reference);
     case 'station-from-summit': return exactly(['type', 'reference']) && isSummitReference(value.reference);

@@ -152,7 +152,7 @@ export function createCardScheduler(deps: CardSchedulerDeps) {
     // fifteen minutes after a new user made their first persona. Persona
     // changes are made on the Personas page, while Home is hidden, so this
     // costs at most one question per card per return to Home.
-    personasChanged(): void {
+    callsignsChanged(): void {
       for (const [key, entry] of tracked) {
         halt(entry);
         publish(entry, { key, state: 'waiting' });

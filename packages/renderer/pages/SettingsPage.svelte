@@ -148,8 +148,9 @@
     </dl>
     <p class="hint" id="about-privacy">
       Everything you enter stays on this computer. Nothing of yours is sent anywhere
-      until you ask. The app fetches the ADIF and park reference lists when you download
-      or update them, and the data your pinned cards show, and nothing else.
+      until you ask. The app fetches reference data (ADIF definitions, POTA parks, SOTA
+      summits) when you download or update it, and the data your pinned cards show, and
+      nothing else.
     </p>
     <div class="about-links">
       {#each ABOUT_DOCUMENTS as [name, label] (name)}

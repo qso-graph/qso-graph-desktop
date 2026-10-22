@@ -9,9 +9,10 @@
 // round-trip through a mock proves nothing about the Keychain.
 //
 // Two profile directories stand in for two machines. They share one Keychain,
-// which is this machine's, so the second profile's personas are named
-// differently from the first's: what is being shown is that the bundle carried
-// the credential, not that the Keychain already had it.
+// which is this machine's, and a callsign keeps its id when it moves, so the
+// first profile's entries are deleted before the import: what is being shown
+// is that the bundle carried the credential, not that the Keychain already
+// had it.
 import { createRequire } from 'node:module';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -28,17 +29,19 @@ import { enableTestKeychain } from './keychain-service.mjs';
 enableTestKeychain();
 
 const require = createRequire(import.meta.url);
-const { PersonaCore } = require('../dist/native/persona.node');
+const { CallsignCore } = require('../dist/native/persona.node');
 
 const first = await mkdtemp(join(tmpdir(), 'qg-export-from-'));
 const second = await mkdtemp(join(tmpdir(), 'qg-export-to-'));
-const persona = `qg-test-${randomUUID()}`;
-const alsoHere = `qg-test-${randomUUID()}`;
+// The callsigns' ids, which the core chooses, and the first one's description.
+let id;
+let alsoHere;
+const description = `qg-test-${randomUUID()}`;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 const apiKey = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 const passphrase = `a passphrase ${randomUUID()}`;
-const from = new PersonaCore(first);
-const to = new PersonaCore(second);
+const from = new CallsignCore(first);
+const to = new CallsignCore(second);
 const notes = [];
 
 function check(ok, name) { if (!ok) throw new Error(`${name} failed; values omitted.`); }
@@ -51,38 +54,38 @@ function refusal(action, name) {
 
 try {
   // ---- a profile worth moving -----------------------------------------
-  from.upsert(persona, 'W1AW', '2026-01-01');
-  from.saveCredentials(persona, 'qrz', { username: 'W1AW', password });
-  from.saveCredentials(persona, 'clublog', { username: 'w1aw@example.invalid', password, apiKey });
-  from.setPreference(persona, 'clublog', 'api_key');
-  from.upsert(alsoHere, 'W1AW/P');
+  id = from.create('W1AW', description, '2026-01-01').id;
+  from.saveCredentials(id, 'qrz', { username: 'W1AW', password });
+  from.saveCredentials(id, 'clublog', { username: 'w1aw@example.invalid', password, apiKey });
+  from.setPreference(id, 'clublog', 'api_key');
+  alsoHere = from.create('W1AW/P', '').id;
 
   // ---- P6-persona-owns-credential --------------------------------------
   {
-    // QGD-PSN-0001: a credential belongs to a persona and a service, never to
-    // the application. Two personas, one service, two different secrets —
+    // QGD-PSN-0001: a credential belongs to a callsign and a service, never to
+    // the application. Two callsigns, one service, two different secrets —
     // and removing one leaves the other, which is the half that would be
     // missed by a store keyed on the service alone.
     const second = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
     from.saveCredentials(alsoHere, 'qrz', { username: 'W1AW/P', password: second });
-    check(from.requireCredential(persona, 'qrz').password === password, 'The first persona keeps its own');
-    check(from.requireCredential(alsoHere, 'qrz').password === second, 'The second persona has its own');
+    check(from.requireCredential(id, 'qrz').password === password, 'The first callsign keeps its own');
+    check(from.requireCredential(alsoHere, 'qrz').password === second, 'The second callsign has its own');
     from.deleteCredentials(alsoHere, 'qrz');
-    check(!from.credentialStatus(alsoHere, 'qrz').stored, 'The second persona\u2019s credential is gone');
-    check(from.requireCredential(persona, 'qrz').password === password,
-      'And removing it left the first persona\u2019s alone');
-    notes.push('two personas hold separate secrets for one service, and removing one leaves the other');
+    check(!from.credentialStatus(alsoHere, 'qrz').stored, 'The second callsign\u2019s credential is gone');
+    check(from.requireCredential(id, 'qrz').password === password,
+      'And removing it left the first callsign\u2019s alone');
+    notes.push('two callsigns hold separate secrets for one service, and removing one leaves the other');
   }
 
   // ---- P6-export-encrypted --------------------------------------------
-  const file = from.exportPersonas(passphrase);
+  const file = from.exportCallsigns(passphrase);
   check(Buffer.isBuffer(file) && file.length > 100, 'Export produced a file');
 
   // Every value that went in, searched for in the bytes that came out. The
   // sentinel scan is the same one make verify runs over every artifact, so a
   // credential in an export would be caught by the project's own rule as
   // well as by this.
-  for (const secret of [password, apiKey, 'W1AW', persona, 'w1aw@example.invalid']) {
+  for (const secret of [password, apiKey, 'W1AW', description, 'w1aw@example.invalid']) {
     check(!file.includes(Buffer.from(secret)), 'Export holds no value in the clear');
   }
   check(sentinelsIn(file.toString('latin1')).length === 0, 'Export holds no credential sentinel');
@@ -91,7 +94,7 @@ try {
   // QGD-PSN-0007: without a passphrase there is no file, rather than a file
   // anyone can read.
   for (const empty of ['', '   ']) {
-    const message = refusal(() => from.exportPersonas(empty), 'An export with no passphrase');
+    const message = refusal(() => from.exportCallsigns(empty), 'An export with no passphrase');
     check(/passphrase/i.test(message), 'Refusal says a passphrase is needed');
   }
   notes.push('an export with no passphrase is refused rather than written in the clear');
@@ -99,7 +102,7 @@ try {
   // ---- P6-export-header ------------------------------------------------
   const newline = file.indexOf(0x0a);
   const secondNewline = file.indexOf(0x0a, newline + 1);
-  check(file.toString('utf8', 0, newline) === 'QGD-PERSONA-EXPORT', 'The file names itself');
+  check(file.toString('utf8', 0, newline) === 'QGD-CALLSIGN-EXPORT', 'The file names itself');
   const header = JSON.parse(file.toString('utf8', newline + 1, secondNewline));
   check(header.version === 1, 'The header carries a version');
   check(header.cipher === 'AES-256-GCM', 'The header names its cipher');
@@ -114,7 +117,7 @@ try {
   // Two exports of the same profile share nothing: a salt and a nonce that
   // repeated would be the defect that makes the second file readable from
   // the first.
-  const again = from.exportPersonas(passphrase);
+  const again = from.exportCallsigns(passphrase);
   const headerAgain = JSON.parse(again.toString('utf8', again.indexOf(0x0a) + 1, again.indexOf(0x0a, again.indexOf(0x0a) + 1)));
   check(headerAgain.salt !== header.salt, 'A second export draws a new salt');
   check(headerAgain.nonce !== header.nonce, 'A second export draws a new nonce');
@@ -122,27 +125,32 @@ try {
   notes.push('a second export of the same profile shares neither its salt, its nonce, nor a byte of its ciphertext');
 
   // ---- P6-export-round-trip --------------------------------------------
+  // The first machine's entries go, so only the file can bring them back.
+  for (const service of ['qrz', 'clublog']) from.deleteCredentials(id, service);
+  check(!from.credentialStatus(id, 'qrz').stored && !from.credentialStatus(id, 'clublog').stored,
+    'The Keychain no longer holds what the file carries');
   const preview = to.inspectImport(file, passphrase);
-  check(preview.personas === 2 && preview.credentials === 2, 'The preview counts what is inside');
+  check(preview.callsigns === 2 && preview.credentials === 2, 'The preview counts what is inside');
   check(preview.arriving.length === 2 && preview.overwritten.length === 0, 'Nothing is overwritten on a clean machine');
   check(!JSON.stringify(preview).includes(password), 'The preview carries no secret');
 
   const applied = to.applyImport(file, passphrase);
-  check(applied.personas === 2 && applied.credentials === 2, 'The import reports what it did');
-  const names = to.list().map(entry => entry.name);
-  check(names.includes(persona) && names.includes(alsoHere), 'Both personas arrived');
-  const arrived = to.list().find(entry => entry.name === persona);
-  check(arrived.callsign === 'W1AW' && arrived.start === '2026-01-01', 'The persona arrived whole');
+  check(applied.callsigns === 2 && applied.credentials === 2, 'The import reports what it did');
+  const ids = to.list().map(entry => entry.id);
+  check(ids.includes(id) && ids.includes(alsoHere), 'Both callsigns arrived, with their ids');
+  const arrived = to.list().find(entry => entry.id === id);
+  check(arrived.call === 'W1AW' && arrived.description === description && arrived.start === '2026-01-01',
+    'The callsign arrived whole');
 
   // The secrets arrived, which is the half an operator would notice missing.
   // Read through requireCredential, which is the trusted path that decrypts.
-  check(to.requireCredential(persona, 'qrz').password === password, 'The password arrived');
-  check(to.requireCredential(persona, 'clublog').password === apiKey, 'The preferred API key arrived');
-  check(to.credentialStatus(persona, 'clublog').preferred === 'api_key', 'The service preference arrived');
-  const status = to.credentialStatus(persona, 'clublog');
+  check(to.requireCredential(id, 'qrz').password === password, 'The password arrived');
+  check(to.requireCredential(id, 'clublog').password === apiKey, 'The preferred API key arrived');
+  check(to.credentialStatus(id, 'clublog').preferred === 'api_key', 'The service preference arrived');
+  const status = to.credentialStatus(id, 'clublog');
   check(status.stored && status.kindsKnown && status.hasPassword && status.hasApiKey,
     'The status answers without being asked to read anything');
-  notes.push('two personas, two credentials and a service preference arrive in a profile that had none');
+  notes.push('two callsigns, two credentials and a service preference arrive in a profile that had none, and the Keychain did not already hold them');
 
   // ---- P6-import-all-or-none ------------------------------------------
   {
@@ -152,7 +160,7 @@ try {
     const second = to.inspectImport(file, passphrase);
     check(second.overwritten.length === 2 && second.arriving.length === 0,
       'An import onto a machine that has them says what it would overwrite');
-    notes.push('an import that would overwrite says which personas, before it does');
+    notes.push('an import that would overwrite says which callsigns, before it does');
 
     // A file that fails its tag changes nothing at all.
     const before = JSON.stringify(to.list());
@@ -231,9 +239,9 @@ try {
     await new Promise(done => listener.close(done));
 
     // Then the thing being measured, inside the sampler's window.
-    const during = from.exportPersonas(passphrase);
+    const during = from.exportCallsigns(passphrase);
     const opened = to.inspectImport(during, passphrase);
-    check(during.length > 100 && opened.personas === 2, 'The sampled export and open worked');
+    check(during.length > 100 && opened.callsigns === 2, 'The sampled export and open worked');
 
     await new Promise(done => sampler.once('exit', done));
     const watched = JSON.parse(output.slice('watching\n'.length) || '{}');
@@ -260,12 +268,12 @@ try {
     await writeFile(path, file);
     const read = await readFile(path);
     check(read.equals(file), 'What was written is what was exported');
-    const onDisk = new PersonaCore(await mkdtemp(join(tmpdir(), 'qg-export-third-')));
-    check(onDisk.inspectImport(read, passphrase).personas === 2, 'A file read back from disk imports');
+    const onDisk = new CallsignCore(await mkdtemp(join(tmpdir(), 'qg-export-third-')));
+    check(onDisk.inspectImport(read, passphrase).callsigns === 2, 'A file read back from disk imports');
     notes.push('the export is bytes the operator places; a file written and read back imports whole');
   }
 
-  console.log(`Persona export and import: ${notes.length} checks: PASS`);
+  console.log(`Callsign export and import: ${notes.length} checks: PASS`);
   for (const note of notes) console.log(`  ${note}`);
 } catch (error) {
   // The message is this script's own and carries no value, but it is kept to
@@ -274,8 +282,8 @@ try {
   process.exitCode = 1;
 } finally {
   for (const core of [from, to]) {
-    for (const name of [persona, alsoHere]) {
-      try { if (core.list().some(entry => entry.name === name)) core.removePersona(name); } catch { /* cleaning up */ }
+    for (const name of [id, alsoHere].filter(Boolean)) {
+      try { if (core.list().some(entry => entry.id === name)) core.removeCallsign(name); } catch { /* cleaning up */ }
     }
   }
   await rm(first, { recursive: true, force: true });

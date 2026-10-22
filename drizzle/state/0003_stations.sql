@@ -16,7 +16,7 @@ CREATE TABLE `station` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `station_name` ON `station` (`name`);--> statement-breakpoint
 CREATE TABLE `station_default` (
-	`persona` text PRIMARY KEY NOT NULL,
+	`callsign` text PRIMARY KEY NOT NULL,
 	`station_id` text NOT NULL,
 	FOREIGN KEY (`station_id`) REFERENCES `station`(`id`) ON UPDATE no action ON DELETE cascade
 );

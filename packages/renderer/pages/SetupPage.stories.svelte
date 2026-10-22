@@ -38,7 +38,7 @@
     component: SetupPage,
     args: {
       services,
-      onCreatePersona: () => Promise.resolve(undefined),
+      onCreateCallsign: () => Promise.resolve(undefined),
       onSaveCredential: () => Promise.resolve(undefined),
       onDone: () => {}
     }
@@ -55,7 +55,7 @@
 
 <!-- A persona that cannot be created says why, and stays where it is. -->
 <Story name="The callsign was refused" args={{
-  onCreatePersona: () => Promise.resolve('Enter a callsign.')
+  onCreateCallsign: () => Promise.resolve('Enter a callsign.')
 }} />
 
 <!-- A credential the Keychain refused. The step does not advance, so nothing

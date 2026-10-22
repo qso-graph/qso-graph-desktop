@@ -26,16 +26,16 @@
 
   interface Props {
     services: ServiceSummary[];
-    // The persona this setup is for, once it exists. Present when returning
+    // The callsign this setup is for, once it exists. Present when returning
     // to a setup that already made one.
     persona?: string;
-    onCreatePersona: (callsign: string, name: string) => Promise<string | undefined>;
+    onCreateCallsign: (call: string, description: string) => Promise<string | undefined>;
     onSaveCredential: (
       service: string, values: Record<string, string>
     ) => Promise<string | undefined>;
     onDone: () => void;
   }
-  const { services, persona, onCreatePersona, onSaveCredential, onDone }: Props = $props();
+  const { services, persona, onCreateCallsign, onSaveCredential, onDone }: Props = $props();
 
   // Where we are: 0 is the callsign, 1..services.length are the services, and
   // one past the end is the summary. Starting past the callsign when the
@@ -73,7 +73,7 @@
     working = true;
     problem = '';
     try {
-      const failed = await onCreatePersona(callsign.trim(), name.trim());
+      const failed = await onCreateCallsign(callsign.trim(), name.trim());
       if (failed) problem = failed;
       else step = 1;
     } finally {
@@ -125,9 +125,9 @@
     <Field id="setup-callsign" label="Callsign" error={callsignProblem} control={callsignControl} />
     <Field
       id="setup-name"
-      label="A name for it"
+      label="Description"
       optional
-      hint="So you can tell two callsigns apart — &ldquo;Personal&rdquo;, &ldquo;Club&rdquo;. The callsign is used if you leave this empty."
+      hint="So you can tell two of the same callsign apart — &ldquo;Home&rdquo;, &ldquo;Portable&rdquo;. You can change it later."
       control={nameControl}
     />
     <button type="button" class:working disabled={callsignProblem !== '' || working} onclick={createPersona}

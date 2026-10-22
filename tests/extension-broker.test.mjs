@@ -103,33 +103,33 @@ describe('what crosses when an extension calls', () => {
   it('carries the contract’s fields and nothing an extension attached', () => {
     const plain = plainRequest({
       kind: 'service.request',
-      service: 'qrz', persona: 'KI7MT', operation: 'lookup',
+      service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup',
       parameters: { callsign: 'W1AW' },
       // Not in the contract. Constructed per kind rather than copied, so this
       // cannot ride along.
       secret: 'should not travel',
       onDone: () => undefined
     });
-    expect(Object.keys(plain).sort()).toEqual(['kind', 'operation', 'parameters', 'persona', 'service']);
+    expect(Object.keys(plain).sort()).toEqual(['callsign', 'kind', 'operation', 'parameters', 'service']);
     expect(JSON.stringify(plain)).not.toContain('should not travel');
     expect(() => structuredClone(plain)).not.toThrow();
   });
 
   it('copies an off-contract value without converting it, so the core refuses it', () => {
     // QGD-SEC-0006: rejected, never coerced. An earlier version ran each field
-    // through String(), which turned `persona: 123` into the valid persona
+    // through String(), which turned `callsign: 123` into a valid
     // name "123" — an off-contract value becoming one the core's validator
-    // accepts, which could have selected that persona's credential instead of
+    // accepts, which could have selected that callsign's credential instead of
     // being refused. Found in review.
     const plain = plainRequest({
       kind: 'service.request',
-      service: 'qrz', persona: 123, operation: 'lookup',
+      service: 'qrz', callsign: 123, operation: 'lookup',
       parameters: { callsign: 456 }
     });
-    expect(plain.persona, 'the value crosses as it was, for the core to refuse').toBe(123);
+    expect(plain.callsign, 'the value crosses as it was, for the core to refuse').toBe(123);
     expect(plain.parameters.callsign).toBe(456);
     // And the core does refuse it, which is the half that matters.
-    expect(() => validateRequest(plain)).toThrowError(/persona is not a persona name/);
+    expect(() => validateRequest(plain)).toThrowError(/callsign is not a callsign id/);
   });
 
   it('hands an invalid parameter container over untouched, so the core refuses it', () => {
@@ -138,7 +138,7 @@ describe('what crosses when an extension calls', () => {
     // in review. Only a plain object is rebuilt.
     for (const container of [null, 42, [], 'callsign=W1AW']) {
       const plain = plainRequest({
-        kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup',
+        kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup',
         parameters: container
       });
       expect(plain.parameters, JSON.stringify(container)).toEqual(container);
@@ -146,7 +146,7 @@ describe('what crosses when an extension calls', () => {
     }
     // And a plain object is still rebuilt, so the Proxy problem stays fixed.
     const good = plainRequest({
-      kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup',
+      kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup',
       parameters: new Proxy({ callsign: 'W1AW' }, {})
     });
     expect(good.parameters).toEqual({ callsign: 'W1AW' });
@@ -157,9 +157,9 @@ describe('what crosses when an extension calls', () => {
   it('keeps every request kind cloneable', () => {
     const samples = [
       { kind: 'extension.info' },
-      { kind: 'persona.list' },
+      { kind: 'callsign.list' },
       { kind: 'source.fetch', source: 'solar' },
-      { kind: 'service.request', service: 'qrz', persona: 'a', operation: 'lookup', parameters: {} }
+      { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     ];
     for (const sample of samples) {
       const plain = plainRequest(sample);

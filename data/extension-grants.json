@@ -15,8 +15,8 @@
       "needsOperator": true
     },
     {
-      "id": "persona:list",
-      "what": "Which personas exist, their callsigns and their names, so an application can ask the operator which one to act as.",
+      "id": "callsign:list",
+      "what": "Which callsigns the operator has, each one's call and description, so an application can ask the operator which one to act as.",
       "notWhat": "No credential, no secret, and no indication of what is stored for a service beyond whether one is (QGD-CRD-0010).",
       "needsOperator": true
     },

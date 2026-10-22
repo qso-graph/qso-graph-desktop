@@ -26,7 +26,8 @@ const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
-const persona = `qg-test-${randomUUID()}`;
+// The fixture callsign's description.
+const description = `qg-test-${randomUUID()}`;
 
 let application;
 const failures = [];
@@ -64,7 +65,7 @@ try {
   });
   const page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'axe');
-  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  // The application opens on Home now (QGD-FRM-0011). Callsigns is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
@@ -104,23 +105,23 @@ try {
   }
   await page.evaluate(() => document.getElementById('__axe_contrast__')?.remove());
 
-  // A persona, so the credential card and the status bar are on screen too —
+  // A callsign, so the credential card and the status bar are on screen too —
   // the empty state is the smallest page there is and the least worth
   // measuring.
-  // The persona broker owns a utility process that starts after the window
+  // The callsign broker owns a utility process that starts after the window
   // does. Filling the form before it answers means the create request is sent
   // to something that is not there yet — which is why this suite failed to
-  // create a persona on roughly one run in five while the application was
+  // create a callsign on roughly one run in five while the application was
   // perfectly healthy. scripts/smoke.mjs has always waited; these did not.
-  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
-    { message: 'the persona service must be answering before the form is used', timeout: 30_000 }).toBe(true);
-  await page.getByLabel('Description', { exact: true }).fill(persona);
+  await expect.poll(() => page.evaluate(() => window.callsigns.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the callsign service must be answering before the form is used', timeout: 30_000 }).toBe(true);
+  await page.getByLabel('Description', { exact: true }).fill(description);
   await page.getByLabel('Callsign', { exact: true }).fill('W1AW');
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
+  await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
 

@@ -9,25 +9,39 @@ import { serviceIds, validateRegister } from '../packages/personas/services.js';
 // what tests/services.test.ts drives from the other side.
 const services = serviceIds(validateRegister(JSON.parse(await readFile('data/service-profiles.json', 'utf8'))));
 const validateCommand = (value: unknown) => check(value, services);
-it('accepts intended persona and credential commands', () => {
-  expect(validateCommand({ type: 'upsert', name: 'home', callsign: 'W1AW', start: '2026-01-01' })).toBe(true);
-  expect(validateCommand({ type: 'save-credentials', persona: 'home', provider: 'qrz_logbook', credentials: { username: 'W1AW', apiKey: 'fake' } })).toBe(true);
-  expect(validateCommand({ type: 'remove-secret', persona: 'home', provider: 'qrz', field: 'password' })).toBe(true);
-  expect(validateCommand({ type: 'set-preference', persona: 'home', provider: 'qrz', preferred: 'api_key' })).toBe(true);
-  expect(validateCommand({ type: 'remove-persona', name: 'portable' })).toBe(true);
-  expect(validateCommand({ type: 'test-credential', persona: 'portable', provider: 'qrz' })).toBe(true);
+const ID = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
+it('accepts intended callsign and credential commands', () => {
+  expect(validateCommand({ type: 'create', call: 'W1AW', description: 'Home', start: '2026-01-01' })).toBe(true);
+  // The description may be empty: the call alone names it.
+  expect(validateCommand({ type: 'create', call: 'W1AW/P', description: '' })).toBe(true);
+  expect(validateCommand({ type: 'update', id: ID, call: 'K1ABC', description: 'Home station' })).toBe(true);
+  expect(validateCommand({ type: 'save-credentials', id: ID, provider: 'qrz_logbook', credentials: { username: 'W1AW', apiKey: 'fake' } })).toBe(true);
+  expect(validateCommand({ type: 'remove-secret', id: ID, provider: 'qrz', field: 'password' })).toBe(true);
+  expect(validateCommand({ type: 'set-preference', id: ID, provider: 'qrz', preferred: 'api_key' })).toBe(true);
+  expect(validateCommand({ type: 'remove-callsign', id: ID })).toBe(true);
+  expect(validateCommand({ type: 'test-credential', id: ID, provider: 'qrz' })).toBe(true);
 });
 it.each([
-  { type: 'require-credential', persona: 'home', provider: 'qrz' },
+  { type: 'require-credential', id: ID, provider: 'qrz' },
   { type: 'list', path: '/other/profiles' },
-  { type: 'save-credentials', persona: 'home', provider: 'qrz', credentials: { apiKey: 'fake', file: '/tmp/secret' } },
-  { type: 'status', persona: 'home', provider: 'unregistered' },
-  { type: 'remove-secret', persona: 'home', provider: 'qrz', field: 'username' },
-  { type: 'set-preference', persona: 'home', provider: 'qrz', preferred: 'file' },
-  { type: 'set-preference', persona: 'home', provider: 'qrz', preferred: 'password', secret: 'fake' },
-  { type: 'remove-persona', name: 'portable', path: '/other' },
-  { type: 'test-credential', persona: 'portable', provider: 'qrz', url: 'https://other.invalid' },
-  { type: 'set-active', name: 'x'.repeat(129) }, null, [],
+  { type: 'save-credentials', id: ID, provider: 'qrz', credentials: { apiKey: 'fake', file: '/tmp/secret' } },
+  { type: 'status', id: ID, provider: 'unregistered' },
+  { type: 'remove-secret', id: ID, provider: 'qrz', field: 'username' },
+  { type: 'set-preference', id: ID, provider: 'qrz', preferred: 'file' },
+  { type: 'set-preference', id: ID, provider: 'qrz', preferred: 'password', secret: 'fake' },
+  { type: 'remove-callsign', id: ID, path: '/other' },
+  { type: 'test-credential', id: ID, provider: 'qrz', url: 'https://other.invalid' },
+  // A callsign is named by its id and nothing else: not its call, not its
+  // description, not an id of another version.
+  { type: 'set-active', id: 'W1AW' },
+  { type: 'set-active', id: 'home' },
+  { type: 'set-active', id: '6f9619ff-8b86-1d11-b42d-00c04fc964ff' },
+  { type: 'status', id: ID.toUpperCase(), provider: 'qrz' },
+  { type: 'update', call: 'W1AW', description: '' },
+  { type: 'create', call: 'W1AW', description: 'x'.repeat(65) },
+  { type: 'create', call: 'W1AW', description: 'two\nlines' },
+  { type: 'create', id: ID, call: 'W1AW', description: '' },
+  null, [],
 ])('refuses malformed or unauthorized operations (%#)', command => expect(validateCommand(command)).toBe(false));
 
 describe('QGD-PRC-0006 sender rule', () => {

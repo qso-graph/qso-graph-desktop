@@ -17,7 +17,7 @@ import {
   ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
-  adifLocation, checkStation, deleteStation, draftFromPark, draftFromSummit, personaActivated, saveStation, setActiveStation,
+  adifLocation, checkStation, deleteStation, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
   setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
 } from '../packages/storage/stations.js';
 
@@ -227,24 +227,29 @@ describe('P9-kind: a label and nothing more (QGD-STN-0004)', () => {
 });
 
 describe('P9-active: defaults and the active station (QGD-STN-0005, QGD-STN-0001)', () => {
-  it('makes a persona\'s default active with it; two personas share one station', async () => {
+  // Callsigns by their ids, as the credential core writes them.
+  const KI7MT = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
+  const CLUB = '4a3c9d2f-6e5b-4f70-8b8c-2d3e4f5a6b7c';
+  const NOBODY = '5b4d0e3a-7f6c-4081-9c9d-3e4f5a6b7c8d';
+
+  it('makes a callsign\'s default active with it; two callsigns share one station', async () => {
     const state = await open();
     try {
       const home = await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }), ruleset);
       const park = await saveStation(state, draft({ MY_POTA_REF: 'US-0001' }, { name: 'Park' }), ruleset);
       if (!home.ok || !park.ok) throw new Error('not saved');
-      expect(await setDefaultStation(state, 'ki7mt', home.id)).toBe(true);
-      expect(await setDefaultStation(state, 'ki7mt-club', home.id)).toBe(true);
+      expect(await setDefaultStation(state, KI7MT, home.id)).toBe(true);
+      expect(await setDefaultStation(state, CLUB, home.id)).toBe(true);
       expect(await setActiveStation(state, park.id)).toBe(true);
-      expect(await personaActivated(state, 'ki7mt-club')).toBe(true);
+      expect(await callsignActivated(state, CLUB)).toBe(true);
       let view = await viewStations(state, true);
       expect(view.active).toBe(home.id);
-      expect(view.defaults).toEqual({ ki7mt: home.id, 'ki7mt-club': home.id });
+      expect(view.defaults).toEqual({ [KI7MT]: home.id, [CLUB]: home.id });
       expect(view.list.filter(one => one.id === home.id)).toHaveLength(1);
-      // The station never carries a callsign: it is the active persona's.
+      // The station never carries a callsign: it is the active callsign's.
       expect(Object.keys(view.list[0])).not.toContain('callsign');
-      // A persona with no default leaves the active station as it was.
-      expect(await personaActivated(state, 'nobody')).toBe(false);
+      // A callsign with no default leaves the active station as it was.
+      expect(await callsignActivated(state, NOBODY)).toBe(false);
       expect((await viewStations(state, true)).active).toBe(home.id);
       // Deleting the active station leaves none active, and no default naming it.
       await deleteStation(state, home.id);
@@ -255,33 +260,45 @@ describe('P9-active: defaults and the active station (QGD-STN-0005, QGD-STN-0001
     } finally { state.close(); }
   });
 
-  it('applies a persona activation and a station choice in the order they were asked', async () => {
+  it('applies a callsign activation and a station choice in the order they were asked', async () => {
     const state = await open();
     try {
       const a = await saveStation(state, draft({}, { name: 'A' }), ruleset);
       const b = await saveStation(state, draft({}, { name: 'B' }), ruleset);
       if (!a.ok || !b.ok) throw new Error('not saved');
-      await setDefaultStation(state, 'ki7mt', a.id);
+      await setDefaultStation(state, KI7MT, a.id);
       // Not awaited one by one: each is one unit of work, so neither can land
       // between the other's check and its write.
-      await Promise.all([personaActivated(state, 'ki7mt'), setActiveStation(state, b.id)]);
+      await Promise.all([callsignActivated(state, KI7MT), setActiveStation(state, b.id)]);
       expect((await viewStations(state, true)).active).toBe(b.id);
-      await Promise.all([setActiveStation(state, b.id), personaActivated(state, 'ki7mt')]);
+      await Promise.all([setActiveStation(state, b.id), callsignActivated(state, KI7MT)]);
       expect((await viewStations(state, true)).active).toBe(a.id);
-      await Promise.all([setDefaultStation(state, 'ki7mt', b.id), personaActivated(state, 'ki7mt')]);
+      await Promise.all([setDefaultStation(state, KI7MT, b.id), callsignActivated(state, KI7MT)]);
       expect((await viewStations(state, true)).active).toBe(b.id);
     } finally { state.close(); }
   });
 
-  it('takes a persona name as long as the persona contract allows', async () => {
+  it('removes a callsign\'s default with the callsign, and leaves the station and the others (KI7MT, 2026-10-22)', async () => {
     const state = await open();
     try {
-      const a = await saveStation(state, draft({}), ruleset);
-      if (!a.ok) throw new Error('not saved');
-      const long = 'p'.repeat(128);
-      expect(await setDefaultStation(state, long, a.id)).toBe(true);
-      expect(isStationsView(await viewStations(state, true))).toBe(true);
+      const home = await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }), ruleset);
+      if (!home.ok) throw new Error('not saved');
+      await setDefaultStation(state, KI7MT, home.id);
+      await setDefaultStation(state, CLUB, home.id);
+      expect(await callsignRemoved(state, CLUB)).toBe(true);
+      const view = await viewStations(state, true);
+      expect(view.defaults).toEqual({ [KI7MT]: home.id });
+      expect(view.list.map(one => one.id)).toEqual([home.id]);
+      // Removing one that has no default changes nothing.
+      expect(await callsignRemoved(state, NOBODY)).toBe(false);
     } finally { state.close(); }
+  });
+
+  it('keys a default by the callsign\'s id and refuses anything else at the boundary', () => {
+    expect(validateStorageCommand({ type: 'set-default-station', callsign: KI7MT, id: null })).toBe(true);
+    for (const callsign of ['ki7mt', 'KI7MT', '', KI7MT.toUpperCase()]) {
+      expect(validateStorageCommand({ type: 'set-default-station', callsign, id: null }), callsign).toBe(false);
+    }
   });
 
   // Five hundred saves, each its own write to disk: a hosted Windows runner

@@ -26,7 +26,7 @@ const register = validateGrantRegister(JSON.parse(await readFile('data/extension
 const known = grantIds(register);
 
 const SOLAR = { id: 'solar', name: 'Space weather', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['source:solar'], page: 'SolarPage.svelte' };
-const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'persona:list'], page: 'LookupPage.svelte' };
+const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'callsign:list'], page: 'LookupPage.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Read from the package's own directory, as every official extension must be
@@ -111,20 +111,20 @@ describe('loading reports every refusal rather than the first', () => {
     // not put to the operator, so it holds them all.
     const fresh = loadExtensions(from(SOLAR, QRZ), register);
     expect(fresh.loaded[0].held).toEqual(['source:solar']);
-    expect(fresh.loaded[1].held).toEqual(['service:qrz', 'persona:list']);
+    expect(fresh.loaded[1].held).toEqual(['service:qrz', 'callsign:list']);
     // Taken back in the settings file: once it lists grants for an extension,
     // that list is what it holds, and a grant that needs the operator and is
     // not on it is withheld.
     const restricted = loadExtensions(from(SOLAR, QRZ), register, { 'qrz-lookup': [] });
     expect(restricted.loaded[1].held).toEqual([]);
-    expect(restricted.loaded[1].manifest.grants).toEqual(['service:qrz', 'persona:list']);
+    expect(restricted.loaded[1].manifest.grants).toEqual(['service:qrz', 'callsign:list']);
     // A grant that needs nobody stays held even then.
     expect(loadExtensions(from(SOLAR), register, { solar: [] }).loaded[0].held).toEqual(['source:solar']);
   });
 });
 
 describe('the decision', () => {
-  const { loaded } = loadExtensions(from(SOLAR, QRZ, BARE), register, { 'qrz-lookup': ['service:qrz', 'persona:list'] });
+  const { loaded } = loadExtensions(from(SOLAR, QRZ, BARE), register, { 'qrz-lookup': ['service:qrz', 'callsign:list'] });
   const [solar, qrz, bare] = loaded;
 
   it('lets an extension read its own standing with no grant at all', () => {
@@ -136,9 +136,9 @@ describe('the decision', () => {
 
   it('refuses every capability an extension with nothing did not ask for', () => {
     const requests: ExtensionRequest[] = [
-      { kind: 'persona.list' },
+      { kind: 'callsign.list' },
       { kind: 'source.fetch', source: 'solar' },
-      { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {} }
+      { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     ];
     for (const request of requests) {
       const decision = decide(bare, request, register);
@@ -153,10 +153,10 @@ describe('the decision', () => {
   it('allows what was asked for and allowed, and refuses the same call once it is withdrawn', () => {
     // P7-grant-withdrawn, and half of QGD-APP-0014's gate: the granted
     // application works, and the same call is refused with the grant gone.
-    const lookup: ExtensionRequest = { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: { callsign: 'W1AW' } };
+    const lookup: ExtensionRequest = { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: { callsign: 'W1AW' } };
     expect(decide(qrz, lookup, register)).toEqual({ allowed: true });
 
-    const withdrawn = withGrants(qrz, register, { 'qrz-lookup': ['persona:list'] });
+    const withdrawn = withGrants(qrz, register, { 'qrz-lookup': ['callsign:list'] });
     const decision = decide(withdrawn, lookup, register);
     expect(decision.allowed).toBe(false);
     if (!decision.allowed) {
@@ -167,7 +167,7 @@ describe('the decision', () => {
     }
     // And no restart: the same application object is still allowed what it
     // still holds.
-    expect(decide(withdrawn, { kind: 'persona.list' }, register)).toEqual({ allowed: true });
+    expect(decide(withdrawn, { kind: 'callsign.list' }, register)).toEqual({ allowed: true });
   });
 
   it('names a capability that does not exist as missing rather than unallowed', () => {
@@ -184,11 +184,11 @@ describe('the decision', () => {
     // four gates in this project have gone quiet (QGD-SEC-0021).
     const sample: Record<string, ExtensionRequest> = {
       'extension.info': { kind: 'extension.info' },
-      'persona.list': { kind: 'persona.list' },
-      'persona.active': { kind: 'persona.active' },
+      'callsign.list': { kind: 'callsign.list' },
+      'callsign.active': { kind: 'callsign.active' },
       'station.active': { kind: 'station.active' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
-      'service.request': { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {} }
+      'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     };
     expect(Object.keys(sample).sort()).toEqual([...REQUEST_KINDS].sort());
     for (const kind of REQUEST_KINDS) {
@@ -210,8 +210,8 @@ describe('a request is validated and never coerced', () => {
       [{ kind: 'engine.query' }, '"engine.query" is not a request this product serves'],
       [{ kind: 'source.fetch' }, 'source is not a registered source name'],
       [{ kind: 'source.fetch', source: 'https://example.invalid' }, 'source is not a registered source name'],
-      [{ kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'LOOKUP' }, 'operation is not an operation name'],
-      [{ kind: 'service.request', service: 'qrz', persona: '', operation: 'lookup' }, 'persona is not a persona name']
+      [{ kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'LOOKUP' }, 'operation is not an operation name'],
+      [{ kind: 'service.request', service: 'qrz', callsign: '', operation: 'lookup' }, 'callsign is not a callsign id']
     ];
     for (const [value, message] of bad) {
       expect(() => validateRequest(value), JSON.stringify(value)).toThrowError(message);
@@ -219,7 +219,7 @@ describe('a request is validated and never coerced', () => {
   });
 
   it('bounds the one part of a request the extension shapes', () => {
-    const base = { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup' };
+    const base = { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup' };
     expect(validateRequest(base)).toEqual({ ...base, parameters: {} });
     expect(() => validateRequest({ ...base, parameters: { 'Call Sign': 'W1AW' } })).toThrowError(/is not a name/);
     expect(() => validateRequest({ ...base, parameters: { callsign: 'x'.repeat(513) } })).toThrowError(/bounded string/);
@@ -270,19 +270,19 @@ describe('the grant register', () => {
   });
 });
 
-describe('persona.active (QGD-CRD-0010)', () => {
-  it('needs the same grant as the persona list, because it is the same information', () => {
-    expect(requiredGrant({ kind: 'persona.active' })).toBe('persona:list');
+describe('callsign.active (QGD-CRD-0010)', () => {
+  it('needs the same grant as the callsign list, because it is the same information', () => {
+    expect(requiredGrant({ kind: 'callsign.active' })).toBe('callsign:list');
   });
 });
 
 describe('a request is exactly its fields (QGD-SEC-0006)', () => {
   it.each([
     { kind: 'station.active', station: 'other' },
-    { kind: 'persona.active', name: 'x' },
+    { kind: 'callsign.active', name: 'x' },
     { kind: 'extension.info', grants: ['all'] },
     { kind: 'source.fetch', source: 'solar', url: 'https://example.invalid' },
-    { kind: 'service.request', service: 'qrz', persona: 'KI7MT', operation: 'lookup', parameters: {}, secret: 'x' },
+    { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {}, secret: 'x' },
     JSON.parse('{"kind":"station.active","__proto__":{"x":1}}')
   ])('refuses %j rather than dropping what it does not take', (value) => {
     expect(() => validateRequest(value)).toThrowError(/takes no/);

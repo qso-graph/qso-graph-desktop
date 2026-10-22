@@ -18,7 +18,7 @@
 // data/baseline-approval.json, and every run says how many baselines are
 // waiting for KI7MT.
 //
-// The content is fixed: one persona with a fixed name, callsign and date, and
+// The content is fixed: one callsign with a fixed call, description and date, and
 // a log directory inside the repository rather than a temporary one — a path
 // that changed every run would redraw the Logs page every run and the
 // comparison would mean nothing. Baselines are machine-local until there is a
@@ -135,16 +135,13 @@ async function stableShot(page, path, masks = VOLATILE) {
   throw new Error(`${path}: the page never stopped changing (${last?.reason ?? 'no comparison'})`);
 }
 
-// The name is deliberately one nobody would choose. QGD-CRD-0003 has the
-// credential core own its Keychain entry names, and it keys them by the
-// service and `persona:provider` — the profile directory is not part of the
-// key, so a temporary profile does NOT isolate a persona from the operator's
-// real Keychain entries. "Home station" is the placeholder text in the persona
-// name field and so is about the likeliest real persona name there is: this
-// fixture would have read the operator's saved credentials, drawn a different
-// credential status into the baseline, and possibly raised a Keychain prompt
-// in the middle of a verification run.
-const PERSONA = { name: 'qg-baseline-fixture', callsign: 'W1AW', start: '2026-01-01' };
+// The fixture callsign. Until 2026-10-22 Keychain entries were named by a
+// persona's name, so a fixture called "Home station" would have read the
+// operator's own saved credentials into the baseline, and this had to be
+// called something nobody would choose. An entry is now named by the
+// callsign's random id (QGD-CRD-0003), so the fixture can read as an
+// operator's would.
+const FIXTURE = { description: 'Home station', call: 'W1AW', start: '2026-01-01' };
 const VIEW = { width: 1100, height: 740 };
 const THEMES = ['light', 'dark'];
 const PAGES = ['Home', 'Callsigns', 'Locations', 'Settings'];
@@ -193,7 +190,7 @@ async function recordOverHome(page, file, theme, options = {}) {
 
 // Everything below the first screen, a screen at a time with an overlap, so
 // no part of a tall page is in no capture: <name>-2, <name>-3, ... and the
-// last one <name>-end, scrolled to the end. Hopper found Personas' middle (the
+// last one <name>-end, scrolled to the end. Hopper found Callsigns' middle (the
 // credential fields) in neither the top capture nor the end one.
 const OVERLAP = 60;
 async function recordScreens(page, name, theme, capture, pane = '.page-main') {
@@ -327,7 +324,7 @@ try {
   });
   const page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'screenshots');
-  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  // The application opens on Home now (QGD-FRM-0011). Callsigns is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
@@ -351,30 +348,30 @@ try {
     sheet.insertRule('section.home-card .home-card-time { display: inline-block; width: 16ch; overflow: hidden; white-space: nowrap; text-align: right; }', sheet.cssRules.length);
   });
 
-  // The persona broker owns a utility process that starts after the window
+  // The callsign broker owns a utility process that starts after the window
   // does. Filling the form before it answers means the create request is sent
   // to something that is not there yet — which is why this suite failed to
-  // create a persona on roughly one run in five while the application was
+  // create a callsign on roughly one run in five while the application was
   // perfectly healthy. scripts/smoke.mjs has always waited; these did not.
-  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
-    { message: 'the persona service must be answering before the form is used', timeout: 30_000 }).toBe(true);
-  await page.getByLabel('Description', { exact: true }).fill(PERSONA.name);
-  await page.getByLabel('Callsign', { exact: true }).fill(PERSONA.callsign);
-  await page.getByLabel('Start date', { exact: true }).fill(PERSONA.start);
+  await expect.poll(() => page.evaluate(() => window.callsigns.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the callsign service must be answering before the form is used', timeout: 30_000 }).toBe(true);
+  await page.getByLabel('Description', { exact: true }).fill(FIXTURE.description);
+  await page.getByLabel('Callsign', { exact: true }).fill(FIXTURE.call);
+  await page.getByLabel('Start date', { exact: true }).fill(FIXTURE.start);
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
-  // The persona round-trips through the Rust core. Five seconds is Playwright's
+  // The callsign round-trips through the Rust core. Five seconds is Playwright's
   // default and it is not enough on a machine that is busy — this assertion
   // failed twice that way while the application was behaving correctly.
-  await expect(page.getByRole('heading', { name: PERSONA.callsign, exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: FIXTURE.call, exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText(`Callsign: ${PERSONA.callsign}`);
+  await expect(page.locator('#active-callsign')).toContainText(`Callsign: ${FIXTURE.call}`);
   // The status line is a line of text in the baseline, and it was the last
-  // thing moving between runs. app.ts retries its first persona list for up to
+  // thing moving between runs. app.ts retries its first callsign list for up to
   // two and a half seconds, and when that finally lands it selects the active
-  // persona, which clears the line — so whether the message was still there at
+  // callsign, which clears the line — so whether the message was still there at
   // capture time depended on which finished first.
   //
-  // Converged on deliberately rather than raced: selecting the persona clears
+  // Converged on deliberately rather than raced: selecting the callsign clears
   // the line, and so does the late startup list, so both orderings end in the
   // same state and the baseline shows a page at rest.
   await page.locator('.persona-item').first().click();
@@ -413,7 +410,7 @@ try {
       }
       if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
-      // Home and Personas run past the first screen; what is below it is
+      // Home and Callsigns run past the first screen; what is below it is
       // captured too (the credentials and
       // export). Settings' end is its own capture below.
       if (name !== 'Settings') await recordScreens(page, name.toLowerCase(), theme, record);
@@ -478,7 +475,10 @@ try {
   expect(await save({ name: 'US-0001 Example Park', kind: 'Portable', place: {
     MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sp', MY_DXCC: '291', MY_STATE: 'ID' } }), 'the park station must save').toMatchObject({ ok: true });
   expect(await save({ name: 'Car', kind: 'Mobile', place: { MY_GRIDSQUARE: 'DN14' } }), 'the Car station must save').toMatchObject({ ok: true });
-  expect(await page.evaluate(([persona, id]) => window.storage.request({ type: 'set-default-station', persona, id }), [PERSONA.name, home.saved]))
+  expect(await page.evaluate(async id => {
+    const list = await window.callsigns.request({ type: 'list' });
+    return window.storage.request({ type: 'set-default-station', callsign: list.data.active, id });
+  }, home.saved))
     .toMatchObject({ ok: true });
   expect(await page.evaluate(id => window.storage.request({ type: 'set-active-station', id }), home.saved)).toMatchObject({ ok: true });
   await expect(page.locator('#active-station')).toHaveText(`Location: ${HQ} · FN31pr`, { timeout: 30_000 });

@@ -64,17 +64,15 @@ export function isPageId(value: unknown): value is PageId {
 
 export interface ShellState {
   page: PageId;
-  // Who the active persona is — "W1AW · Home station" — and empty when there
-  // is none. Not the sentence: the status bar and Home say it differently, and
-  // a string formatted for one of them read wrong in the other.
-  activePersona: string;
-  // The active callsign alone, which is all the status bar names: the
+  // The active callsign's call alone, which is all the status bar names: the
   // description is the operator's own label and read as a second callsign
   // there (KI7MT, 2026-10-22). Empty when there is none.
   activeCallsign: string;
-  // The active persona's name, which is how a persona is keyed, so a station
-  // can be made its default (QGD-STN-0005). Empty when there is none.
-  activePersonaName: string;
+  // Its id, which is how a callsign is keyed, so a station can be made its
+  // default (QGD-STN-0005). Empty when there is none.
+  activeCallsignId: string;
+  // The call and the description, "W1AW · Home", where both are wanted.
+  activeCallsignLabel: string;
   themeChoice: ThemeChoice;
   // Undefined until the main process has answered. The Logs page shows that it
   // is still reading rather than a level that might be wrong.
@@ -126,9 +124,9 @@ export const INITIAL_SHELL: ShellState = {
   // The application opens on Home. Nothing there reads a credential, which is
   // half of why it is the right place to open (QGD-CRD-0009).
   page: 'home',
-  activePersona: '',
   activeCallsign: '',
-  activePersonaName: '',
+  activeCallsignId: '',
+  activeCallsignLabel: '',
   themeChoice: 'dark',
   logs: undefined,
   storage: undefined,
@@ -165,7 +163,7 @@ export function createShellStore(initial: ShellState = INITIAL_SHELL): ShellStor
     set(change) {
       const next: ShellState = { ...state, ...change };
       // Nothing is published when nothing moved, so re-reporting the same
-      // active persona on every list refresh does not redraw the shell.
+      // active callsign on every list refresh does not redraw the shell.
       if ((Object.keys(change) as (keyof ShellState)[]).every(key => state[key] === next[key])) return;
       state = next;
       // A copy, so a listener that unsubscribes while being notified does not

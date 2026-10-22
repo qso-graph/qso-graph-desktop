@@ -66,11 +66,12 @@ export const station = sqliteTable(
   (table) => [uniqueIndex('station_name').on(table.name)]
 );
 
-// Each persona's default station (QGD-STN-0005), by the persona's name, which
-// is how the credential core keys a persona. Deleting the station deletes the
-// default with it.
+// Each callsign's default station (QGD-STN-0005), by the callsign's id, which
+// is how the credential core keys a callsign. Deleting the station deletes the
+// default with it, and deleting the callsign deletes it too
+// (stations.ts, callsignRemoved).
 export const stationDefault = sqliteTable('station_default', {
-  persona: text('persona').primaryKey(),
+  callsign: text('callsign').primaryKey(),
   stationId: text('station_id').notNull().references(() => station.id, { onDelete: 'cascade' })
 });
 

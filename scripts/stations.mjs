@@ -4,8 +4,8 @@
 //
 //   P9-adif      a value ADIF refuses is shown beside its field with ADIF's
 //                reason, and nothing is saved until it is right (QGD-STN-0002)
-//   P9-active    a persona's default station becomes active with it; another
-//                can be made active without changing the persona; the status
+//   P9-active    a callsign's default station becomes active with it; another
+//                can be made active without changing the callsign; the status
 //                bar names both; deleting the active station leaves none
 //                (QGD-STN-0005)
 //   P9-record    stations, the default and the active one survive a restart
@@ -91,19 +91,20 @@ try {
   }, { message: 'ADIF\'s definitions must load', timeout: 180_000 }).toBe(true);
   await expect(page.locator('#stations-unchecked')).toHaveCount(0);
 
-  // A persona to be the default for, once the persona service has started:
+  // A callsign to be the default for, once the callsign service has started:
   // it starts beside storage, and a request before then is answered "starting".
-  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
-    { message: 'the persona service must start', timeout: 60_000 }).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.callsigns.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the callsign service must start', timeout: 60_000 }).toBe(true);
   const made = await page.evaluate(async () => {
-    const upsert = await window.personas.request({ type: 'upsert', name: 'qg-stations-fixture', callsign: 'w1aw' });
-    return upsert.ok ? window.personas.request({ type: 'set-active', name: 'qg-stations-fixture' }) : upsert;
+    const made = await window.callsigns.request({ type: 'create', call: 'w1aw', description: 'qg-stations-fixture' });
+    const id = made.ok ? made.data.callsigns.find(entry => entry.description === 'qg-stations-fixture')?.id : undefined;
+    return id ? window.callsigns.request({ type: 'set-active', id }) : made;
   });
-  expect(made, 'the fixture persona must be made active').toMatchObject({ ok: true });
-  // Made through the persona service directly, so the window is reloaded to
-  // read the personas as it does at start.
+  expect(made, 'the fixture callsign must be made active').toMatchObject({ ok: true });
+  // Made through the callsign service directly, so the window is reloaded to
+  // read the callsigns as it does at start.
   await page.reload();
-  await expect(page.locator('#active-persona')).toContainText('W1AW', { timeout: 30_000 });
+  await expect(page.locator('#active-callsign')).toContainText('W1AW', { timeout: 30_000 });
   await rail(page, 'Locations').click();
 
   // ---- P9-adif ---------------------------------------------------------
@@ -204,11 +205,15 @@ try {
   await expect(page.locator('#active-station')).toHaveText('Location: Home · DN13', { timeout: 30_000 });
   await row(page, 'Car').getByRole('button', { name: 'Make Car active' }).click();
   await expect(page.locator('#active-station')).toHaveText('Location: Car · DN14', { timeout: 30_000 });
-  await expect(page.locator('#active-persona')).toContainText('W1AW');
-  // Making the persona active again makes its default active with it.
-  await page.evaluate(() => window.personas.request({ type: 'set-active', name: 'qg-stations-fixture' }));
+  await expect(page.locator('#active-callsign')).toContainText('W1AW');
+  // Making the callsign active again makes its default active with it.
+  await page.evaluate(async () => {
+    const list = await window.callsigns.request({ type: 'list' });
+    const id = list.data.callsigns.find(entry => entry.description === 'qg-stations-fixture').id;
+    return window.callsigns.request({ type: 'set-active', id });
+  });
   await expect(page.locator('#active-station')).toHaveText('Location: Home · DN13', { timeout: 30_000 });
-  console.log('P9-active: a station made active without changing the persona, and the persona\'s default made active with it; the status bar named both: PASS');
+  console.log('P9-active: a station made active without changing the callsign, and the callsign\'s default made active with it; the status bar named both: PASS');
 
   // ---- P9-your-station ------------------------------------------------
   // The status bar names the active location and its grid, and follows a

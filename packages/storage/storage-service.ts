@@ -21,9 +21,9 @@ import { layout, openState } from './layout.js';
 import { Reference, isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus } from './reference.js';
 import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
-import { isPersonaName, type StationsView } from './station-contract.js';
+import { isCallsignId, type StationsView } from './station-contract.js';
 import {
-  deleteStation, draftFromPark, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, personaActivated, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
+  deleteStation, draftFromPark, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -129,14 +129,23 @@ async function currentDefinitions(): Promise<Definitions> {
   return definitions;
 }
 
-// A persona made active before the stores were open, applied once they are.
+// A callsign made active, or removed, before the stores were open, applied
+// once they are.
 let heldActivation: string | undefined;
+const heldRemovals = new Set<string>();
 
-function applyActivation(persona: string): void {
+function applyActivation(callsign: string): void {
   if (!state) return;
-  void personaActivated(state, persona)
+  void callsignActivated(state, callsign)
     .then(async (changed) => { if (changed) { await reloadStations(); publish(); } })
     .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not applied'));
+}
+
+function applyRemoval(callsign: string): void {
+  if (!state) return;
+  void callsignRemoved(state, callsign)
+    .then(async (changed) => { if (changed) { await reloadStations(); publish(); } })
+    .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not removed'));
 }
 
 // The US counties (QGD-STN-0010), which ship with the application. Read on
@@ -187,7 +196,7 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       if (!(await deleteStation(state, command.id))) return { ok: false, error: 'That location no longer exists.' };
       break;
     case 'set-default-station':
-      if (!(await setDefaultStation(state, command.persona, command.id))) return { ok: false, error: 'That location no longer exists.' };
+      if (!(await setDefaultStation(state, command.callsign, command.id))) return { ok: false, error: 'That location no longer exists.' };
       break;
     case 'set-active-station':
       if (!(await setActiveStation(state, command.id))) return { ok: false, error: 'That location no longer exists.' };
@@ -299,6 +308,8 @@ async function start(): Promise<void> {
     referenceStatus = await reference.status();
     checks = await reference.lastChecks();
     await reloadStations();
+    for (const callsign of heldRemovals) applyRemoval(callsign);
+    heldRemovals.clear();
     if (heldActivation) { applyActivation(heldActivation); heldActivation = undefined; }
     log.info({}, 'storage ready');
   } catch (error) {
@@ -317,16 +328,24 @@ function close(): void {
 
 process.parentPort.on('message', (event) => {
   const data = event.data as {
-    referenceAnswer?: unknown; id?: unknown; command?: unknown; close?: unknown; personaActive?: unknown
+    referenceAnswer?: unknown; id?: unknown; command?: unknown; close?: unknown;
+    callsignActive?: unknown; callsignRemoved?: unknown
   };
-  // From main, never from a window: the persona made active, whose default
+  // From main, never from a window: the callsign made active, whose default
   // station becomes active with it (QGD-STN-0005).
-  if (data?.personaActive !== undefined) {
-    if (!isPersonaName(data.personaActive)) return;
+  if (data?.callsignActive !== undefined) {
+    if (!isCallsignId(data.callsignActive)) return;
     // Before the stores are open it is held, and applied once they are: an
     // activation is never dropped for arriving early.
-    if (!state) { heldActivation = data.personaActive; return; }
-    applyActivation(data.personaActive);
+    if (!state) { heldActivation = data.callsignActive; return; }
+    applyActivation(data.callsignActive);
+    return;
+  }
+  // From main: a callsign removed, whose default goes with it.
+  if (data?.callsignRemoved !== undefined) {
+    if (!isCallsignId(data.callsignRemoved)) return;
+    if (!state) { heldRemovals.add(data.callsignRemoved); return; }
+    applyRemoval(data.callsignRemoved);
     return;
   }
   if (data?.referenceAnswer !== null && typeof data?.referenceAnswer === 'object') {

@@ -101,16 +101,16 @@ describe('QGD-PSN-0002 a service is a data change, not a code change', () => {
   it('accepts a command for a service the register gained, with no code change', () => {
     const ids = serviceIds(extended);
     expect(validateCommand(
-      { type: 'save-credentials', persona: 'home', provider: 'newservice', credentials: { apiKey: 'x' } },
+      { type: 'save-credentials', id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', provider: 'newservice', credentials: { apiKey: 'x' } },
       ids)).toBe(true);
-    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'newservice' }, ids)).toBe(true);
+    expect(validateCommand({ type: 'test-credential', id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', provider: 'newservice' }, ids)).toBe(true);
   });
 
   it('refuses the same command against the register that does not hold it', () => {
     // The other direction, which is what makes the first mean something: the
     // acceptance above came from the register and not from the code.
     expect(validateCommand(
-      { type: 'save-credentials', persona: 'home', provider: 'newservice', credentials: { apiKey: 'x' } },
+      { type: 'save-credentials', id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', provider: 'newservice', credentials: { apiKey: 'x' } },
       serviceIds(shipped))).toBe(false);
   });
 
@@ -118,9 +118,9 @@ describe('QGD-PSN-0002 a service is a data change, not a code change', () => {
     const without = validateRegister({
       services: JSON.parse(text).services.filter((entry: { id: string }) => entry.id !== 'clublog')
     });
-    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'clublog' }, serviceIds(shipped)))
+    expect(validateCommand({ type: 'test-credential', id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', provider: 'clublog' }, serviceIds(shipped)))
       .toBe(true);
-    expect(validateCommand({ type: 'test-credential', persona: 'home', provider: 'clublog' }, serviceIds(without)))
+    expect(validateCommand({ type: 'test-credential', id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', provider: 'clublog' }, serviceIds(without)))
       .toBe(false);
   });
 

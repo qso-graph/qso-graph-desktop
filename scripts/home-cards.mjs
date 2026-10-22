@@ -116,15 +116,16 @@ try {
   await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
     { message: 'a new extension host must be running', timeout: 30_000 }).toBe(1);
   // A fresh answer, which only the new host can give: NOAA's recorded day is
-  // changed to the storm, and a persona made active asks every card again at
+  // changed to the storm, and a callsign made active asks every card again at
   // once (QGD-HOM-0005), so Conditions must show the storm's solar flux. Its
   // earlier answer would pass any check on what it already showed.
   await recorded(STORM);
-  const personaReply = await page.evaluate(async () => {
-    const made = await window.personas.request({ type: 'upsert', name: 'qg-home-cards-fixture', callsign: 'w1aw' });
-    return made.ok ? window.personas.request({ type: 'set-active', name: 'qg-home-cards-fixture' }) : made;
+  const callsignReply = await page.evaluate(async () => {
+    const made = await window.callsigns.request({ type: 'create', call: 'w1aw', description: 'qg-home-cards-fixture' });
+    const id = made.ok ? made.data.callsigns.find(entry => entry.description === 'qg-home-cards-fixture')?.id : undefined;
+    return id ? window.callsigns.request({ type: 'set-active', id }) : made;
   });
-  expect(personaReply, 'the test persona must be made active').toMatchObject({ ok: true });
+  expect(callsignReply, 'the test callsign must be made active').toMatchObject({ ok: true });
   await expect(card(page, 'Conditions'), 'the new host must answer Conditions afresh').toContainText(String(stormExpected.sfi), { timeout: 30_000 });
   await recorded(QUIET);
   await notice.getByRole('button', { name: 'Dismiss' }).click();

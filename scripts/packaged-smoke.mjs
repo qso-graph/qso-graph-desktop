@@ -31,7 +31,8 @@ const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'
 const referenceCache = join(directory, 'reference');
 await mkdir(referenceCache, { recursive: true });
 await copyFile(resolve('vendor', '.cache', `adif-${register.adif.version}.zip`), join(referenceCache, `adif-${register.adif.version}.zip`));
-const persona = `qg-test-${randomUUID()}`;
+// The fixture callsign's description.
+const description = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 let child, browser, page;
 let credentialSaved = false;
@@ -75,13 +76,13 @@ try {
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
-  await page.getByLabel('Description', { exact: true }).fill(persona);
+  await expect.poll(() => page.evaluate(() => window.callsigns.request({ type: 'list' }).then(reply => reply.ok))).toBe(true);
+  await page.getByLabel('Description', { exact: true }).fill(description);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
+  await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const username = page.getByLabel('Username', { exact: true });
@@ -118,7 +119,7 @@ try {
   // thing they exist to catch.
   await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
-  expect((await readFile(join(profile, 'personas.json'), 'utf8')).includes(fakeCredential)).toBe(false);
+  expect((await readFile(join(profile, 'callsigns.json'), 'utf8')).includes(fakeCredential)).toBe(false);
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
   await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
@@ -132,7 +133,7 @@ try {
   await expect(page.locator('#welcome')).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
+  await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();
@@ -182,13 +183,13 @@ try {
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Remove callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('#active-persona')).toHaveText('No active callsign');
+  await expect(page.locator('#active-callsign')).toHaveText('No active callsign');
   credentialSaved = false;
   await stop(); await launch();
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
-  await page.getByLabel('Description', { exact: true }).fill(persona);
+  await page.getByLabel('Description', { exact: true }).fill(description);
   await page.getByLabel('Callsign', { exact: true }).fill('W1AW');
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
@@ -216,15 +217,19 @@ try {
     .toContain(`ADIF definitions, ${register.adif.version}`);
   console.log('Packaged storage: node:sqlite opened the stores from the ASAR, and the reference build ran on its worker: PASS');
 
-  console.log('Packaged Rust personas: create, activate, Keychain save, restart and delete: PASS');
+  console.log('Packaged Rust callsigns: create, activate, Keychain save, restart and delete: PASS');
 } catch (error) {
-  console.error('Packaged persona test failed.');
+  console.error('Packaged callsign test failed.');
   console.error(redact(error.message).split('\n').slice(0, 15).join('\n'));
   process.exitCode = 1;
 } finally {
   if (credentialSaved && page) {
     for (const provider of ['qrz_logbook', 'eqsl']) {
-      await page.evaluate(({ persona, provider }) => window.personas.request({ type: 'delete-credentials', persona, provider }), { persona, provider }).catch(() => {});
+      await page.evaluate(async ({ description, provider }) => {
+        const list = await window.callsigns.request({ type: 'list' });
+        const id = list.ok ? list.data.callsigns.find(entry => entry.description === description)?.id : undefined;
+        if (id) await window.callsigns.request({ type: 'delete-credentials', id, provider });
+      }, { description, provider }).catch(() => {});
     }
   }
   await stop(); await rm(directory, { recursive: true, force: true });

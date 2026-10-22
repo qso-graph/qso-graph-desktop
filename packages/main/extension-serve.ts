@@ -18,7 +18,7 @@
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type PersonaBrief, type StationBrief
+  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type CallsignBrief, type StationBrief
 } from '../extension-api/api-contract.js';
 import {
   extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
@@ -34,14 +34,14 @@ export interface ExtensionBrokerPorts {
   // (QGD-ENG-0003: simple settings live there, so this answers before the
   // engine is up).
   allowed: () => AllowedGrants;
-  // Personas, metadata only — callsign and name, never a credential
-  // (QGD-CRD-0010).
-  personas: () => Promise<readonly PersonaBrief[]>;
+  // The callsigns, metadata only — id, call and description, never a
+  // credential (QGD-CRD-0010).
+  callsigns: () => Promise<readonly CallsignBrief[]>;
   // Fetch a registered source. The URL is resolved by the caller from the
   // register and the connection is the credential core's (QGD-APP-0008, D-18,
   // D-31).
-  // The active persona's name and callsign, or none (QGD-CRD-0010).
-  activePersona: () => Promise<PersonaBrief | null>;
+  // The active callsign, or none (QGD-CRD-0010).
+  activeCallsign: () => Promise<CallsignBrief | null>;
   // The active station: name, grid and position only, never its address
   // (QGD-STN-0003, QGD-HOM-0009).
   activeStation: () => Promise<StationBrief | null>;
@@ -49,7 +49,7 @@ export interface ExtensionBrokerPorts {
   // Act with a credential and return the answer. The secret does not come
   // back (QGD-APP-0007).
   callService: (
-    service: string, persona: string, operation: string, parameters: Readonly<Record<string, string>>
+    service: string, callsign: string, operation: string, parameters: Readonly<Record<string, string>>
   ) => Promise<Readonly<Record<string, string>>>;
 }
 
@@ -106,10 +106,10 @@ export function createServe(deps: ServeDeps) {
       switch (request.kind) {
         case 'extension.info':
           return { ok: true, kind: 'extension.info', info: extensionInfo(extension) };
-        case 'persona.list':
-          return { ok: true, kind: 'persona.list', personas: await deps.ports.personas() };
-        case 'persona.active':
-          return { ok: true, kind: 'persona.active', persona: await deps.ports.activePersona() };
+        case 'callsign.list':
+          return { ok: true, kind: 'callsign.list', callsigns: await deps.ports.callsigns() };
+        case 'callsign.active':
+          return { ok: true, kind: 'callsign.active', callsign: await deps.ports.activeCallsign() };
         case 'station.active':
           return { ok: true, kind: 'station.active', station: await deps.ports.activeStation() };
         case 'source.fetch': {
@@ -123,7 +123,7 @@ export function createServe(deps: ServeDeps) {
         }
         case 'service.request': {
           const answer = await deps.ports.callService(
-            request.service, request.persona, request.operation, request.parameters);
+            request.service, request.callsign, request.operation, request.parameters);
           return { ok: true, kind: 'service.request', answer };
         }
       }

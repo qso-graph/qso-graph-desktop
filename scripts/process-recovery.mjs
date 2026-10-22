@@ -30,7 +30,9 @@ const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
-const persona = `qg-test-${randomUUID()}`;
+// The fixture callsign's description, and its id once it is made.
+const description = `qg-test-${randomUUID()}`;
+const ID = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
 const control = String.fromCharCode(1);
 let application;
 let stage = 'launch';
@@ -43,8 +45,8 @@ const service = join(application_directory, 'dist/personas/persona-service.js');
 const disabled = `${service}.disabled`;
 
 // Two utility processes are children of main and `ps` names them the same:
-// the persona core and QG Storage. QG Storage is the one whose pid the storage
-// broker logged when it started it (QGD-ENG-0017); the persona core is the
+// the callsign core and QG Storage. QG Storage is the one whose pid the storage
+// broker logged when it started it (QGD-ENG-0017); the callsign core is the
 // other one.
 function storagePids() {
   const pids = [];
@@ -62,7 +64,7 @@ function utilities(mainPid) {
     .filter(entry => entry.ppid === mainPid && entry.command.includes('--utility-sub-type=node.mojom.NodeService'))
     .map(entry => entry.pid);
 }
-function personaUtility(mainPid) {
+function callsignUtility(mainPid) {
   const storage = new Set(storagePids());
   return utilities(mainPid).find(pid => !storage.has(pid));
 }
@@ -72,7 +74,7 @@ function storageUtility(mainPid) {
 }
 const storageState = page => page.evaluate(() => window.storage.request({ type: 'status' }))
   .then(reply => (reply.ok ? reply.status.state : 'refused'));
-const ask = (page, command) => page.evaluate(sent => window.personas.request(sent), command);
+const ask = (page, command) => page.evaluate(sent => window.callsigns.request(sent), command);
 
 try {
   await mkdir(application_directory, { recursive: true });
@@ -96,31 +98,32 @@ try {
   const page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'process-recovery');
   const mainPid = await application.evaluate(() => process.pid);
-  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  // The application opens on Home now (QGD-FRM-0011). Callsigns is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok)).toBe(true);
 
-  // The fixture is created over IPC and never selected. Selecting a persona in
+  // The fixture is created over IPC and never selected. Selecting a callsign in
   // the UI issues a credential-status request, which reads the credential store
   // and would make this suite depend on it.
   stage = 'create the fixture over IPC';
-  expect(await ask(page, { type: 'upsert', name: persona, callsign: 'w1aw' })).toMatchObject({ ok: true });
+  expect(await ask(page, { type: 'create', call: 'w1aw', description })).toMatchObject({ ok: true });
 
   stage = 'malformed IPC refusal';
   // QGD-PRC-0005: every one of these is refused with the one static message,
   // and none of them is coerced into a valid command.
   const malformed = [
-    { type: 'require-credential', persona: 'home', provider: 'qrz' },      // not in the contract
+    { type: 'require-credential', id: ID, provider: 'qrz' },                // not in the contract
     { type: 'list', extra: 'field' },                                       // unexpected key
-    { type: 'status', persona: 'home', provider: 'not-a-provider' },        // provider off the list
-    { type: 'upsert', name: persona, callsign: 'W1AW', start: '7 July' },   // wrong date shape
-    { type: 'set-preference', persona: 'home', provider: 'qrz', preferred: 'whatever' },
-    { type: 'upsert', name: 'x'.repeat(129), callsign: 'W1AW' },            // over the length bound
-    { type: 'upsert', name: `bad${control}name`, callsign: 'W1AW' },        // control character
-    { type: 'save-credentials', persona: 'home', provider: 'qrz', credentials: { password: 1 } },
-    { type: 'remove-secret', persona: 'home', provider: 'qrz', field: 'username' },
+    { type: 'status', id: ID, provider: 'not-a-provider' },                 // provider off the list
+    { type: 'create', call: 'W1AW', description, start: '7 July' },         // wrong date shape
+    { type: 'set-preference', id: ID, provider: 'qrz', preferred: 'whatever' },
+    { type: 'create', call: 'W1AW', description: 'x'.repeat(65) },          // over the length bound
+    { type: 'create', call: 'W1AW', description: `bad${control}name` },     // control character
+    { type: 'set-active', id: 'W1AW' },                                     // a call, not an id
+    { type: 'save-credentials', id: ID, provider: 'qrz', credentials: { password: 1 } },
+    { type: 'remove-secret', id: ID, provider: 'qrz', field: 'username' },
     'list', 42, null, []                                                    // not even an object
   ];
   for (const command of malformed) {
@@ -137,10 +140,10 @@ try {
   const moved = await page.evaluate(async () => {
     history.pushState({}, '', 'index.html?probe=1');
     const movedUrl = location.href;
-    const reply = await window.personas.request({ type: 'list' });
+    const reply = await window.callsigns.request({ type: 'list' });
     history.pushState({}, '', 'index.html');
     const restoredUrl = location.href;
-    const after = await window.personas.request({ type: 'list' });
+    const after = await window.callsigns.request({ type: 'list' });
     return { movedUrl, reply, restoredUrl, afterOk: after.ok };
   });
   expect(moved.movedUrl).toBe('qg://desktop/index.html?probe=1');
@@ -164,7 +167,7 @@ try {
     return {
       created: window.frames.length,
       documentReachable: reach(() => !!frame.contentWindow.document.body),
-      bridgeReachable: reach(() => typeof frame.contentWindow.personas)
+      bridgeReachable: reach(() => typeof frame.contentWindow.callsigns)
     };
   });
   expect(subframe.created, 'no subframe was created, so this assertion proves nothing').toBeGreaterThan(0);
@@ -174,14 +177,14 @@ try {
   const inFrame = page.frames().filter(frame => frame !== page.mainFrame());
   expect(inFrame.length, 'Playwright sees no subframe to address').toBeGreaterThan(0);
   for (const frame of inFrame) {
-    const bridge = await frame.evaluate(() => typeof window.personas).catch(() => 'unreachable');
-    expect(['undefined', 'unreachable'], 'a subframe holds the persona bridge').toContain(bridge);
+    const bridge = await frame.evaluate(() => typeof window.callsigns).catch(() => 'unreachable');
+    expect(['undefined', 'unreachable'], 'a subframe holds the callsign bridge').toContain(bridge);
   }
 
   // Refusing malformed input must not have disturbed the service or the record.
   const intact = await ask(page, { type: 'list' });
   expect(intact.ok).toBe(true);
-  expect(intact.data.personas.some(entry => entry.name === persona)).toBe(true);
+  expect(intact.data.callsigns.some(entry => entry.description === description)).toBe(true);
 
   // QGD-PRC-0001, in three phases. The outage is held open by moving the
   // service module aside, so the refusal is asserted while recovery is
@@ -189,8 +192,8 @@ try {
   // nothing here: a busy host cannot turn the refusal into a success, and a
   // fast host cannot skip it.
   stage = 'hold the outage open';
-  const victim = personaUtility(mainPid);
-  expect(victim, 'persona utility process not found').toBeTruthy();
+  const victim = callsignUtility(mainPid);
+  expect(victim, 'callsign utility process not found').toBeTruthy();
   await rename(service, disabled);
   process.kill(victim, 'SIGKILL');
 
@@ -206,7 +209,7 @@ try {
   // QGD-PRC-0001: the window is untouched by a service that cannot start.
   stage = 'window survives the outage';
   expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
-  await expect(page.locator('#active-persona')).toBeVisible();
+  await expect(page.locator('#active-callsign')).toBeVisible();
   expect(await page.evaluate(() => document.title)).toBe('QSO Graph Desktop');
 
   // The backoff keeps retrying, so restoring the module is enough to recover.
@@ -214,8 +217,8 @@ try {
   await rename(disabled, service);
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok), { timeout: 60_000 }).toBe(true);
   const recovered = await ask(page, { type: 'list' });
-  expect(recovered.data.personas.some(entry => entry.name === persona)).toBe(true);
-  const replacement = personaUtility(mainPid);
+  expect(recovered.data.callsigns.some(entry => entry.description === description)).toBe(true);
+  const replacement = callsignUtility(mainPid);
   expect(replacement).toBeTruthy();
   expect(replacement).not.toBe(victim);
 
@@ -223,10 +226,10 @@ try {
   stage = 'plain crash recovers unaided';
   process.kill(replacement, 'SIGKILL');
   await expect.poll(() => ask(page, { type: 'list' }).then(reply => reply.ok), { timeout: 60_000 }).toBe(true);
-  const afterPlainCrash = personaUtility(mainPid);
+  const afterPlainCrash = callsignUtility(mainPid);
   expect(afterPlainCrash).toBeTruthy();
   expect(afterPlainCrash).not.toBe(replacement);
-  expect((await ask(page, { type: 'list' })).data.personas.some(entry => entry.name === persona)).toBe(true);
+  expect((await ask(page, { type: 'list' })).data.callsigns.some(entry => entry.description === description)).toBe(true);
 
   // QGD-ENG-0006 and QGD-PRC-0001: QG Storage, killed, is restarted while
   // the window keeps running, and its stores open again.
@@ -234,14 +237,14 @@ try {
   await expect.poll(() => storageState(page), { timeout: 60_000 }).toBe('ready');
   const storageVictim = storageUtility(mainPid);
   expect(storageVictim, 'QG Storage was not identified, so this proves nothing').toBeTruthy();
-  expect(storageVictim, 'the storage process and the persona core must be told apart').not.toBe(personaUtility(mainPid));
+  expect(storageVictim, 'the storage process and the callsign core must be told apart').not.toBe(callsignUtility(mainPid));
   process.kill(storageVictim, 'SIGKILL');
   expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   await expect.poll(() => storageState(page), { timeout: 60_000 }).toBe('ready');
   const storageReplacement = storageUtility(mainPid);
   expect(storageReplacement).toBeTruthy();
   expect(storageReplacement).not.toBe(storageVictim);
-  // And the persona core was not touched by it.
+  // And the callsign core was not touched by it.
   expect((await ask(page, { type: 'list' })).ok).toBe(true);
 
   await application.close(); application = undefined;

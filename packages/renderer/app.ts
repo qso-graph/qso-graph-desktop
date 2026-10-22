@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import type {
-  Persona, Snapshot, CredentialStatus, CredentialTest, ExportResult, ImportPreview, ImportResult,
-  PersonaCommand, PersonaReply, ServiceSummary
+import {
+  callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
+  type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
 } from '../personas/persona-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
@@ -20,7 +20,7 @@ declare const __QG_VERSION__: string;
 
 declare global {
   interface Window {
-    personas: { request(command: PersonaCommand): Promise<PersonaReply>; platform?: string };
+    callsigns: { request(command: CallsignCommand): Promise<CallsignReply>; platform?: string };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
     home?: {
@@ -53,7 +53,7 @@ declare global {
 // grant is allowed or withdrawn, and tests/extension-serve.test.ts proving a
 // withdrawal takes effect with nothing restarted.
 // The credential store this platform has, named on screen (credential-store.ts).
-const PLATFORM = window.personas.platform ?? 'darwin';
+const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
 // Home's cards: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
@@ -65,8 +65,8 @@ mount(Shell, {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
     onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit, onOpenPage: openPage,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
-    onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
-    onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
+    onExportCallsigns: exportCallsigns, onInspectImport: inspectImport, onApplyImport: applyImport,
+    onCreateCallsign: createCallsign, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
@@ -78,32 +78,22 @@ mount(Shell, {
 // when it is named and the credential is saved when it is entered, so there
 // is nothing in setup that is lost by leaving it. A refusal comes back as its
 // sentence for the screen to show.
-export async function createPersona(callsign: string, name: string): Promise<string | undefined> {
-  const reply = await window.personas.request({
-    type: 'upsert', name: name || callsign, callsign
-  });
+export async function createCallsign(call: string, description: string): Promise<string | undefined> {
+  const before = new Set(snapshot.callsigns.map(entry => entry.id));
+  const reply = await window.callsigns.request({ type: 'create', call, description });
   if (!reply.ok) return reply.error;
   snapshot = reply.data as Snapshot;
-  // The name the core stored, not the one that was sent. `identifier()`
-  // lowercases it, so asking for "W1AW/9" back by that spelling finds
-  // nothing — and the Personas page then drew itself as if no persona had
-  // been made, with the status bar saying otherwise. Matched the way the core
-  // matches: case-insensitively, on the name.
-  const asked = name || callsign;
-  const made = snapshot.personas.find(entry => entry.name.toLowerCase() === asked.toLowerCase())?.name ?? asked;
-  const activated = await window.personas.request({ type: 'set-active', name: made });
+  // The one that was not there before: the core chose its id.
+  const made = snapshot.callsigns.find(entry => !before.has(entry.id));
+  if (!made) return 'The callsign was not saved.';
+  const activated = await window.callsigns.request({ type: 'set-active', id: made.id });
   if (activated.ok) snapshot = activated.data as Snapshot;
-  // Remembered, not drawn. The Personas screen's markup is not mounted while
+  // Remembered, not drawn. The Callsigns screen's markup is not mounted while
   // setup is showing — setup is in its place — and select() reaches straight
   // into that markup, so calling it here threw and the operator was left
-  // looking at a callsign box that had already made their persona.
-  selected = made;
-  shell.set({
-    activePersona: `${callsign.toUpperCase()} · ${made}`,
-    activeCallsign: callsign.toUpperCase(),
-    activePersonaName: made,
-    firstRun: false
-  });
+  // looking at a callsign box that had already made their callsign.
+  selected = made.id;
+  shell.set({ activeCallsign: made.call, activeCallsignId: made.id, activeCallsignLabel: callsignLabel(made), firstRun: false });
   return undefined;
 }
 
@@ -111,18 +101,18 @@ export async function createPersona(callsign: string, name: string): Promise<str
 // setup finishes, which is the first moment its markup exists again.
 export function finishSetup(): void {
   shell.endSetup();
-  select(selected ?? snapshot.active ?? snapshot.personas[0]?.name ?? null);
+  select(selected ?? snapshot.active ?? snapshot.callsigns[0]?.id ?? null);
 }
 
 export async function saveSetupCredential(
   service: string,
   values: Record<string, string>
 ): Promise<string | undefined> {
-  const persona = snapshot.active ?? snapshot.personas[0]?.name;
-  if (!persona) return 'Add a callsign first.';
-  const reply = await window.personas.request({
+  const id = snapshot.active ?? snapshot.callsigns[0]?.id;
+  if (!id) return 'Add a callsign first.';
+  const reply = await window.callsigns.request({
     type: 'save-credentials',
-    persona,
+    id,
     provider: service,
     credentials: {
       ...(values.username ? { username: values.username } : {}),
@@ -135,7 +125,8 @@ export async function saveSetupCredential(
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => element<HTMLInputElement>(id);
-let snapshot: Snapshot = { personas: [], active: null };
+let snapshot: Snapshot = { callsigns: [], active: null };
+// The callsign on screen, by id.
 let selected: string | null = null;
 // Which secret fields the operator has actually typed into since they were
 // last cleared (QGD-CRD-0006, QGD-APP-0007's sibling concern in the shell).
@@ -200,38 +191,39 @@ function showTestResult() {
 }
 function invalidateTest() { testResults.delete(testKey()); showTestResult(); }
 function message(text: string, error = false) { const status = element('message'); status.textContent = text; status.classList.toggle('error', error); }
-async function request(command: PersonaCommand) {
-  const reply = await window.personas.request(command);
+async function request(command: CallsignCommand) {
+  const reply = await window.callsigns.request(command);
   if (!reply.ok) throw new Error(reply.error);
   return reply.data;
 }
-function current(): Persona | undefined { return snapshot.personas.find(p => p.name === selected); }
+function current(): Callsign | undefined { return snapshot.callsigns.find(entry => entry.id === selected); }
 function list() {
   const container = element('persona-list'); container.replaceChildren();
-  for (const persona of snapshot.personas) {
+  for (const callsign of snapshot.callsigns) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'persona-item';
-    button.classList.toggle('selected', persona.name === selected);
-    button.setAttribute('aria-pressed', String(persona.name === selected));
-    const call = document.createElement('strong'); call.textContent = persona.callsign;
-    const name = document.createElement('span'); name.textContent = persona.name + (persona.name === snapshot.active ? ' · Active' : '');
-    button.append(call, name); button.addEventListener('click', () => select(persona.name)); container.append(button);
+    button.classList.toggle('selected', callsign.id === selected);
+    button.setAttribute('aria-pressed', String(callsign.id === selected));
+    const call = document.createElement('strong'); call.textContent = callsign.call;
+    const description = document.createElement('span');
+    description.textContent = [callsign.description, callsign.id === snapshot.active ? 'Active' : ''].filter(Boolean).join(' · ');
+    button.append(call, description); button.addEventListener('click', () => select(callsign.id)); container.append(button);
   }
-  if (!snapshot.personas.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No callsigns yet. Start with your own.'; container.append(empty); }
-  const active = snapshot.personas.find(p => p.name === snapshot.active);
-  // Both read from the personas every time they are drawn, so the offer of
-  // guided setup goes away the moment there is a persona rather than staying
+  if (!snapshot.callsigns.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No callsigns yet. Start with your own.'; container.append(empty); }
+  const active = snapshot.callsigns.find(entry => entry.id === snapshot.active);
+  // Both read from the callsigns every time they are drawn, so the offer of
+  // guided setup goes away the moment there is a callsign rather than staying
   // up because it was decided once at start (QGD-PSN-0004).
   shell.set({
-    activePersona: active ? `${active.callsign} · ${active.name}` : '',
-    activeCallsign: active ? active.callsign : '',
-    activePersonaName: active ? active.name : '',
-    firstRun: snapshot.personas.length === 0
+    activeCallsign: active?.call ?? '',
+    activeCallsignId: active?.id ?? '',
+    activeCallsignLabel: active ? callsignLabel(active) : '',
+    firstRun: snapshot.callsigns.length === 0
   });
 }
 async function credentialStatus() {
-  const persona = selected;
+  const id = selected;
   const provider = element<HTMLSelectElement>('provider').value;
-  if (!persona) return;
+  if (!id) return;
   // Nothing is known about this service until the answer comes back, and the
   // line says so rather than making a claim it has not checked.
   serviceState = undefined;
@@ -247,10 +239,10 @@ async function credentialStatus() {
   element('remove-credential').hidden = true;
   element('credential-status').textContent = 'Checking saved credentials…';
   try {
-    const status = await request({ type: 'status', persona, provider }) as CredentialStatus;
-    if (persona !== selected || provider !== element<HTMLSelectElement>('provider').value) return;
+    const status = await request({ type: 'status', id, provider }) as CredentialStatus;
+    if (id !== selected || provider !== element<HTMLSelectElement>('provider').value) return;
     showCredentialStatus(status);
-  } catch (error) { if (persona === selected) message((error as Error).message, true); }
+  } catch (error) { if (id === selected) message((error as Error).message, true); }
 }
 function showCredentialStatus(status: CredentialStatus) {
   // A control that cannot be used says why, without being pressed. Both
@@ -288,20 +280,22 @@ function showCredentialStatus(status: CredentialStatus) {
       : forStore(`Stored in Keychain${parts.length ? ` · ${parts.join(' and ')}` : ''}.`, PLATFORM);
   element('remove-credential').hidden = !status.stored;
 }
-function select(name: string | null) {
-  selected = name; const persona = current(); list(); message('');
-  element('page-title').textContent = persona ? persona.callsign : 'Add a callsign';
-  input('persona-name').value = persona?.name ?? ''; input('persona-name').readOnly = Boolean(persona);
-  input('callsign').value = persona?.callsign ?? '';
-  input('start-date').value = persona?.start ?? new Date().toISOString().slice(0, 10);
-  input('end-date').value = persona?.end ?? '';
-  element('save-persona').textContent = persona ? 'Save callsign details' : 'Add callsign';
-  element('use-persona').hidden = !persona || persona.name === snapshot.active;
-  element('remove-persona').hidden = !persona;
-  element('credential-card').hidden = !persona;
-  input('username').value = persona?.callsign ?? '';
+function select(id: string | null) {
+  selected = id; const callsign = current(); list(); message('');
+  element('page-title').textContent = callsign ? callsign.call : 'Add a callsign';
+  // Both the description and the call can be changed: the id is what is
+  // kept (KI7MT, 2026-10-22).
+  input('persona-name').value = callsign?.description ?? '';
+  input('callsign').value = callsign?.call ?? '';
+  input('start-date').value = callsign?.start ?? new Date().toISOString().slice(0, 10);
+  input('end-date').value = callsign?.end ?? '';
+  element('save-persona').textContent = callsign ? 'Save callsign details' : 'Add callsign';
+  element('use-persona').hidden = !callsign || callsign.id === snapshot.active;
+  element('remove-persona').hidden = !callsign;
+  element('credential-card').hidden = !callsign;
+  input('username').value = callsign?.call ?? '';
   clearSecretFields();
-  if (persona) void credentialStatus(); else input('persona-name').focus();
+  if (callsign) void credentialStatus(); else input('callsign').focus();
 }
 async function busy(buttonId: string, action: () => Promise<void>) {
   const button = element<HTMLButtonElement>(buttonId);
@@ -321,23 +315,32 @@ async function busy(buttonId: string, action: () => Promise<void>) {
 element('new-persona').addEventListener('click', () => select(null));
 element('persona-form').addEventListener('submit', event => {
   event.preventDefault(); void busy('save-persona', async () => {
-    const name = input('persona-name').value.trim();
-    if (!selected && snapshot.personas.some(p => p.name === name.toLowerCase())) throw new Error('A callsign with that description exists. Select it to edit its details.');
-    snapshot = await request({ type: 'upsert', name, callsign: input('callsign').value, start: input('start-date').value || undefined, end: input('end-date').value || undefined }) as Snapshot;
-    select(name.toLowerCase()); message('Callsign saved.');
+    const details = {
+      call: input('callsign').value, description: input('persona-name').value,
+      start: input('start-date').value || undefined, end: input('end-date').value || undefined
+    };
+    if (selected) {
+      snapshot = await request({ type: 'update', id: selected, ...details }) as Snapshot;
+      select(selected);
+    } else {
+      const before = new Set(snapshot.callsigns.map(entry => entry.id));
+      snapshot = await request({ type: 'create', ...details }) as Snapshot;
+      select(snapshot.callsigns.find(entry => !before.has(entry.id))?.id ?? null);
+    }
+    message('Callsign saved.');
   });
 });
 element('use-persona').addEventListener('click', () => void busy('use-persona', async () => {
   if (!selected) return;
-  snapshot = await request({ type: 'set-active', name: selected }) as Snapshot;
+  snapshot = await request({ type: 'set-active', id: selected }) as Snapshot;
   select(selected); message('Active callsign selected.');
 }));
 element('remove-persona').addEventListener('click', () => void busy('remove-persona', async () => {
   if (!selected || !window.confirm(forStore('Remove this callsign and ALL its saved service credentials from Keychain? This cannot be undone.', PLATFORM))) return;
-  const name = selected;
-  snapshot = await request({ type: 'remove-persona', name }) as Snapshot;
-  for (const key of testResults.keys()) if (key.startsWith(`${name}:`)) testResults.delete(key);
-  select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+  const id = selected;
+  snapshot = await request({ type: 'remove-callsign', id }) as Snapshot;
+  for (const key of testResults.keys()) if (key.startsWith(`${id}:`)) testResults.delete(key);
+  select(snapshot.active ?? snapshot.callsigns[0]?.id ?? null);
   message('Callsign and its saved service credentials removed.');
 }));
 element('provider').addEventListener('change', () => { clearSecretFields(); message(''); void credentialStatus(); });
@@ -357,10 +360,10 @@ element('credential-form').addEventListener('submit', event => {
       apiKey: enteredSecret('api-key')
     };
     clearSecretFields();
-    const persona = selected;
+    const id = selected;
     const provider = element<HTMLSelectElement>('provider').value;
-    const status = await request({ type: 'save-credentials', persona, provider, credentials }) as CredentialStatus;
-    if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+    const status = await request({ type: 'save-credentials', id, provider, credentials }) as CredentialStatus;
+    if (id === selected && provider === element<HTMLSelectElement>('provider').value) {
       showCredentialStatus(status); message(forStore('Credential saved in macOS Keychain.', PLATFORM));
       invalidateTest();
     }
@@ -368,10 +371,10 @@ element('credential-form').addEventListener('submit', event => {
 });
 element('remove-credential').addEventListener('click', () => void busy('remove-credential', async () => {
   if (!selected || !window.confirm('Remove the saved credential for this callsign and service?')) return;
-  const persona = selected;
+  const id = selected;
   const provider = element<HTMLSelectElement>('provider').value;
-  const status = await request({ type: 'delete-credentials', persona, provider }) as CredentialStatus;
-  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+  const status = await request({ type: 'delete-credentials', id, provider }) as CredentialStatus;
+  if (id === selected && provider === element<HTMLSelectElement>('provider').value) {
     showCredentialStatus(status); message('Saved credential removed.');
     invalidateTest();
   }
@@ -379,10 +382,10 @@ element('remove-credential').addEventListener('click', () => void busy('remove-c
 for (const [id, field, label] of [['remove-password', 'password', 'password'], ['remove-api-key', 'api_key', 'API key']] as const) {
   element(id).addEventListener('click', () => void busy(id, async () => {
     if (!selected || !window.confirm(`Remove only the saved ${label} for this callsign and service?`)) return;
-    const persona = selected;
+    const id = selected;
     const provider = element<HTMLSelectElement>('provider').value;
-    const status = await request({ type: 'remove-secret', persona, provider, field }) as CredentialStatus;
-    if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+    const status = await request({ type: 'remove-secret', id, provider, field }) as CredentialStatus;
+    if (id === selected && provider === element<HTMLSelectElement>('provider').value) {
       const cleared = field === 'api_key' ? 'api-key' : 'password';
       input(cleared).value = '';
       edited.delete(cleared);
@@ -393,11 +396,11 @@ for (const [id, field, label] of [['remove-password', 'password', 'password'], [
 }
 element('credential-preference').addEventListener('change', () => void busy('credential-preference', async () => {
   if (!selected) return;
-  const persona = selected;
+  const id = selected;
   const provider = element<HTMLSelectElement>('provider').value;
   const preferred = element<HTMLSelectElement>('credential-preference').value as CredentialStatus['preferred'];
-  const status = await request({ type: 'set-preference', persona, provider, preferred }) as CredentialStatus;
-  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) {
+  const status = await request({ type: 'set-preference', id, provider, preferred }) as CredentialStatus;
+  if (id === selected && provider === element<HTMLSelectElement>('provider').value) {
     showCredentialStatus(status); message('Preferred credential saved.');
     invalidateTest();
   }
@@ -413,11 +416,11 @@ function serviceName(provider: string): string {
 
 element('test-credential').addEventListener('click', () => void busy('test-credential', async () => {
   if (!selected) return;
-  const persona = selected;
+  const id = selected;
   const provider = element<HTMLSelectElement>('provider').value;
   const key = testKey();
   setTestResult('Testing saved credential…');
-  const result = await request({ type: 'test-credential', persona, provider }) as CredentialTest;
+  const result = await request({ type: 'test-credential', id, provider }) as CredentialTest;
   // The service this result is about, named from the register's own label
   // rather than written into the sentence.
   //
@@ -436,17 +439,17 @@ element('test-credential').addEventListener('click', () => void busy('test-crede
     unsupported: 'Testing for this service is not implemented yet.'
   };
   testResults.set(key, { text: `${messages[result.outcome]} (${new Date().toLocaleTimeString()})`, success: result.outcome === 'success' });
-  if (persona === selected && provider === element<HTMLSelectElement>('provider').value) showTestResult();
+  if (id === selected && provider === element<HTMLSelectElement>('provider').value) showTestResult();
 }));
 async function initialize() {
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       snapshot = await request({ type: 'list' }) as Snapshot;
-      select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+      select(snapshot.active ?? snapshot.callsigns[0]?.id ?? null);
       // The register, for the setup screen to draw itself from. Whether to
-      // offer setup at all is decided by the persona list every time it is
+      // offer setup at all is decided by the callsign list every time it is
       // drawn, above.
-      const listed = await window.personas.request({ type: 'services' });
+      const listed = await window.callsigns.request({ type: 'services' });
       // An empty list is what a register that could not be read looks like
       // from here, and setup then has a callsign step and nothing after it —
       // which is still a working setup (QGD-PSN-0004).
@@ -541,37 +544,37 @@ export async function exportDiagnostics(): Promise<string> {
   return `Saved ${files} (${size}). Passwords and keys were removed.`;
 }
 
-// Moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011).
+// Moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011).
 //
 // The renderer collects the passphrase and nothing else: the file is chosen,
 // read and written by the main process. A refusal is returned as its sentence
 // rather than thrown, because every one of them is something the operator can
 // act on — most of all the one that says a file could not be opened and that
 // it cannot tell whether the passphrase or the file is at fault.
-export async function exportPersonas(passphrase: string): Promise<ExportResult | string> {
-  const reply = await window.personas.request({ type: 'export-personas', passphrase });
+export async function exportCallsigns(passphrase: string): Promise<ExportResult | string> {
+  const reply = await window.callsigns.request({ type: 'export-callsigns', passphrase });
   if (!reply.ok) return reply.error;
   const data = reply.data as ExportResult | null;
   return data && typeof data.written === 'string' ? data : 'The export could not be written.';
 }
 
 export async function inspectImport(passphrase: string): Promise<ImportPreview | string> {
-  const reply = await window.personas.request({ type: 'import-personas', passphrase, apply: false });
+  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: false });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportPreview | null;
   return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
 }
 
 export async function applyImport(passphrase: string): Promise<ImportResult | string> {
-  const reply = await window.personas.request({ type: 'import-personas', passphrase, apply: true });
+  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: true });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportResult | null;
-  if (!data || typeof data.personas !== 'number') return 'The import did not finish.';
-  // The personas on screen are now out of date, because some of them arrived
+  if (!data || typeof data.callsigns !== 'number') return 'The import did not finish.';
+  // The callsigns on screen are now out of date, because some of them arrived
   // a moment ago. Reloaded rather than left for the operator to discover.
   try {
     snapshot = await request({ type: 'list' }) as Snapshot;
-    select(snapshot.active ?? snapshot.personas[0]?.name ?? null);
+    select(snapshot.active ?? snapshot.callsigns[0]?.id ?? null);
   } catch { /* the import worked; the list will catch up at the next action */ }
   return data;
 }
@@ -659,23 +662,23 @@ async function stationRequest(command: StorageCommand): Promise<StorageReply> {
 export async function saveStation(
   draft: StationDraft, makeDefault: boolean
 ): Promise<{ error: string; problems?: FieldProblem[] } | undefined> {
-  // The persona the operator saw when they ticked the box, taken before the
-  // save is sent, so a persona changed meanwhile is not the one changed.
-  const persona = shell.get().activePersonaName;
+  // The callsign the operator saw when they ticked the box, taken before the
+  // save is sent, so a callsign changed meanwhile is not the one changed.
+  const callsign = shell.get().activeCallsignId;
   const reply = await stationRequest({ type: 'save-station', station: draft });
   if (!reply.ok) return { error: reply.error, ...(reply.problems ? { problems: reply.problems } : {}) };
   const saved = reply.saved;
   if (!saved) return { error: 'The location could not be saved: storage did not say it was.' };
-  if (!persona) return undefined;
-  // The checkbox is the whole answer: ticked makes it this persona's default,
+  if (!callsign) return undefined;
+  // The checkbox is the whole answer: ticked makes it this callsign's default,
   // unticked on the station that is the default clears it, and unticked on
   // any other station leaves the default where it is.
-  const current = shell.get().storage?.stations?.defaults[persona];
+  const current = shell.get().storage?.stations?.defaults[callsign];
   if (makeDefault && current !== saved) {
-    const set = await stationRequest({ type: 'set-default-station', persona, id: saved });
+    const set = await stationRequest({ type: 'set-default-station', callsign, id: saved });
     if (!set.ok) return { error: `Saved, but not made the default: ${set.error}` };
   } else if (!makeDefault && current === saved) {
-    const cleared = await stationRequest({ type: 'set-default-station', persona, id: null });
+    const cleared = await stationRequest({ type: 'set-default-station', callsign, id: null });
     if (!cleared.ok) return { error: `Saved, but still the default: ${cleared.error}` };
   }
   return undefined;

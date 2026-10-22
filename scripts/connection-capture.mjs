@@ -85,7 +85,9 @@ const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'
 const archive = join('vendor', '.cache', `adif-${register.adif.version}.zip`);
 await cp(archive, join(referenceCache, `adif-${register.adif.version}.zip`))
   .catch(() => { throw new Error(`${archive} is not there. Fetch it with: make setup`); });
-const persona = `qg-test-${randomUUID()}`;
+// The fixture's description, and its id once the core has made it.
+const description = `qg-test-${randomUUID()}`;
+let id;
 const password = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 let application;
 let stage = 'start the listener';
@@ -175,7 +177,7 @@ function sample(label, processes) {
   return { label, processes: Object.fromEntries(processes), endpoints };
 }
 
-const ask = (page, command) => page.evaluate(sent => window.personas.request(sent), command);
+const ask = (page, command) => page.evaluate(sent => window.callsigns.request(sent), command);
 const arrivals = [];
 const observed = new Map();   // every endpoint the poll ever saw, deduplicated
 const labelled = [];          // named points in the workflow, for the record
@@ -250,14 +252,18 @@ try {
   labelled.push(sample('idle', tree(mainPid)));
 
   stage = 'credential workflow';
+  const created = await ask(page, { type: 'create', call: 'w1aw', description });
+  expect(created, 'callsign created was refused').toMatchObject({ ok: true });
+  id = created.data.callsigns.find(entry => entry.description === description)?.id;
+  expect(id, 'the created callsign must be listed').toBeTruthy();
+  labelled.push(sample('callsign created', tree(mainPid)));
   const steps = [
-    ['persona created', { type: 'upsert', name: persona, callsign: 'w1aw' }],
-    ['persona activated', { type: 'set-active', name: persona }],
-    ['credential saved', { type: 'save-credentials', persona, provider: 'qrz_logbook', credentials: { username: 'W1AW', password } }],
-    ['status read', { type: 'status', persona, provider: 'qrz_logbook' }],
-    ['credential tested on an unsupported provider', { type: 'test-credential', persona, provider: 'eqsl' }],
-    ['credential deleted', { type: 'delete-credentials', persona, provider: 'qrz_logbook' }],
-    ['persona removed', { type: 'remove-persona', name: persona }]
+    ['callsign activated', { type: 'set-active', id }],
+    ['credential saved', { type: 'save-credentials', id, provider: 'qrz_logbook', credentials: { username: 'W1AW', password } }],
+    ['status read', { type: 'status', id, provider: 'qrz_logbook' }],
+    ['credential tested on an unsupported provider', { type: 'test-credential', id, provider: 'eqsl' }],
+    ['credential deleted', { type: 'delete-credentials', id, provider: 'qrz_logbook' }],
+    ['callsign removed', { type: 'remove-callsign', id }]
   ];
   for (const [label, command] of steps) {
     const reply = await ask(page, command);
@@ -610,7 +616,7 @@ try {
   if (poller) clearInterval(poller);
   if (credentialSaved && application) {
     const page = await application.firstWindow().catch(() => undefined);
-    if (page) await ask(page, { type: 'delete-credentials', persona, provider: 'qrz_logbook' }).catch(() => {});
+    if (page && id) await ask(page, { type: 'delete-credentials', id, provider: 'qrz_logbook' }).catch(() => {});
   }
   if (application) await application.close().catch(() => {});
   if (listener) await new Promise(resolve => listener.close(resolve));

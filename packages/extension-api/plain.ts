@@ -24,8 +24,8 @@ import type { ExtensionRequest } from './api-contract.js';
 //
 // Values are copied, never converted. An earlier version ran each through
 // String(), which turned an off-contract value into one the core's validator
-// accepts: `persona: 123` became the valid persona name "123", and could have
-// selected that persona's credential instead of being refused. Rejected rather
+// accepts: a number became a valid name, and could have
+// selected that callsign's credential instead of being refused. Rejected rather
 // than coerced is the rule (QGD-SEC-0006), and coercing here would have been
 // this file quietly breaking it on the core's behalf. Found in review.
 //
@@ -37,8 +37,8 @@ import type { ExtensionRequest } from './api-contract.js';
 export function plainRequest(request: ExtensionRequest): unknown {
   switch (request.kind) {
     case 'extension.info':
-    case 'persona.list':
-    case 'persona.active':
+    case 'callsign.list':
+    case 'callsign.active':
     case 'station.active':
       return { kind: request.kind };
     case 'source.fetch':
@@ -59,7 +59,7 @@ export function plainRequest(request: ExtensionRequest): unknown {
       return {
         kind: request.kind,
         service: request.service,
-        persona: request.persona,
+        callsign: request.callsign,
         operation: request.operation,
         parameters: rebuilt
       };

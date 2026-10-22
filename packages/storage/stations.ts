@@ -122,7 +122,7 @@ export async function viewStations(state: StateStore, checked: boolean): Promise
     const active = await db.select().from(activeStation).where(eq(activeStation.id, ACTIVE_STATION_ID)).get();
     return {
       list: rows.flatMap(row => rowToStation(row) ?? []),
-      defaults: Object.fromEntries(defaults.map(row => [row.persona, row.stationId])),
+      defaults: Object.fromEntries(defaults.map(row => [row.callsign, row.stationId])),
       active: active?.stationId ?? null,
       checked
     };
@@ -247,7 +247,7 @@ export async function saveStation(
   });
 }
 
-// Deleting a station removes it as any persona's default and leaves none
+// Deleting a station removes it as any callsign's default and leaves none
 // active if it was, by the foreign keys (schema.ts).
 export async function deleteStation(state: StateStore, id: string): Promise<boolean> {
   return state.unit(async (db) => {
@@ -259,18 +259,18 @@ export async function deleteStation(state: StateStore, id: string): Promise<bool
 }
 
 // Each of these is one unit of work: the check that the station exists and
-// the write happen together, so a persona made active while the operator picks
+// the write happen together, so a callsign made active while the operator picks
 // another station cannot interleave between them and leave the wrong one
 // active (found by Turing in review).
-export async function setDefaultStation(state: StateStore, persona: string, id: string | null): Promise<boolean> {
+export async function setDefaultStation(state: StateStore, callsign: string, id: string | null): Promise<boolean> {
   return state.unit(async (db) => {
     if (id === null) {
-      await db.delete(stationDefault).where(eq(stationDefault.persona, persona)).run();
+      await db.delete(stationDefault).where(eq(stationDefault.callsign, callsign)).run();
       return true;
     }
     if (!(await db.select({ id: station.id }).from(station).where(eq(station.id, id)).get())) return false;
-    await db.insert(stationDefault).values({ persona, stationId: id })
-      .onConflictDoUpdate({ target: stationDefault.persona, set: { stationId: id } }).run();
+    await db.insert(stationDefault).values({ callsign, stationId: id })
+      .onConflictDoUpdate({ target: stationDefault.callsign, set: { stationId: id } }).run();
     return true;
   });
 }
@@ -284,12 +284,23 @@ export async function setActiveStation(state: StateStore, id: string | null): Pr
   });
 }
 
-// Making a persona active makes its default station active (QGD-STN-0005). A
-// persona with no default leaves the active station as it was: the operator
-// chose it, and nothing says it is wrong for this persona.
-export async function personaActivated(state: StateStore, persona: string): Promise<boolean> {
+// A callsign that is gone has no default (KI7MT, 2026-10-22): its row goes
+// with it, so a default never outlives the callsign it was for.
+export async function callsignRemoved(state: StateStore, callsign: string): Promise<boolean> {
   return state.unit(async (db) => {
-    const row = await db.select().from(stationDefault).where(eq(stationDefault.persona, persona)).get();
+    const found = await db.select().from(stationDefault).where(eq(stationDefault.callsign, callsign)).get();
+    if (!found) return false;
+    await db.delete(stationDefault).where(eq(stationDefault.callsign, callsign)).run();
+    return true;
+  });
+}
+
+// Making a callsign active makes its default station active (QGD-STN-0005).
+// A callsign with no default leaves the active station as it was: the
+// operator chose it, and nothing says it is wrong for this callsign.
+export async function callsignActivated(state: StateStore, callsign: string): Promise<boolean> {
+  return state.unit(async (db) => {
+    const row = await db.select().from(stationDefault).where(eq(stationDefault.callsign, callsign)).get();
     if (!row) return false;
     await db.insert(activeStation).values({ id: ACTIVE_STATION_ID, stationId: row.stationId })
       .onConflictDoUpdate({ target: activeStation.id, set: { stationId: row.stationId } }).run();

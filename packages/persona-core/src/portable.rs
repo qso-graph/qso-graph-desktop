@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Moving personas, their service settings and their secrets between machines.
+// Moving callsigns, their service settings and their secrets between machines.
 //
 // QGD-PSN-0007 to QGD-PSN-0011. It is in the core, and not above it, for one
 // reason: the secrets are in the Keychain and the core is the only thing that
@@ -9,8 +9,8 @@
 //
 // The file:
 //
-//   QGD-PERSONA-EXPORT\n
-//   {"format":"qg-persona-export","version":1,"cipher":"AES-256-GCM",…}\n
+//   QGD-CALLSIGN-EXPORT\n
+//   {"format":"qg-callsign-export","version":1,"cipher":"AES-256-GCM",…}\n
 //   <ciphertext and its 16-byte tag>
 //
 // The header is in the clear so a later release that has moved on from these
@@ -27,7 +27,7 @@ use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-pub const MAGIC: &str = "QGD-PERSONA-EXPORT";
+pub const MAGIC: &str = "QGD-CALLSIGN-EXPORT";
 pub const VERSION: u32 = 1;
 pub const CIPHER: &str = "AES-256-GCM";
 pub const KDF: &str = "PBKDF2-HMAC-SHA256";
@@ -54,7 +54,7 @@ const KEY_LEN: usize = 32;
 // this one — so raising it later costs nobody their old exports.
 pub const ITERATIONS: u32 = 600_000;
 
-// What a file may be, to be read at all. An export of a few personas is a few
+// What a file may be, to be read at all. An export of a few callsigns is a few
 // kilobytes; this is a bound on what a damaged or hostile file can make the
 // core allocate before it has authenticated anything.
 pub const MAX_FILE: usize = 4 * 1024 * 1024;
@@ -75,11 +75,12 @@ pub struct Header {
 #[derive(Default, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct Bundle {
     #[zeroize(skip)]
-    pub personas: Vec<crate::Persona>,
-    // "persona:provider" to whatever was stored for it.
+    pub callsigns: Vec<crate::Callsign>,
+    // "<callsign id>:<provider>" to whatever was stored for it.
     #[zeroize(skip)]
     pub credentials: BTreeMap<String, crate::Credentials>,
-    // Which secret each service prefers, which is a setting and not a secret.
+    // Which secret each service prefers, by callsign id, which is a setting
+    // and not a secret.
     #[zeroize(skip)]
     pub preferences: BTreeMap<String, BTreeMap<String, String>>,
 }
@@ -145,7 +146,7 @@ pub fn seal(bundle: &Bundle, passphrase: &str, created: String) -> Result<Vec<u8
     random.fill(&mut nonce).map_err(|_| "This machine's random number generator is unavailable.")?;
 
     let header = Header {
-        format: "qg-persona-export".into(),
+        format: "qg-callsign-export".into(),
         version: VERSION,
         cipher: CIPHER.into(),
         kdf: KDF.into(),
@@ -202,7 +203,7 @@ pub fn open(file: &[u8], passphrase: &str) -> Result<Opened, &'static str> {
 
     let header: Header = serde_json::from_slice(header_line)
         .map_err(|_| "This file's header is not the shape an export has.")?;
-    if header.format != "qg-persona-export" { return Err("This is not a QSO Graph Desktop export."); }
+    if header.format != "qg-callsign-export" { return Err("This is not a QSO Graph Desktop export."); }
     // Refused by name rather than attempted: a file written by a later release
     // with another cipher is a file this one cannot read, and saying which is
     // more use than a tag failure.
@@ -267,16 +268,18 @@ mod tests {
         out
     }
 
+    const ID: &str = "3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b";
+
     fn bundle() -> Bundle {
         let mut credentials = BTreeMap::new();
-        credentials.insert("home:qrz".to_string(), crate::Credentials {
+        credentials.insert(format!("{ID}:qrz"), crate::Credentials {
             username: Some("W1AW".into()),
             password: Some("QG_FAKE_SECRET_VALUE".into()),
             api_key: None,
         });
         Bundle {
-            personas: vec![crate::Persona {
-                name: "home".into(), callsign: "W1AW".into(),
+            callsigns: vec![crate::Callsign {
+                id: ID.into(), call: "W1AW".into(), description: "Home".into(),
                 start: Some("2026-01-01".into()), end: None,
                 providers: Default::default(),
             }],
@@ -289,9 +292,9 @@ mod tests {
     fn round_trips() {
         let file = seal(&bundle(), "a passphrase", "2026-10-09T00:00:00Z".into()).unwrap();
         let opened = open(&file, "a passphrase").unwrap();
-        assert_eq!(opened.bundle.personas[0].callsign, "W1AW");
+        assert_eq!(opened.bundle.callsigns[0].call, "W1AW");
         assert_eq!(
-            opened.bundle.credentials["home:qrz"].password.as_deref(),
+            opened.bundle.credentials[&format!("{ID}:qrz")].password.as_deref(),
             Some("QG_FAKE_SECRET_VALUE"));
     }
 
@@ -300,7 +303,7 @@ mod tests {
         // QGD-PSN-0007. The whole point: every value that went in, searched
         // for in the bytes that came out.
         let file = seal(&bundle(), "a passphrase", "2026-10-09T00:00:00Z".into()).unwrap();
-        for secret in ["QG_FAKE_SECRET_VALUE", "W1AW", "home", "qrz"] {
+        for secret in ["QG_FAKE_SECRET_VALUE", "W1AW", "Home", "qrz"] {
             assert!(
                 !file.windows(secret.len()).any(|window| window == secret.as_bytes()),
                 "the export holds {secret} in the clear");
@@ -346,8 +349,8 @@ mod tests {
     #[test]
     fn refuses_something_that_is_not_an_export() {
         assert!(open(b"hello", "a passphrase").is_err());
-        assert!(open(b"QGD-PERSONA-EXPORT\n", "a passphrase").is_err());
-        assert!(open(b"QGD-PERSONA-EXPORT\nnot json\nxx", "a passphrase").is_err());
+        assert!(open(b"QGD-CALLSIGN-EXPORT\n", "a passphrase").is_err());
+        assert!(open(b"QGD-CALLSIGN-EXPORT\nnot json\nxx", "a passphrase").is_err());
     }
 
     #[test]

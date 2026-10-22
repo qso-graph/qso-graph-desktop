@@ -29,14 +29,14 @@
     onCountiesAt: () => Promise.resolve({ counties: [], sections: {} }),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
-    onCreatePersona: () => Promise.resolve(undefined),
+    onCreateCallsign: () => Promise.resolve(undefined),
     onSaveCredential: () => Promise.resolve(undefined),
     onFinishSetup: () => {},
-    onExportPersonas: () => Promise.resolve({ written: 'qso-graph-personas.qgp', bytes: 1195 }),
+    onExportCallsigns: () => Promise.resolve({ written: 'qso-graph-callsigns.qgp', bytes: 1195 }),
     onInspectImport: () => Promise.resolve({
-      created: '2026-10-09T06:13:30Z', personas: 1, credentials: 1, arriving: ['home'], overwritten: []
+      created: '2026-10-09T06:13:30Z', callsigns: 1, credentials: 1, arriving: ['W1AW · Home'], overwritten: []
     }),
-    onApplyImport: () => Promise.resolve({ personas: 1, credentials: 1 })
+    onApplyImport: () => Promise.resolve({ callsigns: 1, credentials: 1 })
   };
 
   const { Story } = defineMeta({
@@ -52,9 +52,9 @@
   args={{
     store: createShellStore({
       page: 'settings',
-      activePersona: 'W1AW · Home station',
       activeCallsign: 'W1AW',
-      activePersonaName: 'Home station',
+      activeCallsignId: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
+      activeCallsignLabel: 'W1AW · Home station',
       themeChoice: 'system',
       logs,
       storage: { state: 'ready' },

@@ -129,7 +129,7 @@ describe('the credential core owns its namespace', () => {
       // merely naming the addon file. scripts/build-native.mjs copies
       // persona.node and never opens it, and flagging it would have made this
       // check noise somebody switches off.
-      if (/PersonaCore|Save in Keychain|save-credentials/.test(text)) touching.push({ file, text });
+      if (/CallsignCore|Save in Keychain|save-credentials/.test(text)) touching.push({ file, text });
     }
     // Not vacuous.
     expect(touching.length).toBeGreaterThan(4);
@@ -139,7 +139,7 @@ describe('the credential core owns its namespace', () => {
       // And before the addon is required, because the service name is read
       // when an entry is made.
       const enable = text.indexOf('enableTestKeychain()');
-      const load = text.indexOf('PersonaCore');
+      const load = text.indexOf('CallsignCore');
       if (load !== -1) {
         expect(enable, `${file} loads the core before enabling the test service`).toBeLessThan(load);
       }

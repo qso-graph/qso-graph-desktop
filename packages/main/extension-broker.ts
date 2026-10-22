@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The extension API's channel (QGD-APP-0002, QGD-APP-0003).
 //
-// The fourth broker, on the same shape as personas, engine and logs: one
+// The fourth broker, on the same shape as callsigns, engine and logs: one
 // `invoke` channel, a typed command validated on arrival, a reply that is
 // either an answer or a refusal. D-33 is why there is no second route — QSO
 // Graph's own extensions use this and nothing else, so a built-in
@@ -175,7 +175,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   // added to the contract with no branch falls through the switch and returns
   // undefined, which TypeScript catches — this asserts it at run time too, in
   // case the contract is widened without rebuilding this file.
-  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'persona.list', 'persona.active', 'station.active', 'source.fetch', 'service.request'].includes(kind));
+  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'source.fetch', 'service.request'].includes(kind));
   if (unserved.length > 0) log.error({ unserved }, 'the extension API declares request kinds this broker does not serve');
 
   return {

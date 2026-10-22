@@ -44,7 +44,7 @@
 </script>
 
 <footer>
-  <span id="active-persona">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
+  <span id="active-callsign">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
   <span id="active-station">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}

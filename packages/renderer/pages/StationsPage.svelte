@@ -26,9 +26,9 @@
 
   interface Props {
     stations?: StationsView;
-    // The active persona's name, and its callsign, which is how it is shown; empty when there is none.
-    personaName: string;
-    personaLabel: string;
+    // The active callsign's id, and how it is shown; empty when there is none.
+    callsignId: string;
+    callsignLabel: string;
     // Whether POTA's parks are downloaded, so "from a park" can be offered.
     parksLoaded: boolean;
     onSave: (draft: StationDraft, makeDefault: boolean) => Promise<{ error: string; problems?: FieldProblem[] } | undefined>;
@@ -50,7 +50,7 @@
     onOpenPage?: (command: LinkCommand) => void;
   }
   const {
-    stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
+    stations, callsignId, callsignLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
     onChoices = () => Promise.resolve(undefined),
     onLookUpParks = () => Promise.resolve(undefined),
     onCountiesAt = () => Promise.resolve({ counties: [], sections: {} }),
@@ -201,7 +201,7 @@
 
   const list = $derived(stations?.list ?? []);
   const active = $derived(stations?.active ?? null);
-  const defaultId = $derived(personaName ? stations?.defaults[personaName] : undefined);
+  const defaultId = $derived(callsignId ? stations?.defaults[callsignId] : undefined);
   // A refusal of any of the grid's fields is shown on the one Grid box.
   const problemOf = (field: string) => problems.find(problem =>
     problem.field === field || (field === 'MY_GRIDSQUARE' && GRID_FIELDS.includes(problem.field)))?.reason;
@@ -536,7 +536,7 @@
                 {station.name}
                 {#if station.kind}<span class="station-kind">{station.kind}</span>{/if}
                 {#if station.id === active}<span class="badge">Active</span>{/if}
-                {#if station.id === defaultId}<span class="station-kind">Default for {personaLabel}</span>{/if}
+                {#if station.id === defaultId}<span class="station-kind">Default for {callsignLabel}</span>{/if}
               </span>
               <span class="hint">{summary(station)}</span>
               {#if pagesOf(station).length > 0}
@@ -726,10 +726,10 @@
       <p id="station-notes-hint" class="hint">Your own: directions, parking, access, what worked. They stay on this computer.</p>
       {#if problemOf('notes')}<p id="station-notes-error" class="field-error" role="status">{problemOf('notes')}</p>{/if}
 
-      {#if personaName}
+      {#if callsignId}
         <label class="checkbox-row">
           <input id="station-default" type="checkbox" bind:checked={makeDefault} />
-          The default location for {personaLabel}
+          The default location for {callsignLabel}
         </label>
       {/if}
 

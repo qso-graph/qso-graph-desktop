@@ -139,9 +139,9 @@ export async function artifactScan() {
 
   const targets = [
     ['reports and evidence', await walk(resolve('report'))],
-    ['crash artifacts', await walk(CRASH_REPORTS, { recent: true, match: /Electron|QG.?Desktop|qg-desktop|persona/i })],
+    ['crash artifacts', await walk(CRASH_REPORTS, { recent: true, match: /Electron|QG.?Desktop|qg-desktop|callsign/i })],
     ['application logs', await walk(LOG_FOLDER)],
-    ['profile and preference files left in the repository', await walk(resolve('.'), { match: /^(personas\.json|desktop-preferences\.json|current\.txt)$/ })],
+    ['profile and preference files left in the repository', await walk(resolve('.'), { match: /^(callsigns\.json|desktop-preferences\.json|current\.txt)$/ })],
     // No extension filter: ASAR enabled means the application's own code lives
     // in app.asar, which stores its entries uncompressed, so a sentinel inside
     // it is plain text in the archive.

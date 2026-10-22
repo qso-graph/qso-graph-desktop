@@ -27,12 +27,13 @@ let application;
 let notesStorage = 'not reached';
 let notesSecrets = 'not reached';
 let notesServices = 'not reached';
-const directory = await mkdtemp(join(tmpdir(), 'qg-persona-ui-'));
+const directory = await mkdtemp(join(tmpdir(), 'qg-callsign-ui-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
 await mkdir(userData, { recursive: true });
-const persona = `qg-test-${randomUUID()}`;
+// The fixture callsign's description.
+const description = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
 
 // QGD-CRD-0009: the core logs every decryption of a stored credential, and
@@ -51,7 +52,7 @@ try {
   application = await launch();
   let page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'smoke');
-  // The application opens on Home now (QGD-FRM-0011). Personas is a click away.
+  // The application opens on Home now (QGD-FRM-0011). Callsigns is a click away.
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
@@ -89,8 +90,8 @@ try {
       { message: 'a second launch must restore the window already open', timeout: 30_000 }).toBe(false);
     // Still one application, still answering.
     expect(application.windows()).toHaveLength(1);
-    await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
-      { message: 'the persona service must still answer after a second launch', timeout: 30_000 }).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.callsigns.request({ type: 'list' }).then(reply => reply.ok)),
+      { message: 'the callsign service must still answer after a second launch', timeout: 30_000 }).toBe(true);
   }
 
   expect(await page.evaluate(() => 'require' in window || 'process' in window)).toBe(false);
@@ -101,10 +102,10 @@ try {
   expect(await page.evaluate(() => window.open('https://example.invalid/'))).toBeNull();
   const permission = await page.evaluate(() => navigator.permissions.query({ name: 'geolocation' }).then(result => result.state));
   expect(permission).toBe('denied');
-  await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
-    { message: 'the persona service must answer', timeout: 30_000 }).toBe(true);
-  expect(await page.evaluate(() => window.personas.request({ type: 'require-credential', persona: 'home', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid callsign request.' });
-  await page.getByLabel('Description', { exact: true }).fill(persona);
+  await expect.poll(() => page.evaluate(() => window.callsigns.request({ type: 'list' }).then(reply => reply.ok)),
+    { message: 'the callsign service must answer', timeout: 30_000 }).toBe(true);
+  expect(await page.evaluate(() => window.callsigns.request({ type: 'require-credential', id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid callsign request.' });
+  await page.getByLabel('Description', { exact: true }).fill(description);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
   // Typed lowercase, shown uppercase as it is typed (QGD-CNV-0001, QGD-CNV-0016).
   await expect(page.getByLabel('Callsign', { exact: true })).toHaveValue('W1AW');
@@ -112,7 +113,7 @@ try {
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
-  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
+  await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const editRoles = await application.evaluate(({ Menu }) => Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.map(item => item.role));
   for (const role of ['cut', 'copy', 'paste', 'selectall']) expect(editRoles).toContain(role);
@@ -152,7 +153,7 @@ try {
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
   expect((await page.locator('body').innerText()).includes(fakeCredential)).toBe(false);
-  const index = await readFile(join(profile, 'personas.json'), 'utf8');
+  const index = await readFile(join(profile, 'callsigns.json'), 'utf8');
   expect(index.includes(fakeCredential)).toBe(false);
 
   // A secret the operator did not enter is not saved, however it got into the
@@ -202,7 +203,7 @@ try {
     await expect(page.locator('#message')).toHaveText(said('Credential saved in macOS Keychain.'), { timeout: 30_000 });
     await expect(page.locator('#api-key-saved')).toBeVisible();
     await expect(page.locator('#password-saved')).toBeHidden();
-    expect((await readFile(join(profile, 'personas.json'), 'utf8')).includes(planted)).toBe(false);
+    expect((await readFile(join(profile, 'callsigns.json'), 'utf8')).includes(planted)).toBe(false);
 
     // The control for the control: the same value, typed, is saved. Without
     // this the check above would pass on an application that had simply
@@ -222,7 +223,7 @@ try {
   }
 
   // QGD-CRD-0009 and QGD-CRD-0010. This restart is the exact thing KI7MT hit:
-  // a persona with a saved credential, remembered as active, and the
+  // a callsign with a saved credential, remembered as active, and the
   // application opening on it. It used to read the secret to draw the status,
   // and macOS asked him for his login keychain password before he had done
   // anything.
@@ -234,14 +235,14 @@ try {
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
+  await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   // The status is drawn, and drawn correctly, from metadata alone.
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();
 
   {
-    // Every page, and the persona selected again, with nothing decrypted.
+    // Every page, and the callsign selected again, with nothing decrypted.
     const railItem = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
     for (const name of ['Settings', 'Callsigns', 'Settings', 'Callsigns']) {
       await railItem(name).click();
@@ -256,7 +257,7 @@ try {
 
     const afterNavigating = await secretReads();
     expect(afterNavigating - readsBefore,
-      'starting, navigating and selecting a persona must decrypt nothing').toBe(0);
+      'starting, navigating and selecting a callsign must decrypt nothing').toBe(0);
 
     // And the control, so zero means something: an explicit action that needs
     // the secret does read it.
@@ -301,8 +302,8 @@ try {
   await expect(page.getByRole('heading', { name: 'Callsign details', exact: true })).toBeHidden();
   expect(await rail('Settings').getAttribute('aria-current')).toBe('page');
   expect(await rail('Callsigns').getAttribute('aria-current')).toBeNull();
-  // P3-status-bar: the active persona is on every page, not just its own.
-  await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');
+  // P3-status-bar: the active callsign is on every page, not just its own.
+  await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   // QGD-PRC-0006: one bundled page. Navigating a section is not navigation.
   expect(page.url()).toBe(before);
   expect(await page.evaluate(() => history.length)).toBe(1);
@@ -332,9 +333,9 @@ try {
   // Settings sits at the bottom of the rail, below everything else and near
   // the foot of it.
   const railBox = await page.getByRole('navigation', { name: 'Sections' }).boundingBox();
-  const personasBox = await rail('Callsigns').boundingBox();
+  const callsignsBox = await rail('Callsigns').boundingBox();
   const settingsBox = await rail('Settings').boundingBox();
-  expect(settingsBox.y).toBeGreaterThan(personasBox.y);
+  expect(settingsBox.y).toBeGreaterThan(callsignsBox.y);
   const gapBelow = railBox.y + railBox.height - (settingsBox.y + settingsBox.height);
   expect(gapBelow, 'Settings must sit at the foot of the rail').toBeLessThan(40);
 
@@ -474,8 +475,12 @@ try {
   // holds the pinned cards only (QGD-FRM-0011, 2026-10-22); the version and
   // what the application sends are in Settings' About.
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Settings', exact: true }).click();
+  // One row per resource the register lists, read from it rather than
+  // counted here: SOTA's summits made it three, and a count written down
+  // failed the moment they arrived.
+  const resources = JSON.parse(await readFile('data/reference-sources.json', 'utf8')).resources;
   await expect.poll(() => page.locator('.reference-state').allInnerTexts(), { timeout: 10_000 })
-    .toEqual(['Not downloaded', 'Not downloaded']);
+    .toEqual(resources.map(() => 'Not downloaded'));
   await expect(page.getByRole('button', { name: 'Download ADIF definitions' })).toBeVisible();
   await expect(page.locator('#about-version')).not.toBeEmpty();
   await expect(page.locator('#about-privacy')).toContainText('Everything you enter stays on this computer');
@@ -634,7 +639,7 @@ try {
       'the broker must say it waited out its time and killed it').toBe(timedOutBefore + 1);
     notesStorage += '; a frozen QG Storage was reported killed, not closed (the control)';
   }
-  console.log('Rust personas UI: create, select, save, restart, remove and secret containment: PASS');
+  console.log('Rust callsigns UI: create, select, save, restart, remove and secret containment: PASS');
   console.log(`No secret read without asking: ${notesSecrets}: PASS`);
   console.log(`Every Test button explains itself and none looks busy: ${notesServices}: PASS`);
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
@@ -653,9 +658,10 @@ try {
   if (application) await application.close().catch(() => {});
   try {
     const require = createRequire(import.meta.url);
-    const { PersonaCore } = require('../dist/native/persona.node');
-    const core = new PersonaCore(profile);
-    core.deleteCredentials(persona, 'qrz_logbook');
+    const { CallsignCore } = require('../dist/native/persona.node');
+    const core = new CallsignCore(profile);
+    const fixture = core.list().find(entry => entry.description === description);
+    if (fixture) core.deleteCredentials(fixture.id, 'qrz_logbook');
   } catch {}
   await rm(directory, { recursive: true, force: true });
 }

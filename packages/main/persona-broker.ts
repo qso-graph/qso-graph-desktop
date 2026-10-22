@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
   allowsSender, isReply, validateCommand,
-  type FetchedReference, type PersonaCommand, type PersonaReply, type SealedExport, type ServiceCommand
+  type FetchedReference, type CallsignCommand, type CallsignReply, type SealedExport, type ServiceCommand
 } from '../personas/persona-contract.js';
 import { readServices, serviceIds } from '../personas/services.js';
 import { deadlineFor } from '../personas/deadlines.js';
@@ -17,67 +17,86 @@ const log = createLogger('broker');
 // The answer while the credential core is not up yet. Nothing was sent
 // anywhere, so a caller may ask again soon (QG Storage does, for reference
 // data). Any other failure may have reached a server.
-export const PERSONA_STARTING = 'Callsigns are still starting. Try again.';
+export const CALLSIGNS_STARTING = 'Callsigns are still starting. Try again.';
 
-export interface PersonaBroker {
+// A callsign as an application may see it: the id, the call and the
+// description, and nothing else (QGD-CRD-0010).
+export interface CallsignBrief { id: string; call: string; description: string }
+
+export interface CallsignBroker {
   stop: () => void;
-  // Called after a persona was added, changed, removed or made active, so
+  // Called after a callsign was added, changed, removed or made active, so
   // what Home shows for the old one can be dropped (QGD-HOM-0005).
-  onPersonasChanged: (listener: () => void) => void;
-  // Called with the persona's name after one is made active, so its default
-  // station becomes active with it (QGD-STN-0005).
-  onPersonaActivated: (listener: (name: string) => void) => void;
+  onCallsignsChanged: (listener: () => void) => void;
+  // Called with the callsign's id after one is made active, so its default
+  // location becomes active with it (QGD-STN-0005).
+  onCallsignActivated: (listener: (id: string) => void) => void;
+  // Called with the callsign's id after one is removed, so what is kept for
+  // it elsewhere goes with it (its default location, QGD-STN-0005).
+  onCallsignRemoved: (listener: (id: string) => void) => void;
   // Reference data, fetched by the credential core because that is where all
   // of this product's outbound HTTPS goes (D-18, D-31). Handed to the engine
   // broker by main; never reachable from a renderer, which has no command for
   // it (see validateCommand in persona-contract.ts).
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
-  // The personas an application may be shown: callsign and name, nothing else
-  // (QGD-CRD-0010). Reached only through the extension API with a persona:list
-  // grant.
-  personaBriefs: () => Promise<readonly { name: string; callsign: string }[] | string>;
-  // The active persona's name and callsign, or null when none is active.
-  activeBrief: () => Promise<{ name: string; callsign: string } | null | string>;
+  // The callsigns an application may be shown (QGD-CRD-0010). Reached only
+  // through the extension API with its list grant.
+  callsignBriefs: () => Promise<readonly CallsignBrief[] | string>;
+  // The active callsign, or null when none is active.
+  activeBrief: () => Promise<CallsignBrief | null | string>;
   // Acting with a credential on an application's behalf (QGD-APP-0007). Not
   // reachable from a renderer: `service-lookup` is a ServiceCommand, which
   // validateCommand does not accept.
   serviceLookup: (
-    service: string, persona: string, operation: string, parameters: Readonly<Record<string, string>>
+    service: string, id: string, operation: string, parameters: Readonly<Record<string, string>>
   ) => Promise<Readonly<Record<string, string>> | string>;
 }
 
-// The commands after which the personas, or which one is active, may differ.
-const CHANGES_PERSONAS = new Set(['upsert', 'set-active', 'remove-persona', 'import-personas']);
+// The commands after which the callsigns, or which one is active, may differ.
+const CHANGES_CALLSIGNS = new Set(['create', 'update', 'set-active', 'remove-callsign', 'import-callsigns']);
 
-export function startPersonaBroker(distDirectory: string, registerFile: string): PersonaBroker {
+// Built field by field rather than passed through. A callsign record carries
+// its service entries, and an application has no business seeing which
+// services an operator holds credentials for (QGD-CRD-0010).
+function briefsOf(data: unknown): CallsignBrief[] | string {
+  const list = (data as { callsigns?: unknown } | null)?.callsigns;
+  if (!Array.isArray(list)) return 'The callsigns could not be read.';
+  return list.flatMap((entry: { id?: unknown; call?: unknown; description?: unknown }) =>
+    typeof entry.id === 'string' && typeof entry.call === 'string' && typeof entry.description === 'string'
+      ? [{ id: entry.id, call: entry.call, description: entry.description }]
+      : []);
+}
+
+export function startCallsignBroker(distDirectory: string, registerFile: string): CallsignBroker {
   const changeListeners = new Set<() => void>();
-  const activationListeners = new Set<(name: string) => void>();
+  const activationListeners = new Set<(id: string) => void>();
+  const removalListeners = new Set<(id: string) => void>();
   let worker: UtilityProcess | undefined;
   let ready = false;
   let stopped = false;
   let nextId = 0;
   let failures = 0;
-  const pending = new Map<number, { resolve: (reply: PersonaReply) => void; timer: NodeJS.Timeout }>();
+  const pending = new Map<number, { resolve: (reply: CallsignReply) => void; timer: NodeJS.Timeout }>();
   // Inside the directory the operating system gives this application, beside
   // everything else it owns — the engine's data and the reference cache are
   // already under the same root (enginePaths, QGD-CRD-0013.1).
   //
   // Two wrongs were fixed here. Until 2026-10-09 this was `~/.config/adif-mcp`,
-  // the MCP servers' own directory, so personas.json — holding real personas —
+  // the MCP servers' own directory, so the list of callsigns was
   // was a file both products wrote. The first fix moved it to
   // `~/.config/qso-graph-desktop`, which stopped the sharing but kept a Linux
-  // convention on macOS and put the personas somewhere the rest of this
+  // convention on macOS and put the callsigns somewhere the rest of this
   // application does not live. The right answer is to ask the platform.
   //
   // Nothing in either old directory is migrated, read or removed. The first
   // may be the MCP side's data, and separating two products is not the same as
   // taking one's.
-  const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(app.getPath('userData'), 'personas');
+  const profileDirectory = process.env.QG_DESKTOP_PROFILE_DIR || join(app.getPath('userData'), 'callsigns');
   // The services a command may name (QGD-PSN-0002). Read once, here, rather
   // than listed in the contract. A register that cannot be read leaves this
   // empty, which refuses every command naming a service while leaving the
-  // persona commands — list, upsert, set-active — working: an unreadable
-  // register is not a reason to lose the personas too.
+  // callsign commands — list, create, set-active — working: an unreadable
+  // register is not a reason to lose the callsigns too.
   // The file the operator chose to look at, between looking and importing.
   // The path, never the contents, and never more than one.
   let inspected: string | undefined;
@@ -94,7 +113,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
     if (stopped) return;
     ready = false;
     worker = utilityProcess.fork(join(distDirectory, 'personas', 'persona-service.js'), [profileDirectory, registerFile], {
-      serviceName: 'QG Personas', stdio: 'ignore', allowLoadingUnsignedLibraries: true
+      serviceName: 'QG Callsigns', stdio: 'ignore', allowLoadingUnsignedLibraries: true
     });
     worker.on('message', (message: unknown) => {
       if (message === null || typeof message !== 'object') return;
@@ -112,7 +131,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       ready = false; worker = undefined; failPending();
       if (!stopped) {
         const wait = Math.min(250 * 2 ** failures++, 10_000);
-        log.warn({ waitMs: wait, failures }, 'persona service exited; restarting');
+        log.warn({ waitMs: wait, failures }, 'callsign service exited; restarting');
         setTimeout(start, wait);
       }
     });
@@ -120,8 +139,8 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   start();
 
   // One command to the service, awaited.
-  function ask(command: ServiceCommand): Promise<PersonaReply> {
-    if (!ready || !worker) return Promise.resolve({ ok: false, error: PERSONA_STARTING });
+  function ask(command: ServiceCommand): Promise<CallsignReply> {
+    if (!ready || !worker) return Promise.resolve({ ok: false, error: CALLSIGNS_STARTING });
     if (pending.size >= 16) return Promise.resolve({ ok: false, error: 'A callsign request is still running. Try again shortly.' });
     const id = ++nextId;
     return new Promise(resolve => {
@@ -137,18 +156,18 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   // The two commands the main process has to finish itself, because they
   // touch the file system and a renderer must not (QGD-PSN-0011). The
   // operator chooses the place; the bytes never reach a screen.
-  async function movePersonas(
+  async function moveCallsigns(
     window: BrowserWindow | null,
-    command: Extract<PersonaCommand, { type: 'export-personas' | 'import-personas' }>
-  ): Promise<PersonaReply> {
-    if (command.type === 'export-personas') {
+    command: Extract<CallsignCommand, { type: 'export-callsigns' | 'import-callsigns' }>
+  ): Promise<CallsignReply> {
+    if (command.type === 'export-callsigns') {
       const chosen = window
         ? await dialog.showSaveDialog(window, {
             title: 'Export callsigns',
-            defaultPath: 'qso-graph-personas.qgp',
+            defaultPath: 'qso-graph-callsigns.qgp',
             filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
           })
-        : await dialog.showSaveDialog({ defaultPath: 'qso-graph-personas.qgp' });
+        : await dialog.showSaveDialog({ defaultPath: 'qso-graph-callsigns.qgp' });
       if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Export cancelled.' };
 
       // Sealed first, written second: a cancelled or failed seal must not
@@ -165,7 +184,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       } catch {
         return { ok: false, error: 'That file could not be written. Choose another place.' };
       }
-      log.info({ bytes: bytes.length }, 'personas exported');
+      log.info({ bytes: bytes.length }, 'callsigns exported');
       return { ok: true, data: { written: basename(chosen.filePath), bytes: bytes.length } };
     }
 
@@ -198,57 +217,49 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       inspected = undefined;
       return { ok: false, error: 'That file is not an export this product wrote.' };
     }
-    const answer = await ask({ type: 'import-personas', passphrase: command.passphrase, apply: command.apply, file });
+    const answer = await ask({ type: 'import-callsigns', passphrase: command.passphrase, apply: command.apply, file });
     // Remembered only while there is something to confirm: a look that
     // succeeded. Forgotten the moment it is used, refused, or cancelled.
     inspected = !command.apply && answer.ok ? path : undefined;
     return answer;
   }
 
-  ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
+  ipcMain.handle('callsigns:request', (event, command: unknown): Promise<CallsignReply> | CallsignReply => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command, services)) {
-      log.warn({ accepted: false }, 'persona request refused');
+      log.warn({ accepted: false }, 'callsign request refused');
       return { ok: false, error: 'Invalid callsign request.' };
     }
-    const told = (reply: PersonaReply): PersonaReply => {
-      if (reply.ok && CHANGES_PERSONAS.has(command.type)) for (const listener of changeListeners) listener();
-      if (reply.ok && command.type === 'set-active') for (const listener of activationListeners) listener(command.name);
+    const told = (reply: CallsignReply): CallsignReply => {
+      if (reply.ok && CHANGES_CALLSIGNS.has(command.type)) for (const listener of changeListeners) listener();
+      if (reply.ok && command.type === 'set-active') for (const listener of activationListeners) listener(command.id);
+      if (reply.ok && command.type === 'remove-callsign') for (const listener of removalListeners) listener(command.id);
       return reply;
     };
-    if (command.type === 'export-personas' || command.type === 'import-personas') {
-      return movePersonas(BrowserWindow.fromWebContents(event.sender), command).then(told);
+    if (command.type === 'export-callsigns' || command.type === 'import-callsigns') {
+      return moveCallsigns(BrowserWindow.fromWebContents(event.sender), command).then(told);
     }
     return ask(command).then(told);
   });
   return {
-    onPersonasChanged: listener => { changeListeners.add(listener); },
-    onPersonaActivated: listener => { activationListeners.add(listener); },
-    stop: () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('persona:request'); },
-    async personaBriefs() {
+    onCallsignsChanged: listener => { changeListeners.add(listener); },
+    onCallsignActivated: listener => { activationListeners.add(listener); },
+    onCallsignRemoved: listener => { removalListeners.add(listener); },
+    stop: () => { stopped = true; failPending(); worker?.kill(); ipcMain.removeHandler('callsigns:request'); },
+    async callsignBriefs() {
       const reply = await ask({ type: 'list' });
       if (!reply.ok) return reply.error;
-      const data = reply.data as { personas?: { name?: unknown; callsign?: unknown }[] } | null;
-      if (!data || !Array.isArray(data.personas)) return 'The callsigns could not be read.';
-      // Built field by field rather than passed through. A persona record
-      // carries provider entries, and an application has no business seeing
-      // which services an operator holds credentials for.
-      return data.personas.flatMap(persona =>
-        typeof persona.name === 'string' && typeof persona.callsign === 'string'
-          ? [{ name: persona.name, callsign: persona.callsign }]
-          : []);
+      return briefsOf(reply.data);
     },
     async activeBrief() {
       const reply = await ask({ type: 'list' });
       if (!reply.ok) return reply.error;
-      const data = reply.data as { personas?: { name?: unknown; callsign?: unknown }[]; active?: unknown } | null;
-      if (!data || !Array.isArray(data.personas)) return 'The callsigns could not be read.';
-      // Name and callsign only, as personaBriefs builds them (QGD-CRD-0010).
-      const active = data.personas.find(persona => persona.name === data.active);
-      return active && typeof active.name === 'string' && typeof active.callsign === 'string'
-        ? { name: active.name, callsign: active.callsign } : null;
+      const briefs = briefsOf(reply.data);
+      if (typeof briefs === 'string') return briefs;
+      const active = (reply.data as { active?: unknown }).active;
+      return briefs.find(brief => brief.id === active) ?? null;
     },
-    async serviceLookup(service, persona, operation, parameters) {
-      const reply = await ask({ type: 'service-lookup', service, persona, operation, parameters: { ...parameters } });
+    async serviceLookup(service, id, operation, parameters) {
+      const reply = await ask({ type: 'service-lookup', service, id, operation, parameters: { ...parameters } });
       if (!reply.ok) return reply.error;
       const data = reply.data as { outcome?: unknown; fields?: { name?: unknown; value?: unknown }[] } | null;
       if (!data || typeof data.outcome !== 'string') return 'The lookup could not be read.';

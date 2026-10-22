@@ -29,14 +29,14 @@
   import { credentialStoreTitle, forStore } from '../../personas/credential-store.js';
   // The store this platform has; the preload says which. A gallery story has
   // no preload, and shows macOS.
-  const platform = (globalThis as { personas?: { platform?: string } }).personas?.platform ?? 'darwin';
+  const platform = (globalThis as { callsigns?: { platform?: string } }).callsigns?.platform ?? 'darwin';
 
   interface Props {
-    onExportPersonas: (passphrase: string) => Promise<ExportResult | string>;
+    onExportCallsigns: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
     onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
   }
-  const { onExportPersonas, onInspectImport, onApplyImport }: Props = $props();
+  const { onExportCallsigns, onInspectImport, onApplyImport }: Props = $props();
 </script>
 
 <aside aria-label="Callsigns">
@@ -50,7 +50,7 @@
   <section class="card" aria-labelledby="identity-title">
     <h2 id="identity-title">Callsign details</h2>
     <form id="persona-form">
-      <div class="fields"><label>Description<input id="persona-name" name="name" required maxlength="128" placeholder="Personal" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off" use:caseAsTyped={'upper'}></label></div>
+      <div class="fields"><label>Description<input id="persona-name" name="name" maxlength="64" placeholder="Optional: Home, Portable" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off" use:caseAsTyped={'upper'}></label></div>
       <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label><span>End date <span class="optional">optional</span></span><input id="end-date" type="date" name="end"></label></div>
       <p class="hint">The dates say when this callsign is in use.</p>
       <div class="form-footer"><button id="remove-persona" class="danger" type="button" hidden>Remove callsign</button><button id="save-persona" type="submit">Add callsign</button></div>
@@ -73,5 +73,5 @@
       <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">{forStore('Save in Keychain', platform)}</button></div>
     </form>
   </section>
-  <MovePersonasPage onExport={onExportPersonas} onInspect={onInspectImport} onImport={onApplyImport} />
+  <MovePersonasPage onExport={onExportCallsigns} onInspect={onInspectImport} onImport={onApplyImport} />
 </div>

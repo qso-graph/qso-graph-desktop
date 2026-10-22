@@ -15,9 +15,9 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 // P0 when `qso-graph-auth` interoperability was still the plan. KI7MT ended
 // Python and MCP interop (QGD-CRD-0004) and the constant never moved, so the
 // desktop was reading and writing the MCP servers' own credentials: real
-// personas' entries sat in the same namespace the suites
+// callsigns' entries sat in the same namespace the suites
 // wrote synthetic fixtures into. Either side could overwrite the other's entry
-// for the same persona and provider, and nothing would have said so.
+// for the same callsign and provider, and nothing would have said so.
 //
 // Nothing under "adif-mcp" is migrated, read or deleted by this product. Those
 // entries may belong to the MCP servers; they are not ours to move.
@@ -78,11 +78,17 @@ pub struct ProviderRef {
     pub saved_at: Option<String>,
 }
 
+// One of the operator's callsigns (KI7MT, 2026-10-22: "persona" is retired).
+// `id` is permanent and random, and is what everything else keys on: the
+// Keychain entries, the preferences, the active callsign and the default
+// location. So the call and the description can both be changed, and neither
+// appears in a Keychain entry's name.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
-pub struct Persona {
-    pub name: String,
-    pub callsign: String,
+pub struct Callsign {
+    pub id: String,
+    pub call: String,
+    pub description: String,
     pub start: Option<String>,
     pub end: Option<String>,
     #[serde(default)]
@@ -91,7 +97,7 @@ pub struct Persona {
 
 #[derive(Default, Serialize, Deserialize)]
 struct Index {
-    personas: BTreeMap<String, Persona>,
+    callsigns: BTreeMap<String, Callsign>,
 }
 
 // No Debug implementation: a credential must never be printed by an error path.
@@ -131,7 +137,7 @@ pub struct CredentialStatus {
 
 #[derive(Default, Serialize, Deserialize)]
 struct Preferences {
-    personas: BTreeMap<String, BTreeMap<String, String>>,
+    callsigns: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 fn identifier(value: &str) -> CoreResult<String> {
@@ -142,8 +148,52 @@ fn identifier(value: &str) -> CoreResult<String> {
     Ok(value.to_lowercase())
 }
 
-fn subject(persona: &str, provider: &str) -> CoreResult<String> {
-    Ok(format!("{}:{}", identifier(persona)?, identifier(provider)?))
+// A callsign's id: a version 4 UUID, written lowercase. Checked wherever one
+// arrives, because it becomes part of a Keychain entry's name.
+fn callsign_id(value: &str) -> CoreResult<String> {
+    let bytes = value.as_bytes();
+    let shaped = bytes.len() == 36
+        && bytes.iter().enumerate().all(|(at, &b)| if [8, 13, 18, 23].contains(&at) { b == b'-' } else { b.is_ascii_digit() || (b'a'..=b'f').contains(&b) })
+        && bytes[14] == b'4'
+        && matches!(bytes[19], b'8' | b'9' | b'a' | b'b');
+    if shaped { Ok(value.to_owned()) } else { Err("Callsign not found.") }
+}
+
+// A new id: 122 random bits from the FIPS module's generator, which TLS already
+// links (no second source of randomness), as a version 4 UUID. Random rather
+// than derived from the call, so one call can be held several times and its
+// letters never appear in the Keychain.
+fn new_callsign_id() -> CoreResult<String> {
+    let mut bytes = [0u8; 16];
+    aws_lc_rs::rand::fill(&mut bytes).map_err(|_| "A callsign could not be created.")?;
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    Ok(format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32]))
+}
+
+// The call letters, as the operator types them, in capitals. A portable or
+// maritime suffix is part of the call (W1AW/P).
+fn call_letters(value: &str) -> CoreResult<String> {
+    let call = value.trim().to_uppercase();
+    if call.is_empty() || call.len() > 32 || !call.chars().all(|c| c.is_ascii_alphanumeric() || c == '/') {
+        return Err("Enter a callsign: letters, digits and /.");
+    }
+    Ok(call)
+}
+
+// What the operator calls this one, beside the call: "Home", "Field Day".
+// May be empty.
+fn description_text(value: &str) -> CoreResult<String> {
+    let description = value.trim();
+    if description.chars().count() > 64 || description.chars().any(char::is_control) {
+        return Err("Keep the description to 64 characters, on one line.");
+    }
+    Ok(description.to_owned())
+}
+
+fn subject(id: &str, provider: &str) -> CoreResult<String> {
+    Ok(format!("{}:{}", callsign_id(id)?, identifier(provider)?))
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> CoreResult<()> {
@@ -175,7 +225,7 @@ impl Store {
         Ok(Self { directory })
     }
     fn load(&self) -> CoreResult<Index> {
-        let path = self.directory.join("personas.json");
+        let path = self.directory.join("callsigns.json");
         match fs::read(path) {
             Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes).map_err(|_| "The list of callsigns could not be read. It has not been changed."),
             Ok(_) => Err("The list of callsigns is larger than this version supports."),
@@ -185,31 +235,50 @@ impl Store {
     }
     fn save(&self, index: &Index) -> CoreResult<()> {
         let bytes = serde_json::to_vec_pretty(index).map_err(|_| "Profile could not be saved.")?;
-        atomic_write(&self.directory.join("personas.json"), &bytes)
+        atomic_write(&self.directory.join("callsigns.json"), &bytes)
     }
-    fn lookup(&self, name: &str) -> CoreResult<Persona> {
-        let name = identifier(name)?;
-        self.load()?.personas.into_iter().find(|(key, value)| key.to_lowercase() == name || value.name.to_lowercase() == name).map(|(_, value)| value).ok_or("Callsign not found.")
+    fn lookup(&self, id: &str) -> CoreResult<Callsign> {
+        let id = callsign_id(id)?;
+        self.load()?.callsigns.remove(&id).ok_or("Callsign not found.")
     }
-    fn upsert(&self, name: &str, callsign: &str, start: Option<String>, end: Option<String>) -> CoreResult<Persona> {
-        let name = identifier(name)?;
-        let callsign = callsign.trim().to_uppercase();
-        if callsign.is_empty() || callsign.len() > 64 || callsign.chars().any(char::is_control) { return Err("Enter a callsign."); }
+    fn parse_dates(start: &Option<String>, end: &Option<String>) -> CoreResult<()> {
         let parse = |value: &Option<String>| -> CoreResult<Option<NaiveDate>> {
             value.as_ref().map(|value| NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| "Use YYYY-MM-DD for dates.")).transpose()
         };
-        let (first, last) = (parse(&start)?, parse(&end)?);
+        let (first, last) = (parse(start)?, parse(end)?);
         if matches!((first, last), (Some(a), Some(b)) if b < a) { return Err("End date must not precede start date."); }
-        let mut index = self.load()?;
-        let providers = index.personas.get(&name).map(|persona| persona.providers.clone()).unwrap_or_default();
-        let persona = Persona { name: name.clone(), callsign, start, end, providers };
-        index.personas.insert(name, persona.clone());
-        self.save(&index)?;
-        Ok(persona)
+        Ok(())
     }
-    fn entry(&self, persona: &str, provider: &str) -> CoreResult<keyring::Entry> {
-        self.lookup(persona)?;
-        keyring::Entry::new(service(), &subject(persona, provider)?).map_err(|_| "Keychain is unavailable.")
+    // A new callsign, with a new id.
+    fn create(&self, call: &str, description: &str, start: Option<String>, end: Option<String>) -> CoreResult<Callsign> {
+        let (call, description) = (call_letters(call)?, description_text(description)?);
+        Self::parse_dates(&start, &end)?;
+        let mut index = self.load()?;
+        let id = new_callsign_id()?;
+        let callsign = Callsign { id: id.clone(), call, description, start, end, providers: BTreeMap::new() };
+        index.callsigns.insert(id, callsign.clone());
+        self.save(&index)?;
+        Ok(callsign)
+    }
+    // The call, the description and the dates may all change; the id, and so
+    // every credential under it, does not.
+    fn update(&self, id: &str, call: &str, description: &str, start: Option<String>, end: Option<String>) -> CoreResult<Callsign> {
+        let id = callsign_id(id)?;
+        let (call, description) = (call_letters(call)?, description_text(description)?);
+        Self::parse_dates(&start, &end)?;
+        let mut index = self.load()?;
+        let callsign = index.callsigns.get_mut(&id).ok_or("Callsign not found.")?;
+        callsign.call = call;
+        callsign.description = description;
+        callsign.start = start;
+        callsign.end = end;
+        let updated = callsign.clone();
+        self.save(&index)?;
+        Ok(updated)
+    }
+    fn entry(&self, id: &str, provider: &str) -> CoreResult<keyring::Entry> {
+        self.lookup(id)?;
+        keyring::Entry::new(service(), &subject(id, provider)?).map_err(|_| "Keychain is unavailable.")
     }
     // Does the Keychain hold an entry for this, without reading it?
     //
@@ -218,9 +287,9 @@ impl Store {
     // this silent — a read of the secret is what raises the login-keychain
     // prompt (QGD-CRD-0009).
     #[cfg(target_os = "macos")]
-    fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
+    fn entry_exists(&self, id: &str, provider: &str) -> CoreResult<bool> {
         use security_framework::item::{ItemClass, ItemSearchOptions};
-        let account = subject(persona, provider)?;
+        let account = subject(id, provider)?;
         let found = ItemSearchOptions::new()
             .class(ItemClass::generic_password())
             .service(service())
@@ -244,9 +313,9 @@ impl Store {
     // and neither is opened. The attributes are the ones keyring writes
     // (zbus-secret-service-keyring-store's search_attributes).
     #[cfg(all(unix, not(target_os = "macos")))]
-    fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
+    fn entry_exists(&self, id: &str, provider: &str) -> CoreResult<bool> {
         use secret_service::{EncryptionType, blocking::SecretService};
-        let account = subject(persona, provider)?;
+        let account = subject(id, provider)?;
         let unavailable = "Keychain could not be asked about this credential.";
         let ss = SecretService::connect(EncryptionType::Dh).map_err(|_| unavailable)?;
         let found = ss
@@ -258,8 +327,8 @@ impl Store {
     // Windows Credential Manager has no prompt to raise: reading an entry's
     // attributes is silent.
     #[cfg(windows)]
-    fn entry_exists(&self, persona: &str, provider: &str) -> CoreResult<bool> {
-        match self.entry(persona, provider)?.inner.get_attributes() {
+    fn entry_exists(&self, id: &str, provider: &str) -> CoreResult<bool> {
+        match self.entry(id, provider)?.inner.get_attributes() {
             Ok(_) => Ok(true),
             Err(keyring::Error::NoEntry) => Ok(false),
             Err(_) => Err("Keychain could not be asked about this credential."),
@@ -268,11 +337,11 @@ impl Store {
 
     // Records what was stored, which is not a secret, so the status display
     // never has to decrypt anything to answer.
-    fn record_kinds(&self, persona: &str, provider: &str, creds: &Credentials) -> CoreResult<()> {
-        let persona = identifier(persona)?;
+    fn record_kinds(&self, id: &str, provider: &str, creds: &Credentials) -> CoreResult<()> {
+        let id = callsign_id(id)?;
         let provider = identifier(provider)?;
         let mut index = self.load()?;
-        let profile = index.personas.get_mut(&persona).ok_or("Callsign not found.")?;
+        let profile = index.callsigns.get_mut(&id).ok_or("Callsign not found.")?;
         let reference = profile.providers.entry(provider).or_insert_with(ProviderRef::default);
         reference.username = creds.username.clone().unwrap_or_default();
         reference.has_password = creds.password.as_ref().is_some_and(|s| !s.is_empty());
@@ -281,19 +350,19 @@ impl Store {
         self.save(&index)
     }
 
-    fn forget_kinds(&self, persona: &str, provider: &str) -> CoreResult<()> {
-        let Ok(persona) = identifier(persona) else { return Ok(()); };
+    fn forget_kinds(&self, id: &str, provider: &str) -> CoreResult<()> {
+        let Ok(id) = callsign_id(id) else { return Ok(()); };
         let Ok(provider) = identifier(provider) else { return Ok(()); };
         let mut index = self.load()?;
-        if let Some(profile) = index.personas.get_mut(&persona) {
+        if let Some(profile) = index.callsigns.get_mut(&id) {
             profile.providers.remove(&provider);
             return self.save(&index);
         }
         Ok(())
     }
 
-    fn read_credentials(&self, persona: &str, provider: &str) -> CoreResult<Option<Credentials>> {
-        let entry = self.entry(persona, provider)?;
+    fn read_credentials(&self, id: &str, provider: &str) -> CoreResult<Option<Credentials>> {
+        let entry = self.entry(id, provider)?;
         match entry.get_password() {
             Ok(raw) => {
                 // QGD-CRD-0009: every decryption of a stored credential, as it
@@ -310,35 +379,35 @@ impl Store {
                 // kinds gets them recorded here, the first time something with
                 // a reason to decrypt it does. Nothing decrypts anything in
                 // order to repair this.
-                let _ = self.record_kinds(persona, provider, &creds);
+                let _ = self.record_kinds(id, provider, &creds);
                 Ok(Some(creds))
             }
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(_) => Err("Keychain could not read this credential."),
         }
     }
-    fn save_credentials(&self, persona: &str, provider: &str, credentials: Credentials) -> CoreResult<()> {
+    fn save_credentials(&self, id: &str, provider: &str, credentials: Credentials) -> CoreResult<()> {
         if credentials.username.as_ref().is_some_and(|s| s.len() > 4096) || credentials.password.as_ref().is_some_and(|s| s.len() > 4096) || credentials.api_key.as_ref().is_some_and(|s| s.len() > 4096) { return Err("Credential exceeds the supported size."); }
         if credentials.password.as_ref().is_none_or(String::is_empty) && credentials.api_key.as_ref().is_none_or(String::is_empty) { return Err("Enter a password or API key."); }
-        let persona = identifier(persona)?;
+        let id = callsign_id(id)?;
         let provider = identifier(provider)?;
-        let mut merged = self.read_credentials(&persona, &provider)?.unwrap_or_default();
+        let mut merged = self.read_credentials(&id, &provider)?.unwrap_or_default();
         if let Some(value) = credentials.username.as_ref() { merged.username = Some(value.clone()); }
         if let Some(value) = credentials.password.as_ref() { merged.password = Some(value.clone()); }
         if let Some(value) = credentials.api_key.as_ref() { merged.api_key = Some(value.clone()); }
-        // Register a non-secret provider ref, matching PersonaStore. Credentials
+        // Register a non-secret provider ref. Credentials
         // remain exclusively in Keychain; its payload never enters the index.
         let mut index = self.load()?;
-        let profile = index.personas.get_mut(&persona).ok_or("Callsign not found.")?;
+        let profile = index.callsigns.get_mut(&id).ok_or("Callsign not found.")?;
         profile.providers.entry(provider.clone()).or_default();
         self.save(&index)?;
         let raw = Zeroizing::new(serde_json::to_string(&merged).map_err(|_| "Credential could not be encoded.")?);
-        let result = self.entry(&persona, &provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.");
+        let result = self.entry(&id, &provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.");
         // Recorded only once the Keychain has it, so the index never claims a
         // credential that was not written (QGD-CRD-0010).
-        if result.is_ok() { self.record_kinds(&persona, &provider, &merged)?; }
+        if result.is_ok() { self.record_kinds(&id, &provider, &merged)?; }
         // QGD-LOG-0004: the provider and the outcome. Never the value, never
-        // the persona's own name.
+        // the callsign or its description.
         match &result {
             Ok(()) => tracing::info!(provider = %provider, "credential saved"),
             Err(reason) => tracing::warn!(provider = %provider, reason = %reason, "credential could not be saved"),
@@ -352,22 +421,22 @@ impl Store {
             _ => Err("Credential preferences could not be read."),
         }
     }
-    fn preference(&self, persona: &str, provider: &str) -> CoreResult<String> {
+    fn preference(&self, id: &str, provider: &str) -> CoreResult<String> {
         let prefs = self.preferences()?;
-        let preference = prefs.personas.get(&identifier(persona)?).and_then(|p| p.get(&identifier(provider).ok()?)).cloned().unwrap_or_else(|| "service".into());
+        let preference = prefs.callsigns.get(&callsign_id(id)?).and_then(|p| p.get(&identifier(provider).ok()?)).cloned().unwrap_or_else(|| "service".into());
         if !["service", "password", "api_key"].contains(&preference.as_str()) { return Err("Credential preference is invalid."); }
         Ok(preference)
     }
-    fn set_preference(&self, persona: &str, provider: &str, preference: &str) -> CoreResult<()> {
-        self.lookup(persona)?;
+    fn set_preference(&self, id: &str, provider: &str, preference: &str) -> CoreResult<()> {
+        self.lookup(id)?;
         if !["service", "password", "api_key"].contains(&preference) { return Err("Credential preference is invalid."); }
         let mut prefs = self.preferences()?;
-        prefs.personas.entry(identifier(persona)?).or_default().insert(identifier(provider)?, preference.into());
+        prefs.callsigns.entry(callsign_id(id)?).or_default().insert(identifier(provider)?, preference.into());
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)
     }
 
-    // ---- moving personas between machines (QGD-PSN-0007 to QGD-PSN-0011) --
+    // ---- moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011) -
 
     // Everything an export carries, read in one go.
     //
@@ -377,63 +446,69 @@ impl Store {
     // nothing else calls this.
     fn gather(&self) -> CoreResult<portable::Bundle> {
         let index = self.load()?;
-        let preferences = self.preferences()?.personas;
+        let preferences = self.preferences()?.callsigns;
         let mut credentials = BTreeMap::new();
-        for (name, persona) in &index.personas {
-            for provider in persona.providers.keys() {
+        for (id, callsign) in &index.callsigns {
+            for provider in callsign.providers.keys() {
                 // A provider in the index with nothing in the Keychain is
                 // carried as absent rather than as empty: an export says what
                 // there is, and inventing an empty credential for it would
                 // make the import create one.
-                if let Some(creds) = self.read_credentials(name, provider)? {
-                    credentials.insert(subject(name, provider)?, creds);
+                if let Some(creds) = self.read_credentials(id, provider)? {
+                    credentials.insert(subject(id, provider)?, creds);
                 }
             }
         }
         Ok(portable::Bundle {
-            personas: index.personas.into_values().collect(),
+            callsigns: index.callsigns.into_values().collect(),
             credentials,
             preferences,
         })
     }
 
     // What an import would change, without changing it (QGD-PSN-0009). A
-    // persona already here is named, so the operator is told before rather
-    // than after.
+    // callsign already here, by its id, is named, so the operator is told
+    // before rather than after. Named as the operator knows it: the call and
+    // the description.
     fn preview(&self, bundle: &portable::Bundle) -> CoreResult<(Vec<String>, Vec<String>)> {
         let existing = self.load()?;
         let mut arriving = Vec::new();
         let mut overwritten = Vec::new();
-        for persona in &bundle.personas {
-            let name = identifier(&persona.name)?;
-            if existing.personas.contains_key(&name) { overwritten.push(persona.name.clone()); }
-            else { arriving.push(persona.name.clone()); }
+        for callsign in &bundle.callsigns {
+            let id = callsign_id(&callsign.id)?;
+            let label = if callsign.description.is_empty() { callsign.call.clone() } else { format!("{} · {}", callsign.call, callsign.description) };
+            if existing.callsigns.contains_key(&id) { overwritten.push(label); } else { arriving.push(label); }
         }
         Ok((arriving, overwritten))
     }
 
     // All of it or none of it. The index is written once, at the end, so a
-    // failure part way through leaves the personas as they were — and the
-    // Keychain entries that were written before it are entries for personas
+    // failure part way through leaves the callsigns as they were — and the
+    // Keychain entries that were written before it are entries for callsigns
     // the index does not have, which the next save overwrites. There is no
     // ordering that makes a Keychain and a file atomic together; what this
     // guarantees is that the index never half-changes.
     fn absorb(&self, bundle: &portable::Bundle) -> CoreResult<(usize, usize)> {
         let mut index = self.load()?;
-        for persona in &bundle.personas {
-            let name = identifier(&persona.name)?;
-            index.personas.insert(name, persona.clone());
+        for callsign in &bundle.callsigns {
+            // Every field is checked as if it had been typed here.
+            let id = callsign_id(&callsign.id)?;
+            call_letters(&callsign.call)?;
+            description_text(&callsign.description)?;
+            Self::parse_dates(&callsign.start, &callsign.end)?;
+            index.callsigns.insert(id, callsign.clone());
         }
         let mut written = 0usize;
         for (subject, creds) in &bundle.credentials {
-            let (persona, provider) = subject.split_once(':').ok_or("This export holds a credential with no service.")?;
+            let (id, provider) = subject.split_once(':').ok_or("This export holds a credential with no service.")?;
+            let id = callsign_id(id)?;
             let raw = Zeroizing::new(serde_json::to_string(creds).map_err(|_| "This export could not be read.")?);
-            keyring::Entry::new(service(), subject).map_err(|_| "Keychain is unavailable.")?
+            keyring::Entry::new(service(), &crate::subject(&id, provider)?).map_err(|_| "Keychain is unavailable.")?
                 .set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
             // The index records which kinds arrived, so status answers without
             // reading them back (QGD-CRD-0010).
-            if let Some(persona_entry) = index.personas.get_mut(&identifier(persona)?) {
-                let reference = persona_entry.providers.entry(identifier(provider)?).or_insert_with(ProviderRef::default);
+            if let Some(entry) = index.callsigns.get_mut(&id) {
+                let reference = entry.providers.entry(identifier(provider)?).or_insert_with(ProviderRef::default);
                 reference.username = creds.username.clone().unwrap_or_default();
                 reference.has_password = creds.password.is_some();
                 reference.has_api_key = creds.api_key.is_some();
@@ -444,24 +519,24 @@ impl Store {
         self.save(&index)?;
 
         let mut prefs = self.preferences()?;
-        for (persona, services) in &bundle.preferences {
-            prefs.personas.entry(persona.clone()).or_default().extend(services.clone());
+        for (id, services) in &bundle.preferences {
+            prefs.callsigns.entry(callsign_id(id)?).or_default().extend(services.clone());
         }
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
-        Ok((bundle.personas.len(), written))
+        Ok((bundle.callsigns.len(), written))
     }
-    fn delete_credentials(&self, persona: &str, provider: &str) -> CoreResult<bool> {
-        self.lookup(persona)?;
+    fn delete_credentials(&self, id: &str, provider: &str) -> CoreResult<bool> {
+        self.lookup(id)?;
         #[cfg(target_os = "macos")]
-        match security_framework::passwords::delete_generic_password(service(), &subject(persona, provider)?) {
+        match security_framework::passwords::delete_generic_password(service(), &subject(id, provider)?) {
             Ok(()) => {
                 tracing::info!(provider = %provider, "credential removed");
                 // The index must not go on describing an entry that is gone.
-                self.forget_kinds(persona, provider)?;
+                self.forget_kinds(id, provider)?;
                 Ok(true)
             }
-            Err(e) if e.code() == -25300 => { self.forget_kinds(persona, provider)?; Ok(false) }
+            Err(e) if e.code() == -25300 => { self.forget_kinds(id, provider)?; Ok(false) }
             Err(_) => {
                 tracing::warn!(provider = %provider, "keychain refused to remove a credential");
                 Err("Keychain could not remove this credential.")
@@ -470,48 +545,52 @@ impl Store {
         // The same contract as above: the index never goes on describing an
         // entry that is gone, whichever way it went.
         #[cfg(not(target_os = "macos"))]
-        match self.entry(persona, provider)?.delete_credential() {
+        match self.entry(id, provider)?.delete_credential() {
             Ok(()) => {
                 tracing::info!(provider = %provider, "credential removed");
-                self.forget_kinds(persona, provider)?;
+                self.forget_kinds(id, provider)?;
                 Ok(true)
             }
-            Err(keyring::Error::NoEntry) => { self.forget_kinds(persona, provider)?; Ok(false) }
+            Err(keyring::Error::NoEntry) => { self.forget_kinds(id, provider)?; Ok(false) }
             Err(_) => {
                 tracing::warn!(provider = %provider, "keychain refused to remove a credential");
                 Err("Keychain could not remove this credential.")
             }
         }
     }
-    fn remove_secret(&self, persona: &str, provider: &str, field: &str) -> CoreResult<()> {
+    fn remove_secret(&self, id: &str, provider: &str, field: &str) -> CoreResult<()> {
         if !["password", "api_key"].contains(&field) { return Err("Secret field is invalid."); }
-        let Some(mut creds) = self.read_credentials(persona, provider)? else { return Ok(()); };
+        let Some(mut creds) = self.read_credentials(id, provider)? else { return Ok(()); };
         let removed = if field == "password" { creds.password.take() } else { creds.api_key.take() };
         let _removed = Zeroizing::new(removed);
         if creds.password.as_ref().is_none_or(String::is_empty) && creds.api_key.as_ref().is_none_or(String::is_empty) {
-            self.delete_credentials(persona, provider)?;
+            self.delete_credentials(id, provider)?;
         } else {
             let raw = Zeroizing::new(serde_json::to_string(&creds).map_err(|_| "Credential could not be encoded.")?);
-            self.entry(persona, provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
-            self.record_kinds(persona, provider, &creds)?;
+            self.entry(id, provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
+            self.record_kinds(id, provider, &creds)?;
         }
         Ok(())
     }
-    fn remove_persona(&self, name: &str) -> CoreResult<()> {
-        self.remove_persona_using(name, |persona, provider| self.delete_credentials(persona, provider))
+    // A callsign, its credentials and its preferences. Every Keychain entry it
+    // could have is deleted first; if one cannot be, nothing else changes and
+    // a retry finishes the job.
+    fn remove_callsign(&self, id: &str) -> CoreResult<()> {
+        self.remove_callsign_using(id, |id, provider| self.delete_credentials(id, provider))
     }
-    fn remove_persona_using<F>(&self, name: &str, mut delete: F) -> CoreResult<()>
+    fn remove_callsign_using<F>(&self, id: &str, mut delete: F) -> CoreResult<()>
     where F: FnMut(&str, &str) -> CoreResult<bool> {
-        let name = identifier(name)?;
-        let profile = self.lookup(&name)?;
+        let id = callsign_id(id)?;
+        let profile = self.lookup(&id)?;
         let mut index = self.load()?;
         let mut prefs = self.preferences()?;
         let mut providers = std::collections::BTreeSet::new();
-        for provider in profile.providers.keys().chain(prefs.personas.get(&name).into_iter().flat_map(|p| p.keys())) {
+        for provider in profile.providers.keys().chain(prefs.callsigns.get(&id).into_iter().flat_map(|p| p.keys())) {
             providers.insert(identifier(provider)?);
         }
-        // Also cover supported providers whose ref may be absent in a legacy
-        // index. Every account remains scoped to this exact persona.
+        // Every supported service as well, so an entry whose record was lost
+        // is not left behind in the Keychain. Every account is scoped to this
+        // callsign's id.
         for provider in ["qrz", "qrz_logbook", "eqsl", "lotw", "hamqth", "clublog"] { providers.insert(provider.into()); }
         let current_path = self.directory.join("current.txt");
         let current = match fs::read_to_string(&current_path) {
@@ -520,31 +599,31 @@ impl Store {
             Err(_) => return Err("The active callsign could not be read."),
         };
         for provider in providers {
-            delete(&name, &provider).map_err(|_| "The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.")?;
+            delete(&id, &provider).map_err(|_| "The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.")?;
         }
-        prefs.personas.remove(&name);
+        prefs.callsigns.remove(&id);
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
-        if current.as_ref().is_some_and(|value| value.trim().to_lowercase() == name) {
+        if current.as_ref().is_some_and(|value| value.trim() == id) {
             fs::remove_file(current_path).map_err(|_| "The active callsign could not be cleared.")?;
         }
-        index.personas.retain(|key, profile| key.to_lowercase() != name && profile.name.to_lowercase() != name);
+        index.callsigns.remove(&id);
         self.save(&index)
     }
     // QGD-CRD-0009: nothing here reads a secret.
     //
-    // It used to. Opening the application selected the remembered persona,
+    // It used to. Opening the application selected the remembered callsign,
     // which asked for this, which decrypted the entry — and macOS asked the
     // operator for the login keychain password before he had done anything at
     // all. Everything this reports is either in the index, where it was
     // written when the credential was saved, or is the existence of the entry,
     // which the Keychain will answer from attributes without unlocking data.
-    fn status(&self, persona: &str, provider: &str) -> CoreResult<CredentialStatus> {
-        self.lookup(persona)?;
+    fn status(&self, id: &str, provider: &str) -> CoreResult<CredentialStatus> {
+        self.lookup(id)?;
         let provider = identifier(provider)?;
-        let reference = self.lookup(persona)?.providers.get(&provider).cloned();
-        let exists = self.entry_exists(persona, &provider)?;
-        let preferred = self.preference(persona, &provider)?;
+        let reference = self.lookup(id)?.providers.get(&provider).cloned();
+        let exists = self.entry_exists(id, &provider)?;
+        let preferred = self.preference(id, &provider)?;
 
         // The index says what kinds were stored; the Keychain says whether the
         // entry is still there. An entry removed outside this application
@@ -642,18 +721,18 @@ mod addon {
     pub fn drain_core_logs() -> Vec<String> { crate::corelog::drain() }
 
     #[napi]
-    pub struct PersonaCore { store: Store }
+    pub struct CallsignCore { store: Store }
 
     #[napi(object)]
     pub struct CredentialTest { pub outcome: String }
 
     /// What is in an export and what importing it would change. No secret: it
-    /// counts them and names the personas, which is what an operator needs to
+    /// counts them and names the callsigns, which is what an operator needs to
     /// decide (QGD-CRD-0006).
     #[napi(object)]
     pub struct ImportPreview {
         pub created: String,
-        pub personas: u32,
+        pub callsigns: u32,
         pub credentials: u32,
         pub arriving: Vec<String>,
         pub overwritten: Vec<String>,
@@ -671,12 +750,12 @@ mod addon {
 
     #[napi(object)]
     pub struct ImportSummary {
-        pub personas: u32,
+        pub callsigns: u32,
         pub credentials: u32,
     }
 
     #[napi]
-    impl PersonaCore {
+    impl CallsignCore {
         #[napi(constructor)]
         pub fn new(directory: String) -> Result<Self> { Ok(Self { store: Store::new(directory.into()).map_err(error)? }) }
         /// Tests the saved credential, every time it is asked.
@@ -695,13 +774,13 @@ mod addon {
         /// is disabled while a test is in flight — not a limit, just not
         /// firing the same action twice.
         #[napi]
-        pub fn test_credential(&mut self, persona: String, provider: String) -> Result<CredentialTest> {
-            self.store.lookup(&persona).map_err(error)?;
+        pub fn test_credential(&mut self, id: String, provider: String) -> Result<CredentialTest> {
+            self.store.lookup(&id).map_err(error)?;
             let provider = identifier(&provider).map_err(error)?;
             let outcome = if !validation::supported(&provider) { "unsupported" }
             else {
-                let preference = self.store.preference(&persona, &provider).map_err(error)?;
-                let creds = self.store.read_credentials(&persona, &provider).map_err(error)?;
+                let preference = self.store.preference(&id, &provider).map_err(error)?;
+                let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
                 match creds {
                     Some(creds) if creds.username.as_ref().is_some_and(|s| !s.is_empty()) => {
                         let result = validation::test(&provider, &creds, if preference == "service" { None } else { Some(&preference) }).map_err(error)?;
@@ -719,7 +798,7 @@ mod addon {
         // and a log is keeping it. Only the outcome word is logged.
         #[napi]
         pub fn service_lookup(
-            &mut self, persona: String, provider: String, operation: String, callsign: String
+            &mut self, id: String, provider: String, operation: String, callsign: String
         ) -> Result<LookupResult> {
             // Refused before a secret is read.
             //
@@ -735,8 +814,8 @@ mod addon {
             if !validation::plain_callsign(&callsign) {
                 return Ok(LookupResult { outcome: "invalid-request".into(), fields: Vec::new() });
             }
-            let preference = self.store.preference(&persona, &provider).map_err(error)?;
-            let creds = self.store.read_credentials(&persona, &provider).map_err(error)?;
+            let preference = self.store.preference(&id, &provider).map_err(error)?;
+            let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
             let Some(creds) = creds.filter(|c| c.username.as_ref().is_some_and(|s| !s.is_empty())) else {
                 return Ok(LookupResult { outcome: "missing".into(), fields: Vec::new() });
             };
@@ -760,52 +839,60 @@ mod addon {
             }
         }
         #[napi]
-        pub fn list(&self) -> Result<Vec<Persona>> { Ok(self.store.load().map_err(error)?.personas.into_values().collect()) }
+        pub fn list(&self) -> Result<Vec<Callsign>> { Ok(self.store.load().map_err(error)?.callsigns.into_values().collect()) }
         #[napi]
-        pub fn upsert(&self, name: String, callsign: String, start: Option<String>, end: Option<String>) -> Result<Persona> { self.store.upsert(&name, &callsign, start, end).map_err(error) }
-        #[napi]
-        pub fn set_active(&self, name: String) -> Result<()> {
-            let persona = self.store.lookup(&name).map_err(error)?;
-            atomic_write(&self.store.directory.join("current.txt"), persona.name.as_bytes()).map_err(error)
+        pub fn create(&self, call: String, description: String, start: Option<String>, end: Option<String>) -> Result<Callsign> {
+            self.store.create(&call, &description, start, end).map_err(error)
         }
+        #[napi]
+        pub fn update(&self, id: String, call: String, description: String, start: Option<String>, end: Option<String>) -> Result<Callsign> {
+            self.store.update(&id, &call, &description, start, end).map_err(error)
+        }
+        #[napi]
+        pub fn set_active(&self, id: String) -> Result<()> {
+            let callsign = self.store.lookup(&id).map_err(error)?;
+            atomic_write(&self.store.directory.join("current.txt"), callsign.id.as_bytes()).map_err(error)
+        }
+        // The active callsign's id, or none. A file naming one that is gone
+        // reads as none.
         #[napi]
         pub fn active(&self) -> Result<Option<String>> {
             let path = self.store.directory.join("current.txt");
             match fs::read_to_string(path) {
-                Ok(name) => Ok(self.store.lookup(name.trim()).ok().map(|p| p.name)),
+                Ok(id) => Ok(self.store.lookup(id.trim()).ok().map(|c| c.id)),
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
                 Err(_) => Err(error("The active callsign could not be read.")),
             }
         }
         #[napi]
-        pub fn save_credentials(&self, persona: String, provider: String, credentials: CredentialInput) -> Result<()> {
+        pub fn save_credentials(&self, id: String, provider: String, credentials: CredentialInput) -> Result<()> {
             let credentials = Credentials {
                 username: credentials.username.filter(|s| !s.is_empty()),
                 password: credentials.password.filter(|s| !s.is_empty()),
                 api_key: credentials.api_key.filter(|s| !s.is_empty()),
             };
-            self.store.save_credentials(&persona, &provider, credentials).map_err(error)
+            self.store.save_credentials(&id, &provider, credentials).map_err(error)
         }
         #[napi]
-        pub fn credential_status(&self, persona: String, provider: String) -> Result<CredentialStatus> { self.store.status(&persona, &provider).map_err(error) }
+        pub fn credential_status(&self, id: String, provider: String) -> Result<CredentialStatus> { self.store.status(&id, &provider).map_err(error) }
         #[napi]
-        pub fn delete_credentials(&self, persona: String, provider: String) -> Result<bool> {
-            self.store.delete_credentials(&persona, &provider).map_err(error)
+        pub fn delete_credentials(&self, id: String, provider: String) -> Result<bool> {
+            self.store.delete_credentials(&id, &provider).map_err(error)
         }
         #[napi]
-        pub fn remove_secret(&self, persona: String, provider: String, field: String) -> Result<()> {
-            self.store.remove_secret(&persona, &provider, &field).map_err(error)
+        pub fn remove_secret(&self, id: String, provider: String, field: String) -> Result<()> {
+            self.store.remove_secret(&id, &provider, &field).map_err(error)
         }
         #[napi]
-        pub fn set_preference(&self, persona: String, provider: String, preference: String) -> Result<()> {
-            self.store.set_preference(&persona, &provider, &preference).map_err(error)
+        pub fn set_preference(&self, id: String, provider: String, preference: String) -> Result<()> {
+            self.store.set_preference(&id, &provider, &preference).map_err(error)
         }
         #[napi]
-        pub fn remove_persona(&self, name: String) -> Result<()> {
-            self.store.remove_persona(&name).map_err(error)
+        pub fn remove_callsign(&self, id: String) -> Result<()> {
+            self.store.remove_callsign(&id).map_err(error)
         }
 
-        // ---- moving personas between machines --------------------------
+        // ---- moving callsigns between machines -------------------------
         //
         // What crosses this boundary is ciphertext. The bundle is built,
         // sealed and dropped inside the core, so the plaintext never reaches a
@@ -838,10 +925,10 @@ mod addon {
         }
 
         #[napi]
-        pub fn export_personas(&self, passphrase: String) -> Result<Buffer> {
+        pub fn export_callsigns(&self, passphrase: String) -> Result<Buffer> {
             let bundle = self.store.gather().map_err(error)?;
             let sealed = crate::portable::seal(&bundle, &passphrase, now_utc()).map_err(error)?;
-            tracing::info!(personas = bundle.personas.len(), "personas exported");
+            tracing::info!(callsigns = bundle.callsigns.len(), "callsigns exported");
             Ok(sealed.into())
         }
 
@@ -853,7 +940,7 @@ mod addon {
             let (arriving, overwritten) = self.store.preview(&opened.bundle).map_err(error)?;
             Ok(ImportPreview {
                 created: opened.header.created,
-                personas: opened.bundle.personas.len() as u32,
+                callsigns: opened.bundle.callsigns.len() as u32,
                 credentials: opened.bundle.credentials.len() as u32,
                 arriving,
                 overwritten,
@@ -863,25 +950,25 @@ mod addon {
         #[napi]
         pub fn apply_import(&self, file: Buffer, passphrase: String) -> Result<ImportSummary> {
             let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
-            let (personas, entries) = self.store.absorb(&opened.bundle).map_err(error)?;
+            let (callsigns, entries) = self.store.absorb(&opened.bundle).map_err(error)?;
             // `entries`, not `credentials`, in the name and in the value:
             // QGD-LOG-0004's gate refuses a tracing call that names a secret
             // anywhere in it, including the expression it logs, and it is
             // right to — the number is a count of Keychain entries written,
             // and naming a log field after the thing it counts is how one
             // that does hold a secret slips past later. The gate caught this.
-            tracing::info!(personas, entries, "personas imported");
-            Ok(ImportSummary { personas: personas as u32, credentials: entries as u32 })
+            tracing::info!(callsigns, entries, "callsigns imported");
+            Ok(ImportSummary { callsigns: callsigns as u32, credentials: entries as u32 })
         }
         // Available to the trusted native owner for future grant enforcement and
         // interop proof. The app's broker never exposes this method to renderers.
         #[napi]
-        pub fn require_credential(&self, persona: String, provider: String, prefer: Option<String>) -> Result<CredentialInput> {
-            let profile = self.store.lookup(&persona).map_err(error)?;
+        pub fn require_credential(&self, id: String, provider: String, prefer: Option<String>) -> Result<CredentialInput> {
+            let profile = self.store.lookup(&id).map_err(error)?;
             if !profile.providers.contains_key(&identifier(&provider).map_err(error)?) { return Err(error("This callsign has no profile for this service.")); }
-            let creds = self.store.read_credentials(&persona, &provider).map_err(error)?.ok_or_else(|| error("No credential is stored."))?;
+            let creds = self.store.read_credentials(&id, &provider).map_err(error)?.ok_or_else(|| error("No credential is stored."))?;
             if creds.username.as_ref().is_none_or(String::is_empty) { return Err(error("No username is stored.")); }
-            let saved_preference = self.store.preference(&persona, &provider).map_err(error)?;
+            let saved_preference = self.store.preference(&id, &provider).map_err(error)?;
             let preference = prefer.as_deref().or(if saved_preference == "service" { None } else { Some(&saved_preference) });
             let selected = selected_secret(&provider, &creds, preference).map_err(error)?;
             Ok(CredentialInput { username: creds.username.clone(), password: Some(selected.to_owned()), api_key: None })
@@ -934,16 +1021,37 @@ mod tests {
 
     use super::*;
     #[test]
-    fn auth_compatible_records_and_dates() {
+    fn a_callsign_has_a_permanent_random_id_and_its_call_and_description_change() {
         let temp = tempfile::tempdir().unwrap();
         let store = Store::new(temp.path().into()).unwrap();
-        let persona = store.upsert("Home", "w1aw", Some("2026-01-01".into()), None).unwrap();
-        assert_eq!(persona.name, "home");
-        assert_eq!(store.lookup("HOME").unwrap().callsign, "W1AW");
-        assert!(store.upsert("Home", "W1AW", Some("2026-02-01".into()), Some("2026-01-01".into())).is_err());
-        let value: serde_json::Value = serde_json::from_slice(&fs::read(temp.path().join("personas.json")).unwrap()).unwrap();
-        assert_eq!(value["personas"]["home"]["callsign"], "W1AW");
-        assert_eq!(store.load().unwrap().personas.len(), 1);
+        let home = store.create(" w1aw ", " Home ", Some("2026-01-01".into()), None).unwrap();
+        assert_eq!((home.call.as_str(), home.description.as_str()), ("W1AW", "Home"));
+        assert!(callsign_id(&home.id).is_ok(), "{} is a version 4 UUID", home.id);
+        // The same call twice is two callsigns, with two ids.
+        let portable = store.create("W1AW/P", "", None, None).unwrap();
+        assert_ne!(home.id, portable.id);
+        // Both the call and the description change; the id does not.
+        let changed = store.update(&home.id, "K1ABC", "Home station", None, None).unwrap();
+        assert_eq!((changed.id.as_str(), changed.call.as_str(), changed.description.as_str()), (home.id.as_str(), "K1ABC", "Home station"));
+        assert_eq!(store.lookup(&home.id).unwrap().call, "K1ABC");
+        let value: serde_json::Value = serde_json::from_slice(&fs::read(temp.path().join("callsigns.json")).unwrap()).unwrap();
+        assert_eq!(value["callsigns"][&home.id]["description"], "Home station");
+        assert_eq!(store.load().unwrap().callsigns.len(), 2);
+        // Refused: dates out of order, a call that is not one, a description
+        // on two lines, an id that is not one.
+        assert!(store.update(&home.id, "K1ABC", "", Some("2026-02-01".into()), Some("2026-01-01".into())).is_err());
+        assert!(store.create("W1 AW", "", None, None).is_err());
+        assert!(store.create("W1AW", "a\nb", None, None).is_err());
+        assert!(store.lookup("home").is_err());
+        assert!(store.update("00000000-0000-1000-8000-000000000000", "W1AW", "", None, None).is_err());
+    }
+    #[test]
+    fn ids_are_version_4_uuids_and_do_not_repeat() {
+        let ids: std::collections::BTreeSet<String> = (0..1000).map(|_| new_callsign_id().unwrap()).collect();
+        assert_eq!(ids.len(), 1000);
+        for id in &ids { assert_eq!(callsign_id(id).unwrap(), *id); }
+        assert!(callsign_id("6F9619FF-8B86-4D11-B42D-00C04FC964FF").is_err(), "uppercase is not how this core writes one");
+        assert!(callsign_id("6f9619ff-8b86-1d11-b42d-00c04fc964ff").is_err(), "version 1 embeds the machine and the time");
     }
     #[test]
     fn credential_selection_matches_auth() {
@@ -955,33 +1063,37 @@ mod tests {
     }
     #[test]
     fn naming_contract_and_boundaries() {
-        assert_eq!(subject("Home", "QRZ_LOGBOOK").unwrap(), "home:qrz_logbook");
-        assert!(subject("home:qrz", "qrz").is_err());
+        // An entry's name is the callsign's id and the service: nothing the
+        // operator typed.
+        let id = new_callsign_id().unwrap();
+        assert_eq!(subject(&id, "QRZ_LOGBOOK").unwrap(), format!("{id}:qrz_logbook"));
+        assert!(subject("home", "qrz").is_err());
+        assert!(subject(&format!("{id}:qrz"), "qrz").is_err());
         assert!(subject("", "qrz").is_err());
     }
     #[test]
-    fn failed_keychain_deletion_preserves_persona_and_selection_for_retry() {
+    fn failed_keychain_deletion_preserves_callsign_and_selection_for_retry() {
         let temp = tempfile::tempdir().unwrap();
         let store = Store::new(temp.path().into()).unwrap();
-        store.upsert("portable", "KI7MT", None, None).unwrap();
-        store.upsert("home", "W1AW", None, None).unwrap();
-        store.set_preference("portable", "qrz", "password").unwrap();
-        atomic_write(&temp.path().join("current.txt"), b"portable").unwrap();
-        let before = fs::read(temp.path().join("personas.json")).unwrap();
+        let portable = store.create("KI7MT", "Portable", None, None).unwrap().id;
+        let home = store.create("W1AW", "Home", None, None).unwrap().id;
+        store.set_preference(&portable, "qrz", "password").unwrap();
+        atomic_write(&temp.path().join("current.txt"), portable.as_bytes()).unwrap();
+        let before = fs::read(temp.path().join("callsigns.json")).unwrap();
         let prefs_before = fs::read(temp.path().join("desktop-preferences.json")).unwrap();
         let mut calls = 0;
-        let result = store.remove_persona_using("portable", |persona, _provider| {
-            assert_eq!(persona, "portable");
+        let result = store.remove_callsign_using(&portable, |id, _provider| {
+            assert_eq!(id, portable);
             calls += 1;
             if calls == 2 { Err("Synthetic Keychain refusal.") } else { Ok(true) }
         });
         assert!(result.is_err());
-        assert_eq!(fs::read(temp.path().join("personas.json")).unwrap(), before);
+        assert_eq!(fs::read(temp.path().join("callsigns.json")).unwrap(), before);
         assert_eq!(fs::read(temp.path().join("desktop-preferences.json")).unwrap(), prefs_before);
-        assert_eq!(fs::read_to_string(temp.path().join("current.txt")).unwrap(), "portable");
-        store.remove_persona_using("portable", |_persona, _provider| Ok(false)).unwrap();
-        assert!(store.lookup("portable").is_err());
-        assert!(store.lookup("home").is_ok());
+        assert_eq!(fs::read_to_string(temp.path().join("current.txt")).unwrap(), portable);
+        store.remove_callsign_using(&portable, |_id, _provider| Ok(false)).unwrap();
+        assert!(store.lookup(&portable).is_err());
+        assert!(store.lookup(&home).is_ok());
         assert!(!temp.path().join("current.txt").exists());
     }
 }
