@@ -121,7 +121,10 @@
     control={exportKey}
   />
   <Field id="export-passphrase-again" label="Passphrase again" error={exportWhy} control={exportKeyAgain} />
-  <button type="button" class:working={exporting} disabled={!canExport} onclick={runExport}
+  <!-- Spaced from the line above it, which may be a field's message
+       (KI7MT, 2026-10-22: it sat right under "Enter a passphrase to
+       export."). -->
+  <button type="button" class="after-field" class:working={exporting} disabled={!canExport} onclick={runExport}
   >{exporting ? 'Exporting…' : 'Export…'}</button>
   <p id="export-personas-result" role="status">{exportResult}</p>
 
@@ -134,6 +137,7 @@
   />
   <button
     type="button"
+    class="after-field"
     class:working={inspecting}
     disabled={!canInspect}
     aria-describedby={canInspect ? undefined : 'import-why'}
