@@ -232,6 +232,15 @@
       ],
       "reason": "The Personas page is called Callsigns on screen (KI7MT, 2026-10-22), so its captures are named callsigns-*; KI7MT approved those the same day.",
       "recordedAtUtc": "2026-10-22T07:49:05.509Z"
+    },
+    {
+      "files": [
+        "home-end-light.png",
+        "home-end-dark.png"
+      ],
+      "replacedBy": [],
+      "reason": "Home now fits on one screen (its title went on 2026-10-22, KI7MT), so there is no scrolled end of it to capture. Found when the baselines were compared under the render tolerance.",
+      "recordedAtUtc": "2026-10-22T08:07:58.533Z"
     }
   ]
 }

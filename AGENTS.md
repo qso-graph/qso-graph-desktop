@@ -167,7 +167,7 @@ and no demonstration extension, which is why this repository now has none either
 - **Test fixtures stay in their own namespace:** the test Keychain service and the reserved
   test prefix. Fixtures are swept on exit, on interrupt, and at the start of the next run. Never
   use realistic names (such as a field's placeholder text) for fixtures.
-- **Screenshot baselines** are compared pixel for pixel. A changed baseline waits for KI7MT's
+- **Screenshot baselines** are compared within two shades per colour (KI7MT, 2026-10-22: rendering noise is not the product; `baselines/README.md`). A changed baseline waits for KI7MT's
   approval in `data/baseline-approval.json`; an agent never approves one.
 - **Don't loosen an exact assertion** to make an intermittent failure go away. Instrument it and
   find the cause.

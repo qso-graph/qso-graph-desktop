@@ -80,10 +80,17 @@ export function decode(file) {
   return { width, height, pixels };
 }
 
-// `tolerance` is per channel. Zero is the default and what this project uses:
-// the same machine rendering the same page twice produces the same pixels, and
-// a tolerance wide enough to absorb a real change is a comparison that passes
-// on anything.
+// `tolerance` is per channel. Zero is the default, and is right for one
+// session drawing the same page twice (stableShot's settling check).
+//
+// Against a baseline the screenshots allow RENDER_TOLERANCE (KI7MT,
+// 2026-10-22). The same Mac drew drop shadows one shade apart over ssh and in a
+// logged-in session, and macOS updates, displays and machines move them too:
+// variables without end, none of them the product. Two shades absorbs that and
+// nothing a person would call a change: moved or edited text, a new colour or
+// a shifted control differs by far more, which tests/png.test.mjs holds.
+export const RENDER_TOLERANCE = 2;
+
 export function compare(a, b, tolerance = 0) {
   if (a.width !== b.width || a.height !== b.height) {
     return { same: false, reason: `size changed: ${b.width}x${b.height} was ${a.width}x${a.height}`, differing: null };

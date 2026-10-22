@@ -19,13 +19,19 @@ Accept what was captured as the new baseline:
 Approving is a separate command on purpose. A changed screen must not be able
 to become the expected screen by being run past.
 
-The comparison is pixel for pixel with no tolerance: the same machine drawing
-the same page twice produces the same pixels, and a tolerance wide enough to
-absorb a real change is a comparison that passes on anything. That also makes
-these **machine-local** — another Mac renders text differently and every
-baseline will differ. `QGD-SCP-0003` and `QGD-SCP-0004` defer a second
-operating system and a CI matrix to Release 1, and this is one of the things
-that will need an answer then.
+The comparison allows **two shades per colour channel** (`RENDER_TOLERANCE` in
+`scripts/png.mjs`) and nothing more (KI7MT, 2026-10-22). The same Mac drew drop
+shadows one shade apart over ssh and in a logged-in session, and macOS updates,
+displays and machines move them too: variables without end, none of them the
+product. Two shades absorbs that, and nothing a person would call a change:
+`tests/png.test.mjs` holds that text moved by one pixel and a colour shifted by
+three shades still fail. Text drawn by another Mac differs by far more, so
+these are still **machine-local**: `QGD-SCP-0003` and `QGD-SCP-0004` defer a
+second operating system and a CI matrix to Release 1.
+
+A baseline that no capture produces any more fails the suite. A screen that
+was renamed or removed takes its baseline with it, recorded under `retired` in
+`data/baseline-approval.json` after its last approval.
 
 The content is fixed so the comparison means something: one persona with a
 fixed name, callsign and start date, and a log directory inside the repository

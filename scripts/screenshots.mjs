@@ -24,12 +24,12 @@
 // comparison would mean nothing. Baselines are machine-local until there is a
 // CI matrix; QGD-SCP-0003 and QGD-SCP-0004 defer that to Release 1.
 import { _electron as electron, expect } from '@playwright/test';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { redact } from './report.mjs';
-import { colourCount, compare, decode, describeDiff } from './png.mjs';
+import { colourCount, compare, decode, describeDiff, RENDER_TOLERANCE } from './png.mjs';
 import { assertNoVisibleWindow } from './no-visible-window.mjs';
 
 // Who is approving. An agent passing --approve has to say so, and what it
@@ -261,7 +261,7 @@ async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pan
       return;
     }
     const baseline = decode(existing);
-    const result = compare(baseline, current);
+    const result = compare(baseline, current, RENDER_TOLERANCE);
     if (!result.same) {
       // The reason alone is a pixel count and one coordinate, which does
       // not say where the difference is or what shape it has — and that was
@@ -509,6 +509,14 @@ try {
     await record(page, `home-station-${theme}.png`, theme);
   }
 
+  // A baseline no capture produces any more is a picture of a screen that is
+  // gone, still counted as approved. Home's scrolled end was one: it stopped
+  // being captured when Home fit on one screen, and nothing said so.
+  const orphans = (await readdir(baselines)).filter(file => file.endsWith('.png') && !captured.includes(file)).sort();
+  for (const file of orphans) {
+    failures.push(`${file}: a baseline nothing captures any more. Remove it and record it as retired in data/baseline-approval.json`);
+  }
+
   if (approve) {
     const register = JSON.parse(await readFile(APPROVAL_REGISTER, 'utf8'));
     const hashes = {};
@@ -544,7 +552,7 @@ try {
   } else {
     // Counted from what was captured, not from a list of pages: the pages now
     // run to several captures each, and the fixed count said 8 when it was 20.
-    console.log(`Screenshots: ${captured.length} baselines match, pixel for pixel: PASS`);
+    console.log(`Screenshots: ${captured.length} baselines match, within ${RENDER_TOLERANCE} shades per colour: PASS`);
     // Said on every green run, because a baseline nobody has approved is a
     // picture of what the product draws and not a statement that it is right
     // (QGD-PRT-0103).

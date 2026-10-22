@@ -296,7 +296,7 @@ try {
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });
   await rail('Settings').click();
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Persona details', exact: true })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Callsign details', exact: true })).toBeHidden();
   expect(await rail('Settings').getAttribute('aria-current')).toBe('page');
   expect(await rail('Callsigns').getAttribute('aria-current')).toBeNull();
   // P3-status-bar: the active persona is on every page, not just its own.
@@ -313,7 +313,7 @@ try {
   const outline = await page.evaluate(() => getComputedStyle(document.activeElement, null).outlineWidth);
   expect(parseFloat(outline), 'the focused rail item must show a focus indicator').toBeGreaterThan(0);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Persona details', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Callsign details', exact: true })).toBeVisible();
   await rail('Settings').click();
 
   // The rail's icons carry a label and a tooltip, and the label is what is

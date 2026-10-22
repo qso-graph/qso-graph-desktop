@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { colourCount, compare, decode, describeDiff } from '../scripts/png.mjs';
+import { colourCount, compare, decode, describeDiff, RENDER_TOLERANCE } from '../scripts/png.mjs';
 
 // The committed baselines are the real input this decoder exists to read, so
 // they are what it is tested against rather than something synthesised.
@@ -79,6 +79,53 @@ describe('comparing two screenshots', () => {
     expect(compare(before, after, 0).differing).toBe(1);
     expect(compare(before, after, 1).differing).toBe(1);
     expect(compare(before, after, 2).same).toBe(true);
+  });
+});
+
+describe('what the screenshots allow against a baseline', () => {
+  // RENDER_TOLERANCE exists to pass rendering noise and nothing else. These
+  // hold it to that, on a real baseline: if it ever grows wide enough to pass
+  // a change a person would see, they fail.
+  const shift = (image, x0, y0, width, height) => {
+    // Moves a block one pixel right: text that moved, or a glyph that changed.
+    const out = { ...image, pixels: Buffer.from(image.pixels) };
+    for (let y = y0; y < y0 + height; y++) {
+      for (let x = x0 + width - 1; x > x0; x--) {
+        const to = (y * image.width + x) * 4;
+        const from = (y * image.width + x - 1) * 4;
+        image.pixels.copy(out.pixels, to, from, from + 4);
+      }
+    }
+    return out;
+  };
+
+  it('passes the noise it was set for: shadows one or two shades off', async () => {
+    const before = await load('troubleshooting-dark');
+    const after = await load('troubleshooting-dark');
+    for (const x of [79, 80, 81, 290, 291]) after.pixels[(86 * before.width + x) * 4 + 1] -= 1;
+    after.pixels[(70 * before.width + 79) * 4] += 2;
+    expect(compare(before, after, RENDER_TOLERANCE).same).toBe(true);
+  });
+
+  it('still fails on text moved by one pixel', async () => {
+    // The page heading, "Settings", is in this box on the baseline.
+    const before = await load('settings-light');
+    const after = shift(before, 128, 100, 110, 35);
+    const result = compare(before, after, RENDER_TOLERANCE);
+    expect(result.same).toBe(false);
+    expect(result.differing).toBeGreaterThan(50);
+  });
+
+  it('still fails on a colour changed by a few shades across the page', async () => {
+    const before = await load('home-light');
+    const after = await load('home-light');
+    for (let i = 0; i < after.pixels.length; i += 4) after.pixels[i + 2] = Math.max(0, after.pixels[i + 2] - 3);
+    expect(compare(before, after, RENDER_TOLERANCE).same).toBe(false);
+  });
+
+  it('stays small', () => {
+    expect(RENDER_TOLERANCE).toBeGreaterThan(0);
+    expect(RENDER_TOLERANCE).toBeLessThanOrEqual(2);
   });
 });
 
