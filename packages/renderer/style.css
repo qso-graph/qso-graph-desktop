@@ -92,6 +92,9 @@
 body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--page); color: var(--ink); }
 [hidden] { display: none !important; }
 header { height: 56px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+/* The heads-up bar's boxes: the clock, then sunrise and sunset. */
+.header-chips { display: flex; gap: 10px; align-items: center; min-width: 0; }
+@media (max-width: 760px) { .header-sun { display: none; } }
 /* The clock, first on the heads-up bar: green on black, like a radio's
    display (KI7MT, 2026-10-22: yellow, like WSJT-X's, was tried first; green
    is "more radio-ish and tech-ish"). The same in both themes, because it is
@@ -99,6 +102,7 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
    it later takes the same colours (#43). Green on black is about 15:1. */
 .header-clock { display: flex; gap: 18px; font-size: 13px; padding: 6px 14px; border-radius: 6px;
   background: #000000; border: 1px solid var(--border); }
+.clock-part.next .clock-label { color: #39ff6a; }
 .clock-label { color: #5fa86f; font-size: 11px; font-weight: 600; margin-right: 4px; }
 .clock-time { color: #39ff6a; font-weight: 650; font-variant-numeric: tabular-nums;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }

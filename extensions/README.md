@@ -13,7 +13,7 @@ None of them is here yet, and that is the build order rather than an omission:
 
 | Extension | Part | What |
 |---|---|---|
-| `on-the-air` | `QGD-PRT-0108` | On the Air — the Home cards: Conditions and Your station first (built-in) |
+| `on-the-air` | `QGD-PRT-0108` | On the Air — the Home cards: Conditions first (built-in) |
 | `club` | `QGD-PRT-0110` | QG Club — club definition and roster |
 | `editor` | `QGD-PRT-0111` | QG Editor — generate, validate and maintain a club's `.cli` and `.prf` files in NetLogger's own format |
 

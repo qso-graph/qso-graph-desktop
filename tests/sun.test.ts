@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Sunrise and sunset (QGD-HOM-0009), against an independent calculation.
+// Sunrise and sunset in the header (QGD-FRM-0014), against an independent calculation.
 //
 // The expected times are PyEphem's (4.2), with its refraction off and the
 // horizon at -0°34' as NOAA's method has it, asked for each place's own solar
@@ -9,7 +9,7 @@
 // where PyEphem and sun.ts agree to the minute. Within a minute is the
 // requirement.
 import { describe, expect, it } from 'vitest';
-import { sunDay } from '../src/sun.js';
+import { sunDay } from '../packages/ui/sun.js';
 
 const CASES: [string, number, number, string, string, string][] = [
   ['Boise DN13sm, June solstice', 43.625, -116.2083, '2026-06-21T19:44Z', '2026-06-21T12:03:31Z', '2026-06-22T03:29:54Z'],

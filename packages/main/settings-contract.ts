@@ -34,8 +34,10 @@ export interface Settings {
 }
 
 export const MAX_PINS = 6;
-// The day-one cards (QGD-HOM-0004): what a new install starts with.
-export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions', 'on-the-air/your-station'];
+// The day-one cards (QGD-HOM-0004): what a new install starts with. Your
+// station was the second until it was retired (KI7MT, 2026-10-22); a pin for
+// it in an older settings.json names no card, and Home skips it.
+export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions'];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).

@@ -35,10 +35,6 @@
 <Story name="Severe alert" args={{ shown: { state: 'ready', observedAt, sections: [
   { shape: 'alert', level: 'severe', text: 'R3 radio blackout: HF on the sunlit side is out.' }
 ] } }} />
-<Story name="Your station" args={{ name: 'Your station', shown: { state: 'ready', observedAt, sections: [
-  { shape: 'figures', figures: [{ label: 'UTC', value: '18:00' }, { label: 'Local', value: '12:00' }] },
-  { shape: 'items', items: [{ title: 'Operating as', detail: 'W1AW' }] }
-] } }} />
 <Story name="Table" args={{ name: 'Conditions', shown: { state: 'ready', observedAt, sections: [
   { shape: 'table', columns: ['Band', 'Status', 'Comment'], rows: [
     ['80m', 'Good', 'Reliable night band'], ['20m', 'Excellent', 'Strong F-layer, long openings'], ['6m', 'Sporadic', 'Watch for Es openings']

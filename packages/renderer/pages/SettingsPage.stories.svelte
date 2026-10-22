@@ -14,7 +14,7 @@
     args: {
       themeChoice: 'system',
       onChooseTheme: () => Promise.resolve(true),
-      extensions: [{ id: 'on-the-air', name: 'On the Air', cards: ['Conditions', 'Your station'], enabled: true }],
+      extensions: [{ id: 'on-the-air', name: 'On the Air', cards: ['Conditions'], enabled: true }],
       onSetExtension: () => Promise.resolve(true)
     }
   });
@@ -22,7 +22,7 @@
 
 <Story name="Default" />
 <Story name="Dark chosen" args={{ themeChoice: 'dark' }} />
-<Story name="Extension off" args={{ extensions: [{ id: 'on-the-air', name: 'On the Air', cards: ['Conditions', 'Your station'], enabled: false }] }} />
+<Story name="Extension off" args={{ extensions: [{ id: 'on-the-air', name: 'On the Air', cards: ['Conditions'], enabled: false }] }} />
 <Story name="Reading extensions" args={{ extensions: undefined }} />
 <Story name="Reference data not loaded" args={{ storage: { state: 'ready', reference: { adif: { state: 'not loaded' }, parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' }, refreshing: false, resources: RESOURCES_NOT_LOADED } } }} />
 <Story name="Reference data loaded" args={{ storage: { state: 'ready', reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, refreshing: false, resources: RESOURCES_LOADED } } }} />

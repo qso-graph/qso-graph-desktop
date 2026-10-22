@@ -7,7 +7,7 @@
   const observedAt = '2026-10-11T18:00:00Z';
   const available = [
     { key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux, K and A, and the band outlook.', extensionName: 'On the Air' },
-    { key: 'on-the-air/your-station', name: 'Your station', description: 'UTC, local time and who you are operating as.', extensionName: 'On the Air' }
+    { key: 'on-the-air/parks', name: 'Parks and summits', description: 'POTA and SOTA activators now.', extensionName: 'On the Air' }
   ];
   const pinned: HomeModel = {
     available, pins: available.map(card => card.key),
@@ -15,9 +15,8 @@
       { key: 'on-the-air/conditions', name: 'Conditions', shown: { state: 'ready', observedAt, sections: [
         { shape: 'figures', figures: [{ label: 'Solar flux', value: '148', unit: 'sfu' }, { label: 'K index', value: '2' }, { label: 'A index', value: '6' }] }
       ] } },
-      { key: 'on-the-air/your-station', name: 'Your station', shown: { state: 'ready', observedAt, sections: [
-        { shape: 'figures', figures: [{ label: 'UTC', value: '18:00' }, { label: 'Local', value: '12:00' }] },
-        { shape: 'items', items: [{ title: 'Operating as', detail: 'W1AW' }] }
+      { key: 'on-the-air/parks', name: 'Parks and summits', shown: { state: 'ready', observedAt, sections: [
+        { shape: 'items', items: [{ title: 'US-0001', detail: 'W1AW · 14.074 FT8' }, { title: 'W7I/SI-001', detail: 'W1AW · 7.032 CW' }] }
       ] } }
     ],
     notice: null

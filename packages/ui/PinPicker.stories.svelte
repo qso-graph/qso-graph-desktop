@@ -5,7 +5,6 @@
 
   const available = [
     { key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux, K and A, and the band outlook.' },
-    { key: 'on-the-air/your-station', name: 'Your station', description: 'UTC, local time and who you are operating as.' },
     { key: 'on-the-air/dx', name: 'DX on the air', description: 'Recent DX spots on the open bands.' },
     { key: 'on-the-air/parks', name: 'Parks and summits', description: 'POTA and SOTA activators now.' },
     { key: 'on-the-air/nets', name: 'Nets on the air', description: 'Nets running now and next.' },
@@ -15,7 +14,7 @@
   const { Story } = defineMeta({
     title: 'components/PinPicker',
     component: PinPicker,
-    args: { open: true, available, pins: ['on-the-air/conditions', 'on-the-air/your-station'], onSave: () => {}, onCancel: () => {} }
+    args: { open: true, available, pins: ['on-the-air/conditions', 'on-the-air/parks'], onSave: () => {}, onCancel: () => {} }
   });
 </script>
 

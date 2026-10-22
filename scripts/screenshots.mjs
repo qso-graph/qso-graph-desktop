@@ -49,7 +49,7 @@ const captures = resolve('report/screenshots');
 // moving, not to widen the comparison until it stops noticing.
 // What varies by nature from one run to the next, and is masked: the
 // operator's own folder (a temporary one here), the sizes of the stores, the
-// clock on Your station and every card's time. A mask covers the value and
+// clocks and sun times in the header and every card's time. A mask covers the value and
 // nothing more: a mask over a label or a button would let that label or button
 // change unseen (Hopper, 2026-10-12, found three that did). The values
 // themselves are the smoke suite's to assert. A mask is a box drawn over the
@@ -67,10 +67,10 @@ const VOLATILE = [
   // checkout, but the baselines are committed and compared from any checkout
   // (~/qgd-bob, a maintainer's own clone), so the path differs between them.
   '#log-directory',
-  // The header's clock: its times, not its "UTC" and "Local" labels.
+  // The header's clock and sun times: the values, not their labels. The sun
+  // times change with the date.
   '#header-clock .clock-time',
-  // Your station's clock: the times, not the "UTC" and "Local" labels above them.
-  'section.home-card[aria-label="Your station"] .home-card-figures dd',
+  '#header-sun .clock-time',
   'section.home-card .home-card-time'
 ];
 // Not masked, because in this run they do not change: nothing is fetched at
@@ -184,7 +184,7 @@ const OVER_HOME_MASKS = VOLATILE.filter(selector => !selector.startsWith('sectio
 async function recordOverHome(page, file, theme, options = {}) {
   const hidden = await page.evaluate(() => {
     const sheet = document.styleSheets[0];
-    return sheet.insertRule('section.home-card .home-card-time, section.home-card[aria-label="Your station"] .home-card-figures dd { visibility: hidden !important; }', sheet.cssRules.length);
+    return sheet.insertRule('section.home-card .home-card-time { visibility: hidden !important; }', sheet.cssRules.length);
   });
   try {
     await record(page, file, theme, OVER_HOME_MASKS, options);
@@ -411,9 +411,7 @@ try {
       // What these pages show from the main process is waited for, not
       // raced: Home's two cards, answered, and Settings' extension switch.
       if (name === 'Home') {
-        for (const card of ['Conditions', 'Your station']) {
-          await expect(page.locator(`section.home-card[aria-label="${card}"]`)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
-        }
+        await expect(page.locator('section.home-card[aria-label="Conditions"]')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
       }
       if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
@@ -485,7 +483,7 @@ try {
   expect(await page.evaluate(([persona, id]) => window.storage.request({ type: 'set-default-station', persona, id }), [PERSONA.name, home.saved]))
     .toMatchObject({ ok: true });
   expect(await page.evaluate(id => window.storage.request({ type: 'set-active-station', id }), home.saved)).toMatchObject({ ok: true });
-  await expect(page.locator('#active-station')).toHaveText(`Location: ${HQ}`, { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText(`Location: ${HQ} · FN31pr`, { timeout: 30_000 });
   const blur = () => page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
 
   for (const theme of THEMES) {
@@ -511,13 +509,12 @@ try {
     await record(page, `station-park-${theme}.png`, theme);
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-    // Your station with a station active: its name and grid, and sunrise and
-    // sunset there, whose times are masked like the clock's.
+    // Home with a location active: sunrise and sunset in the header, whose
+    // times are masked like the clock's, and the status bar naming it with its
+    // grid (QGD-FRM-0014).
     await rail('Home').click();
-    await expect(page.locator('section.home-card[aria-label="Your station"]')).toContainText(`${HQ} · FN31pr`, { timeout: 60_000 });
-    for (const card of ['Conditions', 'Your station']) {
-      await expect(page.locator(`section.home-card[aria-label="${card}"]`)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
-    }
+    await expect(page.locator('#header-sun')).toContainText('Sunrise', { timeout: 30_000 });
+    await expect(page.locator('section.home-card[aria-label="Conditions"]')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     await blur();
     await record(page, `home-station-${theme}.png`, theme);
   }

@@ -274,12 +274,12 @@ describe('the grants the operator has allowed', () => {
 
 describe('P8-pins: pins in settings.json (QGD-HOM-0003, QGD-HOM-0004)', () => {
   it('starts a new install with the day-one cards pinned, in order', () => {
-    expect(readSettings({})).toMatchObject({ pins: ['on-the-air/conditions', 'on-the-air/your-station'] });
-    expect(DAY_ONE_PINS).toEqual(['on-the-air/conditions', 'on-the-air/your-station']);
+    expect(readSettings({})).toMatchObject({ pins: ['on-the-air/conditions'] });
+    expect(DAY_ONE_PINS).toEqual(['on-the-air/conditions']);
   });
 
   it('keeps the order an operator set', () => {
-    const pins = ['on-the-air/your-station', 'on-the-air/conditions', 'other/card'];
+    const pins = ['other/second', 'on-the-air/conditions', 'other/card'];
     expect(readSettings({ pins }).pins).toEqual(pins);
   });
 

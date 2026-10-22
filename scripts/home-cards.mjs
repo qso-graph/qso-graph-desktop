@@ -18,7 +18,7 @@
 // (source-fixtures.ts), so what Conditions says is known and nothing here
 // depends on NOAA answering.
 import { _electron as electron, expect } from '@playwright/test';
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { redact } from './report.mjs';
@@ -30,9 +30,17 @@ import { enableTestKeychain } from './keychain-service.mjs';
 // anything try.
 enableTestKeychain();
 
-const FIXTURES = resolve('tests/fixtures/noaa/quiet');
-const expected = JSON.parse(await readFile(join(FIXTURES, 'expected.json'), 'utf8'));
+const QUIET = resolve('tests/fixtures/noaa/quiet');
+const STORM = resolve('tests/fixtures/noaa/storm');
+const expected = JSON.parse(await readFile(join(QUIET, 'expected.json'), 'utf8'));
+const stormExpected = JSON.parse(await readFile(join(STORM, 'expected.json'), 'utf8'));
 const directory = await mkdtemp(join(tmpdir(), 'qg-home-cards-'));
+// The recorded responses are read from here each time a source is asked
+// for, so a test can change what NOAA "says" mid-run: the quiet day, and the
+// storm swapped in when only a fresh answer could show it.
+const FIXTURES = join(directory, 'noaa');
+const recorded = async from => { await rm(FIXTURES, { recursive: true, force: true }); await cp(from, FIXTURES, { recursive: true }); };
+await recorded(QUIET);
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
 const logs = join(directory, 'logs');
@@ -73,14 +81,14 @@ try {
   application = undefined;
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
-  // P8-built-in, first half: a new profile has On the Air on and its two
-  // cards pinned (QGD-HOM-0004).
+  // P8-built-in, first half: a new profile has On the Air on and Conditions
+  // pinned (QGD-HOM-0004). Its other card, Your station, was retired on
+  // 2026-10-22 (KI7MT): the header and the status bar carry all of it.
   await rm(settingsFile, { force: true });
   ({ application, page } = await launch());
   await expect(card(page, 'Conditions')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
-  await expect(card(page, 'Your station')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
   await expect(card(page, 'Conditions')).toContainText(String(expected.sfi));
-  await expect(card(page, 'Your station')).toContainText('UTC');
+  await expect(page.locator('section.home-card')).toHaveCount(1);
 
   // P8-host: the answers came from QG Extensions, which is its own process.
   const hosts = await extensionHost(application);
@@ -107,17 +115,18 @@ try {
   await expect(notice).not.toContainText(/caused|because/i);
   await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
     { message: 'a new extension host must be running', timeout: 30_000 }).toBe(1);
-  // A fresh answer, which only the new host can give: Your station said no
-  // persona was active before the kill; a persona made active now asks every
-  // card again at once (QGD-HOM-0005), and its callsign must come back. The
-  // cards' earlier answers would pass any check on what they already showed.
-  await expect(card(page, 'Your station')).toContainText('No callsign is active yet.');
+  // A fresh answer, which only the new host can give: NOAA's recorded day is
+  // changed to the storm, and a persona made active asks every card again at
+  // once (QGD-HOM-0005), so Conditions must show the storm's solar flux. Its
+  // earlier answer would pass any check on what it already showed.
+  await recorded(STORM);
   const personaReply = await page.evaluate(async () => {
     const made = await window.personas.request({ type: 'upsert', name: 'qg-home-cards-fixture', callsign: 'w1aw' });
     return made.ok ? window.personas.request({ type: 'set-active', name: 'qg-home-cards-fixture' }) : made;
   });
   expect(personaReply, 'the test persona must be made active').toMatchObject({ ok: true });
-  await expect(card(page, 'Your station'), 'the new host must answer Your station').toContainText(/W1AW/i, { timeout: 30_000 });
+  await expect(card(page, 'Conditions'), 'the new host must answer Conditions afresh').toContainText(String(stormExpected.sfi), { timeout: 30_000 });
+  await recorded(QUIET);
   await notice.getByRole('button', { name: 'Dismiss' }).click();
   await expect(notice).toHaveCount(0, { timeout: 30_000 });
   console.log('P8-supervision: the extension host killed; Home named On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
@@ -137,7 +146,7 @@ try {
   await expect(dialog).not.toContainText('Conditions');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   // The pins are kept, so they come back where they were.
-  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'on-the-air/your-station']);
+  expect((await settings()).pins).toEqual(['on-the-air/conditions']);
 
   // On again in the same run: the cards come back at once with what they last
   // said, not "Getting the latest…" until Conditions' fifteen minutes run out.
@@ -145,8 +154,8 @@ try {
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
-  await expect(card(page, 'Conditions')).toContainText(String(expected.sfi), { timeout: 10_000 });
-  await expect(card(page, 'Your station')).toContainText('UTC', { timeout: 10_000 });
+  // What it last said was the storm, answered by the restarted host above.
+  await expect(card(page, 'Conditions')).toContainText(String(stormExpected.sfi), { timeout: 10_000 });
 
   // And off again, for the restart below.
   await rail(page, 'Settings').click();
@@ -161,14 +170,14 @@ try {
   await expect(page.locator('section.home-card')).toHaveCount(0);
   expect(await extensionHost(application), 'an extension that is off is not started').toEqual([]);
 
-  // Turned on again: both cards back, in their places.
+  // Turned on again: the card back, in its place.
   await rail(page, 'Settings').click();
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
-  await expect(page.locator('section.home-card')).toHaveCount(2, { timeout: 30_000 });
+  await expect(page.locator('section.home-card')).toHaveCount(1, { timeout: 30_000 });
   expect(await page.locator('section.home-card').evaluateAll(cards => cards.map(each => each.getAttribute('aria-label'))))
-    .toEqual(['Conditions', 'Your station']);
+    .toEqual(['Conditions']);
   await expect(card(page, 'Conditions')).toContainText(String(expected.sfi), { timeout: 30_000 });
   // A change that cannot be saved leaves the switch showing what was
   // recorded. The settings folder made read-only stops the write; Windows has

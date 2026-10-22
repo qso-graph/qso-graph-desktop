@@ -25,6 +25,7 @@
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
   import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
+  import { fromAdifLocation, gridPosition } from '../storage/station-contract.js';
 
   interface Props {
     store: ShellStore;
@@ -91,9 +92,26 @@
   }
 
   // The active station's name, for the status bar (QGD-STN-0005).
-  const activeStationName = $derived.by(() => {
+  const activeStation = $derived.by(() => {
     const stations = shell.storage?.stations;
-    return stations?.list.find(station => station.id === stations.active)?.name ?? '';
+    return stations?.list.find(station => station.id === stations.active);
+  });
+  // The status bar names the location and its grid, which the retired Your
+  // station card was the only place to show (KI7MT, 2026-10-22).
+  const activeStationName = $derived.by(() => {
+    if (!activeStation) return '';
+    const grid = activeStation.place.MY_GRIDSQUARE ?? activeStation.place.MY_VUCC_GRIDS;
+    return grid ? `${activeStation.name} · ${grid}` : activeStation.name;
+  });
+  // Where sunrise and sunset are worked out for the header (QGD-FRM-0014):
+  // the location's own latitude and longitude, or the centre of its grid, as
+  // the extension brief has it. None, and the header shows the clock alone.
+  const activePosition = $derived.by(() => {
+    if (!activeStation) return undefined;
+    const latitude = fromAdifLocation(activeStation.place.MY_LAT);
+    const longitude = fromAdifLocation(activeStation.place.MY_LON);
+    if (latitude !== undefined && longitude !== undefined) return { latitude, longitude };
+    return gridPosition(activeStation.place.MY_GRIDSQUARE ?? activeStation.place.MY_VUCC_GRIDS);
   });
 </script>
 
@@ -102,7 +120,7 @@
        bar already names the application. The clock at the left, as it is
        always there; the right is kept for what extensions add, as a rig's
        frequency and mode (#43). -->
-  <HeaderClock />
+  <HeaderClock position={activePosition} />
 </header>
 <div class="workspace">
   <Rail pages={visiblePages()} current={shell.page} onNavigate={navigate} />
