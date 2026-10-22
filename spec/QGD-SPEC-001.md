@@ -64,6 +64,51 @@ two copies will eventually disagree and nothing mechanical will notice.
 Every requirement carries one or more. A requirement with no verification method is not a
 requirement — it is an opinion, and it does not belong here.
 
+## 0.2 Invariants
+
+What is always true of this product, whatever is being built. Each holds across every Part and every extension; the requirements and tests named are what hold it. A change that would break one is a decision for KI7MT and a change to this list, never a side effect (KI7MT, 2026-10-22: so nobody, person or AI, has to rediscover these, and a new app or extension can be checked against them at a glance).
+
+| ID | Invariant | Verify |
+|---|---|---|
+| `QGD-INV-0001` | **Credentials live only in the operating system's credential store,** held by the credential core and nothing else. No credential is in a file, a log, the database, the window or an extension (`QGD-CRD-0002`, `QGD-CRD-0007`, `QGD-CRD-0008`). | Test |
+| `QGD-INV-0002` | **No secret is read unless the operator acts for it.** Starting, navigating and showing status read none (`QGD-CRD-0009`). | Test |
+| `QGD-INV-0003` | **Removing a callsign leaves nothing of it in the credential store.** Every service's entry for it is deleted first, every supported service included; if any cannot be, the callsign is not removed and the operator is told to try again. All of it or none of it (KI7MT, 2026-10-22: no keychain clutter; `scripts/credential-edit-smoke.mjs`). | Test |
+| `QGD-INV-0004` | **Nothing of the operator's leaves the computer unless they ask.** An export or a support bundle is written where they choose and sent nowhere; a location's address and notes reach no extension and no request (`QGD-PSN-0011`, `QGD-LOG-0012`, `QGD-STN-0003`). | Test |
+| `QGD-INV-0005` | **There is one way out, and it is HTTPS from the credential core.** The window and extensions open no connection, and no part of the product listens for one (`QGD-SEC-0020`, `QGD-CRD-0007`, `QGD-APP-0008`, `QGD-ENG-0017`). | Test, Static |
+| `QGD-INV-0006` | **No extension code runs in the window.** Extensions run in the extension host and reach the core only by messages (`QGD-APP-0015`, `QGD-APP-0003`). | Test |
+| `QGD-INV-0007` | **What crosses a boundary is checked and refused, never coerced:** every message, file and reply (`QGD-SEC-0006`). | Test |
+| `QGD-INV-0008` | **ADIF is the core.** A field ADIF defines keeps ADIF's name and definition; only the label on screen is ours. A value ADIF does not allow is refused with the reason and never altered to fit, beyond the trimming and case of `QGD-CNV-0016` (`QGD-STN-0002`, `QGD-REF-0005`). | Test |
+| `QGD-INV-0009` | **ARRL and LoTW first.** Where authorities disagree about a value, what is stored is what ADIF defines and LoTW accepts; any other program's view is derived from it where needed, not stored (KI7MT, 2026-10-22; `QGD-STN-0010`). | Test, Inspection |
+| `QGD-INV-0010` | **Published data is stored exactly as published.** A row that is wrong is flagged, never corrected (`QGD-REF-0011`). | Test |
+| `QGD-INV-0011` | **Third-party data is not redistributed.** It is fetched from its owner, checked against a pinned SHA-256 where it is fixed, and never committed. Data that ships with the product is public domain or openly licensed, and credited where its licence asks (`QGD-REF-0001`, `QGD-REF-0009`, `QGD-STN-0010`). | Inspection |
+| `QGD-INV-0012` | **Nothing is fetched that the operator did not ask for:** reference data when they download or update it, and the sources their pinned cards name. A start fetches nothing (`QGD-REF-0017`, `QGD-HOM-0005`). | Test |
+| `QGD-INV-0013` | **UTC is UTC.** The time is the computer's clock, never changed or corrected by this product; only how local time is written can change (KI7MT, 2026-10-22; `QGD-FRM-0014`). | Test |
+| `QGD-INV-0014` | **The core never depends on an extension.** An extension can be turned off, so no core Part's requirement or exit gate may need one to be on (KI7MT, 2026-10-22, retiring P9's sunrise and sunset). | Inspection |
+
+## 0.3 Conventions
+
+How every value is written, everywhere: stored, shown, exported, and in every extension. These are where data integrity is lost by accident, by a lowercase callsign or a zone written `03`, so they are stated once here rather than rediscovered (KI7MT, 2026-10-22). ADIF's own definitions govern any field it defines (`QGD-INV-0008`); these say how its values are written where ADIF leaves a choice, and how this product writes values ADIF does not define.
+
+| ID | Convention | Verify |
+|---|---|---|
+| `QGD-CNV-0001` | **Callsign:** **Uppercase throughout, prefixes and suffixes included**, as LoTW, ADIF logs and contest logs write them: `KI7MT`, `KI7MT/P`, `VE3/KI7MT`. No spaces. | Test |
+| `QGD-CNV-0002` | **Maidenhead grid:** Field and square letters uppercase, subsquare letters lowercase, digits as digits: `DN13`, `DN13tp`, `DN13tp42`. Several grids, as a line or corner, joined by commas with no spaces: `DN13,DN14`. | Test |
+| `QGD-CNV-0003` | **Time:** **UTC**, always, for anything recorded. In ADIF, `YYYYMMDD` and `HHMMSS`; on screen, `2026-10-22 09:01:41`. A local time on screen is labelled as local. | Test |
+| `QGD-CNV-0004` | **Band:** ADIF's `Band` values, lowercase: `160m`, `20m`, `70cm`. | Test |
+| `QGD-CNV-0005` | **Mode:** ADIF's `Mode` and `Submode` values, uppercase: `CW`, `SSB`, `FT8`; `MFSK` with submode `FT4`. | Test |
+| `QGD-CNV-0006` | **DXCC entity:** ADIF's entity code, a number without leading zeros (`291`); its name is ADIF's, never typed. | Test |
+| `QGD-CNV-0007` | **State, province, prefecture:** ADIF's `Primary_Administrative_Subdivision` code for the entity, uppercase: `ID`, `ON`. | Test |
+| `QGD-CNV-0008` | **County:** ADIF's form, state first: `ID,Ada`; in the US the name as LoTW spells it, in Alaska as ADIF's list does (`QGD-STN-0010`). | Test |
+| `QGD-CNV-0009` | **ARRL section:** ADIF's abbreviation, uppercase: `EPA`, `ID`. | Test |
+| `QGD-CNV-0010` | **CQ and ITU zone:** A whole number without leading zeros: `3`, not `03`. | Test |
+| `QGD-CNV-0011` | **POTA park:** Uppercase as POTA writes it: `US-2233`. Several parks, for a two-fer or three-fer, joined by commas with no spaces; a location within a park after `@` as POTA writes it: `US-2233@US-ID`. | Test |
+| `QGD-CNV-0012` | **SOTA summit, WWFF, IOTA:** Uppercase as each programme writes them: `W7I/SI-001`, `KFF-0001`, `NA-001`. | Test |
+| `QGD-CNV-0013` | **Latitude and longitude:** On screen, decimal degrees with south and west negative: `43.625`, `-116.2083`. In ADIF, its own form: `N043 37.500`, `W116 12.498`. | Test |
+| `QGD-CNV-0014` | **Frequency:** MHz, on screen and in ADIF's `FREQ`: `14.074`. | Test |
+| `QGD-CNV-0015` | **Names the operator gives:** A callsign's description, a location's name, notes: kept as typed, case and all, trimmed of spaces at either end. | Test |
+| `QGD-CNV-0016` | **Anything typed:** **Trimmed, and its case set by these conventions as it is typed**: `ki7mt` becomes `KI7MT` in the box (KI7MT, 2026-10-22). Then checked, and refused with the reason if it is wrong. Nothing typed is changed beyond its spaces and its case. | Test |
+| `QGD-CNV-0017` | **Internal identifiers:** Never shown and never typed: the operator sees names and callsigns, and the product keys by identifiers of its own. | Inspection |
+
 ## 1. Scope
 
 | ID | Requirement | Verify |

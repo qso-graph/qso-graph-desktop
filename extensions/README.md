@@ -9,6 +9,10 @@ choice (`QGD-HDBK-001` §14, `qso-graph-desktop#34`). Each one carries its own `
 with the grants it has been given (`QGD-REP-0003`), exactly as a third-party
 extension would.
 
+Every extension holds to the spec's invariants and conventions (`QGD-SPEC-001` §0.2 and §0.3):
+for example, no connection of its own, no credential, and every value written the way the core
+writes it.
+
 None of them is here yet, and that is the build order rather than an omission:
 
 | Extension | Part | What |

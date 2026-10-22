@@ -10,6 +10,11 @@ two copies will eventually disagree (`QGD-SPEC-001` §0.1). Rationale lives in
 `hdbk/QGD-HDBK-001.md`. When this guide and the spec seem to differ, the spec wins and this guide
 has a bug.
 
+**Read the spec's §0.2 Invariants and §0.3 Conventions before anything else.** They are what is
+always true of this product (`QGD-INV-*`) and how every value is written (`QGD-CNV-*`): a callsign
+uppercase throughout, a zone with no leading zero, a county as `ID,Ada`. Check new code, an app or
+an extension against both; they exist so nobody has to rediscover them.
+
 ## Who you are helping
 
 - **Audience:** contributors building the product, not end users. Be direct and technical.
