@@ -15,6 +15,7 @@
   import HeaderClock from '../ui/HeaderClock.svelte';
   import HomePage from './pages/HomePage.svelte';
   import ExtensionPage from './pages/ExtensionPage.svelte';
+  import { welcomeSteps } from './welcome.js';
   import CallsignsPage from './pages/CallsignsPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
@@ -155,6 +156,10 @@
         onSavePins={pins => home.savePins(pins)}
         onDismissNotice={id => home.dismissNotice(id)}
         onOpenPage={openPage}
+        platform={(globalThis as { callsigns?: { platform?: string } }).callsigns?.platform ?? 'darwin'}
+        steps={welcomeSteps(!shell.firstRun, shell.storage)}
+        onGo={place => store.set({ page: place, extensionPage: null })}
+        onWhatsNew={() => store.set({ welcome: true })}
       />
     </div>
     <div class="page" hidden={shell.page !== 'extension'}>

@@ -98,6 +98,17 @@ try {
   ({ application, page } = await launch());
   await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
   await expect(tiles(page)).toHaveCount(1);
+  // The welcome above the pins (QGD-FRM-0011): what this is, and on a new
+  // profile the three steps to start, each a way to where it is done.
+  await expect(page.locator('#welcome-headline')).toHaveText('QSO Graph Desktop');
+  await expect(page.locator('#welcome-steps')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#welcome-step-callsign').click();
+  await expect(page.getByRole('heading', { name: 'Add a callsign' })).toBeVisible();
+  await rail(page, 'Home').click();
+  await page.locator('#welcome-pins').click();
+  await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Customize your pins' }).getByRole('button', { name: 'Cancel' }).click();
+  console.log('Home welcome: the headline, and a new profile\'s steps, each a way to its place: PASS');
   await page.waitForTimeout(3_000);
   expect(await extensionHost(application), 'Home asks for nothing, so with a pin no host starts either').toEqual([]);
   console.log('P8-window: a pinned tile is drawn from the manifest, and Home starts no extension host: PASS');

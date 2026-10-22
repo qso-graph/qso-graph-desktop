@@ -3,8 +3,8 @@
   What the application opens on: two things, laid out as a GitHub profile is
   (KI7MT, 2026-10-22).
 
-  - At the top, ours: a welcome that says what QSO Graph Desktop is. Reserved
-    and empty until its words are decided, so QGD-FRM-0011 holds as written.
+  - At the top, ours: a welcome that says what QSO Graph Desktop is, every
+    part of it a way somewhere (HomeWelcome.svelte).
   - Below it, the operator's: the pages they pinned, as tiles of one shape and
     size, in the order they set by dragging them or in "Customize your pins".
     A tile opens its page; Home itself fetches nothing.
@@ -18,6 +18,8 @@
   import PageLayout from '../../ui/PageLayout.svelte';
   import PinTile from '../../ui/PinTile.svelte';
   import PinPicker from '../../ui/PinPicker.svelte';
+  import HomeWelcome from './HomeWelcome.svelte';
+  import type { WelcomeStep } from '../welcome.js';
   import { noticeText } from '../host-notice.js';
   import type { HomeModel } from '../home-store.js';
   import { MAX_PINS } from '../../main/settings-contract.js';
@@ -31,8 +33,17 @@
     onOpenPage?: (key: string) => void;
     // Hide the extension host's notice for the stop it is about.
     onDismissNotice?: (id: number) => void;
+    // The welcome's: the platform its words name the credential store for,
+    // the getting-started steps, and where its links go.
+    platform?: string;
+    steps?: readonly WelcomeStep[];
+    onGo?: (place: 'callsigns' | 'stations' | 'settings') => void;
+    onWhatsNew?: () => void;
   }
-  const { home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {} }: Props = $props();
+  const {
+    home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {},
+    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}
+  }: Props = $props();
 
   let picking = $state(false);
   // Pins kept for an extension that is off hold their places, so the picker
@@ -59,9 +70,7 @@
 </script>
 
 <PageLayout title="Home" width="full" titleShown={false}>
-  <!-- Ours: the welcome, reserved for words to be decided (KI7MT,
-       2026-10-22). Nothing is drawn in it yet. -->
-  <div class="home-welcome" id="home-welcome"></div>
+  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => { picking = true; }} {onWhatsNew} />
 
   <div class="home-pinned-head">
     <h2 id="home-pinned-title">Pinned</h2>
