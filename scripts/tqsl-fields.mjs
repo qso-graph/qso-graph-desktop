@@ -13,7 +13,10 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 const register = JSON.parse(await readFile('data/tqsl-station-fields.json', 'utf8'));
-const response = await fetch(register.source.url);
+// TQSL's latest, not the revision the register pins: the point is to see
+// whether a newer TQSL asks for something a Location has no home for.
+const LATEST = 'https://sourceforge.net/p/trustedqsl/tqsl/ci/master/tree/src/config.xml?format=raw';
+const response = await fetch(LATEST);
 if (!response.ok) {
   console.error(`TQSL's config.xml could not be fetched: HTTP ${response.status}.`);
   process.exit(1);
