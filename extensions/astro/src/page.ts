@@ -91,8 +91,8 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     { shape: 'figures', figures: [
       { label: 'Location', value: station!.name.slice(0, 32) },
       ...(station!.grid ? [{ label: 'Grid', value: station!.grid }] : []),
-      { label: 'Sun now', value: `${sunAltitude(at, latitude, longitude).toFixed(1)}°`, unit: 'high' },
-      { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%`, unit: 'lit' }
+      { label: 'Sun now', value: `${sunAltitude(at, latitude, longitude).toFixed(1)}°` },
+      { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%` }
     ] },
     { shape: 'alert', level: 'info', text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
