@@ -322,3 +322,28 @@ export function gridPosition(grid: string | undefined): { latitude: number; long
   if (longitude <= -180) longitude += 360;
   return { latitude: known.reduce((sum, centre) => sum + centre.latitude, 0) / known.length, longitude };
 }
+
+// The Maidenhead grid holding a position, 2, 4, 6 or 8 characters (KI7MT,
+// 2026-10-22: the grid from latitude and longitude, as well as the other way
+// round). Letters for the field and subsquare are written as hams write
+// them: the field upper case, the subsquare lower. Undefined outside the
+// world's bounds.
+export function gridOf(latitude: number, longitude: number, length: 2 | 4 | 6 | 8 = 6): string | undefined {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return undefined;
+  // The north pole and the antimeridian's east edge belong to the last cell.
+  let lon = Math.min(longitude + 180, 360 - 1e-9);
+  let lat = Math.min(latitude + 90, 180 - 1e-9);
+  const sizes = [[20, 10], [2, 1], [2 / 24, 1 / 24], [2 / 240, 1 / 240]];
+  let grid = '';
+  for (let pair = 0; pair < length / 2; pair += 1) {
+    const [width, height] = sizes[pair];
+    const x = Math.floor(lon / width);
+    const y = Math.floor(lat / height);
+    lon -= x * width;
+    lat -= y * height;
+    grid += pair === 0 ? String.fromCharCode(65 + x, 65 + y)
+      : pair === 2 ? String.fromCharCode(97 + x, 97 + y)
+      : `${x}${y}`;
+  }
+  return grid;
+}

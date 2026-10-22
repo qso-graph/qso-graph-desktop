@@ -72,3 +72,30 @@ describe('Maidenhead and ADIF\'s Location', () => {
     for (const bad of ['N091 00.000', 'X043 37.500', '43.625', 'N043 60.000', undefined]) expect(fromAdifLocation(bad)).toBeUndefined();
   });
 });
+
+describe('the grid from a position (KI7MT, 2026-10-22)', () => {
+  it.each([
+    // W1AW, Newington CT; Boise; Sydney; the four corners and the poles.
+    [41.7148, -72.7272, 6, 'FN31pr'], [43.6458, -116.375, 6, 'DN13tp'], [-33.8688, 151.2093, 6, 'QF56od'],
+    [43.6458, -116.375, 4, 'DN13'], [43.6458, -116.375, 2, 'DN'], [43.5271, -116.4625, 8, 'DN13sm46'],
+    [90, 180, 4, 'RR99'], [-90, -180, 4, 'AA00']
+  ] as const)('%d, %d to %d characters is %s', async (latitude, longitude, length, grid) => {
+    const { gridOf } = await import('../packages/storage/station-contract.js');
+    expect(gridOf(latitude, longitude, length)).toBe(grid);
+  });
+
+  it('goes back to the position the grid came from', async () => {
+    const { gridOf, gridCentre } = await import('../packages/storage/station-contract.js');
+    for (const grid of ['DN13tp', 'FN31pr', 'QF56od', 'AA00aa', 'RR99xx', 'JJ00aa']) {
+      const centre = gridCentre(grid)!;
+      expect(gridOf(centre.latitude, centre.longitude, 6)).toBe(grid);
+    }
+  });
+
+  it('gives nothing outside the world', async () => {
+    const { gridOf } = await import('../packages/storage/station-contract.js');
+    expect(gridOf(91, 0)).toBeUndefined();
+    expect(gridOf(0, 181)).toBeUndefined();
+    expect(gridOf(Number.NaN, 0)).toBeUndefined();
+  });
+});

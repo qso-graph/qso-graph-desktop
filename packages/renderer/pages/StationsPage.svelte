@@ -17,7 +17,7 @@
   import PageLayout from '../../ui/PageLayout.svelte';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
-    STATION_KINDS, fromAdifLocation, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
+    STATION_KINDS, fromAdifLocation, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
     type StationChoices, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
     type StationKind, type StationsView
   } from '../../storage/station-contract.js';
@@ -305,6 +305,21 @@
     }
   }
 
+  // The grid from latitude and longitude, as typed in degrees or in ADIF's
+  // form: six characters, the precision LoTW and most loggers use.
+  const typedPosition = $derived.by(() => {
+    const lat = typedLocation(place.MY_LAT ?? '', 'lat');
+    const lon = typedLocation(place.MY_LON ?? '', 'lon');
+    const latitude = fromAdifLocation(lat);
+    const longitude = fromAdifLocation(lon);
+    return latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined;
+  });
+  function fillGridFromPosition() {
+    if (!typedPosition) return;
+    const grid = gridFromPosition(typedPosition.latitude, typedPosition.longitude, 6);
+    if (grid) place.MY_GRIDSQUARE = grid;
+  }
+
   function fillFromGrid() {
     const position = gridPosition((place.MY_GRIDSQUARE ?? '').trim());
     if (!position) return;
@@ -484,6 +499,9 @@
               <button type="button" class="secondary" id="fill-from-grid"
                 disabled={gridPosition((place.MY_GRIDSQUARE ?? '').trim()) === undefined}
                 onclick={fillFromGrid}>Fill latitude and longitude from the grid</button>
+              <button type="button" class="secondary" id="fill-grid-from-position"
+                disabled={typedPosition === undefined}
+                onclick={fillGridFromPosition}>Fill the grid from latitude and longitude</button>
             </div>
           {/if}
           {#if group.title === 'Activity'}

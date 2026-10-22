@@ -138,6 +138,13 @@ try {
   await page.locator('#fill-from-grid').click();
   await expect(field(page, 'MY_LAT')).toHaveValue('43.5');
   await expect(field(page, 'MY_LON')).toHaveValue('-117');
+  // And the other way: a position gives its six-character grid (KI7MT,
+  // 2026-10-22). Boise's DN13tp, then back to DN13 for the rest of the run.
+  await field(page, 'MY_LAT').fill('43.6458');
+  await field(page, 'MY_LON').fill('-116.375');
+  await page.locator('#fill-grid-from-position').click();
+  await expect(field(page, 'MY_GRIDSQUARE')).toHaveValue('DN13tp');
+  await field(page, 'MY_GRIDSQUARE').fill('DN13');
   // Decimal degrees are taken and kept in ADIF's form.
   await field(page, 'MY_LAT').fill('43.625');
   await field(page, 'MY_LON').fill('-116.2083');

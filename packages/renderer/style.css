@@ -288,7 +288,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .checkbox-row input { flex: none; width: 16px; height: 16px; min-height: 0; margin: 0; padding: 0; }
 .station-editor h3 { margin: 22px 0 6px; font-size: 13px; }
 .station-editor .fields { margin-top: 10px; }
-.fill-from-grid { grid-column: 1 / -1; margin: -4px 0 4px; }
+.fill-from-grid { grid-column: 1 / -1; margin: -4px 0 4px; display: flex; flex-wrap: wrap; gap: 10px; }
 .home-card-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
 .home-card-table th, .home-card-table td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
 .home-card-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
