@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Sunrise and sunset at the active location, for the header (QGD-FRM-0014),
-// calculated locally with no network. It was On the Air's, for the Your
-// station card, until that card was retired (KI7MT, 2026-10-22).
+// Sunrise and sunset at a position, calculated locally with no network. It
+// was On the Air's, for the Your station card, until that card was retired
+// (KI7MT, 2026-10-22); kept in the core, with its tests, for the Astro
+// extension that will show it (sunrise and sunset, twilight, the moon and
+// the grey line, on a page of its own).
 //
 // NOAA's General Solar Position method, as its Solar Calculator spreadsheet
 // writes it: the sun's apparent longitude, the declination and the equation of

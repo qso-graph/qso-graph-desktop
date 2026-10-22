@@ -13,9 +13,9 @@ API (`QGD-APP-0002`). NOAA's data is fetched by the core from the sources the
 register names (`noaa-flux`, `noaa-kp`, `noaa-scales`).
 
 Its second card, **Your station**, was retired on 2026-10-22 (KI7MT): everything
-on it is shown elsewhere. The header carries UTC, local time, and sunrise and
-sunset at the active location (`QGD-FRM-0014`), and the status bar the callsign,
-the location and its grid.
+on it is shown elsewhere or moves. The header carries UTC and local time and the
+status bar the callsign, the location and its grid (`QGD-FRM-0014`); sunrise and
+sunset move to the Astro extension's page.
 
 `solar-mcp` is the specification for Conditions. Its parsing and band table are
 followed here, and both are tested against the same recorded NOAA responses

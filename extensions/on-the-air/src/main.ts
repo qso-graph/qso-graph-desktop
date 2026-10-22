@@ -6,9 +6,9 @@
 // through `context` (QGD-APP-0002): NOAA's data is fetched by the core from
 // the sources the register names. The core decides when each card is asked
 // for (QGD-HOM-0005); this module only answers. Your station, its other card,
-// was retired on 2026-10-22 (KI7MT): the header now carries the clock and
-// sunrise and sunset (QGD-FRM-0014), and the status bar the callsign and
-// location.
+// was retired on 2026-10-22 (KI7MT): the header carries the clock and the
+// status bar the callsign and location (QGD-FRM-0014); sunrise and sunset
+// move to the Astro extension.
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
 import type { CardAnswer } from '../../../packages/extension-api/cards.js';
 import { conditionsCard, parseConditions } from './conditions.js';

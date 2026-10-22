@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Sunrise and sunset in the header (QGD-FRM-0014), against an independent calculation.
+// Sunrise and sunset, against an independent calculation. For the Astro extension.
 //
 // The expected times are PyEphem's (4.2), with its refraction off and the
 // horizon at -0°34' as NOAA's method has it, asked for each place's own solar

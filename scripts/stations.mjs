@@ -10,10 +10,9 @@
 //                (QGD-STN-0005)
 //   P9-record    stations, the default and the active one survive a restart
 //                (QGD-STN-0001)
-//   P9-your-station  the header shows sunrise and sunset at the active
-//                location, and the status bar its name and grid, and both
-//                follow a change of location (QGD-FRM-0014; the Your station
-//                card they replaced was retired, KI7MT 2026-10-22)
+//   P9-your-station  the status bar names the active location and its grid,
+//                and follows a change of location (QGD-FRM-0014). Sunrise and
+//                sunset wait for the Astro extension (KI7MT, 2026-10-22)
 //   P9-stays-local  a station's street, city and postal code appear in no log
 //                line (QGD-STN-0003)
 //
@@ -205,23 +204,16 @@ try {
   console.log('P9-active: a station made active without changing the persona, and the persona\'s default made active with it; the status bar named both: PASS');
 
   // ---- P9-your-station ------------------------------------------------
-  // Sunrise and sunset at the active location, in the header, worked out on
-  // this computer; its name and grid on the status bar (QGD-FRM-0014). A
-  // change of location changes both. Home's Car is in DN14, a degree north of
-  // DN13, so its sunrise is not Home's on any day of the year.
-  const sun = page.locator('#header-sun');
+  // The status bar names the active location and its grid, and follows a
+  // change of location. Sunrise and sunset there were Your station's, retired
+  // (KI7MT, 2026-10-22); they wait for the Astro extension's page.
   await expect(page.locator('#active-station')).toHaveText('Location: Home · DN13', { timeout: 30_000 });
-  await expect(sun).toContainText(/Sunrise \d\d:\d\d/);
-  await expect(sun).toContainText(/Sunset \d\d:\d\d/);
-  const homeSun = await sun.innerText();
   await rail(page, 'Locations').click();
   await row(page, 'Car').getByRole('button', { name: 'Make Car active' }).click();
   await expect(page.locator('#active-station')).toHaveText('Location: Car · DN14', { timeout: 30_000 });
-  await expect(sun).not.toHaveText(homeSun, { timeout: 30_000 });
   await row(page, 'Home').getByRole('button', { name: 'Make Home active' }).click();
   await expect(page.locator('#active-station')).toHaveText('Location: Home · DN13', { timeout: 30_000 });
-  await expect(sun).toHaveText(homeSun, { timeout: 30_000 });
-  console.log('P9-your-station: the header showed sunrise and sunset at the active location and the status bar its name and grid, and both followed a change of location: PASS');
+  console.log('P9-your-station: the status bar named the active location and its grid, and followed a change of location: PASS');
 
   // ---- P9-record -------------------------------------------------------
   await application.close();
