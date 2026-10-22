@@ -70,18 +70,24 @@
   let referenceFailure = $state('');
 
   // "Updated today", "yesterday" or "N days ago", from the oldest fetch.
-  function age(resource: ResourceSummary): string {
+  // When it was last updated, as a date-time group in UTC, as hams give
+  // times (KI7MT, 2026-10-22: "updated today" said too little).
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function lastUpdated(resource: ResourceSummary): string {
     if (!resource.fetchedAt) return '';
-    const days = Math.floor((Date.now() - Date.parse(resource.fetchedAt)) / 86_400_000);
-    return days <= 0 ? 'updated today' : days === 1 ? 'updated yesterday' : `updated ${days} days ago`;
+    const at = new Date(resource.fetchedAt);
+    if (Number.isNaN(at.getTime())) return '';
+    const two = (value: number) => String(value).padStart(2, '0');
+    return ` Last updated ${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()} `
+      + `${two(at.getUTCHours())}:${two(at.getUTCMinutes())} UTC.`;
   }
 
   function stateWords(resource: ResourceSummary): string {
     if (resource.updating) return resource.state === 'loaded' ? 'Updating…' : 'Downloading…';
     if (resource.state === 'not loaded') return 'Not downloaded';
     if (resource.available) return `ADIF ${resource.version ?? ''} installed. ADIF ${resource.available} is available.`;
-    const installed = resource.version ? `ADIF ${resource.version}, ` : '';
-    return resource.due ? `Out of date, ${installed}${age(resource)}` : `Downloaded, ${installed}${age(resource)}`;
+    const installed = resource.version ? `, ADIF ${resource.version}` : '';
+    return `${resource.due ? 'Out of date' : 'Downloaded'}${installed}.${lastUpdated(resource)}`;
   }
 
   // Download while it is not on this computer, Update once it is and an
