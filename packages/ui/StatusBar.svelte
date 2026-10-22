@@ -44,8 +44,9 @@
 </script>
 
 <footer>
-  <span id="active-callsign">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
-  <span id="active-station">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
+  <!-- Each slot in its place's hue, the word always beside it (style.css). -->
+  <span id="active-callsign" class="status-slot" data-hue="callsigns">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
+  <span id="active-station" class="status-slot" data-hue="locations">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}

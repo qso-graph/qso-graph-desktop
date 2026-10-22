@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `3eacc3b2598942768d6c297cfb4ecf6bf3e4f868` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `19e14d873dcbb4f46157f9b97ec24f3219f25aae` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `3eacc3b2598942768d6c297cfb4ecf6bf3e4f868` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `19e14d873dcbb4f46157f9b97ec24f3219f25aae` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 226 requirements · 13 Parts · 9 Demo · 45 Inspection · 39 Static · 173 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 227 requirements · 13 Parts · 9 Demo · 45 Inspection · 39 Static · 174 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -183,6 +183,7 @@
 | `QGD-FRM-0001` | The default theme is Dark (KI7MT, 2026-10-22: rig control and SDR software is dark, day or night). System follows the operating system — light when the system is light, dark when it is dark — and changes with it while the application is running, without a restart. | Test | ✓ |
 | `QGD-FRM-0002` | Settings offers System, Light and Dark. Dark is the default, and the choice is remembered for that user. | Test | ✓ |
 | `QGD-FRM-0003` | Light and dark are equally first class. Dark is properly dark, for night nets and contests, not grey; light carries strong contrast for daylight field use. Both are approved by KI7MT under `QGD-PRT-0103`. | Demo, Inspection |  |
+| `QGD-FRM-0017` | **Every colour is a theme token with one meaning, and no component writes a colour of its own** (KI7MT and Watson, 2026-10-22). A status token means one thing across the application (`--ok` success, `--warn` a warning, `--danger` a danger), and each place in the rail has a hue of its own, used wherever that place appears: on its rail item, its page's eyebrow, its status-bar slot, and the welcome's points and steps about it. Every token is defined in the light theme and in both dark ones (`QGD-FRM-0003`). A colour is never the only way a meaning is shown: a word or an icon is always beside it (WCAG 1.4.1). Which hues they are is a design choice made in the theme, not here; the clock's instrument colours are tokens of their own, apart from the status colours. | Test | ✓ |
 | `QGD-FRM-0004` | A low-light or red night theme is not built in Release 1. | Inspection |  |
 | `QGD-FRM-0005` | The shell is built in Svelte. | Inspection |  |
 | `QGD-FRM-0006` | Each reusable `ui` component and each reusable pattern has a story. | Test | ✓ |

@@ -20,6 +20,8 @@ export const PAGES = [
     id: 'home',
     label: 'Home',
     icon: 'home',
+    // Each place's hue (style.css --hue-*), used wherever it appears.
+    hue: 'general',
     description: 'What this is, and what it is doing',
     placement: 'top'
   },
@@ -29,6 +31,7 @@ export const PAGES = [
     // 2026-10-22): the code keeps 'callsigns' and 'stations' as its own names.
     label: 'Callsigns',
     icon: 'callsigns',
+    hue: 'callsigns',
     description: 'Your callsigns and the logins saved for each',
     placement: 'top'
   },
@@ -36,6 +39,7 @@ export const PAGES = [
     id: 'stations',
     label: 'Locations',
     icon: 'stations',
+    hue: 'locations',
     description: 'Where you operate from: home, a park, a summit, the car',
     placement: 'top'
   },
@@ -43,6 +47,7 @@ export const PAGES = [
     id: 'settings',
     label: 'Settings',
     icon: 'settings',
+    hue: 'settings',
     description: 'Appearance, and how this application behaves',
     placement: 'bottom'
   }

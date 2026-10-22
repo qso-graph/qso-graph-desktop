@@ -20,6 +20,8 @@
     readonly id: string;
     readonly label: string;
     readonly icon: string;
+    // The place's hue: general, callsigns, locations or settings.
+    readonly hue?: string;
     readonly description: string;
     readonly placement: string;
   }
@@ -44,6 +46,7 @@
     type="button"
     class="rail-item"
     class:current={page.id === current}
+    data-hue={page.hue ?? 'general'}
     aria-current={page.id === current ? 'page' : undefined}
     title={page.description}
     onclick={() => onNavigate(page.id)}

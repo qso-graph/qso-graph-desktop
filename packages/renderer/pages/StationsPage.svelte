@@ -515,7 +515,7 @@
   }
 </script>
 
-<PageLayout eyebrow="WHERE YOU OPERATE" title="Station Locations">
+<PageLayout eyebrow="WHERE YOU OPERATE" title="Station Locations" hue="locations">
   <section class="card" aria-labelledby="stations-title">
     <div class="section-title">
       <h2 id="stations-title">Your locations</h2>

@@ -30,10 +30,14 @@
   const { platform, steps, onGo, onCustomize, onWhatsNew, onDownloads, onContributing, onSite }: Props = $props();
 
   const POINTS = $derived([
-    { id: 'welcome-logins', icon: 'callsigns', text: forStore('Logins in your Keychain', platform), go: () => onGo('callsigns') },
-    { id: 'welcome-locations', icon: 'stations', text: 'Locations ready for LoTW, POTA and SOTA', go: () => onGo('stations') },
-    { id: 'welcome-pins', icon: 'extension', text: 'Pin what you use', go: onCustomize }
+    // Each icon in its place's hue; the pill stays plain (Watson, 2026-10-22).
+    { id: 'welcome-logins', icon: 'callsigns', hue: 'callsigns', text: forStore('Logins in your Keychain', platform), go: () => onGo('callsigns') },
+    { id: 'welcome-locations', icon: 'stations', hue: 'locations', text: 'Locations ready for LoTW, POTA and SOTA', go: () => onGo('stations') },
+    { id: 'welcome-pins', icon: 'extension', hue: 'general', text: 'Pin what you use', go: onCustomize }
   ]);
+  // A step in its place's hue until done; done, in the success colour with
+  // its tick (Watson, 2026-10-22).
+  const STEP_HUE = { callsign: 'callsigns', location: 'locations', adif: 'general', parks: 'general', summits: 'general' } as const;
   const STEP_PLACE = { callsign: 'callsigns', location: 'stations', adif: 'settings', parks: 'settings', summits: 'settings' } as const;
 </script>
 
@@ -46,7 +50,7 @@
   <ul class="welcome-points">
     {#each POINTS as point (point.id)}
       <li>
-        <button type="button" class="welcome-point" id={point.id} onclick={point.go}>
+        <button type="button" class="welcome-point" id={point.id} data-hue={point.hue} onclick={point.go}>
           <svg viewBox={ICONS[point.icon]?.viewBox} aria-hidden="true" fill="currentColor"><path d={ICONS[point.icon]?.path} /></svg>
           {point.text}
         </button>
@@ -99,7 +103,7 @@
       <h3>Get started</h3>
       <ul>
         {#each steps as step (step.id)}
-          <li class:done={step.done}>
+          <li class:done={step.done} data-hue={STEP_HUE[step.id]}>
             <button type="button" class="link-button" id="welcome-step-{step.id}" onclick={() => onGo(STEP_PLACE[step.id])}
               aria-label={step.done ? `${step.label}: done` : step.label}>
               <span class="welcome-box" aria-hidden="true">{step.done ? '✓' : ''}</span>{step.label}

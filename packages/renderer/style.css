@@ -37,6 +37,20 @@
   --warn: #7a4f00;
   --warn-surface: #fbf4e6;
   --warn-border: #e3cfa3;
+  /* A hue per destination (KI7MT and Watson, 2026-10-22): each place in the
+     rail has one, and it is used wherever that place appears. Tokens of their
+     own, so --ok still means success and --warn a warning: one meaning per
+     token. Hue never carries the meaning alone; a word or an icon is beside it. */
+  --hue-callsigns: #8a5a00;
+  --hue-locations: #1f6b45;
+  --hue-general: #1f6f9e;
+  --hue-settings: #57667a;
+  --accent-surface: #eaf2f8;
+  /* The clock's instrument green, on its own black: not a status colour, and
+     kept apart from them so neither moves the other (Watson, 2026-10-22). */
+  --clock-ink: #39ff6a;
+  --clock-ground: #000000;
+  --clock-label: #5fa86f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,6 +75,16 @@
     --warn: #f0c674;
     --warn-surface: #241c0c;
     --warn-border: #4d3d1a;
+    --hue-callsigns: #f0c674;
+    --hue-locations: #6fd6a0;
+    --hue-general: #6fb3dd;
+    --hue-settings: #a3b2c4;
+    --accent-surface: #0f1d27;
+    /* The clock's instrument green, on its own black: not a status colour, and
+       kept apart from them so neither moves the other (Watson, 2026-10-22). */
+    --clock-ink: #39ff6a;
+    --clock-ground: #000000;
+    --clock-label: #5fa86f;
   }
 }
 
@@ -85,6 +109,16 @@
   --warn: #f0c674;
   --warn-surface: #241c0c;
   --warn-border: #4d3d1a;
+  --hue-callsigns: #f0c674;
+  --hue-locations: #6fd6a0;
+  --hue-general: #6fb3dd;
+  --hue-settings: #a3b2c4;
+  --accent-surface: #0f1d27;
+  /* The clock's instrument green, on its own black: not a status colour, and
+     kept apart from them so neither moves the other (Watson, 2026-10-22). */
+  --clock-ink: #39ff6a;
+  --clock-ground: #000000;
+  --clock-label: #5fa86f;
 }
 
 :root { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--page); }
@@ -100,9 +134,9 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
    read as a display rather than as part of the page, and a rig readout beside
    it later takes the same colours (#43). Green on black is about 15:1. */
 .header-clock { display: flex; gap: 18px; font-size: 13px; padding: 6px 14px; border-radius: 6px;
-  background: #000000; border: 1px solid var(--border); }
-.clock-label { color: #5fa86f; font-size: 11px; font-weight: 600; margin-right: 4px; }
-.clock-time { color: #39ff6a; font-weight: 650; font-variant-numeric: tabular-nums;
+  background: var(--clock-ground); border: 1px solid var(--border); }
+.clock-label { color: var(--clock-label); font-size: 11px; font-weight: 600; margin-right: 4px; }
+.clock-time { color: var(--clock-ink); font-weight: 650; font-variant-numeric: tabular-nums;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
 .hint, .sidebar-note, .optional { color: var(--ink-muted); }
 .workspace { display: flex; flex: 1; min-height: 0; }
@@ -115,6 +149,12 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 .rail-end { margin-top: auto; }
 .rail-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; padding: 10px 4px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-muted); font-size: 11px; font-weight: 600; line-height: 1.2; }
 .rail-item.current { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
+/* The current place in its own hue: the icon, and a bar at the left edge. */
+.rail-item.current .rail-icon { color: var(--rail-hue, var(--hue-general)); }
+.rail-item.current { box-shadow: inset 3px 0 0 var(--rail-hue, var(--hue-general)); }
+.rail-item[data-hue="callsigns"] { --rail-hue: var(--hue-callsigns); }
+.rail-item[data-hue="locations"] { --rail-hue: var(--hue-locations); }
+.rail-item[data-hue="settings"] { --rail-hue: var(--hue-settings); }
 .rail-item:hover:not(.current) { color: var(--ink); }
 .rail-icon { width: 19px; height: 19px; display: block; }
 .rail-label { display: block; }
@@ -144,6 +184,9 @@ main { flex: 1; min-height: 0; display: flex; }
 .page-main { container: page / inline-size; }
 .page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: 1.4px; margin: 0 0 6px; color: var(--ink-muted); }
+/* A page's eyebrow in its place's hue (Callsigns, Locations). */
+.eyebrow[data-hue="callsigns"] { color: var(--hue-callsigns); }
+.eyebrow[data-hue="locations"] { color: var(--hue-locations); }
 h1 { font-size: 26px; letter-spacing: -.5px; margin: 0; font-weight: 650; }
 #message { min-height: 20px; margin: 0 0 12px; color: var(--ok); font-size: 13px; }
 #message.error { color: var(--danger); }
@@ -214,6 +257,10 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
 .credential-test-result.error { color: var(--danger); }
 
 footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 8px 24px; font-size: 11px; color: var(--ink-muted); }
+/* The status bar's slots in their places' hues, a dot before the words. */
+.status-slot::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+.status-slot[data-hue="callsigns"]::before { background: var(--hue-callsigns); }
+.status-slot[data-hue="locations"]::before { background: var(--hue-locations); }
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
@@ -231,13 +278,23 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
   color: var(--ink); background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
 }
 .welcome-point:hover { border-color: var(--border-strong); }
-.welcome-point svg { width: 14px; height: 14px; color: var(--focus); }
+.welcome-point svg { width: 14px; height: 14px; color: var(--hue-general); }
+.welcome-point[data-hue="callsigns"] svg { color: var(--hue-callsigns); }
+.welcome-point[data-hue="locations"] svg { color: var(--hue-locations); }
 .welcome-steps { margin: 0 0 14px; }
 .welcome-steps h3 { margin: 0 0 6px; font-size: 13px; }
 .welcome-steps ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
 /* A step done shows its tick, and nothing more (KI7MT, 2026-10-22: no
    strike-through). */
 .welcome-box { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border: 1px solid var(--border-strong); border-radius: 3px; font-size: 11px; line-height: 13px; text-align: center; vertical-align: -2px; }
+/* Waiting: the box in its place's hue, the words muted. Done: the tick and
+   the words in the success colour. */
+.welcome-steps li .link-button { color: var(--ink-muted); }
+.welcome-steps li[data-hue="callsigns"] .welcome-box { border-color: var(--hue-callsigns); }
+.welcome-steps li[data-hue="locations"] .welcome-box { border-color: var(--hue-locations); }
+.welcome-steps li[data-hue="general"] .welcome-box { border-color: var(--hue-general); }
+.welcome-steps li.done .link-button { color: var(--ok); }
+.welcome-steps li.done .welcome-box { border-color: var(--ok); color: var(--ok); background: var(--ok-surface); }
 /* The selling points: a heading, then its message (KI7MT, 2026-10-22), two
    to a row where the page has room and one where it has not. */
 .welcome-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 28px; margin: 4px 0 16px; }
@@ -246,7 +303,8 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .welcome-feature p { margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 1.5; }
 .welcome-feature .link-button { font-size: 13px; }
 .welcome-feature p > .link-button:last-child { margin-left: 4px; }
-.welcome-new { margin: 0; font-size: 13px; color: var(--ink-muted); }
+/* The release line as its own strip, apart from the selling points. */
+.welcome-new { margin: 0; font-size: 13px; color: var(--ink-muted); padding: 8px 12px; background: var(--accent-surface); border-left: 3px solid var(--hue-general); border-radius: 4px; }
 .welcome-new strong { color: var(--ink); }
 .welcome-new .link-button { margin-left: 8px; font-size: 13px; }
 .home-pinned-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; max-width: 1088px; margin: 0 0 12px; }

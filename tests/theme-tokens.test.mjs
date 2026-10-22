@@ -35,3 +35,41 @@ describe('the dark themes redefine every colour the light theme has', () => {
     expect([...followsSystem].sort()).toEqual([...chosen].sort());
   });
 });
+
+// Watson, 2026-10-22: tokens, never hex. A colour written into a component,
+// or anywhere in the stylesheet outside the theme blocks, is a colour the
+// dark themes cannot redefine: the same defect as the --warn token that was
+// missing from one dark block. Black shadows are not hues, and are allowed.
+describe('no colour is written outside the theme blocks', () => {
+  const blocks = [':root {', ':root:not([data-theme="light"]) {', ':root[data-theme="dark"] {'];
+
+  it('in the stylesheet, every declaration outside the theme blocks names a token', () => {
+    let rest = css;
+    for (const marker of blocks) {
+      const start = rest.indexOf(marker);
+      rest = rest.slice(0, start) + rest.slice(rest.indexOf('}', start) + 1);
+    }
+    const bodies = [...rest.matchAll(/\{([^{}]*)\}/g)].map(match => match[1]);
+    expect(bodies.length, 'the rules are found').toBeGreaterThan(50);
+    const literal = bodies.filter(body => /#[0-9a-f]{3,8}\b/i.test(body) || /rgba?\((?!0 0 0)/.test(body) || /hsla?\(/.test(body));
+    expect(literal).toEqual([]);
+  });
+
+  it('in every component, none at all', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const files = (await readdir('packages', { recursive: true })).filter(file => file.endsWith('.svelte') && !file.includes('stories'));
+    expect(files.length).toBeGreaterThan(10);
+    const offenders = files.filter(file => {
+      const text = readFileSync(`packages/${file}`, 'utf8');
+      const styles = [...text.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(match => match[1]).join('\n');
+      return /#[0-9a-f]{3,8}\b/i.test(styles) || /rgba?\((?!0 0 0)/.test(styles) || /style="[^"]*#[0-9a-f]{3,8}/i.test(text);
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it('gives each place in the rail a hue of its own, defined in every theme', () => {
+    for (const hue of ['--hue-callsigns', '--hue-locations', '--hue-general', '--hue-settings']) {
+      for (const marker of blocks) expect(tokensIn(blockAfter(marker)).has(hue), `${hue} in ${marker}`).toBe(true);
+    }
+  });
+});

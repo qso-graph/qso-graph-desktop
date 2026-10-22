@@ -45,7 +45,7 @@
   <p class="sidebar-note">Your own call, a club call, or a special-event call. Each has its own logins.</p>
 </aside>
 <div class="page-main">
-  <div class="page-title"><div><p class="eyebrow">YOUR CALLSIGNS</p><h1 id="page-title">Add a callsign</h1></div><button id="use-callsign" class="secondary" type="button" hidden>Use this callsign</button></div>
+  <div class="page-title"><div><p class="eyebrow" data-hue="callsigns">YOUR CALLSIGNS</p><h1 id="page-title">Add a callsign</h1></div><button id="use-callsign" class="secondary" type="button" hidden>Use this callsign</button></div>
   <p id="message" role="status" aria-live="polite"></p>
   <section class="card" aria-labelledby="identity-title">
     <h2 id="identity-title">Callsign details</h2>

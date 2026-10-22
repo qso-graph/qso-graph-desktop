@@ -20,19 +20,21 @@
     eyebrow?: string;
     action?: Snippet;
     width?: 'reading' | 'full';
+    // The place's hue, for the eyebrow (style.css --hue-*).
+    hue?: 'general' | 'callsigns' | 'locations' | 'settings';
     // Shown, or read by a screen reader only, where the rail already says
     // which page this is (Home: KI7MT, 2026-10-22). One h1 either way.
     titleShown?: boolean;
     children: Snippet;
   }
-  const { title, eyebrow, action, width = 'reading', titleShown = true, children }: Props = $props();
+  const { title, eyebrow, action, width = 'reading', hue, titleShown = true, children }: Props = $props();
 </script>
 
 <div class="page-main" class:page-full={width === 'full'}>
   {#if titleShown}
     <div class="page-title">
       <div>
-        {#if eyebrow}<p class="eyebrow">{eyebrow}</p>{/if}
+        {#if eyebrow}<p class="eyebrow" data-hue={hue}>{eyebrow}</p>{/if}
         <h1>{title}</h1>
       </div>
       {#if action}{@render action()}{/if}
