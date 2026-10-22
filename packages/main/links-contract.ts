@@ -13,14 +13,20 @@ export const DOCUMENTS = ['privacy', 'security', 'attributions', 'contributors',
 export type DocumentName = typeof DOCUMENTS[number];
 export const REFERENCE_KINDS = ['pota', 'sota'] as const;
 export type ReferenceKind = typeof REFERENCE_KINDS[number];
+// The programs and standards this product speaks, each to its own home page
+// (KI7MT, 2026-10-22: Home's welcome names them).
+export const SITES = ['adif', 'pota', 'sota', 'iota'] as const;
+export type SiteName = typeof SITES[number];
 
 export type LinkCommand =
   | { type: 'document'; name: DocumentName }
-  | { type: 'reference'; kind: ReferenceKind; reference: string };
+  | { type: 'reference'; kind: ReferenceKind; reference: string }
+  | { type: 'site'; name: SiteName };
 
 export interface LinkRegister {
   documents: { base: string; pages: Record<DocumentName, string> };
   references: Record<ReferenceKind, string>;
+  sites: Record<SiteName, string>;
 }
 
 export class LinkRegisterError extends Error {}
@@ -40,7 +46,7 @@ function https(value: unknown, what: string): string {
 }
 
 export function validateLinkRegister(value: unknown): LinkRegister {
-  if (!record(value) || !record(value.documents) || !record(value.documents.pages) || !record(value.references)) {
+  if (!record(value) || !record(value.documents) || !record(value.documents.pages) || !record(value.references) || !record(value.sites)) {
     throw new LinkRegisterError('the link register is not shaped as expected');
   }
   const base = https(value.documents.base, 'documents.base');
@@ -57,7 +63,9 @@ export function validateLinkRegister(value: unknown): LinkRegister {
     if (template.split('{reference}').length !== 2) throw new LinkRegisterError(`references.${kind} does not hold {reference} once`);
     references[kind] = template;
   }
-  return { documents: { base, pages }, references };
+  const sites = {} as Record<SiteName, string>;
+  for (const name of SITES) sites[name] = https(value.sites[name], `sites.${name}`);
+  return { documents: { base, pages }, references, sites };
 }
 
 export function validateLinkCommand(value: unknown): value is LinkCommand {
@@ -66,6 +74,7 @@ export function validateLinkCommand(value: unknown): value is LinkCommand {
   if (value.type === 'document') {
     return keys.length === 2 && (DOCUMENTS as readonly unknown[]).includes(value.name);
   }
+  if (value.type === 'site') return keys.length === 2 && (SITES as readonly unknown[]).includes(value.name);
   if (value.type === 'reference') {
     if (keys.length !== 3) return false;
     if (value.kind === 'pota') return isPotaReference(value.reference);
@@ -77,6 +86,7 @@ export function validateLinkCommand(value: unknown): value is LinkCommand {
 // The page for a command. A reference is checked against its form, and the
 // form holds nothing a URL would read as structure, beyond SOTA's one "/".
 export function linkFor(register: LinkRegister, command: LinkCommand): string {
+  if (command.type === 'site') return register.sites[command.name];
   if (command.type === 'document') return register.documents.base + register.documents.pages[command.name];
   return register.references[command.kind].replace('{reference}', command.reference);
 }

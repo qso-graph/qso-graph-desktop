@@ -18,6 +18,14 @@ describe('the link register (QGD-SEC-0009)', () => {
     }
   });
 
+  it('opens each program\'s and standard\'s own home page', () => {
+    expect(linkFor(register, { type: 'site', name: 'adif' })).toBe('https://adif.org.uk/');
+    expect(linkFor(register, { type: 'site', name: 'iota' })).toBe('https://www.iota-world.org/');
+    expect(validateLinkCommand({ type: 'site', name: 'pota' })).toBe(true);
+    expect(validateLinkCommand({ type: 'site', name: 'qrz' })).toBe(false);
+    expect(validateLinkCommand({ type: 'site', name: 'pota', url: 'https://x.example/' })).toBe(false);
+  });
+
   it('opens a park on POTA and a summit on SOTA', () => {
     expect(linkFor(register, { type: 'reference', kind: 'pota', reference: 'US-0001' })).toBe('https://pota.app/#/park/US-0001');
     expect(linkFor(register, { type: 'reference', kind: 'sota', reference: 'W7I/SI-001' }))

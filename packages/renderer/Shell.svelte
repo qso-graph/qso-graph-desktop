@@ -162,6 +162,7 @@
         onWhatsNew={() => store.set({ welcome: true })}
         onDownloads={() => onOpenPage({ type: 'document', name: 'downloads' })}
         onContributing={() => onOpenPage({ type: 'document', name: 'contributing' })}
+        onSite={name => onOpenPage({ type: 'site', name })}
       />
     </div>
     <div class="page" hidden={shell.page !== 'extension'}>

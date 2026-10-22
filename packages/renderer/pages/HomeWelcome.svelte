@@ -24,8 +24,10 @@
     onDownloads: () => void;
     // How to write an extension, in the browser.
     onContributing: () => void;
+    // A program's or standard's own home page, in the browser.
+    onSite: (name: 'adif' | 'pota' | 'sota' | 'iota') => void;
   }
-  const { platform, steps, onGo, onCustomize, onWhatsNew, onDownloads, onContributing }: Props = $props();
+  const { platform, steps, onGo, onCustomize, onWhatsNew, onDownloads, onContributing, onSite }: Props = $props();
 
   const POINTS = $derived([
     { id: 'welcome-logins', icon: 'callsigns', text: forStore('Logins in your Keychain', platform), go: () => onGo('callsigns') },
@@ -51,6 +53,16 @@
       </li>
     {/each}
   </ul>
+  <!-- The standards and programs it speaks (KI7MT, 2026-10-22), each to its
+       own home page. Said as it is: IOTA is next, not here yet. -->
+  <p class="welcome-runs" id="welcome-speaks">
+    <strong>Speaks what hams use.</strong>
+    <button type="button" class="link-button" onclick={() => onSite('adif')}>ADIF</button> definitions straight
+    from the ADIF Development Group, every location checked against them;
+    <button type="button" class="link-button" onclick={() => onSite('pota')}>POTA</button> parks and
+    <button type="button" class="link-button" onclick={() => onSite('sota')}>SOTA</button> summits, a location
+    made from either in a click; and <button type="button" class="link-button" onclick={() => onSite('iota')}>IOTA</button> islands next.
+  </p>
   <!-- Where it runs (KI7MT, 2026-10-22: brag about the AppImage), with a way
        to get it for the next computer, which is what makes the line useful
        inside an application that is already installed. -->

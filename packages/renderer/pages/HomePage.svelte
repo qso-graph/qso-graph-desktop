@@ -41,10 +41,11 @@
     onWhatsNew?: () => void;
     onDownloads?: () => void;
     onContributing?: () => void;
+    onSite?: (name: 'adif' | 'pota' | 'sota' | 'iota') => void;
   }
   const {
     home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {},
-    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, onDownloads = () => {}, onContributing = () => {}
+    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {}
   }: Props = $props();
 
   let picking = $state(false);
@@ -72,7 +73,7 @@
 </script>
 
 <PageLayout title="Home" width="full" titleShown={false}>
-  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => { picking = true; }} {onWhatsNew} {onDownloads} {onContributing} />
+  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => { picking = true; }} {onWhatsNew} {onDownloads} {onContributing} {onSite} />
 
   <div class="home-pinned-head">
     <h2 id="home-pinned-title">Pinned</h2>

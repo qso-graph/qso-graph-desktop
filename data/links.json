@@ -12,6 +12,12 @@
       "downloads": "README.md"
     }
   },
+  "sites": {
+    "adif": "https://adif.org.uk/",
+    "pota": "https://pota.app/",
+    "sota": "https://www.sota.org.uk/",
+    "iota": "https://www.iota-world.org/"
+  },
   "references": {
     "pota": "https://pota.app/#/park/{reference}",
     "sota": "https://www.sotadata.org.uk/en/summit/{reference}"
