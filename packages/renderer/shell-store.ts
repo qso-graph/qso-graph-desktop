@@ -91,8 +91,6 @@ export interface ShellState {
   // while `page === 'settings'`, which is where they used to be shown. Found
   // in review.
   troubleshooting: boolean;
-  // Which of Help's windows is open, if one is (QGD-FRM-0015).
-  help: 'privacy' | 'attributions' | 'contributors' | null;
   // Whether the welcome is showing (QGD-FRM-0016).
   welcome: boolean;
   // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
@@ -138,7 +136,6 @@ export const INITIAL_SHELL: ShellState = {
   // opened on an offer and then withdrew it would flash it at somebody who
   // already has personas.
   troubleshooting: false,
-  help: null,
   welcome: false,
   setup: false,
   firstRun: false,

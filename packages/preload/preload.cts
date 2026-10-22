@@ -51,17 +51,12 @@ contextBridge.exposeInMainWorld('menu', Object.freeze({
     const handler = () => listener();
     ipcRenderer.on('menu:troubleshooting', handler);
     return () => { ipcRenderer.removeListener('menu:troubleshooting', handler); };
-  },
-  // Privacy, Attributions or Contributors: the topic, and nothing else, is
-  // passed on (QGD-SEC-0006).
-  onHelp: (listener: (topic: string) => void) => {
-    if (typeof listener !== 'function') return () => undefined;
-    const handler = (_event: unknown, topic: unknown) => {
-      if (topic === 'privacy' || topic === 'attributions' || topic === 'contributors') listener(topic);
-    };
-    ipcRenderer.on('menu:help', handler);
-    return () => { ipcRenderer.removeListener('menu:help', handler); };
   }
+}));
+// A page in the operator's browser (QGD-SEC-0009): a name, or a park or summit
+// reference. The URL is built by main from its register, never here.
+contextBridge.exposeInMainWorld('links', Object.freeze({
+  open: (command: unknown) => ipcRenderer.invoke('links:open', command)
 }));
 // The extension inventory, for Settings (QGD-APP-0012). There is no way for
 // the window to make an extension request: extension code runs only in the

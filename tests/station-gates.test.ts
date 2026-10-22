@@ -71,7 +71,10 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
   const readers = new Set([
     'packages/main/station-brief.ts', 'packages/renderer/Shell.svelte', 'packages/renderer/pages/StationsPage.svelte',
     'packages/renderer/app.ts', 'packages/storage/stations.ts', 'packages/storage/storage-contract.ts',
-    'packages/storage/storage-service.ts'
+    'packages/storage/storage-service.ts',
+    // The reference forms only, to check a park or summit before its page is
+    // opened (QGD-STN-0011); no station is read.
+    'packages/main/links-contract.ts'
   ]);
 
   it('is read by the modules listed here and no others', () => {

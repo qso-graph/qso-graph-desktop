@@ -13,6 +13,7 @@ import { mount } from 'svelte';
 import Shell from './Shell.svelte';
 import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
 import { createShellStore } from './shell-store.js';
+import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
 import { forStore } from '../personas/credential-store.js';
 declare const __QG_VERSION__: string;
@@ -35,7 +36,9 @@ declare global {
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
-    menu?: { onTroubleshooting(listener: () => void): () => void; onHelp(listener: (topic: string) => void): () => void };
+    menu?: { onTroubleshooting(listener: () => void): () => void };
+    // A page in the browser, built by main from its register (QGD-SEC-0009).
+    links?: { open(command: LinkCommand): Promise<boolean> };
   }
 }
 // QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
@@ -60,7 +63,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit, onOpenPage: openPage,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
@@ -689,6 +692,11 @@ export async function setActiveStation(id: string | null): Promise<string | unde
 }
 
 // A location from a SOTA summit (QGD-REF-0018).
+// A document or a park's or summit's page, in the browser (QGD-SEC-0009).
+function openPage(command: LinkCommand): void {
+  void window.links?.open(command);
+}
+
 export async function stationFromSummit(reference: string): Promise<ParkDraft | string> {
   if (!/^[0-9A-Z]{1,7}\/[0-9A-Z]{2}-[0-9]{3}$/.test(reference)) return 'A SOTA summit reference looks like W7I/SI-001.';
   const reply = await stationRequest({ type: 'station-from-summit', reference });
@@ -733,7 +741,3 @@ export function closeWelcome(hideForThisRelease: boolean): void {
 
 // Help → Troubleshooting… opens the same panel as the status bar's button.
 window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
-// Help → Privacy…, Attributions… or Contributors… (QGD-FRM-0015).
-window.menu?.onHelp(topic => {
-  if (topic === 'privacy' || topic === 'attributions' || topic === 'contributors') shell.set({ help: topic });
-});

@@ -9,7 +9,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { WHATS_NEW } from '../../ui/release.js';
-  import { CONTRIBUTORS } from '../../ui/contributors.js';
 
   interface Props {
     version: string;
@@ -40,7 +39,7 @@
     {#each WHATS_NEW as line (line)}<li>{line}</li>{/each}
   </ul>
   <p id="welcome-report">Something wrong? Help → Troubleshooting saves the logs; report it on GitHub at qso-graph/qso-graph-desktop.</p>
-  <p id="welcome-thanks">With thanks to {CONTRIBUTORS.map(person => person.name.replace(/ \(.*\)$/, '')).join(', ')}. Free software under the GNU GPL, version 3.</p>
+  <p id="welcome-thanks">With thanks to everyone who builds it: see Help → Contributors. Free software under the GNU GPL, version 3.</p>
   <footer>
     <label class="checkbox-row welcome-hide"><input type="checkbox" id="welcome-hide" bind:checked={hide} /> Don't show this again</label>
     <span class="left" aria-live="off">Closes in {left} s</span>

@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // QGD-FRM-0015, QGD-REP-0005: every source of data the application downloads
-// or ships is credited in Privacy and Licences. Held to the registers that
-// name the sources, so a new source cannot be added without its credit, and
-// a credit cannot outlive its source.
+// or ships is credited in NOTICE, which Help → Attributions opens. Held to the
+// registers that name the sources, so a new source cannot be added without its
+// credit, and a credit cannot outlive its source. Each credit is marked with
+// its register key in a comment: `<!-- credit: reference/pota -->`.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CREDITS } from '../dist/ui/credits.js';
 
 const reference = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
 const counties = JSON.parse(readFileSync('data/county-sources.json', 'utf8'));
 const sources = JSON.parse(readFileSync('data/extension-sources.json', 'utf8'));
-const keys = new Set(CREDITS.map(credit => credit.key));
+const notice = readFileSync('NOTICE', 'utf8');
+const keys = new Set([...notice.matchAll(/<!-- credit: ([a-z/]+) -->\n- \*\*[^*]+\*\*: \S/g)].map(match => match[1]));
 
-describe('Privacy and Licences credits every data source', () => {
+describe('NOTICE credits every data source', () => {
   it('credits each reference resource the operator can download', () => {
     for (const resource of reference.resources) expect(keys, resource.id).toContain(`reference/${resource.id}`);
   });

@@ -8,7 +8,7 @@
 // in the thing we hand people?
 //
 // An allowlist is what makes the answer small. `build.files` names `dist/**`,
-// `package.json`, `LICENSE`, four data files and the SQL storage applies — so the
+// `package.json`, `LICENSE`, `NOTICE`, the data files and the SQL storage applies — so the
 // gallery, the suites, the fixtures, the spec and anything added later are
 // absent by construction rather than by anybody remembering. The one way that
 // stops being true is somebody widening the list, which is why the list itself
@@ -79,7 +79,8 @@ if (!Array.isArray(files) || files.length === 0) {
   const roots = [...new Set(files
     .filter(entry => !entry.startsWith('!'))
     .map(entry => entry.split('/')[0]))].sort();
-  const EXPECTED_ROOTS = ['LICENSE', 'data', 'dist', 'drizzle', 'package.json'];
+  // NOTICE ships beside LICENSE: it is the attributions (QGD-REP-0005).
+  const EXPECTED_ROOTS = ['LICENSE', 'NOTICE', 'data', 'dist', 'drizzle', 'package.json'];
   if (JSON.stringify(roots) !== JSON.stringify(EXPECTED_ROOTS)) {
     failures.push(`build.files admits ${roots.join(', ')}; this suite expects ${EXPECTED_ROOTS.join(', ')}. `
       + 'If the change is wanted, change it here too and say why in the commit.');

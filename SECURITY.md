@@ -46,4 +46,4 @@ configuration causes or worsens them.
 The security design is in the specification (`QGD-SEC-*`, `QGD-CRD-*`, `QGD-PRC-*`, `QGD-LOG-*`), with
 the rationale in the handbook. In short: credentials live only in the operating system's credential
 store, only the credential core connects to the network, the screens never hold a secret, and
-nothing is sent anywhere you didn't ask for (see [USAGE_DATA.md](USAGE_DATA.md)).
+nothing is sent anywhere you didn't ask for (see [PRIVACY.md](PRIVACY.md)).

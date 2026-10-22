@@ -74,7 +74,7 @@ describe('QGD-FRM-0009 the gallery is development-only', () => {
       // `sourcesContent`, so a bundle with code removed still ships that code
       // as source. Found in review, when a release carried three whole
       // components that way while the executable JavaScript was clean.
-      'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE',
+      'dist/**/*', '!dist/renderer/*.map', 'package.json', 'LICENSE', 'NOTICE', 'data/links.json',
       'data/reference-sources.json', 'data/service-profiles.json',
       'data/extension-grants.json', 'data/extension-sources.json', 'data/extension-limits.json', 'drizzle/**/*'
     ]);

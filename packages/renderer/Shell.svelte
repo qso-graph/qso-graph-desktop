@@ -18,11 +18,11 @@
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
-  import HelpPanel from './pages/HelpPanel.svelte';
   import WelcomeWindow from './pages/WelcomeWindow.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { HomeModel, HomeStore } from './home-store.js';
+  import type { LinkCommand } from '../main/links-contract.js';
   import type { ThemeChoice } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../personas/persona-contract.js';
@@ -46,6 +46,8 @@
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
     onCloseWelcome: (hideForThisRelease: boolean) => void;
     onStationFromSummit: (reference: string) => Promise<ParkDraft | string>;
+    // A document or a park's or summit's page, in the browser (QGD-SEC-0009).
+    onOpenPage: (command: LinkCommand) => void;
     onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
@@ -64,7 +66,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit, onOpenPage,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -182,10 +184,11 @@
         onChoices={onStationChoices}
         onLookUpParks={onLookUpParks}
         {onCountiesAt}
+        {onOpenPage}
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
-      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenHelp={topic => store.set({ help: topic })} />
+      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })} />
     </div>
   </main>
 </div>
@@ -199,7 +202,4 @@
 {/if}
 {#if shell.welcome}
   <WelcomeWindow {version} onClose={onCloseWelcome} />
-{/if}
-{#if shell.help}
-  <HelpPanel topic={shell.help} {version} onClose={() => store.set({ help: null })} />
 {/if}

@@ -18,10 +18,11 @@
   import { caseAsTyped, type CaseRule } from '../../ui/typed-case.js';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
-    STATION_KINDS, fromAdifLocation, gridBounds, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
+    STATION_KINDS, fromAdifLocation, isPotaReference, isSummitReference, gridBounds, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
     type StationChoices, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
     type StationKind, type StationsView
   } from '../../storage/station-contract.js';
+  import type { LinkCommand } from '../../main/links-contract.js';
 
   interface Props {
     stations?: StationsView;
@@ -45,6 +46,8 @@
     onFromSummit?: (reference: string) => Promise<ParkDraft | string>;
     // The US counties at a position or over a grid square (QGD-STN-0010).
     onCountiesAt?: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
+    // A park's or summit's page, in the browser (QGD-STN-0011).
+    onOpenPage?: (command: LinkCommand) => void;
   }
   const {
     stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
@@ -52,7 +55,8 @@
     onLookUpParks = () => Promise.resolve(undefined),
     onCountiesAt = () => Promise.resolve({ counties: [], sections: {} }),
     summitsLoaded = false,
-    onFromSummit = () => Promise.resolve('SOTA summits are not downloaded.')
+    onFromSummit = () => Promise.resolve('SOTA summits are not downloaded.'),
+    onOpenPage = () => {}
   }: Props = $props();
 
   // ---- references checked against their lists (KI7MT, 2026-10-20) ---------
@@ -497,6 +501,18 @@
     ].filter(Boolean);
     return parts.length ? parts.join(' · ') : 'No place given yet';
   }
+
+  // The parks and summit a location names, each with its page on POTA or
+  // SOTA (QGD-STN-0011). Only a reference in its list's form: the page is
+  // opened in the browser, so it is online and the operator's choice.
+  function pagesOf(station: Station): { kind: 'pota' | 'sota'; reference: string }[] {
+    const parks = (station.place.MY_POTA_REF ?? '').split(',').map(entry => entry.split('@')[0].trim().toUpperCase());
+    const summit = (station.place.MY_SOTA_REF ?? '').trim().toUpperCase();
+    return [
+      ...[...new Set(parks)].filter(isPotaReference).map(reference => ({ kind: 'pota' as const, reference })),
+      ...(isSummitReference(summit) ? [{ kind: 'sota' as const, reference: summit }] : [])
+    ];
+  }
 </script>
 
 <PageLayout eyebrow="WHERE YOU OPERATE" title="Station Locations">
@@ -523,6 +539,15 @@
                 {#if station.id === defaultId}<span class="station-kind">Default for {personaLabel}</span>{/if}
               </span>
               <span class="hint">{summary(station)}</span>
+              {#if pagesOf(station).length > 0}
+                <span class="station-pages">
+                  {#each pagesOf(station) as page (page.reference)}
+                    <button type="button" class="link-button" aria-label="View {page.reference} on {page.kind === 'pota' ? 'POTA' : 'SOTA'}"
+                      onclick={() => onOpenPage({ type: 'reference', kind: page.kind, reference: page.reference })}
+                    >View {page.reference} on {page.kind === 'pota' ? 'POTA' : 'SOTA'}</button>
+                  {/each}
+                </span>
+              {/if}
             </span>
             <span class="station-actions">
               {#if station.id !== active}

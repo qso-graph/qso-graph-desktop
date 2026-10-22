@@ -18,6 +18,14 @@ import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
 import { FONT_AWESOME_CREDIT } from './attribution.js';
+import { startLinksBroker } from './links-broker.js';
+import type { DocumentName } from './links-contract.js';
+
+// Help's documents, in the menu's order.
+const HELP_DOCUMENTS: readonly (readonly [DocumentName, string])[] = [
+  ['privacy', 'Privacy'], ['security', 'Security'], ['license', 'License'],
+  ['attributions', 'Attributions'], ['contributors', 'Contributors'], ['contributing', 'Contributing']
+];
 
 // The compiled tree is dist/<package>/, so this file is dist/main/main.js and
 // everything it addresses is a sibling of its own directory (QGD-REP-0001).
@@ -151,6 +159,7 @@ if (!app.requestSingleInstanceLock()) {
       welcomeOff: !app.isPackaged && process.env.QG_DESKTOP_NO_WELCOME === '1', version: app.getVersion()
     });
     const stopAppearanceBroker = startAppearanceBroker();
+    const links = startLinksBroker(join(app.getAppPath(), 'data', 'links.json'));
     const stopLogsBroker = startLogsBroker();
     // QGD-ENG-0003: started in the background and waited on by nothing. The
     // window below appears whether or not storage ever comes up.
@@ -261,7 +270,7 @@ if (!app.requestSingleInstanceLock()) {
     app.on('before-quit', event => {
       homeBroker?.stop();
       extensionBroker?.stop();
-      stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); stopLogsBroker();
+      stopPersonaBroker(); stopSettingsBroker(); stopAppearanceBroker(); links.stop(); stopLogsBroker();
       if (quitting) return;
       quitting = true;
       event.preventDefault();
@@ -279,16 +288,12 @@ if (!app.requestSingleInstanceLock()) {
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button
       // (QGD-LOG-0013). The window opens the panel; this only says so.
-      // Privacy, Attributions and Contributors beside it (QGD-FRM-0015,
-      // KI7MT 2026-10-22). The window opens each; this only says which.
+      // Above it, the project's documents, opened in the browser from the
+      // repository, which is the one place each is kept (QGD-FRM-0015,
+      // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
-        ...(['privacy', 'attributions', 'contributors'] as const).map(topic => ({
-          id: topic,
-          label: `${topic[0].toUpperCase()}${topic.slice(1)}…`,
-          click: () => {
-            const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-            if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:help', topic); }
-          }
+        ...HELP_DOCUMENTS.map(([name, label]) => ({
+          id: name, label, click: () => links.open({ type: 'document', name })
         })),
         { type: 'separator' },
         // Troubleshooting last, below the separator (KI7MT, 2026-10-22).

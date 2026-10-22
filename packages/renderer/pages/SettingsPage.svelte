@@ -48,6 +48,12 @@
   import type { ThemeChoice as Choice } from '../../main/settings-contract.js';
   import type { ExtensionSwitch } from '../shell-store.js';
   import type { ResourceSummary, StorageStatus } from '../../storage/storage-contract.js';
+  import type { DocumentName } from '../../main/links-contract.js';
+
+  // The project's documents, each kept once in the repository (QGD-FRM-0015).
+  const ABOUT_DOCUMENTS: readonly (readonly [DocumentName, string])[] = [
+    ['privacy', 'Privacy'], ['security', 'Security'], ['attributions', 'Attributions'], ['contributors', 'Contributors']
+  ];
 
   interface Props {
     // For About (KI7MT, 2026-10-22: moved here from Home).
@@ -60,12 +66,13 @@
     storage?: StorageStatus;
     onUpdateReference?: (resource: string) => Promise<string | undefined>;
     // Opens one of Help's windows (QGD-FRM-0015).
-    onOpenHelp?: (topic: 'privacy' | 'attributions' | 'contributors') => void;
+    // Opens one of the project's documents in the browser (QGD-FRM-0015).
+    onOpenDocument?: (name: DocumentName) => void;
   }
   const {
     version = '', themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
     storage, onUpdateReference = () => Promise.resolve('The update could not be started.'),
-    onOpenHelp = () => {}
+    onOpenDocument = () => {}
   }: Props = $props();
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
@@ -145,9 +152,9 @@
       or update them, and the data your pinned cards show, and nothing else.
     </p>
     <div class="about-links">
-      <button type="button" class="secondary" id="open-privacy" onclick={() => onOpenHelp('privacy')}>Privacy</button>
-      <button type="button" class="secondary" id="open-attributions" onclick={() => onOpenHelp('attributions')}>Attributions</button>
-      <button type="button" class="secondary" id="open-contributors" onclick={() => onOpenHelp('contributors')}>Contributors</button>
+      {#each ABOUT_DOCUMENTS as [name, label] (name)}
+        <button type="button" class="secondary" id={`open-${name}`} onclick={() => onOpenDocument(name)}>{label}</button>
+      {/each}
     </div>
   </section>
 

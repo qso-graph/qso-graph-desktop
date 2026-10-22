@@ -2,9 +2,10 @@
 
 QSO Graph Desktop is GPL-3.0-only. See LICENSE.
 
-This file records third-party material that is redistributed inside the
-application and the terms it carries. It is not a list of build dependencies:
-it names what ships, and what shipping it obliges us to say.
+This file is the application's attributions (Help → Attributions). It records
+the third-party material that is redistributed inside the application, with the
+terms it carries, and every source of data the application downloads or ships,
+with who it is from. It is not a list of build dependencies.
 
 --------------------------------------------------------------------------------
 
@@ -40,3 +41,39 @@ No icon has been modified. Attribution appears here and in the application's
 About panel, as CC BY 4.0 requires.
 
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+## Data sources
+
+Each source of data the application downloads or ships, who it is from, and on
+what terms. Data marked "downloaded when you ask" is fetched from its owner by
+your copy of the application and is never redistributed by this project.
+
+<!-- credit: reference/adif -->
+- **ADIF Development Group**: ADIF definitions, the fields, modes, bands and
+  entities logs are checked against. Downloaded when you ask. Published for use
+  by logging programs.
+<!-- credit: reference/pota -->
+- **Parks on the Air**: POTA parks, programs and locations. Downloaded when you
+  ask. Public data, fetched from POTA and never redistributed.
+<!-- credit: reference/sota -->
+- **Summits on the Air**: SOTA summits, each summit's reference, name, height
+  and position. Downloaded when you ask. Public data, fetched from SOTA and
+  never redistributed.
+<!-- credit: noaa -->
+- **NOAA Space Weather Prediction Center**: solar flux, the K and A indices and
+  the space weather scales, for Conditions. A work of the US Government, public
+  domain.
+<!-- credit: county/boundaries -->
+- **US Census Bureau**: US county boundaries, to find the county a location is
+  in. Ships with the application. A work of the US Government, public domain.
+<!-- credit: county/names -->
+- **ARRL's TQSL**: US county names as LoTW accepts them, from TQSL's
+  configuration. Names only; TQSL's file is not included.
+<!-- credit: county/sections -->
+- **ARRL Section Boundaries**: ARRL sections and the counties each holds.
+  Section assignments only; ARRL's page is not included.
+<!-- credit: icons -->
+- **Font Awesome Free, by Fonticons, Inc.**: the navigation icons. CC BY 4.0,
+  as recorded above.
