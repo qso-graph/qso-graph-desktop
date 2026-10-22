@@ -59,7 +59,7 @@
   });
 </script>
 
-<PageLayout title="QSO Graph Desktop" eyebrow="HOME">
+<PageLayout title="QSO Graph Desktop" eyebrow="HOME" width="full">
   <div class="home-cards-head">
     <h2 class="visually-hidden" id="home-cards-title">Pinned cards</h2>
     <!-- At the start of the line, under the title, rather than alone at the
@@ -75,6 +75,12 @@
       <button type="button" class="secondary" onclick={() => onDismissNotice(home.notice!.id)}>Dismiss</button>
     </div>
   {/if}
+  <!-- One flow of columns for everything on Home (KI7MT, 2026-10-22):
+       each column at least 400 px, as many as the window holds, and a short
+       card leaves no gap, because the next fills the space beneath it.
+       Pinned cards first, in the order the operator set them, then Right
+       now and Where to go. -->
+  <div class="home-flow">
   {#if home.cards.length > 0}
     <div class="home-cards" id="home-cards" aria-labelledby="home-cards-title">
       {#each home.cards as card (card.key)}
@@ -82,14 +88,6 @@
       {/each}
     </div>
   {/if}
-  <PinPicker
-    open={picking}
-    available={home.available}
-    pins={home.pins}
-    max={room}
-    onSave={pins => { picking = false; onSavePins(pins); }}
-    onCancel={() => { picking = false; }}
-  />
   <section class="card" aria-labelledby="home-state-title">
     <h2 id="home-state-title">Right now</h2>
     <dl class="facts">
@@ -138,4 +136,13 @@
       {/each}
     </ul>
   </section>
+  </div>
+  <PinPicker
+    open={picking}
+    available={home.available}
+    pins={home.pins}
+    max={room}
+    onSave={pins => { picking = false; onSavePins(pins); }}
+    onCancel={() => { picking = false; }}
+  />
 </PageLayout>
