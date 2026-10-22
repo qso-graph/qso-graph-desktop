@@ -125,7 +125,7 @@
         { field: 'MY_ITU_ZONE', label: 'ITU zone' },
         { field: 'MY_ARRL_SECT', label: 'ARRL section' },
         // Paired in the two columns: latitude beside longitude (KI7MT).
-        { field: 'MY_ALTITUDE', label: 'Altitude', hint: 'Metres above sea level.' },
+        { field: 'MY_ALTITUDE', label: 'Elevation', hint: 'Metres above sea level, as on a map.' },
         { field: 'MY_LAT', label: 'Latitude', hint: 'In degrees, as 43.625; south is negative. Leave it empty and the grid gives the position.' },
         { field: 'MY_LON', label: 'Longitude', hint: 'In degrees, as -116.2083; west is negative.' }
       ]
