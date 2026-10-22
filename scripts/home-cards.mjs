@@ -241,10 +241,12 @@ try {
   console.log('Help menu: Troubleshooting… opened the Troubleshooting panel: PASS');
   // The Setup menu (KI7MT, 2026-10-22): the welcome's places, from the menu.
   const setup = id => application.evaluate(({ Menu }, item) => Menu.getApplicationMenu()?.getMenuItemById(item)?.click(), id);
+  // Which page is on screen, by the rail's current item: the callsign this
+  // run made earlier is selected on Callsigns, so its heading is not fixed.
   await setup('setup-callsigns');
-  await expect(page.getByRole('heading', { level: 1, name: 'Add a callsign' })).toBeVisible({ timeout: 30_000 });
+  await expect(rail(page, 'Callsigns')).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   await setup('setup-locations');
-  await expect(page.getByRole('heading', { level: 1, name: 'Station Locations' })).toBeVisible({ timeout: 30_000 });
+  await expect(rail(page, 'Locations')).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   await setup('setup-pins');
   await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('dialog', { name: 'Customize your pins' }).getByRole('button', { name: 'Cancel' }).click();
