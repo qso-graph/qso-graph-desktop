@@ -20,13 +20,15 @@ describe('the welcome\'s getting-started steps', () => {
     expect(welcomeSteps(false, undefined)).toBeUndefined();
   });
 
-  it('lists the three in order on a new install, none done', () => {
-    expect(welcomeSteps(false, storage(0, false))?.map(step => [step.id, step.done]))
-      .toEqual([['callsign', false], ['location', false], ['adif', false]]);
+  it('lists them in order on a new install, none done, parks and summits optional', () => {
+    expect(welcomeSteps(false, storage(0, false))?.map(step => [step.id, step.done, step.optional]))
+      .toEqual([['callsign', false, false], ['location', false, false], ['adif', false, false],
+        ['parks', false, true], ['summits', false, true]]);
   });
 
-  it('ticks each as it is done, and shows none once all are', () => {
-    expect(welcomeSteps(true, storage(1, false))?.map(step => step.done)).toEqual([true, true, false]);
+  it('ticks each as it is done, and goes once every step that is not optional is', () => {
+    expect(welcomeSteps(true, storage(1, false))?.map(step => step.done)).toEqual([true, true, false, false, false]);
+    // POTA and SOTA never downloaded: the list still goes (KI7MT, 2026-10-22).
     expect(welcomeSteps(true, storage(2, true))).toEqual([]);
   });
 });

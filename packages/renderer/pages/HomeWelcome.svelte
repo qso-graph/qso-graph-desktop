@@ -32,7 +32,7 @@
     { id: 'welcome-locations', icon: 'stations', text: 'Locations ready for LoTW, POTA and SOTA', go: () => onGo('stations') },
     { id: 'welcome-pins', icon: 'extension', text: 'Pin what you use', go: onCustomize }
   ]);
-  const STEP_PLACE = { callsign: 'callsigns', location: 'stations', adif: 'settings' } as const;
+  const STEP_PLACE = { callsign: 'callsigns', location: 'stations', adif: 'settings', parks: 'settings', summits: 'settings' } as const;
 </script>
 
 <section class="home-welcome" id="home-welcome" aria-labelledby="welcome-headline">
@@ -78,7 +78,7 @@
             <button type="button" class="link-button" id="welcome-step-{step.id}" onclick={() => onGo(STEP_PLACE[step.id])}
               aria-label={step.done ? `${step.label}: done` : step.label}>
               <span class="welcome-box" aria-hidden="true">{step.done ? '✓' : ''}</span>{step.label}
-            </button>
+            </button>{#if step.optional}<span class="optional"> optional</span>{/if}
           </li>
         {/each}
       </ul>
