@@ -6,6 +6,7 @@
 // up (QGD-ENG-0003). Its status reaches the screen two ways: once when the
 // screen asks, and pushed whenever it changes (an exit, a restart, a finished
 // reference build). So nothing polls and nothing goes stale.
+import type { AdifEntry } from '../storage/adif-entry.js';
 import type { StationBrief } from '../extension-api/api-contract.js';
 import { activeStationBrief } from './station-brief.js';
 import { app, BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
@@ -44,6 +45,9 @@ export interface StorageBroker {
   // listener told when that changes, so Home asks its cards again
   // (QGD-STN-0005, QGD-HOM-0005).
   activeStation: () => StationBrief | null;
+  // ADIF's definitions searched, for an extension holding reference:read
+  // (ADIF Lookup); a sentence when they cannot be.
+  adifSearch: (query: string) => Promise<AdifEntry[] | string>;
   onActiveStationChanged: (listener: () => void) => void;
   // The callsign made active, whose default station QG Storage makes active
   // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
@@ -228,6 +232,11 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   return {
     stop,
     activeStation: () => activeStation,
+    async adifSearch(query) {
+      const reply = await ask({ type: 'adif-search', query });
+      if (!reply.ok) return reply.error;
+      return reply.adif ?? 'ADIF\'s definitions could not be searched just now.';
+    },
     onActiveStationChanged: (listener) => { stationListeners.add(listener); },
     // A callsign's id only, never anything about it. Kept until a process
     // has it, so an activation or a removal made while QG Storage was

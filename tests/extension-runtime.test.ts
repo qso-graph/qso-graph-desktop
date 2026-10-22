@@ -187,6 +187,7 @@ describe('the decision', () => {
       'callsign.list': { kind: 'callsign.list' },
       'callsign.active': { kind: 'callsign.active' },
       'station.active': { kind: 'station.active' },
+      'adif.search': { kind: 'adif.search', query: 'FT8' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     };
@@ -299,6 +300,22 @@ describe('station.active (QGD-STN-0003, QGD-HOM-0009)', () => {
     expect(requiredGrant({ kind: 'station.active' })).toBe('station:active');
     const grant = register.grants.find((entry: { id: string }) => entry.id === 'station:active');
     expect(grant?.notWhat).toMatch(/street, city or postal code/);
+  });
+});
+
+describe('adif.search (ADIF Lookup, KI7MT 2026-10-22)', () => {
+  it('needs reference:read, which the register already says the frame answers on the extension\'s behalf', () => {
+    expect(requiredGrant({ kind: 'adif.search', query: 'FT8' })).toBe('reference:read');
+    const grant = register.grants.find((entry: { id: string }) => entry.id === 'reference:read');
+    expect(grant?.notWhat).toMatch(/No path and no connection/);
+  });
+
+  it('takes a short plain search and nothing else', () => {
+    expect(validateRequest({ kind: 'adif.search', query: 'FT8' })).toEqual({ kind: 'adif.search', query: 'FT8' });
+    for (const query of ['', '   ', 'x'.repeat(65), '<b>', 'a\u0000b', 7]) {
+      expect(() => validateRequest({ kind: 'adif.search', query }), String(query)).toThrowError(/short plain search/);
+    }
+    expect(() => validateRequest({ kind: 'adif.search', query: 'FT8', sql: 'x' })).toThrowError(/takes no "sql"/);
   });
 });
 

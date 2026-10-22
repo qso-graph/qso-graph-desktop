@@ -41,6 +41,8 @@ export function plainRequest(request: ExtensionRequest): unknown {
     case 'callsign.active':
     case 'station.active':
       return { kind: request.kind };
+    case 'adif.search':
+      return { kind: request.kind, query: request.query };
     case 'source.fetch':
       return { kind: request.kind, source: request.source };
     case 'service.request': {

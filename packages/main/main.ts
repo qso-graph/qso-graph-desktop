@@ -232,6 +232,12 @@ if (!app.requestSingleInstanceLock()) {
         },
         // Name, grid and position only (station-brief.ts, QGD-STN-0003).
         activeStation: async () => storageBroker.activeStation(),
+        // ADIF Lookup's search, answered from reference.sqlite (reference:read).
+        adifSearch: async query => {
+          const found = await storageBroker.adifSearch(query);
+          if (typeof found === 'string') throw new Error(found);
+          return found;
+        },
         fetchSource: async url => {
           if (recorded) return recorded(url);
           // At a start the credential core may not be up yet: the request

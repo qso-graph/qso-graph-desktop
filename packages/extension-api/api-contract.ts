@@ -34,6 +34,11 @@ export type ExtensionRequest =
   // postal code, which stay on this machine and out of every extension
   // (QGD-STN-0003).
   | { readonly kind: 'station.active' }
+  // Search ADIF's own definitions, its fields and every enumeration's values,
+  // as the frame loaded them (KI7MT, 2026-10-22: ADIF Lookup). The frame
+  // searches reference.sqlite and answers with ADIF's text; the extension
+  // never opens a store (QGD-APP-0009).
+  | { readonly kind: 'adif.search'; readonly query: string }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -69,6 +74,14 @@ export interface CallsignBrief {
   readonly description: string;
 }
 
+// One thing ADIF defines, as the frame answers a search: a field, or a value
+// of one of ADIF's enumerations, with ADIF's own columns and nothing added.
+export interface AdifEntry {
+  readonly list: string;
+  readonly key: string;
+  readonly columns: readonly { readonly name: string; readonly value: string }[];
+}
+
 // The active station as an extension may see it. The position is the
 // station's own MY_LAT and MY_LON where it has them, otherwise the centre of
 // its grid square, in decimal degrees; absent when it has neither.
@@ -84,6 +97,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'callsign.list'; readonly callsigns: readonly CallsignBrief[] }
   | { readonly ok: true; readonly kind: 'callsign.active'; readonly callsign: CallsignBrief | null }
   | { readonly ok: true; readonly kind: 'station.active'; readonly station: StationBrief | null }
+  | { readonly ok: true; readonly kind: 'adif.search'; readonly entries: readonly AdifEntry[] }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the
@@ -112,6 +126,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'callsign.list': return 'callsign:list';
     case 'callsign.active': return 'callsign:list';
     case 'station.active': return 'station:active';
+    case 'adif.search': return 'reference:read';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -120,7 +135,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -170,6 +185,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'callsign.list': ['kind'],
   'callsign.active': ['kind'],
   'station.active': ['kind'],
+  'adif.search': ['kind', 'query'],
   'source.fetch': ['kind', 'source'],
   'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
@@ -193,6 +209,14 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'callsign.active':
     case 'station.active':
       return bare();
+    case 'adif.search': {
+      // Bounded and plain, as a page's text field is (inputs.ts).
+      if (typeof value.query !== 'string' || value.query.trim() === '' || value.query.length > 64
+        || [...value.query].some(character => character.codePointAt(0)! < 0x20) || /[<>]/.test(value.query)) {
+        throw new RequestError('query is not a short plain search', 'query');
+      }
+      return { kind, query: value.query };
+    }
     case 'source.fetch': {
       if (typeof value.source !== 'string' || !NAME.test(value.source)) {
         throw new RequestError('source is not a registered source name', 'source');
