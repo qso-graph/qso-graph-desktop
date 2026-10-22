@@ -78,14 +78,14 @@ describe('the notice at the window boundary (QGD-SEC-0006)', () => {
 });
 
 describe('the store keeps the newest notice', () => {
-  const STATE = { available: [], pins: [], cards: [] };
+  const STATE = { available: [], pins: [], pages: [] };
   const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
   it('shows a pushed notice and ignores one off the contract', async () => {
     let push: (notice: unknown) => void = () => {};
     const store = createHomeStore({
       request: () => Promise.resolve({ ok: true, state: { ...STATE, notice: null } }),
-      onCard: () => () => undefined,
+      onPage: () => () => undefined,
       onNotice: listener => { push = listener; return () => undefined; }
     });
     store.start();
@@ -103,7 +103,7 @@ describe('the store keeps the newest notice', () => {
       request: command => (command as { type: string }).type === 'dismiss'
         ? new Promise(settle => { answer = settle; })
         : Promise.resolve({ ok: true, state: { ...STATE, notice: null } }),
-      onCard: () => () => undefined,
+      onPage: () => () => undefined,
       onNotice: listener => { push = listener; return () => undefined; }
     });
     store.start();

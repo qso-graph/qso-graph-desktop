@@ -22,9 +22,9 @@ export interface Settings {
   // Absent or empty means an application holds only the grants that need
   // nobody — which is the safe default and the one a fresh install has.
   grants: Readonly<Record<string, readonly string[]>>;
-  // The cards pinned to Home, in order: at most six, each named
-  // "extension/card" (QGD-HOM-0003). A pin naming a card no extension offers
-  // is kept and not shown, so a card whose extension is turned off comes back
+  // The pages pinned to Home, in order: at most six, each named
+  // "extension/page" (QGD-HOM-0003). A pin naming a page no extension offers
+  // is kept and not shown, so a page whose extension is turned off comes back
   // where it was when it is turned on.
   pins: readonly string[];
   // The extensions the operator has turned off, by id (QGD-HOM-0007). Absent
@@ -39,9 +39,9 @@ export interface Settings {
 
 // Two rows of four on Home (KI7MT, 2026-10-22; was six).
 export const MAX_PINS = 8;
-// The day-one cards (QGD-HOM-0004): what a new install starts with. Your
+// The day-one pages (QGD-HOM-0004): what a new install starts with. Your
 // station was the second until it was retired (KI7MT, 2026-10-22); a pin for
-// it in an older settings.json names no card, and Home skips it.
+// it in an older settings.json names no page, and Home skips it.
 export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions'];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
@@ -53,14 +53,14 @@ export function isWelcomeHidden(value: unknown): value is string {
   return typeof value === 'string' && value.length <= 40 && /^[0-9A-Za-z.+-]*$/.test(value);
 }
 
-const CARD_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
+const PAGE_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
 
 export function isPins(value: unknown): value is readonly string[] {
   if (!Array.isArray(value) || value.length > MAX_PINS) return false;
   const seen = new Set<string>();
   for (let at = 0; at < value.length; at++) {
     const pin: unknown = value[at];
-    if (!Object.hasOwn(value, at) || typeof pin !== 'string' || !CARD_KEY.test(pin) || seen.has(pin)) return false;
+    if (!Object.hasOwn(value, at) || typeof pin !== 'string' || !PAGE_KEY.test(pin) || seen.has(pin)) return false;
     seen.add(pin);
   }
   return true;
@@ -111,7 +111,7 @@ export function isGrantMap(value: unknown): value is Readonly<Record<string, rea
 }
 
 // What the settings channel may write. Pins are not among them: they change
-// only through Home's channel, which cancels what an unpinned card has in
+// only through Home's channel, which cancels what an unpinned page has in
 // flight (QGD-HOM-0005); a write that bypassed it would leave that running.
 // Nor is which extensions are off: that changes only through the extensions
 // channel, which stops the extension as it records it (QGD-HOM-0007).

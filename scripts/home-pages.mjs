@@ -36,7 +36,7 @@ const QUIET = resolve('tests/fixtures/noaa/quiet');
 const STORM = resolve('tests/fixtures/noaa/storm');
 const expected = JSON.parse(await readFile(join(QUIET, 'expected.json'), 'utf8'));
 const stormExpected = JSON.parse(await readFile(join(STORM, 'expected.json'), 'utf8'));
-const directory = await mkdtemp(join(tmpdir(), 'qg-home-cards-'));
+const directory = await mkdtemp(join(tmpdir(), 'qg-home-pages-'));
 // The recorded responses are read from here each time a source is asked
 // for, so a test can change what NOAA "says" mid-run: the quiet day, and the
 // storm swapped in when only a fresh answer could show it.
@@ -55,7 +55,7 @@ const launch = async () => {
     env: { ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs, QG_DESKTOP_SOURCE_FIXTURES: FIXTURES }
   });
   const page = await application.firstWindow();
-  await assertNoVisibleWindow(application, page, 'home-cards');
+  await assertNoVisibleWindow(application, page, 'home-pages');
   return { application, page };
 };
 
@@ -148,8 +148,8 @@ try {
   await recorded(STORM);
   await tile(page, 'Conditions').click();
   const callsignReply = await page.evaluate(async () => {
-    const made = await window.callsigns.request({ type: 'create', call: 'w1aw', description: 'qg-home-cards-fixture' });
-    const id = made.ok ? made.data.callsigns.find(entry => entry.description === 'qg-home-cards-fixture')?.id : undefined;
+    const made = await window.callsigns.request({ type: 'create', call: 'w1aw', description: 'qg-home-pages-fixture' });
+    const id = made.ok ? made.data.callsigns.find(entry => entry.description === 'qg-home-pages-fixture')?.id : undefined;
     return id ? window.callsigns.request({ type: 'set-active', id }) : made;
   });
   expect(callsignReply, 'the test callsign must be made active').toMatchObject({ ok: true });
@@ -257,7 +257,7 @@ try {
 } catch (error) {
   console.error('P8 Home pins suite failed.');
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));
-  const at = String(error.stack ?? '').split('\n').find(line => line.includes('home-cards.mjs'));
+  const at = String(error.stack ?? '').split('\n').find(line => line.includes('home-pages.mjs'));
   if (at) console.error(redact(at.trim()));
   process.exitCode = 1;
 } finally {

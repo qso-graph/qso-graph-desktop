@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Home's channel (QGD-HOM-0001 to QGD-HOM-0006). Electron wiring only: which
-// cards exist and when each is asked for is home-cards.ts; how an extension is
+// pages exist and when each is asked for is home-pages.ts; how an extension is
 // asked is the extension host's supervisor.
 import { BrowserWindow, ipcMain } from 'electron';
 import { allowsSender } from '../callsigns/callsign-contract.js';
@@ -8,7 +8,7 @@ import { createLogger } from '../logging/logger.js';
 import type { LoadedExtension } from './extension-runtime.js';
 import type { Supervisor } from './extension-host-supervisor.js';
 import type { Enablement } from './extension-enablement.js';
-import { createCardScheduler, keepHidden, type CatalogueCard } from './home-cards.js';
+import { createPageScheduler, keepHidden, type CataloguePage } from './page-scheduler.js';
 import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
 import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
@@ -27,19 +27,19 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
 
   // Every page a loaded extension offers. An extension that is turned off
   // offers none (QGD-HOM-0007).
-  const catalogue = (): CatalogueCard[] => options.loaded().filter(extension => options.enablement.isOn(extension.manifest.id)).flatMap(extension =>
+  const catalogue = (): CataloguePage[] => options.loaded().filter(extension => options.enablement.isOn(extension.manifest.id)).flatMap(extension =>
     extension.manifest.contributes.pages.map(page => ({
       key: `${extension.manifest.id}/${page.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
-      card: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
+      page: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
       icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true
     })));
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
   let open: string | null = null;
-  const scheduler = createCardScheduler({
+  const scheduler = createPageScheduler({
     catalogue,
     pins: () => (open === null ? [] : [open]),
-    card: (extension, card, signal) => options.supervisor.card(extension, card, signal),
+    page: (extension, page, signal) => options.supervisor.page(extension, page, signal),
     // Pushed to every window; a window not showing Home ignores it.
     publish: view => {
       for (const window of BrowserWindow.getAllWindows()) {
@@ -49,7 +49,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
     now: () => Date.now()
   });
   options.onCallsignsChanged(() => scheduler.callsignsChanged());
-  // Turned off, its cards go and what they had in flight is cancelled; on
+  // Turned off, its pages go and what they had in flight is cancelled; on
   // again, they come back to the pins they held.
   const stopListening = options.enablement.onChange(() => scheduler.changed());
 
@@ -69,7 +69,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   const state = (): HomeState => ({
     available: catalogue().map(({ key, name, description, extensionName, icon, rail }) => ({ key, name, description, extensionName, icon, rail })),
     pins: load().pins,
-    cards: scheduler.views(),
+    pages: scheduler.views(),
     notice: notice()
   });
 

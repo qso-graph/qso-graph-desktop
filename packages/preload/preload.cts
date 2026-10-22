@@ -25,15 +25,15 @@ contextBridge.exposeInMainWorld('storage', Object.freeze({
   }
 }));
 // Home (QGD-HOM-*): the state, whether Home is showing, and the pins. Each
-// card's data is pushed; onCard hands back the function that stops listening,
-// and the listener receives the card only, never the event.
+// page's data is pushed; onPage hands back the function that stops listening,
+// and the listener receives the page only, never the event.
 contextBridge.exposeInMainWorld('home', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('home:request', command),
-  onCard: (listener: (card: unknown) => void) => {
+  onPage: (listener: (page: unknown) => void) => {
     if (typeof listener !== 'function') return () => undefined;
-    const handler = (_event: unknown, card: unknown) => listener(card);
-    ipcRenderer.on('home:card', handler);
-    return () => { ipcRenderer.removeListener('home:card', handler); };
+    const handler = (_event: unknown, page: unknown) => listener(page);
+    ipcRenderer.on('home:page', handler);
+    return () => { ipcRenderer.removeListener('home:page', handler); };
   },
   // The extension host's notice (QGD-APP-0022), checked by the window.
   onNotice: (listener: (notice: unknown) => void) => {

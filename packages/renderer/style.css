@@ -279,22 +279,22 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 }
 /* An extension's page: its data in one card at the page's width. */
 .page-body { max-width: 1088px; }
-.home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.home-card-head h2 { margin: 0; }
-.home-card-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
-.home-card-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin: 0 0 12px; }
-.home-card-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
-.home-card-figures dd { margin: 2px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.home-card-figures .unit { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
-.home-card-figures dd.figure-time { font-size: 11px; font-weight: 400; color: var(--ink-muted); }
-.home-card-items { list-style: none; margin: 0 0 12px; padding: 0; font-size: 13px; }
-.home-card-items li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); }
-.home-card-items li:first-child { border-top: 0; }
-.home-card-items .item-detail { color: var(--ink-muted); text-align: right; }
-.home-card-alert { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border); background: var(--surface-inset); }
-.home-card-alert.warning { color: var(--warn); background: var(--warn-surface); border-color: var(--warn-border); }
-.home-card-alert.severe { color: var(--danger); border-color: var(--danger-border); }
-.home-card-failed { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.page-head h2 { margin: 0; }
+.page-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.page-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin: 0 0 12px; }
+.page-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.page-figures dd { margin: 2px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.page-figures .unit { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
+.page-figures dd.figure-time { font-size: 11px; font-weight: 400; color: var(--ink-muted); }
+.page-items { list-style: none; margin: 0 0 12px; padding: 0; font-size: 13px; }
+.page-items li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); }
+.page-items li:first-child { border-top: 0; }
+.page-items .item-detail { color: var(--ink-muted); text-align: right; }
+.page-alert { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border); background: var(--surface-inset); }
+.page-alert.warning { color: var(--warn); background: var(--warn-surface); border-color: var(--warn-border); }
+.page-alert.severe { color: var(--danger); border-color: var(--danger-border); }
+.page-failed { margin: 0; font-size: 13px; color: var(--ink-muted); }
 
 /* Customize your pins (QGD-HOM-0003). */
 /* The look of ConfirmDialog: without it the dialog had the browser's own
@@ -363,31 +363,31 @@ dialog.pins h2 { margin: 0 0 6px; }
 .fill-from-grid { grid-column: 1 / -1; margin: -4px 0 4px; display: flex; flex-wrap: wrap; gap: 10px; }
 .fill-from-grid > .hint { flex-basis: 100%; margin: 0; }
 .county-choices { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
-.home-card-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
-.home-card-table th, .home-card-table td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
-.home-card-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
-.home-card-table tbody th { font-weight: 600; white-space: nowrap; }
-.home-card-table td:last-child { color: var(--ink-muted); }
+.page-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
+.page-table th, .page-table td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.page-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+.page-table tbody th { font-weight: 600; white-space: nowrap; }
+.page-table td:last-child { color: var(--ink-muted); }
 /* The table follows its card's own width, not the window's (KI7MT,
    2026-10-20): a card can be about 300 px wide, and three columns there wrap
    the comment one word to a line. When the card is narrow, each row keeps its
    band and status on one line and the comment drops to its own line beneath. */
 .page-body { container-type: inline-size; }
-.home-card-table th, .home-card-table td:not(:last-child) { white-space: nowrap; }
+.page-table th, .page-table td:not(:last-child) { white-space: nowrap; }
 @container (max-width: 340px) {
-  .home-card-table, .home-card-table tbody { display: block; }
-  .home-card-table thead { display: none; }
-  .home-card-table tbody tr { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
-  .home-card-table tbody th, .home-card-table tbody td { border-top: 0; padding: 0; }
-  .home-card-table tbody td:last-child { grid-column: 1 / -1; font-size: 12px; }
+  .page-table, .page-table tbody { display: block; }
+  .page-table thead { display: none; }
+  .page-table tbody tr { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
+  .page-table tbody th, .page-table tbody td { border-top: 0; padding: 0; }
+  .page-table tbody td:last-child { grid-column: 1 / -1; font-size: 12px; }
 }
 /* Four figures (Your station's UTC, local, sunrise and sunset; Conditions'
    flux, K, A and scales) sit evenly: four in a row when the card has room,
    otherwise two by two, never three and one left alone on a line (KI7MT,
    2026-10-22). */
-.home-card-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @container (min-width: 460px) {
-  .home-card-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 /* A button straight after a field and its message, with room between. */
 .after-field { margin-top: 16px; }

@@ -12,17 +12,17 @@ const STATE = {
     { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false },
     { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true }
   ],
-  pins: ['air/conditions', 'gone/card'], cards: [], notice: null
+  pins: ['air/conditions', 'gone/page'], pages: [], notice: null
 };
 
 function api() {
   const sent: unknown[] = [];
-  let push: (card: unknown) => void = () => {};
+  let push: (page: unknown) => void = () => {};
   const value: HomeApi = {
     request: async command => { sent.push(command); return { ok: true, state: STATE }; },
-    onCard: listener => { push = listener; return () => {}; }
+    onPage: listener => { push = listener; return () => {}; }
   };
-  return { value, sent, push: (card: unknown) => push(card) };
+  return { value, sent, push: (page: unknown) => push(page) };
 }
 const flush = () => new Promise(settle => setTimeout(settle, 0));
 
@@ -56,7 +56,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
 
-  it('ignores a pushed card that is off the contract', async () => {
+  it('ignores a pushed page that is off the contract', async () => {
     const { value, push } = api();
     const store = createHomeStore(value);
     store.start();
@@ -76,17 +76,17 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     expect(sent).toEqual([{ type: 'open', key: 'air/conditions' }, { type: 'open', key: null }, { type: 'pin', pins: ['air/conditions'] }]);
   });
 
-  it('never lets a snapshot read before a push replace the pushed card', async () => {
+  it('never lets a snapshot read before a push replace the pushed page', async () => {
     let answer: (value: unknown) => void = () => {};
-    let push: (card: unknown) => void = () => {};
+    let push: (page: unknown) => void = () => {};
     const store = createHomeStore({
       request: () => new Promise(settle => { answer = settle; }),
-      onCard: listener => { push = listener; return () => {}; }
+      onPage: listener => { push = listener; return () => {}; }
     });
     store.start();
     store.openPage('air/conditions');
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
-    answer({ ok: true, state: { ...STATE, cards: [{ key: 'air/conditions', state: 'waiting' }] } });
+    answer({ ok: true, state: { ...STATE, pages: [{ key: 'air/conditions', state: 'waiting' }] } });
     await flush();
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
@@ -94,7 +94,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
   it('reads the state again when asked, so a tile whose extension was turned off goes', async () => {
     let state: unknown = STATE;
     const sent: unknown[] = [];
-    const store = createHomeStore({ request: async command => { sent.push(command); return { ok: true, state }; }, onCard: () => () => {} });
+    const store = createHomeStore({ request: async command => { sent.push(command); return { ok: true, state }; }, onPage: () => () => {} });
     store.start();
     await flush();
     expect(store.get().tiles).toHaveLength(1);
@@ -106,7 +106,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
   });
 
   it('puts the date in front of a time that is not today, in UTC', async () => {
-    const { utc } = await import('../packages/ui/home-card.js');
+    const { utc } = await import('../packages/ui/page-shapes.js');
     const now = Date.parse('2026-10-11T20:00:00Z');
     expect(utc('2026-10-11T18:00:00Z', now)).toBe('18:00 UTC');
     expect(utc('2026-10-10T18:00:00Z', now)).toBe('10 Oct 18:00 UTC');

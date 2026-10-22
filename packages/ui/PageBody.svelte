@@ -9,26 +9,26 @@
   the application, and no extension code runs in the window.
 -->
 <script lang="ts">
-  import { utc, type CardShown } from './home-card.js';
+  import { utc, type PageShown } from './page-shapes.js';
 
   interface Props {
-    shown: CardShown;
+    shown: PageShown;
   }
   const { shown }: Props = $props();
 </script>
 
 <section class="card page-body" aria-busy={shown.state === 'waiting'}>
-  {#if shown.state === 'ready'}<p class="home-card-time" id="page-observed">Updated {utc(shown.observedAt)}</p>{/if}
+  {#if shown.state === 'ready'}<p class="page-time" id="page-observed">Updated {utc(shown.observedAt)}</p>{/if}
   {#if shown.state === 'waiting'}
     <p class="hint">Getting the latest…</p>
   {:else if shown.state === 'failed'}
-    <p class="home-card-failed" role="status">{shown.reason}</p>
+    <p class="page-failed" role="status">{shown.reason}</p>
   {:else}
     {#each shown.sections as section, at (at)}
       {#if section.shape === 'alert'}
-        <p class="home-card-alert {section.level}" role={section.level === 'info' ? 'status' : 'alert'}>{section.text}</p>
+        <p class="page-alert {section.level}" role={section.level === 'info' ? 'status' : 'alert'}>{section.text}</p>
       {:else if section.shape === 'figures'}
-        <dl class="home-card-figures">
+        <dl class="page-figures">
           {#each section.figures as figure, i (i)}
             <div>
               <dt>{figure.label}</dt>
@@ -38,7 +38,7 @@
           {/each}
         </dl>
       {:else if section.shape === 'table'}
-        <table class="home-card-table">
+        <table class="page-table">
           <thead><tr>{#each section.columns as column, c (c)}<th scope="col">{column}</th>{/each}</tr></thead>
           <tbody>
             {#each section.rows as row, r (r)}
@@ -47,7 +47,7 @@
           </tbody>
         </table>
       {:else}
-        <ul class="home-card-items">
+        <ul class="page-items">
           {#each section.items as item, i (i)}
             <li><span class="item-title">{item.title}</span>{#if item.detail}<span class="item-detail">{item.detail}</span>{/if}</li>
           {/each}

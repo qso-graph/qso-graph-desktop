@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// On the Air: QSO Graph Desktop's built-in extension for Home's cards about
+// On the Air: QSO Graph Desktop's built-in extension for Home's pages about
 // what is happening on the air now (QGD-HOM-0007).
 //
 // It runs in the extension host (QGD-APP-0015) and reaches the core only
 // through `context` (QGD-APP-0002): NOAA's data is fetched by the core from
-// the sources the register names. The core decides when each card is asked
-// for (QGD-HOM-0005); this module only answers. Your station, its other card,
+// the sources the register names. The core decides when each page is asked
+// for (QGD-HOM-0005); this module only answers. Your station, its other page,
 // was retired on 2026-10-22 (KI7MT): the header carries the clock and the
 // status bar the callsign and location (QGD-FRM-0014); sunrise and sunset
 // move to the Astro extension.
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
-import type { CardAnswer } from '../../../packages/extension-api/cards.js';
-import { conditionsCard, parseConditions } from './conditions.js';
+import type { PageAnswer } from '../../../packages/extension-api/pages.js';
+import { conditionsPage, parseConditions } from './conditions.js';
 
-const UNREACHABLE: CardAnswer = { ok: false, reason: 'NOAA could not be reached just now.' };
-const UNREADABLE: CardAnswer = { ok: false, reason: "NOAA's data could not be read just now." };
+const UNREACHABLE: PageAnswer = { ok: false, reason: 'NOAA could not be reached just now.' };
+const UNREADABLE: PageAnswer = { ok: false, reason: "NOAA's data could not be read just now." };
 
 async function fetchBody(context: ExtensionContext, source: string, signal: AbortSignal): Promise<string | undefined> {
   const reply = await context.request({ kind: 'source.fetch', source }, { signal });
@@ -22,11 +22,11 @@ async function fetchBody(context: ExtensionContext, source: string, signal: Abor
 }
 
 export function activate(context: ExtensionContext): void {
-  context.subscriptions.push(context.cards.register('conditions', async ({ signal }) => {
+  context.subscriptions.push(context.pages.register('conditions', async ({ signal }) => {
     const [flux, kp, scales] = await Promise.all(
       ['noaa-flux', 'noaa-kp', 'noaa-scales'].map(source => fetchBody(context, source, signal)));
     if (flux === undefined || kp === undefined || scales === undefined) return UNREACHABLE;
     const conditions = parseConditions({ flux, kp, scales });
-    return conditions ? conditionsCard(conditions) : UNREADABLE;
+    return conditions ? conditionsPage(conditions) : UNREADABLE;
   }));
 }

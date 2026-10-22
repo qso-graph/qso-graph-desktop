@@ -22,7 +22,7 @@ concurrency:
 env:
   # The newest glibc the Linux credential core may need (scripts/build-native.mjs).
   QG_GLIBC_MAX: '2.28'
-  SUITES: keychain-roundtrip,credential-editing,callsign-export,electron-smoke,home-cards,stations,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
+  SUITES: keychain-roundtrip,credential-editing,callsign-export,electron-smoke,home-pages,stations,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
 
 jobs:
   check:

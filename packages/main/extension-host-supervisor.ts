@@ -19,7 +19,7 @@
 //   budget, and generations, so nothing from a replaced host is believed
 //   (QGD-APP-0022).
 import type { ExtensionReply } from '../extension-api/api-contract.js';
-import { validateCardAnswer, type CardAnswer } from '../extension-api/cards.js';
+import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
 import { parseFromExtension, parseFromHost, type Port, type ToHost } from '../extension-host/protocol.js';
 import type { ExtensionLimits } from './extension-limits.js';
 
@@ -43,7 +43,7 @@ export interface SupervisorDeps {
   channel(): ChannelPair;
   // What the core knows about an extension it may run: built from the package
   // and the validated manifest, never from the extension (QGD-APP-0017).
-  describe(id: string): { readonly entry: string; readonly cards: readonly string[] } | undefined;
+  describe(id: string): { readonly entry: string; readonly pages: readonly string[] } | undefined;
   // The request, served by the grant-checked path (extension-serve.ts) under
   // the identity this file bound to the channel.
   serve(id: string, request: unknown): Promise<ExtensionReply>;
@@ -53,8 +53,8 @@ export interface SupervisorDeps {
   };
 }
 
-export type CardOutcome =
-  | { readonly outcome: 'completed'; readonly answer: CardAnswer }
+export type PageOutcome =
+  | { readonly outcome: 'completed'; readonly answer: PageAnswer }
   | { readonly outcome: 'cancelled' }
   | { readonly outcome: 'unknown'; readonly reason: string };
 
@@ -81,7 +81,7 @@ const SAID = {
   activateLate: 'This extension did not start in time.',
   disabled: 'This extension is turned off.',
   unknownExtension: 'That is not an extension this core runs.',
-  unshowable: 'This card sent data that cannot be shown.',
+  unshowable: 'This page sent data that cannot be shown.',
   tooLarge: 'That request is larger than an extension may send.',
   tooMany: 'This extension has too many requests waiting.'
 } as const;
@@ -92,7 +92,7 @@ interface Generation {
   readonly channels: Map<string, Port>;
   readonly activations: Map<number, { id: string; settle: (ok: boolean) => void; timer: ReturnType<typeof setTimeout> }>;
   readonly deactivations: Map<number, { settle: () => void; timer: ReturnType<typeof setTimeout> }>;
-  readonly cards: Map<string, { settle: (outcome: CardOutcome) => void; timer: ReturnType<typeof setTimeout> }>;
+  readonly pages: Map<string, { settle: (outcome: PageOutcome) => void; timer: ReturnType<typeof setTimeout> }>;
   readonly inFlight: Map<string, number>;
   missed: number;
   ping: number;
@@ -106,7 +106,7 @@ export function createSupervisor(deps: SupervisorDeps) {
   let current: Generation | undefined;
   let generations = 0;
   let seq = 0;
-  let cardCid = 0;
+  let pageCid = 0;
   const active = new Set<string>();
   const activating = new Map<string, Promise<{ ok: true } | { ok: false; reason: string }>>();
   const failed = new Map<string, string>();
@@ -128,7 +128,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     const link = deps.spawn();
     const generation: Generation = {
       n: ++generations, link, channels: new Map(), activations: new Map(), deactivations: new Map(),
-      cards: new Map(), inFlight: new Map(), missed: 0, ping: 0, dead: false
+      pages: new Map(), inFlight: new Map(), missed: 0, ping: 0, dead: false
     };
     link.onMessage(raw => onHost(generation, raw));
     link.onExit(() => { if (!generation.dead) lost(generation, SAID.stopped); });
@@ -184,7 +184,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     const pair = deps.channel();
     generation.channels.set(id, pair.broker);
     pair.broker.onMessage(raw => onChannel(generation, id, pair.broker, raw));
-    generation.link.post({ type: 'load', id, entry: description.entry, cards: [...description.cards] }, pair.transfer);
+    generation.link.post({ type: 'load', id, entry: description.entry, pages: [...description.pages] }, pair.transfer);
     return pair.broker;
   }
 
@@ -213,18 +213,18 @@ export function createSupervisor(deps: SupervisorDeps) {
         () => { clearTimeout(timer); release(); if (!replied) { replied = true; reply({ ok: false, error: 'That could not be done.' }); } });
       return;
     }
-    // A card answer or a confirmed cancellation. One per request: the first
+    // A page answer or a confirmed cancellation. One per request: the first
     // settles it, and anything after is discarded (QGD-APP-0021).
     const key = `${id}#${message.cid}`;
-    const waiting = generation.cards.get(key);
+    const waiting = generation.pages.get(key);
     if (!waiting) return;
-    generation.cards.delete(key);
+    generation.pages.delete(key);
     clearTimeout(waiting.timer);
-    if (message.type === 'card-cancelled') { waiting.settle({ outcome: 'cancelled' }); return; }
+    if (message.type === 'page-cancelled') { waiting.settle({ outcome: 'cancelled' }); return; }
     try {
-      waiting.settle({ outcome: 'completed', answer: validateCardAnswer(message.answer) });
+      waiting.settle({ outcome: 'completed', answer: validatePageAnswer(message.answer) });
     } catch {
-      deps.log.warn({ extension: id }, 'a card answer was refused');
+      deps.log.warn({ extension: id }, 'a page answer was refused');
       waiting.settle({ outcome: 'completed', answer: { ok: false, reason: SAID.unshowable } });
     }
   }
@@ -237,12 +237,12 @@ export function createSupervisor(deps: SupervisorDeps) {
     try { generation.link.kill(); } catch { /* already gone */ }
     for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
     // An extension still starting when the host went is affected too: it was
-    // in the host, and its cards will say so (Turing, review of P8's notice).
+    // in the host, and its pages will say so (Turing, review of P8's notice).
     const starting = [...generation.activations.values()].map(waiting => waiting.id);
     for (const waiting of generation.activations.values()) { clearTimeout(waiting.timer); waiting.settle(false); }
     for (const waiting of generation.deactivations.values()) { clearTimeout(waiting.timer); waiting.settle(); }
-    for (const waiting of generation.cards.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
-    generation.activations.clear(); generation.deactivations.clear(); generation.cards.clear();
+    for (const waiting of generation.pages.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
+    generation.activations.clear(); generation.deactivations.clear(); generation.pages.clear();
     affected = [...new Set([...active, ...starting])].sort();
     stops += 1;
     stoppedAt = new Date().toISOString();
@@ -329,9 +329,9 @@ export function createSupervisor(deps: SupervisorDeps) {
     if (overran && !generation.dead) lost(generation, `deactivation of ${id} overran`);
   }
 
-  // Ask an extension for a card's data. The core decides when (QGD-HOM-0005);
+  // Ask an extension for a page's data. The core decides when (QGD-HOM-0005);
   // `signal` asks the extension to stop, which only it can confirm.
-  async function card(id: string, cardId: string, signal?: AbortSignal): Promise<CardOutcome> {
+  async function page(id: string, pageId: string, signal?: AbortSignal): Promise<PageOutcome> {
     // Cancelled before it was sent: nothing happened, so that is confirmed.
     if (signal?.aborted) return { outcome: 'cancelled' };
     const ready = await ensureActive(id);
@@ -340,29 +340,29 @@ export function createSupervisor(deps: SupervisorDeps) {
     const generation = current;
     const port = generation?.channels.get(id);
     if (!generation || !port) return { outcome: 'unknown', reason: SAID.stopped };
-    const cid = ++cardCid;
+    const cid = ++pageCid;
     const key = `${id}#${cid}`;
-    return new Promise<CardOutcome>(resolve => {
-      const onAbort = () => { if (generation.cards.has(key)) port.post({ type: 'card-cancel', cid }); };
-      // The listener goes when the card settles, so a long-lived signal does
-      // not collect one per card.
-      const settle = (outcome: CardOutcome) => { signal?.removeEventListener('abort', onAbort); resolve(outcome); };
+    return new Promise<PageOutcome>(resolve => {
+      const onAbort = () => { if (generation.pages.has(key)) port.post({ type: 'page-cancel', cid }); };
+      // The listener goes when the page settles, so a long-lived signal does
+      // not collect one per page.
+      const settle = (outcome: PageOutcome) => { signal?.removeEventListener('abort', onAbort); resolve(outcome); };
       const timer = setTimeout(() => {
         // Past its deadline the answer is unknown, and a reply that comes
         // later is discarded because the key is gone (QGD-APP-0021).
-        generation.cards.delete(key);
-        port.post({ type: 'card-cancel', cid });
+        generation.pages.delete(key);
+        port.post({ type: 'page-cancel', cid });
         settle({ outcome: 'unknown', reason: SAID.late });
       }, limits.requestDeadlineMs);
-      generation.cards.set(key, { settle, timer });
+      generation.pages.set(key, { settle, timer });
       signal?.addEventListener('abort', onAbort, { once: true });
-      port.post({ type: 'card', cid, cardId });
+      port.post({ type: 'page', cid, pageId });
     });
   }
 
   return {
     ensureActive,
-    card,
+    page,
     async setEnabled(id: string, enabled: boolean): Promise<void> {
       if (enabled) { disabled.delete(id); failed.delete(id); changed(); return; }
       disabled.add(id);
@@ -387,7 +387,7 @@ export function createSupervisor(deps: SupervisorDeps) {
         generation.dead = true;
         if (generation.heartbeat) clearInterval(generation.heartbeat);
         for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
-        for (const waiting of generation.cards.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
+        for (const waiting of generation.pages.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
         try { generation.link.kill(); } catch { /* gone */ }
         current = undefined;
       }

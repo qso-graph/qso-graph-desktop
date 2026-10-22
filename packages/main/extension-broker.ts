@@ -73,7 +73,7 @@ export interface ExtensionBroker {
   // (QGD-APP-0012) and for a suite to assert on.
   loaded: () => readonly LoadedExtension[];
   refused: () => readonly { id: string | undefined; source: string; reason: string }[];
-  // The extension host's supervisor: activation and card requests (QGD-APP-0015).
+  // The extension host's supervisor: activation and page requests (QGD-APP-0015).
   supervisor: Supervisor;
   // Which extensions are on, and word when one is turned off or on (QGD-HOM-0007).
   enablement: Enablement;
@@ -139,7 +139,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
     describe: id => {
       const extension = deps.extensions.find(entry => entry.manifest.id === id);
       if (!extension?.manifest.main) return undefined;
-      return { entry: join(dirname(extension.source), extension.manifest.main), cards: extension.manifest.contributes.pages.map(page => page.id) };
+      return { entry: join(dirname(extension.source), extension.manifest.main), pages: extension.manifest.contributes.pages.map(page => page.id) };
     },
     serve: (id, request) => serve(id, request),
     log

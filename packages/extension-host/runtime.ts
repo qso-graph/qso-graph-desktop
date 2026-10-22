@@ -8,22 +8,22 @@
 // each extension speaks on its own channel, which the broker bound to it, and
 // the host never relays one extension's message on another's channel.
 import type { ExtensionReply, ExtensionRequest } from '../extension-api/api-contract.js';
-import type { CardAnswer } from '../extension-api/cards.js';
-import type { CardProvider, Disposable, ExtensionContext, ExtensionModule } from '../extension-api/context.js';
+import type { PageAnswer } from '../extension-api/pages.js';
+import type { PageProvider, Disposable, ExtensionContext, ExtensionModule } from '../extension-api/context.js';
 import type { FromHost, Port, ToExtension } from './protocol.js';
 import { plainRequest } from '../extension-api/plain.js';
 
 interface Loaded {
   readonly id: string;
   readonly entry: string;
-  readonly cards: ReadonlySet<string>;
+  readonly pages: ReadonlySet<string>;
   readonly port: Port;
   module?: ExtensionModule;
   active: boolean;
   subscriptions: Disposable[];
-  readonly providers: Map<string, CardProvider>;
+  readonly providers: Map<string, PageProvider>;
   readonly waiting: Map<number, { resolve: (reply: ExtensionReply) => void; reject: (error: Error) => void }>;
-  readonly cardWork: Map<number, AbortController>;
+  readonly pageWork: Map<number, AbortController>;
   nextCid: number;
   // Activation and deactivation, one after another (QGD-APP-0020): a
   // deactivation still finishing must not tear down the activation after it.
@@ -36,10 +36,10 @@ export interface HostRuntimeOptions {
   toBroker: (message: FromHost) => void;
 }
 
-// Text a card may carry when its provider failed. Fixed, so nothing the
+// Text a page may carry when its provider failed. Fixed, so nothing the
 // extension threw reaches the screen or the log (QGD-ENG-0016).
-const PROVIDER_FAILED = 'This card could not be made just now.';
-const NOT_PROVIDED = 'This card has no provider.';
+const PROVIDER_FAILED = 'This page could not be made just now.';
+const NOT_PROVIDED = 'This page has no provider.';
 
 export function createHostRuntime(options: HostRuntimeOptions) {
   const extensions = new Map<string, Loaded>();
@@ -68,40 +68,40 @@ export function createHostRuntime(options: HostRuntimeOptions) {
           extension.port.post({ type: 'request', cid, request: plain });
         });
       },
-      cards: {
-        register(cardId: string, provider: CardProvider): Disposable {
-          if (!extension.cards.has(cardId)) throw new Error(`"${cardId}" is not a card this extension contributes.`);
-          if (typeof provider !== 'function') throw new Error('A card provider is a function.');
-          extension.providers.set(cardId, provider);
-          return { dispose: () => { if (extension.providers.get(cardId) === provider) extension.providers.delete(cardId); } };
+      pages: {
+        register(pageId: string, provider: PageProvider): Disposable {
+          if (!extension.pages.has(pageId)) throw new Error(`"${pageId}" is not a page this extension contributes.`);
+          if (typeof provider !== 'function') throw new Error('A page provider is a function.');
+          extension.providers.set(pageId, provider);
+          return { dispose: () => { if (extension.providers.get(pageId) === provider) extension.providers.delete(pageId); } };
         }
       },
       subscriptions: extension.subscriptions
     };
   }
 
-  async function provideCard(extension: Loaded, cid: number, cardId: string): Promise<void> {
-    const provider = extension.active ? extension.providers.get(cardId) : undefined;
+  async function providePage(extension: Loaded, cid: number, pageId: string): Promise<void> {
+    const provider = extension.active ? extension.providers.get(pageId) : undefined;
     if (!provider) {
-      extension.port.post({ type: 'card-answer', cid, answer: { ok: false, reason: NOT_PROVIDED } satisfies CardAnswer });
+      extension.port.post({ type: 'page-answer', cid, answer: { ok: false, reason: NOT_PROVIDED } satisfies PageAnswer });
       return;
     }
     const work = new AbortController();
-    extension.cardWork.set(cid, work);
+    extension.pageWork.set(cid, work);
     let answer: unknown;
     try {
-      answer = await provider({ cardId, signal: work.signal });
+      answer = await provider({ pageId, signal: work.signal });
     } catch {
       answer = work.signal.aborted ? undefined : { ok: false, reason: PROVIDER_FAILED };
-      if (!work.signal.aborted) log('warn', 'a card provider failed', extension.id);
+      if (!work.signal.aborted) log('warn', 'a page provider failed', extension.id);
     } finally {
-      extension.cardWork.delete(cid);
+      extension.pageWork.delete(cid);
     }
     // Cancelled and stopped without answering: confirmed not to have taken
     // effect (QGD-APP-0021). An answer that arrives anyway is still sent;
     // the broker decides whether it is wanted.
-    if (answer === undefined && work.signal.aborted) extension.port.post({ type: 'card-cancelled', cid });
-    else extension.port.post({ type: 'card-answer', cid, answer });
+    if (answer === undefined && work.signal.aborted) extension.port.post({ type: 'page-cancelled', cid });
+    else extension.port.post({ type: 'page-answer', cid, answer });
   }
 
   function onChannel(extension: Loaded, raw: unknown): void {
@@ -112,10 +112,10 @@ export function createHostRuntime(options: HostRuntimeOptions) {
       if (!waiting) return;
       extension.waiting.delete(message.cid);
       waiting.resolve(message.reply as ExtensionReply);
-    } else if (message.type === 'card' && typeof message.cardId === 'string' && Number.isSafeInteger(message.cid)) {
-      void provideCard(extension, message.cid, message.cardId);
-    } else if (message.type === 'card-cancel') {
-      extension.cardWork.get(message.cid)?.abort();
+    } else if (message.type === 'page' && typeof message.pageId === 'string' && Number.isSafeInteger(message.cid)) {
+      void providePage(extension, message.cid, message.pageId);
+    } else if (message.type === 'page-cancel') {
+      extension.pageWork.get(message.cid)?.abort();
     }
   }
 
@@ -158,7 +158,7 @@ export function createHostRuntime(options: HostRuntimeOptions) {
     const extension = extensions.get(id);
     if (extension?.active) {
       extension.active = false;
-      for (const work of extension.cardWork.values()) work.abort();
+      for (const work of extension.pageWork.values()) work.abort();
       try { await extension.module?.deactivate?.(); } catch { log('warn', 'deactivate failed', id); }
       dispose(extension);
     }
@@ -168,16 +168,16 @@ export function createHostRuntime(options: HostRuntimeOptions) {
   return {
     // A message from the broker, with the extension's channel when it is a load.
     receive(raw: unknown, port?: Port): void {
-      const message = raw as { type?: unknown; id?: unknown; seq?: unknown; n?: unknown; entry?: unknown; cards?: unknown };
+      const message = raw as { type?: unknown; id?: unknown; seq?: unknown; n?: unknown; entry?: unknown; pages?: unknown };
       if (typeof message !== 'object' || message === null) return;
       if (message.type === 'ping' && Number.isSafeInteger(message.n)) {
         options.toBroker({ type: 'pong', n: message.n as number });
       } else if (message.type === 'load' && typeof message.id === 'string' && typeof message.entry === 'string'
-          && Array.isArray(message.cards) && port) {
+          && Array.isArray(message.pages) && port) {
         if (extensions.has(message.id)) return;
         const extension: Loaded = {
-          id: message.id, entry: message.entry, cards: new Set(message.cards.filter((c): c is string => typeof c === 'string')),
-          port, active: false, subscriptions: [], providers: new Map(), waiting: new Map(), cardWork: new Map(), nextCid: 1, lifecycle: Promise.resolve()
+          id: message.id, entry: message.entry, pages: new Set(message.pages.filter((c): c is string => typeof c === 'string')),
+          port, active: false, subscriptions: [], providers: new Map(), waiting: new Map(), pageWork: new Map(), nextCid: 1, lifecycle: Promise.resolve()
         };
         extensions.set(message.id, extension);
         port.onMessage(value => onChannel(extension, value));

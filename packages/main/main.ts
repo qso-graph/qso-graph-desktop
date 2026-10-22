@@ -235,7 +235,7 @@ if (!app.requestSingleInstanceLock()) {
         fetchSource: async url => {
           if (recorded) return recorded(url);
           // At a start the credential core may not be up yet: the request
-          // waits for it, up to 30 s, rather than failing a card that then
+          // waits for it, up to 30 s, rather than failing a page that then
           // waits fifteen minutes to ask again (until-ready.ts).
           const fetched = await untilReady(() => callsigns.fetchReference(url), starting, { withinMs: 30_000 });
           if (typeof fetched === 'string') throw new Error(fetched);
@@ -260,13 +260,13 @@ if (!app.requestSingleInstanceLock()) {
       return undefined;
     });
 
-    // Home's cards (QGD-HOM-*): asked of extensions through the extension
+    // Home's pages (QGD-HOM-*): asked of extensions through the extension
     // host, only while Home shows. Nothing if the extension API did not start.
     const homeBroker = extensionBroker ? startHomeBroker({
       loaded: () => extensionBroker.loaded(),
       supervisor: extensionBroker.supervisor,
       enablement: extensionBroker.enablement,
-      // A change of station is a new question for the cards, as a change of
+      // A change of station is a new question for the pages, as a change of
       // callsign is (QGD-STN-0005, QGD-HOM-0005).
       onCallsignsChanged: listener => {
         callsigns.onCallsignsChanged(listener);

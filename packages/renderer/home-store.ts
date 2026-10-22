@@ -4,15 +4,15 @@
 // itself fetches nothing (KI7MT, 2026-10-22).
 //
 // Everything arriving here is checked before it is kept (QGD-SEC-0006): the
-// state against the Home contract, and each pushed card against the card
+// state against the Home contract, and each pushed page against the page
 // shapes. Plain TypeScript, as shell-store.ts is, so a story can make one
 // with no window behind it.
-import { isCardView, isHomeReply, isHostNotice, type AvailableCard, type CardView, type HomeState, type HostNotice } from '../main/home-contract.js';
-import type { CardShown } from '../ui/home-card.js';
+import { isPageView, isHomeReply, isHostNotice, type AvailablePage, type PageView, type HomeState, type HostNotice } from '../main/home-contract.js';
+import type { PageShown } from '../ui/page-shapes.js';
 
 export interface HomeApi {
   request(command: unknown): Promise<unknown>;
-  onCard(listener: (card: unknown) => void): () => void;
+  onPage(listener: (page: unknown) => void): () => void;
   onNotice?(listener: (notice: unknown) => void): () => void;
 }
 
@@ -25,30 +25,30 @@ export interface Tile {
 }
 
 export interface HomeModel {
-  readonly available: readonly AvailableCard[];
+  readonly available: readonly AvailablePage[];
   readonly pins: readonly string[];
   // The pinned pages some extension offers, in pin order.
   readonly tiles: readonly Tile[];
   // The pages that also have a rail item.
-  readonly railPages: readonly AvailableCard[];
+  readonly railPages: readonly AvailablePage[];
   // The open page and what it last said, or null on Home.
-  readonly page: { readonly key: string; readonly name: string; readonly shown: CardShown } | null;
+  readonly page: { readonly key: string; readonly name: string; readonly shown: PageShown } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
   readonly error?: string;
 }
 
-// What a card's view means on screen. An extension that answered with
-// nothing to show is a failure in words on that card (QGD-HOM-0006).
-export function shownOf(view: CardView): CardShown {
+// What a page's view means on screen. An extension that answered with
+// nothing to show is a failure in words on that page (QGD-HOM-0006).
+export function shownOf(view: PageView): PageShown {
   if (view.state === 'waiting') return { state: 'waiting' };
   if (view.state === 'failed') return { state: 'failed', reason: view.reason };
   if (!view.answer.ok) return { state: 'failed', reason: view.answer.reason };
   return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections };
 }
 
-function model(state: HomeState, views: ReadonlyMap<string, CardView>, notice: HostNotice | null, open: string | null, error?: string): HomeModel {
-  const offered = new Map(state.available.map(card => [card.key, card]));
+function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, error?: string): HomeModel {
+  const offered = new Map(state.available.map(page => [page.key, page]));
   const opened = open === null ? undefined : offered.get(open);
   return {
     available: state.available,
@@ -64,12 +64,12 @@ function model(state: HomeState, views: ReadonlyMap<string, CardView>, notice: H
   };
 }
 
-const EMPTY: HomeState = { available: [], pins: [], cards: [], notice: null };
+const EMPTY: HomeState = { available: [], pins: [], pages: [], notice: null };
 
 export function createHomeStore(api: HomeApi | undefined, initial?: { state: HomeState; error?: string }) {
   let state: HomeState = initial?.state ?? EMPTY;
   let error = initial?.error;
-  const views = new Map<string, CardView>(state.cards.map(card => [card.key, card]));
+  const views = new Map<string, PageView>(state.pages.map(page => [page.key, page]));
   const listeners = new Set<(value: HomeModel) => void>();
   // The extension page on screen, or null.
   let open: string | null = null;
@@ -85,14 +85,14 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   const current = () => model(state, views, notice, open, error);
   const changed = () => { const value = current(); for (const listener of listeners) listener(value); };
 
-  // `asked` is how many pushes had arrived when the request was sent: a card
+  // `asked` is how many pushes had arrived when the request was sent: a page
   // pushed since then is newer than the snapshot's, and is kept.
   function take(reply: unknown, failure: string, asked: number, askedNotice: number): void {
     if (isHomeReply(reply) && reply.ok) {
       state = reply.state;
       if (noticePushes === askedNotice) notice = reply.state.notice;
-      for (const card of reply.state.cards) {
-        if ((pushedAt.get(card.key) ?? 0) <= asked) views.set(card.key, card);
+      for (const page of reply.state.pages) {
+        if ((pushedAt.get(page.key) ?? 0) <= asked) views.set(page.key, page);
       }
       error = undefined;
     } else {
@@ -108,13 +108,13 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       listener(current());
       return () => listeners.delete(listener);
     },
-    // Starts listening for pushed cards and reads the state once.
+    // Starts listening for pushed pages and reads the state once.
     start(): () => void {
       if (!api) return () => undefined;
-      const stopCards = api.onCard(card => {
-        if (!isCardView(card)) return;
-        pushedAt.set(card.key, ++pushes);
-        views.set(card.key, card);
+      const stopPages = api.onPage(page => {
+        if (!isPageView(page)) return;
+        pushedAt.set(page.key, ++pushes);
+        views.set(page.key, page);
         changed();
       });
       const stopNotices = api.onNotice?.(pushed => {
@@ -123,7 +123,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
         noticePushes += 1;
         changed();
       });
-      const stop = () => { stopCards(); stopNotices?.(); };
+      const stop = () => { stopPages(); stopNotices?.(); };
       const asked = pushes;
       const askedNotice = noticePushes;
       void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));
@@ -143,7 +143,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
     // Read the state again: what extensions offer changes when one is turned
     // on or off in Settings, and Home is drawn from it, so Home asks each time
     // it comes on screen (it used to, as a side effect of saying it was
-    // showing, until Home stopped fetching; home-cards caught the stale tile).
+    // showing, until Home stopped fetching; home-pages caught the stale tile).
     refresh(): void {
       if (!api) return;
       const asked = pushes;

@@ -25,7 +25,7 @@ declare global {
     logs: { request(command: LogsCommand): Promise<LogsReply> };
     home?: {
       request(command: unknown): Promise<unknown>;
-      onCard(listener: (card: unknown) => void): () => void;
+      onPage(listener: (page: unknown) => void): () => void;
       onNotice(listener: (notice: unknown) => void): () => void;
     };
     storage: {
@@ -55,7 +55,7 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
-// Home's cards: read once, then pushed (QGD-HOM-0005).
+// Home's pins and the open page: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
 home.start();
 

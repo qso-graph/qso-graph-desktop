@@ -4,7 +4,7 @@
 // cannot (QGD-HOM-0006, QGD-APP-0008).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { ExtensionContext, CardProvider } from '../../../packages/extension-api/context.js';
+import type { ExtensionContext, PageProvider } from '../../../packages/extension-api/context.js';
 import type { ExtensionReply, ExtensionRequest } from '../../../packages/extension-api/api-contract.js';
 import { activate } from '../src/main.js';
 
@@ -13,17 +13,17 @@ const FILES: Record<string, string> = {
 };
 
 function context(answer: (request: ExtensionRequest) => ExtensionReply) {
-  const providers = new Map<string, CardProvider>();
+  const providers = new Map<string, PageProvider>();
   const asked: ExtensionRequest[] = [];
   const value: ExtensionContext = {
     extensionId: 'on-the-air',
     request: async request => { asked.push(request); return answer(request); },
-    cards: { register: (id, provider) => { providers.set(id, provider); return { dispose: () => providers.delete(id) }; } },
+    pages: { register: (id, provider) => { providers.set(id, provider); return { dispose: () => providers.delete(id) }; } },
     subscriptions: []
   };
   return { value, providers, asked };
 }
-const ask = (providers: Map<string, CardProvider>, id: string) => providers.get(id)!({ cardId: id, signal: new AbortController().signal });
+const ask = (providers: Map<string, PageProvider>, id: string) => providers.get(id)!({ pageId: id, signal: new AbortController().signal });
 
 describe('On the Air (QGD-HOM-0007)', () => {
   it('registers Conditions, and fetches NOAA only by registered source name', async () => {

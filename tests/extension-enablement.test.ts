@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // P8-built-in (QGD-HOM-0007): an extension turned off stays off across a
-// restart, is stopped, and offers no cards; turned on, its cards come back to
+// restart, is stopped, and offers no pages; turned on, its pages come back to
 // the pins they held.
 import { describe, expect, it, vi } from 'vitest';
 import { createEnablement } from '../packages/main/extension-enablement.js';
-import { createCardScheduler, keepHidden, type CardView, type CatalogueCard } from '../packages/main/home-cards.js';
+import { createPageScheduler, keepHidden, type PageView, type CataloguePage } from '../packages/main/page-scheduler.js';
 import { readSettings, validateSettingsCommand } from '../packages/main/settings-contract.js';
 import { isExtensionsReply, validateExtensionsCommand } from '../packages/main/extensions-contract.js';
 
@@ -91,19 +91,19 @@ describe('P8-built-in: turning an extension off and on (QGD-HOM-0007)', () => {
 });
 
 describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
-  const card = (key: string): CatalogueCard => {
+  const page = (key: string): CataloguePage => {
     const [extension, id] = key.split('/');
-    return { key, extension, extensionName: extension, card: id, name: id, description: 'A page.', refreshSeconds: 60, icon: 'extension', rail: false };
+    return { key, extension, extensionName: extension, page: id, name: id, description: 'A page.', refreshSeconds: 60, icon: 'extension', rail: false };
   };
 
-  it('drops an off extension\'s card, cancelling what it had in flight, and offers it again when on', async () => {
+  it('drops an off extension\'s page, cancelling what it had in flight, and offers it again when on', async () => {
     let on = true;
     const signals: AbortSignal[] = [];
-    const published: CardView[] = [];
-    const scheduler = createCardScheduler({
-      catalogue: () => (on ? [card('on-the-air/conditions')] : []),
+    const published: PageView[] = [];
+    const scheduler = createPageScheduler({
+      catalogue: () => (on ? [page('on-the-air/conditions')] : []),
       pins: () => ['on-the-air/conditions'],
-      card: (_extension, _card, signal) => { signals.push(signal); return new Promise(() => undefined); },
+      page: (_extension, _page, signal) => { signals.push(signal); return new Promise(() => undefined); },
       publish: view => published.push(view),
       now: () => Date.now()
     });
@@ -121,7 +121,7 @@ describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
   });
 
   it('keeps an off extension\'s pins in their places when the operator saves the others', () => {
-    const offered = [card('mine/a'), card('mine/b')];
+    const offered = [page('mine/a'), page('mine/b')];
     // Saved unchanged: nothing moves.
     expect(keepHidden(['mine/a'], ['on-the-air/conditions', 'mine/a'], offered)).toEqual(['on-the-air/conditions', 'mine/a']);
     // Reordered: the visible ones swap places around the hidden one.
@@ -134,17 +134,17 @@ describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
 
   it('refuses rather than drops a kept pin when there is no room', () => {
     const eight = ['x/a', 'x/b', 'x/c', 'x/d', 'x/e', 'x/f', 'x/g', 'x/h'];
-    expect(keepHidden(eight, ['on-the-air/conditions'], eight.map(card))).toBeUndefined();
-    expect(keepHidden(eight.slice(0, 7), ['on-the-air/conditions'], eight.map(card))).toEqual(['on-the-air/conditions', ...eight.slice(0, 7)]);
+    expect(keepHidden(eight, ['on-the-air/conditions'], eight.map(page))).toBeUndefined();
+    expect(keepHidden(eight.slice(0, 7), ['on-the-air/conditions'], eight.map(page))).toEqual(['on-the-air/conditions', ...eight.slice(0, 7)]);
   });
 
-  it('shows what a card last said when its extension comes back on, without asking early', async () => {
+  it('shows what a page last said when its extension comes back on, without asking early', async () => {
     let on = true;
     let asked = 0;
-    const scheduler = createCardScheduler({
-      catalogue: () => (on ? [{ ...card('on-the-air/conditions'), refreshSeconds: 900 }] : []),
+    const scheduler = createPageScheduler({
+      catalogue: () => (on ? [{ ...page('on-the-air/conditions'), refreshSeconds: 900 }] : []),
       pins: () => ['on-the-air/conditions'],
-      card: () => { asked++; return Promise.resolve({ outcome: 'completed', answer: { ok: true, data: { version: 1, observedAt: '2026-10-11T18:00:00Z', sections: [] } } }); },
+      page: () => { asked++; return Promise.resolve({ outcome: 'completed', answer: { ok: true, data: { version: 1, observedAt: '2026-10-11T18:00:00Z', sections: [] } } }); },
       publish: () => undefined,
       now: () => Date.now()
     });

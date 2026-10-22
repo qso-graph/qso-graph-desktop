@@ -7,11 +7,11 @@
 // the pins. Home itself shows tiles drawn from the manifests and fetches
 // nothing (KI7MT, 2026-10-22); the open page's data arrives unasked, pushed as
 // the broker gets it, so the window never polls.
-import { validateCardAnswer, type CardAnswer } from '../extension-api/cards.js';
+import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
 import { isPins } from './settings-contract.js';
 
 export const HOME_CHANNEL = 'home:request';
-export const HOME_CARD_CHANNEL = 'home:card';
+export const HOME_CARD_CHANNEL = 'home:page';
 // The extension host's notice, pushed when it changes (QGD-APP-0022).
 export const HOME_NOTICE_CHANNEL = 'home:notice';
 
@@ -22,7 +22,7 @@ export type { HostNotice } from './home-notice.js';
 
 // A page some extension offers: what its tile, its rail item and "Customize
 // your pins" are drawn from. Nothing here is fetched; it is the manifest's.
-export interface AvailableCard {
+export interface AvailablePage {
   readonly key: string;
   readonly name: string;
   readonly description: string;
@@ -33,16 +33,16 @@ export interface AvailableCard {
   readonly rail: boolean;
 }
 
-export type CardView =
+export type PageView =
   | { readonly key: string; readonly state: 'waiting' }
-  | { readonly key: string; readonly state: 'ready'; readonly answer: CardAnswer; readonly fetchedAt: string }
+  | { readonly key: string; readonly state: 'ready'; readonly answer: PageAnswer; readonly fetchedAt: string }
   | { readonly key: string; readonly state: 'failed'; readonly reason: string };
 
 export interface HomeState {
-  readonly available: readonly AvailableCard[];
+  readonly available: readonly AvailablePage[];
   readonly pins: readonly string[];
   // What the open page last said, if a page is open: at most one.
-  readonly cards: readonly CardView[];
+  readonly pages: readonly PageView[];
   readonly notice: HostNotice | null;
 }
 
@@ -86,18 +86,18 @@ export function isHostNotice(value: unknown): value is HostNotice | null {
     && Array.isArray(value.affected) && value.affected.length <= 64 && everyIndex(value.affected, name => plainText(name, 64));
 }
 
-export function isCardView(value: unknown): value is CardView {
+export function isPageView(value: unknown): value is PageView {
   if (!record(value) || typeof value.key !== 'string' || !KEY.test(value.key)) return false;
   if (value.state === 'waiting') return exactly(value, ['key', 'state']);
   if (value.state === 'failed') return exactly(value, ['key', 'state', 'reason']) && plainText(value.reason, 160);
   if (value.state === 'ready') {
     if (!exactly(value, ['key', 'state', 'answer', 'fetchedAt']) || typeof value.fetchedAt !== 'string' || Number.isNaN(Date.parse(value.fetchedAt))) return false;
-    try { validateCardAnswer(value.answer); return true; } catch { return false; }
+    try { validatePageAnswer(value.answer); return true; } catch { return false; }
   }
   return false;
 }
 
-function isAvailable(value: unknown): value is AvailableCard {
+function isAvailable(value: unknown): value is AvailablePage {
   return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail'])
     && typeof value.key === 'string' && KEY.test(value.key)
     && plainText(value.name, 40) && plainText(value.description, 120) && plainText(value.extensionName, 64)
@@ -119,9 +119,9 @@ export function isHomeReply(value: unknown): value is HomeReply {
   if (value.ok === false) return exactly(value, ['ok', 'error']) && typeof value.error === 'string';
   if (value.ok !== true || !exactly(value, ['ok', 'state']) || !record(value.state)) return false;
   const state = value.state;
-  return exactly(state, ['available', 'pins', 'cards', 'notice'])
+  return exactly(state, ['available', 'pins', 'pages', 'notice'])
     && isHostNotice(state.notice)
     && everyIndex(state.available, isAvailable)
     && isPins(state.pins)
-    && Array.isArray(state.cards) && state.cards.length <= 1 && everyIndex(state.cards, isCardView);
+    && Array.isArray(state.pages) && state.pages.length <= 1 && everyIndex(state.pages, isPageView);
 }

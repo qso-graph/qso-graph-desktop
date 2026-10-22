@@ -5,8 +5,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { validateCardAnswer } from '../../../packages/extension-api/cards.js';
-import { BAND_STATUSES, bandOutlook, conditionsCard, outlookRows, parseConditions } from '../src/conditions.js';
+import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
+import { BAND_STATUSES, bandOutlook, conditionsPage, outlookRows, parseConditions } from '../src/conditions.js';
 
 const fixture = (name: string, file: string) => readFileSync(`tests/fixtures/noaa/${name}/${file}`, 'utf8');
 const bodies = (name: string) => ({ flux: fixture(name, '10cm-flux.json'), kp: fixture(name, 'noaa-planetary-k-index.json'), scales: fixture(name, 'noaa-scales.json') });
@@ -45,18 +45,18 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     }
   });
 
-  it('draws a card that passes the core\'s own check, with no alert on a quiet day', () => {
-    const card = validateCardAnswer(conditionsCard(parseConditions(bodies('quiet'))!));
-    expect(card.ok).toBe(true);
-    if (!card.ok) return;
-    expect(card.data.sections.map(section => section.shape)).toEqual(['figures', 'table']);
-    expect(card.data.observedAt).toMatch(/^2026-10-1\dT\d{2}:\d{2}:\d{2}Z$/);
+  it('draws a page that passes the core\'s own check, with no alert on a quiet day', () => {
+    const page = validatePageAnswer(conditionsPage(parseConditions(bodies('quiet'))!));
+    expect(page.ok).toBe(true);
+    if (!page.ok) return;
+    expect(page.data.sections.map(section => section.shape)).toEqual(['figures', 'table']);
+    expect(page.data.observedAt).toMatch(/^2026-10-1\dT\d{2}:\d{2}:\d{2}Z$/);
   });
 
   it('shows the bands as Band | Status | Comment, every status on the scale (BAND-OUTLOOK.md)', () => {
-    const card = validateCardAnswer(conditionsCard(parseConditions(bodies('quiet'))!));
-    if (!card.ok) throw new Error('expected a card');
-    const table = card.data.sections.find(section => section.shape === 'table');
+    const page = validatePageAnswer(conditionsPage(parseConditions(bodies('quiet'))!));
+    if (!page.ok) throw new Error('expected a page');
+    const table = page.data.sections.find(section => section.shape === 'table');
     if (!table || table.shape !== 'table') throw new Error('no table');
     expect(table.columns).toEqual(['Band', 'Status', 'Comment']);
     expect(table.rows[0]).toEqual(['160m', 'Good', 'Quiet night conditions']);
@@ -130,16 +130,16 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
   });
 
   it('leads with a warning when a storm is declared', () => {
-    const card = validateCardAnswer(conditionsCard(parseConditions(bodies('storm'))!));
-    if (!card.ok) throw new Error('expected a card');
-    expect(card.data.sections[0]).toEqual({ shape: 'alert', level: 'warning', text: 'G2 geomagnetic storm (moderate).' });
+    const page = validatePageAnswer(conditionsPage(parseConditions(bodies('storm'))!));
+    if (!page.ok) throw new Error('expected a page');
+    expect(page.data.sections[0]).toEqual({ shape: 'alert', level: 'warning', text: 'G2 geomagnetic storm (moderate).' });
   });
 
   it('calls a strong storm severe', () => {
     const conditions = { ...parseConditions(bodies('storm'))!, scales: { R: 'R3', S: 'S0', G: 'G2' }, scaleText: { R: 'strong', S: '', G: 'moderate' } };
-    const card = conditionsCard(conditions);
-    if (!card.ok) throw new Error('expected a card');
-    expect(card.data.sections[0]).toMatchObject({ shape: 'alert', level: 'severe' });
+    const page = conditionsPage(conditions);
+    if (!page.ok) throw new Error('expected a page');
+    expect(page.data.sections[0]).toMatchObject({ shape: 'alert', level: 'severe' });
   });
 
   it('keeps what worked when one feed has no usable value, as solar-mcp does, and has no outlook without both', () => {
@@ -147,10 +147,10 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     expect(noFlux.sfi).toBeUndefined();
     expect(noFlux.kp).toBe(1.67);
     expect(noFlux.bands).toBeUndefined();
-    const card = validateCardAnswer(conditionsCard(noFlux));
-    if (!card.ok) throw new Error('expected a card');
-    expect(JSON.stringify(card)).toContain('"label":"Solar flux","value":"not read"');
-    expect(card.data.sections.some(section => section.shape === 'table')).toBe(false);
+    const page = validatePageAnswer(conditionsPage(noFlux));
+    if (!page.ok) throw new Error('expected a page');
+    expect(JSON.stringify(page)).toContain('"label":"Solar flux","value":"not read"');
+    expect(page.data.sections.some(section => section.shape === 'table')).toBe(false);
     // Neither feed: no conditions at all.
     expect(parseConditions({ ...bodies('quiet'), flux: 'not json', kp: '[]' })).toBeUndefined();
   });
@@ -161,15 +161,15 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     expect(parseConditions({ ...bodies('quiet'), kp: JSON.stringify(kp) })!.kp).toBeUndefined();
   });
 
-  it('dates each reading by its own feed, and the card by the newest (KI7MT, 2026-10-22)', () => {
+  it('dates each reading by its own feed, and the page by the newest (KI7MT, 2026-10-22)', () => {
     const got = parseConditions(bodies('quiet'))!;
     // The recorded flux is the 20:00 daily reading; the K index's last row is 18:00.
     expect(got.sfiAt).toBe('2026-10-11T20:00:00Z');
     expect(got.kpAt).toBe('2026-10-11T18:00:00Z');
     expect(got.observedAt).toBe('2026-10-11T20:00:00Z');
-    const card = validateCardAnswer(conditionsCard(got));
-    if (!card.ok) throw new Error('expected a card');
-    const figures = card.data.sections.find(section => section.shape === 'figures');
+    const page = validatePageAnswer(conditionsPage(got));
+    if (!page.ok) throw new Error('expected a page');
+    const figures = page.data.sections.find(section => section.shape === 'figures');
     if (!figures || figures.shape !== 'figures') throw new Error('no figures');
     expect(figures.figures.slice(0, 3).map(figure => [figure.label, figure.observedAt])).toEqual([
       ['Solar flux', got.sfiAt], ['K index', got.kpAt], ['A index', got.kpAt]
@@ -202,8 +202,8 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     scales['0'].R.Scale = 'S3';
     const got = parseConditions({ ...bodies('quiet'), scales: JSON.stringify(scales) })!;
     expect(got.scales.R).toBe('unknown');
-    const card = conditionsCard(got);
-    expect(JSON.stringify(card)).not.toContain('radio blackout');
+    const page = conditionsPage(got);
+    expect(JSON.stringify(page)).not.toContain('radio blackout');
   });
 
   it('keeps solar-mcp\'s band table at its boundaries', () => {
@@ -227,7 +227,7 @@ describe('the A index, as solar-mcp reads it', () => {
     const got = parseConditions({ flux, kp, scales })!;
     expect(got.kp).toBe(1.67);
     expect(got.a).toBeUndefined();
-    const figures = (conditionsCard(got) as { data: { sections: { shape: string; figures?: { label: string; value: string }[] }[] } }).data.sections
+    const figures = (conditionsPage(got) as { data: { sections: { shape: string; figures?: { label: string; value: string }[] }[] } }).data.sections
       .find(section => section.shape === 'figures')!.figures!;
     expect(figures.find(figure => figure.label === 'A index')!.value).toBe('not read');
   });

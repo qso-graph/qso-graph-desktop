@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// P8-fetch and P8-failure: the broker decides when each card is asked for
-// (QGD-HOM-0005), and one card failing leaves the others alone (QGD-HOM-0006).
+// P8-fetch and P8-failure: the broker decides when each page is asked for
+// (QGD-HOM-0005), and one page failing leaves the others alone (QGD-HOM-0006).
 // Time is the test's: fake timers, and `now` read from the same fake clock.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CardAnswer } from '../packages/extension-api/cards.js';
-import { createCardScheduler, type CardView, type CatalogueCard } from '../packages/main/home-cards.js';
-import type { CardOutcome } from '../packages/main/extension-host-supervisor.js';
+import type { PageAnswer } from '../packages/extension-api/pages.js';
+import { createPageScheduler, type PageView, type CataloguePage } from '../packages/main/page-scheduler.js';
+import type { PageOutcome } from '../packages/main/extension-host-supervisor.js';
 
 const AT = '2026-10-11T18:00:00Z';
-const answer = (text: string): CardAnswer => ({ ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'alert', level: 'info', text }] } });
-const CARDS: CatalogueCard[] = [
-  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', card: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false },
-  { key: 'air/station', extension: 'air', extensionName: 'On the Air', card: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false },
-  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', card: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false }
+const answer = (text: string): PageAnswer => ({ ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'alert', level: 'info', text }] } });
+const CARDS: CataloguePage[] = [
+  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', page: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false },
+  { key: 'air/station', extension: 'air', extensionName: 'On the Air', page: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false },
+  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', page: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false }
 ];
 
-function harness(options: { pins?: string[]; respond?: (card: string, signal: AbortSignal) => Promise<CardOutcome> } = {}) {
+function harness(options: { pins?: string[]; respond?: (page: string, signal: AbortSignal) => Promise<PageOutcome> } = {}) {
   let pins = options.pins ?? ['air/conditions', 'air/station'];
   const asked: string[] = [];
-  const published: CardView[] = [];
-  const scheduler = createCardScheduler({
+  const published: PageView[] = [];
+  const scheduler = createPageScheduler({
     catalogue: () => CARDS,
     pins: () => pins,
-    card: (_extension, card, signal) => {
-      asked.push(card);
-      return options.respond ? options.respond(card, signal) : Promise.resolve({ outcome: 'completed', answer: answer(card) });
+    page: (_extension, page, signal) => {
+      asked.push(page);
+      return options.respond ? options.respond(page, signal) : Promise.resolve({ outcome: 'completed', answer: answer(page) });
     },
     publish: view => published.push(view),
     now: () => Date.now()
@@ -36,14 +36,14 @@ const flush = async () => { for (let i = 0; i < 4; i++) await Promise.resolve();
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(AT)); });
 afterEach(() => { vi.useRealTimers(); });
 
-describe('P8-fetch: only pinned cards, only while Home shows, never sooner than their interval (QGD-HOM-0005)', () => {
+describe('P8-fetch: only pinned pages, only while Home shows, never sooner than their interval (QGD-HOM-0005)', () => {
   it('asks for nothing while Home is not showing', async () => {
     const { asked } = harness();
     await vi.advanceTimersByTimeAsync(3_600_000);
     expect(asked).toEqual([]);
   });
 
-  it('asks for each pinned card once when Home shows, and never for an unpinned one', async () => {
+  it('asks for each pinned page once when Home shows, and never for an unpinned one', async () => {
     const { scheduler, asked, published } = harness();
     scheduler.setVisible(true);
     await flush();
@@ -53,18 +53,18 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     scheduler.stop();
   });
 
-  it('refreshes each card at its own interval and no sooner', async () => {
+  it('refreshes each page at its own interval and no sooner', async () => {
     const { scheduler, asked } = harness();
     scheduler.setVisible(true);
     await flush();
     await vi.advanceTimersByTimeAsync(59_000);
-    expect(asked.filter(card => card === 'station')).toHaveLength(1);
+    expect(asked.filter(page => page === 'station')).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(asked.filter(card => card === 'station')).toHaveLength(2);
+    expect(asked.filter(page => page === 'station')).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(899_000 - 60_000);
-    expect(asked.filter(card => card === 'conditions')).toHaveLength(1);
+    expect(asked.filter(page => page === 'conditions')).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(asked.filter(card => card === 'conditions')).toHaveLength(2);
+    expect(asked.filter(page => page === 'conditions')).toHaveLength(2);
     scheduler.stop();
   });
 
@@ -83,10 +83,10 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     scheduler.stop();
   });
 
-  it('cancels a card in flight when Home is left or the card is unpinned', async () => {
+  it('cancels a page in flight when Home is left or the page is unpinned', async () => {
     const aborted: string[] = [];
     const { scheduler, setPins } = harness({
-      respond: (card, signal) => new Promise(settle => { signal.addEventListener('abort', () => { aborted.push(card); settle({ outcome: 'cancelled' }); }); })
+      respond: (page, signal) => new Promise(settle => { signal.addEventListener('abort', () => { aborted.push(page); settle({ outcome: 'cancelled' }); }); })
     });
     scheduler.setVisible(true);
     await flush();
@@ -97,7 +97,7 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     scheduler.stop();
   });
 
-  it('starts asking for a card as soon as it is pinned, if Home is showing', async () => {
+  it('starts asking for a page as soon as it is pinned, if Home is showing', async () => {
     const { scheduler, asked, setPins } = harness({ pins: ['air/station'] });
     scheduler.setVisible(true);
     await flush();
@@ -108,7 +108,7 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
   });
 
   it('drops what was shown and asked for the old callsign, and asks again for the new one', async () => {
-    let finish: (outcome: CardOutcome) => void = () => {};
+    let finish: (outcome: PageOutcome) => void = () => {};
     let calls = 0;
     const { scheduler, published, asked } = harness({
       pins: ['air/station'],
@@ -122,7 +122,7 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
     await flush();
     expect(JSON.stringify(published)).not.toContain('old callsign');
     // Asked again as soon as the old question settled, not after the
-    // interval: a card must not sit on "Getting the latest…" for fifteen
+    // interval: a page must not sit on "Getting the latest…" for fifteen
     // minutes because a callsign was made.
     expect(asked).toHaveLength(2);
     expect(JSON.stringify(scheduler.views())).toContain('new callsign');
@@ -151,16 +151,16 @@ describe('P8-fetch: only pinned cards, only while Home shows, never sooner than 
   });
 
   it('shows pins in pin order, and skips a pin no extension offers without forgetting it', () => {
-    const { scheduler } = harness({ pins: ['air/station', 'gone/card', 'air/conditions'] });
-    expect(scheduler.shown().map(card => card.key)).toEqual(['air/station', 'air/conditions']);
+    const { scheduler } = harness({ pins: ['air/station', 'gone/page', 'air/conditions'] });
+    expect(scheduler.shown().map(page => page.key)).toEqual(['air/station', 'air/conditions']);
     expect(scheduler.views()).toEqual([{ key: 'air/station', state: 'waiting' }, { key: 'air/conditions', state: 'waiting' }]);
   });
 });
 
-describe('P8-failure: a failing card fails alone (QGD-HOM-0006)', () => {
-  it('shows one card\'s failure in words while the others draw normally', async () => {
+describe('P8-failure: a failing page fails alone (QGD-HOM-0006)', () => {
+  it('shows one page\'s failure in words while the others draw normally', async () => {
     const { scheduler, published } = harness({
-      respond: card => Promise.resolve(card === 'conditions'
+      respond: page => Promise.resolve(page === 'conditions'
         ? { outcome: 'unknown', reason: 'The extension did not answer in time.' }
         : { outcome: 'completed', answer: answer('fine') })
     });
@@ -171,7 +171,7 @@ describe('P8-failure: a failing card fails alone (QGD-HOM-0006)', () => {
     scheduler.stop();
   });
 
-  it('tries a failed card again at its interval', async () => {
+  it('tries a failed page again at its interval', async () => {
     let calls = 0;
     const { scheduler, asked } = harness({
       pins: ['air/station'],
@@ -187,8 +187,8 @@ describe('P8-failure: a failing card fails alone (QGD-HOM-0006)', () => {
 });
 
 describe('review findings, each held by a test (S3)', () => {
-  it('never has two questions for one card in flight, and drops an answer to one asked before Home was hidden', async () => {
-    const pending: ((outcome: CardOutcome) => void)[] = [];
+  it('never has two questions for one page in flight, and drops an answer to one asked before Home was hidden', async () => {
+    const pending: ((outcome: PageOutcome) => void)[] = [];
     const { scheduler, asked, published } = harness({
       pins: ['air/station'],
       // An extension that ignores cancellation and answers anyway.
@@ -203,7 +203,7 @@ describe('review findings, each held by a test (S3)', () => {
     scheduler.stop();
   });
 
-  it('does not ask a card early because it was unpinned and pinned again', async () => {
+  it('does not ask a page early because it was unpinned and pinned again', async () => {
     const { scheduler, asked, setPins } = harness({ pins: ['air/station'] });
     scheduler.setVisible(true); await flush();
     setPins([]); setPins(['air/station']); await flush();

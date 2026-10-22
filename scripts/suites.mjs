@@ -34,7 +34,7 @@ export const SUITE_TIMEOUT_MS = {
   // source and fails if the bound here does not clear them, so a wait added
   // inside a suite cannot quietly outgrow it.
   'electron-smoke': 1_200_000,    // 895s of waits across 29 of them
-  'home-cards': 900_000,          // 620s of waits, plus three launches
+  'home-pages': 900_000,          // 620s of waits, plus three launches
   stations: 1_200_000,            // 1020s of waits: the ADIF load's 180s, two launches, the editor
   'process-recovery': 360_000,    // 270s, with QG Storage's kill-and-recover (QGD-ENG-0006)
   screenshots: 720_000,           // 510s, with the Stations captures (P9)
@@ -64,7 +64,7 @@ export function suiteCommands(npmCli) {
   ['adif-reference', ['scripts/adif-reference.mjs']],
   ['package-boundaries', ['scripts/package-boundaries.mjs']],
   ['build', [npmCli, 'run', 'build']],
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/callsign-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/sota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/extension-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/extension-broker.test.mjs', 'tests/extension-serve.test.ts', 'tests/deadlines.test.mjs', 'tests/credential-store.test.ts', 'tests/manifest.test.ts', 'tests/cards.test.ts', 'tests/extension-limits.test.ts', 'tests/extension-host.test.ts', 'tests/home-cards.test.ts', 'tests/home-contract.test.ts', 'tests/home-store.test.ts', 'tests/extension-enablement.test.ts', 'tests/home-notice.test.ts', 'tests/station-brief.test.ts', 'tests/until-ready.test.ts', 'tests/clock-text.test.ts', 'tests/theme-tokens.test.mjs', 'tests/sun.test.ts', 'tests/credits.test.mjs', 'tests/links.test.ts', 'tests/welcome.test.ts', 'tests/typed-case.test.ts', 'tests/window-visibility.test.ts', 'tests/suite-timeouts.test.mjs', 'tests/suite-speed.test.mjs']],
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', 'tests/policy.test.ts', 'tests/report.test.mjs', 'tests/callsign-contract.test.ts', 'tests/suite-gate.test.mjs', 'tests/network-static.test.mjs', 'tests/logging.test.ts', 'tests/core-logging.test.mjs', 'tests/diagnostics.test.ts', 'tests/endpoint.test.mjs', 'tests/toolchain.test.mjs', 'tests/storybook.test.mjs', 'tests/settings.test.ts', 'tests/shell.test.ts', 'tests/logs-page.test.ts', 'tests/unzip.test.mjs', 'tests/icons.test.mjs', 'tests/png.test.mjs', 'tests/reference-sources.test.mjs', 'tests/reference-reader.test.ts', 'tests/pota-reader.test.ts', 'tests/sota-reader.test.ts', 'tests/services.test.ts', 'tests/baseline-approval.test.mjs', 'tests/no-borrowed-identity.test.mjs', 'tests/package-boundaries.test.mjs', 'tests/extension-runtime.test.ts', 'tests/keychain-namespace.test.mjs', 'tests/setup-order.test.mjs', 'tests/extension-broker.test.mjs', 'tests/extension-serve.test.ts', 'tests/deadlines.test.mjs', 'tests/credential-store.test.ts', 'tests/manifest.test.ts', 'tests/pages.test.ts', 'tests/extension-limits.test.ts', 'tests/extension-host.test.ts', 'tests/page-scheduler.test.ts', 'tests/home-contract.test.ts', 'tests/home-store.test.ts', 'tests/extension-enablement.test.ts', 'tests/home-notice.test.ts', 'tests/station-brief.test.ts', 'tests/until-ready.test.ts', 'tests/clock-text.test.ts', 'tests/theme-tokens.test.mjs', 'tests/sun.test.ts', 'tests/credits.test.mjs', 'tests/links.test.ts', 'tests/welcome.test.ts', 'tests/typed-case.test.ts', 'tests/window-visibility.test.ts', 'tests/suite-timeouts.test.mjs', 'tests/suite-speed.test.mjs']],
   // The SQLite stores (QGD-ENG-0001). Unit-shaped and fast:
   // node:sqlite loads under plain Node, so they need no window.
   ['storage', ['node_modules/vitest/vitest.mjs', 'run', 'tests/storage.test.ts', 'tests/reference-resources.test.ts']],
@@ -84,7 +84,7 @@ export function suiteCommands(npmCli) {
   ['credential-editing', ['scripts/credential-edit-smoke.mjs']],
   ['callsign-export', ['scripts/callsign-export.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
-  ['home-cards', ['scripts/home-cards.mjs']],
+  ['home-pages', ['scripts/home-pages.mjs']],
   ['stations', ['scripts/stations.mjs']],
   ['setup-walk', ['scripts/setup-walk.mjs']],
   ['process-recovery', ['scripts/process-recovery.mjs']],

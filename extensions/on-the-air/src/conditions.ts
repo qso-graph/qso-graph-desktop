@@ -2,15 +2,15 @@
 // Conditions (QGD-HOM-0008): solar flux, the planetary K and A indices, NOAA's
 // space weather scales and the band outlook, from NOAA SWPC.
 //
-// solar-mcp is the specification for this card's behaviour. The parsing and
+// solar-mcp is the specification for this page's behaviour. The parsing and
 // the band table below follow its SolarClient.conditions() and
 // _band_outlook() (solar-mcp 0.3.0), and tests/conditions.test.ts holds both
 // to the same recorded NOAA responses. NOAA sends a scale as a bare digit;
 // both prefix every level, so a storm reads "G2" as a quiet day reads "G0"
 // (solar-mcp did so from 0.3.0; before that it left a non-zero level bare).
 //
-// Pure: three response bodies in, a card answer out. Nothing here fetches.
-import type { CardAnswer, Section } from '../../../packages/extension-api/cards.js';
+// Pure: three response bodies in, a page answer out. Nothing here fetches.
+import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
 
 export interface NoaaBodies {
   readonly flux: string;
@@ -28,7 +28,7 @@ export interface Conditions {
   readonly a?: number;
   readonly scales: { readonly R: string; readonly S: string; readonly G: string };
   readonly scaleText: { readonly R: string; readonly S: string; readonly G: string };
-  // The newest of the times below: when the card last changed.
+  // The newest of the times below: when the page last changed.
   readonly observedAt: string;
   // Each reading's own time (KI7MT, 2026-10-22): NOAA measures the flux once
   // a day, at 20:00 UTC, and the K index every three hours, so one time for
@@ -65,7 +65,7 @@ function parseFlux(data: unknown): { sfi: number; at?: string } | undefined {
   const record = entry as Record<string, unknown>;
   const value = toNumber(record.Flux ?? record.flux);
   if (value === undefined || value <= 0) return undefined;
-  // A reading the card cannot date is not shown: Home says how old its data
+  // A reading the page cannot date is not shown: Home says how old its data
   // is, and an undated value would borrow another feed's time.
   const at = isoUtc(record.TimeStamp ?? record.timeStamp ?? record.time_tag);
   return at ? { sfi: Math.trunc(value), at } : undefined;
@@ -166,7 +166,7 @@ export function parseConditions(bodies: NoaaBodies): Conditions | undefined {
   const sfi = parseFlux(parse(bodies.flux));
   const k = parseKp(parse(bodies.kp));
   if (!sfi && !k) return undefined;
-  // Each reading carries its own time, so the card's is the newest: a stale
+  // Each reading carries its own time, so the page's is the newest: a stale
   // K index still says how old it is, on its own figure.
   const times = [sfi?.at, k?.at].filter((at): at is string => at !== undefined).sort();
   const observedAt = times.at(-1);
@@ -187,9 +187,9 @@ function at(time: string | undefined): { observedAt?: string } {
   return time ? { observedAt: time } : {};
 }
 
-// The card. An alert first when any scale is above 0: warning for levels 1
+// The page. An alert first when any scale is above 0: warning for levels 1
 // and 2, severe from 3 (NOAA's own "strong").
-export function conditionsCard(conditions: Conditions): CardAnswer {
+export function conditionsPage(conditions: Conditions): PageAnswer {
   const sections: Section[] = [];
   const raised = (['R', 'S', 'G'] as const)
     .map(letter => ({ letter, scale: conditions.scales[letter], n: Number(conditions.scales[letter].slice(1)) }))
@@ -211,7 +211,7 @@ export function conditionsCard(conditions: Conditions): CardAnswer {
     { label: 'Scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
   ] });
   // Band | Status | Comment, the status on the scale in BAND-OUTLOOK.md
-  // (KI7MT, 2026-10-22). A table, so card data version 2.
+  // (KI7MT, 2026-10-22). A table, so page data version 2.
   if (conditions.bands) {
     sections.push({ shape: 'table', columns: ['Band', 'Status', 'Comment'],
       rows: outlookRows(conditions.bands).map(row => [row.band, row.status, row.comment]) });
