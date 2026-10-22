@@ -282,7 +282,9 @@ export function isNamedReferences(value: unknown): value is NamedReferences {
 // The centre of a 2, 4, 6 or 8 character Maidenhead locator. Undefined for
 // anything else: the grid was checked against ADIF's definition when it was
 // saved, so this is a second line, not the first.
-export function gridCentre(grid: string | undefined): { latitude: number; longitude: number } | undefined {
+// The area a Maidenhead grid covers: south, west, north and east edges in
+// degrees. Undefined for anything that is not one 2, 4, 6 or 8 character grid.
+export function gridBounds(grid: string | undefined): { south: number; west: number; north: number; east: number } | undefined {
   if (!grid || grid.length % 2 !== 0 || grid.length < 2 || grid.length > 8) return undefined;
   const upper = grid.toUpperCase();
   let longitude = -180;
@@ -303,7 +305,12 @@ export function gridCentre(grid: string | undefined): { latitude: number; longit
     latitude += y * height;
   }
   const [width, height] = sizes[upper.length / 2 - 1];
-  return { latitude: latitude + height / 2, longitude: longitude + width / 2 };
+  return { south: latitude, west: longitude, north: latitude + height, east: longitude + width };
+}
+
+export function gridCentre(grid: string | undefined): { latitude: number; longitude: number } | undefined {
+  const bounds = gridBounds(grid);
+  return bounds && { latitude: (bounds.south + bounds.north) / 2, longitude: (bounds.west + bounds.east) / 2 };
 }
 
 // The position a grid gives: the centre of one grid, or for the grids of a

@@ -60,7 +60,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
@@ -697,6 +697,14 @@ export async function stationFromPark(reference: string): Promise<ParkDraft | st
 export async function stationChoices(entity: string | null, state: string | null): Promise<StationChoices | undefined> {
   const reply = await stationRequest({ type: 'station-choices', entity, state });
   return reply.ok ? reply.choices : undefined;
+}
+
+// The US counties at a position or over a grid square, as LoTW names them
+// (QGD-STN-0010). A string is why there is no answer.
+export async function countiesAt(area: { south: number; west: number; north: number; east: number }): Promise<string[] | string> {
+  const reply = await stationRequest({ type: 'counties-at', ...area });
+  if (!reply.ok) return reply.error;
+  return reply.counties ?? [];
 }
 
 // The names of the parks a POTA reference names, from POTA's list.

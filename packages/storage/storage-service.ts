@@ -15,6 +15,7 @@ import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
 import { createForwardingLogger } from '../logging/logger.js';
 import type { Register } from '../reference/register.js';
+import { countiesFrom, type Counties } from '../reference/counties.js';
 import { StorageFailure, describe, reduce } from './errors.js';
 import { layout, openState } from './layout.js';
 import { Reference, isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus } from './reference.js';
@@ -137,13 +138,28 @@ function applyActivation(persona: string): void {
     .catch((error: unknown) => log.warn({ failure: describe(reduce(error, 'query')) }, 'default station not applied'));
 }
 
+// The US counties (QGD-STN-0010), which ship with the application. Read on
+// first use, once; a file that cannot be read leaves counties unchecked and
+// unfilled rather than stopping storage, and says so in the log.
+let counties: Promise<Counties | undefined> | undefined;
+function usCounties(): Promise<Counties | undefined> {
+  counties ??= readFile(new URL('../reference/us-counties.json', import.meta.url), 'utf8')
+    .then(text => countiesFrom(JSON.parse(text)))
+    .catch((error: unknown) => {
+      log.warn({ failure: describe(reduce(error, 'query')) }, 'the US county data could not be read');
+      return undefined;
+    });
+  return counties;
+}
+
 // The lists a station's references are checked against, where they are on
 // this computer (KI7MT, 2026-10-20).
-function referenceLists(): ReferenceLists {
+async function referenceLists(): Promise<ReferenceLists> {
   const reader = reference?.reader();
-  return reader && referenceStatus?.pota.parks.state === 'loaded'
+  const pota: ReferenceLists = reader && referenceStatus?.pota.parks.state === 'loaded'
     ? { parks: (references) => lookUpParks(reader, references), locations: (park) => parkLocations(reader, park) }
     : {};
+  return { ...pota, counties: await usCounties() };
 }
 
 async function reloadStations(): Promise<void> {
@@ -158,7 +174,7 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
   if (!state) return { ok: false, error: 'Storage is not open yet.' };
   switch (command.type) {
     case 'save-station': {
-      const outcome = await saveStation(state, command.station, await currentDefinitions(), new Date(), referenceLists());
+      const outcome = await saveStation(state, command.station, await currentDefinitions(), new Date(), await referenceLists());
       if (!outcome.ok) return { ok: false, error: 'The location was not saved.', problems: outcome.problems };
       await reloadStations();
       publish();
@@ -174,12 +190,24 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       if (!(await setActiveStation(state, command.id))) return { ok: false, error: 'That location no longer exists.' };
       break;
     case 'look-up-parks': {
-      const lists = referenceLists();
+      const lists = await referenceLists();
       if (!lists.parks) return { ok: true, status: status(), named: { checked: false, found: [] } };
       return { ok: true, status: status(), named: { checked: true, found: await lists.parks(parksIn(command.references)) } };
     }
     case 'station-choices':
-      return { ok: true, status: status(), choices: stationChoices(await currentDefinitions(), command.entity, command.state) };
+      return {
+        ok: true, status: status(),
+        choices: stationChoices(await currentDefinitions(), command.entity, command.state, await usCounties())
+      };
+    case 'counties-at': {
+      const list = await usCounties();
+      if (!list) return { ok: false, error: 'The county list could not be read. Troubleshooting has the logs.' };
+      const { south, west, north, east } = command;
+      const point = south === north && west === east;
+      const found = point ? [list.at(south, west)].filter((county): county is string => county !== undefined)
+        : list.inGrid(south, west, north, east);
+      return { ok: true, status: status(), counties: found };
+    }
     case 'station-from-park': {
       const reader = reference?.reader();
       if (!reader || referenceStatus?.pota.parks.state !== 'loaded') {

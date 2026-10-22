@@ -144,16 +144,32 @@ try {
   await field(page, 'MY_LON').fill('-116.375');
   await page.locator('#fill-grid-from-position').click();
   await expect(field(page, 'MY_GRIDSQUARE')).toHaveValue('DN13tp');
+  // The county, from LoTW's list (QGD-STN-0010): a position gives the one it
+  // is in; a grid alone that crosses a county line gives the choices.
+  await page.locator('#fill-county').click();
+  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Ada', { timeout: 30_000 });
+  await expect(page.locator('#fill-county-note')).toHaveText('Ada, from the latitude and longitude.');
+  await field(page, 'MY_LAT').fill('');
+  await field(page, 'MY_LON').fill('');
+  await field(page, 'MY_GRIDSQUARE').fill('DN13sm');
+  await page.locator('#fill-county').click();
+  const choices = page.getByRole('group', { name: 'Counties in the grid' });
+  await expect(choices.getByRole('button')).toHaveText(['Ada, ID', 'Canyon, ID'], { timeout: 30_000 });
+  await choices.getByRole('button', { name: 'Canyon, ID' }).click();
+  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Canyon');
   await field(page, 'MY_GRIDSQUARE').fill('DN13');
-  // Decimal degrees are taken and kept in ADIF's form.
+  // Decimal degrees are taken and kept in ADIF's form, and the county
+  // follows the position.
   await field(page, 'MY_LAT').fill('43.625');
   await field(page, 'MY_LON').fill('-116.2083');
+  await page.locator('#fill-county').click();
+  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Ada', { timeout: 30_000 });
   await page.locator('#save-station').click();
   await expect(row(page, 'Home')).toBeVisible({ timeout: 30_000 });
   await expect(row(page, 'Home')).toContainText('Default for');
   const saved = (await status(page)).status.stations.list.find(station => station.name === 'Home');
   expect(saved.place).toMatchObject({ MY_DXCC: '291', MY_STATE: 'ID', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
-    MY_GRIDSQUARE: 'DN13', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498' });
+    MY_GRIDSQUARE: 'DN13', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498', MY_CNTY: 'ID,Ada' });
   // Opening a station and saving it unchanged changes nothing: a station
   // holding a 12-character locator and a grid-line list keeps both (found by
   // Turing in review: the one Grid box shows one of them).

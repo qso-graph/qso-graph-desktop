@@ -17,7 +17,7 @@
   import PageLayout from '../../ui/PageLayout.svelte';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
-    STATION_KINDS, fromAdifLocation, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
+    STATION_KINDS, fromAdifLocation, gridBounds, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
     type StationChoices, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
     type StationKind, type StationsView
   } from '../../storage/station-contract.js';
@@ -38,11 +38,14 @@
     onChoices?: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     // The parks a POTA reference names, from POTA's list where it is here.
     onLookUpParks?: (references: string) => Promise<NamedReferences | undefined>;
+    // The US counties at a position or over a grid square (QGD-STN-0010).
+    onCountiesAt?: (area: { south: number; west: number; north: number; east: number }) => Promise<string[] | string>;
   }
   const {
     stations, personaName, personaLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
     onChoices = () => Promise.resolve(undefined),
-    onLookUpParks = () => Promise.resolve(undefined)
+    onLookUpParks = () => Promise.resolve(undefined),
+    onCountiesAt = () => Promise.resolve([])
   }: Props = $props();
 
   // ---- references checked against their lists (KI7MT, 2026-10-20) ---------
@@ -120,7 +123,7 @@
         { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Required. Your Maidenhead grid, as DN13 or DN13sm; on a grid line or corner, give them all: DN13,DN14.' },
         { field: 'MY_DXCC', label: 'DXCC entity' },
         { field: 'MY_STATE', label: 'State, province or prefecture', hint: 'The lists are ADIF\'s for the entity above.' },
-        { field: 'MY_CNTY', label: 'County', hint: 'In ADIF\'s form, state and county: ID,Ada.' },
+        { field: 'MY_CNTY', label: 'County', hint: 'From LoTW\'s list for the state, or filled from the position or the grid below.' },
         { field: 'MY_CQ_ZONE', label: 'CQ zone', hint: 'The state\'s own zones where ADIF gives them.' },
         { field: 'MY_ITU_ZONE', label: 'ITU zone' },
         { field: 'MY_ARRL_SECT', label: 'ARRL section' },
@@ -236,6 +239,8 @@
     void lookUpParks();
     makeDefault = draft?.id !== undefined && draft.id === defaultId;
     parkFillNote = '';
+    countyNote = '';
+    countyChoices = [];
     problems = [];
     formError = '';
     note = withNote;
@@ -343,6 +348,55 @@
     }
     parkFillNote = answer.note ?? `Filled in from ${firstPark}.`;
     void loadChoices();
+  }
+
+  // The county, from LoTW's list (QGD-STN-0010, KI7MT 2026-10-22). A typed
+  // position gives the county it is in; a grid alone gives the counties its
+  // square reaches, and only one is filled in: where the square crosses a
+  // county line the operator picks. A state already set is never changed: a
+  // position in another state is said, not acted on.
+  let countyNote = $state('');
+  let countyChoices = $state<string[]>([]);
+  const countyGrid = $derived((place.MY_GRIDSQUARE ?? '').split(',')[0].trim());
+  const countyArea = $derived.by(() => {
+    if (typedPosition) {
+      const { latitude, longitude } = typedPosition;
+      return { south: latitude, west: longitude, north: latitude, east: longitude };
+    }
+    return countyGrid.length >= 4 ? gridBounds(countyGrid) : undefined;
+  });
+  const countyName = (cnty: string) => cnty.slice(cnty.indexOf(',') + 1);
+  function setCounty(cnty: string) {
+    const state = cnty.slice(0, cnty.indexOf(','));
+    if (place.MY_STATE && place.MY_STATE.toUpperCase() !== state) {
+      countyNote = `That is ${countyName(cnty)} County in ${state}, and this location's state is ${place.MY_STATE.toUpperCase()}.`;
+      return false;
+    }
+    place.MY_STATE = state;
+    // The DXCC entity follows where it is not set: Alaska and Hawaii are
+    // entities of their own.
+    if (!place.MY_DXCC) place.MY_DXCC = state === 'AK' ? '6' : state === 'HI' ? '110' : '291';
+    place.MY_CNTY = cnty;
+    countyChoices = [];
+    void loadChoices();
+    return true;
+  }
+  async function fillCounty() {
+    countyNote = '';
+    countyChoices = [];
+    const area = countyArea;
+    if (!area) return;
+    const fromPosition = typedPosition !== undefined;
+    const answer = await onCountiesAt(area);
+    if (typeof answer === 'string') { countyNote = answer; return; }
+    if (answer.length === 0) {
+      countyNote = fromPosition ? 'There is no US county at that latitude and longitude.' : `There is no US county in ${countyGrid}.`;
+    } else if (answer.length === 1) {
+      if (setCounty(answer[0])) countyNote = `${countyName(answer[0])}, from the ${fromPosition ? 'latitude and longitude' : 'grid'}.`;
+    } else {
+      countyChoices = answer;
+      countyNote = `${countyGrid} crosses a county line. Pick the county, or fill in latitude and longitude for the one you are in:`;
+    }
   }
 
   function fillFromGrid() {
@@ -532,7 +586,18 @@
                   disabled={!firstPark}
                   onclick={() => { void fillFromPark(); }}>Fill from the POTA park</button>
               {/if}
+              <button type="button" class="secondary" id="fill-county"
+                disabled={countyArea === undefined}
+                onclick={() => { void fillCounty(); }}>Fill the county</button>
               {#if parkFillNote}<p class="hint" id="fill-from-park-note" role="status">{parkFillNote}</p>{/if}
+              {#if countyNote}<p class="hint" id="fill-county-note" role="status">{countyNote}</p>{/if}
+              {#if countyChoices.length}
+                <div class="county-choices" role="group" aria-label="Counties in the grid">
+                  {#each countyChoices as cnty (cnty)}
+                    <button type="button" class="secondary" onclick={() => { if (setCounty(cnty)) countyNote = `${countyName(cnty)}.`; }}>{countyName(cnty)}, {cnty.slice(0, 2)}</button>
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
           {#if group.title === 'Activity'}

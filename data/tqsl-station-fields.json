@@ -2,7 +2,7 @@
   "register": "TQSL's station location fields, and where a Location holds each",
   "note": "P9-tqsl (QGD-STN-0009): every field TQSL asks for on its station location pages has a home on a Location, so a Location can be signed for LoTW without TQSL's own station data. Read from TQSL's published config.xml: the fields named by <pageField> in <locpages>, which are the ones an operator fills in. Nothing of TQSL's file is copied here beyond the field names. Re-check against a newer config.xml with node scripts/tqsl-fields.mjs.",
   "source": {
-    "url": "https://sourceforge.net/p/trustedqsl/tqsl/ci/master/tree/src/config.xml?format=raw",
+    "url": "https://sourceforge.net/p/trustedqsl/tqsl/ci/57ef23e6f6ec49a5269fc904609d46e57d3984ed/tree/src/config.xml?format=raw",
     "configVersion": "11.35",
     "sha256": "5a0747d35f5788f8b14757be2fc2f1ce7d0857bd0c0c4def0a30aef72d2f3538",
     "read": "2026-10-22"

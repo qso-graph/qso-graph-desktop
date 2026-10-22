@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import { asc, eq } from 'drizzle-orm';
 import { validateRecord, type Ruleset } from '../reference/validate.js';
+import type { Counties } from '../reference/counties.js';
 import { potaPark, potaParkLocation, type referenceSchema } from './reference-schema.js';
 import { ACTIVE_STATION_ID, activeStation, station, stationDefault, type stateSchema } from './schema.js';
 import type { Store } from './sqlite.js';
@@ -21,6 +22,10 @@ import { adifLocation } from './station-contract.js';
 
 export type Definitions = Ruleset | 'not loaded';
 
+// The DXCC entities whose counties are the US list (QGD-STN-0010): the United
+// States, Alaska and Hawaii, as TQSL's US_STATE field takes them.
+export const US_ENTITIES = new Set(['291', '6', '110']);
+
 export interface Checked {
   problems: FieldProblem[];
   // Whether there were definitions to check the values against.
@@ -30,7 +35,7 @@ export interface Checked {
 // The name is the station's own, so it is checked here; every MY_* value is
 // ADIF's and is checked against ADIF's definitions, together, because some
 // depend on each other (a county is a county of the station's MY_DXCC).
-export function checkStation(draft: StationDraft, definitions: Definitions): Checked {
+export function checkStation(draft: StationDraft, definitions: Definitions, counties?: Counties): Checked {
   const problems: FieldProblem[] = [];
   if (draft.name.trim().length === 0) problems.push({ field: 'name', reason: 'A location needs a name.' });
   // The grid is always required (KI7MT, 2026-10-20): one grid, or the grids
@@ -38,13 +43,29 @@ export function checkStation(draft: StationDraft, definitions: Definitions): Che
   if (!draft.place.MY_GRIDSQUARE?.trim() && !draft.place.MY_VUCC_GRIDS?.trim()) {
     problems.push({ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' });
   }
+  // A US county is checked against the list LoTW accepts (QGD-STN-0010,
+  // KI7MT 2026-10-22: LoTW first), written with its state first as ADIF has
+  // it. Refused with the reason, never altered to fit. The list ships with the
+  // application, so this holds whether or not ADIF's definitions are here.
+  const { MY_DXCC: countyEntity, MY_STATE: countyState } = draft.place;
+  const county = draft.place.MY_CNTY;
+  if (counties && countyEntity && US_ENTITIES.has(countyEntity) && county) {
+    if (countyState && !county.startsWith(`${countyState.toUpperCase()},`)) {
+      problems.push({ field: 'MY_CNTY', reason: `A county is written with its state first: ${countyState.toUpperCase()},<county>.` });
+    } else if (!counties.has(county)) {
+      const list = county.startsWith('AK,') ? 'ADIF\'s Alaska list' : 'LoTW\'s county list';
+      problems.push({ field: 'MY_CNTY', reason: `${list} has no ${county}. Pick it from the list.` });
+    }
+  }
   if (definitions === 'not loaded') return { problems, checked: false };
   const tags = STATION_FIELDS.flatMap(field => {
     const value = draft.place[field];
     return value === undefined ? [] : [{ name: field, length: value.length, value }];
   });
   for (const result of validateRecord(definitions, { tags })) {
-    if (result.verdict === 'invalid') {
+    // One reason per field: a county the list above already refused is not
+    // refused a second time in ADIF's words.
+    if (result.verdict === 'invalid' && !problems.some(problem => problem.field === result.field)) {
       problems.push({ field: result.field, reason: result.reason ?? 'ADIF does not allow this value.' });
     }
   }
@@ -137,6 +158,8 @@ export async function lookUpParks(reference: Store<typeof referenceSchema>, refe
 // reference is then checked for its form only.
 export interface ReferenceLists {
   parks?: (references: string[]) => Promise<Choice[]>;
+  // The US counties (QGD-STN-0010), which ship with the application.
+  counties?: Counties;
   // The locations POTA lists for a park, for the "@" part of a reference.
   locations?: (park: string) => Promise<string[]>;
 }
@@ -144,7 +167,7 @@ export interface ReferenceLists {
 export async function saveStation(
   state: StateStore, draft: StationDraft, definitions: Definitions, now = new Date(), lists: ReferenceLists = {}
 ): Promise<SaveOutcome> {
-  const { problems } = checkStation(draft, definitions);
+  const { problems } = checkStation(draft, definitions, lists.counties);
   // A park that is well formed and is not in POTA's list is refused, naming
   // it. Only once its form has passed: a malformed one has ADIF's reason.
   const wanted = parksIn(draft.place.MY_POTA_REF);
@@ -298,7 +321,9 @@ function subdivisionZones(definitions: Ruleset, entity: string, state: string, c
 // here names an entity, a state or a section (QGD-REF-0005). Deleted entries
 // are left out, because a station is somewhere now. Names are ADIF's, as ADIF
 // writes them.
-export function stationChoices(definitions: Definitions, entity: string | null, state: string | null = null): StationChoices {
+export function stationChoices(
+  definitions: Definitions, entity: string | null, state: string | null = null, counties?: Counties
+): StationChoices {
   const none: StationChoices = { entities: [], states: [], sections: [], counties: [], cqZones: [], ituZones: [] };
   if (definitions === 'not loaded') return none;
   const rows = (name: string) => [...(definitions.enumerations.get(name)?.byValue.values() ?? [])].flat()
@@ -333,6 +358,10 @@ export function stationChoices(definitions: Definitions, entity: string | null, 
     entities: choose('DXCC_Entity_Code', 'Entity Code', 'Entity Name', false).filter(choice => choice.code !== '0'),
     states: choose('Primary_Administrative_Subdivision', 'Code', 'Primary Administrative Subdivision', true),
     sections: choose('ARRL_Section', 'Abbreviation', 'Section Name', true),
-    counties: choose('Secondary_Administrative_Subdivision', 'Code', 'Secondary Administrative Subdivision', true)
+    // A US state's counties from the list LoTW accepts (QGD-STN-0010);
+    // elsewhere, what ADIF lists.
+    counties: counties && entity !== null && US_ENTITIES.has(entity) && state !== null
+      ? counties.of(state.toUpperCase()).map(name => ({ code: `${state.toUpperCase()},${name}`, name }))
+      : choose('Secondary_Administrative_Subdivision', 'Code', 'Secondary Administrative Subdivision', true)
   };
 }

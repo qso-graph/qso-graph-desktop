@@ -91,12 +91,15 @@ export type StorageCommand =
   // The editor's pick lists, for an entity or for none.
   | { type: 'station-choices'; entity: string | null; state: string | null }
   // The names of the parks a MY_POTA_REF value names, from POTA's list.
-  | { type: 'look-up-parks'; references: string };
+  | { type: 'look-up-parks'; references: string }
+  // The US counties in an area, in MY_CNTY form (QGD-STN-0010): a point when
+  // south equals north and west equals east, otherwise a grid square's area.
+  | { type: 'counties-at'; south: number; west: number; north: number; east: number };
 
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[] }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
@@ -163,7 +166,9 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
 export function isStorageReply(value: unknown): value is StorageReply {
   if (!record(value)) return false;
   if (value.ok === true) {
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties']) && isStorageStatus(value.status)
+      && (value.counties === undefined || (Array.isArray(value.counties) && value.counties.length <= 200
+        && value.counties.every(county => typeof county === 'string' && county.length <= 64)))
       && (value.named === undefined || isNamedReferences(value.named))
       && (value.choices === undefined || isStationChoices(value.choices))
       && (value.saved === undefined || isStationId(value.saved))
@@ -199,6 +204,16 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'station-choices':
       return exactly(['type', 'entity', 'state']) && (value.entity === null || isEntityCode(value.entity))
         && (value.state === null || isSubdivisionCode(value.state));
+    case 'counties-at': {
+      // At most a 4-character grid square, 2 by 1 degrees: what a Location's
+      // grid can be, and a bound on the work one command can ask for.
+      const { south, west, north, east } = value;
+      return exactly(['type', 'south', 'west', 'north', 'east'])
+        && [south, west, north, east].every(number => typeof number === 'number' && Number.isFinite(number))
+        && (south as number) >= -90 && (north as number) <= 90 && (west as number) >= -180 && (east as number) <= 180
+        && (south as number) <= (north as number) && (west as number) <= (east as number)
+        && (north as number) - (south as number) <= 1 && (east as number) - (west as number) <= 2;
+    }
     default: return false;
   }
 }

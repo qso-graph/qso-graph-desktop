@@ -42,6 +42,7 @@
     onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
     onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
+    onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<string[] | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
@@ -59,7 +60,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -166,6 +167,7 @@
         onFromPark={onStationFromPark}
         onChoices={onStationChoices}
         onLookUpParks={onLookUpParks}
+        {onCountiesAt}
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>

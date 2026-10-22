@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definitionsOf } from '../packages/reference/adif.js';
+import { countiesFrom } from '../packages/reference/counties.js';
 import { rulesetOf, type Ruleset } from '../packages/reference/validate.js';
 import { layout, openState } from '../packages/storage/layout.js';
 import { potaPark, referenceSchema } from '../packages/storage/reference-schema.js';
@@ -20,16 +21,16 @@ import {
   setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
 } from '../packages/storage/stations.js';
 
-const MIGRATIONS = resolve('drizzle/state');
-const register = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
-// From `make setup` (CI runs scripts/fetch-adif.mjs before the checks). Not
-// skipped when missing: a station check that never met ADIF's definitions
-// proves nothing.
 // Each test opens state.sqlite and commits to it, and Windows' runners commit
 // slowly: four saves took 11.5 s there against vitest's 5 s default
 // (2026-10-22). A bound, still, so a hang fails rather than waits.
 vi.setConfig({ testTimeout: 30_000 });
 
+const MIGRATIONS = resolve('drizzle/state');
+const register = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
+// From `make setup` (CI runs scripts/fetch-adif.mjs before the checks). Not
+// skipped when missing: a station check that never met ADIF's definitions
+// proves nothing.
 const ruleset: Ruleset = rulesetOf(definitionsOf(JSON.parse(readFileSync(
   `vendor/adif/${register.adif.version}/${register.adif.source.definitions}`, 'utf8'))));
 
@@ -509,5 +510,71 @@ describe('latitude and longitude in degrees, kept in ADIF\'s form', () => {
 
   it.each([['91', 'lat'], ['181', 'lon'], ['43,6', 'lat'], ['W116 12.500', 'lat'], ['north', 'lat']] as const)('refuses %s as a %s', (typed, axis) => {
     expect(typedLocation(typed, axis)).toBeUndefined();
+  });
+});
+
+describe('US counties: LoTW\'s list, filled and checked (QGD-STN-0010)', () => {
+  const counties = countiesFrom(JSON.parse(readFileSync('dist/reference/us-counties.json', 'utf8')));
+  const idaho = { MY_GRIDSQUARE: 'DN13', MY_DXCC: '291', MY_STATE: 'ID' };
+
+  it('offers a US state\'s counties as LoTW names them, in MY_CNTY form', () => {
+    const choices = stationChoices(ruleset, '291', 'ID', counties);
+    expect(choices.counties).toHaveLength(44);
+    expect(choices.counties).toContainEqual({ code: 'ID,Ada', name: 'Ada' });
+    expect(stationChoices(ruleset, '291', 'CT', counties).counties.map(choice => choice.name))
+      .toEqual(['Fairfield', 'Hartford', 'Litchfield', 'Middlesex', 'New Haven', 'New London', 'Tolland', 'Windham']);
+  });
+
+  it('offers Alaska\'s from ADIF\'s own list', () => {
+    expect(stationChoices(ruleset, '6', 'AK', counties).counties).toContainEqual({ code: 'AK,Kusilvak', name: 'Kusilvak' });
+  });
+
+  it('takes a county LoTW has', () => {
+    expect(checkStation(draft({ ...idaho, MY_CNTY: 'ID,Ada' }), ruleset, counties).problems).toEqual([]);
+  });
+
+  it('refuses one it does not, naming it, and alters nothing', () => {
+    const { problems } = checkStation(draft({ ...idaho, MY_CNTY: 'ID,Atlantis' }), ruleset, counties);
+    expect(problems).toEqual([{ field: 'MY_CNTY', reason: 'LoTW\'s county list has no ID,Atlantis. Pick it from the list.' }]);
+  });
+
+  it('refuses a county of another state', () => {
+    const { problems } = checkStation(draft({ ...idaho, MY_CNTY: 'OR,Malheur' }), ruleset, counties);
+    expect(problems).toEqual([{ field: 'MY_CNTY', reason: 'A county is written with its state first: ID,<county>.' }]);
+  });
+
+  it('gives one reason for an Alaska county, not ADIF\'s and the list\'s both', () => {
+    const { problems } = checkStation(draft({ MY_GRIDSQUARE: 'BP51', MY_DXCC: '6', MY_STATE: 'AK', MY_CNTY: 'AK,Wade Hampton' }), ruleset, counties);
+    expect(problems.filter(problem => problem.field === 'MY_CNTY')).toHaveLength(1);
+  });
+
+  it('checks a county without ADIF\'s definitions, because the list ships with the application', () => {
+    const { problems, checked } = checkStation(draft({ ...idaho, MY_CNTY: 'ID,Atlantis' }), 'not loaded', counties);
+    expect(checked).toBe(false);
+    expect(problems.map(problem => problem.field)).toEqual(['MY_CNTY']);
+  });
+
+  it('leaves another country\'s county to ADIF', () => {
+    const { problems } = checkStation(draft({ MY_GRIDSQUARE: 'FN03', MY_DXCC: '1', MY_STATE: 'ON', MY_CNTY: 'ON,Somewhere' }), ruleset, counties);
+    expect(problems.some(problem => problem.reason.includes('LoTW'))).toBe(false);
+  });
+
+  it('saves a county through storage, and refuses an unknown one there too', async () => {
+    const state = await open();
+    try {
+      expect((await saveStation(state, draft({ ...idaho, MY_CNTY: 'ID,Ada' }), ruleset, new Date(), { counties })).ok).toBe(true);
+      const refused = await saveStation(state, draft({ ...idaho, MY_CNTY: 'ID,Atlantis' }, { name: 'Elsewhere' }), ruleset, new Date(), { counties });
+      expect(refused.ok).toBe(false);
+    } finally { state.close(); }
+  });
+
+  it('asks for counties at a point or over a grid square, and nothing larger', () => {
+    expect(validateStorageCommand({ type: 'counties-at', south: 43.6, west: -116.2, north: 43.6, east: -116.2 })).toBe(true);
+    expect(validateStorageCommand({ type: 'counties-at', south: 43, west: -118, north: 44, east: -116 })).toBe(true);
+    expect(validateStorageCommand({ type: 'counties-at', south: 40, west: -120, north: 50, east: -100 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: 44, west: -116, north: 43, east: -116 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: '43', west: -116, north: 43, east: -116 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: Number.NaN, west: -116, north: 43, east: -116 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: 43, west: -116, north: 43, east: -116, extra: 1 })).toBe(false);
   });
 });
