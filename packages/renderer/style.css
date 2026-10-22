@@ -92,10 +92,14 @@
 body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--page); color: var(--ink); }
 [hidden] { display: none !important; }
 header { height: 56px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-/* The clock, first on the heads-up bar. */
-.header-clock { display: flex; gap: 18px; font-size: 13px; }
-.clock-label { color: var(--ink-muted); font-size: 11px; font-weight: 600; margin-right: 4px; }
-.clock-time { font-weight: 650; font-variant-numeric: tabular-nums; }
+/* The clock, first on the heads-up bar: yellow on black, like WSJT-X's
+   (KI7MT, 2026-10-22). The same in both themes, because it is read as a
+   display rather than as part of the page. Yellow on black is about 15:1. */
+.header-clock { display: flex; gap: 18px; font-size: 13px; padding: 6px 14px; border-radius: 6px;
+  background: #000000; border: 1px solid var(--border); }
+.clock-label { color: #b9a650; font-size: 11px; font-weight: 600; margin-right: 4px; }
+.clock-time { color: #ffd400; font-weight: 650; font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
 .hint, .sidebar-note, .optional { color: var(--ink-muted); }
 .workspace { display: flex; flex: 1; min-height: 0; }
 /* The rail, then the persona list, then the page. Three columns that have to
