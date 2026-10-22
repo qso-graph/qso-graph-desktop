@@ -1,4 +1,4 @@
-.PHONY: help setup update check verify suite build start package installer screenshots approve-screenshots
+.PHONY: help setup update after-pull check verify suite build start package installer screenshots approve-screenshots
 
 # `make help` lists what is here. Each target is one thing a person does with
 # this checkout: set it up, bring it up to date, run it, test it, and look at
@@ -46,6 +46,12 @@ verify:
 # is never merged over or lost; a checkout with local changes stops and says so.
 update:
 	git pull --ff-only
+# Make read this file before the pull, so the rest runs from the copy just
+# pulled: a step added to it takes effect on the same update. It did not when
+# the county fetch was added, and the build that needed it failed (2026-10-22).
+	$(MAKE) --no-print-directory after-pull
+
+after-pull:
 	npm ci
 	node scripts/fetch-adif.mjs
 	node scripts/fetch-counties.mjs
