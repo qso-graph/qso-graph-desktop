@@ -40,7 +40,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validatePageAnswer(answer([FIGURES], { version: 5 }))).toThrowError(/version 5; this core draws versions 1, 2, 3 and 4/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 6 }))).toThrowError(/version 6; this core draws versions 1, 2, 3, 4 and 5/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {
@@ -121,5 +121,39 @@ describe('a section\'s heading, page data version 4 (KI7MT, 2026-10-22)', () => 
     expect(() => validatePageAnswer(v(3, [headed]))).toThrowError(/version 3 does not have/);
     expect(() => validatePageAnswer(v(4, [{ ...headed, heading: '<b>Sun</b>' }]))).toThrowError(/markup/);
     expect(() => validatePageAnswer(v(4, [{ ...headed, heading: 'x'.repeat(61) }]))).toThrowError(/heading/);
+  });
+});
+
+describe('a table in groups, and a value across its columns, page data version 5 (Watson and KI7MT, 2026-10-22)', () => {
+  const columns = ['Event', 'UTC', 'Your clock'];
+  const grouped = { shape: 'table', columns, groups: [
+    { heading: 'Sun', rows: [['Sunrise', '13:55', '07:55'], ['Length of day', '10 h 42 min']] },
+    { heading: 'Moon', rows: [['Distance', '384,465 km']] }
+  ] };
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+
+  it('carries groups, and a two-cell row across a wider table, in version 5 data', () => {
+    expect(validatePageAnswer(v(5, [grouped]))).toEqual(v(5, [grouped]));
+  });
+
+  it('refuses either in older data rather than guessing', () => {
+    expect(() => validatePageAnswer(v(4, [grouped]))).toThrowError(/version 4 does not have/);
+    const spanning = { shape: 'table', columns, rows: [['Length of day', '10 h 42 min']] };
+    expect(() => validatePageAnswer(v(4, [spanning]))).toThrowError(/does not have 3 cells/);
+    expect(validatePageAnswer(v(5, [spanning]))).toEqual(v(5, [spanning]));
+  });
+
+  it.each([
+    [{ ...grouped, rows: [] }, /a field pages do not have: "rows"/],
+    [{ ...grouped, groups: [] }, /no groups/],
+    [{ ...grouped, groups: Array.from({ length: 9 }, () => ({ heading: 'x', rows: [] })) }, /more than 8/],
+    [{ ...grouped, groups: [{ heading: 'Sun', rows: [['Sunrise']] }] }, /does not have 3 cells/],
+    [{ ...grouped, groups: [{ heading: '<b>Sun</b>', rows: [] }] }, /markup/],
+    [{ ...grouped, groups: [{ heading: 'Sun', rows: [], note: 'x' }] }, /"note"/],
+    [{ ...grouped, groups: [{ rows: [] }] }, /heading/],
+    // The bound on rows is the table's, across its groups.
+    [{ ...grouped, groups: [0, 1].map(() => ({ heading: 'x', rows: Array.from({ length: 31 }, () => ['a', 'b']) })) }, /at most 60/]
+  ])('refuses an off-shape grouped table (%#)', (value, message) => {
+    expect(() => validatePageAnswer(v(5, [value]))).toThrowError(message);
   });
 });

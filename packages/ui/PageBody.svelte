@@ -9,7 +9,7 @@
   the application, and no extension code runs in the window.
 -->
 <script lang="ts">
-  import { utc, type PageShown } from './page-shapes.js';
+  import { tableGroups, utc, type PageShown } from './page-shapes.js';
 
   interface Props {
     shown: PageShown;
@@ -41,11 +41,17 @@
       {:else if section.shape === 'table'}
         <table class="page-table">
           <thead><tr>{#each section.columns as column, c (c)}<th scope="col">{column}</th>{/each}</tr></thead>
-          <tbody>
-            {#each section.rows as row, r (r)}
-              <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td>{cell}</td>{/if}{/each}</tr>
-            {/each}
-          </tbody>
+          <!-- One table, its groups as row groups, so every group's columns line
+               up with every other's. A two-cell row in a wider table gives
+               its one value across the columns after the first (version 5). -->
+          {#each tableGroups(section) as group, g (g)}
+            <tbody>
+              {#if group.heading}<tr class="page-table-group"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
+              {#each group.rows as row, r (r)}
+                <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td colspan={row.length < section.columns.length ? section.columns.length - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
+              {/each}
+            </tbody>
+          {/each}
         </table>
       {:else}
         <ul class="page-items">

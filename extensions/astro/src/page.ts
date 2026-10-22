@@ -3,7 +3,7 @@
 // active Location, as the core's page shapes. Pure: a position, a moment and
 // what the operator typed in, a page answer out. Nothing here fetches, and
 // nothing here rates or forecasts (QGD-AST-0050).
-import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
+import type { PageAnswer, Section, TableGroup } from '../../../packages/extension-api/pages.js';
 import type { StationBrief } from '../../../packages/extension-api/api-contract.js';
 import { greyLine, gridCentre } from './greyline.js';
 import { moonAt, moonCrossings, moonPhase } from './moon.js';
@@ -38,14 +38,13 @@ interface Inputs { readonly dx?: string }
 // A row's times, or a sentence where there is no event (QGD-AST-0007).
 type Row = [label: string, at: Date | string];
 
-function table(heading: string, rows: Row[], clock: Clock | undefined): Section {
-  const columns = clock ? ['Event', 'UTC', 'Your clock'] : ['Event', 'UTC'];
+// A group of the one table. A time is given on each clock; a sentence or a
+// span has no clock, so it is given once, across both (page data version 5).
+function group(heading: string, rows: Row[], clock: Clock | undefined): TableGroup {
   return {
-    shape: 'table', heading, columns,
+    heading,
     rows: rows.map(([label, at]) => typeof at === 'string'
-      // A sentence or a span reads the same on either clock, and a cell is
-      // never left blank.
-      ? (clock ? [label, at, at] : [label, at])
+      ? [label, at]
       : (clock ? [label, utcText(at), clock.text(at)] : [label, utcText(at)]))
   };
 }
@@ -74,7 +73,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     const text = station
       ? `${station.name} has no grid or coordinates. Add one in Locations, and Astro works out the sun and the moon there.`
       : 'Astro needs a Location. Make one active in Locations, with its grid, and Astro works out the sun and the moon there.';
-    return { ok: true, data: { version: 4, observedAt, sections: [{ shape: 'alert', level: 'info', text }] } };
+    return { ok: true, data: { version: 5, observedAt, sections: [{ shape: 'alert', level: 'info', text }] } };
   }
   const { latitude, longitude } = position;
   const yourClock = clock.offset(now) !== 0 ? clock : undefined;
@@ -104,24 +103,29 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     { shape: 'alert', level: 'info', text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
       : 'Times are in UTC, which is what this computer\'s clock is set to. The Location\'s own time zone is not known yet.' },
-    table('Sun', sunRows, yourClock),
-    table('Twilight', [
+    // One table in four groups, so the times line up all the way down the
+    // page rather than moving with each group's longest name (Watson and
+    // KI7MT, 2026-10-22).
+    { shape: 'table', columns: yourClock ? ['Event', 'UTC', 'Your clock'] : ['Event', 'UTC'], groups: [
+    group('Sun', sunRows, yourClock),
+    group('Twilight', [
       ...pair(sunCrossings(now, latitude, longitude, CIVIL), 'Civil dawn (−6°)', 'Civil dusk (−6°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
       ...pair(sunCrossings(now, latitude, longitude, NAUTICAL), 'Nautical dawn (−12°)', 'Nautical dusk (−12°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
       ...pair(sunCrossings(now, latitude, longitude, ASTRONOMICAL), 'Astronomical dawn (−18°)', 'Astronomical dusk (−18°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
     ], yourClock),
     // What each depth means for radio, said beside it (QGD-AST-0022).
-    table('Radio depths', [
+    group('Radio depths', [
       ...pair(sunCrossings(now, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
       ...pair(sunCrossings(now, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
     ], yourClock),
-    table('Moon', [
+    group('Moon', [
       ...pair(moon, 'Moonrise', 'Moonset', 'None today: the moon does not rise', 'None today: the moon does not set'),
       ['Phase', `${phase.name}, ${Math.round(phase.fraction * 100)}% lit`],
       // The numbers EME turns on (QGD-AST-0031).
       ['Declination', `${moonNow.declination >= 0 ? '+' : '−'}${Math.abs(moonNow.declination).toFixed(1)}°`],
       ['Distance', `${Math.round(moonNow.distance).toLocaleString('en-US')} km`]
     ], yourClock)
+    ] }
   ];
 
   // The DX question (QGD-AST-0041): when both ends are inside the same depth.
@@ -139,6 +143,6 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       columns: ['Depth both ends are within', 'UTC'], rows
     });
   }
-  return { ok: true, data: { version: 4, observedAt, sections } };
+  return { ok: true, data: { version: 5, observedAt, sections } };
 }
 

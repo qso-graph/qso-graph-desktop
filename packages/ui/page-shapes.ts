@@ -12,7 +12,15 @@ export type Section = (
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] }
+  // In named groups, and a two-cell row across a wider table (version 5).
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
 ) & { readonly heading?: string };
+export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
+
+// A table's rows as groups: an ungrouped table is one group with no heading.
+export function tableGroups(section: Extract<Section, { shape: 'table' }>): readonly { readonly heading?: string; readonly rows: readonly (readonly string[])[] }[] {
+  return 'groups' in section ? section.groups : [{ rows: section.rows }];
+}
 
 export type PageShown =
   | { readonly state: 'waiting' }

@@ -23,8 +23,15 @@
 // Version 4 let a section carry a heading (KI7MT, 2026-10-22): a page is a
 // page now, not a card on Home, and Astro's is Sun, Twilight, Radio depths and
 // Moon, each under its own name.
-export const PAGE_DATA_VERSION = 4;
-export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4];
+//
+// Version 5 let a table come in groups, and a row give one value across its
+// columns (Watson and KI7MT, 2026-10-22): Astro's Sun, Twilight, Radio depths
+// and Moon were four tables, each sizing its own columns, so the times moved
+// left and right down the page. One table in four groups lines them up by
+// construction; and a distance or a phase has no clock, so it is said once
+// rather than printed under UTC and again under Your clock.
+export const PAGE_DATA_VERSION = 5;
+export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5];
 
 // Bounds on everything an extension can put on a page. A page fills the main
 // pane, so these are a page's and not a card's; and bounded content is
@@ -42,6 +49,7 @@ export const PAGE_LIMITS = {
   reason: 160,
   columns: 4,
   rows: 60,
+  groups: 8,
   cell: 80,
   heading: 60
 } as const;
@@ -68,9 +76,19 @@ export type Section = (
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   // Something happening now: a geomagnetic storm, a radio blackout.
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  // Rows under named columns: the bands with their outlook. Version 2.
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] }
+  // Rows under named columns: the bands with their outlook. Version 2. From
+  // version 5 the rows may come in named groups instead, and a row of two
+  // cells in a wider table gives one value across the columns after its first.
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
 ) & { readonly heading?: string };
+
+export type Row = readonly string[];
+
+export interface TableGroup {
+  readonly heading: string;
+  readonly rows: readonly Row[];
+}
 
 export interface PageData {
   readonly version: number;
@@ -203,23 +221,44 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
   }
   if (value.shape === 'table') {
     if (version < 2) throw new PageError(`${where} is a table, which page data version ${version} does not have.`);
-    only(value, ['shape', 'columns', 'rows'], where);
+    const grouped = Object.hasOwn(value, 'groups');
+    if (grouped && version < 5) throw new PageError(`${where} has groups, which page data version ${version} does not have.`);
+    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows'], where);
     if (!Array.isArray(value.columns) || value.columns.length === 0 || value.columns.length > PAGE_LIMITS.columns) {
       throw new PageError(`${where} has no columns, or more than ${PAGE_LIMITS.columns}.`);
     }
     const columns = each(value.columns, where, (column: unknown, i: number) =>
       text(column, PAGE_LIMITS.label, `${where}, column ${i + 1}`));
-    if (!Array.isArray(value.rows) || value.rows.length > PAGE_LIMITS.rows) {
-      throw new PageError(`${where} has rows as something other than a list of at most ${PAGE_LIMITS.rows}.`);
+    const rowsOf = (list: unknown, name: string, room: number): Row[] => {
+      if (!Array.isArray(list) || list.length > room) {
+        throw new PageError(`${name} has rows as something other than a list of at most ${PAGE_LIMITS.rows} in the table.`);
+      }
+      return each(list, name, (row: unknown, i: number) => {
+        const at = `${name}, row ${i + 1}`;
+        // A row is exactly as wide as the columns: a short or long one would
+        // put a value under the wrong heading. From version 5 a row of two
+        // cells in a wider table is its name and one value across the rest,
+        // which is said, not guessed: no other width is drawn.
+        const spans = version >= 5 && columns.length > 2 && Array.isArray(row) && row.length === 2;
+        if (!Array.isArray(row) || (row.length !== columns.length && !spans)) throw new PageError(`${at} does not have ${columns.length} cells.`);
+        return each(row, at, (cell: unknown, c: number) => text(cell, PAGE_LIMITS.cell, `${at}, cell ${c + 1}`));
+      });
+    };
+    if (!grouped) return { shape: 'table', columns, rows: rowsOf(value.rows, where, PAGE_LIMITS.rows) };
+    if (!Array.isArray(value.groups) || value.groups.length === 0 || value.groups.length > PAGE_LIMITS.groups) {
+      throw new PageError(`${where} has no groups, or more than ${PAGE_LIMITS.groups}.`);
     }
-    const rows = each(value.rows, where, (row: unknown, i: number) => {
-      const name = `${where}, row ${i + 1}`;
-      // A row is exactly as wide as the columns: a short or long one would
-      // put a value under the wrong heading.
-      if (!Array.isArray(row) || row.length !== columns.length) throw new PageError(`${name} does not have ${columns.length} cells.`);
-      return each(row, name, (cell: unknown, c: number) => text(cell, PAGE_LIMITS.cell, `${name}, cell ${c + 1}`));
+    // The bound on rows is the table's, however they are grouped.
+    let room: number = PAGE_LIMITS.rows;
+    const groups = each(value.groups, where, (group: unknown, g: number) => {
+      const name = `${where}, group ${g + 1}`;
+      if (!isRecord(group)) throw new PageError(`${name} is not a group.`);
+      only(group, ['heading', 'rows'], name);
+      const rows = rowsOf(group.rows, name, room);
+      room -= rows.length;
+      return { heading: text(group.heading, PAGE_LIMITS.heading, `${name}'s heading`), rows };
     });
-    return { shape: 'table', columns, rows };
+    return { shape: 'table', columns, groups };
   }
   throw new PageError(`${where} is not a figures, items, alert or table section.`);
 }

@@ -431,6 +431,11 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
 .page-table tbody th { font-weight: 600; white-space: nowrap; }
 .page-table td:last-child { color: var(--ink-muted); }
+/* A group's name reads as a section heading inside the one table, and a
+   value given across the columns reads as the row's own, not a side note. */
+.page-table .page-table-group th { padding-top: 18px; font-size: 15px; font-weight: 600; border-top: 0; }
+.page-table tbody:first-of-type .page-table-group th { padding-top: 6px; }
+.page-table td[colspan] { color: inherit; white-space: normal; }
 /* The table follows its card's own width, not the window's (KI7MT,
    2026-10-20): a card can be about 300 px wide, and three columns there wrap
    the comment one word to a line. When the card is narrow, each row keeps its
@@ -443,6 +448,7 @@ dialog.pins h2 { margin: 0 0 6px; }
   .page-table tbody tr { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
   .page-table tbody th, .page-table tbody td { border-top: 0; padding: 0; }
   .page-table tbody td:last-child { grid-column: 1 / -1; font-size: 12px; }
+  .page-table .page-table-group th { grid-column: 1 / -1; padding-top: 12px; }
 }
 /* Four figures (Your station's UTC, local, sunrise and sunset; Conditions'
    flux, K, A and scales) sit evenly: four in a row when the card has room,
