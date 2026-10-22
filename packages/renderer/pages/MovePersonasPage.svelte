@@ -137,7 +137,6 @@
   />
   <button
     type="button"
-    class="after-field"
     class:working={inspecting}
     disabled={!canInspect}
     aria-describedby={canInspect ? undefined : 'import-why'}
