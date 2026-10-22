@@ -53,7 +53,7 @@ const launch = async () => {
   const application = await electron.launch({
     args: ['.'], cwd: process.cwd(), timeout: 30_000,
     env: {
-      ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs,
+      ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs,
       QG_DESKTOP_REFERENCE_CACHE: referenceCache
     }
   });

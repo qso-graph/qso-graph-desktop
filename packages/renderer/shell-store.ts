@@ -93,6 +93,8 @@ export interface ShellState {
   troubleshooting: boolean;
   // Which of Help's windows is open, if one is (QGD-FRM-0015).
   help: 'privacy' | 'attributions' | 'contributors' | null;
+  // Whether the welcome is showing (QGD-FRM-0016).
+  welcome: boolean;
   // Whether the operator is in guided setup (QGD-PSN-0004). It is offered,
   // never imposed: the Personas page a machine with no personas shows is the
   // one P1 built and P3 was signed off with, and guided setup is a thing to
@@ -137,6 +139,7 @@ export const INITIAL_SHELL: ShellState = {
   // already has personas.
   troubleshooting: false,
   help: null,
+  welcome: false,
   setup: false,
   firstRun: false,
   services: [],

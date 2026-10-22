@@ -127,17 +127,17 @@ describe('QGD-SEC-0006 the settings channel rejects rather than coerces', () => 
 
 describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () => {
   it('reads what is valid and defaults the rest, key by key', () => {
-    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
-    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
-    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
+    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
+    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] });
+    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
   });
 });
 
@@ -318,3 +318,18 @@ describe('a withdrawal is never lost to a long grants map', () => {
     expect(readSettings({ grants }).grants['on-the-air']).toEqual([]);
   });
 });
+
+describe('QGD-FRM-0016: the welcome remembers the release it was hidden for', () => {
+  it('starts empty, so a new install shows it', () => {
+    expect(readSettings({}).welcomeHidden).toBe('');
+  });
+
+  it('keeps a release name, and nothing else', () => {
+    expect(readSettings({ welcomeHidden: '0.0.0-preview.1' }).welcomeHidden).toBe('0.0.0-preview.1');
+    expect(readSettings({ welcomeHidden: '<script>' }).welcomeHidden).toBe('');
+    expect(readSettings({ welcomeHidden: 7 }).welcomeHidden).toBe('');
+    expect(validateSettingsCommand({ type: 'write', key: 'welcomeHidden', value: '0.1.0' })).toBe(true);
+    expect(validateSettingsCommand({ type: 'write', key: 'welcomeHidden', value: 'x'.repeat(41) })).toBe(false);
+  });
+});
+

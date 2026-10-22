@@ -23,6 +23,7 @@
     onStationFromPark: () => Promise.resolve('Not in a story.'),
     onStationChoices: () => Promise.resolve(undefined),
     onLookUpParks: () => Promise.resolve(undefined),
+    onCloseWelcome: () => {},
     onCountiesAt: () => Promise.resolve({ counties: [], sections: {} }),
     onSetLevel: () => Promise.resolve(true),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
@@ -56,7 +57,8 @@
       logs,
       storage: { state: 'ready' },
       troubleshooting: false,
-      help: null, setup: false,
+      help: null,
+      welcome: false, setup: false,
       firstRun: false,
       services: [],
       extensions: undefined

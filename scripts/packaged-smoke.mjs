@@ -63,6 +63,14 @@ async function launch() {
 }
 try {
   await launch();
+  // QGD-FRM-0016: a new install shows the welcome, as WSJT-X does. Ticked
+  // and closed, it stays hidden for this release, which the relaunches below
+  // check. The packaged application ignores the suites' switch for it, so
+  // this is the operator's path.
+  await expect(page.locator('#welcome')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#welcome-hide').check();
+  await page.locator('#close-welcome').click();
+  await expect(page.locator('#welcome')).toHaveCount(0);
   // The application opens on Home now (QGD-FRM-0011).
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
@@ -119,6 +127,9 @@ try {
   await expect(page.locator('#credential-effective')).toContainText('Selected for use: password');
   await expect(page.locator('#message')).toHaveText('Preferred credential saved.');
   await stop(); await launch();
+  // Hidden for this release: not shown again (QGD-FRM-0016).
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#welcome')).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.locator('#active-persona')).toContainText('Callsign: W1AW');

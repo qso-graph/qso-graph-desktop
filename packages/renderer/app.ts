@@ -60,7 +60,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportPersonas: exportPersonas, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreatePersona: createPersona, onSaveCredential: saveSetupCredential,
@@ -480,6 +480,8 @@ async function loadTheme(): Promise<void> {
   const reply = await window.settings.request({ type: 'read' });
   // A settings channel that cannot answer must not leave the window unthemed.
   if (reply.ok) themeChoice = reply.data.theme;
+  // The welcome, unless the operator hid it for this release (QGD-FRM-0016).
+  if (reply.ok && reply.data.welcomeHidden !== __QG_VERSION__) shell.set({ welcome: true });
   shell.set({ themeChoice });
   startTheme();
 }
@@ -712,6 +714,13 @@ export async function countiesAt(area: { south: number; west: number; north: num
 export async function lookUpParks(references: string): Promise<NamedReferences | undefined> {
   const reply = await stationRequest({ type: 'look-up-parks', references });
   return reply.ok ? reply.named : undefined;
+}
+
+// The welcome closed, by the operator or its own timer. Hidden for this
+// release only when they ticked the box (QGD-FRM-0016).
+export function closeWelcome(hideForThisRelease: boolean): void {
+  shell.set({ welcome: false });
+  if (hideForThisRelease) void window.settings.request({ type: 'write', key: 'welcomeHidden', value: __QG_VERSION__ });
 }
 
 // Help → Troubleshooting… opens the same panel as the status bar's button.

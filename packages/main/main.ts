@@ -147,7 +147,9 @@ if (!app.requestSingleInstanceLock()) {
       distDirectory,
       join(app.getAppPath(), 'data', 'service-profiles.json'));
     const stopPersonaBroker = personas.stop;
-    const stopSettingsBroker = startSettingsBroker();
+    const stopSettingsBroker = startSettingsBroker({
+      welcomeOff: !app.isPackaged && process.env.QG_DESKTOP_NO_WELCOME === '1', version: app.getVersion()
+    });
     const stopAppearanceBroker = startAppearanceBroker();
     const stopLogsBroker = startLogsBroker();
     // QGD-ENG-0003: started in the background and waited on by nothing. The

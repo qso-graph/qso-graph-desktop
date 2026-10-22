@@ -19,6 +19,7 @@
   import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
   import HelpPanel from './pages/HelpPanel.svelte';
+  import WelcomeWindow from './pages/WelcomeWindow.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { HomeModel, HomeStore } from './home-store.js';
@@ -43,6 +44,7 @@
     onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
     onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
+    onCloseWelcome: (hideForThisRelease: boolean) => void;
     onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
     onExport: () => Promise<string>;
@@ -61,7 +63,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome,
     onCreatePersona, onSaveCredential, onFinishSetup,
     onExportPersonas, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -191,6 +193,9 @@
   <TroubleshootingPanel storage={shell.storage}
                         logs={shell.logs} {onSetLevel} {onExport}
                         onClose={() => store.set({ troubleshooting: false })} />
+{/if}
+{#if shell.welcome}
+  <WelcomeWindow {version} onClose={onCloseWelcome} />
 {/if}
 {#if shell.help}
   <HelpPanel topic={shell.help} {version} onClose={() => store.set({ help: null })} />

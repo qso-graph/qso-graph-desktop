@@ -50,7 +50,7 @@ const settingsFile = join(userData, 'settings.json');
 const launch = async () => {
   const application = await electron.launch({
     args: ['.'], cwd: process.cwd(), timeout: 30_000,
-    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs, QG_DESKTOP_SOURCE_FIXTURES: FIXTURES }
+    env: { ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs, QG_DESKTOP_SOURCE_FIXTURES: FIXTURES }
   });
   const page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'home-cards');

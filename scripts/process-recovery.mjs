@@ -90,7 +90,7 @@ try {
     args: ['.'], cwd: application_directory,
     // The electron package names its own binary on every platform.
     executablePath: createRequire(import.meta.url)('electron'),
-    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs },
+    env: { ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs },
     timeout: 30_000
   });
   const page = await application.firstWindow();

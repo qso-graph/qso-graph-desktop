@@ -31,6 +31,10 @@ export interface Settings {
   // or empty means every extension that loaded is on, which is how a fresh
   // install starts.
   extensionsOff: readonly string[];
+  // The release the operator ticked "Don't show this again" on the welcome
+  // for (QGD-FRM-0016), or empty. A new release does not match it, so the
+  // welcome shows once more, as WSJT-X's versioned setting does.
+  welcomeHidden: string;
 }
 
 export const MAX_PINS = 6;
@@ -41,7 +45,12 @@ export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions'];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [] };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' };
+
+// A release name, as package.json writes one, or empty.
+export function isWelcomeHidden(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 40 && /^[0-9A-Za-z.+-]*$/.test(value);
+}
 
 const CARD_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
 
@@ -127,7 +136,8 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean {
 // rather than widening a general one.
 const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Settings[K] } = {
   theme: isThemeChoice,
-  grants: isGrantMap
+  grants: isGrantMap,
+  welcomeHidden: isWelcomeHidden
 };
 
 export function validateSettingsCommand(value: unknown): value is SettingsCommand {
@@ -180,5 +190,6 @@ export function readSettings(stored: unknown): Settings {
   if (Object.hasOwn(source, 'grants')) settings.grants = readGrants(source.grants);
   read('pins', isPins);
   read('extensionsOff', isExtensionsOff);
+  read('welcomeHidden', isWelcomeHidden);
   return settings;
 }
