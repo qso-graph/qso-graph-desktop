@@ -34,7 +34,7 @@
   const room = $derived(MAX_PINS - home.pins.filter(pin => !home.available.some(card => card.key === pin)).length);
 </script>
 
-<PageLayout title="QSO Graph Desktop" eyebrow="HOME" width="full">
+<PageLayout title="Home" width="full" titleShown={false}>
   <div class="home-cards-head">
     <h2 class="visually-hidden" id="home-cards-title">Pinned cards</h2>
     <!-- At the start of the line, under the title, rather than alone at the

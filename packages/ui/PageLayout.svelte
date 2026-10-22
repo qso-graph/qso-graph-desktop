@@ -20,18 +20,25 @@
     eyebrow?: string;
     action?: Snippet;
     width?: 'reading' | 'full';
+    // Shown, or read by a screen reader only, where the rail already says
+    // which page this is (Home: KI7MT, 2026-10-22). One h1 either way.
+    titleShown?: boolean;
     children: Snippet;
   }
-  const { title, eyebrow, action, width = 'reading', children }: Props = $props();
+  const { title, eyebrow, action, width = 'reading', titleShown = true, children }: Props = $props();
 </script>
 
 <div class="page-main" class:page-full={width === 'full'}>
-  <div class="page-title">
-    <div>
-      {#if eyebrow}<p class="eyebrow">{eyebrow}</p>{/if}
-      <h1>{title}</h1>
+  {#if titleShown}
+    <div class="page-title">
+      <div>
+        {#if eyebrow}<p class="eyebrow">{eyebrow}</p>{/if}
+        <h1>{title}</h1>
+      </div>
+      {#if action}{@render action()}{/if}
     </div>
-    {#if action}{@render action()}{/if}
-  </div>
+  {:else}
+    <h1 class="visually-hidden">{title}</h1>
+  {/if}
   {@render children()}
 </div>
