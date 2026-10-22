@@ -287,10 +287,11 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 /* A step done shows its tick, and nothing more (KI7MT, 2026-10-22: no
    strike-through). */
 .welcome-box { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border: 1px solid var(--border-strong); border-radius: 3px; font-size: 11px; line-height: 13px; text-align: center; vertical-align: -2px; }
-/* Waiting: a plain box and muted words. Done: the tick and the words in the
-   success colour. Only done is coloured: a waiting step in its place's hue
-   read as done where that hue is green, as Locations' is (KI7MT, 2026-10-22). */
-.welcome-steps li .link-button { color: var(--ink-muted); }
+/* Waiting: amber, the colour that asks for attention. Done: green, with the
+   tick (KI7MT, 2026-10-22). Not the places' hues: a waiting Locations step in
+   its green read as done. */
+.welcome-steps li .link-button { color: var(--warn); }
+.welcome-steps li .welcome-box { border-color: var(--warn-border); background: var(--warn-surface); }
 .welcome-steps li.done .link-button { color: var(--ok); }
 .welcome-steps li.done .welcome-box { border-color: var(--ok); color: var(--ok); background: var(--ok-surface); }
 /* The selling points: a heading, then its message (KI7MT, 2026-10-22), two
