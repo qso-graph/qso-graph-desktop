@@ -101,6 +101,8 @@
     }
     home.openPage(key);
   });
+  // Home drawn afresh each time it comes on screen (home-store.ts refresh).
+  $effect(() => { if (shell.page === 'home') untrack(() => home.refresh()); });
 
   // A rail item is a core page's id, or "ext:" and an extension page's key.
   function navigate(id: string): void {

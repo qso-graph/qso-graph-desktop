@@ -140,6 +140,16 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       const askedNotice = noticePushes;
       void api.request({ type: 'open', key }).then(reply => take(reply, 'The page could not be opened.', asked, askedNotice), () => undefined);
     },
+    // Read the state again: what extensions offer changes when one is turned
+    // on or off in Settings, and Home is drawn from it, so Home asks each time
+    // it comes on screen (it used to, as a side effect of saying it was
+    // showing, until Home stopped fetching; home-cards caught the stale tile).
+    refresh(): void {
+      if (!api) return;
+      const asked = pushes;
+      const askedNotice = noticePushes;
+      void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));
+    },
     // Hide the extension host's notice for the stop it is about.
     dismissNotice(id: number): void {
       if (!api) return;

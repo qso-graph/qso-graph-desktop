@@ -91,6 +91,20 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
 
+  it('reads the state again when asked, so a tile whose extension was turned off goes', async () => {
+    let state: unknown = STATE;
+    const sent: unknown[] = [];
+    const store = createHomeStore({ request: async command => { sent.push(command); return { ok: true, state }; }, onCard: () => () => {} });
+    store.start();
+    await flush();
+    expect(store.get().tiles).toHaveLength(1);
+    state = { ...STATE, available: [] };
+    store.refresh();
+    await flush();
+    expect(store.get().tiles).toEqual([]);
+    expect(sent).toEqual([{ type: 'read' }, { type: 'read' }]);
+  });
+
   it('puts the date in front of a time that is not today, in UTC', async () => {
     const { utc } = await import('../packages/ui/home-card.js');
     const now = Date.parse('2026-10-11T20:00:00Z');
