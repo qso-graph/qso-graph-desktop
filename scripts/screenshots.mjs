@@ -463,16 +463,21 @@ try {
   // every capture above, so those show a profile with none. Saved through
   // storage directly, as the stations suite proves the page saves them.
   const save = station => page.evaluate(draft => window.storage.request({ type: 'save-station', station: draft }), station);
-  const home = await save({ name: 'Home', kind: 'Home', place: {
-    MY_GRIDSQUARE: 'DN13sm', MY_DXCC: '291', MY_STATE: 'ID', MY_CNTY: 'ID,Ada', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6' } });
-  expect(home, 'the Home station must save').toMatchObject({ ok: true });
+  // The fixture's callsign is W1AW, so its default is W1AW's own station:
+  // the Hiram Percy Maxim Memorial Station at ARRL headquarters in Newington,
+  // Connecticut (KI7MT, 2026-10-22). No street address: the screens need none.
+  const HQ = 'Hiram Percy Maxim Memorial Station';
+  const home = await save({ name: HQ, kind: 'Home', place: {
+    MY_GRIDSQUARE: 'FN31pr', MY_LAT: 'N041 42.882', MY_LON: 'W072 43.632', MY_DXCC: '291', MY_STATE: 'CT',
+    MY_CNTY: 'CT,Hartford', MY_CQ_ZONE: '5', MY_ITU_ZONE: '8', MY_ARRL_SECT: 'CT' } });
+  expect(home, 'W1AW\'s station must save').toMatchObject({ ok: true });
   expect(await save({ name: 'US-0001 Example Park', kind: 'Portable', place: {
     MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sp', MY_DXCC: '291', MY_STATE: 'ID' } }), 'the park station must save').toMatchObject({ ok: true });
   expect(await save({ name: 'Car', kind: 'Mobile', place: { MY_GRIDSQUARE: 'DN14' } }), 'the Car station must save').toMatchObject({ ok: true });
   expect(await page.evaluate(([persona, id]) => window.storage.request({ type: 'set-default-station', persona, id }), [PERSONA.name, home.saved]))
     .toMatchObject({ ok: true });
   expect(await page.evaluate(id => window.storage.request({ type: 'set-active-station', id }), home.saved)).toMatchObject({ ok: true });
-  await expect(page.locator('#active-station')).toHaveText('Location: Home', { timeout: 30_000 });
+  await expect(page.locator('#active-station')).toHaveText(`Location: ${HQ}`, { timeout: 30_000 });
   const blur = () => page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
 
   for (const theme of THEMES) {
@@ -485,8 +490,8 @@ try {
     await blur();
     await record(page, `stations-list-${theme}.png`, theme);
 
-    await page.getByRole('button', { name: 'Edit Home', exact: true }).click();
-    await expect(page.locator('#station-name')).toHaveValue('Home');
+    await page.getByRole('button', { name: `Edit ${HQ}`, exact: true }).click();
+    await expect(page.locator('#station-name')).toHaveValue(HQ);
     await blur();
     await record(page, `station-editor-${theme}.png`, theme);
     await recordScreens(page, 'station-editor', theme, record);
@@ -501,7 +506,7 @@ try {
     // Your station with a station active: its name and grid, and sunrise and
     // sunset there, whose times are masked like the clock's.
     await rail('Home').click();
-    await expect(page.locator('section.home-card[aria-label="Your station"]')).toContainText('Home · DN13sm', { timeout: 60_000 });
+    await expect(page.locator('section.home-card[aria-label="Your station"]')).toContainText(`${HQ} · FN31pr`, { timeout: 60_000 });
     for (const card of ['Conditions', 'Your station']) {
       await expect(page.locator(`section.home-card[aria-label="${card}"]`)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     }
