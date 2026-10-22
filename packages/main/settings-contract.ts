@@ -42,7 +42,9 @@ export const MAX_PINS = 8;
 // The day-one pages (QGD-HOM-0004): what a new install starts with. Your
 // station was the second until it was retired (KI7MT, 2026-10-22); a pin for
 // it in an older settings.json names no page, and Home skips it.
-export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions'];
+// Astro joins it (KI7MT, 2026-10-22: the launch row is Conditions, Astro,
+// Parks and Summits On the Air, and ADIF Lookup).
+export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions', 'astro/astro'];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).

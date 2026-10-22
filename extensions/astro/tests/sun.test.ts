@@ -9,7 +9,7 @@
 // where PyEphem and sun.ts agree to the minute. Within a minute is the
 // requirement.
 import { describe, expect, it } from 'vitest';
-import { sunDay } from '../packages/ui/sun.js';
+import { sunDay } from '../src/sun.js';
 
 const CASES: [string, number, number, string, string, string][] = [
   ['Boise DN13sm, June solstice', 43.625, -116.2083, '2026-06-21T19:44Z', '2026-06-21T12:03:31Z', '2026-06-22T03:29:54Z'],

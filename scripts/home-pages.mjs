@@ -91,13 +91,14 @@ try {
   application = undefined;
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
-  // P8-built-in, first half: a new profile has On the Air on and Conditions
-  // pinned (QGD-HOM-0004), drawn as a tile from the manifest alone. Home asks
-  // no extension for anything, so no host starts until the page is opened.
+  // P8-built-in, first half: a new profile has On the Air and Astro on, and
+  // Conditions and Astro pinned (QGD-HOM-0004), drawn as tiles from the
+  // manifests alone. Home asks no extension for anything, so no host starts
+  // until a page is opened.
   await rm(settingsFile, { force: true });
   ({ application, page } = await launch());
   await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
-  await expect(tiles(page)).toHaveCount(1);
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro']);
   // The welcome above the pins (QGD-FRM-0011): what this is, and on a new
   // profile the three steps to start, each a way to where it is done.
   await expect(page.locator('#welcome-headline')).toHaveText('QSO Graph Desktop');
@@ -128,6 +129,21 @@ try {
   expect(sockets.ok, 'the host\'s sockets must be readable').toBe(true);
   expect(sockets.sockets, 'the extension host must open no connection of its own').toEqual([]);
   console.log(`P8-host: the page was answered by QG Extensions (pid ${hosts[0]}), not main (${mainPid}) or the window (${windowPid}), with no socket of its own: PASS`);
+
+  // Astro (QGD-AST-*): a rail item as well as a pin, and with no Location
+  // active it says what it needs rather than guessing (QGD-AST-0008).
+  await expect(rail(page, 'Astro')).toBeVisible();
+  await rail(page, 'Home').click();
+  await openPin(page, 'Astro');
+  await expect(body(page)).toContainText('Astro needs a Location', { timeout: 30_000 });
+  await expect(page.locator('#page-input-dx')).toBeVisible();
+  // A grid its kind refuses is said so as it is typed, and not asked with.
+  await page.locator('#page-input-dx').fill('ZZ99');
+  await expect(page.locator('#page-ask')).toBeDisabled();
+  await page.locator('#page-input-dx').fill('FN31');
+  await expect(page.locator('#page-ask')).toBeEnabled();
+  await rail(page, 'Home').click();
+  console.log('Astro: in the rail and on Home; with no Location it says what it needs; its DX field refuses a grid that is not one: PASS');
 
   // P8-supervision, on screen (QGD-APP-0022): the host is killed from
   // outside, as a crash would end it. Home names what it affected, the host is
@@ -168,14 +184,15 @@ try {
   await expect(onTheAir).not.toBeChecked({ timeout: 30_000 });
   expect((await settings()).extensionsOff).toEqual(['on-the-air']);
   await rail(page, 'Home').click();
-  await expect(tiles(page)).toHaveCount(0, { timeout: 30_000 });
+  await expect(tile(page, 'Conditions')).toHaveCount(0, { timeout: 30_000 });
+  await expect(tiles(page)).toHaveCount(1);
   await page.locator('#customize-pins').click();
   const dialog = page.getByRole('dialog', { name: 'Customize your pins' });
   await expect(dialog).toBeVisible();
   await expect(dialog).not.toContainText('Conditions');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   // The pins are kept, so they come back where they were.
-  expect((await settings()).pins).toEqual(['on-the-air/conditions']);
+  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'astro/astro']);
 
   // On again in the same run: its page shows at once what it last said, not
   // "Getting the latest…" until Conditions' fifteen minutes run out.
@@ -205,16 +222,16 @@ try {
   ({ application, page } = await launch());
   await expect(page.locator('#customize-pins')).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(3_000);
-  await expect(tiles(page)).toHaveCount(0);
-  expect(await extensionHost(application), 'an extension that is off is not started').toEqual([]);
+  await expect(tile(page, 'Conditions')).toHaveCount(0);
+  expect(await extensionHost(application), 'an extension that is off is not started, and Home starts none').toEqual([]);
 
   // Turned on again: the tile back, in its place, and its page answering.
   await rail(page, 'Settings').click();
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
-  await expect(tiles(page)).toHaveCount(1, { timeout: 30_000 });
-  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions']);
+  await expect(tiles(page)).toHaveCount(2, { timeout: 30_000 });
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro']);
   await openPin(page, 'Conditions');
   await expect(body(page)).toContainText(String(expected.sfi), { timeout: 30_000 });
   // A change that cannot be saved leaves the switch showing what was
