@@ -22,7 +22,7 @@ radio extensions build on.** One app for your station, with the tools you choose
 Your callsigns, logins and logs stay on your computer. There's no account to make and no server of
 ours to talk to.
 
-**Not locked in.** Everything past the core, Conditions included, is an extension built on the same
+**No vendor or developer lock-in.** Everything past the core, Conditions included, is an extension built on the same
 extension API anyone can build on, and you choose which ones run. Today the application loads its
 own official extensions; extensions by other authors arrive once the sandbox they run in is
 finished. Want to write one? See [CONTRIBUTING.md](CONTRIBUTING.md#writing-an-extension).

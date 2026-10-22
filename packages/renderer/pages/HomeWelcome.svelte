@@ -64,7 +64,7 @@
        provide). Said as it is: this release runs only official extensions,
        and other authors' arrive with the sandbox they need (QGD-APP-0004). -->
   <p class="welcome-runs" id="welcome-extensions">
-    <strong>Not locked in.</strong> Everything past the core, Conditions included, is an extension, built
+    <strong>No vendor or developer lock-in.</strong> Everything past the core, Conditions included, is an extension, built
     on the same extension API other hams will build on, and you choose which ones run. Extensions by other
     authors arrive once the sandbox they run in is finished.
     <button type="button" class="link-button" id="welcome-contributing" onclick={onContributing}>Write one</button>
