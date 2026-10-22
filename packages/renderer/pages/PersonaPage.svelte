@@ -51,7 +51,7 @@
     <form id="persona-form">
       <div class="fields"><label>Description<input id="persona-name" name="name" required maxlength="128" placeholder="Personal" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off"></label></div>
       <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label><span>End date <span class="optional">optional</span></span><input id="end-date" type="date" name="end"></label></div>
-      <p class="hint">The dates identify when this callsign belongs to this persona.</p>
+      <p class="hint">The dates say when this callsign is in use.</p>
       <div class="form-footer"><button id="remove-persona" class="danger" type="button" hidden>Remove callsign</button><button id="save-persona" type="submit">Add callsign</button></div>
     </form>
   </section>
