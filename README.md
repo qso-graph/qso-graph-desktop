@@ -7,6 +7,30 @@
 **QSO Graph Desktop is an extensible desktop platform for amateur radio: a secure core that ham
 radio extensions build on.** One app for your station, with the tools you choose.
 
+## Get it
+
+**One app, every desk, nothing to wrestle with.**
+
+- **Linux: a single AppImage.** Download it, mark it executable, run it. No installer, no root,
+  nothing scattered across your system. It runs from your shack PC or off a USB stick in the field,
+  on x64 and on arm64, down to a Raspberry Pi 5. Rather install it? There's a `.deb` and an `.rpm`
+  as well. (A few newer distributions leave out the FUSE 2 library AppImages use: install `libfuse2`,
+  or use the `.deb` or `.rpm`.)
+- **Windows:** a standard installer.
+- **macOS:** a disk image. Drag it to Applications. Apple silicon.
+
+Your callsigns, logins and logs stay on your computer. There's no account to make and no server of
+ours to talk to.
+
+**Not locked in.** Everything past the core, Conditions included, is an extension built on the same
+extension API anyone can build on, and you choose which ones run. Today the application loads its
+own official extensions; extensions by other authors arrive once the sandbox they run in is
+finished. Want to write one? See [CONTRIBUTING.md](CONTRIBUTING.md#writing-an-extension).
+
+> **Preview:** until Release 1, the downloads are the unsigned installers each CI run produces. Open
+> the latest run of the `ci` workflow on the Actions tab and download the one for your system.
+> Signed releases will appear on the Releases page.
+
 The core gives every extension, for free:
 
 - **your identities and credentials**, kept safely, with no extension ever seeing a password

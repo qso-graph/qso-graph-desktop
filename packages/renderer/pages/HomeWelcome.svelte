@@ -20,8 +20,12 @@
     onGo: (place: 'callsigns' | 'stations' | 'settings') => void;
     onCustomize: () => void;
     onWhatsNew: () => void;
+    // Where to get it for another computer, in the browser.
+    onDownloads: () => void;
+    // How to write an extension, in the browser.
+    onContributing: () => void;
   }
-  const { platform, steps, onGo, onCustomize, onWhatsNew }: Props = $props();
+  const { platform, steps, onGo, onCustomize, onWhatsNew, onDownloads, onContributing }: Props = $props();
 
   const POINTS = $derived([
     { id: 'welcome-logins', icon: 'callsigns', text: forStore('Logins in your Keychain', platform), go: () => onGo('callsigns') },
@@ -47,6 +51,24 @@
       </li>
     {/each}
   </ul>
+  <!-- Where it runs (KI7MT, 2026-10-22: brag about the AppImage), with a way
+       to get it for the next computer, which is what makes the line useful
+       inside an application that is already installed. -->
+  <p class="welcome-runs" id="welcome-runs">
+    <strong>Runs where you do.</strong> macOS, Windows and Linux, down to a Raspberry Pi 5. On Linux it's
+    a single AppImage: no installer, no root, nothing to set up. Download it and run it, at home or off
+    a USB stick in the field. Rather install it? There's a .deb and an .rpm too.
+    <button type="button" class="link-button" id="welcome-downloads" onclick={onDownloads}>Get it for another computer</button>
+  </p>
+  <!-- Extensibility (KI7MT, 2026-10-22: hams are not locked in to what we
+       provide). Said as it is: this release runs only official extensions,
+       and other authors' arrive with the sandbox they need (QGD-APP-0004). -->
+  <p class="welcome-runs" id="welcome-extensions">
+    <strong>Not locked in.</strong> Everything past the core, Conditions included, is an extension, built
+    on the same extension API other hams will build on, and you choose which ones run. Extensions by other
+    authors arrive once the sandbox they run in is finished.
+    <button type="button" class="link-button" id="welcome-contributing" onclick={onContributing}>Write one</button>
+  </p>
   {#if steps && steps.length > 0}
     <div class="welcome-steps" id="welcome-steps">
       <h3>Get started</h3>

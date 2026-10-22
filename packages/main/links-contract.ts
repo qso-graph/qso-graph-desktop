@@ -7,7 +7,9 @@ import { isPotaReference, isSummitReference } from '../storage/station-contract.
 
 export const LINKS_CHANNEL = 'links:open';
 
-export const DOCUMENTS = ['privacy', 'security', 'attributions', 'contributors', 'contributing', 'license'] as const;
+// `downloads` is where to get the application (KI7MT, 2026-10-22): the
+// README's first section until releases are published.
+export const DOCUMENTS = ['privacy', 'security', 'attributions', 'contributors', 'contributing', 'license', 'downloads'] as const;
 export type DocumentName = typeof DOCUMENTS[number];
 export const REFERENCE_KINDS = ['pota', 'sota'] as const;
 export type ReferenceKind = typeof REFERENCE_KINDS[number];

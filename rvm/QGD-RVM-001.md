@@ -1,8 +1,8 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `64991e61d49af84b81b29110384fc04497ae2056` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `db2f4bb30742a0fca2ca038a89acc98dba6ead8a` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `64991e61d49af84b81b29110384fc04497ae2056` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `db2f4bb30742a0fca2ca038a89acc98dba6ead8a` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
 > 226 requirements · 13 Parts · 9 Demo · 45 Inspection · 39 Static · 173 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 

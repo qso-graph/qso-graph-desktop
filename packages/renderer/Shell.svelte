@@ -160,6 +160,8 @@
         steps={welcomeSteps(!shell.firstRun, shell.storage)}
         onGo={place => store.set({ page: place, extensionPage: null })}
         onWhatsNew={() => store.set({ welcome: true })}
+        onDownloads={() => onOpenPage({ type: 'document', name: 'downloads' })}
+        onContributing={() => onOpenPage({ type: 'document', name: 'contributing' })}
       />
     </div>
     <div class="page" hidden={shell.page !== 'extension'}>

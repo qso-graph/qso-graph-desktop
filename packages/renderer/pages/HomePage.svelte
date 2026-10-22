@@ -39,10 +39,12 @@
     steps?: readonly WelcomeStep[];
     onGo?: (place: 'callsigns' | 'stations' | 'settings') => void;
     onWhatsNew?: () => void;
+    onDownloads?: () => void;
+    onContributing?: () => void;
   }
   const {
     home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {},
-    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}
+    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, onDownloads = () => {}, onContributing = () => {}
   }: Props = $props();
 
   let picking = $state(false);
@@ -70,7 +72,7 @@
 </script>
 
 <PageLayout title="Home" width="full" titleShown={false}>
-  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => { picking = true; }} {onWhatsNew} />
+  <HomeWelcome {platform} {steps} {onGo} onCustomize={() => { picking = true; }} {onWhatsNew} {onDownloads} {onContributing} />
 
   <div class="home-pinned-head">
     <h2 id="home-pinned-title">Pinned</h2>
