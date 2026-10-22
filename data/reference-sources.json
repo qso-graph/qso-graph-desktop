@@ -16,6 +16,13 @@
       "what": "Every Parks on the Air park, program and location, for park references and lookups",
       "owner": "Parks on the Air",
       "size": "about 10 MB"
+    },
+    {
+      "id": "sota",
+      "name": "SOTA summits",
+      "what": "Every Summits on the Air summit, for summit references and a location's position and height",
+      "owner": "Summits on the Air",
+      "size": "about 25 MB"
     }
   ],
   "resourcesNote": "What the operator loads and updates, one control each (KI7MT, 2026-10-11): nothing is fetched at start, and someone who never uses a resource never downloads it. A resource names the data a person cares about, not a URL; ADIF's archive is one resource, and POTA's three lists are one. Adding one (EME, meteor scatter) is a row here and its loader, not a new screen.",
@@ -157,6 +164,16 @@
       "supplied": true,
       "derived": false,
       "holds": "locations"
+    },
+    {
+      "id": "sota-summits",
+      "what": "SOTA's summits: each summit's code, association, region, name, height, position and the dates it is valid between",
+      "authority": "Summits on the Air (SOTA)",
+      "copy": "Summits on the Air's own list, fetched at run time",
+      "source": "sota",
+      "supplied": true,
+      "derived": false,
+      "holds": "summits"
     }
   ],
   "pota": {
@@ -209,6 +226,37 @@
           "iso"
         ],
         "conditional": "neither etag nor last-modified is offered"
+      }
+    }
+  },
+  "sota": {
+    "what": "Summits on the Air's summits list, fetched at run time and never redistributed (QGD-REF-0018). Updated by SOTA daily; volunteer-run, so asked at most once a day and only when the operator asks, and conditionally.",
+    "refreshAfterHours": 24,
+    "sources": {
+      "summits": {
+        "url": "https://storage.sota.org.uk/summitslist.csv",
+        "what": "Every SOTA summit, retired ones included, one CSV after a title line",
+        "format": "csv",
+        "columns": [
+          "SummitCode",
+          "AssociationName",
+          "RegionName",
+          "SummitName",
+          "AltM",
+          "AltFt",
+          "GridRef1",
+          "GridRef2",
+          "Longitude",
+          "Latitude",
+          "Points",
+          "BonusPoints",
+          "ValidFrom",
+          "ValidTo",
+          "ActivationCount",
+          "ActivationDate",
+          "ActivationCall"
+        ],
+        "conditional": "etag offered"
       }
     }
   }

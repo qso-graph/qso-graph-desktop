@@ -18,6 +18,8 @@ export const CREDITS: readonly Credit[] = [
     from: 'ADIF Development Group', terms: 'Published for use by logging programs.' },
   { key: 'reference/pota', what: 'POTA parks, programs and locations. Downloaded when you ask.',
     from: 'Parks on the Air', terms: 'Public data, fetched from POTA and never redistributed.' },
+  { key: 'reference/sota', what: 'SOTA summits: each summit\'s reference, name, height and position. Downloaded when you ask.',
+    from: 'Summits on the Air', terms: 'Public data, fetched from SOTA and never redistributed.' },
   { key: 'noaa', what: 'Solar flux, the K and A indices and the space weather scales, for Conditions.',
     from: 'NOAA Space Weather Prediction Center', terms: 'A work of the US Government, public domain.' },
   { key: 'county/boundaries', what: 'US county boundaries, to find the county a location is in. Ships with the application.',

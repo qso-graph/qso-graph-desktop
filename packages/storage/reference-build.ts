@@ -19,13 +19,14 @@ import {
   type Definitions, dataTypes, derive, enumerations, fields, values
 } from '../reference/adif.js';
 import { type Location, type Park, type Program, ShapeError, readLocations, readParks, readPrograms } from '../reference/pota.js';
+import { type Summit, readSummits } from '../reference/sota.js';
 import type { Register } from '../reference/register.js';
 import type { PotaRegister } from '../reference/register.js';
 import { StorageFailure, failure } from './errors.js';
-import { type PotaList, type PotaRecord, POTA_LISTS } from './reference-cache.js';
+import { type PotaList, type PotaRecord, type SotaList, POTA_LISTS } from './reference-cache.js';
 import {
   REFERENCE_SCHEMA_VERSION, dataType, enumeration, enumerationValue, field, list, potaLocation,
-  potaPark, potaParkLocation, potaProgram, referenceSchema, source, uninterpreted, zone
+  potaPark, potaParkLocation, potaProgram, referenceSchema, sotaSummit, source, uninterpreted, zone
 } from './reference-schema.js';
 import { applyDdl, stampVersion } from './migrate.js';
 import { openStore, type Store } from './sqlite.js';
@@ -35,6 +36,7 @@ export const ADIF_SOURCE = 'adif';
 export const POTA_SOURCE_IDS: Readonly<Record<PotaList, string>> = {
   parks: 'pota-parks', programs: 'pota-programs', locations: 'pota-locations'
 };
+export const SOTA_SOURCE_IDS: Readonly<Record<SotaList, string>> = { summits: 'sota-summits' };
 
 export interface AdifInput {
   definitions: Definitions;
@@ -52,11 +54,14 @@ export interface BuildInputs {
   register: Register;
   adif?: AdifInput;
   pota: Partial<Record<PotaList, PotaInput>>;
+  // SOTA's summits (QGD-REF-0018), when they are downloaded.
+  sota?: Partial<Record<SotaList, PotaInput>>;
 }
 
 export interface BuildSummary {
   adif: { version: string; values: number; fields: number; zones: number } | undefined;
   pota: Partial<Record<PotaList, number>>;
+  sota?: Partial<Record<SotaList, number>>;
   adifLinked: number;
   adifUnlinked: number;
 }
@@ -129,6 +134,8 @@ export async function buildReference(
       throw new StorageFailure({ kind: 'shape' });
     }
     const pota = parsePota(register.pota, inputs.pota);
+    const summits: Summit[] | undefined = inputs.sota?.summits
+      ? readSummits(inputs.sota.summits.body, register.sota.sources.summits.columns).summits : undefined;
 
     store = openStore(target, { schema: referenceSchema, journal: 'delete' });
     const ddl = referenceDdl(ddlFolder);
@@ -192,6 +199,15 @@ export async function buildReference(
           await insertAll([...pairs.values()], (batch) => db.insert(potaParkLocation).values(batch));
         }
         if (pota.programs) await insertAll(pota.programs, (batch) => db.insert(potaProgram).values(batch));
+        const summitInput = inputs.sota?.summits;
+        if (summitInput && summits) {
+          await db.insert(source).values({
+            id: SOTA_SOURCE_IDS.summits, what: summitInput.record.what, url: summitInput.record.url,
+            etag: summitInput.record.etag, lastModified: summitInput.record.lastModified,
+            fetchedAt: summitInput.record.fetchedAt, rowCount: summits.length, contentSha256: summitInput.record.sha256
+          });
+          await insertAll(summits, (batch) => db.insert(sotaSummit).values(batch));
+        }
         if (pota.locations) await insertAll(pota.locations, (batch) => db.insert(potaLocation).values(batch));
 
         // QGD-REF-0012: the ADIF entity is set only where POTA's number is also
@@ -211,7 +227,7 @@ export async function buildReference(
 
     hooks.beforeChecks?.(store);
     await check(store, inputs, adif && { values: adif.values.length, fields: adif.fields.length,
-      types: adif.types.length, enumerations: adif.enumerations.length, zones: adif.derived.zones.length }, pota);
+      types: adif.types.length, enumerations: adif.enumerations.length, zones: adif.derived.zones.length }, pota, summits);
 
     stampVersion(store, REFERENCE_SCHEMA_VERSION);
     const linked = await store.unit((db) => db.values<[number, number]>(sql`
@@ -224,6 +240,7 @@ export async function buildReference(
         fields: adif.fields.length, zones: adif.derived.zones.length
       } : undefined,
       pota: Object.fromEntries(POTA_LISTS.filter((name) => pota[name]).map((name) => [name, pota[name]!.length])),
+      ...(summits ? { sota: { summits: summits.length } } : {}),
       adifLinked: linked[0][0],
       adifUnlinked: linked[0][1]
     };
@@ -269,7 +286,8 @@ async function check(
   store: Store<typeof referenceSchema>,
   inputs: BuildInputs,
   adif: { values: number; fields: number; types: number; enumerations: number; zones: number } | undefined,
-  pota: Parsed
+  pota: Parsed,
+  summits: Summit[] | undefined
 ): Promise<void> {
   const refuse = (): never => { throw new StorageFailure({ kind: 'build' }); };
   await store.unit(async (db) => {
@@ -311,6 +329,19 @@ async function check(
         if (row) refuse();
         if (await total(tables[name]) !== 0) refuse();
       }
+    }
+
+    // SOTA's summits, held to their input as POTA's lists are.
+    const summitInput = inputs.sota?.summits;
+    const summitRow = sourceOf(SOTA_SOURCE_IDS.summits);
+    if (summitInput && summits) {
+      if (!summitRow || summitRow.fetchedAt !== summitInput.record.fetchedAt || summitRow.etag !== summitInput.record.etag
+          || summitRow.lastModified !== summitInput.record.lastModified || summitRow.rowCount !== summits.length
+          || summitRow.contentSha256 !== summitInput.record.sha256) refuse();
+      if (await total(sotaSummit) !== summits.length) refuse();
+    } else {
+      if (summitRow) refuse();
+      if (await total(sotaSummit) !== 0) refuse();
     }
   });
 }

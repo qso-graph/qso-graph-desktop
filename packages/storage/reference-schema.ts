@@ -12,7 +12,7 @@
 // than read.
 import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-export const REFERENCE_SCHEMA_VERSION = 2;
+export const REFERENCE_SCHEMA_VERSION = 3;
 
 export const source = sqliteTable('source', {
   id: text('id').primaryKey(),
@@ -141,7 +141,21 @@ export const potaParkLocation = sqliteTable('pota_park_location', {
   locationDesc: text('location_desc').notNull()
 }, (table) => [primaryKey({ columns: [table.reference, table.locationDesc] })]);
 
+// SOTA's summits (QGD-REF-0018): what a location needs, as SOTA publishes
+// it. A retired summit is kept with its dates (QGD-REF-0011).
+export const sotaSummit = sqliteTable('sota_summit', {
+  code: text('code').primaryKey(),
+  association: text('association').notNull(),
+  region: text('region').notNull(),
+  name: text('name').notNull(),
+  altitudeM: integer('altitude_m'),
+  latitude: real('latitude').notNull(),
+  longitude: real('longitude').notNull(),
+  validFrom: text('valid_from').notNull(),
+  validTo: text('valid_to').notNull()
+});
+
 export const referenceSchema = {
   source, list, dataType, field, enumeration, enumerationValue, zone, uninterpreted,
-  potaProgram, potaLocation, potaPark, potaParkLocation
+  potaProgram, potaLocation, potaPark, potaParkLocation, sotaSummit
 };

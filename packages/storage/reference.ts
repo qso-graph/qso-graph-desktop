@@ -30,12 +30,15 @@ import { openArchive, type FetchArchive, type FetchText } from '../reference/fet
 import type { Definitions } from '../reference/adif.js';
 import type { Register } from '../reference/register.js';
 import { ShapeError, readLocations, readParks, readPrograms, refuseIfShrunk } from '../reference/pota.js';
+import { readSummits } from '../reference/sota.js';
 import { type StorageError, StorageFailure, failure, reduce } from './errors.js';
 import type { Layout } from './layout.js';
 import {
-  type BuildInputs, type BuildSummary, ADIF_SOURCE, POTA_SOURCE_IDS
+  type BuildInputs, type BuildSummary, ADIF_SOURCE, POTA_SOURCE_IDS, SOTA_SOURCE_IDS
 } from './reference-build.js';
-import { POTA_LISTS, type PotaList, commit, prune, readBody, readRecord } from './reference-cache.js';
+import {
+  POTA_LISTS, SOTA_LISTS, type AnyList, type ListedResource, type PotaList, type SotaList, commit, prune, readBody, readRecord
+} from './reference-cache.js';
 import { REFERENCE_SCHEMA_VERSION, referenceSchema, source } from './reference-schema.js';
 import { referenceRefresh, type stateSchema } from './schema.js';
 import { isSqliteFile, openStore, type Store } from './sqlite.js';
@@ -48,6 +51,7 @@ export type DatasetState =
 export interface ReferenceStatus {
   adif: DatasetState;
   pota: Record<PotaList, DatasetState>;
+  sota: Record<SotaList, DatasetState>;
 }
 
 export type InputOutcome =
@@ -60,7 +64,7 @@ export type InputOutcome =
 // The resources this core knows how to load, by the register's ids
 // (data/reference-sources.json "resources"). A register row the core cannot
 // load, or an id here the register lacks, is a test failure, not a quiet gap.
-export const REFERENCE_RESOURCES = ['adif', 'pota'] as const;
+export const REFERENCE_RESOURCES = ['adif', 'pota', 'sota'] as const;
 export type ReferenceResource = (typeof REFERENCE_RESOURCES)[number];
 export function isReferenceResource(value: unknown): value is ReferenceResource {
   return typeof value === 'string' && (REFERENCE_RESOURCES as readonly string[]).includes(value);
@@ -77,6 +81,7 @@ const notFetched = async (): Promise<Buffer> => { throw new StorageFailure({ kin
 export interface RefreshOutcome {
   adif: InputOutcome;
   pota: Record<PotaList, InputOutcome>;
+  sota: Record<SotaList, InputOutcome>;
   built: boolean;
   // A build that would have dropped a dataset the live file holds, and so was
   // not run. The file stands as it was.
@@ -223,7 +228,8 @@ export class Reference {
   async status(): Promise<ReferenceStatus> {
     const empty = (): ReferenceStatus => ({
       adif: NOT_LOADED,
-      pota: { parks: NOT_LOADED, programs: NOT_LOADED, locations: NOT_LOADED }
+      pota: { parks: NOT_LOADED, programs: NOT_LOADED, locations: NOT_LOADED },
+      sota: { summits: NOT_LOADED }
     });
     const reader = this.reader();
     if (!reader) return empty();
@@ -239,7 +245,8 @@ export class Reference {
     };
     return {
       adif: of(ADIF_SOURCE),
-      pota: { parks: of(POTA_SOURCE_IDS.parks), programs: of(POTA_SOURCE_IDS.programs), locations: of(POTA_SOURCE_IDS.locations) }
+      pota: { parks: of(POTA_SOURCE_IDS.parks), programs: of(POTA_SOURCE_IDS.programs), locations: of(POTA_SOURCE_IDS.locations) },
+      sota: { summits: of(SOTA_SOURCE_IDS.summits) }
     };
   }
 
@@ -247,7 +254,7 @@ export class Reference {
   // measured from this, not from when the body was fetched, so a list that
   // has not changed is current after an Update that found it unchanged.
   async lastChecks(): Promise<Record<string, string | undefined>> {
-    const ids = [ADIF_SOURCE, ...POTA_LISTS.map((list) => POTA_SOURCE_IDS[list])];
+    const ids = [ADIF_SOURCE, ...POTA_LISTS.map((list) => POTA_SOURCE_IDS[list]), ...SOTA_LISTS.map((list) => SOTA_SOURCE_IDS[list])];
     const out: Record<string, string | undefined> = {};
     for (const id of ids) out[id] = (await this.#lastCheck(id))?.toISOString();
     return out;
@@ -291,7 +298,8 @@ export class Reference {
     // 1. ADIF.
     let definitions: Definitions | undefined;
     let adif: InputOutcome;
-    const askAdif = options.only !== 'pota';
+    // Each resource is asked when it is the one named, and when none is named.
+    const askAdif = options.only === undefined || options.only === 'adif';
     try {
       const archive = await openArchive(register.adif, paths.referenceCache, askAdif ? this.#options.fetchArchive : notFetched);
       definitions = archive.definitions;
@@ -303,8 +311,18 @@ export class Reference {
     // 2. POTA, each list on its own.
     const pota = {} as Record<PotaList, InputOutcome>;
     for (const list of POTA_LISTS) {
-      pota[list] = options.only === 'adif' ? { state: 'not asked' }
-        : await this.#refreshList(list, now, options.force === true, held.get(POTA_SOURCE_IDS[list]));
+      pota[list] = options.only !== undefined && options.only !== 'pota' ? { state: 'not asked' }
+        : await this.#refreshList('pota', list, now, options.force === true, held.get(POTA_SOURCE_IDS[list]));
+    }
+    // And SOTA's summits (QGD-REF-0018). A refresh that names no resource
+    // checks them only if they were downloaded: someone who never asked for
+    // 25 MB of summits is never sent it.
+    const sota = {} as Record<SotaList, InputOutcome>;
+    for (const list of SOTA_LISTS) {
+      const asked = options.only === 'sota' || (options.only === undefined && readRecord(paths.referenceCache, list, 'sota') !== undefined);
+      sota[list] = asked
+        ? await this.#refreshList('sota', list, now, options.force === true, held.get(SOTA_SOURCE_IDS[list]))
+        : { state: 'not asked' };
     }
 
     // 3. Build, if what the file holds is not what the inputs now are.
@@ -317,7 +335,8 @@ export class Reference {
     const inputs: BuildInputs = {
       register,
       ...(definitions && adifFetchedAt ? { adif: { definitions, fetchedAt: adifFetchedAt } } : {}),
-      pota: {}
+      pota: {},
+      sota: {}
     };
     let buildFailure: StorageError | undefined;
     try {
@@ -325,29 +344,32 @@ export class Reference {
         const record = readRecord(paths.referenceCache, list);
         if (record) inputs.pota[list] = { record, body: readBody(paths.referenceCache, record) };
       }
+      for (const list of SOTA_LISTS) {
+        const record = readRecord(paths.referenceCache, list, 'sota');
+        if (record) inputs.sota![list] = { record, body: readBody(paths.referenceCache, record, 'sota') };
+      }
     } catch (error) {
       buildFailure = reduce(error, 'build');
     }
 
     // Whether the file holds exactly this input, judged by the content's
     // SHA-256: two different bodies can arrive within the same instant.
-    const wanted = (id: string, content: string | undefined): boolean => {
-      const loaded = id === ADIF_SOURCE ? before.adif : before.pota[(Object.keys(POTA_SOURCE_IDS) as PotaList[])
-        .find((list) => POTA_SOURCE_IDS[list] === id)!];
-      return content === undefined ? loaded.state !== 'not loaded' : loaded.state !== 'loaded' || loaded.contentSha256 !== content;
-    };
+    const wanted = (loaded: DatasetState, content: string | undefined): boolean =>
+      content === undefined ? loaded.state !== 'not loaded' : loaded.state !== 'loaded' || loaded.contentSha256 !== content;
     // A build never publishes less than the live file holds: a dataset the file
     // has, but whose input cannot be had now (an archive missing from the cache
     // with no network, a cache record gone), defers the build. The file stands
     // until every dataset it holds can be built again (QGD-REF-0010: briefly
     // stale beats briefly wrong).
     const wouldLose = (held.has(ADIF_SOURCE) && !inputs.adif)
-      || POTA_LISTS.some((list) => held.has(POTA_SOURCE_IDS[list]) && !inputs.pota[list]);
+      || POTA_LISTS.some((list) => held.has(POTA_SOURCE_IDS[list]) && !inputs.pota[list])
+      || SOTA_LISTS.some((list) => held.has(SOTA_SOURCE_IDS[list]) && !inputs.sota?.[list]);
     const needed = !buildFailure && !wouldLose && (
       !this.reader()
-      || wanted(ADIF_SOURCE, inputs.adif ? register.adif.source.sha256 : undefined)
-      || POTA_LISTS.some((list) => wanted(POTA_SOURCE_IDS[list], inputs.pota[list]?.record.sha256))
-    ) && (inputs.adif !== undefined || Object.keys(inputs.pota).length > 0);
+      || wanted(before.adif, inputs.adif ? register.adif.source.sha256 : undefined)
+      || POTA_LISTS.some((list) => wanted(before.pota[list], inputs.pota[list]?.record.sha256))
+      || SOTA_LISTS.some((list) => wanted(before.sota[list], inputs.sota?.[list]?.record.sha256))
+    ) && (inputs.adif !== undefined || Object.keys(inputs.pota).length > 0 || Object.keys(inputs.sota ?? {}).length > 0);
 
     let summary: BuildSummary | undefined;
     if (needed) {
@@ -365,7 +387,8 @@ export class Reference {
         // Built means published: set only once the rename has happened.
         summary = built;
         this.#options.hooks?.afterSwap?.();
-        prune(paths.referenceCache);
+        prune(paths.referenceCache, 'pota');
+        prune(paths.referenceCache, 'sota');
       } catch (error) {
         buildFailure = reduce(error, 'build');
         for (const name of [target, `${target}-journal`]) {
@@ -382,9 +405,14 @@ export class Reference {
       if (outcome.state === 'not asked') continue;
       await this.#record(POTA_SOURCE_IDS[list], at, outcome, outcome.state !== 'fresh enough' && outcome.state !== 'kept');
     }
+    for (const list of SOTA_LISTS) {
+      const outcome = sota[list];
+      if (outcome.state === 'not asked') continue;
+      await this.#record(SOTA_SOURCE_IDS[list], at, outcome, outcome.state !== 'fresh enough' && outcome.state !== 'kept');
+    }
 
     return {
-      adif, pota, built: summary !== undefined,
+      adif, pota, sota, built: summary !== undefined,
       ...(wouldLose ? { deferred: true as const } : {}),
       ...(buildFailure ? { buildFailure } : {}),
       ...(summary ? { summary } : {}),
@@ -392,18 +420,23 @@ export class Reference {
     };
   }
 
-  async #refreshList(list: PotaList, now: Date, force: boolean, liveRows: number | undefined): Promise<InputOutcome> {
+  async #refreshList(
+    resource: ListedResource, list: AnyList, now: Date, force: boolean, liveRows: number | undefined
+  ): Promise<InputOutcome> {
     const { paths, register } = this.#options;
-    const sourceRegister = register.pota.sources[list];
+    const sources: Record<string, (typeof register.pota.sources)['parks']> = resource === 'pota' ? register.pota.sources : register.sota.sources;
+    const sourceRegister = sources[list];
+    const sourceId = resource === 'pota' ? POTA_SOURCE_IDS[list as PotaList] : SOTA_SOURCE_IDS[list as SotaList];
+    const refreshAfterHours = resource === 'pota' ? register.pota.refreshAfterHours : register.sota.refreshAfterHours;
     // A record is trusted only if the body it names is there and matches.
     // Otherwise it is as if there were none: no freshness, no validators, so
     // the fetch is unconditional and an unchanged list can repair the cache.
-    let record = readRecord(paths.referenceCache, list);
+    let record = readRecord(paths.referenceCache, list, resource);
     if (record) {
-      try { readBody(paths.referenceCache, record); } catch { record = undefined; }
+      try { readBody(paths.referenceCache, record, resource); } catch { record = undefined; }
     }
-    const lastCheck = await this.#lastCheck(POTA_SOURCE_IDS[list]) ?? (record ? new Date(record.fetchedAt) : undefined);
-    if (!force && record && lastCheck && now.getTime() - lastCheck.getTime() < register.pota.refreshAfterHours * HOUR) {
+    const lastCheck = await this.#lastCheck(sourceId) ?? (record ? new Date(record.fetchedAt) : undefined);
+    if (!force && record && lastCheck && now.getTime() - lastCheck.getTime() < refreshAfterHours * HOUR) {
       return { state: 'fresh enough' };
     }
     try {
@@ -414,14 +447,15 @@ export class Reference {
       // Checked before it can replace anything (QGD-REF-0010).
       const rows = list === 'parks' ? readParks(answer.body, sourceRegister.columns).parks.length
         : list === 'programs' ? readPrograms(answer.body).length
-          : readLocations(answer.body).length;
+          : list === 'summits' ? readSummits(answer.body, sourceRegister.columns).summits.length
+            : readLocations(answer.body).length;
       // Against the cache's count, or the live file's when the cache has
       // none, so losing a record does not switch off the truncation check.
       refuseIfShrunk(list, rows, record?.rowCount ?? liveRows);
       commit(paths.referenceCache, {
         list, url: sourceRegister.url, what: sourceRegister.what, etag: answer.etag,
         lastModified: answer.lastModified, fetchedAt: now.toISOString(), rowCount: rows
-      }, answer.body);
+      }, answer.body, {}, resource);
       return { state: 'loaded' };
     } catch (error) {
       // Kept, and reduced: a ShapeError's text can quote the data it refused.
@@ -432,7 +466,8 @@ export class Reference {
 
 // Used by status displays: whether reference data is loaded at all.
 export function anyLoaded(status: ReferenceStatus): boolean {
-  return status.adif.state === 'loaded' || POTA_LISTS.some((list) => status.pota[list].state === 'loaded');
+  return status.adif.state === 'loaded' || POTA_LISTS.some((list) => status.pota[list].state === 'loaded')
+    || SOTA_LISTS.some((list) => status.sota[list].state === 'loaded');
 }
 
 // Sanity for the suites: a count by SQL on the live file.

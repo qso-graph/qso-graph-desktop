@@ -24,6 +24,7 @@
           parks: { state: 'loaded', rows: 96532, fetchedAt: '2026-10-10T12:00:00.000Z' },
           programs: { state: 'loaded', rows: 249, fetchedAt: '2026-10-10T12:00:00.000Z' },
           locations: { state: 'loaded', rows: 4006, fetchedAt: '2026-10-10T12:00:00.000Z' },
+          summits: { state: 'loaded', rows: 182280, fetchedAt: '2026-10-10T12:00:00.000Z' },
           refreshing: false,
           resources: RESOURCES_LOADED
         }

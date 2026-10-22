@@ -93,6 +93,18 @@ CREATE TABLE `pota_program` (
 	`iso_language` text
 );
 --> statement-breakpoint
+CREATE TABLE `sota_summit` (
+	`code` text PRIMARY KEY NOT NULL,
+	`association` text NOT NULL,
+	`region` text NOT NULL,
+	`name` text NOT NULL,
+	`altitude_m` integer,
+	`latitude` real NOT NULL,
+	`longitude` real NOT NULL,
+	`valid_from` text NOT NULL,
+	`valid_to` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `source` (
 	`id` text PRIMARY KEY NOT NULL,
 	`what` text NOT NULL,

@@ -86,7 +86,9 @@ const hash = (path: string) => createHash('sha256').update(readFileSync(path)).d
 // raised and the new fingerprint recorded here. Without that, a file of the old
 // shape would pass the version check and fail on its first read.
 const DDL_BY_VERSION: Record<number, string> = {
-  2: 'a62e6f5fd8824c3583e8cf88439b98361b66bca6f4d0d4b904c095a8b94e8820'
+  2: 'a62e6f5fd8824c3583e8cf88439b98361b66bca6f4d0d4b904c095a8b94e8820',
+  // SOTA's summits added (QGD-REF-0018, 2026-10-22).
+  3: '9757de61fbe0afb387943bbca1d3ce8d621f0f27d8b803d441a8137357e4bb03'
 };
 
 describe('P5-loads: the schema rendered from its declaration (QGD-ENG-0015)', () => {
@@ -663,3 +665,55 @@ describe('each resource loaded by its own control (KI7MT, 2026-10-11)', () => {
     expect(validateStorageCommand({ type: 'status' })).toBe(true);
   });
 });
+
+describe('SOTA summits, a resource of one list (QGD-REF-0018)', () => {
+  // Made-up summits in SOTA's format: nothing of SOTA's is in this repository.
+  const columns: string[] = register.sota.sources.summits.columns;
+  const summit = (code: string) => columns.map(column => ({
+    SummitCode: code, AssociationName: 'Test', RegionName: 'Test Region', SummitName: 'Example', AltM: '2100', AltFt: '6890',
+    GridRef1: '-116.1', GridRef2: '43.7', Longitude: '-116.1', Latitude: '43.7', Points: '8', BonusPoints: '3',
+    ValidFrom: '01/07/2010', ValidTo: '31/12/2099', ActivationCount: '1', ActivationDate: '01/06/2026', ActivationCall: 'W1AW'
+  } as Record<string, string>)[column]).join(',');
+  const summits = ['SOTA Summits List (Date=22/10/2026)', columns.join(','), summit('W7I/SI-001'), summit('W7I/SI-002')].join('\n') + '\n';
+  const sotaUrl: string = register.sota.sources.summits.url;
+
+  it('is fetched only when asked for by name, and builds alone, without ADIF or POTA', async () => {
+    const calls: string[] = [];
+    const { ref, done } = await reference({ fetchText: pota({ [sotaUrl]: summits }, [], calls), fetchArchive: offline });
+    try {
+      const outcome = await ref.refresh({ only: 'sota', force: true });
+      expect(calls).toEqual([sotaUrl]);
+      expect(outcome.sota.summits).toEqual({ state: 'loaded' });
+      expect(outcome.adif).toEqual({ state: 'not asked' });
+      expect(outcome.pota.parks).toEqual({ state: 'not asked' });
+      expect(outcome.built).toBe(true);
+      expect(outcome.status.sota.summits).toMatchObject({ state: 'loaded', rows: 2 });
+      expect(outcome.status.pota.parks).toEqual({ state: 'not loaded' });
+    } finally { done(); }
+  });
+
+  it('is not fetched by a refresh that names no resource, until it has been downloaded', async () => {
+    const calls: string[] = [];
+    const { ref, done } = await reference({ fetchText: pota({ ...BODIES, [sotaUrl]: summits }, [], calls), fetchArchive: offline });
+    try {
+      await ref.refresh();
+      expect(calls).not.toContain(sotaUrl);
+      expect((await ref.status()).sota.summits).toEqual({ state: 'not loaded' });
+    } finally { done(); }
+  });
+
+  it('keeps the last good list when SOTA cannot be reached', async () => {
+    const { ref, done } = await reference({ fetchText: pota({ [sotaUrl]: summits }), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'sota', force: true });
+      clock += 2 * 86_400_000;
+      const failing = await reference({ fetchText: pota({ [sotaUrl]: summits }, [sotaUrl]), fetchArchive: offline });
+      try {
+        const outcome = await failing.ref.refresh({ only: 'sota', force: true });
+        expect(outcome.sota.summits.state).toBe('kept');
+        expect(outcome.status.sota.summits).toMatchObject({ state: 'loaded', rows: 2 });
+      } finally { failing.done(); }
+    } finally { done(); }
+  });
+});
+

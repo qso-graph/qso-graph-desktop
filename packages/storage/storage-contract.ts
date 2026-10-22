@@ -34,6 +34,7 @@ export interface ReferenceSummary {
   parks: DatasetSummary;
   programs: DatasetSummary;
   locations: DatasetSummary;
+  summits: DatasetSummary;
   // Whether a load or update is running now.
   refreshing: boolean;
   // What the operator loads and updates, one control each, in the register's
@@ -102,7 +103,7 @@ export type StorageReply =
   | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string> }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
-const DATASETS = ['adif', 'parks', 'programs', 'locations'] as const;
+const DATASETS = ['adif', 'parks', 'programs', 'locations', 'summits'] as const;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

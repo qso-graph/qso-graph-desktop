@@ -4,27 +4,39 @@
 //
 // A resource is the data a person cares about, listed in the register; it is
 // made of one or more sources. ADIF definitions are one archive; POTA parks are
-// three lists that always move together.
+// three lists that always move together; SOTA summits are one list.
 import type { Register } from '../reference/register.js';
-import { ADIF_SOURCE, POTA_SOURCE_IDS } from './reference-build.js';
-import { POTA_LISTS } from './reference-cache.js';
+import { ADIF_SOURCE, POTA_SOURCE_IDS, SOTA_SOURCE_IDS } from './reference-build.js';
+import { POTA_LISTS, SOTA_LISTS } from './reference-cache.js';
 import { isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus, type RefreshOutcome } from './reference.js';
 import type { ResourceSummary } from './storage-contract.js';
 
 export function sourcesOf(resource: ReferenceResource): string[] {
-  return resource === 'adif' ? [ADIF_SOURCE] : POTA_LISTS.map((list) => POTA_SOURCE_IDS[list]);
+  if (resource === 'adif') return [ADIF_SOURCE];
+  if (resource === 'sota') return SOTA_LISTS.map((list) => SOTA_SOURCE_IDS[list]);
+  return POTA_LISTS.map((list) => POTA_SOURCE_IDS[list]);
 }
 
 function datasetsOf(resource: ReferenceResource, held: ReferenceStatus): DatasetState[] {
-  return resource === 'adif' ? [held.adif] : POTA_LISTS.map((list) => held.pota[list]);
+  if (resource === 'adif') return [held.adif];
+  if (resource === 'sota') return SOTA_LISTS.map((list) => held.sota[list]);
+  return POTA_LISTS.map((list) => held.pota[list]);
+}
+
+// How long a resource's lists stay current: ADIF goes by release, not age.
+function refreshAfter(register: Register, resource: ReferenceResource): number {
+  return (resource === 'sota' ? register.sota.refreshAfterHours : register.pota.refreshAfterHours) * 3_600_000;
 }
 
 // In words a person can act on, or undefined when the last attempt worked.
 // Never a message, a path or a value (QGD-ENG-0016).
 export function problemOf(resource: ReferenceResource, outcome: RefreshOutcome): string | undefined {
-  const inputs = resource === 'adif' ? [outcome.adif] : POTA_LISTS.map((list) => outcome.pota[list]);
+  const inputs = resource === 'adif' ? [outcome.adif]
+    : resource === 'sota' ? SOTA_LISTS.map((list) => outcome.sota[list])
+      : POTA_LISTS.map((list) => outcome.pota[list]);
   const kept = inputs.filter((input) => input.state === 'kept');
   if (outcome.deferred) {
+    if (resource === 'sota') return 'Could not be added: other reference data it would be built with is missing. Download it again, then this.';
     return resource === 'adif'
       ? 'Could not be added: the POTA parks it would be built with are missing. Download POTA parks, then this.'
       : 'Could not be added: the ADIF definitions it would be built with are missing. Download ADIF definitions, then this.';
@@ -47,7 +59,6 @@ export interface SummaryInputs {
 
 export function summarize(inputs: SummaryInputs): ResourceSummary[] {
   const { register, held, checks, problems, updating, now } = inputs;
-  const limit = register.pota.refreshAfterHours * 3_600_000;
   return register.resources.filter((entry) => isReferenceResource(entry.id)).map((entry) => {
     const id = entry.id as ReferenceResource;
     const sets = datasetsOf(id, held);
@@ -65,12 +76,12 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
     const current = loaded && answered.every(Number.isFinite) ? Math.min(...answered) : undefined;
     const stale = id === 'adif'
       ? held.adif.state === 'loaded' && held.adif.version !== register.adif.version
-      : current === undefined || now - current >= limit;
+      : current === undefined || now - current >= refreshAfter(register, id);
     const problem = problems.get(id);
     // ADIF's definitions change only with a new ADIF release, which reaches the
     // app when a release pins it, so Update is offered only then; an Update of
     // the pinned version would fetch nothing new (KI7MT, 2026-10-12, #37).
-    // POTA's lists change daily, so they can always be updated.
+    // POTA's and SOTA's lists change daily, so they can always be updated.
     const version = id === 'adif' && held.adif.state === 'loaded' ? held.adif.version : undefined;
     return {
       id, name: entry.name, what: entry.what, owner: entry.owner, size: entry.size,

@@ -117,7 +117,7 @@ try {
   expect(tables).toEqual([
     'data_type', 'enumeration', 'enumeration_value', 'field', 'list',
     'pota_location', 'pota_park', 'pota_park_location', 'pota_program',
-    'source', 'uninterpreted', 'zone'
+    'sota_summit', 'source', 'uninterpreted', 'zone'
   ]);
   notes.push('the reference data is in reference.sqlite, built from the declared schema');
 

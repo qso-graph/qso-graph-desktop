@@ -18,6 +18,13 @@ export interface PotaRegister {
   sources: { parks: PotaSource; programs: PotaSource; locations: PotaSource };
 }
 
+// SOTA's one list, shaped as POTA's are (QGD-REF-0018).
+export interface SotaRegister {
+  what: string;
+  refreshAfterHours: number;
+  sources: { summits: PotaSource };
+}
+
 // What the operator loads and updates, one control each. `id` names the
 // resource in a command and a status; the core knows how to load each id it
 // lists in REFERENCE_RESOURCES (packages/storage/reference.ts).
@@ -38,6 +45,7 @@ export interface Register {
     source: { what: string; url: string; sha256: string; published: string; definitions: string; testQsos: string };
   };
   pota: PotaRegister;
+  sota: SotaRegister;
   lists: {
     id: string; what: string; authority: string; copy: string;
     source: string | null; supplied: boolean; derived: boolean; holds?: string;

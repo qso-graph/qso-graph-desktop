@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// POTA's last good lists, kept as files (QGD-REF-0010).
+// The last good lists of each resource that is a set of lists, POTA's and
+// SOTA's, kept as files (QGD-REF-0010, QGD-REF-0018).
 //
 // reference.sqlite is derived, so it must be rebuildable without the network,
 // and POTA's lists are not pinned by checksum. So each list's last good body is
 // kept here with a record of where it came from, and a rebuild reads these and
 // never invents a fetch time.
 //
-// The layout, under <userData>/reference/pota/:
+// The layout, under <userData>/reference/<resource>/ (pota/, sota/), one
+// folder each, so pruning one resource can never remove another's bodies:
 //   <sha256>.body  a list exactly as it arrived, named by its own SHA-256
 //   <list>.json    the record: URL, ETag, Last-Modified, fetch time, row
 //                  count, and the SHA-256 of the body it describes
@@ -24,9 +26,16 @@ import { StorageFailure, failure } from './errors.js';
 
 export const POTA_LISTS = ['parks', 'programs', 'locations'] as const;
 export type PotaList = (typeof POTA_LISTS)[number];
+export const SOTA_LISTS = ['summits'] as const;
+export type SotaList = (typeof SOTA_LISTS)[number];
+
+// Each resource that is a set of lists, and its lists.
+export const LISTED = { pota: POTA_LISTS, sota: SOTA_LISTS } as const;
+export type ListedResource = keyof typeof LISTED;
+export type AnyList = PotaList | SotaList;
 
 export interface PotaRecord {
-  list: PotaList;
+  list: AnyList;
   url: string;
   what: string;
   etag: string | null;
@@ -38,15 +47,18 @@ export interface PotaRecord {
 
 const SHA256 = /^[0-9a-f]{64}$/;
 
+export function listDirectory(referenceCache: string, resource: ListedResource): string {
+  return join(referenceCache, resource);
+}
 export function potaDirectory(referenceCache: string): string {
-  return join(referenceCache, 'pota');
+  return listDirectory(referenceCache, 'pota');
 }
 
 function digest(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-function isRecord(value: unknown, list: PotaList): value is PotaRecord {
+function isRecord(value: unknown, list: AnyList): value is PotaRecord {
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
   // Absent as well as null: a server that sends no ETag or Last-Modified
@@ -63,10 +75,10 @@ function isRecord(value: unknown, list: PotaList): value is PotaRecord {
 // The record for a list, or undefined when there is none or it cannot be
 // trusted. A record that does not parse is treated as absent: the list is then
 // fetched again rather than built from something unreadable.
-export function readRecord(referenceCache: string, list: PotaList): PotaRecord | undefined {
+export function readRecord(referenceCache: string, list: AnyList, resource: ListedResource = 'pota'): PotaRecord | undefined {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(join(potaDirectory(referenceCache), `${list}.json`), 'utf8'));
+    parsed = JSON.parse(readFileSync(join(listDirectory(referenceCache, resource), `${list}.json`), 'utf8'));
   } catch {
     return undefined;
   }
@@ -75,10 +87,10 @@ export function readRecord(referenceCache: string, list: PotaList): PotaRecord |
 
 // The body a record describes, checked against the record's SHA-256 before it
 // is used. A body that does not match is refused, not built from.
-export function readBody(referenceCache: string, record: PotaRecord): string {
+export function readBody(referenceCache: string, record: PotaRecord, resource: ListedResource = 'pota'): string {
   let body: string;
   try {
-    body = readFileSync(join(potaDirectory(referenceCache), `${record.sha256}.body`), 'utf8');
+    body = readFileSync(join(listDirectory(referenceCache, resource), `${record.sha256}.body`), 'utf8');
   } catch (error) {
     throw failure(error, 'build');
   }
@@ -96,9 +108,10 @@ export function commit(
   referenceCache: string,
   meta: Omit<PotaRecord, 'sha256'>,
   body: string,
-  hooks: CommitHooks = {}
+  hooks: CommitHooks = {},
+  resource: ListedResource = 'pota'
 ): PotaRecord {
-  const directory = potaDirectory(referenceCache);
+  const directory = listDirectory(referenceCache, resource);
   const record: PotaRecord = { ...meta, etag: meta.etag ?? null, lastModified: meta.lastModified ?? null, sha256: digest(body) };
   try {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -119,9 +132,9 @@ export function commit(
 // After a successful build: every body no record points to is removed, so a
 // list that changes daily does not keep every day it ever had (QGD-REF-0010).
 // Leftover .part files go too.
-export function prune(referenceCache: string): number {
-  const directory = potaDirectory(referenceCache);
-  const wanted = new Set(POTA_LISTS.map((list) => readRecord(referenceCache, list)?.sha256).filter(Boolean));
+export function prune(referenceCache: string, resource: ListedResource = 'pota'): number {
+  const directory = listDirectory(referenceCache, resource);
+  const wanted = new Set(LISTED[resource].map((list) => readRecord(referenceCache, list, resource)?.sha256).filter(Boolean));
   let removed = 0;
   let names: string[];
   try { names = readdirSync(directory); } catch { return 0; }

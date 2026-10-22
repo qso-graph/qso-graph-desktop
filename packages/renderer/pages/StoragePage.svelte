@@ -49,7 +49,8 @@
     describe('ADIF definitions', status.reference.adif),
     describe('POTA parks', status.reference.parks),
     describe('POTA programs', status.reference.programs),
-    describe('POTA locations', status.reference.locations)
+    describe('POTA locations', status.reference.locations),
+    describe('SOTA summits', status.reference.summits)
   ] : []);
 </script>
 

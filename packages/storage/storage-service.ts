@@ -109,6 +109,7 @@ function status(): StorageStatus {
         parks: summary(referenceStatus.pota.parks),
         programs: summary(referenceStatus.pota.programs),
         locations: summary(referenceStatus.pota.locations),
+        summits: summary(referenceStatus.sota.summits),
         refreshing,
         resources: register ? summarize({ register, held: referenceStatus, checks, problems, updating, now: Date.now() }) : []
       }

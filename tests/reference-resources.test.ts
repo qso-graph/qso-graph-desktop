@@ -15,7 +15,8 @@ const loaded = (fetched: number, version?: string) =>
   ({ state: 'loaded', fetchedAt: at(fetched), rows: 1, contentSha256: 'x'.repeat(64), ...(version ? { version } : {}) }) as const;
 const held = (potaFetched: number, adifVersion = register.adif.version): ReferenceStatus => ({
   adif: loaded(NOW - DAY, adifVersion),
-  pota: { parks: loaded(potaFetched), programs: loaded(potaFetched), locations: loaded(potaFetched) }
+  pota: { parks: loaded(potaFetched), programs: loaded(potaFetched), locations: loaded(potaFetched) },
+  sota: { summits: { state: 'not loaded' } }
 }) as unknown as ReferenceStatus;
 const pota = (status: ReferenceStatus, checks: Record<string, string | undefined> = {}, problems = new Map<string, string>()) =>
   summarize({ register, held: status, checks, problems, updating: undefined, now: NOW }).find(resource => resource.id === 'pota')!;
@@ -23,7 +24,7 @@ const pota = (status: ReferenceStatus, checks: Record<string, string | undefined
 describe('QGD-REF-0017: out of date, measured from when a source last answered', () => {
   it('lists the register\'s resources in its order', () => {
     expect(summarize({ register, held: held(NOW), checks: {}, problems: new Map(), updating: 'adif', now: NOW })
-      .map(resource => [resource.id, resource.updating])).toEqual([['adif', true], ['pota', false]]);
+      .map(resource => [resource.id, resource.updating])).toEqual([['adif', true], ['pota', false], ['sota', false]]);
   });
 
   it('is out of date once the oldest fetch passes the refresh interval', () => {
@@ -79,7 +80,7 @@ describe('#37: Update is offered only when it could bring something new', () => 
   });
 
   it('never calls a resource that was never loaded out of date', () => {
-    const none = { adif: { state: 'not loaded' }, pota: { parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' } } } as unknown as ReferenceStatus;
+    const none = { adif: { state: 'not loaded' }, pota: { parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' } }, sota: { summits: { state: 'not loaded' } } } as unknown as ReferenceStatus;
     for (const resource of summarize({ register, held: none, checks: {}, problems: new Map(), updating: undefined, now: NOW })) {
       expect(resource.state).toBe('not loaded');
       expect(resource.due).toBe(false);
@@ -89,7 +90,7 @@ describe('#37: Update is offered only when it could bring something new', () => 
 });
 
 describe('the last attempt\'s problem, in words a person can act on', () => {
-  const base = { adif: { state: 'current' }, pota: { parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' } }, built: true, status: {} } as unknown as RefreshOutcome;
+  const base = { adif: { state: 'current' }, pota: { parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' } }, sota: { summits: { state: 'not asked' } }, built: true, status: {} } as unknown as RefreshOutcome;
   it('is none when it worked', () => { expect(problemOf('pota', base)).toBeUndefined(); });
   it('names the source that could not be reached', () => {
     const outcome = { ...base, pota: { ...base.pota, programs: { state: 'kept', failure: { kind: 'fetch' } } } } as unknown as RefreshOutcome;
@@ -104,7 +105,7 @@ describe('the last attempt\'s problem, in words a person can act on', () => {
 describe('#37: the window checks the versions it is sent', () => {
   const status = (resources: unknown[]) => ({
     state: 'ready',
-    reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, refreshing: false, resources }
+    reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'not loaded' }, refreshing: false, resources }
   });
   it('takes a version and an available version', () => {
     expect(isStorageStatus(status(RESOURCES_ADIF_AVAILABLE))).toBe(true);
@@ -118,3 +119,27 @@ describe('#37: the window checks the versions it is sent', () => {
     expect(isStorageStatus(status([without]))).toBe(false);
   });
 });
+
+describe('SOTA summits, a resource of one list (QGD-REF-0018)', () => {
+  const sotaHeld = (fetched: number): ReferenceStatus => ({ ...held(NOW), sota: { summits: loaded(fetched) } }) as unknown as ReferenceStatus;
+  const sota = (status: ReferenceStatus, checks: Record<string, string | undefined> = {}) =>
+    summarize({ register, held: status, checks, problems: new Map(), updating: undefined, now: NOW }).find(resource => resource.id === 'sota')!;
+
+  it('is not loaded until downloaded, and then can always be updated', () => {
+    expect(sota(held(NOW))).toMatchObject({ state: 'not loaded', due: false, updatable: false });
+    expect(sota(sotaHeld(NOW - 1000))).toMatchObject({ state: 'loaded', due: false, updatable: true });
+  });
+
+  it('is out of date after a day, and current again once its list answers', () => {
+    expect(sota(sotaHeld(NOW - 2 * DAY)).due).toBe(true);
+    expect(sota(sotaHeld(NOW - 2 * DAY), { 'sota-summits': at(NOW - 1000) }).due).toBe(false);
+  });
+
+  it('names its own list when it could not be reached', () => {
+    const base = { adif: { state: 'not asked' }, pota: { parks: { state: 'not asked' }, programs: { state: 'not asked' }, locations: { state: 'not asked' } },
+      sota: { summits: { state: 'kept', failure: { kind: 'fetch' } } }, built: false, status: {} } as unknown as RefreshOutcome;
+    expect(problemOf('sota', base)).toMatch(/could not be reached/i);
+    expect(problemOf('pota', base)).toBeUndefined();
+  });
+});
+
