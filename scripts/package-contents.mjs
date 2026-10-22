@@ -146,6 +146,11 @@ else notes.push(`${scanned.length} dist entr(ies) read, including every source m
     resources = readdirSync(resolve(archive, '..'));
   } catch { failures.push('the Resources folder beside the archive could not be read; this check saw nothing'); }
   if (resources.includes('postgres')) failures.push('Resources/postgres is still bundled beside the application');
+  // The About panel's icon, read from a file path on Linux and Windows, so it
+  // ships beside the archive rather than inside it (KI7MT, 2026-10-22: the
+  // About window had a broken icon on Linux).
+  if (!resources.includes('icon.png')) failures.push('icon.png is not beside the archive, so the About panel has no icon on Linux and Windows');
+  else notes.push('the About panel\'s icon is beside the archive');
   // And what replaced it is there: the storage process and the SQL it applies.
   for (const wanted of ['dist/storage/storage-service.js', 'dist/storage/reference-worker.js',
     'drizzle/state/meta/_journal.json', 'drizzle/reference/meta/_journal.json']) {

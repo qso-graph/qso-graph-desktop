@@ -31,9 +31,21 @@ app.setName('QSO Graph Desktop');
 // The About panel carries the attribution CC BY 4.0 requires for the rail's
 // icons. NOTICE is the written record; this is the one a user can actually
 // reach, which is the point of the obligation.
+//
+// Each platform shows different fields (KI7MT, 2026-10-22: on Linux it said
+// the name alone, under a broken icon). macOS and Windows show the credits;
+// Linux does not, so there the attribution goes in the copyright, which it
+// does show. Linux and Windows draw the icon only from a file path: the
+// packaged icon is beside the archive (extraResources), not inside it.
 app.setAboutPanelOptions({
   applicationName: 'QSO Graph Desktop',
-  credits: FONT_AWESOME_CREDIT
+  applicationVersion: app.getVersion(),
+  copyright: process.platform === 'linux'
+    ? `QSO Graph contributors. GPL-3.0-or-later.\n${FONT_AWESOME_CREDIT}`
+    : 'QSO Graph contributors. GPL-3.0-or-later.',
+  credits: FONT_AWESOME_CREDIT,
+  authors: ['QSO Graph contributors'],
+  iconPath: app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'build', 'icon.png')
 });
 if (process.env.QG_DESKTOP_USER_DATA_DIR) app.setPath('userData', process.env.QG_DESKTOP_USER_DATA_DIR);
 // An in-process resource scheme: no socket, server or external request.

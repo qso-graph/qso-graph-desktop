@@ -64,6 +64,9 @@
       "drizzle/**/*"
     ],
     "asar": true,
+    "extraResources": [
+      { "from": "build/icon.png", "to": "icon.png" }
+    ],
     "asarUnpack": [
       "dist/native/*.node",
       "dist/native/*.dylib",
