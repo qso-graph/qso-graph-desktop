@@ -58,9 +58,6 @@
     --ok-border: #1f4a35;
     --danger: #ff9b9b;
     --danger-border: #5c2d2d;
-  --warn: #f0c674;
-  --warn-surface: #241c0c;
-  --warn-border: #4d3d1a;
     --warn: #f0c674;
     --warn-surface: #241c0c;
     --warn-border: #4d3d1a;
@@ -85,6 +82,16 @@
   --ok-border: #1f4a35;
   --danger: #ff9b9b;
   --danger-border: #5c2d2d;
+  /* These three were missing here, and a custom property not redeclared in the
+     winning block keeps the value from :root. On a LIGHT system a user who
+     chooses Dark matches this block and not the media query above, so --warn
+     stayed the light palette's #7a4f00 - an orange-brown - on a near-black
+     page: 2.71:1, under the 4.5:1 floor, and reading as orange rather than as
+     the amber the dark palette intends. The system-dark path was right, which
+     is why it was never seen. */
+  --warn: #f0c674;
+  --warn-surface: #241c0c;
+  --warn-border: #4d3d1a;
 }
 
 :root { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--page); }
