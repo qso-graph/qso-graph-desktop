@@ -70,6 +70,53 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     }
   });
 
+  // Each band's rule in BAND-OUTLOOK.md, just below and at every threshold,
+  // the same cases solar-mcp's tests hold it to.
+  it.each([
+    [100, 2.9, '160m', 'Good'],
+    [100, 3.0, '160m', 'Fair'],
+    [100, 4.9, '160m', 'Fair'],
+    [100, 5.0, '160m', 'Poor'],
+    [100, 3.9, '80m', 'Good'],
+    [100, 4.0, '80m', 'Fair'],
+    [100, 5.0, '80m', 'Poor'],
+    [100, 4.9, '40m', 'Good'],
+    [100, 5.0, '40m', 'Fair'],
+    [60, 8.0, '30m', 'Good'],
+    [99, 1.0, '20m', 'Fair'],
+    [100, 1.0, '20m', 'Good'],
+    [149, 1.0, '20m', 'Good'],
+    [150, 1.0, '20m', 'Excellent'],
+    [89, 1.0, '17m', 'Poor'],
+    [90, 1.0, '17m', 'Fair'],
+    [119, 1.0, '17m', 'Fair'],
+    [120, 1.0, '17m', 'Good'],
+    [79, 1.0, '15m', 'Poor'],
+    [80, 1.0, '15m', 'Fair'],
+    [99, 1.0, '15m', 'Fair'],
+    [100, 1.0, '15m', 'Good'],
+    [139, 1.0, '15m', 'Good'],
+    [140, 1.0, '15m', 'Excellent'],
+    [119, 1.0, '12m', 'Poor'],
+    [120, 1.0, '12m', 'Fair'],
+    [149, 1.0, '12m', 'Fair'],
+    [150, 1.0, '12m', 'Good'],
+    [99, 1.0, '10m', 'Poor'],
+    [100, 1.0, '10m', 'Fair'],
+    [129, 1.0, '10m', 'Fair'],
+    [130, 1.0, '10m', 'Good'],
+    [159, 1.0, '10m', 'Good'],
+    [160, 1.0, '10m', 'Excellent'],
+    [200, 0.0, '6m', 'Sporadic']
+  ] as const)('SFI %d, K %d: %s is %s', (sfi, kp, band, status) => {
+    expect(bandOutlook(sfi, kp)[band].split(' — ')[0]).toBe(status);
+  });
+
+  it('keeps a band\'s status in a storm and says so in the comment', () => {
+    expect(bandOutlook(150, 5)['20m']).toBe('Excellent — degraded by geomagnetic storm');
+    expect(bandOutlook(150, 4.9)['20m']).toBe('Excellent — strong F-layer, long openings');
+  });
+
   it('grades every band, at every flux and K index, on the five words of the scale', () => {
     for (const sfi of [60, 85, 95, 110, 125, 135, 145, 155, 170]) {
       for (const kp of [0, 3, 4, 5, 8]) {

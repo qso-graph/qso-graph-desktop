@@ -10,8 +10,10 @@ answers over the same recorded NOAA responses (`tests/fixtures/noaa`).
 No body defines band-condition words. NOAA's Space Weather Prediction Center defines the impact of
 a disturbance on its R, S and G scales, not how good a band is. Propagation models (VOACAP, ITU-R
 P.533) define usable frequency, signal-to-noise and circuit reliability as numbers for a path from
-one place to another. The Good / Fair / Poor ratings hams see most, such as HamQSL's banner, come
-from the solar flux and the K index by thresholds that are not published.
+one place to another. HamQSL's banner (N0NBH) rates four band groups Good, Fair or Poor; its
+[FAQ](https://www.hamqsl.com/FAQ.html) says the calculations "take into account the indices,
+background radiation, day/night conditions" and "both propagation and noise", and gives a general
+reference table, but not the calculation itself.
 
 So the words are defined here, by this project (KI7MT, 2026-10-22), and the thresholds below are
 **rules of thumb, not a propagation model**. They take today's solar flux and planetary K index and
@@ -25,7 +27,7 @@ nothing about where the operator is or where they are trying to reach.
 | **Good** | Regular DX openings expected during the band's usual hours. |
 | **Fair** | Openings are short, patchy or weak; DX is possible but not dependable. |
 | **Poor** | Likely closed for DX, or degraded by absorption and noise. |
-| **Sporadic** | Opens only by sporadic-E or other events the indices do not predict. |
+| **Sporadic** | Not graded from the indices: the band opens by sporadic-E, and by F2 when the solar flux is high; watch for openings. |
 
 A status is always one of these five words. The comment says why, in a few words.
 
