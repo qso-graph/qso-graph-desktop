@@ -10,6 +10,7 @@
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { clockText } from './clock-text.js';
 
   interface Props {
     now?: Date;
@@ -21,13 +22,10 @@
   onDestroy(() => clearInterval(timer));
 
   const shown = $derived(now ?? ticking);
-  const two = (value: number) => String(value).padStart(2, '0');
-  const utcDate = $derived(`${shown.getUTCFullYear()}-${two(shown.getUTCMonth() + 1)}-${two(shown.getUTCDate())}`);
-  const utc = $derived(`${two(shown.getUTCHours())}:${two(shown.getUTCMinutes())}:${two(shown.getUTCSeconds())}`);
-  const local = $derived(`${two(shown.getHours())}:${two(shown.getMinutes())}:${two(shown.getSeconds())}`);
+  const text = $derived(clockText(shown));
 </script>
 
 <div class="header-clock" id="header-clock" role="group" aria-label="Clock">
-  <span class="clock-part"><span class="clock-label">UTC</span> <time class="clock-time">{utcDate} {utc}</time></span>
-  <span class="clock-part"><span class="clock-label">Local</span> <time class="clock-time">{local}</time></span>
+  <span class="clock-part"><span class="clock-label">UTC</span> <time class="clock-time">{text.utcDate} {text.utcTime}</time></span>
+  <span class="clock-part"><span class="clock-label">Local</span> <time class="clock-time">{text.localTime}</time></span>
 </div>
