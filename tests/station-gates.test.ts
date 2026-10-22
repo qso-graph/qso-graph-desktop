@@ -24,7 +24,9 @@ function sources(directory: string): string[] {
     return /\.(ts|svelte|rs|mjs|js)$/.test(name) && !/\.(test|stories)\./.test(name) ? [path] : [];
   });
 }
-const product = [...sources('packages'), ...sources('extensions')];
+// With forward slashes on every system, so the names below match on Windows
+// too, where join() writes backslashes (CI, 2026-10-22).
+const product = [...sources('packages'), ...sources('extensions')].map(file => file.replaceAll('\\', '/'));
 
 describe('P9-tqsl: TQSL\'s station location fields, from its config.xml (QGD-STN-0009)', () => {
   it('records which config.xml, by version and SHA-256', () => {
@@ -82,7 +84,11 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
   });
 
   it('is never written by the ADIF code', () => {
-    for (const file of product.filter(path => path.startsWith('packages/reference/'))) {
+    const adif = product.filter(path => path.startsWith('packages/reference/'));
+    // An empty list would pass this on any code, which is how it passed on
+    // Windows before the paths were made the same.
+    expect(adif.length, 'the ADIF code is found').toBeGreaterThan(3);
+    for (const file of adif) {
       expect(readFileSync(file, 'utf8'), file).not.toMatch(/station-contract|stations\.js/);
     }
   });
