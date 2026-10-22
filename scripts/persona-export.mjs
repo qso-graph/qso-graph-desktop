@@ -213,6 +213,12 @@ try {
       { stdio: ['ignore', 'pipe', 'ignore'] });
     let output = '';
     sampler.stdout.on('data', chunk => { output += chunk; });
+    // Nothing is opened until the sampler has taken its first reading.
+    const watching = Date.now() + 30_000;
+    while (!output.startsWith('watching\n')) {
+      if (Date.now() > watching || sampler.exitCode !== null) throw new Error('The sampler never started watching this process');
+      await new Promise(done => setTimeout(done, 20));
+    }
 
     // The positive control: a socket opened on purpose, while the sampler is
     // watching, has to appear in what it saw. Without it, an empty list means
@@ -230,7 +236,7 @@ try {
     check(during.length > 100 && opened.personas === 2, 'The sampled export and open worked');
 
     await new Promise(done => sampler.once('exit', done));
-    const watched = JSON.parse(output || '{}');
+    const watched = JSON.parse(output.slice('watching\n'.length) || '{}');
     check(Number(watched.readings) > 10, 'The sampler read this process many times');
     check(watched.sockets.some(socket => String(socket).endsWith(`:${port}`)),
       'The sampler saw a socket this script opened on purpose');
