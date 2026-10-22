@@ -51,6 +51,15 @@ describe('Astro\'s page', () => {
     expect(grey.rows.some(row => /UTC|\d\d:\d\d/.test(row[1]))).toBe(true);
   });
 
+  it('signs the sun\'s height: + above the horizon, − below it', () => {
+    const height = (now: Date) => {
+      const figures = sections(astroPage(BOISE, now, {}, UTC_CLOCK)).find(section => section.shape === 'figures');
+      return figures?.shape === 'figures' ? figures.figures.find(figure => figure.label === 'Sun now')?.value : undefined;
+    };
+    expect(height(new Date('2026-10-22T19:00:00Z'))).toMatch(/^\+\d+\.\d°$/);
+    expect(height(new Date('2026-10-22T08:00:00Z'))).toMatch(/^−\d+\.\d°$/);
+  });
+
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {
     const text = JSON.stringify(astroPage(BOISE, NOW, { dx: 'FN31' }, UTC_CLOCK));
     expect(text).not.toMatch(/\b(good|poor|fair|excellent|forecast|score|rating)\b/i);

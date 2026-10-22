@@ -56,6 +56,11 @@ function pair(found: Crossings, morning: string, evening: string, neverUp: strin
   return [[morning, found.rising ?? absent], [evening, found.setting ?? absent]];
 }
 
+function signed(degrees: number): string {
+  const value = Math.abs(degrees).toFixed(1);
+  return value === '0.0' ? '0.0°' : `${degrees > 0 ? '+' : '−'}${value}°`;
+}
+
 function duration(minutes: number): string {
   return `${Math.floor(minutes / 60)} h ${two(Math.round(minutes % 60))} min`;
 }
@@ -91,7 +96,9 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     { shape: 'figures', figures: [
       { label: 'Location', value: station!.name.slice(0, 32) },
       ...(station!.grid ? [{ label: 'Grid', value: station!.grid }] : []),
-      { label: 'Sun now', value: `${sunAltitude(at, latitude, longitude).toFixed(1)}°` },
+      // Signed, so up and down read at a glance: +23.9° above the horizon,
+      // −5.2° below it, as the radio depths are written (KI7MT, 2026-10-22).
+      { label: 'Sun now', value: signed(sunAltitude(at, latitude, longitude)) },
       { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%` }
     ] },
     { shape: 'alert', level: 'info', text: yourClock
