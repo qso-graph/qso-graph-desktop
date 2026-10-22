@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateCardAnswer } from '../../../packages/extension-api/cards.js';
-import { bandOutlook, conditionsCard, parseConditions } from '../src/conditions.js';
+import { BAND_STATUSES, bandOutlook, conditionsCard, outlookRows, parseConditions } from '../src/conditions.js';
 
 const fixture = (name: string, file: string) => readFileSync(`tests/fixtures/noaa/${name}/${file}`, 'utf8');
 const bodies = (name: string) => ({ flux: fixture(name, '10cm-flux.json'), kp: fixture(name, 'noaa-planetary-k-index.json'), scales: fixture(name, 'noaa-scales.json') });
@@ -49,8 +49,37 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     const card = validateCardAnswer(conditionsCard(parseConditions(bodies('quiet'))!));
     expect(card.ok).toBe(true);
     if (!card.ok) return;
-    expect(card.data.sections.map(section => section.shape)).toEqual(['figures', 'items']);
+    expect(card.data.sections.map(section => section.shape)).toEqual(['figures', 'table']);
     expect(card.data.observedAt).toMatch(/^2026-10-1\dT\d{2}:\d{2}:\d{2}Z$/);
+  });
+
+  it('shows the bands as Band | Status | Comment, every status on the scale (BAND-OUTLOOK.md)', () => {
+    const card = validateCardAnswer(conditionsCard(parseConditions(bodies('quiet'))!));
+    if (!card.ok) throw new Error('expected a card');
+    const table = card.data.sections.find(section => section.shape === 'table');
+    if (!table || table.shape !== 'table') throw new Error('no table');
+    expect(table.columns).toEqual(['Band', 'Status', 'Comment']);
+    expect(table.rows[0]).toEqual(['160m', 'Good', 'Quiet night conditions']);
+    expect(table.rows.map(row => row[0])).toEqual(['160m', '80m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']);
+    // Each row is solar-mcp's own answer, split: status and comment rejoin to
+    // exactly what solar-mcp 0.3.0 said for these files.
+    const want = JSON.parse(readFileSync('tests/fixtures/noaa/quiet/expected.json', 'utf8')).bands as Record<string, string>;
+    expect(table.rows).toEqual(outlookRows(want).map(row => [row.band, row.status, row.comment]));
+    for (const [band, status, comment] of table.rows) {
+      expect(want[band].toLowerCase()).toBe(`${status} — ${comment}`.toLowerCase());
+    }
+  });
+
+  it('grades every band, at every flux and K index, on the five words of the scale', () => {
+    for (const sfi of [60, 85, 95, 110, 125, 135, 145, 155, 170]) {
+      for (const kp of [0, 3, 4, 5, 8]) {
+        const bands = bandOutlook(sfi, kp);
+        const rows = outlookRows(bands);
+        expect(rows.length, `SFI ${sfi}, K ${kp}`).toBe(Object.keys(bands).length);
+        for (const row of rows) expect(BAND_STATUSES).toContain(row.status);
+      }
+    }
+    expect(outlookRows({ '20m': 'Marvellous — no such word' })).toEqual([]);
   });
 
   it('leads with a warning when a storm is declared', () => {
@@ -74,7 +103,7 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     const card = validateCardAnswer(conditionsCard(noFlux));
     if (!card.ok) throw new Error('expected a card');
     expect(JSON.stringify(card)).toContain('"label":"Solar flux","value":"not read"');
-    expect(card.data.sections.some(section => section.shape === 'items')).toBe(false);
+    expect(card.data.sections.some(section => section.shape === 'table')).toBe(false);
     // Neither feed: no conditions at all.
     expect(parseConditions({ ...bodies('quiet'), flux: 'not json', kp: '[]' })).toBeUndefined();
   });

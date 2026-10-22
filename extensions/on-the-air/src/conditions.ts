@@ -125,6 +125,29 @@ export function bandOutlook(sfi: number, kp: number): Record<string, string> {
   return bands;
 }
 
+// The scale every band is graded on, defined in BAND-OUTLOOK.md (KI7MT,
+// 2026-10-22). A status is always one of these.
+export const BAND_STATUSES = ['Excellent', 'Good', 'Fair', 'Poor', 'Sporadic'] as const;
+export type BandStatus = (typeof BAND_STATUSES)[number];
+
+export interface BandRow {
+  band: string;
+  status: BandStatus;
+  comment: string;
+}
+
+// solar-mcp's "Good — reliable daytime DX" as a status and a comment. A
+// status that is not on the scale is not drawn as if it were: the band is left
+// out, which a test would catch.
+export function outlookRows(bands: Record<string, string>): BandRow[] {
+  return Object.entries(bands).flatMap(([band, outlook]) => {
+    const [status, ...rest] = outlook.split(' — ');
+    const comment = rest.join(' — ');
+    if (!(BAND_STATUSES as readonly string[]).includes(status) || !comment) return [];
+    return [{ band, status: status as BandStatus, comment: comment[0].toUpperCase() + comment.slice(1) }];
+  });
+}
+
 // As solar-mcp's _get_json: NOAA's file servers sometimes pad a response
 // with NUL bytes, which are stripped before it is read.
 function parse(body: string): unknown {
@@ -175,8 +198,11 @@ export function conditionsCard(conditions: Conditions): CardAnswer {
     conditions.a !== undefined ? { label: 'A index', value: String(conditions.a) } : { label: 'A index', value: 'not read' },
     { label: 'Scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
   ] });
+  // Band | Status | Comment, the status on the scale in BAND-OUTLOOK.md
+  // (KI7MT, 2026-10-22). A table, so card data version 2.
   if (conditions.bands) {
-    sections.push({ shape: 'items', items: Object.entries(conditions.bands).map(([band, outlook]) => ({ title: band, detail: outlook })) });
+    sections.push({ shape: 'table', columns: ['Band', 'Status', 'Comment'],
+      rows: outlookRows(conditions.bands).map(row => [row.band, row.status, row.comment]) });
   }
-  return { ok: true, data: { version: 1, observedAt: conditions.observedAt, sections } };
+  return { ok: true, data: { version: 2, observedAt: conditions.observedAt, sections } };
 }

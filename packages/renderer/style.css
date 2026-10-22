@@ -290,8 +290,9 @@ dialog.pins h2 { margin: 0 0 6px; }
    band and status on one line and the comment drops to its own line beneath. */
 .home-card { container-type: inline-size; }
 .home-card-table th, .home-card-table td:not(:last-child) { white-space: nowrap; }
-@container (max-width: 420px) {
-  .home-card-table thead th:last-child { display: none; }
+@container (max-width: 340px) {
+  .home-card-table, .home-card-table tbody { display: block; }
+  .home-card-table thead { display: none; }
   .home-card-table tbody tr { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
   .home-card-table tbody th, .home-card-table tbody td { border-top: 0; padding: 0; }
   .home-card-table tbody td:last-child { grid-column: 1 / -1; font-size: 12px; }

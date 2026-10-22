@@ -1,0 +1,56 @@
+# The band outlook: what Excellent, Good, Fair, Poor and Sporadic mean
+
+Conditions on Home shows each band with a status and a comment (`QGD-HOM-0008`). This document
+says what each status means and how each band gets one. On the Air and `solar-mcp` grade bands the
+same way; `solar-mcp` is the specification for Conditions, and the tests hold the two to the same
+answers over the same recorded NOAA responses (`tests/fixtures/noaa`).
+
+## There is no standard for these words
+
+No body defines band-condition words. NOAA's Space Weather Prediction Center defines the impact of
+a disturbance on its R, S and G scales, not how good a band is. Propagation models (VOACAP, ITU-R
+P.533) define usable frequency, signal-to-noise and circuit reliability as numbers for a path from
+one place to another. The Good / Fair / Poor ratings hams see most, such as HamQSL's banner, come
+from the solar flux and the K index by thresholds that are not published.
+
+So the words are defined here, by this project (KI7MT, 2026-10-22), and the thresholds below are
+**rules of thumb, not a propagation model**. They take today's solar flux and planetary K index and
+nothing about where the operator is or where they are trying to reach.
+
+## The scale
+
+| Status | What it means on the air |
+|---|---|
+| **Excellent** | Wide open: strong, long-lasting DX openings during the band's usual hours. |
+| **Good** | Regular DX openings expected during the band's usual hours. |
+| **Fair** | Openings are short, patchy or weak; DX is possible but not dependable. |
+| **Poor** | Likely closed for DX, or degraded by absorption and noise. |
+| **Sporadic** | Opens only by sporadic-E or other events the indices do not predict. |
+
+A status is always one of these five words. The comment says why, in a few words.
+
+## How each band is graded
+
+SFI is the 10.7 cm solar flux in solar flux units; K is the planetary K index. A rule is read top
+to bottom and the first that holds is the band's status.
+
+| Band | Rule |
+|---|---|
+| 160m | K ≥ 5: Poor (storm absorption). K ≥ 3: Fair (some noise). Otherwise Good (quiet night conditions). |
+| 80m | K ≥ 5: Poor (D-layer absorption and noise). K ≥ 4: Fair (elevated absorption). Otherwise Good (reliable night band). |
+| 40m | K ≥ 5: Fair (reduced DX). Otherwise Good (workhorse band, day and night). |
+| 30m | Good (transition band, usually open). |
+| 20m | SFI ≥ 150: Excellent (strong F-layer, long openings). SFI ≥ 100: Good (reliable daytime DX). Otherwise Fair (shorter openings at low solar flux). |
+| 17m | SFI ≥ 120: Good (DX openings likely). SFI ≥ 90: Fair (marginal openings). Otherwise Poor (insufficient ionization). |
+| 15m | SFI ≥ 140: Excellent (wide open DX). SFI ≥ 100: Good (daytime openings). SFI ≥ 80: Fair (sporadic openings). Otherwise Poor (band likely closed). |
+| 12m | SFI ≥ 150: Good (DX openings around midday). SFI ≥ 120: Fair (brief openings possible). Otherwise Poor (band likely closed). |
+| 10m | SFI ≥ 160: Excellent (worldwide DX). SFI ≥ 130: Good (daytime DX openings). SFI ≥ 100: Fair (short openings or sporadic-E). Otherwise Poor (closed except sporadic-E). |
+| 6m | Sporadic (watch for Es openings). |
+
+During a geomagnetic storm (K ≥ 5), 20m to 10m keep the status their solar flux gives them and the
+comment becomes "degraded by geomagnetic storm".
+
+## What would make it better
+
+A status for a path rather than a band: from the active station's grid to a region, using a
+propagation model. Stations (P9) give the starting point; the model is a separate piece of work.
