@@ -1,0 +1,31 @@
+{
+  "register": "TQSL's station location fields, and where a Location holds each",
+  "note": "P9-tqsl (QGD-STN-0009): every field TQSL asks for on its station location pages has a home on a Location, so a Location can be signed for LoTW without TQSL's own station data. Read from TQSL's published config.xml: the fields named by <pageField> in <locpages>, which are the ones an operator fills in. Nothing of TQSL's file is copied here beyond the field names. Re-check against a newer config.xml with node scripts/tqsl-fields.mjs.",
+  "source": {
+    "url": "https://sourceforge.net/p/trustedqsl/tqsl/ci/master/tree/src/config.xml?format=raw",
+    "configVersion": "11.35",
+    "sha256": "5a0747d35f5788f8b14757be2fc2f1ce7d0857bd0c0c4def0a30aef72d2f3538",
+    "read": "2026-10-22"
+  },
+  "fields": {
+    "CALL": { "home": "callsign", "why": "The active callsign's, never stored on a Location (QGD-STN-0001)." },
+    "DXCC": { "home": "MY_DXCC" },
+    "GRIDSQUARE": { "home": "MY_GRIDSQUARE", "also": "MY_VUCC_GRIDS", "why": "A grid line or corner holds its grids in MY_VUCC_GRIDS." },
+    "CQZ": { "home": "MY_CQ_ZONE" },
+    "ITUZ": { "home": "MY_ITU_ZONE" },
+    "IOTA": { "home": "MY_IOTA" },
+    "US_STATE": { "home": "MY_STATE" },
+    "CA_PROVINCE": { "home": "MY_STATE" },
+    "RU_OBLAST": { "home": "MY_STATE" },
+    "CN_PROVINCE": { "home": "MY_STATE" },
+    "AU_STATE": { "home": "MY_STATE" },
+    "JA_PREFECTURE": { "home": "MY_STATE" },
+    "US_COUNTY": { "home": "MY_CNTY" },
+    "JA_CITY_GUN_KU": { "home": "MY_CNTY" },
+    "FI_KUNTA": { "home": "MY_CNTY" },
+    "US_PARK": { "home": "lotwPark", "why": "TQSL's park list; ADIF has no field for it." },
+    "CA_US_PARK": { "home": "lotwPark" },
+    "DX_US_PARK": { "home": "lotwPark" },
+    "ZERR": { "home": "none", "why": "TQSL's own line for an error message on the page, not a value." }
+  }
+}
