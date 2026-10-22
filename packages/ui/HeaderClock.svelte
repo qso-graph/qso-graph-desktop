@@ -17,9 +17,19 @@
   }
   const { now }: Props = $props();
 
+  // Each tick is scheduled for just after the next whole second, not every
+  // 1000 ms from whenever the page opened. An interval started at .7 of a
+  // second shows each second 0.7 s late, and keeps drifting; operators of
+  // FT8 and the other timed modes read this clock against the second
+  // (KI7MT, 2026-10-22).
   let ticking = $state(new Date());
-  const timer = setInterval(() => { ticking = new Date(); }, 1000);
-  onDestroy(() => clearInterval(timer));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const tick = () => {
+    ticking = new Date();
+    timer = setTimeout(tick, 1000 - ticking.getMilliseconds() + 5);
+  };
+  tick();
+  onDestroy(() => clearTimeout(timer));
 
   const shown = $derived(now ?? ticking);
   const text = $derived(clockText(shown));
