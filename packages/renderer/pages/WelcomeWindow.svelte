@@ -42,7 +42,7 @@
   <p id="welcome-report">Something wrong? Help → Troubleshooting saves the logs; report it on GitHub at qso-graph/qso-graph-desktop.</p>
   <p id="welcome-thanks">With thanks to {CONTRIBUTORS.map(person => person.name.replace(/ \(.*\)$/, '')).join(', ')}. Free software under the GNU GPL, version 3.</p>
   <footer>
-    <label class="hide"><input type="checkbox" id="welcome-hide" bind:checked={hide} /> Don't show this again</label>
+    <label class="checkbox-row welcome-hide"><input type="checkbox" id="welcome-hide" bind:checked={hide} /> Don't show this again</label>
     <span class="left" aria-live="off">Closes in {left} s</span>
     <button type="button" id="close-welcome" onclick={close}>Close</button>
   </footer>
@@ -71,6 +71,6 @@
   h3 { font-size: 14px; }
   ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
   footer { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
-  .hide { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .welcome-hide { margin: 0; }
   .left { margin-left: auto; color: var(--ink-muted); font-size: 12px; }
 </style>
