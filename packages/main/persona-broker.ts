@@ -17,7 +17,7 @@ const log = createLogger('broker');
 // The answer while the credential core is not up yet. Nothing was sent
 // anywhere, so a caller may ask again soon (QG Storage does, for reference
 // data). Any other failure may have reached a server.
-export const PERSONA_STARTING = 'The persona service is starting. Try again.';
+export const PERSONA_STARTING = 'Callsigns are still starting. Try again.';
 
 export interface PersonaBroker {
   stop: () => void;
@@ -87,7 +87,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
     .catch(error => log.error({ reason: String(error instanceof Error ? error.message : error) },
       'the service register could not be read; no service credential can be reached'));
   function failPending() {
-    for (const item of pending.values()) { clearTimeout(item.timer); item.resolve({ ok: false, error: 'The persona service is restarting. Try again.' }); }
+    for (const item of pending.values()) { clearTimeout(item.timer); item.resolve({ ok: false, error: 'Callsigns are restarting. Try again.' }); }
     pending.clear();
   }
   function start() {
@@ -122,7 +122,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   // One command to the service, awaited.
   function ask(command: ServiceCommand): Promise<PersonaReply> {
     if (!ready || !worker) return Promise.resolve({ ok: false, error: PERSONA_STARTING });
-    if (pending.size >= 16) return Promise.resolve({ ok: false, error: 'A persona operation is still running. Try again shortly.' });
+    if (pending.size >= 16) return Promise.resolve({ ok: false, error: 'A callsign request is still running. Try again shortly.' });
     const id = ++nextId;
     return new Promise(resolve => {
       // Per command, not one number for all of them: see deadlines.ts.
@@ -144,7 +144,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
     if (command.type === 'export-personas') {
       const chosen = window
         ? await dialog.showSaveDialog(window, {
-            title: 'Export personas',
+            title: 'Export callsigns',
             defaultPath: 'qso-graph-personas.qgp',
             filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
           })
@@ -179,7 +179,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
     if (!path) {
       const chosen = window
         ? await dialog.showOpenDialog(window, {
-            title: 'Import personas',
+            title: 'Import callsigns',
             properties: ['openFile'],
             filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
           })
@@ -208,7 +208,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
   ipcMain.handle('persona:request', (event, command: unknown): Promise<PersonaReply> | PersonaReply => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateCommand(command, services)) {
       log.warn({ accepted: false }, 'persona request refused');
-      return { ok: false, error: 'Invalid persona request.' };
+      return { ok: false, error: 'Invalid callsign request.' };
     }
     const told = (reply: PersonaReply): PersonaReply => {
       if (reply.ok && CHANGES_PERSONAS.has(command.type)) for (const listener of changeListeners) listener();
@@ -228,7 +228,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       const reply = await ask({ type: 'list' });
       if (!reply.ok) return reply.error;
       const data = reply.data as { personas?: { name?: unknown; callsign?: unknown }[] } | null;
-      if (!data || !Array.isArray(data.personas)) return 'The personas could not be read.';
+      if (!data || !Array.isArray(data.personas)) return 'The callsigns could not be read.';
       // Built field by field rather than passed through. A persona record
       // carries provider entries, and an application has no business seeing
       // which services an operator holds credentials for.
@@ -241,7 +241,7 @@ export function startPersonaBroker(distDirectory: string, registerFile: string):
       const reply = await ask({ type: 'list' });
       if (!reply.ok) return reply.error;
       const data = reply.data as { personas?: { name?: unknown; callsign?: unknown }[]; active?: unknown } | null;
-      if (!data || !Array.isArray(data.personas)) return 'The personas could not be read.';
+      if (!data || !Array.isArray(data.personas)) return 'The callsigns could not be read.';
       // Name and callsign only, as personaBriefs builds them (QGD-CRD-0010).
       const active = data.personas.find(persona => persona.name === data.active);
       return active && typeof active.name === 'string' && typeof active.callsign === 'string'

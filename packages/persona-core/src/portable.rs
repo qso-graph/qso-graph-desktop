@@ -232,7 +232,7 @@ pub fn open(file: &[u8], passphrase: &str) -> Result<Opened, &'static str> {
     ).map_err(|_| CANNOT_OPEN)?;
 
     let bundle: Bundle = serde_json::from_slice(plaintext)
-        .map_err(|_| "This export opened, and what is inside it is not a persona export.")?;
+        .map_err(|_| "This export opened, and what is inside it is not an export of callsigns.")?;
     Ok(Opened { header, bundle })
 }
 

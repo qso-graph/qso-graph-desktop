@@ -177,10 +177,10 @@ impl Store {
     fn load(&self) -> CoreResult<Index> {
         let path = self.directory.join("personas.json");
         match fs::read(path) {
-            Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes).map_err(|_| "The persona index could not be read. It has not been changed."),
-            Ok(_) => Err("The persona index exceeds the supported size."),
+            Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes).map_err(|_| "The list of callsigns could not be read. It has not been changed."),
+            Ok(_) => Err("The list of callsigns is larger than this version supports."),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Index::default()),
-            Err(_) => Err("The persona index could not be read. It has not been changed."),
+            Err(_) => Err("The list of callsigns could not be read. It has not been changed."),
         }
     }
     fn save(&self, index: &Index) -> CoreResult<()> {
@@ -189,7 +189,7 @@ impl Store {
     }
     fn lookup(&self, name: &str) -> CoreResult<Persona> {
         let name = identifier(name)?;
-        self.load()?.personas.into_iter().find(|(key, value)| key.to_lowercase() == name || value.name.to_lowercase() == name).map(|(_, value)| value).ok_or("Persona not found.")
+        self.load()?.personas.into_iter().find(|(key, value)| key.to_lowercase() == name || value.name.to_lowercase() == name).map(|(_, value)| value).ok_or("Callsign not found.")
     }
     fn upsert(&self, name: &str, callsign: &str, start: Option<String>, end: Option<String>) -> CoreResult<Persona> {
         let name = identifier(name)?;
@@ -272,7 +272,7 @@ impl Store {
         let persona = identifier(persona)?;
         let provider = identifier(provider)?;
         let mut index = self.load()?;
-        let profile = index.personas.get_mut(&persona).ok_or("Persona not found.")?;
+        let profile = index.personas.get_mut(&persona).ok_or("Callsign not found.")?;
         let reference = profile.providers.entry(provider).or_insert_with(ProviderRef::default);
         reference.username = creds.username.clone().unwrap_or_default();
         reference.has_password = creds.password.as_ref().is_some_and(|s| !s.is_empty());
@@ -329,7 +329,7 @@ impl Store {
         // Register a non-secret provider ref, matching PersonaStore. Credentials
         // remain exclusively in Keychain; its payload never enters the index.
         let mut index = self.load()?;
-        let profile = index.personas.get_mut(&persona).ok_or("Persona not found.")?;
+        let profile = index.personas.get_mut(&persona).ok_or("Callsign not found.")?;
         profile.providers.entry(provider.clone()).or_default();
         self.save(&index)?;
         let raw = Zeroizing::new(serde_json::to_string(&merged).map_err(|_| "Credential could not be encoded.")?);
@@ -517,16 +517,16 @@ impl Store {
         let current = match fs::read_to_string(&current_path) {
             Ok(value) => Some(value),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(_) => return Err("Active persona could not be read."),
+            Err(_) => return Err("The active callsign could not be read."),
         };
         for provider in providers {
-            delete(&name, &provider).map_err(|_| "Persona was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.")?;
+            delete(&name, &provider).map_err(|_| "The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.")?;
         }
         prefs.personas.remove(&name);
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
         if current.as_ref().is_some_and(|value| value.trim().to_lowercase() == name) {
-            fs::remove_file(current_path).map_err(|_| "Active persona could not be cleared.")?;
+            fs::remove_file(current_path).map_err(|_| "The active callsign could not be cleared.")?;
         }
         index.personas.retain(|key, profile| key.to_lowercase() != name && profile.name.to_lowercase() != name);
         self.save(&index)
@@ -774,7 +774,7 @@ mod addon {
             match fs::read_to_string(path) {
                 Ok(name) => Ok(self.store.lookup(name.trim()).ok().map(|p| p.name)),
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-                Err(_) => Err(error("Active persona could not be read.")),
+                Err(_) => Err(error("The active callsign could not be read.")),
             }
         }
         #[napi]
@@ -878,7 +878,7 @@ mod addon {
         #[napi]
         pub fn require_credential(&self, persona: String, provider: String, prefer: Option<String>) -> Result<CredentialInput> {
             let profile = self.store.lookup(&persona).map_err(error)?;
-            if !profile.providers.contains_key(&identifier(&provider).map_err(error)?) { return Err(error("Persona has no reference for this provider.")); }
+            if !profile.providers.contains_key(&identifier(&provider).map_err(error)?) { return Err(error("This callsign has no profile for this service.")); }
             let creds = self.store.read_credentials(&persona, &provider).map_err(error)?.ok_or_else(|| error("No credential is stored."))?;
             if creds.username.as_ref().is_none_or(String::is_empty) { return Err(error("No username is stored.")); }
             let saved_preference = self.store.preference(&persona, &provider).map_err(error)?;

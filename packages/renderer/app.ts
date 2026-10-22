@@ -317,7 +317,7 @@ element('new-persona').addEventListener('click', () => select(null));
 element('persona-form').addEventListener('submit', event => {
   event.preventDefault(); void busy('save-persona', async () => {
     const name = input('persona-name').value.trim();
-    if (!selected && snapshot.personas.some(p => p.name === name.toLowerCase())) throw new Error('That persona exists. Select it to edit its details.');
+    if (!selected && snapshot.personas.some(p => p.name === name.toLowerCase())) throw new Error('A callsign with that description exists. Select it to edit its details.');
     snapshot = await request({ type: 'upsert', name, callsign: input('callsign').value, start: input('start-date').value || undefined, end: input('end-date').value || undefined }) as Snapshot;
     select(name.toLowerCase()); message('Callsign saved.');
   });

@@ -103,7 +103,7 @@ try {
   expect(permission).toBe('denied');
   await expect.poll(() => page.evaluate(() => window.personas.request({ type: 'list' }).then(reply => reply.ok)),
     { message: 'the persona service must answer', timeout: 30_000 }).toBe(true);
-  expect(await page.evaluate(() => window.personas.request({ type: 'require-credential', persona: 'home', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid persona request.' });
+  expect(await page.evaluate(() => window.personas.request({ type: 'require-credential', persona: 'home', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid callsign request.' });
   await page.getByLabel('Description', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');

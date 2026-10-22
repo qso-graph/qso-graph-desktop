@@ -124,7 +124,7 @@ try {
     'list', 42, null, []                                                    // not even an object
   ];
   for (const command of malformed) {
-    expect(await ask(page, command)).toEqual({ ok: false, error: 'Invalid persona request.' });
+    expect(await ask(page, command)).toEqual({ ok: false, error: 'Invalid callsign request.' });
   }
   // The broker's sender rule, exercised rather than inspected. A subframe cannot
   // construct an IPC request at all (no preload runs there), so the frame
@@ -144,7 +144,7 @@ try {
     return { movedUrl, reply, restoredUrl, afterOk: after.ok };
   });
   expect(moved.movedUrl).toBe('qg://desktop/index.html?probe=1');
-  expect(moved.reply).toEqual({ ok: false, error: 'Invalid persona request.' });
+  expect(moved.reply).toEqual({ ok: false, error: 'Invalid callsign request.' });
   // And the refusal was about the URL, not a broken service: it answers again
   // once the frame is back on the bundled page.
   expect(moved.restoredUrl).toBe('qg://desktop/index.html');
@@ -199,7 +199,7 @@ try {
   for (let attempt = 0; attempt < 3; attempt++) {
     const refused = await ask(page, { type: 'list' });
     expect(refused.ok).toBe(false);
-    expect(['The persona service is restarting. Try again.', 'The persona service is starting. Try again.'])
+    expect(['Callsigns are restarting. Try again.', 'Callsigns are still starting. Try again.'])
       .toContain(refused.error);
   }
 

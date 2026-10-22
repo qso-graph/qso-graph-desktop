@@ -91,7 +91,7 @@ function toStatus(native: NativeCredentialStatus): CredentialStatus {
 
 function toTest(native: NativeCredentialTest): CredentialTest {
   const outcome = OUTCOMES.find(value => value === native.outcome);
-  if (!outcome) throw new Error('The persona operation could not be completed.');
+  if (!outcome) throw new Error('The callsign request could not be completed.');
   return { outcome };
 }
 function execute(command: ServiceCommand): PersonaReply {
@@ -148,14 +148,14 @@ function execute(command: ServiceCommand): PersonaReply {
     // use a fixed message; never return a stack or the command payload.
     const messages = [
       'Use a non-empty name without colons or control characters.', 'Enter a callsign.',
-      'Use YYYY-MM-DD for dates.', 'End date must not precede start date.', 'Persona not found.',
+      'Use YYYY-MM-DD for dates.', 'End date must not precede start date.', 'Callsign not found.',
       'Keychain is unavailable.', 'Keychain could not read this credential.',
       'Keychain could not save this credential.', 'Keychain could not remove this credential.',
       'Enter a password or API key.', 'Profile could not be saved.',
-      'The persona index could not be read. It has not been changed.',
+      'The list of callsigns could not be read. It has not been changed.',
       'Stored credential has an unsupported format. It has not been changed.',
       'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
-      'Persona was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
+      'The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
       'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
       // Moving personas between machines. Each is a fixed sentence from the
       // core, carrying no value (QGD-PSN-0010's is the one that must reach the
@@ -166,7 +166,7 @@ function execute(command: ServiceCommand): PersonaReply {
       "This file's header is not the shape an export has.",
       'This export was written by a different version of QSO Graph Desktop.',
       'This export uses an algorithm this version does not have.',
-      'This export opened, and what is inside it is not a persona export.',
+      'This export opened, and what is inside it is not an export of callsigns.',
       'This file is larger than any export this product writes.',
       'This export holds a credential with no service.',
       'This export could not be read.',
@@ -179,7 +179,7 @@ function execute(command: ServiceCommand): PersonaReply {
       'The reference source sent more than this product will read.',
       'The reference source could not be read.'
     ];
-    const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The persona operation could not be completed.';
+    const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The callsign request could not be completed.';
     log.warn({ command: command.type, reason: message }, 'persona operation failed');
     // Named for the store this platform has (Keychain, Credential Manager,
     // the keyring); the sentence is still one of the fixed ones above.
@@ -194,7 +194,7 @@ process.parentPort.on('message', (event: { data?: unknown }) => {
   const envelope = data !== null && typeof data === 'object' ? data as { id?: unknown; command?: unknown } : {};
   const { id, command } = envelope;
   if (!Number.isSafeInteger(id) || !validateServiceCommand(command, services)) {
-    process.parentPort.postMessage({ id: typeof id === 'number' ? id : null, reply: { ok: false, error: 'Invalid persona request.' } });
+    process.parentPort.postMessage({ id: typeof id === 'number' ? id : null, reply: { ok: false, error: 'Invalid callsign request.' } });
     return;
   }
   const reply = execute(command);
