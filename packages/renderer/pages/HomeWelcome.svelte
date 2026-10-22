@@ -71,7 +71,7 @@
     <section class="welcome-feature" id="welcome-runs" aria-labelledby="welcome-runs-title">
       <h3 id="welcome-runs-title">Runs Where You Run</h3>
       <p>
-        macOS, Windows and Linux, down to a Raspberry Pi 5. On Linux it's a single AppImage: no installer,
+        Windows, Linux (down to a Raspberry Pi 5) and macOS. On Linux it's a single AppImage: no installer,
         no root, nothing to set up. Download it and run it, at home or off a USB stick in the field. Rather
         install it? There's a .deb and an .rpm too.
         <button type="button" class="link-button" id="welcome-downloads" onclick={onDownloads}>Get it for another computer</button>

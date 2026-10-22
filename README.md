@@ -11,12 +11,12 @@ radio extensions build on.** One app for your station, with the tools you choose
 
 **One app, every desk, nothing to wrestle with.**
 
+- **Windows:** a standard installer.
 - **Linux: a single AppImage.** Download it, mark it executable, run it. No installer, no root,
   nothing scattered across your system. It runs from your shack PC or off a USB stick in the field,
   on x64 and on arm64, down to a Raspberry Pi 5. Rather install it? There's a `.deb` and an `.rpm`
   as well. (A few newer distributions leave out the FUSE 2 library AppImages use: install `libfuse2`,
   or use the `.deb` or `.rpm`.)
-- **Windows:** a standard installer.
 - **macOS:** a disk image. Drag it to Applications. Apple silicon.
 
 Your callsigns, logins and logs stay on your computer. There's no account to make and no server of
