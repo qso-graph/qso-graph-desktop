@@ -134,6 +134,13 @@ try {
   await field(page, 'MY_GRIDSQUARE').fill('');
   await page.locator('#save-station').click();
   await expect(page.locator('#station-my-gridsquare-error')).toHaveText('A location needs a grid.');
+  // Case is set as it is typed (QGD-CNV-0016): a grid's field up and its
+  // subsquare down, a park reference up.
+  await field(page, 'MY_GRIDSQUARE').pressSequentially('dn13TP');
+  await expect(field(page, 'MY_GRIDSQUARE')).toHaveValue('DN13tp');
+  await field(page, 'MY_POTA_REF').pressSequentially('us-2233');
+  await expect(field(page, 'MY_POTA_REF')).toHaveValue('US-2233');
+  await field(page, 'MY_POTA_REF').fill('');
   await field(page, 'MY_GRIDSQUARE').fill('DN13');
   await page.locator('#fill-from-grid').click();
   await expect(field(page, 'MY_LAT')).toHaveValue('43.5');

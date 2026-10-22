@@ -106,6 +106,8 @@ try {
   expect(await page.evaluate(() => window.personas.request({ type: 'require-credential', persona: 'home', provider: 'qrz' }))).toEqual({ ok: false, error: 'Invalid callsign request.' });
   await page.getByLabel('Description', { exact: true }).fill(persona);
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
+  // Typed lowercase, shown uppercase as it is typed (QGD-CNV-0001, QGD-CNV-0016).
+  await expect(page.getByLabel('Callsign', { exact: true })).toHaveValue('W1AW');
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();

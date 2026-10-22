@@ -15,6 +15,7 @@
 -->
 <script lang="ts">
   import PageLayout from '../../ui/PageLayout.svelte';
+  import { caseAsTyped, type CaseRule } from '../../ui/typed-case.js';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
     STATION_KINDS, fromAdifLocation, gridBounds, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
@@ -357,6 +358,16 @@
   // square reaches, and only one is filled in: where the square crosses a
   // county line the operator picks. A state already set is never changed: a
   // position in another state is said, not acted on.
+  // The case each typed field takes as it is typed (QGD-CNV-0016). A field
+  // not named here (latitude, longitude, elevation, zones, street, city,
+  // postal code) is left as typed.
+  function caseRule(field: StationField): CaseRule | undefined {
+    if (field === 'MY_GRIDSQUARE' || field === 'MY_VUCC_GRIDS' || field === 'MY_GRIDSQUARE_EXT') return 'grid';
+    if (field === 'MY_CNTY') return 'county';
+    if (['MY_STATE', 'MY_ARRL_SECT', 'MY_POTA_REF', 'MY_SOTA_REF', 'MY_WWFF_REF', 'MY_IOTA'].includes(field)) return 'upper';
+    return undefined;
+  }
+
   let countyNote = $state('');
   let countyChoices = $state<string[]>([]);
   let countySections: Record<string, string> = {};
@@ -503,7 +514,7 @@
       {#if parksLoaded}
         <label for="park-reference">Park reference</label>
         <div class="inline-form">
-          <input id="park-reference" type="text" autocapitalize="characters" placeholder="US-0001, or US-0001,US-0002"
+          <input id="park-reference" type="text" autocapitalize="characters" placeholder="US-0001, or US-0001,US-0002" use:caseAsTyped={'upper'}
             bind:value={parkReference} aria-describedby={parkError ? 'park-reference-error' : undefined}
             aria-invalid={parkError ? true : undefined} />
           <button type="button" class="secondary" id="from-park" disabled={parkReference.trim() === ''}
@@ -557,6 +568,7 @@
                 </select>
               {:else}
                 <input {id} type="text" maxlength="100" autocomplete="off"
+                  use:caseAsTyped={caseRule(info.field)}
                   value={place[info.field] ?? ''}
                   oninput={(event) => { place[info.field] = (event.currentTarget as HTMLInputElement).value; }}
                   onchange={() => { if (info.field === 'MY_POTA_REF') void lookUpParks(); }}
@@ -567,7 +579,7 @@
               {#if info.field === 'MY_POTA_REF' && parkNote}<p id="station-park-names" class="hint" role="status">{parkNote}</p>{/if}
               {#if info.field === 'MY_POTA_REF'}
                 <div class="inline-form add-park">
-                  <input id="station-another-park" type="text" maxlength="20" autocapitalize="characters" placeholder="US-0002"
+                  <input id="station-another-park" type="text" maxlength="20" autocapitalize="characters" placeholder="US-0002" use:caseAsTyped={'upper'}
                     aria-label="Another park, for a two-fer or three-fer" bind:value={anotherPark}
                     onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addPark(); } }} />
                   <button type="button" class="secondary" id="add-park" disabled={anotherPark.trim() === ''} onclick={addPark}>Add a park</button>
@@ -610,7 +622,7 @@
           {#if group.title === 'Activity'}
             <div>
               <label for="station-lotw-park">LoTW park</label>
-              <input id="station-lotw-park" type="text" maxlength="40" bind:value={lotwPark}
+              <input id="station-lotw-park" type="text" maxlength="40" use:caseAsTyped={'upper'} bind:value={lotwPark}
                 aria-describedby={problemOf('lotwPark') ? 'station-lotw-park-hint station-lotw-park-error' : 'station-lotw-park-hint'}
                 aria-invalid={problemOf('lotwPark') ? true : undefined} />
               <p id="station-lotw-park-hint" class="hint">TQSL's Park, as NP33: a US national park unit. ADIF has no field for it.</p>

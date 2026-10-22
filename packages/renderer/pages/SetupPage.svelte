@@ -19,6 +19,7 @@
   to this file.
 -->
 <script lang="ts">
+  import { caseAsTyped } from '../../ui/typed-case.js';
   import { untrack } from 'svelte';
   import Field, { type ControlAttributes } from '../../ui/Field.svelte';
   import type { ServiceSummary } from '../../personas/persona-contract.js';
@@ -104,7 +105,7 @@
 </script>
 
 {#snippet callsignControl({ describedBy, invalid }: ControlAttributes)}
-  <input id="setup-callsign" type="text" autocapitalize="characters" bind:value={callsign}
+  <input id="setup-callsign" type="text" autocapitalize="characters" use:caseAsTyped={'upper'} bind:value={callsign}
     aria-describedby={describedBy} aria-invalid={invalid} />
 {/snippet}
 

@@ -281,22 +281,26 @@ if (!app.requestSingleInstanceLock()) {
       // (QGD-LOG-0013). The window opens the panel; this only says so.
       // Privacy, Attributions and Contributors beside it (QGD-FRM-0015,
       // KI7MT 2026-10-22). The window opens each; this only says which.
-      { role: 'help', submenu: [{
-        id: 'troubleshooting',
-        label: 'Troubleshooting…',
-        click: () => {
-          const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-          if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
+      { role: 'help', submenu: [
+        ...(['privacy', 'attributions', 'contributors'] as const).map(topic => ({
+          id: topic,
+          label: `${topic[0].toUpperCase()}${topic.slice(1)}…`,
+          click: () => {
+            const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+            if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:help', topic); }
+          }
+        })),
+        { type: 'separator' },
+        // Troubleshooting last, below the separator (KI7MT, 2026-10-22).
+        {
+          id: 'troubleshooting',
+          label: 'Troubleshooting…',
+          click: () => {
+            const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+            if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
+          }
         }
-      }, { type: 'separator' },
-      ...(['privacy', 'attributions', 'contributors'] as const).map(topic => ({
-        id: topic,
-        label: `${topic[0].toUpperCase()}${topic.slice(1)}…`,
-        click: () => {
-          const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-          if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:help', topic); }
-        }
-      }))] }
+      ] }
     ]));
     createWindow();
     app.on('activate', () => {
