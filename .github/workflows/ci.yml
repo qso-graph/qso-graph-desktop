@@ -281,6 +281,15 @@ jobs:
           for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID; do
             [ -n "${!name}" ] || { echo "The macos-signing Environment has no $name." >&2; exit 1; }
           done
+          # Each secret's shape, said plainly, never its value: a key pasted
+          # into the wrong secret otherwise fails later as a broken path.
+          [[ "$APPLE_API_KEY_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "APPLE_API_KEY_ID should be the 10-character Key ID (the part after AuthKey_ in the .p8's name)." >&2; exit 1; }
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "APPLE_TEAM_ID should be the 10-character Team ID." >&2; exit 1; }
+          [[ "$APPLE_API_ISSUER" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || { echo "APPLE_API_ISSUER should be the Issuer ID, a UUID." >&2; exit 1; }
+          [[ "$APPLE_API_KEY_P8" == *"-----BEGIN PRIVATE KEY-----"*"-----END PRIVATE KEY-----"* ]] || { echo "APPLE_API_KEY_P8 should be the whole .p8 file, BEGIN and END lines included." >&2; exit 1; }
+          # The certificate as one line of base64, whatever wrapping it was pasted with.
+          CSC_LINK=$(printf '%s' "$CSC_LINK" | tr -d ' \r\n')
+          export CSC_LINK
           key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
           chmod 600 "$key"
