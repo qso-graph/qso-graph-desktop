@@ -19,6 +19,13 @@ radio extensions build on.** One app for your station, with the tools you choose
   or use the `.deb` or `.rpm`.)
 - **macOS:** a disk image. Drag it to Applications. Apple silicon.
 
+**Where:** the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). Until the
+first release, the **Preview** there is the newest build of `develop`, replaced each time one passes
+its tests: every installer is its own download, each `.zip` is a portable build you unpack and run,
+and `SHA256SUMS.txt` lets you check a download. It is a preview to test, not a release, and is
+unsigned for now, so Windows and macOS warn the first time it runs. How versions and releases are
+named: [docs/RELEASES.md](docs/RELEASES.md).
+
 Your callsigns, logins and logs stay on your computer. There's no account to make and no server of
 ours to talk to.
 

@@ -219,6 +219,16 @@ jobs:
           key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-counties.mjs
+      # A build of develop is a preview: its version gains the commit's UTC
+      # date and time and the commit (docs/RELEASES.md), here, never in a
+      # commit. The commit's time, so all four platforms carry one version.
+      - name: Preview version
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        shell: bash
+        run: |
+          stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
+          npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${GITHUB_SHA::11}"
+          node -p "require('./package.json').version"
       - run: npm run installer
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
@@ -235,3 +245,45 @@ jobs:
             out/*.zip
           if-no-files-found: error
           retention-days: 7
+
+  # The Preview pre-release (docs/RELEASES.md): each green build of develop,
+  # every installer its own download on the Releases page, replacing the one
+  # before, files, tag and all (KI7MT, 2026-10-23: an artifact is zipped by
+  # GitHub and buried in a run, where nobody finds it). This repository's own
+  # token, so no other credential is held here.
+  preview:
+    name: preview release
+    needs: [package]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: qso-graph-desktop-*
+          path: preview
+          merge-multiple: true
+      - name: Replace the Preview pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          cd preview
+          sha256sum -- * > SHA256SUMS.txt
+          ls -la
+          version=$(ls qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's/^qso-graph-desktop-(.*)-linux-x86_64\.AppImage$/\1/')
+          {
+            echo "Built from develop at ${SHA}: version ${version}."
+            echo
+            echo "A preview to test, not a release (docs/RELEASES.md). Each green build of develop replaces it."
+            echo "Unsigned for now, so Windows SmartScreen and macOS Gatekeeper warn the first time it runs."
+            echo
+            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
+            echo "Check a download against **SHA256SUMS.txt**."
+          } > ../notes.md
+          gh release delete preview --repo "$REPO" --cleanup-tag --yes || true
+          gh release create preview --repo "$REPO" --prerelease --target "$SHA" \
+            --title "Preview ${version}" --notes-file ../notes.md -- *

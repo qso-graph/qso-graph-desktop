@@ -4,8 +4,8 @@ Decided by KI7MT, 2026-10-23. It follows **Podman Desktop**, which is built the
 way this application is (Electron, electron-builder, published on GitHub), so
 there is a working example of every rule below.
 
-Nothing here is automated yet. This is what the release workflow will be
-built to do, and nothing is published until it is.
+Previews are published by CI (`.github/workflows/ci.yml`, the `preview` job).
+Releases are not automated yet; the last section lists what is still to build.
 
 ## Versions
 
@@ -30,22 +30,26 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 
 | Kind | Built from | Version and tag | Published | For |
 |---|---|---|---|---|
-| **Preview** | each green build of develop | the next version, the UTC date and time of the build, and the commit: `0.2.0-202610230124-34d3a62a1b0` | a pre-release in **`qso-graph/qso-graph-desktop-previews`**, a repository of its own | testing what is on develop, every day |
+| **Preview** | each green build of develop | the next version, the UTC date and time of the commit, and the commit: `0.2.0-202610230124-34d3a62a1b0` | **one** pre-release named **Preview** on this repository's Releases page, tag `preview`, replaced by each green build | testing what is on develop, every day |
 | **Pre-release** | main, after a release PR from develop | the version itself, no suffix: `v0.2.0`, then `v0.2.1`, `v0.2.2` for fixes | a **pre-release** on this repository's Releases page | testing a release before it is called final |
 | **Release** | the same build as the pre-release it was | unchanged: `v0.2.1` | the pre-release **promoted** to a full release, marked **Latest** | everyone |
 
 ### Previews
 
 - A preview's version is `<next version>-<YYYYMMDDHHMM>-<commit>`: the version
-  develop is heading for, the build's UTC date and time to the minute, and the
-  first 11 characters of the commit. `0.2.0-202610230124-34d3a62a1b0` sorts by
-  time and names exactly the code it was built from. The date and time are
-  added by the build and never committed.
-- They live in **their own repository**, as Podman Desktop's live in
-  `podman-desktop/testing-prereleases`, so this repository's Releases page
-  holds real versions only.
-- Each is a GitHub pre-release with every installer as its own download. The
-  newest 30 are kept.
+  develop is heading for, the **commit's** UTC date and time to the minute, and
+  the first 11 characters of the commit. `0.2.0-202610230124-34d3a62a1b0` sorts
+  by time and names exactly the code it was built from. The commit's time
+  rather than the build's, because each platform is built on its own machine
+  at its own moment, and every file of one preview must carry one version. It
+  is added by the build and never committed.
+- **There is one preview at a time**, on this repository's Releases page: a
+  pre-release named Preview, tag `preview`, with every installer as its own
+  download. Each green build of develop replaces it, files, tag and all. Old
+  previews are not kept (KI7MT, 2026-10-23: "we dont have hundreds of
+  contributors"). Podman Desktop keeps a history of its previews in a
+  repository of their own; that needs a credential for another repository in
+  this one's public CI, which one preview at a time does not.
 
 ### Pre-releases and releases
 
@@ -108,8 +112,6 @@ those who choose to test them. Previews are never offered as an update.
 
 ## Not built yet
 
-1. The previews repository, `qso-graph/qso-graph-desktop-previews`.
-2. Publishing each green develop build there as a preview.
-3. The release workflow on main: build, tag, pre-release, and `SHA256SUMS.txt`.
-4. `CHANGELOG.md`.
-5. Self-update.
+1. The release workflow on main: build, tag, pre-release, and `SHA256SUMS.txt`.
+2. `CHANGELOG.md`.
+3. Self-update.
