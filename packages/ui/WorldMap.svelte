@@ -45,4 +45,8 @@
       <text class="map-label" x={mapX(mark.longitude) + offset(mark.longitude)} y={mapY(mark.latitude) + 2} text-anchor={anchor(mark.longitude)}>{mark.label}</text>
     {/each}
   </svg>
+  <!-- Natural Earth's own words for a credit, under every map the core draws
+       from its data: not required by its public-domain terms, given gladly
+       (KI7MT, 2026-10-23). -->
+  <figcaption class="map-credit">Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.</figcaption>
 </figure>

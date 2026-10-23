@@ -29,3 +29,6 @@ across a year (`QGD-AST-0005`, `QGD-AST-0006`). The almanac's times are on the
 computer's clock, which is the operator's to set, and the page names the zone it is
 set to; the grey-line windows with another station are in UTC (KI7MT, 2026-10-23:
 Locations are local, logs are UTC).
+
+The world map is made with [Natural Earth](https://www.naturalearthdata.com/): free
+vector and raster map data, in the public domain. Thank you to its authors.

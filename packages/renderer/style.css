@@ -528,6 +528,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 /* The world map fills the page's width at its own 2:1 shape. */
 .world-map { margin: 4px 0 14px; }
 .world-map svg { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+.map-credit { margin: 4px 0 0; font-size: 11px; color: var(--ink-muted); }
 .map-sea { fill: var(--map-sea); }
 .map-land { fill: var(--map-land); }
 .map-night { fill: var(--map-night); }
