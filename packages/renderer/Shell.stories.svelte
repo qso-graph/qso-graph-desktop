@@ -63,7 +63,8 @@
       firstRun: false,
       services: [],
       extensions: undefined,
-      refusedExtensions: []
+      refusedExtensions: [],
+      area: []
     })
   }}
 />

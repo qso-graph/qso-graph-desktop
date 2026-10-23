@@ -123,6 +123,8 @@ export interface ShellState {
   extensions: ExtensionSwitch[] | undefined;
   // Extensions that did not load, by folder, with why (QGD-APP-0011).
   refusedExtensions: readonly { readonly folder: string; readonly reason: string }[];
+  // My Area as saved (settings-contract.ts): empty means the Location's own.
+  area: readonly string[];
 }
 
 export interface ExtensionSwitch {
@@ -154,7 +156,8 @@ export const INITIAL_SHELL: ShellState = {
   firstRun: false,
   services: [],
   extensions: undefined,
-  refusedExtensions: []
+  refusedExtensions: [],
+  area: []
 };
 
 export interface ShellStore {

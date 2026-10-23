@@ -9,6 +9,7 @@
   <main> and one <nav> in the document, which is what P3-axe needs.
 -->
 <script lang="ts">
+  import type { AreaProgram } from '../storage/area-entry.js';
   import { untrack } from 'svelte';
   import Rail from '../ui/Rail.svelte';
   import StatusBar from '../ui/StatusBar.svelte';
@@ -48,6 +49,10 @@
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
     onCloseWelcome: (hideForThisRelease: boolean) => void;
     onStationFromSummit: (reference: string) => Promise<ParkDraft | string>;
+    // My Area (KI7MT, 2026-10-23).
+    onAreaChoices: () => Promise<readonly AreaProgram[] | string>;
+    onAreaDefault: () => Promise<string | undefined>;
+    onSaveArea: (area: readonly string[]) => Promise<boolean>;
     // A document or a park's or summit's page, in the browser (QGD-SEC-0009).
     onOpenPage: (command: LinkCommand) => void;
     onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
@@ -68,7 +73,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit, onOpenPage,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
     onExportCallsigns, onInspectImport, onApplyImport, version
   }: Props = $props();
@@ -222,6 +227,11 @@
         parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
         summitsLoaded={shell.storage?.reference?.summits.state === 'loaded'}
         onFromSummit={onStationFromSummit}
+        area={shell.area}
+        {onAreaChoices}
+        {onAreaDefault}
+        {onSaveArea}
+        onDownloadParks={() => { store.set({ page: 'settings', extensionPage: null }); void onUpdateReference('pota'); }}
         onSave={onSaveStation}
         onDelete={onDeleteStation}
         onSetActive={onSetActiveStation}

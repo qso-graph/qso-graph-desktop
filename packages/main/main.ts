@@ -347,6 +347,7 @@ if (!app.requestSingleInstanceLock()) {
       { label: 'Setup', submenu: [
         setupItem('callsigns', 'Callsigns…'),
         setupItem('locations', 'Locations…'),
+        setupItem('area', 'My Area…'),
         { type: 'separator' },
         { label: 'Reference Data', submenu: [
           setupItem('adif', 'ADIF Definitions'),

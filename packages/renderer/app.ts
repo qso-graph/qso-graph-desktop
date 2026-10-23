@@ -6,6 +6,7 @@ import {
 import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
+import type { AreaProgram } from '../storage/area-entry.js';
 import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
 import type { Level } from '../logging/logging.js';
 import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } from './theme.js';
@@ -68,7 +69,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit, onOpenPage: openPage,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit, onOpenPage: openPage, onAreaChoices: areaChoices, onAreaDefault: areaDefault, onSaveArea: saveArea,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportCallsigns: exportCallsigns, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreateCallsign: createCallsign, onSaveCredential: saveSetupCredential,
@@ -494,6 +495,7 @@ async function loadTheme(): Promise<void> {
   if (reply.ok) themeChoice = reply.data.theme;
   // The welcome, unless the operator hid it for this release (QGD-FRM-0016).
   if (reply.ok && reply.data.welcomeHidden !== __QG_VERSION__) shell.set({ welcome: true });
+  if (reply.ok) shell.set({ area: reply.data.area });
   shell.set({ themeChoice });
   startTheme();
 }
@@ -725,6 +727,24 @@ export async function stationFromPark(reference: string): Promise<ParkDraft | st
 }
 
 // ADIF's pick lists for the station editor, for an entity and a state.
+// My Area (KI7MT, 2026-10-23): its choices and the Location's own, from QG
+// Storage, and the choice saved in the settings.
+export async function areaChoices(): Promise<readonly AreaProgram[] | string> {
+  const reply = await stationRequest({ type: 'area-choices' });
+  return reply.ok ? reply.areaChoices ?? [] : reply.error;
+}
+
+export async function areaDefault(): Promise<string | undefined> {
+  const reply = await stationRequest({ type: 'area-default' });
+  return reply.ok ? reply.areaDefault ?? undefined : undefined;
+}
+
+export async function saveArea(area: readonly string[]): Promise<boolean> {
+  const reply = await window.settings.request({ type: 'write', key: 'area', value: [...area] });
+  if (reply.ok) shell.set({ area: reply.data.area });
+  return reply.ok;
+}
+
 export async function stationChoices(entity: string | null, state: string | null): Promise<StationChoices | undefined> {
   const reply = await stationRequest({ type: 'station-choices', entity, state });
   return reply.ok ? reply.choices : undefined;
@@ -759,6 +779,11 @@ window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
 window.menu?.onSetup?.(action => {
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
+  // My Area is the last card on Locations (KI7MT, 2026-10-23).
+  else if (action === 'area') {
+    shell.set({ page: 'stations', extensionPage: null });
+    requestAnimationFrame(() => document.getElementById('my-area')?.scrollIntoView({ block: 'start' }));
+  }
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
   // Tools (KI7MT, 2026-10-23): the Callsigns page's Move section, with the

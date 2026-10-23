@@ -275,6 +275,9 @@ try {
   await expect(rail(page, 'Callsigns')).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   await setup('setup-locations');
   await expect(rail(page, 'Locations')).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  // Setup → My Area… lands on Locations' My Area card (KI7MT, 2026-10-23).
+  await setup('setup-area');
+  await expect(page.locator('#area-title')).toBeInViewport({ timeout: 10_000 });
   await setup('setup-pins');
   await expect(page.getByRole('dialog', { name: 'Customize your pins' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('dialog', { name: 'Customize your pins' }).getByRole('button', { name: 'Cancel' }).click();
