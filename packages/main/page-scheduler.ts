@@ -177,11 +177,13 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       reconcile();
     },
     // The operator changed what is in a page's fields (inputs.ts): a new
-    // question, asked now rather than when the interval allows, and what was
-    // shown for the old values is dropped.
+    // question, asked now rather than when the interval allows. What is shown
+    // stays until the answer replaces it, as with Refresh: dropping it first
+    // emptied the page while it was asked, and the page, collapsed, sent the
+    // operator back to its top (KI7MT, 2026-10-23).
     inputsChanged(key: string): void {
       const entry = tracked.get(key);
-      if (entry) { halt(entry); publish(entry, { key, state: 'waiting' }); }
+      if (entry) halt(entry);
       lastAsked.delete(key);
       kept.delete(key);
       reconcile();

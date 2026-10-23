@@ -236,8 +236,9 @@ describe('a page\'s fields (inputs.ts, KI7MT 2026-10-22)', () => {
     scheduler.inputsChanged('air/conditions');
     for (let i = 0; i < 6; i++) await Promise.resolve();
     expect(asked).toEqual([{}, { dx: 'FN31' }]);
-    // What was shown for the old values was dropped before the new answer.
-    expect(published.map(view => view.state)).toContain('waiting');
+    // What was shown stays until the new answer replaces it: no "Getting the
+    // latest…" between, which emptied the page and lost its place.
+    expect(published.map(view => view.state)).toEqual(['waiting', 'ready', 'ready']);
     scheduler.stop();
   });
 });
