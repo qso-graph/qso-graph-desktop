@@ -136,3 +136,22 @@ describe('an up-to choice over a column of numbers (KI7MT, 2026-10-23)', () => {
     expect(filterOptions(section, section.filters[0]!)).toEqual([]);
   });
 });
+
+describe('sorting a column of counts with a filter over some of them (KI7MT, 2026-10-23)', () => {
+  // Parks Near Me: activations, a null shown as none, and a filter whose
+  // options are only none and 0 to 9.
+  const section = { shape: 'table' as const, columns: ['Park', 'Activations'], sortable: true as const,
+    rows: [['A', '12'], ['B', 'none'], ['C', '3'], ['D', '150'], ['E', '0'], ['F', '27']],
+    filters: [{ column: 1, label: 'Activations', options: ['none', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] }] };
+  const order = (direction: 'ascending' | 'descending') =>
+    sortedGroups(section, filteredGroups(section, {}), { column: 1, direction })[0]!.rows.map(row => row[0]);
+  it('sorts every count as a number, the word before them, both ways', () => {
+    expect(order('ascending')).toEqual(['B', 'E', 'C', 'A', 'F', 'D']);
+    expect(order('descending')).toEqual(['D', 'F', 'A', 'C', 'E', 'B']);
+  });
+  it('still sorts by the options\' order when every cell is one of them, as bands do', () => {
+    const bands = { shape: 'table' as const, columns: ['Call', 'Band'], sortable: true as const,
+      rows: [['A', '20m'], ['B', '160m'], ['C', '6m']], filters: [{ column: 1, label: 'Band', options: ['160m', '20m', '6m'] }] };
+    expect(sortedGroups(bands, filteredGroups(bands, {}), { column: 1, direction: 'ascending' })[0]!.rows.map(row => row[0])).toEqual(['B', 'A', 'C']);
+  });
+});

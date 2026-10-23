@@ -132,17 +132,28 @@ export function sortedGroups<G extends { readonly rows: readonly (readonly strin
     }));
   }
   const options = section.filters?.find(filter => filter.column === sort.column)?.options;
-  const rank = options ? new Map(options.map((option, at) => [option, at])) : undefined;
   const sign = sort.direction === 'ascending' ? 1 : -1;
   return groups.map(group => {
     const full = group.rows.filter(row => row.length === section.columns.length);
     const spanning = group.rows.filter(row => row.length !== section.columns.length);
-    const numeric = full.every(row => isNumber(row[sort.column] ?? ''));
+    const cells = full.map(row => row[sort.column] ?? '');
+    // The options' order only when every cell is one of them: a filter that
+    // offers some values (Parks Near Me's "fewer than 10") must not tie every
+    // other one (KI7MT, 2026-10-23: activations would not sort).
+    const rank = options && cells.every(cell => options.includes(cell)) ? new Map(options.map((option, at) => [option, at])) : undefined;
+    // A column of numbers with a few words in it ("none", "—") sorts the
+    // numbers as numbers, the words before them.
+    const numeric = cells.some(isNumber);
     const compare = (a: readonly string[], b: readonly string[]) => {
       const x = a[sort.column] ?? '';
       const y = b[sort.column] ?? '';
       if (rank) return ((rank.get(x) ?? Infinity) - (rank.get(y) ?? Infinity) || 0) * sign;
-      if (numeric) return (Number(x) - Number(y)) * sign;
+      if (numeric) {
+        const xn = isNumber(x);
+        const yn = isNumber(y);
+        if (xn && yn) return (Number(x) - Number(y)) * sign;
+        if (xn !== yn) return (xn ? 1 : -1) * sign;
+      }
       return words.compare(x, y) * sign;
     };
     const ordered = full.map((row, at) => ({ row, at })).sort((a, b) => compare(a.row, b.row) || a.at - b.at).map(entry => entry.row);
