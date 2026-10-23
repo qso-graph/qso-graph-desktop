@@ -102,3 +102,14 @@ describe('groups that share a heading (Codex review, 2026-10-23)', () => {
     expect(pageContents([repeated, repeated]).map(entry => entry.id)).toContain('page-part-0-1');
   });
 });
+
+describe('a filter over cells with several values (KI7MT, 2026-10-23)', () => {
+  const parks: Table = { shape: 'table', columns: ['Park', 'Location'], rows: [
+    ['JP-0011', 'JP-FS, JP-GM, JP-NI, JP-TC'], ['JP-1874', 'JP-FS'], ['GB-0612', 'GB-ENG']
+  ], filters: [{ column: 1, label: 'Location', multiple: true }] };
+  it('offers each value on its own, and keeps a row any of whose values is chosen', () => {
+    expect(filterOptions(parks, parks.filters![0]!)).toEqual(['JP-FS', 'JP-GM', 'JP-NI', 'JP-TC', 'GB-ENG']);
+    expect(filteredGroups(parks, { 1: 'JP-FS' })[0]!.rows.map(row => row[0])).toEqual(['JP-0011', 'JP-1874']);
+    expect(filteredGroups(parks, { 1: 'JP-TC' })[0]!.rows.map(row => row[0])).toEqual(['JP-0011']);
+  });
+});

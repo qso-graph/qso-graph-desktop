@@ -3,7 +3,7 @@
 // QGD-HOM-0001). Each refusal names what it refused, so the operator, or the
 // person writing the extension, can act on it.
 import { describe, expect, it } from 'vitest';
-import { API_VERSION, MANIFEST_VERSION, satisfiesApi, validateManifest } from '../packages/extension-api/manifest.js';
+import { API_VERSION, MANIFEST_VERSION, pageNeedsNetwork, satisfiesApi, validateManifest } from '../packages/extension-api/manifest.js';
 
 const known = new Set(['source:noaa-swpc', 'callsign:list']);
 const PAGE = { id: 'conditions', name: 'Conditions', description: 'Solar flux, K and A, and the band outlook.', refreshSeconds: 900 };
@@ -120,6 +120,16 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     ] as const) {
       expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, inputs: bad }] } }, known)).toThrowError(message);
     }
+  });
+
+  it('takes a page\'s word on whether it needs the internet, and works it out from the grants otherwise (KI7MT, 2026-10-23)', () => {
+    expect(validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, network: false }] } }, known).contributes.pages[0]).toEqual({ ...PAGE, network: false });
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, network: 'yes' }] } }, known)).toThrowError(/needs the internet/);
+    // On the Air may fetch, yet its page for activators works offline.
+    expect(pageNeedsNetwork({ grants: ['source:pota-spots'] }, { network: false })).toBe(false);
+    expect(pageNeedsNetwork({ grants: ['source:pota-spots'] }, {})).toBe(true);
+    expect(pageNeedsNetwork({ grants: ['reference:read'] }, {})).toBe(false);
+    expect(pageNeedsNetwork({ grants: [] }, { network: true })).toBe(true);
   });
 
   it('keeps an icon name and a rail item when given, and leaves them out when not', () => {

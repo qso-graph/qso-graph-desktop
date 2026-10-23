@@ -14,6 +14,7 @@ import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
 import { isExtensionIcon } from '../ui/icons.js';
 import { inputValues } from '../extension-api/inputs.js';
+import { pageNeedsNetwork } from '../extension-api/manifest.js';
 
 export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
@@ -39,7 +40,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
       page: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
       icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true,
       inputs: page.inputs ?? [],
-      network: extension.manifest.grants.some(grant => grant.startsWith('source:') || grant.startsWith('service:'))
+      // The page's own word, or else its extension's grants (manifest.ts).
+      network: pageNeedsNetwork(extension.manifest, page)
     })));
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).

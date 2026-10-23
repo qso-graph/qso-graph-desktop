@@ -137,7 +137,7 @@
             <tbody>
               {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
-                <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td colspan={row.length < section.columns.length ? section.columns.length - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
+                <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td class:wrap={cell.length > 48} colspan={row.length < section.columns.length ? section.columns.length - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
               {/each}
             </tbody>
           {/each}

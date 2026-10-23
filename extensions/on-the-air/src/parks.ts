@@ -73,8 +73,11 @@ export function parseSpots(body: string): Spot[] | undefined {
     // POTA's times carry no zone and are UTC.
     const at = timeOf(row.spotTime);
     if (!CALL.test(activator) || !REFERENCE.test(reference) || !Number.isFinite(kHz) || kHz <= 0 || !at || Number.isNaN(at.getTime())) continue;
-    const park = plain(row.name, 60);
-    const location = plain(typeof row.locationDesc === 'string' ? row.locationDesc.split(',').map(part => part.trim()).filter(Boolean).join(', ') : undefined, 40);
+    // Whole, as POTA names them (KI7MT, 2026-10-23: "Contreforts
+    // septentrionaux du Causse d'Aumelas Biological R…" was cut short); the
+    // bound is only a bound, far past any name POTA gives.
+    const park = plain(row.name, 300);
+    const location = plain(typeof row.locationDesc === 'string' ? row.locationDesc.split(',').map(part => part.trim()).filter(Boolean).join(', ') : undefined, 300);
     const mode = plain(row.mode, 10);
     spots.push({ activator, reference, kHz, at, ...(park ? { park } : {}), ...(location ? { location } : {}), ...(mode ? { mode } : {}) });
   }
@@ -130,7 +133,9 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   const bandOptions = [...bands.map(band => band.band).filter(band => onBands.has(band)), ...(onBands.has(NO_BAND) ? [NO_BAND] : [])].slice(0, 100);
   const modeOptions = [...present(6)].sort((a, b) => a.localeCompare(b)).slice(0, 100);
   // The locations on the air, alphabetically: "show me Idaho" (KI7MT, 2026-10-23).
-  const locationOptions = [...present(3)].sort((a, b) => a.localeCompare(b)).slice(0, 100);
+  // Each location on its own, so a park in several is found under each.
+  const locationOptions = [...new Set(rows.flatMap(row => row[3]!.split(',').map(value => value.trim()).filter(Boolean)))]
+    .sort((a, b) => a.localeCompare(b)).slice(0, 100);
   const sections: Section[] = [
     { shape: 'figures', figures: [
       { label: 'Activators', value: String(newest.length) },
@@ -144,7 +149,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),
       { column: 6, label: 'Mode', options: modeOptions },
-      { column: 3, label: 'Location', options: locationOptions }
+      { column: 3, label: 'Location', options: locationOptions, multiple: true }
     ] }
   ];
   if (bands.length === 0) {

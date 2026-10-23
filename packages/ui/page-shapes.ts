@@ -42,7 +42,7 @@ export function pageContents(sections: readonly Section[]): ContentsEntry[] {
 export interface Place { readonly latitude: number; readonly longitude: number }
 export interface Mark extends Place { readonly label: string }
 // A column to narrow the table by (version 6).
-export interface TableFilter { readonly column: number; readonly label: string; readonly options?: readonly string[] }
+export interface TableFilter { readonly column: number; readonly label: string; readonly options?: readonly string[]; readonly multiple?: true }
 export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
 
 // What a filter offers: the extension's options, or else the column's own
@@ -52,10 +52,14 @@ export function filterOptions(section: Extract<Section, { shape: 'table' }>, fil
   const seen = new Set<string>();
   for (const group of tableGroups(section)) for (const row of group.rows) {
     const cell = row[filter.column];
-    if (cell !== undefined && row.length === section.columns.length) seen.add(cell);
+    if (cell === undefined || row.length !== section.columns.length) continue;
+    for (const value of filter.multiple ? valuesOf(cell) : [cell]) seen.add(value);
   }
   return [...seen];
 }
+
+// A cell holding several values, as "JP-FS, JP-GM" (a multiple filter).
+export const valuesOf = (cell: string) => cell.split(',').map(value => value.trim()).filter(Boolean);
 
 // The table's groups with only the rows every chosen filter matches; a group
 // left empty is left out. A choice of '' is "All". A row that spans its
@@ -65,6 +69,7 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
   // columns or filters differ, and a choice left over from the old one would
   // hide every row with no filter drawn to clear it (Codex review, 2026-10-23).
   const offered = new Set((section.filters ?? []).map(filter => filter.column));
+  const several = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column));
   const active = Object.entries(chosen).filter(([column, value]) => value !== '' && offered.has(Number(column)));
   // Each group keeps its place in the table as sent (`at`), which its
   // contents link names: two groups may share a heading (Codex review).
@@ -72,7 +77,9 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
   if (active.length === 0) return placed;
   return placed
     .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
-      && active.every(([column, value]) => row[Number(column)] === value)) }))
+      && active.every(([column, value]) => (several.has(Number(column))
+        ? valuesOf(row[Number(column)] ?? '').includes(value)
+        : row[Number(column)] === value))) }))
     .filter(group => group.rows.length > 0);
 }
 

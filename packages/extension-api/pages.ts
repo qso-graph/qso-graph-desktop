@@ -132,6 +132,11 @@ export interface TableFilter {
   readonly column: number;
   readonly label: string;
   readonly options?: readonly string[];
+  // The column's cells may each hold several values, separated by ", ": a
+  // row matches when any of them is the one chosen, and the choices are the
+  // single values (KI7MT, 2026-10-23: a park in JP-FS, JP-GM, JP-NI and
+  // JP-TC is a park in JP-FS).
+  readonly multiple?: true;
 }
 
 // A place on the earth, in degrees: north and east positive.
@@ -321,18 +326,20 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     const filters = filtered ? each(value.filters as unknown[], where, (filter: unknown, f: number): TableFilter => {
       const name = `${where}, filter ${f + 1}`;
       if (!isRecord(filter)) throw new PageError(`${name} is not an object.`);
-      only(filter, ['column', 'label', 'options'], name);
+      only(filter, ['column', 'label', 'options', 'multiple'], name);
+      if (filter.multiple !== undefined && filter.multiple !== true) throw new PageError(`${name}'s multiple is not true.`);
+      const multiple = filter.multiple === true ? { multiple: true as const } : {};
       if (typeof filter.column !== 'number' || !Number.isInteger(filter.column) || filter.column < 0 || filter.column >= columns.length) {
         throw new PageError(`${name} does not name one of the table's columns.`);
       }
       const label = text(filter.label, PAGE_LIMITS.label, `${name}'s label`);
-      if (filter.options === undefined) return { column: filter.column, label };
+      if (filter.options === undefined) return { column: filter.column, label, ...multiple };
       if (!Array.isArray(filter.options) || filter.options.length === 0 || filter.options.length > PAGE_LIMITS.options) {
         throw new PageError(`${name} has no options, or more than ${PAGE_LIMITS.options}.`);
       }
       const options = each(filter.options, name, (option: unknown, o: number) => text(option, PAGE_LIMITS.cell, `${name}, option ${o + 1}`));
       if (new Set(options).size !== options.length) throw new PageError(`${name} offers the same option twice.`);
-      return { column: filter.column, label, options };
+      return { column: filter.column, label, options, ...multiple };
     }) : undefined;
     if (filters && new Set(filters.map(filter => filter.column)).size !== filters.length) {
       throw new PageError(`${where} filters one column twice.`);

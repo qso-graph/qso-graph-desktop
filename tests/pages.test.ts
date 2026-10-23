@@ -239,7 +239,8 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     [[{ column: 1, label: 'Band', options: [] }], /no options/],
     [[{ column: 1, label: 'Band', options: ['20m', '20m'] }], /same option twice/],
     [[{ column: 1, label: 'Band', options: Array.from({ length: 101 }, (_, i) => `b${i}`) }], /more than 100/],
-    [[{ column: 1, label: 'Band', default: '20m' }], /"default"/]
+    [[{ column: 1, label: 'Band', default: '20m' }], /"default"/],
+    [[{ column: 1, label: 'Band', multiple: false }], /multiple is not true/]
   ])('refuses an off-shape filter (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [{ ...table, filters: value }]))).toThrowError(message);
   });

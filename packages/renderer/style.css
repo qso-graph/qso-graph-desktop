@@ -508,6 +508,9 @@ dialog.pins h2 { margin: 0 0 6px; }
    of what follows (KI7MT, 2026-10-23). */
 .page-table tbody:has(.page-table-group) th[scope="row"] { padding-left: 16px; }
 .page-table td[colspan] { color: inherit; white-space: normal; }
+/* A long cell wraps within a readable width rather than widening the table:
+   a park's whole name, a park in ten locations (KI7MT, 2026-10-23). */
+.page-table td.wrap, .page-table td.wrap:not(:last-child) { white-space: normal; min-width: 14em; max-width: 30em; }
 .page-offline { color: var(--warn); font-weight: 600; }
 .page-text { margin: 0 0 12px; color: var(--ink-muted); font-size: 13px; }
 /* The contents line at the top of a long page: text links, one per part. */

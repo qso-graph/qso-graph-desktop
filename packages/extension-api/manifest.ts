@@ -57,6 +57,10 @@ export interface PageContribution {
   // The fields the page asks the operator for, drawn and checked by the core
   // (inputs.ts).
   readonly inputs?: readonly PageInput[];
+  // Whether the page needs the internet (KI7MT, 2026-10-23): a page that does
+  // not keeps working offline, though its extension may fetch for another
+  // page. Absent, the core works it out from the extension's grants.
+  readonly network?: boolean;
 }
 
 export interface ExtensionManifest {
@@ -126,7 +130,7 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs'];
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs', 'network'];
 const INPUT_FIELDS = ['id', 'label', 'kind', 'max', 'hint'];
 const MAX_PAGES = 16;
 // A tile shows the name on one line and the description on two (KI7MT,
@@ -166,10 +170,17 @@ export function satisfiesApi(range: unknown, api: string = API_VERSION): boolean
   return true;
 }
 
+// Whether a page needs the internet: its own word where it gives one, or
+// else whether its extension may fetch at all, from its grants (KI7MT,
+// 2026-10-23). A page that does not is asked while offline.
+export function pageNeedsNetwork(manifest: Pick<ExtensionManifest, 'grants'>, page: Pick<PageContribution, 'network'>): boolean {
+  return page.network ?? manifest.grants.some(grant => grant.startsWith('source:') || grant.startsWith('service:'));
+}
+
 function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
   onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
-  const { id: page, name, description, refreshSeconds, icon, rail, inputs } = value;
+  const { id: page, name, description, refreshSeconds, icon, rail, inputs, network } = value;
   if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
   if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
   seen.add(page);
@@ -194,11 +205,15 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (rail !== undefined && typeof rail !== 'boolean') {
     throw new ManifestError(`The page "${page}" in "${id}" says whether it is in the rail with something other than true or false.`, page);
   }
+  if (network !== undefined && typeof network !== 'boolean') {
+    throw new ManifestError(`The page "${page}" in "${id}" says whether it needs the internet with something other than true or false.`, page);
+  }
   const fields = validInputs(inputs, page, id);
   return {
     id: page, name, description, refreshSeconds: refreshSeconds as number,
     ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {}),
-    ...(fields.length > 0 ? { inputs: fields } : {})
+    ...(fields.length > 0 ? { inputs: fields } : {}),
+    ...(network !== undefined ? { network: network as boolean } : {})
   };
 }
 

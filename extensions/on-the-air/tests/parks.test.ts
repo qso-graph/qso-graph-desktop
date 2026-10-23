@@ -51,7 +51,7 @@ describe('Parks On the Air', () => {
     expect(table?.shape === 'table' && table.filters).toEqual([
       { column: 5, label: 'Band', options: ['40m', '20m', '10m'] },
       { column: 6, label: 'Mode', options: ['CW', 'FT8', 'SSB'] },
-      { column: 3, label: 'Location', options: ['CA-ON, CA-QC', 'GB-ENG', 'US-ID'] }
+      { column: 3, label: 'Location', options: ['CA-ON', 'CA-QC', 'GB-ENG', 'US-ID'], multiple: true }
     ]);
   });
 
@@ -101,5 +101,21 @@ describe('odd values in POTA\'s feed (Codex review, 2026-10-23)', () => {
     expect(parseSpots(spot({ frequency: ' 14062 ' }))?.[0]?.kHz).toBe(14062);
     expect(parseSpots(spot({ frequency: '7185.5' }))?.[0]?.kHz).toBe(7185.5);
     expect(parseSpots(spot({ frequency: 14062 }))?.[0]?.kHz).toBe(14062);
+  });
+});
+
+describe('long names and parks in several locations (KI7MT, 2026-10-23)', () => {
+  it('keeps a long name whole, and offers each location of a park in several on its own', () => {
+    const long = 'Contreforts septentrionaux du Causse d\'Aumelas Biological Reserve';
+    const spots = parseSpots(JSON.stringify([
+      { activator: 'F5NLX/P', reference: 'FR-13005', frequency: '7005', mode: 'CW', spotTime: '2026-10-23T07:57:00', name: long, locationDesc: 'FR-OCC' },
+      { activator: 'JM1GDA/0', reference: 'JP-0011', frequency: '7003', mode: 'CW', spotTime: '2026-10-23T07:29:00', name: 'Oze National Park', locationDesc: 'JP-FS,JP-GM,JP-NI,JP-TC' }
+    ]))!;
+    const answer = validatePageAnswer(parksPage(spots, NOW, BANDS));
+    const table = answer.ok ? answer.data.sections.find(section => section.shape === 'table') : undefined;
+    if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no table');
+    expect(table.rows.map(row => row[2])).toContain(long);
+    expect(table.rows.find(row => row[1] === 'JP-0011')?.[3]).toBe('JP-FS, JP-GM, JP-NI, JP-TC');
+    expect(table.filters?.find(filter => filter.label === 'Location')).toEqual({ column: 3, label: 'Location', options: ['FR-OCC', 'JP-FS', 'JP-GM', 'JP-NI', 'JP-TC'], multiple: true });
   });
 });

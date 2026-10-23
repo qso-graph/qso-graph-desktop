@@ -14,7 +14,8 @@
         "name": "Conditions",
         "description": "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.",
         "refreshSeconds": 900,
-        "icon": "sun"
+        "icon": "sun",
+        "network": true
       },
       {
         "id": "parks",
@@ -22,7 +23,8 @@
         "description": "Who is activating a POTA park now: the park, the frequency and mode, and when they were spotted.",
         "refreshSeconds": 60,
         "icon": "tree",
-        "rail": true
+        "rail": true,
+        "network": true
       }
     ]
   }
