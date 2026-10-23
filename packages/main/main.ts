@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
+// First, before anything opens a store or a log: portable mode decides
+// where they are (portable.ts).
+import './portable-start.js';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, session } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
