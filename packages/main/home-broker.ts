@@ -29,7 +29,7 @@ export interface HomeBrokerOptions {
   online?: boolean;
 }
 
-export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void; reached: (ok: boolean) => void } {
+export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void; reached: (ok: boolean) => void; online: () => boolean } {
   const log = createLogger('home', options.logDirectory);
 
   // Every page a loaded extension offers. An extension that is turned off
@@ -172,6 +172,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   return {
     stop: () => { stopListening(); stopNotices(); scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); },
     // A page's request reached its source, or could not connect.
-    reached: (ok: boolean) => setReached(ok)
+    reached: (ok: boolean) => setReached(ok),
+    // As the operating system last told the window, for the update check.
+    online: () => online
   };
 }

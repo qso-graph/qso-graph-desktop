@@ -11,6 +11,10 @@
 //   node scripts/release.mjs next <minor|patch|major>
 //                                               develop, after a release: the next
 //                                               version in package.json and its lock
+//   node scripts/release.mjs feed <early|stable> <version> <SHA256SUMS.txt> <desktop.json>
+//                                               the update feed's entry for a track,
+//                                               from what the release published, in
+//                                               the updates repository's file
 //
 // Offline, and it changes nothing but CHANGELOG.md, package.json and
 // package-lock.json. Whether the tag is already taken is the workflow's
@@ -68,6 +72,36 @@ export function next(version, part) {
   throw new Error('Say which part: major, minor or patch.');
 }
 
+// The update feed (QGD-FRM-0019, docs/RELEASES.md): each track names a
+// version and, for each build that installs itself, its file, where it is
+// and its SHA-256, read from the release's own SHA256SUMS.txt.
+export const FEED_FORMAT = 'qso-graph-desktop-updates';
+export const RELEASE_DOWNLOADS = 'https://github.com/qso-graph/qso-graph-desktop/releases/download';
+const SELF_UPDATING = { 'win-x64': 'win-x64.exe', 'linux-x86_64': 'linux-x86_64.AppImage', 'linux-arm64': 'linux-arm64.AppImage' };
+
+export function feedEntry(version, sums) {
+  if (!isRelease(version)) throw new Error(`${version} is not a release version (MAJOR.MINOR.PATCH).`);
+  const listed = new Map();
+  for (const line of sums.split('\n')) {
+    const match = /^([0-9a-f]{64}) [ *]?(\S+)$/.exec(line.trim());
+    if (match) listed.set(match[2], match[1]);
+  }
+  const files = {};
+  for (const [platform, tail] of Object.entries(SELF_UPDATING)) {
+    const name = `qso-graph-desktop-${version}-${tail}`;
+    const sha256 = listed.get(name);
+    if (!sha256) throw new Error(`SHA256SUMS.txt does not list ${name}.`);
+    files[platform] = { name, url: `${RELEASE_DOWNLOADS}/v${version}/${name}`, sha256 };
+  }
+  return { version, files };
+}
+
+export function withEntry(feed, track, entry) {
+  if (track !== 'stable' && track !== 'early') throw new Error('Say which track: stable or early.');
+  const base = feed && feed.format === FEED_FORMAT ? feed : { format: FEED_FORMAT, version: 1, stable: null, early: null };
+  return { ...base, [track]: entry };
+}
+
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -110,8 +144,17 @@ function main([command, argument]) {
       console.log(`package.json: ${version} → ${to}.`);
       return 0;
     }
+    case 'feed': {
+      const [, track, release, sumsFile, feedFile] = process.argv.slice(2);
+      if (!feedFile) { console.error('Usage: node scripts/release.mjs feed <early|stable> <version> <SHA256SUMS.txt> <desktop.json>'); return 2; }
+      let feed;
+      try { feed = readJson(feedFile); } catch { feed = undefined; }
+      writeJson(feedFile, withEntry(feed, track, feedEntry(release, readFileSync(sumsFile, 'utf8'))));
+      console.log(`${feedFile}: ${track} is now ${release}.`);
+      return 0;
+    }
     default:
-      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch>');
+      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch> | feed <track> <version> <sums> <feed>');
       return 2;
   }
 }

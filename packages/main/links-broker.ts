@@ -20,7 +20,7 @@ export function startLinksBroker(registerFile: string): LinksBroker {
   const register = validateLinkRegister(JSON.parse(readFileSync(registerFile, 'utf8')));
   const open = (command: LinkCommand): void => {
     // The kind only: a reference is the operator's, and stays out of the log.
-    log.info({ type: command.type, page: command.type === 'reference' ? command.kind : command.name }, 'opening a page in the browser');
+    log.info({ type: command.type, page: command.type === 'reference' ? command.kind : command.type === 'release' ? command.version : command.name }, 'opening a page in the browser');
     // Built from the register, and checked again here, before the call.
     const url = linkFor(register, command);
     if (!url.startsWith('https://')) return;

@@ -38,6 +38,7 @@ fn service() -> &'static str {
 mod corelog;
 mod backup;
 mod reference;
+mod updates;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
@@ -729,7 +730,8 @@ fn selected_secret<'a>(provider: &str, creds: &'a Credentials, prefer: Option<&s
 mod addon {
     use super::*;
     use napi::{Error, Result};
-    use napi::bindgen_prelude::Buffer;
+    use napi::bindgen_prelude::{AsyncTask, Buffer};
+    use napi::{Env, Task};
     use napi_derive::napi;
     fn error(reason: &'static str) -> Error { Error::from_reason(reason) }
 
@@ -774,6 +776,26 @@ mod addon {
 
     /// What came back from a reference source. `fresh` false is a 304: the
     /// body is empty and nothing changed (QGD-REF-0010).
+    pub struct UpdateDownload {
+        directory: std::path::PathBuf,
+        url: String,
+        sum: String,
+        name: String,
+    }
+
+    impl Task for UpdateDownload {
+        type Output = String;
+        type JsValue = String;
+        fn compute(&mut self) -> Result<String> {
+            let path = crate::updates::download(&self.directory, &self.url, &self.sum, &self.name).map_err(error)?;
+            // The host and the name, never the path or the sum.
+            let host = self.url.split('/').nth(2).unwrap_or("").to_string();
+            tracing::info!(host, name = self.name.as_str(), "update downloaded and checked");
+            path.into_os_string().into_string().map_err(|_| error("The update could not be saved."))
+        }
+        fn resolve(&mut self, _env: Env, output: String) -> Result<String> { Ok(output) }
+    }
+
     #[napi(object)]
     pub struct FetchedReference {
         pub fresh: bool,
@@ -956,6 +978,24 @@ mod addon {
                 etag: fetched.etag,
                 last_modified: fetched.last_modified,
             })
+        }
+
+        // ---- updates (QGD-FRM-0019) ------------------------------------
+        //
+        // The feed from the one address the register names, and a download
+        // checked against the sum main read from it (updates.rs). The
+        // download runs off the main thread: it can take minutes, and every
+        // other request to this process must still be answered meanwhile.
+        #[napi]
+        pub fn fetch_update_feed(&self) -> Result<Buffer> {
+            let body = crate::updates::fetch_feed().map_err(error)?;
+            tracing::info!(bytes = body.len(), "update feed fetched");
+            Ok(body.into())
+        }
+
+        #[napi(ts_return_type = "Promise<string>")]
+        pub fn download_update(&self, url: String, sum: String, name: String) -> AsyncTask<UpdateDownload> {
+            AsyncTask::new(UpdateDownload { directory: self.store.directory.clone(), url, sum, name })
         }
 
         /// A plain backup of the callsigns and the Locations it is handed,

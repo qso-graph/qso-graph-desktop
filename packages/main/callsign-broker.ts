@@ -51,6 +51,13 @@ export interface CallsignBroker {
   // broker by main; never reachable from a renderer, which has no command for
   // it (see validateCommand in callsign-contract.ts).
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
+  // Updates (QGD-FRM-0019), through the core like every other request: the
+  // feed's bytes, and the path of a download checked against its sum. A
+  // string is the reason it failed.
+  updateFeed: () => Promise<Uint8Array | string>;
+  downloadUpdate: (url: string, sum: string, name: string) => Promise<{ path: string } | string>;
+  // Where the core puts a download: main installs only a file from here.
+  updatesDirectory: string;
   // The callsigns an application may be shown (QGD-CRD-0010). Reached only
   // through the extension API with its list grant.
   callsignBriefs: () => Promise<readonly CallsignBrief[] | string>;
@@ -328,6 +335,19 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       const data = reply.data as FetchedReference | null;
       if (!data || typeof data.fresh !== 'boolean') return 'The reference source could not be read.';
       return data;
+    },
+    updatesDirectory: join(profileDirectory, 'updates'),
+    async updateFeed() {
+      const reply = await ask({ type: 'update-feed' });
+      if (!reply.ok) return reply.error;
+      const feed = (reply.data as { feed?: unknown } | null)?.feed;
+      return feed instanceof Uint8Array ? feed : 'The update feed could not be read.';
+    },
+    async downloadUpdate(url, sum, name) {
+      const reply = await ask({ type: 'update-download', url, sum, name });
+      if (!reply.ok) return reply.error;
+      const path = (reply.data as { path?: unknown } | null)?.path;
+      return typeof path === 'string' ? { path } : 'The update could not be saved.';
     }
   };
 }

@@ -32,6 +32,12 @@ export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-err
 // operator chose.
 export interface SealedExport { bytes: Uint8Array }
 // A reference source's answer, on its way back from the credential core.
+// An update's file, as a release names it: the version and the platform, and
+// only the two kinds that install themselves (QGD-FRM-0019).
+export const UPDATE_FILE_NAME = /^qso-graph-desktop-[0-9A-Za-z.+_-]{1,80}\.(exe|AppImage)$/;
+export interface UpdateFeed { feed: Uint8Array }
+export interface UpdateFile { path: string }
+
 export interface FetchedReference {
   fresh: boolean;
   body: Uint8Array;
@@ -103,7 +109,7 @@ export type CallsignReply =
   | {
       ok: true;
       data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
-        | SealedExport | FetchedReference | ExportResult | ImportPreview | ImportResult | CoreImportPreview | CoreImportResult
+        | SealedExport | FetchedReference | UpdateFeed | UpdateFile | ExportResult | ImportPreview | ImportResult | CoreImportPreview | CoreImportResult
           | LookupAnswer | null;
     }
   | { ok: false; error: string };
@@ -191,6 +197,11 @@ export type ServiceCommand =
   // validateCommand — which is what the renderer's requests are held to —
   // does not accept it.
   | { type: 'fetch-reference'; url: string; etag?: string; lastModified?: string }
+  // Updates (QGD-FRM-0019): the feed, from the one address the core's
+  // register names, and a download checked against the sum main read from
+  // it. Not CallsignCommands, for fetch-reference's reason.
+  | { type: 'update-feed' }
+  | { type: 'update-download'; url: string; sum: string; name: string }
   // Acting with a stored credential on an application's behalf, and returning
   // the answer (QGD-APP-0007). Not a CallsignCommand either, and for the same
   // reason: a renderer may not ask this product to use a credential directly.
@@ -241,6 +252,14 @@ export function validateServiceCommand(value: unknown, providers: Services): val
       && (value.etag === undefined || (typeof value.etag === 'string' && value.etag.length <= 256))
       && (value.lastModified === undefined
         || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));
+  }
+  if (value.type === 'update-feed') return keys(value, ['type']);
+  if (value.type === 'update-download') {
+    // The core checks each again, and the host against its own register.
+    return keys(value, ['type', 'url', 'sum', 'name'])
+      && typeof value.url === 'string' && value.url.startsWith('https://') && value.url.length <= 2048 && noUserinfo(value.url)
+      && typeof value.sum === 'string' && /^[0-9a-f]{64}$/.test(value.sum)
+      && typeof value.name === 'string' && UPDATE_FILE_NAME.test(value.name);
   }
   if (value.type === 'export-callsigns') {
     return keys(value, ['type', 'locations'])

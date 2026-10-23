@@ -5,7 +5,8 @@
 // Plain TypeScript rather than a rune, so `tsc -p tsconfig.renderer.json`
 // checks it and a test can drive it without a component tree. Shell.svelte is
 // the one subscriber; app.ts is the one writer.
-import type { ThemeChoice } from '../main/settings-contract.js';
+import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
+import type { UpdateState } from '../main/update-contract.js';
 import type { LogsStatus } from '../main/logs-contract.js';
 import type { StorageStatus } from '../storage/storage-contract.js';
 import type { ServiceSummary } from '../callsigns/service-contract.js';
@@ -125,6 +126,11 @@ export interface ShellState {
   refusedExtensions: readonly { readonly folder: string; readonly reason: string }[];
   // My Area as saved (settings-contract.ts): empty means the Location's own.
   area: readonly string[];
+  // Updates (QGD-FRM-0019): what the updater last said, undefined until it
+  // has, and the two settings as saved.
+  update: UpdateState | undefined;
+  updateCheck: boolean;
+  updateTrack: UpdateTrack;
 }
 
 export interface ExtensionSwitch {
@@ -157,7 +163,10 @@ export const INITIAL_SHELL: ShellState = {
   services: [],
   extensions: undefined,
   refusedExtensions: [],
-  area: []
+  area: [],
+  update: undefined,
+  updateCheck: true,
+  updateTrack: 'stable'
 };
 
 export interface ShellStore {

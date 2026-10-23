@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +31,11 @@ const register = JSON.parse(await readFile('data/reference-sources.json', 'utf8'
 const referenceCache = join(directory, 'reference');
 await mkdir(referenceCache, { recursive: true });
 await copyFile(resolve('vendor', '.cache', `adif-${register.adif.version}.zip`), join(referenceCache, `adif-${register.adif.version}.zip`));
+// The update check off, by its own switch (QGD-FRM-0019): a packaged build of
+// a release version would otherwise ask for the feed a minute in, and a test
+// run is not a station asking for updates.
+await mkdir(userData, { recursive: true });
+await writeFile(join(userData, 'settings.json'), JSON.stringify({ updateCheck: false }));
 // The fixture callsign's description.
 const description = `qg-test-${randomUUID()}`;
 const fakeCredential = `QG_FAKE_CREDENTIAL_${randomUUID()}`;

@@ -26,7 +26,7 @@
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { HomeModel, HomeStore } from './home-store.js';
   import type { LinkCommand } from '../main/links-contract.js';
-  import type { ThemeChoice } from '../main/settings-contract.js';
+  import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
   import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
@@ -69,13 +69,20 @@
     onExportCallsigns: () => Promise<ExportResult | string>;
     onInspectImport: () => Promise<ImportPreview | string>;
     onApplyImport: (replace: boolean) => Promise<ImportResult | string>;
+    // Updates (QGD-FRM-0019): Settings' switch and track, and the actions.
+    onSetUpdateCheck?: (on: boolean) => Promise<boolean>;
+    onSetUpdateTrack?: (track: UpdateTrack) => Promise<boolean>;
+    onCheckUpdates?: () => void;
+    onRestartToUpdate?: () => void;
+    onOpenRelease?: () => void;
     version: string;
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
     onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
-    onExportCallsigns, onInspectImport, onApplyImport, version
+    onExportCallsigns, onInspectImport, onApplyImport, version,
+    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease
   }: Props = $props();
 
   // Named `shell`, not `state`: `$state` is both Svelte's rune and the
@@ -92,6 +99,9 @@
   // nothing for a derivation to track. An assignment from a subscription is
   // the documented way to bring outside state in.
   $effect(() => store.subscribe(next => { shell = next; }));
+  // The status bar's quiet line: only a newer version is worth a word there.
+  const updateNote = $derived(shell.update?.kind === 'ready' || shell.update?.kind === 'available'
+    ? { kind: shell.update.kind, version: shell.update.version } : undefined);
 
   let homeModel = $state<HomeModel>(untrack(() => home.get()));
   $effect(() => home.subscribe(next => { homeModel = next; }));
@@ -268,13 +278,16 @@
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
       <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
-        onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport} />
+        onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport}
+        update={shell.update} updateCheck={shell.updateCheck} updateTrack={shell.updateTrack}
+        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onRestartToUpdate} {onOpenRelease} />
     </div>
   </main>
 </div>
 <StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}
-           onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
+           onOpenTroubleshooting={() => store.set({ troubleshooting: true })}
+           update={updateNote} onWhatsNew={onOpenRelease} {onRestartToUpdate} />
 {#if shell.troubleshooting}
   <TroubleshootingPanel storage={shell.storage}
                         logs={shell.logs} {onSetLevel} {onExport}

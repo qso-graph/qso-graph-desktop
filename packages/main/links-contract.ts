@@ -21,12 +21,17 @@ export type SiteName = typeof SITES[number];
 export type LinkCommand =
   | { type: 'document'; name: DocumentName }
   | { type: 'reference'; kind: ReferenceKind; reference: string }
-  | { type: 'site'; name: SiteName };
+  | { type: 'site'; name: SiteName }
+  // A newer version's release page, for a build that cannot install it
+  // itself (QGD-FRM-0019). Main's only: the window asks the updater, which
+  // knows the version, and validateLinkCommand does not accept it.
+  | { type: 'release'; version: string };
 
 export interface LinkRegister {
   documents: { base: string; pages: Record<DocumentName, string> };
   references: Record<ReferenceKind, string>;
   sites: Record<SiteName, string>;
+  release: string;
 }
 
 export class LinkRegisterError extends Error {}
@@ -65,7 +70,9 @@ export function validateLinkRegister(value: unknown): LinkRegister {
   }
   const sites = {} as Record<SiteName, string>;
   for (const name of SITES) sites[name] = https(value.sites[name], `sites.${name}`);
-  return { documents: { base, pages }, references, sites };
+  if (typeof value.release !== 'string' || value.release.split('{version}').length !== 2) throw new LinkRegisterError('release does not hold {version} once');
+  https(value.release.replace('{version}', '0.0.0'), 'release');
+  return { documents: { base, pages }, references, sites, release: value.release };
 }
 
 export function validateLinkCommand(value: unknown): value is LinkCommand {
@@ -88,5 +95,8 @@ export function validateLinkCommand(value: unknown): value is LinkCommand {
 export function linkFor(register: LinkRegister, command: LinkCommand): string {
   if (command.type === 'site') return register.sites[command.name];
   if (command.type === 'document') return register.documents.base + register.documents.pages[command.name];
+  if (command.type === 'release') {
+    return /^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(command.version) ? register.release.replace('{version}', command.version) : '';
+  }
   return register.references[command.kind].replace('{reference}', command.reference);
 }

@@ -26,8 +26,8 @@
       they are about. Bitwarden's desktop client keeps vault export under the
       application menu rather than in preferences.
 
-  What is left is appearance, the extensions, the reference data, and
-  Storage when QG Sync is built.
+  What is left is updates, appearance, the extensions, the reference data,
+  back up and restore, and Storage when QG Sync is built.
 
   Reference data: one row per resource the register lists, each with its own
   Download, then Update (KI7MT, 2026-10-11 and #37). The first press fetches
@@ -44,6 +44,9 @@
 -->
 <script lang="ts">
   import MoveCallsignsPage from './MoveCallsignsPage.svelte';
+  import UpdatesCard from './UpdatesCard.svelte';
+  import type { UpdateTrack } from '../../main/settings-contract.js';
+  import type { UpdateState } from '../../main/update-contract.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import ThemeChoice from '../../ui/ThemeChoice.svelte';
@@ -77,6 +80,15 @@
     onBackup?: () => Promise<ExportResult | string>;
     onInspectBackup?: () => Promise<ImportPreview | string>;
     onRestore?: (replace: boolean) => Promise<ImportResult | string>;
+    // Updates (QGD-FRM-0019).
+    update?: UpdateState;
+    updateCheck?: boolean;
+    updateTrack?: UpdateTrack;
+    onSetUpdateCheck?: (on: boolean) => Promise<boolean>;
+    onSetUpdateTrack?: (track: UpdateTrack) => Promise<boolean>;
+    onCheckUpdates?: () => void;
+    onRestartToUpdate?: () => void;
+    onOpenRelease?: () => void;
   }
   const {
     version = '', themeChoice, onChooseTheme, extensions, refusedExtensions = [], onSetExtension = () => Promise.resolve(false),
@@ -84,7 +96,9 @@
     onOpenDocument = () => {},
     onBackup = () => Promise.resolve('Backing up is not available here.'),
     onInspectBackup = () => Promise.resolve('Restoring is not available here.'),
-    onRestore = () => Promise.resolve('Restoring is not available here.')
+    onRestore = () => Promise.resolve('Restoring is not available here.'),
+    update, updateCheck = true, updateTrack = 'stable',
+    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease
   }: Props = $props();
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
@@ -161,8 +175,8 @@
     <p class="hint" id="about-privacy">
       Everything you enter stays on this computer. Nothing of yours is sent anywhere
       until you ask. The app fetches reference data (ADIF definitions, POTA parks, SOTA
-      summits) when you download or update it, and the data your pinned cards show, and
-      nothing else.
+      summits) when you download or update it, the data your pinned cards show, and,
+      while Check for updates is on, whether there is a newer version. Nothing else.
     </p>
     <div class="about-links">
       {#each ABOUT_DOCUMENTS as [name, label] (name)}
@@ -170,6 +184,10 @@
       {/each}
     </div>
   </section>
+
+  <UpdatesCard {update} check={updateCheck} track={updateTrack}
+    onSetCheck={onSetUpdateCheck} onSetTrack={onSetUpdateTrack} onCheckNow={onCheckUpdates}
+    onRestart={onRestartToUpdate} {onOpenRelease} />
 
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>

@@ -31,12 +31,21 @@
     dataContext?: string;
     // Opens the Troubleshooting panel.
     onOpenTroubleshooting?: () => void;
+    // A newer version (QGD-FRM-0019): ready to install on restart, or, for a
+    // build that cannot install it itself, available from its page. One
+    // quiet line, never a dialog; ignored, a ready one installs on quit.
+    update?: { readonly kind: 'ready' | 'available'; readonly version: string };
+    onWhatsNew?: () => void;
+    onRestartToUpdate?: () => void;
   }
   const {
     activeCallsign,
     activeStation = '',
     dataContext,
-    onOpenTroubleshooting
+    onOpenTroubleshooting,
+    update,
+    onWhatsNew,
+    onRestartToUpdate
   }: Props = $props();
   // The line that said when the application goes online is gone: Home's cards
   // made it untrue, and it is said in full under Help → Privacy and Licences
@@ -48,6 +57,15 @@
   <span id="active-callsign" class="status-slot" data-hue="callsigns">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
   <span id="active-station" class="status-slot" data-hue="locations">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
+  {#if update}
+    <span id="update-note" class="update-note">
+      {update.kind === 'ready' ? `Version ${update.version} is ready.` : `Version ${update.version} is available.`}
+      {#if onWhatsNew}<button type="button" class="bar-link" id="update-whats-new" onclick={onWhatsNew}>What's new</button>{/if}
+      {#if update.kind === 'ready' && onRestartToUpdate}
+        · <button type="button" class="bar-link" id="update-restart-bar" onclick={onRestartToUpdate}>Restart to update</button>
+      {/if}
+    </span>
+  {/if}
   {#if onOpenTroubleshooting}
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}
     >Troubleshooting</button>
@@ -65,4 +83,13 @@
     cursor: pointer;
   }
   .bar-button:hover { border-color: var(--border-strong); }
+  .bar-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 </style>

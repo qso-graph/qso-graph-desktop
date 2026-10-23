@@ -9,6 +9,7 @@
 // so raising it there and not here fails this test instead of quietly
 // reintroducing the defect.
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEADLINES, KEYCHAIN_DEADLINE, deadlineFor } from '../packages/callsigns/deadlines.js';
 
@@ -69,6 +70,15 @@ describe('the callsign service deadlines', () => {
     ]) {
       expect(deadlineFor(type), `${type} reaches the credential store`).toBe(KEYCHAIN_DEADLINE);
     }
-    expect(Object.keys(DEADLINES).sort()).toEqual(['fetch-reference', 'service-lookup']);
+    expect(Object.keys(DEADLINES).sort()).toEqual(['fetch-reference', 'service-lookup', 'update-download', 'update-feed']);
+  });
+
+  it('waits past the core\'s own ceilings for updates (updates.rs)', () => {
+    const source = readFileSync('packages/callsign-core/src/updates.rs', 'utf8');
+    const feed = Number(/Duration::from_secs\((\d+)\)\)\?\s*\.get\(&sources\.feed\)/.exec(source)?.[1]);
+    expect(feed).toBeGreaterThan(0);
+    expect(DEADLINES['update-feed'].ms).toBeGreaterThan(feed * 1000);
+    expect(source).toContain('Duration::from_secs(2 * 60 * 60)');
+    expect(DEADLINES['update-download'].ms).toBeGreaterThan(2 * 60 * 60 * 1000);
   });
 });

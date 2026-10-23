@@ -64,7 +64,8 @@
       services: [],
       extensions: undefined,
       refusedExtensions: [],
-      area: []
+      area: [],
+      update: { kind: 'ready', version: '0.1.1' }, updateCheck: true, updateTrack: 'stable'
     })
   }}
 />

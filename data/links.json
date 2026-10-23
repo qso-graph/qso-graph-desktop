@@ -18,6 +18,7 @@
     "sota": "https://www.sota.org.uk/",
     "iota": "https://www.iota-world.org/"
   },
+  "release": "https://github.com/qso-graph/qso-graph-desktop/releases/tag/v{version}",
   "references": {
     "pota": "https://pota.app/#/park/{reference}",
     "sota": "https://www.sotadata.org.uk/en/summit/{reference}"

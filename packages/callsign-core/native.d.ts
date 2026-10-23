@@ -113,6 +113,11 @@ export declare class CallsignCore {
   // rustls over AWS-LC in FIPS mode (TLS 1.3, or 1.2 where a public reference
   // source offers nothing newer), not Electron's BoringSSL.
   fetchReference(url: string, etag?: string, lastModified?: string): NativeFetchedReference;
+  // Updates (updates.rs): the feed from the register's one address, and a
+  // download checked against its SHA-256, run off this process's thread.
+  // Resolves to the checked file's path.
+  fetchUpdateFeed(): Buffer;
+  downloadUpdate(url: string, sum: string, name: string): Promise<string>;
   serviceLookup(id: string, provider: string, operation: string, callsign: string): NativeLookupResult;
   // A plain backup, and a restore from one (backup.rs): no login in either.
   exportBackup(locations: string): Buffer;

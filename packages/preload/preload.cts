@@ -85,6 +85,17 @@ contextBridge.exposeInMainWorld('extensions', Object.freeze({
   // (QGD-APP-0012).
   inventory: (command: unknown) => ipcRenderer.invoke('extensions:inventory', command)
 }));
+// Updates (QGD-FRM-0019): the state, asked for and then pushed, and the few
+// things the window may ask. The listener receives the state only.
+contextBridge.exposeInMainWorld('updates', Object.freeze({
+  request: (command: unknown) => ipcRenderer.invoke('updates:request', command),
+  onState: (listener: (state: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, state: unknown) => listener(state);
+    ipcRenderer.on('updates:state', handler);
+    return () => { ipcRenderer.removeListener('updates:state', handler); };
+  }
+}));
 contextBridge.exposeInMainWorld('logs', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('logs:request', command)
 }));

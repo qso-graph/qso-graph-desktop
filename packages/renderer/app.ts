@@ -3,7 +3,8 @@ import {
   callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
   type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
 } from '../callsigns/callsign-contract.js';
-import type { SettingsCommand, SettingsReply, ThemeChoice } from '../main/settings-contract.js';
+import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
+import { isUpdateState, type UpdateCommand } from '../main/update-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
 import type { AreaProgram } from '../storage/area-entry.js';
@@ -40,6 +41,11 @@ declare global {
     menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void };
     // A page in the browser, built by main from its register (QGD-SEC-0009).
     links?: { open(command: LinkCommand): Promise<boolean> };
+    // Updates (QGD-FRM-0019): asked for once, then pushed when it changes.
+    updates?: {
+      request(command: UpdateCommand): Promise<unknown>;
+      onState(listener: (state: unknown) => void): () => void;
+    };
   }
 }
 // QGD-FRM-0005: the shell is Svelte, and it is mounted before a single line
@@ -74,6 +80,11 @@ mount(Shell, {
     onExportCallsigns: exportCallsigns, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreateCallsign: createCallsign, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
+    onSetUpdateCheck: (on: boolean) => writeUpdateSetting('updateCheck', on),
+    onSetUpdateTrack: (track: UpdateTrack) => writeUpdateSetting('updateTrack', track),
+    onCheckUpdates: () => { void window.updates?.request({ type: 'check' }); },
+    onRestartToUpdate: () => { void window.updates?.request({ type: 'restart' }); },
+    onOpenRelease: () => { void window.updates?.request({ type: 'release' }); },
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
     version: __QG_VERSION__
@@ -495,12 +506,28 @@ async function loadTheme(): Promise<void> {
   if (reply.ok) themeChoice = reply.data.theme;
   // The welcome, unless the operator hid it for this release (QGD-FRM-0016).
   if (reply.ok && reply.data.welcomeHidden !== __QG_VERSION__) shell.set({ welcome: true });
-  if (reply.ok) shell.set({ area: reply.data.area });
+  if (reply.ok) shell.set({ area: reply.data.area, updateCheck: reply.data.updateCheck, updateTrack: reply.data.updateTrack });
   shell.set({ themeChoice });
   startTheme();
 }
 
 void loadTheme();
+
+// Updates (QGD-FRM-0019): what the updater says, checked before it is shown.
+// A change to the switch or the track asks again at once; with the switch
+// off, the updater says so itself.
+async function writeUpdateSetting(key: 'updateCheck' | 'updateTrack', value: boolean | UpdateTrack): Promise<boolean> {
+  const reply = await window.settings.request({ type: 'write', key, value });
+  if (!reply.ok) return false;
+  shell.set({ updateCheck: reply.data.updateCheck, updateTrack: reply.data.updateTrack });
+  if (window.updates) void window.updates.request({ type: 'check' });
+  return true;
+}
+if (window.updates) {
+  const showUpdate = (state: unknown): void => { if (isUpdateState(state)) shell.set({ update: state }); };
+  window.updates.onState(showUpdate);
+  void window.updates.request({ type: 'state' }).then(showUpdate);
+}
 
 // Settings' switches for the extensions (QGD-HOM-0007). Every reply is checked
 // and read back, so a switch shows what the main process recorded rather than

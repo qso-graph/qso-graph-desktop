@@ -18,6 +18,8 @@ import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
+import { startUpdater, updatePlatform } from './updater.js';
+import { isReleaseVersion } from './update-contract.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
@@ -359,6 +361,24 @@ if (!app.requestSingleInstanceLock()) {
     }) : undefined;
     if (homeBroker) onReached = homeBroker.reached;
 
+    // Updates (QGD-FRM-0019): asked once a day through the credential core,
+    // applied as the application quits. A preview or a development run never
+    // asks: its version is not a release.
+    const updater = startUpdater({
+      version: app.getVersion(),
+      platform: updatePlatform(),
+      asks: app.isPackaged && isReleaseVersion(app.getVersion()),
+      settings: () => load(),
+      online: () => homeBroker?.online() ?? true,
+      feed: callsigns.updateFeed,
+      download: callsigns.downloadUpdate,
+      updatesDirectory: callsigns.updatesDirectory,
+      openRelease: version => links.open({ type: 'release', version }),
+      window: () => BrowserWindow.getAllWindows()[0] ?? null
+    });
+    // After the stores have closed, so nothing is replaced under a write.
+    app.on('will-quit', () => updater.applyOnQuit());
+
     // Closing the stores is the one thing here worth waiting for: a clean
     // close checkpoints the WAL, so the next start has nothing to replay. So
     // the first quit is held while QG Storage closes, and the quit is asked
@@ -367,6 +387,7 @@ if (!app.requestSingleInstanceLock()) {
     app.on('before-quit', event => {
       homeBroker?.stop();
       extensionBroker?.stop();
+      updater.stop();
       stopCallsignBroker(); stopSettingsBroker(); stopAppearanceBroker(); links.stop(); stopLogsBroker();
       if (quitting) return;
       quitting = true;

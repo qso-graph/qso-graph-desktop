@@ -1,0 +1,16 @@
+{
+  "$comment": "Where updates come from (QGD-FRM-0019, QGD-SEC-0020, docs/RELEASES.md). Built into the credential core, which is the only thing that reads it: the feed is asked at most once a day, and a download is accepted only from these hosts, after every redirect, and only when its SHA-256 matches the feed's. A host here is trusted to deliver bytes, never to say what they are: the feed says that. '*.' means any name under that domain. The domains are KI7MT's, so where each points can change without a release.",
+  "feed": "https://updates.qso-graph.io/desktop.json",
+  "downloadHosts": [
+    "github.com",
+    "release-assets.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "*.qso-graph.io",
+    "*.qso-graph.com",
+    "*.qso-graph.org",
+    "downloads.sourceforge.net",
+    "*.dl.sourceforge.net"
+  ],
+  "maxFeedBytes": 65536,
+  "maxDownloadBytes": 419430400
+}

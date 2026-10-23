@@ -37,6 +37,16 @@ export const DEADLINES: Readonly<Record<string, Deadline>> = {
     ms: 135_000,
     said: 'The reference source did not answer in time.'
   },
+  // Past the core's own ceilings, for the same reason: 30s for the feed, two
+  // hours for a download (updates.rs).
+  'update-feed': {
+    ms: 45_000,
+    said: 'The update feed did not answer in time.'
+  },
+  'update-download': {
+    ms: 2 * 60 * 60 * 1000 + 60_000,
+    said: 'The update did not finish downloading in time.'
+  },
   // A lookup is a Keychain read and then TWO sequential HTTPS requests — the
   // session key, then the callsign (validation.rs) — each with its own
   // ceiling. The Keychain's 30s was the wait for one person and no network at

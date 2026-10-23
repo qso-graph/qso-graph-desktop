@@ -42,6 +42,21 @@ export interface Settings {
   // (US-ID), at most MAX_AREA. Chosen before anything is fetched for them,
   // so nothing outside it is. Empty means the active Location's own.
   area: readonly string[];
+  // Updates (QGD-FRM-0019): whether to ask, once a day, if there is a newer
+  // release, and which track. Asking is going online, so it is a switch, on
+  // by default, and Privacy names it. Stable offers full releases; Early
+  // offers pre-releases as well.
+  updateCheck: boolean;
+  updateTrack: UpdateTrack;
+}
+
+export const UPDATE_TRACKS = ['stable', 'early'] as const;
+export type UpdateTrack = typeof UPDATE_TRACKS[number];
+export function isUpdateTrack(value: unknown): value is UpdateTrack {
+  return (UPDATE_TRACKS as readonly unknown[]).includes(value);
+}
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean';
 }
 
 // Enough for a home location, its neighbours and a trip's, and never the
@@ -70,7 +85,8 @@ export const DAY_ONE_PINS: readonly string[] = [];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [],
+  updateCheck: true, updateTrack: 'stable' };
 
 // A release name, as package.json writes one, or empty.
 export function isWelcomeHidden(value: unknown): value is string {
@@ -163,7 +179,9 @@ const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Setting
   theme: isThemeChoice,
   grants: isGrantMap,
   welcomeHidden: isWelcomeHidden,
-  area: isArea
+  area: isArea,
+  updateCheck: isBoolean,
+  updateTrack: isUpdateTrack
 };
 
 export function validateSettingsCommand(value: unknown): value is SettingsCommand {
@@ -218,5 +236,7 @@ export function readSettings(stored: unknown): Settings {
   read('extensionsOn', isExtensionIds);
   read('welcomeHidden', isWelcomeHidden);
   read('area', isArea);
+  read('updateCheck', isBoolean);
+  read('updateTrack', isUpdateTrack);
   return settings;
 }

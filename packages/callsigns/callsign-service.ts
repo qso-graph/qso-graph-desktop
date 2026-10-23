@@ -94,7 +94,15 @@ function toTest(native: NativeCredentialTest): CredentialTest {
   if (!outcome) throw new Error('The callsign request could not be completed.');
   return { outcome };
 }
-function execute(command: ServiceCommand): CallsignReply {
+function refuse(command: ServiceCommand, error: unknown): CallsignReply {
+  const message = error instanceof Error && MESSAGES.includes(error.message) ? error.message : 'The callsign request could not be completed.';
+  log.warn({ command: command.type, reason: message }, 'callsign operation failed');
+  // Named for the store this platform has (Keychain, Credential Manager,
+  // the keyring); the sentence is still one of the fixed ones below.
+  return { ok: false, error: forStore(message, process.platform) };
+}
+
+function execute(command: ServiceCommand): CallsignReply | Promise<CallsignReply> {
   try {
     switch (command.type) {
       case 'list': return { ok: true, data: snapshot() };
@@ -134,6 +142,12 @@ function execute(command: ServiceCommand): CallsignReply {
           : 'invalid-response';
         return { ok: true, data: { outcome, fields: looked.fields } };
       }
+      case 'update-feed': return { ok: true, data: { feed: new Uint8Array(core.fetchUpdateFeed()) } };
+      // Off this process's thread, so every other request is answered while
+      // it downloads.
+      case 'update-download':
+        return core.downloadUpdate(command.url, command.sum, command.name)
+          .then((path): CallsignReply => ({ ok: true, data: { path } }), (error: unknown) => refuse(command, error));
       case 'export-callsigns': return { ok: true, data: { bytes: core.exportBackup(command.locations) } };
       case 'import-callsigns': {
         const file = Buffer.from(command.file);
@@ -145,44 +159,50 @@ function execute(command: ServiceCommand): CallsignReply {
       }
     }
   } catch (error) {
-    // Native methods emit static, credential-free messages. Unexpected errors
-    // use a fixed message; never return a stack or the command payload.
-    const messages = [
-      'Use a non-empty name without colons or control characters.', 'Enter a callsign: letters, digits and /.',
-      'Keep the description to 64 characters, on one line.', 'A callsign could not be created.',
-      'Use YYYY-MM-DD for dates.', 'End date must not precede start date.', 'Callsign not found.',
-      'Keychain is unavailable.', 'Keychain could not read this credential.',
-      'Keychain could not save this credential.', 'Keychain could not remove this credential.',
-      'Enter a password or API key.', 'Profile could not be saved.',
-      'The list of callsigns could not be read. It has not been changed.',
-      'Stored credential has an unsupported format. It has not been changed.',
-      'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
-      'The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
-      'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
-      // Moving callsigns and Locations between machines (backup.rs). Each is
-      // a fixed sentence from the core, carrying no value.
-      'The Locations are too large to back up.', 'The Locations could not be backed up.',
-      'The backup could not be written.',
-      'That file is larger than a backup this product writes.',
-      'That is an encrypted export from an earlier build, which this one does not read. Back up again from that computer.',
-      'That file is not a backup this product wrote.',
-      'That backup was written by a different version of QSO Graph Desktop.',
-      'That file\'s Locations are not the shape a backup has.',
-      'This computer already has callsigns. Remove them first, then restore.',
-      // Fetching reference data, all fixed sentences carrying no URL.
-      'Reference data is fetched over HTTPS only.',
-      'The reference source could not be reached.',
-      'The reference source refused the request.',
-      'The reference source sent more than this product will read.',
-      'The reference source could not be read.'
-    ];
-    const message = error instanceof Error && messages.includes(error.message) ? error.message : 'The callsign request could not be completed.';
-    log.warn({ command: command.type, reason: message }, 'callsign operation failed');
-    // Named for the store this platform has (Keychain, Credential Manager,
-    // the keyring); the sentence is still one of the fixed ones above.
-    return { ok: false, error: forStore(message, process.platform) };
+    return refuse(command, error);
   }
 }
+
+// Native methods emit static, credential-free messages. Unexpected errors
+// use a fixed message; never return a stack or the command payload.
+const MESSAGES = [
+  'Use a non-empty name without colons or control characters.', 'Enter a callsign: letters, digits and /.',
+  'Keep the description to 64 characters, on one line.', 'A callsign could not be created.',
+  'Use YYYY-MM-DD for dates.', 'End date must not precede start date.', 'Callsign not found.',
+  'Keychain is unavailable.', 'Keychain could not read this credential.',
+  'Keychain could not save this credential.', 'Keychain could not remove this credential.',
+  'Enter a password or API key.', 'Profile could not be saved.',
+  'The list of callsigns could not be read. It has not been changed.',
+  'Stored credential has an unsupported format. It has not been changed.',
+  'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
+  'The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
+  'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
+  // Moving callsigns and Locations between machines (backup.rs). Each is
+  // a fixed sentence from the core, carrying no value.
+  'The Locations are too large to back up.', 'The Locations could not be backed up.',
+  'The backup could not be written.',
+  'That file is larger than a backup this product writes.',
+  'That is an encrypted export from an earlier build, which this one does not read. Back up again from that computer.',
+  'That file is not a backup this product wrote.',
+  'That backup was written by a different version of QSO Graph Desktop.',
+  'That file\'s Locations are not the shape a backup has.',
+  'This computer already has callsigns. Remove them first, then restore.',
+  // Fetching reference data, all fixed sentences carrying no URL.
+  'Reference data is fetched over HTTPS only.',
+  'The reference source could not be reached.',
+  'The reference source refused the request.',
+  'The reference source sent more than this product will read.',
+  'The reference source could not be read.',
+  // Updates (updates.rs), fixed sentences carrying no URL or sum.
+  'The update register could not be read.',
+  'The update feed could not be reached.', 'The update feed refused the request.',
+  'The update feed is larger than this product will read.', 'The update feed could not be read.',
+  'That is not an update file name.', 'That is not an update checksum.', 'That is not an update address.',
+  'Updates are downloaded only from the hosts this product names.',
+  'The update could not be reached.', 'The update download was refused.',
+  'The update is larger than this product will download.', 'The update could not be saved.',
+  'The update download was interrupted.', 'The update did not match its checksum, so it was not kept.'
+];
 process.parentPort.on('message', (event: { data?: unknown }) => {
   // The envelope is checked before anything in it is used: the id has to be a
   // real id before it can be echoed back, and the command has to pass the
@@ -194,10 +214,11 @@ process.parentPort.on('message', (event: { data?: unknown }) => {
     process.parentPort.postMessage({ id: typeof id === 'number' ? id : null, reply: { ok: false, error: 'Invalid callsign request.' } });
     return;
   }
-  const reply = execute(command);
-  // Drained on the command that raised them, so the ordering a reader expects
-  // is the ordering they appear in.
-  forwardCoreLogs();
-  process.parentPort.postMessage({ id, reply });
+  void Promise.resolve(execute(command)).then(reply => {
+    // Drained on the command that raised them, so the ordering a reader
+    // expects is the ordering they appear in.
+    forwardCoreLogs();
+    process.parentPort.postMessage({ id, reply });
+  });
 });
 process.parentPort.postMessage({ ready: true });

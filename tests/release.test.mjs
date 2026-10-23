@@ -4,7 +4,8 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, isRelease, next, notes, prepare } from '../scripts/release.mjs';
+import { check, feedEntry, isRelease, next, notes, prepare, withEntry } from '../scripts/release.mjs';
+import { choose, readFeed } from '../packages/main/update-contract.js';
 
 const changelog = [
   '# Changelog', '',
@@ -45,6 +46,18 @@ describe('release text', () => {
     expect(next('0.1.0', 'patch')).toBe('0.1.1');
     expect(next('0.9.3', 'major')).toBe('1.0.0');
     expect(() => next('0.1.0', 'tiny')).toThrow(/major, minor or patch/);
+  });
+
+  it('writes a feed entry the application reads, from the release\'s own sums', () => {
+    const sums = ['win-x64.exe', 'linux-x86_64.AppImage', 'linux-arm64.AppImage', 'linux-x64.zip']
+      .map((tail, at) => `${String(at).repeat(64)}  qso-graph-desktop-0.1.1-${tail}`).join('\n');
+    const feed = withEntry(withEntry(undefined, 'stable', feedEntry('0.1.1', sums)), 'early', null);
+    expect(feed.stable.files['linux-arm64'].sha256).toBe('2'.repeat(64));
+    expect(feed.stable.files['win-x64'].url).toBe('https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.1.1/qso-graph-desktop-0.1.1-win-x64.exe');
+    const read = readFeed(new TextEncoder().encode(JSON.stringify(feed)));
+    expect(choose(read, 'stable', '0.1.0').files['linux-x86_64'].sha256).toBe('1'.repeat(64));
+    expect(() => feedEntry('0.1.2', sums)).toThrow(/does not list/);
+    expect(() => withEntry(feed, 'preview', null)).toThrow(/stable or early/);
   });
 
   it('this repository has a version and a changelog the steps can read', () => {

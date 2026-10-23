@@ -81,12 +81,17 @@ The text steps are `scripts/release.mjs`; the builds are CI's.
    file checked to carry that version, `SHA256SUMS.txt`, and that version's
    CHANGELOG section as the notes. Creating the release creates the tag, on
    the commit that was built; a version already released is refused.
-5. **On develop:** `node scripts/release.mjs next minor` (or `patch`, or
+5. **The feed's Early entry** (below): `release.mjs feed early` from the
+   pre-release's `SHA256SUMS.txt`, committed to the updates repository. Early
+   installs are offered it from then.
+6. **On develop:** `node scripts/release.mjs next minor` (or `patch`, or
    `major`) moves `package.json` and its lock to the next version. Commit it.
-6. **Promote**, when the pre-release has proved itself and KI7MT says so:
+7. **Promote**, when the pre-release has proved itself and KI7MT says so:
    Actions → **Promote** → Run workflow, with the version. It checks the
    release is a pre-release this repository built from main, then marks it a
    full release and Latest. Nothing is rebuilt.
+8. **The feed's Stable entry**, the same way: everyone on Stable is offered it
+   from then.
 
 ## File names
 
@@ -167,14 +172,53 @@ testing develop, not for running the station.
 ### How it is safe
 
 - **Through the credential core**, as every outbound connection is
-  (`QGD-SEC-0020`): the core fetches the release's update information and the
-  download, and only a file the core fetched and checked is handed to
-  electron-updater to install. The application opens no connection of its own
-  for updates.
-- **Checked:** every download against the SHA-512 its release publishes.
-  Until the builds are signed that catches a broken download, not a tampered
-  release, because the sum is published beside the file; signing closes that,
-  and is wanted before 1.0.
+  (`QGD-SEC-0020`): the core fetches the feed and the download, and the
+  application opens no connection of its own for updates.
+- **Installed by the application itself**, not electron-updater (KI7MT,
+  2026-10-23): electron-updater installs only what it downloaded, over
+  Electron's own networking, and handing it the core's file would need a local
+  server, which this product does not have. What it does at the end is small:
+  the Windows installer is run silently, an AppImage is replaced in place, and
+  both happen as the application quits, after its stores have closed.
+- **Checked:** every download against the SHA-256 the feed gives for it, as it
+  arrives; a file that does not match is deleted, never installed. Until the
+  builds are signed that catches a broken download or a mirror sending
+  something else, not a tampered release, because the feed and the files are
+  published by the same hands; signing closes that, and is wanted before 1.0.
+
+### The feed
+
+One small file, `https://updates.qso-graph.io/desktop.json`, is all an
+installed copy asks. It lives in its own public repository,
+`qso-graph/qso-graph-desktop-updates`, served by GitHub Pages at that name
+through a CNAME in the qso-graph.io zone. The application knows only the
+address, in `data/update-sources.json`, which the credential core builds in;
+where the address points can change by DNS, with no release. That register
+also names the hosts a download may come from: GitHub's release hosts, any
+name under qso-graph.io, qso-graph.com or qso-graph.org (a Cloudflare R2 mirror,
+say), and SourceForge's download hosts. A host is trusted to deliver bytes,
+never to say what they are: the feed says that.
+
+```json
+{
+  "format": "qso-graph-desktop-updates",
+  "version": 1,
+  "stable": { "version": "0.1.0", "files": {
+    "win-x64":      { "name": "qso-graph-desktop-0.1.0-win-x64.exe",           "url": "https://github.com/…/v0.1.0/…", "sha256": "…" },
+    "linux-x86_64": { "name": "qso-graph-desktop-0.1.0-linux-x86_64.AppImage", "url": "…", "sha256": "…" },
+    "linux-arm64":  { "name": "qso-graph-desktop-0.1.0-linux-arm64.AppImage",  "url": "…", "sha256": "…" }
+  } },
+  "early": { "version": "0.2.0", "files": { … } }
+}
+```
+
+Stable is offered `stable`; Early the newer of `stable` and `early`. A track
+the application cannot read offers nothing. Each change to the feed is a
+commit in its repository, so what was offered, and when, is on record, and
+reverting a commit withdraws a bad release.
+
+`node scripts/release.mjs feed <early|stable> <version> SHA256SUMS.txt desktop.json`
+writes a track's entry from the release's own `SHA256SUMS.txt`.
 - **Private:** checking for updates is going online, so **Check for updates**
   is a switch in Settings, **on** by default, and Privacy names it. It asks
   this repository's releases what is newest and sends nothing about the
@@ -182,4 +226,5 @@ testing develop, not for running the station.
 
 ## Not built yet
 
-1. Self-update, as above.
+1. The updates repository and its DNS name, before the first release.
+2. A package repository for deb and rpm.
