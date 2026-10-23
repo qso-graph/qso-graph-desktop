@@ -31,6 +31,10 @@ export interface CataloguePage {
   // Whether it needs the internet: its extension may ask the core to fetch
   // (a source: or service: grant). Asked for only while online.
   readonly network: boolean;
+  // The key of its area's first page (its own, when it is under none), and
+  // its tab's name (manifest.ts under and tab).
+  readonly area?: string;
+  readonly tab?: string;
 }
 
 export type { PageView } from './home-contract.js';

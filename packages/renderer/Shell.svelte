@@ -115,7 +115,20 @@
     if (isPageId(id)) store.set({ page: id, extensionPage: null });
     else if (id.startsWith('ext:')) openPage(id.slice(4));
   }
+  // The tab last open in each area, for the session: a pin or rail item opens
+  // its area where the operator left it (KI7MT, 2026-10-23).
+  // Read only when a pin or rail item is pressed, so it need not be reactive.
+  const lastTab: Record<string, string> = {};
+  $effect(() => { const page = homeModel.page; if (page) lastTab[page.area] = page.key; });
+  // From a pin or the rail: the area, on its last tab. From a tab: that page.
   function openPage(key: string): void {
+    const page = homeModel.available.find(entry => entry.key === key);
+    if (!page) return;
+    const last = Object.hasOwn(lastTab, page.area) ? lastTab[page.area] : undefined;
+    const to = page.key === page.area && last && homeModel.available.some(entry => entry.key === last && entry.area === page.area) ? last : key;
+    store.set({ page: 'extension', extensionPage: to });
+  }
+  function openTab(key: string): void {
     if (homeModel.available.some(page => page.key === key)) store.set({ page: 'extension', extensionPage: key });
   }
   // The rail: the core's pages, then the extension pages that ask for a rail
@@ -127,7 +140,7 @@
     }));
     return [...core.filter(page => page.placement !== 'bottom'), ...extensions, ...core.filter(page => page.placement === 'bottom')];
   });
-  const railCurrent = $derived(shell.page === 'extension' ? `ext:${shell.extensionPage}` : shell.page);
+  const railCurrent = $derived(shell.page === 'extension' ? `ext:${homeModel.page?.area ?? shell.extensionPage}` : shell.page);
   const openExtension = $derived(homeModel.available.find(page => page.key === shell.extensionPage));
 
   // The active station's name, for the status bar (QGD-STN-0005).
@@ -173,7 +186,7 @@
       />
     </div>
     <div class="page" hidden={shell.page !== 'extension'}>
-      <ExtensionPage page={homeModel.page} extensionName={openExtension?.extensionName ?? ''}
+      <ExtensionPage page={homeModel.page} extensionName={openExtension?.extensionName ?? ''} onTab={openTab}
         onAsk={values => { if (shell.extensionPage) home.openPage(shell.extensionPage, values); }}
         onRefresh={() => { if (shell.extensionPage) home.refreshPage(shell.extensionPage); }}
         offline={!homeModel.online && homeModel.page?.network === true} />

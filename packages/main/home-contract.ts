@@ -39,6 +39,10 @@ export interface AvailablePage {
   readonly inputs: readonly PageInput[];
   // Whether it needs the internet, so the window can say it is offline.
   readonly network: boolean;
+  // Its area: the key of the area's first page, its own when it is under
+  // none; and the name on its tab (KI7MT, 2026-10-23).
+  readonly area: string;
+  readonly tab: string;
 }
 
 export type PageView =
@@ -138,7 +142,8 @@ function isInput(value: unknown): boolean {
 }
 
 function isAvailable(value: unknown): value is AvailablePage {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network'])
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab'])
+    && typeof value.area === 'string' && KEY.test(value.area) && plainText(value.tab, 40)
     && typeof value.network === 'boolean'
     && typeof value.key === 'string' && KEY.test(value.key)
     && plainText(value.name, 40) && plainText(value.description, 120) && plainText(value.extensionName, 64)

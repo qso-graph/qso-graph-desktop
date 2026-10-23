@@ -9,8 +9,8 @@ const AT = '2026-10-11T18:00:00Z';
 const SECTIONS = [{ shape: 'alert', level: 'info', text: 'Quiet' }] as const;
 const STATE = {
   available: [
-    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: true },
-    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false }
+    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: true, area: 'air/conditions', tab: 'Conditions' },
+    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false, area: 'air/astro', tab: 'Astro' }
   ],
   pins: ['air/conditions', 'gone/page'], pages: [], notice: null, reached: null
 };
@@ -51,7 +51,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     store.start();
     await flush();
     store.openPage('air/conditions');
-    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, network: true, inputs: [], values: {} });
+    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, network: true, inputs: [], values: {}, area: 'air/conditions', areaName: 'Conditions', tabs: [] });
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
@@ -111,5 +111,42 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     expect(utc('2026-10-11T18:00:00Z', now)).toBe('18:00 UTC');
     expect(utc('2026-10-10T18:00:00Z', now)).toBe('10 Oct 18:00 UTC');
     expect(utc('not a time', now)).toBe('');
+  });
+});
+
+describe('an area of pages, reached from one pin (KI7MT, 2026-10-23)', () => {
+  const page = (key: string, name: string, area: string, tab: string, rail = false) =>
+    ({ key, name, description: 'd', extensionName: 'On the Air', icon: 'tree', rail, inputs: [], network: false, area, tab });
+  const STATE_AREA = {
+    available: [
+      page('air/parks', 'Parks On the Air', 'air/parks', 'Spotted now', true),
+      page('air/near', 'Parks Near Me', 'air/parks', 'Near me'),
+      page('air/conditions', 'Conditions', 'air/conditions', 'Conditions')
+    ],
+    // A pin left on a page that has since moved into an area opens that area.
+    pins: ['air/near', 'air/parks', 'air/conditions'], pages: [], notice: null, reached: null
+  };
+  const make = async () => {
+    const value: HomeApi = { request: async () => ({ ok: true, state: STATE_AREA }), onPage: () => () => {} };
+    const store = createHomeStore(value);
+    store.start();
+    await flush();
+    return store;
+  };
+
+  it('offers each area once to pin, by its first page, and draws a pin into an area as that area', async () => {
+    const store = await make();
+    expect(store.get().areas.map(entry => entry.key)).toEqual(['air/parks', 'air/conditions']);
+    expect(store.get().tiles.map(tile => tile.key)).toEqual(['air/parks', 'air/conditions']);
+    expect(store.get().railPages.map(entry => entry.key)).toEqual(['air/parks']);
+  });
+
+  it('gives an open page its area\'s name and its pages as tabs', async () => {
+    const store = await make();
+    store.openPage('air/near');
+    expect(store.get().page).toMatchObject({ key: 'air/near', area: 'air/parks', areaName: 'Parks On the Air',
+      tabs: [{ key: 'air/parks', label: 'Spotted now' }, { key: 'air/near', label: 'Near me' }] });
+    store.openPage('air/conditions');
+    expect(store.get().page).toMatchObject({ area: 'air/conditions', areaName: 'Conditions', tabs: [] });
   });
 });

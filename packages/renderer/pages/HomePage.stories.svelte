@@ -6,18 +6,18 @@
 
   // Pages as their manifests describe them; Home draws tiles from these alone.
   const available = [
-    { key: 'on-the-air/conditions', name: 'Conditions', description: "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.", extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false },
-    { key: 'astro/astro', name: 'Astro', description: 'The sun, the moon and the grey line at your location.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false },
-    { key: 'on-the-air/parks', name: 'Parks and summits', description: 'POTA and SOTA activators on the air now.', extensionName: 'On the Air', icon: 'tower-broadcast', rail: false, inputs: [], network: false },
-    { key: 'club/nets', name: 'Nets', description: "This week's nets, and who checked in last time.", extensionName: 'Club', icon: 'calendar', rail: false, inputs: [], network: false },
-    { key: 'logbook/recent', name: 'Recent QSOs', description: 'The last contacts in your log, with their QSL state.', extensionName: 'Logbook', icon: 'list', rail: false, inputs: [], network: false }
+    { key: 'on-the-air/conditions', name: 'Conditions', description: "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.", extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false, area: 'on-the-air/conditions', tab: 'Conditions' },
+    { key: 'astro/astro', name: 'Astro', description: 'The sun, the moon and the grey line at your location.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false, area: 'astro/astro', tab: 'Astro' },
+    { key: 'on-the-air/parks', name: 'Parks and summits', description: 'POTA and SOTA activators on the air now.', extensionName: 'On the Air', icon: 'tower-broadcast', rail: false, inputs: [], network: false, area: 'on-the-air/parks', tab: 'Parks and summits' },
+    { key: 'club/nets', name: 'Nets', description: "This week's nets, and who checked in last time.", extensionName: 'Club', icon: 'calendar', rail: false, inputs: [], network: false, area: 'club/nets', tab: 'Nets' },
+    { key: 'logbook/recent', name: 'Recent QSOs', description: 'The last contacts in your log, with their QSL state.', extensionName: 'Logbook', icon: 'list', rail: false, inputs: [], network: false, area: 'logbook/recent', tab: 'Recent QSOs' }
   ];
   const tiles = (keys: string[]) => keys.flatMap(key => {
     const page = available.find(entry => entry.key === key);
     return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
   });
   const pins = available.map(page => page.key);
-  const pinned: HomeModel = { available, pins, tiles: tiles(pins), railPages: available.filter(page => page.rail), page: null, notice: null, online: true, reached: null };
+  const pinned: HomeModel = { available, areas: available, pins, tiles: tiles(pins), railPages: available.filter(page => page.rail), page: null, notice: null, online: true, reached: null };
   const nothingPinned: HomeModel = { ...pinned, pins: [], tiles: [] };
 
   const { Story } = defineMeta({

@@ -132,6 +132,23 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     expect(pageNeedsNetwork({ grants: [] }, { network: true })).toBe(true);
   });
 
+  it('puts a page under another of its extension as a tab in that page\'s area, one level deep (KI7MT, 2026-10-23)', () => {
+    const head = { ...PAGE, id: 'parks', rail: true, tab: 'Spotted now' };
+    const near = { ...PAGE, id: 'near', under: 'parks', tab: 'Near me' };
+    expect(validateManifest({ ...BASE, contributes: { pages: [head, near] } }, known).contributes.pages).toEqual([head, near]);
+    for (const [pages, message] of [
+      [[head, { ...near, under: 'nowhere' }], /not a page of its own/],
+      [[head, near, { ...PAGE, id: 'deeper', under: 'near' }], /not a page of its own/],
+      [[{ ...near, under: 'near' }], /not another page/],
+      [[head, { ...near, rail: true }], /in the rail/],
+      [[head, { ...near, tab: '' }], /tab name/],
+      [[head, { ...near, tab: '<b>x</b>' }], /tab name/],
+      [[head, { ...near, tab: 'x'.repeat(25) }], /tab name/]
+    ] as const) {
+      expect(() => validateManifest({ ...BASE, contributes: { pages } }, known), String(message)).toThrowError(message);
+    }
+  });
+
   it('keeps an icon name and a rail item when given, and leaves them out when not', () => {
     const manifest = validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, icon: 'sun', rail: true }] } }, known);
     expect(manifest.contributes.pages[0]).toEqual({ ...PAGE, icon: 'sun', rail: true });

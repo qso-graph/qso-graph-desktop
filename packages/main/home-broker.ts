@@ -41,7 +41,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
       icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true,
       inputs: page.inputs ?? [],
       // The page's own word, or else its extension's grants (manifest.ts).
-      network: pageNeedsNetwork(extension.manifest, page)
+      network: pageNeedsNetwork(extension.manifest, page),
+      area: `${extension.manifest.id}/${page.under ?? page.id}`, tab: page.tab ?? page.name
     })));
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
@@ -95,7 +96,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   };
 
   const state = (): HomeState => ({
-    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network }) => ({ key, name, description, extensionName, icon, rail, inputs, network })),
+    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network, area, tab }) =>
+      ({ key, name, description, extensionName, icon, rail, inputs, network, area: area ?? key, tab: tab ?? name })),
     pins: load().pins,
     pages: scheduler.views(),
     notice: notice(),

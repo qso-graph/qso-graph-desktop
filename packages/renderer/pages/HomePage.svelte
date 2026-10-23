@@ -116,8 +116,8 @@
   <p class="visually-hidden" role="status" aria-live="polite">{moved}</p>
   <PinPicker
     open={picking}
-    available={home.available}
-    pins={home.pins}
+    available={home.areas}
+    pins={home.tiles.map(tile => tile.key)}
     max={room}
     onSave={pins => { onPicking(false); onSavePins(pins); }}
     onCancel={() => onPicking(false)}

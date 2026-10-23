@@ -61,6 +61,12 @@ export interface PageContribution {
   // not keeps working offline, though its extension may fetch for another
   // page. Absent, the core works it out from the extension's grants.
   readonly network?: boolean;
+  // An area of pages (KI7MT, 2026-10-23: "Open POTA, see all the things you
+  // can do there"): a page `under` another of the same extension is a tab in
+  // that page's area, reached from its pin or rail item and not pinned or
+  // railed on its own. `tab` is the short name on its tab; absent, its name.
+  readonly under?: string;
+  readonly tab?: string;
 }
 
 export interface ExtensionManifest {
@@ -130,7 +136,8 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs', 'network'];
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs', 'network', 'under', 'tab'];
+export const TAB_MAX = 24;
 const INPUT_FIELDS = ['id', 'label', 'kind', 'max', 'hint'];
 const MAX_PAGES = 16;
 // A tile shows the name on one line and the description on two (KI7MT,
@@ -180,7 +187,7 @@ export function pageNeedsNetwork(manifest: Pick<ExtensionManifest, 'grants'>, pa
 function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
   onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
-  const { id: page, name, description, refreshSeconds, icon, rail, inputs, network } = value;
+  const { id: page, name, description, refreshSeconds, icon, rail, inputs, network, under, tab } = value;
   if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
   if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
   seen.add(page);
@@ -208,12 +215,23 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (network !== undefined && typeof network !== 'boolean') {
     throw new ManifestError(`The page "${page}" in "${id}" says whether it needs the internet with something other than true or false.`, page);
   }
+  if (under !== undefined && (typeof under !== 'string' || !APP_ID.test(under) || under === page)) {
+    throw new ManifestError(`The page "${page}" in "${id}" is under something that is not another page's id.`, page);
+  }
+  // Its area's pin and rail item are the area's first page's.
+  if (under !== undefined && rail === true) {
+    throw new ManifestError(`The page "${page}" in "${id}" is under another page and in the rail; its area's first page is.`, page);
+  }
+  if (tab !== undefined && (typeof tab !== 'string' || tab.trim() === '' || tab.length > TAB_MAX || /[<>]/.test(tab))) {
+    throw new ManifestError(`The page "${page}" in "${id}" has a tab name that is not plain text of at most ${TAB_MAX} characters.`, page);
+  }
   const fields = validInputs(inputs, page, id);
   return {
     id: page, name, description, refreshSeconds: refreshSeconds as number,
     ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {}),
     ...(fields.length > 0 ? { inputs: fields } : {}),
-    ...(network !== undefined ? { network: network as boolean } : {})
+    ...(network !== undefined ? { network: network as boolean } : {}),
+    ...(under !== undefined ? { under: under as string } : {}), ...(tab !== undefined ? { tab: tab as string } : {})
   };
 }
 
@@ -313,6 +331,15 @@ export function validateManifest(value: unknown, known: ReadonlySet<string>): Ex
       }
       const seen = new Set<string>();
       for (const entry of contributes.pages) pages.push(validPage(entry, id, seen));
+      // An area is one level deep: a page is under a page of this extension
+      // that is under none.
+      for (const entry of pages) {
+        if (entry.under === undefined) continue;
+        const head = pages.find(other => other.id === entry.under);
+        if (!head || head.under !== undefined) {
+          throw new ManifestError(`The page "${entry.id}" in "${id}" is under "${entry.under}", which is not a page of its own here.`, entry.id);
+        }
+      }
     }
   }
   const events: string[] = [];

@@ -27,6 +27,9 @@ export interface Tile {
 
 export interface HomeModel {
   readonly available: readonly AvailablePage[];
+  // What can be pinned: each area once, by its first page (KI7MT,
+  // 2026-10-23: a pin opens an area, and its pages are tabs).
+  readonly areas: readonly AvailablePage[];
   readonly pins: readonly string[];
   // The pinned pages some extension offers, in pin order.
   readonly tiles: readonly Tile[];
@@ -39,6 +42,10 @@ export interface HomeModel {
     readonly network: boolean;
     // The page's fields, and what was last asked with them.
     readonly inputs: AvailablePage['inputs']; readonly values: Readonly<Record<string, string>>;
+    // Its area's name and first page, and the area's pages as tabs, when it
+    // has more than one.
+    readonly area: string; readonly areaName: string;
+    readonly tabs: readonly { readonly key: string; readonly label: string }[];
   } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
@@ -62,17 +69,29 @@ export function shownOf(view: PageView): PageShown {
 function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, online: boolean, reached: boolean | null, error?: string): HomeModel {
   const offered = new Map(state.available.map(page => [page.key, page]));
   const opened = open === null ? undefined : offered.get(open);
+  const areas = state.available.filter(page => page.area === page.key);
+  // A pin names an area by its first page; a pin to a page that has since
+  // moved under another opens that page's area, and is drawn once.
+  const pinned = [...new Set(state.pins.flatMap(key => {
+    const page = offered.get(key);
+    return page ? [page.area] : [];
+  }))];
+  const head = opened ? offered.get(opened.area) ?? opened : undefined;
+  const inArea = opened ? state.available.filter(page => page.area === opened.area) : [];
   return {
     available: state.available,
+    areas,
     pins: state.pins,
-    tiles: state.pins.flatMap(key => {
+    tiles: pinned.flatMap(key => {
       const page = offered.get(key);
       return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
     }),
-    railPages: state.available.filter(page => page.rail),
-    page: opened ? {
+    railPages: areas.filter(page => page.rail),
+    page: opened && head ? {
       key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
-      network: opened.network, inputs: opened.inputs, values
+      network: opened.network, inputs: opened.inputs, values,
+      area: head.key, areaName: head.name,
+      tabs: inArea.length > 1 ? inArea.map(page => ({ key: page.key, label: page.tab })) : []
     } : null,
     notice,
     online,

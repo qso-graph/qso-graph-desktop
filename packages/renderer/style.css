@@ -385,6 +385,15 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .page-section-heading { margin: 18px 0 8px; font-size: 15px; }
 .page-body > .page-section-heading:first-of-type { margin-top: 4px; }
 /* A page's fields, drawn by the core (inputs.ts), above its data. */
+/* An area's pages as tabs (KI7MT, 2026-10-23): a pin opens the area, and its
+   pages are one click apart. Underlined, as a page's own sections are, not
+   buttons in a row. */
+.page-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 16px; flex-wrap: wrap; }
+.page-tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin-bottom: -1px;
+  padding: 8px 12px; font: inherit; font-size: 14px; color: var(--ink-muted); cursor: pointer; }
+.page-tab:hover { color: var(--ink); }
+.page-tab[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.page-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .page-inputs { max-width: 1088px; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 /* Show beside the box, level with it: below the label's line and its gap. */
 .page-inputs > button { margin-top: 22px; }

@@ -43,7 +43,7 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: 'on-the-air/conditions', state: 'waiting' })).toBe(true);
     expect(isPageView({ key: 'on-the-air/conditions', state: 'failed', reason: 'NOAA did not answer.' })).toBe(true);
     expect(isHomeReply({ ok: true, state: {
-      available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false }],
+      available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false, area: 'on-the-air/conditions', tab: 'Conditions' }],
       pins: ['on-the-air/conditions'], pages: [READY], notice: null, reached: null } })).toBe(true);
   });
 
@@ -54,15 +54,15 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: '../x', state: 'waiting' })).toBe(false);
     // A field's hint is one of the fields an input may have: leaving it out
     // of this check would refuse the whole of Home's state.
-    const hinted = (hint: unknown) => isHomeReply({ ok: true, state: { available: [{ key: 'astro/astro', name: 'Astro', description: 'd', extensionName: 'Astro', icon: 'moon', rail: true, network: false,
+    const hinted = (hint: unknown) => isHomeReply({ ok: true, state: { available: [{ key: 'astro/astro', name: 'Astro', description: 'd', extensionName: 'Astro', icon: 'moon', rail: true, network: false, area: 'astro/astro', tab: 'Astro',
       inputs: [{ id: 'dx', label: 'Grey line with', kind: 'grid', hint }] }], pins: [], pages: [], notice: null, reached: null } });
     expect(hinted('A DX station\'s grid, as IO91.')).toBe(true);
     expect(hinted('<b>x</b>')).toBe(false);
     expect(hinted('x'.repeat(81))).toBe(false);
     // Whether a page needs the internet is part of what a page is.
     expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [] }], pins: [], pages: [], notice: null, reached: null } })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [], network: false }], pins: [], pages: [], notice: null, reached: null } })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false, inputs: [], network: false }], pins: [], pages: [], notice: null, reached: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [], network: false, area: 'a-b/c-d', tab: '<b>' }], pins: [], pages: [], notice: null, reached: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false, inputs: [], network: false, area: 'a-b/c-d', tab: 'n' }], pins: [], pages: [], notice: null, reached: null } })).toBe(false);
     // One page open at most, so at most one view.
     expect(isHomeReply({ ok: true, state: { available: [], pins: [], pages: [READY, READY], notice: null, reached: null } })).toBe(false);
     // Lists with gaps: every() would skip the holes and pass.

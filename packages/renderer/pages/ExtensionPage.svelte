@@ -25,8 +25,10 @@
     onRefresh?: () => void;
     // The page needs the internet and the computer has none.
     offline?: boolean;
+    // Open another page of the same area, from its tab.
+    onTab?: (key: string) => void;
   }
-  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false }: Props = $props();
+  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {} }: Props = $props();
 
   // Why a field's value is refused, by its kind, said as it is typed.
   const REASON = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
@@ -100,7 +102,17 @@
 {/snippet}
 
 {#if page}
-  <PageLayout title={page.name} eyebrow={extensionName.toUpperCase()} width="full">
+  <PageLayout title={page.areaName} eyebrow={extensionName.toUpperCase()} width="full">
+    <!-- An area's pages, as tabs (KI7MT, 2026-10-23): each its own page,
+         asked for only while it is the one shown (QGD-HOM-0005). -->
+    {#if page.tabs.length > 1}
+      <nav class="page-tabs" aria-label="{page.areaName} pages">
+        {#each page.tabs as tab (tab.key)}
+          <button type="button" class="page-tab" id="page-tab-{tab.key.replace('/', '-')}" aria-current={tab.key === page.key ? 'page' : undefined}
+            onclick={() => { if (tab.key !== page.key) onTab(tab.key); }}>{tab.label}</button>
+        {/each}
+      </nav>
+    {/if}
     {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->

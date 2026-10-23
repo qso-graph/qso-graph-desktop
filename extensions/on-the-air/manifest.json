@@ -24,7 +24,8 @@
         "refreshSeconds": 60,
         "icon": "tree",
         "rail": true,
-        "network": true
+        "network": true,
+        "tab": "Spotted now"
       },
       {
         "id": "activate",
@@ -32,7 +33,9 @@
         "description": "The parks in My Area and how many times each has been activated, nearest first. Works offline once downloaded.",
         "refreshSeconds": 600,
         "icon": "map",
-        "network": false
+        "network": false,
+        "under": "parks",
+        "tab": "Near me"
       }
     ]
   }
