@@ -158,9 +158,10 @@ jobs:
         run: npm run verify -- --suites ${{ env.SUITES }}
 
   # The installers each platform ships (electron-builder, as Podman Desktop
-  # and Bitwarden use): a DMG on macOS, an NSIS installer on Windows, an
-  # AppImage, deb and rpm on Linux. Unsigned until signing is set up
-  # (QGD-SCP-0003). Kept for a week, to download and try.
+  # and Bitwarden use, laid out as Oracle's WebLogic Remote Console is): a DMG
+  # and a zip on macOS, an NSIS installer and a zip on Windows, an AppImage,
+  # deb, rpm and zip on Linux. A zip is the portable build: unpack it and run
+  # it. Unsigned until signing is set up (QGD-SCP-0003). Kept for a week.
   package:
     name: package (${{ matrix.os }})
     needs: [check, window]
@@ -231,5 +232,6 @@ jobs:
             out/*.AppImage
             out/*.deb
             out/*.rpm
+            out/*.zip
           if-no-files-found: error
           retention-days: 7

@@ -48,6 +48,7 @@
   "build": {
     "appId": "org.qso-graph.desktop",
     "productName": "QSO Graph Desktop",
+    "artifactName": "qso-graph-desktop-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "out"
     },
@@ -91,6 +92,12 @@
           "arch": [
             "arm64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
         }
       ],
       "identity": null,
@@ -98,27 +105,33 @@
       "icon": "build/icon.png"
     },
     "win": {
-      "target": "nsis",
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "icon": "build/icon.png"
     },
     "linux": {
       "target": [
         "AppImage",
         "deb",
-        "rpm"
+        "rpm",
+        "zip"
       ],
       "category": "Utility",
       "icon": "build/icon.png",
       "maintainer": "QSO Graph contributors <maintainers@qso-graph.io>"
     },
-    "appImage": {
-      "artifactName": "qso-graph-desktop-${version}-${arch}.${ext}"
-    },
-    "dmg": {
-      "artifactName": "qso-graph-desktop-${version}-${arch}.${ext}"
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define",
+        "_build_id_links none"
+      ]
     },
     "nsis": {
-      "artifactName": "qso-graph-desktop-${version}-${arch}.${ext}"
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": false
     }
   },
   "dependencies": {
