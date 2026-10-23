@@ -48,7 +48,7 @@ export function activate(context: ExtensionContext): void {
     return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : [],
       area.ok && area.kind === 'area.get' ? area.locations : []);
   }));
-  // Parks to Activate (QGD-HOM-0013): My Area's parks with their activation
+  // Parks Near Me (QGD-HOM-0013): My Area's parks with their activation
   // counts, from reference data on this computer, so it works at camp.
   context.subscriptions.push(context.pages.register('activate', async ({ signal }) => {
     const found = await context.request({ kind: 'pota.activations' }, { signal });

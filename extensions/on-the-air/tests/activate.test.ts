@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Parks to Activate (QGD-HOM-0013): My Area's parks, nearest first, starting
+// Parks Near Me (QGD-HOM-0013): My Area's parks, nearest first, starting
 // on the never activated. Made-up parks: nothing of POTA's is committed.
 import { describe, expect, it } from 'vitest';
 import type { ActivationPark } from '../../../packages/extension-api/api-contract.js';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
-import { SHOWN, activatePage, bearingDegrees, distanceKm } from '../src/activate.js';
+import { SHOWN, WITHIN, activatePage, bearingDegrees, distanceKm } from '../src/activate.js';
+import { filteredGroups } from '../../../packages/ui/page-shapes.js';
 
 const BOISE = { name: 'Home', latitude: 43.615, longitude: -116.202 };
 const park = (reference: string, latitude: number, longitude: number, activations: number | null, locations = 'US-ID'): ActivationPark =>
@@ -30,7 +31,7 @@ describe('distance and bearing', () => {
   });
 });
 
-describe('Parks to Activate (QGD-HOM-0013)', () => {
+describe('Parks Near Me (QGD-HOM-0013)', () => {
   const parks = [park('US-0003', 44.5, -116.2, 12), park('US-0001', 43.7, -116.2, null), park('US-0002', 43.9, -116.2, 0),
     park('US-0004', 45.0, -116.2, 3, 'US-ID,US-OR')];
 
@@ -52,6 +53,20 @@ describe('Parks to Activate (QGD-HOM-0013)', () => {
     expect(filter.start).toBe('Never activated');
     expect(filter.named!.map(choice => choice.label)).toEqual(['Never activated', 'Fewer than 5', 'Fewer than 10']);
     expect(filter.named![0]!.values).toEqual(['none', '0']);
+  });
+
+  it('narrows by distance, within a bound in km, and only with a position', () => {
+    const shown = table(activatePage(parks, FETCHED, BOISE));
+    const distance = shown.filters!.find(filter => filter.label === 'Distance')!;
+    expect(distance.column).toBe(2);
+    expect(distance.upTo!.map(choice => choice.label)).toEqual(WITHIN.map(km => `Within ${km} km`));
+    expect(distance.start).toBeUndefined();
+    // US-0001 is 9 km away, US-0002 about 32, US-0003 about 99, US-0004 about 154.
+    const within = (label: string) => filteredGroups(shown, { 2: label })[0]?.rows.map(row => row[0]) ?? [];
+    expect(within('Within 25 km')).toEqual(['US-0001']);
+    expect(within('Within 50 km')).toEqual(['US-0001', 'US-0002']);
+    expect(within('Within 200 km')).toEqual(['US-0001', 'US-0002', 'US-0003', 'US-0004']);
+    expect(table(activatePage(parks, FETCHED, { name: 'Somewhere' })).filters!.map(filter => filter.label)).toEqual(['Activations', 'Location']);
   });
 
   it('counts the never activated, a null with a zero', () => {

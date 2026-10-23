@@ -40,7 +40,7 @@ describe('On the Air (QGD-HOM-0007)', () => {
     expect(value.subscriptions).toHaveLength(3);
   });
 
-  it('draws Parks to Activate from reference data alone, and says why when it is not there', async () => {
+  it('draws Parks Near Me from reference data alone, and says why when it is not there', async () => {
     const park = { reference: 'US-0001', name: 'Example Park', latitude: 43.7, longitude: -116.1, locations: 'US-ID', activations: 0 };
     const { value, providers, asked } = context(request => request.kind === 'pota.activations'
       ? { ok: true, kind: 'pota.activations', parks: [park], fetchedAt: '2026-10-23T12:00:00Z' }

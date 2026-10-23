@@ -141,8 +141,12 @@ export interface TableFilter {
   // operator's locations (KI7MT, 2026-10-23). A row matches one when its
   // value, or any of its values, is among them.
   readonly named?: readonly { readonly label: string; readonly values: readonly string[] }[];
-  // The choice the filter starts at, rather than All: one of its options or
-  // a named choice's label.
+  // Choices for a column of numbers that keep each row whose number is at
+  // most a bound, "Within 50 km" (KI7MT, 2026-10-23, for Parks Near Me's
+  // distance). A filter with these offers them and All, and no options.
+  readonly upTo?: readonly { readonly label: string; readonly value: number }[];
+  // The choice the filter starts at, rather than All: one of its options, or
+  // a named or up-to choice's label.
   readonly start?: string;
 }
 
@@ -333,7 +337,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     const filters = filtered ? each(value.filters as unknown[], where, (filter: unknown, f: number): TableFilter => {
       const name = `${where}, filter ${f + 1}`;
       if (!isRecord(filter)) throw new PageError(`${name} is not an object.`);
-      only(filter, ['column', 'label', 'options', 'multiple', 'named', 'start'], name);
+      only(filter, ['column', 'label', 'options', 'multiple', 'named', 'upTo', 'start'], name);
       if (filter.multiple !== undefined && filter.multiple !== true) throw new PageError(`${name}'s multiple is not true.`);
       let named: { label: string; values: string[] }[] | undefined;
       if (filter.named !== undefined) {
@@ -351,6 +355,28 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
         });
       }
       const start = filter.start === undefined ? undefined : text(filter.start, PAGE_LIMITS.cell, `${name}'s start`);
+      if (filter.upTo !== undefined) {
+        // A bound on a number stands alone: nothing to match exactly beside it.
+        if (filter.options !== undefined || filter.named !== undefined || filter.multiple !== undefined) {
+          throw new PageError(`${name} has up-to choices beside options, named choices or multiple.`);
+        }
+        if (!Array.isArray(filter.upTo) || filter.upTo.length === 0 || filter.upTo.length > 8) {
+          throw new PageError(`${name} has no up-to choices, or more than 8.`);
+        }
+        const upTo = each(filter.upTo, name, (choice: unknown, n: number) => {
+          const at = `${name}, up-to choice ${n + 1}`;
+          if (!isRecord(choice)) throw new PageError(`${at} is not an object.`);
+          only(choice, ['label', 'value'], at);
+          if (typeof choice.value !== 'number' || !Number.isFinite(choice.value)) throw new PageError(`${at}'s value is not a number.`);
+          return { label: text(choice.label, PAGE_LIMITS.label, `${at}'s label`), value: choice.value };
+        });
+        if (new Set(upTo.map(choice => choice.label)).size !== upTo.length) throw new PageError(`${name} offers the same up-to choice twice.`);
+        if (start !== undefined && !upTo.some(choice => choice.label === start)) throw new PageError(`${name} starts at a choice it does not offer.`);
+        if (typeof filter.column !== 'number' || !Number.isInteger(filter.column) || filter.column < 0 || filter.column >= columns.length) {
+          throw new PageError(`${name} does not name one of the table's columns.`);
+        }
+        return { column: filter.column, label: text(filter.label, PAGE_LIMITS.label, `${name}'s label`), upTo, ...(start !== undefined ? { start } : {}) };
+      }
       const multiple = { ...(filter.multiple === true ? { multiple: true as const } : {}), ...(named ? { named } : {}), ...(start !== undefined ? { start } : {}) };
       if (typeof filter.column !== 'number' || !Number.isInteger(filter.column) || filter.column < 0 || filter.column >= columns.length) {
         throw new PageError(`${name} does not name one of the table's columns.`);

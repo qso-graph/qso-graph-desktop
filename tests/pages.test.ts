@@ -219,6 +219,11 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [{ ...table, sortable: true }]))).toThrowError(/version 5 does not have/);
   });
 
+  it('carries up-to choices for a column of numbers (KI7MT, 2026-10-23)', () => {
+    const within = { ...table, filters: [{ column: 1, label: 'Distance', upTo: [{ label: 'Within 50 km', value: 50 }], start: 'Within 50 km' }] };
+    expect(validatePageAnswer(v(6, [within]))).toEqual(v(6, [within]));
+  });
+
   it('carries the order the rows were sent in, for a sortable table only', () => {
     const sent = { ...table, sortable: true, sortedBy: { column: 1, direction: 'descending' } };
     expect(validatePageAnswer(v(6, [sent]))).toEqual(v(6, [sent]));
@@ -245,7 +250,16 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     [[{ column: 1, label: 'Band', options: ['20m'], start: '40m' }], /does not offer/],
     [[{ column: 1, label: 'Band', named: [] }], /no named choices/],
     [[{ column: 1, label: 'Band', named: [{ label: 'Mine', values: [] }] }], /no values/],
-    [[{ column: 1, label: 'Band', named: [{ label: '<b>', values: ['20m'] }] }], /markup/]
+    [[{ column: 1, label: 'Band', named: [{ label: '<b>', values: ['20m'] }] }], /markup/],
+    [[{ column: 1, label: 'km', upTo: [] }], /no up-to choices/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: 5 }], options: ['5'] }], /beside options/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: 5 }], named: [{ label: 'x', values: ['5'] }] }], /beside options/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: '5' }] }], /not a number/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: Infinity }] }], /not a number/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: 5 }, { label: 'Within 5', value: 6 }] }], /twice/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: 5, x: 1 }] }], /"x"/],
+    [[{ column: 1, label: 'km', upTo: [{ label: 'Within 5', value: 5 }], start: 'Within 9' }], /does not offer/],
+    [[{ column: 3, label: 'km', upTo: [{ label: 'Within 5', value: 5 }] }], /columns/]
   ])('refuses an off-shape filter (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [{ ...table, filters: value }]))).toThrowError(message);
   });

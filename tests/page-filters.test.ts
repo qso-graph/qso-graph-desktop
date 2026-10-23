@@ -124,3 +124,15 @@ describe('a named choice and where a filter starts (KI7MT, 2026-10-23)', () => {
     expect(filteredGroups(parks, { 1: '' })[0]!.rows).toHaveLength(4);
   });
 });
+
+describe('an up-to choice over a column of numbers (KI7MT, 2026-10-23)', () => {
+  const section = { shape: 'table' as const, columns: ['Park', 'km'], rows: [['A', '9'], ['B', '50'], ['C', '51'], ['D', '—']],
+    filters: [{ column: 1, label: 'Distance', upTo: [{ label: 'Within 50 km', value: 50 }] }] };
+  it('keeps the rows whose number is at most the bound, a cell that is not a number never', () => {
+    expect(filteredGroups(section, { 1: 'Within 50 km' })[0]!.rows.map(row => row[0])).toEqual(['A', 'B']);
+    expect(filteredGroups(section, { 1: '' })[0]!.rows).toHaveLength(4);
+  });
+  it('offers no values of its own beside its choices', () => {
+    expect(filterOptions(section, section.filters[0]!)).toEqual([]);
+  });
+});

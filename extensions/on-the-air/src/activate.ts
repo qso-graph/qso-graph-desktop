@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Parks to Activate (QGD-HOM-0013, #62): the parks of My Area with how many
+// Parks Near Me (QGD-HOM-0013, #62; named by KI7MT, 2026-10-23): the parks of My Area with how many
 // times POTA has counted each activated, nearest first, for an activator
 // looking for one nobody has worked from (KI7MT, 2026-10-23: "Some in Idaho
 // have never been activated, that would be my target list").
@@ -35,6 +35,9 @@ export function bearingDegrees(from: { latitude: number; longitude: number }, to
 const NONE = 'none';
 const countText = (park: ActivationPark) => (park.activations === null ? NONE : String(park.activations));
 const count = (park: ActivationPark) => park.activations ?? 0;
+
+// The Distance filter's bounds, in km.
+export const WITHIN = [25, 50, 100, 200, 400] as const;
 
 // The page's table holds at most 500 rows (PAGE_LIMITS).
 export const SHOWN = 500;
@@ -89,6 +92,8 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
             { label: 'Fewer than 10', values: fewerThan(10) }
           ],
           start: 'Never activated' },
+        // How far, in km (KI7MT, 2026-10-23): only with a position to measure from.
+        ...(here ? [{ column: 2, label: 'Distance', upTo: WITHIN.map(km => ({ label: `Within ${km} km`, value: km })) }] : []),
         { column: location, label: 'Location', options: locationOptions, multiple: true }
       ] }
   ];

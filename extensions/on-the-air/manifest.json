@@ -28,7 +28,7 @@
       },
       {
         "id": "activate",
-        "name": "Parks to Activate",
+        "name": "Parks Near Me",
         "description": "The parks in My Area and how many times each has been activated, nearest first. Works offline once downloaded.",
         "refreshSeconds": 600,
         "icon": "map",

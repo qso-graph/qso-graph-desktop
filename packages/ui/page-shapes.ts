@@ -45,12 +45,15 @@ export interface Mark extends Place { readonly label: string }
 export interface TableFilter {
   readonly column: number; readonly label: string; readonly options?: readonly string[]; readonly multiple?: true;
   readonly named?: readonly { readonly label: string; readonly values: readonly string[] }[]; readonly start?: string;
+  // "Within 50 km": rows whose number is at most the bound.
+  readonly upTo?: readonly { readonly label: string; readonly value: number }[];
 }
 export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
 
 // What a filter offers: the extension's options, or else the column's own
 // values in the order they first appear.
 export function filterOptions(section: Extract<Section, { shape: 'table' }>, filter: TableFilter): readonly string[] {
+  if (filter.upTo) return [];
   if (filter.options) return filter.options;
   const seen = new Set<string>();
   for (const group of tableGroups(section)) for (const row of group.rows) {
@@ -77,6 +80,9 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
   // locations): the row matches when its value, or any of them, is one.
   const namedValues = (column: number, value: string) =>
     section.filters?.find(filter => filter.column === column)?.named?.find(choice => choice.label === value)?.values;
+  // An up-to choice: a row matches when its cell is a number no greater.
+  const bound = (column: number, value: string) =>
+    section.filters?.find(filter => filter.column === column)?.upTo?.find(choice => choice.label === value)?.value;
   const active = Object.entries(chosen).filter(([column, value]) => value !== '' && offered.has(Number(column)));
   // Each group keeps its place in the table as sent (`at`), which its
   // contents link names: two groups may share a heading (Codex review).
@@ -86,6 +92,8 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
     .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
       && active.every(([column, value]) => {
         const cell = row[Number(column)] ?? '';
+        const most = bound(Number(column), value);
+        if (most !== undefined) return isNumber(cell) && Number(cell) <= most;
         const values = several.has(Number(column)) ? valuesOf(cell) : [cell];
         const wanted = namedValues(Number(column), value);
         return wanted ? values.some(entry => wanted.includes(entry)) : values.includes(value);

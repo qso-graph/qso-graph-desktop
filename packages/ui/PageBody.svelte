@@ -127,6 +127,7 @@
                 <select class="page-filter" value={choicesOf(at)[filter.column] ?? ''}
                   onchange={event => choose(at, filter.column, event.currentTarget.value)}>
                   {#each filter.named ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
+                  {#each filter.upTo ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
                   <option value="">All</option>
                   {#each filterOptions(section, filter) as option (option)}<option value={option}>{option}</option>{/each}
                 </select>
