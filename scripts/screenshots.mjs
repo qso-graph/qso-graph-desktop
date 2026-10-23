@@ -475,7 +475,7 @@ try {
   // Connecticut (KI7MT, 2026-10-22). No street address: the screens need none.
   const HQ = 'Hiram Percy Maxim Memorial Station';
   const home = await save({ name: HQ, kind: 'Home', place: {
-    MY_GRIDSQUARE: 'FN31pr', MY_LAT: 'N041 42.882', MY_LON: 'W072 43.632', MY_DXCC: '291', MY_STATE: 'CT',
+    MY_GRIDSQUARE: 'FN31pr', MY_DXCC: '291', MY_STATE: 'CT',
     MY_CNTY: 'CT,Hartford', MY_CQ_ZONE: '5', MY_ITU_ZONE: '8', MY_ARRL_SECT: 'CT' } });
   expect(home, 'W1AW\'s station must save').toMatchObject({ ok: true });
   expect(await save({ name: 'US-0001 Example Park', kind: 'Portable', place: {

@@ -43,10 +43,9 @@ const archive = join('vendor', '.cache', `adif-${register.adif.version}.zip`);
 await cp(archive, join(referenceCache, `adif-${register.adif.version}.zip`))
   .catch(() => { throw new Error(`${archive} is not there. Fetch it with: make setup`); });
 
-// Values only an operator would type, so a log line carrying one is found.
-const STREET = 'QG Stations Street 4f1c9a';
-const CITY = 'QG Stations City 4f1c9a';
-const POSTAL = 'QG-POSTAL-4F1C9A';
+// A value only an operator would type, so a log line carrying one is found.
+// A Location holds no address (KI7MT, 2026-10-23); its notes are the one
+// private thing on it.
 const NOTES = 'QG notes 4f1c9a: north lot';
 
 const launch = async () => {
@@ -121,9 +120,8 @@ try {
   await expect(field(page, 'MY_ITU_ZONE')).toHaveValue('6');
   // The grid is typed, and one ADIF refuses is refused beside it.
   await field(page, 'MY_GRIDSQUARE').fill('DN1');
-  await field(page, 'MY_STREET').fill(STREET);
-  await field(page, 'MY_CITY').fill(CITY);
-  await field(page, 'MY_POSTAL_CODE').fill(POSTAL);
+  // No address, latitude or longitude is offered (KI7MT, 2026-10-23).
+  for (const gone of ['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON']) await expect(field(page, gone)).toHaveCount(0);
   await page.locator('#station-notes').fill(NOTES);
   await page.locator('#station-default').check();
   await page.locator('#save-station').click();
@@ -131,7 +129,7 @@ try {
   await expect(field(page, 'MY_GRIDSQUARE')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#station-form-error')).toContainText('Grid:');
   expect((await status(page)).status.stations.list, 'nothing is saved while a value is refused').toEqual([]);
-  // The grid is required, and latitude and longitude can be filled from it.
+  // The grid is required.
   await field(page, 'MY_GRIDSQUARE').fill('');
   await page.locator('#save-station').click();
   await expect(page.locator('#station-my-gridsquare-error')).toHaveText('A location needs a grid.');
@@ -142,46 +140,26 @@ try {
   await field(page, 'MY_POTA_REF').pressSequentially('us-2233');
   await expect(field(page, 'MY_POTA_REF')).toHaveValue('US-2233');
   await field(page, 'MY_POTA_REF').fill('');
-  await field(page, 'MY_GRIDSQUARE').fill('DN13');
-  await page.locator('#fill-from-grid').click();
-  await expect(field(page, 'MY_LAT')).toHaveValue('43.5');
-  await expect(field(page, 'MY_LON')).toHaveValue('-117');
-  // And the other way: a position gives its six-character grid (KI7MT,
-  // 2026-10-22). Boise's DN13tp, then back to DN13 for the rest of the run.
-  await field(page, 'MY_LAT').fill('43.6458');
-  await field(page, 'MY_LON').fill('-116.375');
-  await page.locator('#fill-grid-from-position').click();
-  await expect(field(page, 'MY_GRIDSQUARE')).toHaveValue('DN13tp');
-  // The county, from LoTW's list (QGD-STN-0010): a position gives the one it
-  // is in; a grid alone that crosses a county line gives the choices.
-  await page.locator('#fill-county').click();
-  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Ada', { timeout: 30_000 });
-  await expect(page.locator('#fill-county-note')).toHaveText('Ada, from the latitude and longitude.');
-  await field(page, 'MY_LAT').fill('');
-  await field(page, 'MY_LON').fill('');
+  // The county, from LoTW's list (QGD-STN-0010), from the grid: a square
+  // that crosses a county line gives the choices.
   await field(page, 'MY_GRIDSQUARE').fill('DN13sm');
   await page.locator('#fill-county').click();
   const choices = page.getByRole('group', { name: 'Counties in the grid' });
   await expect(choices.getByRole('button')).toHaveText(['Ada, ID', 'Canyon, ID'], { timeout: 30_000 });
-  await choices.getByRole('button', { name: 'Canyon, ID' }).click();
-  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Canyon');
+  await choices.getByRole('button', { name: 'Ada, ID' }).click();
+  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Ada');
   await field(page, 'MY_GRIDSQUARE').fill('DN13');
-  // Decimal degrees are taken and kept in ADIF's form, and the county
-  // follows the position.
-  await field(page, 'MY_LAT').fill('43.625');
-  await field(page, 'MY_LON').fill('-116.2083');
-  await page.locator('#fill-county').click();
-  await expect(field(page, 'MY_CNTY')).toHaveValue('ID,Ada', { timeout: 30_000 });
   await page.locator('#save-station').click();
   await expect(row(page, 'Home')).toBeVisible({ timeout: 30_000 });
   await expect(row(page, 'Home')).toContainText('Default for');
   const saved = (await status(page)).status.stations.list.find(station => station.name === 'Home');
   expect(saved.place).toMatchObject({ MY_DXCC: '291', MY_STATE: 'ID', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
-    MY_GRIDSQUARE: 'DN13', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID' });
+    MY_GRIDSQUARE: 'DN13', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID' });
+  for (const gone of ['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON', 'MY_GRIDSQUARE_EXT']) expect(saved.place[gone], gone).toBeUndefined();
   // Opening a station and saving it unchanged changes nothing: a station
-  // holding a 12-character locator and a grid-line list keeps both (found by
+  // holding an 8-character locator and a grid-line list keeps both (found by
   // Turing in review: the one Grid box shows one of them).
-  const both = { MY_GRIDSQUARE: 'DN13sm46', MY_GRIDSQUARE_EXT: 'ab12', MY_VUCC_GRIDS: 'DN13,DN14' };
+  const both = { MY_GRIDSQUARE: 'DN13sm46', MY_VUCC_GRIDS: 'DN13,DN14' };
   expect(await page.evaluate(place => window.storage.request({ type: 'save-station', station: { name: 'Both grids', place } }), both))
     .toMatchObject({ ok: true });
   await row(page, 'Both grids').getByRole('button', { name: 'Edit Both grids' }).click();
@@ -192,7 +170,7 @@ try {
   await row(page, 'Both grids').getByRole('button', { name: 'Delete Both grids' }).click();
   await page.getByRole('button', { name: 'Delete location' }).click();
   await expect(row(page, 'Both grids')).toHaveCount(0, { timeout: 30_000 });
-  console.log('P9-adif: entity, state and zones picked from ADIF\'s lists, Idaho\'s zones filled in; a grid ADIF refuses was refused beside its field and nothing saved; corrected, it saved with the position in ADIF\'s form: PASS');
+  console.log('P9-adif: entity, state and zones picked from ADIF\'s lists, Idaho\'s zones filled in; a grid ADIF refuses was refused beside its field and nothing saved; corrected, it saved with no address and no position but its grid: PASS');
 
   // ---- P9-active -------------------------------------------------------
   await page.locator('#add-station').click();
@@ -252,7 +230,7 @@ try {
   let logged = '';
   for (const file of files) logged += await readFile(join(logs, file), 'utf8').catch(() => '');
   expect(logged.length, 'the run must have written log lines to search').toBeGreaterThan(0);
-  for (const value of [STREET, CITY, POSTAL, NOTES]) expect(logged.includes(value), 'an address or notes value reached the log').toBe(false);
+  expect(logged.includes(NOTES), 'a Location\'s notes reached the log').toBe(false);
   console.log('P9-stays-local: the station\'s street, city, postal code and notes are in no log line: PASS');
 } catch (error) {
   console.error('P9 Stations suite failed.');

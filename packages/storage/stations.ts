@@ -18,7 +18,7 @@ import {
   type StationsBackup, type StationsView
 } from './station-contract.js';
 export { adifLocation } from './station-contract.js';
-import { adifLocation, gridOf } from './station-contract.js';
+import { gridOf } from './station-contract.js';
 
 export type Definitions = Ruleset | 'not loaded';
 
@@ -322,13 +322,12 @@ export async function draftFromPark(
   const place: Place = { MY_POTA_REF: park.reference };
   if (park.adifEntity !== null) place.MY_DXCC = String(park.adifEntity);
   let note: string | undefined;
+  // The grid alone: a Location holds no latitude or longitude (KI7MT,
+  // 2026-10-23: "a grid square is enough").
   if (park.coordinatesUsable && park.latitude !== null && park.longitude !== null) {
     if (park.grid) place.MY_GRIDSQUARE = park.grid;
-    const lat = adifLocation(park.latitude, 'lat');
-    const lon = adifLocation(park.longitude, 'lon');
-    if (lat && lon) { place.MY_LAT = lat; place.MY_LON = lon; }
   } else {
-    note = 'POTA publishes this park\'s coordinates as unusable, so its grid and position were not filled in. Add the grid before saving.';
+    note = 'POTA publishes this park\'s coordinates as unusable, so its grid was not filled in. Add the grid before saving.';
   }
   // POTA names a park's location by ISO 3166-2 code (US-ID). Where that is
   // one place and its subdivision part is a code ADIF's list holds for the
@@ -352,7 +351,7 @@ export async function summitOf(reference: Store<typeof referenceSchema>, code: s
 }
 
 // A portable location from a SOTA summit: its reference, its six-character
-// grid, its position and its height (MY_ALTITUDE, shown as Elevation), each
+// grid and its height (MY_ALTITUDE, shown as Elevation), each
 // editable before it is saved. A retired summit is still drafted, and says so:
 // saving it is refused, with the reason (QGD-REF-0018).
 export async function draftFromSummit(
@@ -363,9 +362,6 @@ export async function draftFromSummit(
   const place: Place = { MY_SOTA_REF: summit.code };
   const grid = gridOf(summit.latitude, summit.longitude, 6);
   if (grid) place.MY_GRIDSQUARE = grid;
-  const lat = adifLocation(summit.latitude, 'lat');
-  const lon = adifLocation(summit.longitude, 'lon');
-  if (lat && lon) { place.MY_LAT = lat; place.MY_LON = lon; }
   if (summit.altitudeM !== null) place.MY_ALTITUDE = String(summit.altitudeM);
   const today = now.toISOString().slice(0, 10);
   const note = today > summit.validTo ? `SOTA retired ${summit.code} on ${summit.validTo}.`
@@ -442,10 +438,17 @@ export function stationChoices(
 }
 
 // Every Location, each callsign's default and the active one, for a backup
-// the credential core seals with the callsigns (KI7MT, 2026-10-23).
+// (KI7MT, 2026-10-23). The notes stay on this computer: they are the
+// operator's own words, which may hold a gate code or a telephone number, and
+// a backup holds only what is public.
 export async function backupStations(state: StateStore): Promise<StationsBackup> {
   const view = await viewStations(state, false);
-  return { stations: view.list, defaults: view.defaults, active: view.active };
+  const stations = view.list.map(entry => {
+    const copy = { ...entry };
+    delete copy.notes;
+    return copy;
+  });
+  return { stations, defaults: view.defaults, active: view.active };
 }
 
 // A restore onto a clean slate (KI7MT, 2026-10-23: "clean up the new first,

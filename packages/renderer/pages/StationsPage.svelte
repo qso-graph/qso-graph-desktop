@@ -21,7 +21,7 @@
   import { caseAsTyped, type CaseRule } from '../../ui/typed-case.js';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
   import {
-    STATION_KINDS, fromAdifLocation, isPotaReference, isSummitReference, gridBounds, gridOf as gridFromPosition, gridPosition, isLotwPark, typedLocation, type Choice, type FieldProblem, type NamedReferences,
+    STATION_KINDS, isPotaReference, isSummitReference, gridBounds, isLotwPark, type Choice, type FieldProblem, type NamedReferences,
     type StationChoices, type ParkDraft, type Place, type Station, type StationDraft, type StationField,
     type StationKind, type StationsView
   } from '../../storage/station-contract.js';
@@ -143,17 +143,17 @@
         // One box for the grid, as an operator thinks of it (KI7MT,
         // 2026-10-20). What is typed is filed under ADIF's own fields when it
         // is saved: see gridFields below.
-        { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Required. Your Maidenhead grid, as DN13 or DN13sm; on a grid line or corner, give them all: DN13,DN14.' },
+        { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Required. Your Maidenhead grid, as DN13 or DN13sm, up to 8 characters; on a grid line or corner, give them all: DN13,DN14.' },
         { field: 'MY_DXCC', label: 'DXCC entity' },
         { field: 'MY_STATE', label: 'State, province or prefecture', hint: 'The lists are ADIF\'s for the entity above.' },
-        { field: 'MY_CNTY', label: 'County', hint: 'From LoTW\'s list for the state, or filled from the position or the grid below.' },
+        { field: 'MY_CNTY', label: 'County', hint: 'From LoTW\'s list for the state, or filled from the grid below.' },
         { field: 'MY_CQ_ZONE', label: 'CQ zone', hint: 'The state\'s own zones where ADIF gives them.' },
         { field: 'MY_ITU_ZONE', label: 'ITU zone' },
         { field: 'MY_ARRL_SECT', label: 'ARRL section' },
-        // Paired in the two columns: latitude beside longitude (KI7MT).
-        { field: 'MY_ALTITUDE', label: 'Elevation', hint: 'Metres above sea level, as on a map.' },
-        { field: 'MY_LAT', label: 'Latitude', hint: 'In degrees, as 43.625; south is negative. Leave it empty and the grid gives the position.' },
-        { field: 'MY_LON', label: 'Longitude', hint: 'In degrees, as -116.2083; west is negative.' }
+        // No latitude, longitude or address (KI7MT, 2026-10-23: "we don't
+        // store anything that's not publicly available"; "a grid square is
+        // enough"). The grid is the position.
+        { field: 'MY_ALTITUDE', label: 'Elevation', hint: 'Metres above sea level, as on a map.' }
       ]
     },
     {
@@ -163,15 +163,6 @@
         { field: 'MY_SOTA_REF', label: 'SOTA summit', hint: 'As W7I/SI-001.' },
         { field: 'MY_WWFF_REF', label: 'WWFF reference', hint: 'As KFF-0001.' },
         { field: 'MY_IOTA', label: 'IOTA', hint: 'As NA-001.' }
-      ]
-    },
-    {
-      title: 'Address',
-      hint: 'Optional, and it stays on this computer. Mobile or off grid there may be none.',
-      fields: [
-        { field: 'MY_STREET', label: 'Street' },
-        { field: 'MY_CITY', label: 'City' },
-        { field: 'MY_POSTAL_CODE', label: 'Postal code' }
       ]
     }
   ];
@@ -220,22 +211,21 @@
     : GROUPS.flatMap(group => group.fields).find(info => info.field === field)?.label ?? field;
 
   // The one Grid box, filed under the field ADIF defines for it: two or four
-  // grids on a line or corner are MY_VUCC_GRIDS; a 10-character locator is
-  // MY_GRIDSQUARE's 8 and MY_GRIDSQUARE_EXT's last 2; anything else is
-  // MY_GRIDSQUARE. Nothing is corrected: whatever is typed is ADIF's to accept
+  // grids on a line or corner are MY_VUCC_GRIDS; anything else is
+  // MY_GRIDSQUARE, up to its 8 characters. Ten, which ADIF's extension would
+  // take, would place a home to some 20 metres, and is not held (KI7MT,
+  // 2026-10-23). Nothing is corrected: whatever is typed is ADIF's to accept
   // or refuse, and a refusal is shown on the Grid box.
-  const GRID_FIELDS = ['MY_GRIDSQUARE', 'MY_GRIDSQUARE_EXT', 'MY_VUCC_GRIDS'];
+  const GRID_FIELDS = ['MY_GRIDSQUARE', 'MY_VUCC_GRIDS'];
   let gridShown = '';
   let gridStored: Place = {};
   function gridFields(typed: string): Place {
     if (!typed.trim()) return {};
     if (typed.includes(',')) return { MY_VUCC_GRIDS: typed };
-    // A 10- or 12-character locator: ADIF's grid holds 8, its extension the rest.
-    if (typed.length === 10 || typed.length === 12) return { MY_GRIDSQUARE: typed.slice(0, 8), MY_GRIDSQUARE_EXT: typed.slice(8) };
     return { MY_GRIDSQUARE: typed };
   }
   function gridOf(stored: Place | undefined): string {
-    return stored?.MY_VUCC_GRIDS ?? `${stored?.MY_GRIDSQUARE ?? ''}${stored?.MY_GRIDSQUARE_EXT ?? ''}`;
+    return stored?.MY_VUCC_GRIDS ?? stored?.MY_GRIDSQUARE ?? '';
   }
 
   function open(draft?: StationDraft, withNote = '') {
@@ -255,11 +245,6 @@
     // never rewrites its grid (found by Turing in review).
     gridShown = grid;
     gridStored = Object.fromEntries(GRID_FIELDS.flatMap(field => draft?.place[field as StationField] ? [[field, draft.place[field as StationField]]] : []));
-    // Shown in degrees; kept in ADIF's form (typedLocation, when saved).
-    for (const field of ['MY_LAT', 'MY_LON'] as const) {
-      const degrees = fromAdifLocation(place[field]);
-      if (degrees !== undefined) place[field] = String(Math.round(degrees * 1e5) / 1e5);
-    }
     parks = undefined;
     void lookUpParks();
     makeDefault = draft?.id !== undefined && draft.id === defaultId;
@@ -287,9 +272,7 @@
     // empty, or holding nothing but spaces, is left out.
     for (const [field, value] of Object.entries(place)) {
       if (field === 'MY_GRIDSQUARE') Object.assign(filled, value === gridShown ? gridStored : gridFields(value));
-      else if ((field === 'MY_LAT' || field === 'MY_LON') && value.trim()) {
-        filled[field] = typedLocation(value, field === 'MY_LAT' ? 'lat' : 'lon') ?? value;
-      } else if (value.trim()) filled[field as StationField] = value;
+      else if (value.trim()) filled[field as StationField] = value;
     }
     return {
       ...(editingId ? { id: editingId } : {}),
@@ -308,12 +291,6 @@
     const own: FieldProblem[] = [];
     if (name.trim() === '') own.push({ field: 'name', reason: 'A location needs a name.' });
     if (!(place.MY_GRIDSQUARE ?? '').trim()) own.push({ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' });
-    for (const [field, axis, example] of [['MY_LAT', 'lat', '43.625'], ['MY_LON', 'lon', '-116.2083']] as const) {
-      const typed = (place[field] ?? '').trim();
-      if (typed && typedLocation(typed, axis) === undefined) {
-        own.push({ field, reason: `A ${axis === 'lat' ? 'latitude' : 'longitude'} in degrees, as ${example}.` });
-      }
-    }
     if (/[<>]/.test(notes)) own.push({ field: 'notes', reason: 'Notes cannot hold < or >.' });
     if (lotwPark.trim() && !isLotwPark(lotwPark.trim().toUpperCase())) {
       own.push({ field: 'lotwPark', reason: 'TQSL\'s park codes are two letters and two digits, as NP33, separated by commas.' });
@@ -337,24 +314,9 @@
     }
   }
 
-  // The grid from latitude and longitude, as typed in degrees or in ADIF's
-  // form: six characters, the precision LoTW and most loggers use.
-  const typedPosition = $derived.by(() => {
-    const lat = typedLocation(place.MY_LAT ?? '', 'lat');
-    const lon = typedLocation(place.MY_LON ?? '', 'lon');
-    const latitude = fromAdifLocation(lat);
-    const longitude = fromAdifLocation(lon);
-    return latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined;
-  });
-  function fillGridFromPosition() {
-    if (!typedPosition) return;
-    const grid = gridFromPosition(typedPosition.latitude, typedPosition.longitude, 6);
-    if (grid) place.MY_GRIDSQUARE = grid;
-  }
-
   // The place from the first park in the POTA field, for a location being
   // edited, as "Fill in from the park" does for a new one (KI7MT,
-  // 2026-10-22): grid, latitude, longitude, state and DXCC from POTA's list.
+  // 2026-10-22): grid, state and DXCC from POTA's list.
   // The parks themselves are left as they are.
   let parkFillNote = $state('');
   const firstPark = $derived(((place.MY_POTA_REF ?? '').split(',')[0] ?? '').split('@')[0].trim().toUpperCase());
@@ -364,28 +326,18 @@
     const answer = await onFromPark(firstPark);
     if (typeof answer === 'string') { parkFillNote = answer; return; }
     const filled = answer.draft.place;
-    for (const field of ['MY_DXCC', 'MY_STATE', 'MY_LAT', 'MY_LON'] as const) {
+    for (const field of ['MY_DXCC', 'MY_STATE'] as const) {
       if (filled[field]) place[field] = filled[field];
     }
     if (filled.MY_GRIDSQUARE) place.MY_GRIDSQUARE = filled.MY_GRIDSQUARE;
-    for (const field of ['MY_LAT', 'MY_LON'] as const) {
-      const degrees = fromAdifLocation(place[field]);
-      if (degrees !== undefined) place[field] = String(Math.round(degrees * 1e5) / 1e5);
-    }
     parkFillNote = answer.note ?? `Filled in from ${firstPark}.`;
     void loadChoices();
   }
 
-  // The county, from LoTW's list (QGD-STN-0010, KI7MT 2026-10-22). A typed
-  // position gives the county it is in; a grid alone gives the counties its
-  // square reaches, and only one is filled in: where the square crosses a
-  // county line the operator picks. A state already set is never changed: a
-  // position in another state is said, not acted on.
   // The case each typed field takes as it is typed (QGD-CNV-0016). A field
-  // not named here (latitude, longitude, elevation, zones, street, city,
-  // postal code) is left as typed.
+  // not named here (elevation, zones) is left as typed.
   function caseRule(field: StationField): CaseRule | undefined {
-    if (field === 'MY_GRIDSQUARE' || field === 'MY_VUCC_GRIDS' || field === 'MY_GRIDSQUARE_EXT') return 'grid';
+    if (field === 'MY_GRIDSQUARE' || field === 'MY_VUCC_GRIDS') return 'grid';
     if (field === 'MY_CNTY') return 'county';
     if (['MY_STATE', 'MY_ARRL_SECT', 'MY_POTA_REF', 'MY_SOTA_REF', 'MY_WWFF_REF', 'MY_IOTA'].includes(field)) return 'upper';
     return undefined;
@@ -395,13 +347,11 @@
   let countyChoices = $state<string[]>([]);
   let countySections: Record<string, string> = {};
   const countyGrid = $derived((place.MY_GRIDSQUARE ?? '').split(',')[0].trim());
-  const countyArea = $derived.by(() => {
-    if (typedPosition) {
-      const { latitude, longitude } = typedPosition;
-      return { south: latitude, west: longitude, north: latitude, east: longitude };
-    }
-    return countyGrid.length >= 4 ? gridBounds(countyGrid) : undefined;
-  });
+  // The county, from LoTW's list (QGD-STN-0010, KI7MT 2026-10-22): the
+  // counties the grid's square reaches, and only one is filled in; where the
+  // square crosses a county line the operator picks, or gives a longer grid.
+  // A state already set is never changed.
+  const countyArea = $derived(countyGrid.length >= 4 ? gridBounds(countyGrid) : undefined);
   const countyName = (cnty: string) => cnty.slice(cnty.indexOf(',') + 1);
   function setCounty(cnty: string) {
     const state = cnty.slice(0, cnty.indexOf(','));
@@ -425,30 +375,22 @@
     countyChoices = [];
     const area = countyArea;
     if (!area) return;
-    const fromPosition = typedPosition !== undefined;
     const answer = await onCountiesAt(area);
     if (typeof answer === 'string') { countyNote = answer; return; }
     countySections = answer.sections;
     const found = answer.counties;
     if (found.length === 0) {
-      countyNote = fromPosition ? 'There is no US county at that latitude and longitude.' : `There is no US county in ${countyGrid}.`;
+      countyNote = `There is no US county in ${countyGrid}.`;
     } else if (found.length === 1) {
-      if (setCounty(found[0])) countyNote = `${countyName(found[0])}, from the ${fromPosition ? 'latitude and longitude' : 'grid'}.`;
+      if (setCounty(found[0])) countyNote = `${countyName(found[0])}, from the grid.`;
     } else {
       countyChoices = found;
-      countyNote = `${countyGrid} crosses a county line. Pick the county, or fill in latitude and longitude for the one you are in:`;
+      countyNote = `${countyGrid} crosses a county line. Pick the county, or give a longer grid:`;
     }
   }
 
-  function fillFromGrid() {
-    const position = gridPosition((place.MY_GRIDSQUARE ?? '').trim());
-    if (!position) return;
-    place.MY_LAT = String(Math.round(position.latitude * 1e5) / 1e5);
-    place.MY_LON = String(Math.round(position.longitude * 1e5) / 1e5);
-  }
-
   // One park, or a two-fer or three-fer as "US-0001,US-0002" (KI7MT,
-  // 2026-10-22): the first park gives the grid, position and state, and
+  // 2026-10-22): the first park gives the grid and state, and
   // every park goes into the POTA field, each checked when it is saved. The
   // editor opens so the place can be checked before it is: where parks
   // meet, the grid may be either's.
@@ -468,7 +410,7 @@
     open(draft, [answer.note, parks.length > 1 ? note : ''].filter(Boolean).join(' '));
   }
 
-  // A new location from a SOTA summit: its grid, position and elevation
+  // A new location from a SOTA summit: its grid and elevation
   // from SOTA's list (QGD-REF-0018), each changeable before saving.
   async function fromSummit() {
     summitError = '';
@@ -481,7 +423,7 @@
   }
 
   // The place from the summit in the SOTA field, for a location being edited:
-  // grid, latitude, longitude and elevation.
+  // grid and elevation.
   let summitFillNote = $state('');
   async function fillFromSummit() {
     summitFillNote = '';
@@ -491,10 +433,6 @@
     if (typeof answer === 'string') { summitFillNote = answer; return; }
     const filled = answer.draft.place;
     for (const field of ['MY_GRIDSQUARE', 'MY_ALTITUDE'] as const) { if (filled[field]) place[field] = filled[field]; }
-    for (const field of ['MY_LAT', 'MY_LON'] as const) {
-      const degrees = fromAdifLocation(filled[field]);
-      if (degrees !== undefined) place[field] = String(Math.round(degrees * 1e5) / 1e5);
-    }
     summitFillNote = answer.note ?? `Filled in from ${code}.`;
   }
 
@@ -680,17 +618,8 @@
             </div>
           {/each}
           {#if group.title === 'Where it is'}
-            <!-- The grid is a position, so latitude and longitude can be
-                 filled from it: its centre, worked out here (KI7MT,
-                 2026-10-20). Only when asked: typed ones are never replaced
-                 unseen. -->
+            <!-- Filled only when asked: what is typed is never replaced unseen. -->
             <div class="fill-from-grid">
-              <button type="button" class="secondary" id="fill-from-grid"
-                disabled={gridPosition((place.MY_GRIDSQUARE ?? '').trim()) === undefined}
-                onclick={fillFromGrid}>Fill latitude and longitude from the grid</button>
-              <button type="button" class="secondary" id="fill-grid-from-position"
-                disabled={typedPosition === undefined}
-                onclick={fillGridFromPosition}>Fill the grid from latitude and longitude</button>
               {#if parksLoaded}
                 <button type="button" class="secondary" id="fill-from-park"
                   disabled={!firstPark}

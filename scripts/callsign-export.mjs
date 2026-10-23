@@ -82,7 +82,7 @@ try {
   // The Locations go in with the callsigns, as QG Storage hands them over
   // (KI7MT, 2026-10-23); a street address is the value that must stay sealed.
   const street = `QG_FAKE_STREET_${randomUUID()}`;
-  const locations = JSON.stringify({ stations: [{ id: randomUUID(), name: 'Home', place: { MY_GRIDSQUARE: 'DN13', MY_STREET: street } }], defaults: {}, active: null });
+  const locations = JSON.stringify({ stations: [{ id: randomUUID(), name: 'Home', place: { MY_GRIDSQUARE: 'DN13', MY_POTA_REF: street } }], defaults: {}, active: null });
   const file = from.exportCallsigns(passphrase, locations);
   check(Buffer.isBuffer(file) && file.length > 100, 'Export produced a file');
 

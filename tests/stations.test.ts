@@ -13,8 +13,9 @@ import { layout, openState } from '../packages/storage/layout.js';
 import { potaPark, referenceSchema, sotaSummit } from '../packages/storage/reference-schema.js';
 import { validateStorageCommand } from '../packages/storage/storage-contract.js';
 import { openStore } from '../packages/storage/sqlite.js';
+import { station } from '../packages/storage/schema.js';
 import {
-  ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsBackup, isStationsView, type StationDraft
+  MAX_STATIONS, REMOVED_FIELDS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsBackup, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
   adifLocation, backupStations, checkStation, deleteStation, restoreStations, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
@@ -51,10 +52,9 @@ const draft = (place: StationDraft['place'], extra: Partial<StationDraft> = {}):
 describe('P9-adif: values are ADIF\'s, checked against its definitions (QGD-STN-0002)', () => {
   it('takes a valid value in every field, at the bounds', () => {
     const place = {
-      MY_GRIDSQUARE: 'DN13sm46', MY_GRIDSQUARE_EXT: 'ab', MY_VUCC_GRIDS: 'DN13,DN14', MY_LAT: 'N043 37.500',
-      MY_LON: 'W116 12.500', MY_ALTITUDE: '824', MY_DXCC: '291', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
+      MY_GRIDSQUARE: 'DN13sm46', MY_VUCC_GRIDS: 'DN13,DN14', MY_ALTITUDE: '824', MY_DXCC: '291', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
       MY_STATE: 'ID', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID', MY_POTA_REF: 'US-0001', MY_SOTA_REF: 'W7I/SI-001',
-      MY_WWFF_REF: 'KFF-0001', MY_IOTA: 'NA-001', MY_STREET: '1 Main', MY_CITY: 'Boise', MY_POSTAL_CODE: '83702'
+      MY_WWFF_REF: 'KFF-0001', MY_IOTA: 'NA-001'
     };
     expect(Object.keys(place).sort()).toEqual([...STATION_FIELDS].sort());
     expect(checkStation(draft(place), ruleset).problems).toEqual([]);
@@ -76,7 +76,7 @@ describe('P9-adif: values are ADIF\'s, checked against its definitions (QGD-STN-
   it.each([
     ['MY_GRIDSQUARE', 'DN1'], ['MY_GRIDSQUARE', 'ZZ13'], ['MY_CQ_ZONE', '41'], ['MY_CQ_ZONE', '0'],
     ['MY_ITU_ZONE', '0'], ['MY_ITU_ZONE', '91'],
-    ['MY_LAT', '43.5'], ['MY_POTA_REF', 'K0001'], ['MY_SOTA_REF', 'nope'], ['MY_IOTA', 'XX-1']
+    ['MY_POTA_REF', 'K0001'], ['MY_SOTA_REF', 'nope'], ['MY_IOTA', 'XX-1']
   ])('refuses %s %j with ADIF\'s reason', (field, value) => {
     const problems = checkStation(draft({ [field]: value }), ruleset).problems;
     expect(problems.map(problem => problem.field)).toEqual([field]);
@@ -155,16 +155,33 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
     } finally { state.close(); }
   });
 
-  it('saves with a name and a grid and nothing else; the address is never required', async () => {
+  it('saves with a name and a grid and nothing else', async () => {
     const state = await open();
     try {
       expect((await saveStation(state, draft({}, { name: 'Just a name' }), ruleset)).ok).toBe(true);
       expect((await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }, { name: 'Grid' }), ruleset)).ok).toBe(true);
       expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001' }, { name: 'Park' }), ruleset)).ok).toBe(true);
-      expect((await saveStation(state, draft({ MY_STREET: '1 Main', MY_CITY: 'Boise', MY_POSTAL_CODE: '83702' },
-        { name: 'Address' }), ruleset)).ok).toBe(true);
-      expect((await viewStations(state, true)).list).toHaveLength(4);
-      expect(ADDRESS_FIELDS).toEqual(['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE']);
+      expect((await viewStations(state, true)).list).toHaveLength(3);
+    } finally { state.close(); }
+  });
+
+  it('holds nothing that is not public or past a grid square: no address, latitude, longitude or grid extension (KI7MT, 2026-10-23)', async () => {
+    expect(REMOVED_FIELDS).toEqual(['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON', 'MY_GRIDSQUARE_EXT']);
+    for (const field of REMOVED_FIELDS) {
+      expect((STATION_FIELDS as readonly string[]).includes(field), field).toBe(false);
+      expect(isStationDraft({ name: 'Home', place: { MY_GRIDSQUARE: 'DN13', [field]: 'x' } }), field).toBe(false);
+    }
+    // What an earlier build kept is taken out of every Location (state
+    // migration 0005), and the rest of it kept as it was.
+    const state = await open();
+    try {
+      await state.unit(db => db.insert(station).values({
+        id: '11111111-1111-4111-8111-111111111111', name: 'Old', kind: null, lotwPark: null, notes: null,
+        place: { MY_GRIDSQUARE: 'DN13', MY_STREET: '1 Main', MY_CITY: 'Boise', MY_POSTAL_CODE: '83702', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.500', MY_GRIDSQUARE_EXT: 'ab', MY_STATE: 'ID' },
+        createdAt: '2026-10-22T00:00:00Z', updatedAt: '2026-10-22T00:00:00Z'
+      }).run());
+      state.connection.exec(readFileSync('drizzle/state/0005_public_places.sql', 'utf8'));
+      expect((await viewStations(state, true)).list[0]?.place).toEqual({ MY_GRIDSQUARE: 'DN13', MY_STATE: 'ID' });
     } finally { state.close(); }
   });
 
@@ -349,8 +366,7 @@ describe('P9-pota: a portable station from a POTA park (QGD-STN-0006)', () => {
       if (made === 'not found') throw new Error('no park');
       expect(made.draft).toEqual({
         name: 'US-0001 Example Park', kind: 'Portable',
-        place: { MY_POTA_REF: 'US-0001', MY_DXCC: '291', MY_GRIDSQUARE: 'DN13sp', MY_LAT: 'N043 37.500',
-          MY_LON: 'W116 12.498', MY_STATE: 'ID' }
+        place: { MY_POTA_REF: 'US-0001', MY_DXCC: '291', MY_GRIDSQUARE: 'DN13sp', MY_STATE: 'ID' }
       });
       expect(made.note).toBeUndefined();
       expect(checkStation(made.draft, ruleset).problems).toEqual([]);
@@ -422,7 +438,7 @@ describe('a portable location from a SOTA summit (QGD-REF-0018)', () => {
       if (made === 'not found') throw new Error('no summit');
       expect(made.draft).toEqual({
         name: 'W7I/SI-001 Example Peak', kind: 'Portable',
-        place: { MY_SOTA_REF: 'W7I/SI-001', MY_GRIDSQUARE: 'DN13vp', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.498', MY_ALTITUDE: '2842' }
+        place: { MY_SOTA_REF: 'W7I/SI-001', MY_GRIDSQUARE: 'DN13vp', MY_ALTITUDE: '2842' }
       });
       expect(made.note).toBeUndefined();
       expect(checkStation(made.draft, ruleset).problems).toEqual([]);
@@ -687,7 +703,7 @@ describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-1
   it('carries every Location with its id, each callsign\'s default and the active one', async () => {
     const from = await open();
     try {
-      const home = await saveStation(from, draft({ MY_STREET: '1 Main' }, { notes: 'Gate code 1234' }), ruleset);
+      const home = await saveStation(from, draft({}, { notes: 'Gate code 1234' }), ruleset);
       const camp = await saveStation(from, draft({}, { name: 'Camp', kind: 'Portable' }), ruleset);
       if (!home.ok || !camp.ok) throw new Error('not saved');
       await setDefaultStation(from, CALLSIGN, camp.id);
@@ -695,6 +711,8 @@ describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-1
       const backup = await backupStations(from);
       expect(isStationsBackup(backup)).toBe(true);
       expect(backup.stations.map(entry => entry.name)).toEqual(['Camp', 'Home']);
+      // The notes stay on this computer.
+      expect(JSON.stringify(backup)).not.toMatch(/Gate code/);
       expect(backup).toMatchObject({ defaults: { [CALLSIGN]: camp.id }, active: home.id });
 
     } finally { from.close(); }
@@ -707,7 +725,7 @@ describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-1
       if (!old.ok) throw new Error('not saved');
       const backup = {
         stations: [
-          { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13', MY_STREET: '1 Main' }, notes: 'Gate code' },
+          { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13' }, notes: 'Gate code' },
           { id: '22222222-2222-4222-8222-222222222222', name: 'Camp', kind: 'Portable' as const, place: { MY_GRIDSQUARE: 'DN24' } }
         ],
         defaults: { [CALLSIGN]: '22222222-2222-4222-8222-222222222222' }, active: '11111111-1111-4111-8111-111111111111'
@@ -721,7 +739,7 @@ describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-1
       const view = await viewStations(state, false);
       expect(view.list.map(entry => [entry.id, entry.name])).toEqual([
         ['22222222-2222-4222-8222-222222222222', 'Camp'], ['11111111-1111-4111-8111-111111111111', 'Home']]);
-      expect(view.list.find(entry => entry.name === 'Home')).toMatchObject({ place: { MY_STREET: '1 Main' }, notes: 'Gate code' });
+      expect(view.list.find(entry => entry.name === 'Home')).toMatchObject({ place: { MY_GRIDSQUARE: 'DN13' }, notes: 'Gate code' });
       expect(view.defaults).toEqual({ [CALLSIGN]: '22222222-2222-4222-8222-222222222222' });
       expect(view.active).toBe('11111111-1111-4111-8111-111111111111');
     } finally { state.close(); }

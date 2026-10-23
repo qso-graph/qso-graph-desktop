@@ -14,19 +14,20 @@ export const STATION_KINDS = ['Home', 'Portable', 'Mobile', 'Remote'] as const;
 export type StationKind = (typeof STATION_KINDS)[number];
 
 // The ADIF fields a station holds (QGD-STN-0002), in the order the editor
-// shows them: the place, the activity references, then the address, which is
-// the operator's own and optional (QGD-STN-0003).
+// shows them: the place, then the activity references. Only what is public
+// or no closer than a grid square (KI7MT, 2026-10-23: "we don't store
+// anything that's not publicly available"; "a grid square is enough for
+// POTA, SOTA, DX, whatever"): no street, city or postal code, no latitude or
+// longitude, and no grid past ADIF's 8 characters (MY_GRIDSQUARE_EXT would
+// place a home to some 20 metres). REMOVED_FIELDS are taken out of what an
+// earlier build kept (state migration 0005).
 export const STATION_FIELDS = [
-  'MY_GRIDSQUARE', 'MY_GRIDSQUARE_EXT', 'MY_VUCC_GRIDS', 'MY_LAT', 'MY_LON', 'MY_ALTITUDE',
+  'MY_GRIDSQUARE', 'MY_VUCC_GRIDS', 'MY_ALTITUDE',
   'MY_DXCC', 'MY_CQ_ZONE', 'MY_ITU_ZONE', 'MY_STATE', 'MY_CNTY', 'MY_ARRL_SECT',
-  'MY_POTA_REF', 'MY_SOTA_REF', 'MY_WWFF_REF', 'MY_IOTA',
-  'MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE'
+  'MY_POTA_REF', 'MY_SOTA_REF', 'MY_WWFF_REF', 'MY_IOTA'
 ] as const;
 export type StationField = (typeof STATION_FIELDS)[number];
-
-// The address fields, which never reach an extension or anything outbound
-// (QGD-STN-0003).
-export const ADDRESS_FIELDS: readonly StationField[] = ['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE'];
+export const REMOVED_FIELDS = ['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON', 'MY_GRIDSQUARE_EXT'] as const;
 
 export type Place = Partial<Record<StationField, string>>;
 
@@ -114,8 +115,7 @@ function only(value: Record<string, unknown>, keys: readonly string[]): boolean 
 }
 
 // Printable text with nothing that could be read as markup, of a bounded
-// length. ADIF's String is printable ASCII; the address fields may be typed in
-// any script, so they are not narrowed here, only bounded.
+// length.
 function text(value: unknown, max: number): value is string {
   if (typeof value !== 'string' || value.length > max || /[<>]/.test(value)) return false;
   for (let at = 0; at < value.length; at += 1) {
