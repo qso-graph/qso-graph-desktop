@@ -62,7 +62,8 @@
       welcome: false, customizing: false, setup: false,
       firstRun: false,
       services: [],
-      extensions: undefined
+      extensions: undefined,
+      refusedExtensions: []
     })
   }}
 />

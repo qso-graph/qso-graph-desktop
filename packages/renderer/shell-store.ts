@@ -121,6 +121,8 @@ export interface ShellState {
   // The extensions that loaded, for Settings' switches (QGD-HOM-0007).
   // Undefined until the main process has answered.
   extensions: ExtensionSwitch[] | undefined;
+  // Extensions that did not load, by folder, with why (QGD-APP-0011).
+  refusedExtensions: readonly { readonly folder: string; readonly reason: string }[];
 }
 
 export interface ExtensionSwitch {
@@ -151,7 +153,8 @@ export const INITIAL_SHELL: ShellState = {
   setup: false,
   firstRun: false,
   services: [],
-  extensions: undefined
+  extensions: undefined,
+  refusedExtensions: []
 };
 
 export interface ShellStore {

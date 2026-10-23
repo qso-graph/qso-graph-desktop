@@ -62,6 +62,8 @@
     onChooseTheme: (choice: Choice) => Promise<boolean>;
     // Undefined while the main process has not answered.
     extensions?: readonly ExtensionSwitch[];
+    // Extensions that did not load, so a missing one says why (QGD-APP-0011).
+    refusedExtensions?: readonly { readonly folder: string; readonly reason: string }[];
     onSetExtension?: (id: string, enabled: boolean) => Promise<boolean>;
     storage?: StorageStatus;
     onUpdateReference?: (resource: string) => Promise<string | undefined>;
@@ -70,7 +72,7 @@
     onOpenDocument?: (name: DocumentName) => void;
   }
   const {
-    version = '', themeChoice, onChooseTheme, extensions, onSetExtension = () => Promise.resolve(false),
+    version = '', themeChoice, onChooseTheme, extensions, refusedExtensions = [], onSetExtension = () => Promise.resolve(false),
     storage, onUpdateReference = () => Promise.resolve('The update could not be started.'),
     onOpenDocument = () => {}
   }: Props = $props();
@@ -217,6 +219,12 @@
         {/each}
       </ul>
       {#if failure}<p class="extension-error" role="alert">{failure}</p>{/if}
+    {/if}
+    {#if refusedExtensions.length > 0}
+      <h3 class="extension-refused-title">Not loaded</h3>
+      <ul class="extension-refused" id="extensions-refused">
+        {#each refusedExtensions as entry, i (i)}<li><span class="extension-name">{entry.folder}</span> <span class="hint">{entry.reason}</span></li>{/each}
+      </ul>
     {/if}
   </section>
 </PageLayout>

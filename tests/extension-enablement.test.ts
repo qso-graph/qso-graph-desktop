@@ -86,6 +86,11 @@ describe('P8-built-in: turning an extension off and on (QGD-HOM-0007)', () => {
     const entry = { id: 'on-the-air', name: 'On the Air', tier: 'official', version: '0.1.0', pages: ['Conditions'], enabled: true, grants: [] };
     expect(isExtensionsReply({ ok: true, inventory: { extensions: [entry], refused: [] } })).toBe(true);
     expect(isExtensionsReply({ ok: true, inventory: { extensions: [{ ...entry, enabled: 'yes' }], refused: [] } })).toBe(false);
+    // What did not load reaches Settings with its words, so it is not
+    // silently missing (QGD-APP-0011; ADIF Lookup, 2026-10-23).
+    expect(isExtensionsReply({ ok: true, inventory: { extensions: [entry], refused: [{ source: '/app/dist/extensions/adif-lookup/manifest.json', reason: 'The page has a field with no well-formed, unique id.' }] } })).toBe(true);
+    expect(isExtensionsReply({ ok: true, inventory: { extensions: [entry], refused: [{ source: 'x', reason: '<b>x</b>' }] } })).toBe(false);
+    expect(isExtensionsReply({ ok: true, inventory: { extensions: [entry], refused: 'none' } })).toBe(false);
     expect(isExtensionsReply({ ok: true, inventory: { extensions: [{ ...entry, name: '<img>' }], refused: [] } })).toBe(false);
   });
 });

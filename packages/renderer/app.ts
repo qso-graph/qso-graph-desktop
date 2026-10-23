@@ -505,7 +505,11 @@ void loadTheme();
 // what was clicked.
 function takeExtensions(reply: unknown): boolean {
   if (!isExtensionsReply(reply) || !reply.ok) return false;
-  shell.set({ extensions: reply.inventory.extensions.map(({ id, name, pages, enabled }) => ({ id, name, pages: [...pages], enabled })) });
+  shell.set({
+    extensions: reply.inventory.extensions.map(({ id, name, pages, enabled }) => ({ id, name, pages: [...pages], enabled })),
+    // The folder alone, never the path to it (QGD-ENG-0016).
+    refusedExtensions: (reply.inventory.refused ?? []).map(({ source, reason }) => ({ folder: source.split(/[\\/]/).at(-2) ?? 'An extension', reason }))
+  });
   return true;
 }
 

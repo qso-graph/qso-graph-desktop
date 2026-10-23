@@ -15,7 +15,7 @@ describe('the shell store', () => {
       // Not setup: that is decided once the callsigns have been read, so a
       // machine with callsigns never sees a frame of the setup screen
       // (QGD-PSN-0004).
-      setup: false, firstRun: false, services: [], extensions: undefined
+      setup: false, firstRun: false, services: [], extensions: undefined, refusedExtensions: []
     });
     expect(createShellStore().get()).toEqual(INITIAL_SHELL);
   });

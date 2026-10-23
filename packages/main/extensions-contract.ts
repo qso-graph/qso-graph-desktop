@@ -92,6 +92,12 @@ export function isExtensionsReply(value: unknown): value is ExtensionsReply {
   const reply = value as Record<string, unknown>;
   if (reply.ok === false) return typeof reply.error === 'string';
   if (reply.ok !== true || typeof reply.inventory !== 'object' || reply.inventory === null) return false;
-  const extensions = (reply.inventory as Record<string, unknown>).extensions;
-  return Array.isArray(extensions) && extensions.length <= 64 && extensions.every(isShownEntry);
+  const { extensions, refused } = reply.inventory as Record<string, unknown>;
+  // What did not load, each with its words, so Settings can say so rather
+  // than leave it missing (QGD-APP-0011).
+  const isRefused = (entry: unknown) => typeof entry === 'object' && entry !== null && !Array.isArray(entry)
+    && typeof (entry as Record<string, unknown>).source === 'string' && ((entry as Record<string, unknown>).source as string).length <= 1024
+    && plain((entry as Record<string, unknown>).reason, 400);
+  return Array.isArray(extensions) && extensions.length <= 64 && extensions.every(isShownEntry)
+    && (refused === undefined || (Array.isArray(refused) && refused.length <= 64 && refused.every(isRefused)));
 }
