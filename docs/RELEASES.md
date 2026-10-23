@@ -1,0 +1,115 @@
+# Releases: how QSO Graph Desktop is versioned, named and published
+
+Decided by KI7MT, 2026-10-23. It follows **Podman Desktop**, which is built the
+way this application is (Electron, electron-builder, published on GitHub), so
+there is a working example of every rule below.
+
+Nothing here is automated yet. This is what the release workflow will be
+built to do, and nothing is published until it is.
+
+## Versions
+
+Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
+
+| Part | Goes up when | Example |
+|---|---|---|
+| **MAJOR** | a change breaks what a user or an extension relied on | `1.0.0` to `2.0.0` |
+| **MINOR** | a release adds features | `0.1.0` to `0.2.0` |
+| **PATCH** | a release only fixes things | `0.1.0` to `0.1.1` |
+
+- **0.x is before the first general release.** Anything may still change.
+  **1.0.0** is the first release meant for every ham.
+- **The version lives in one place:** `version` in `package.json`. The
+  installers, the About box and the release all take it from there.
+- **A tag is the version with a `v`:** `v0.1.0`.
+- **develop always carries the next version.** Once `0.1.0` is out, develop's
+  `package.json` moves to `0.2.0`, so everything built from develop says which
+  release it is heading for.
+
+## The three kinds of build
+
+| Kind | Built from | Version and tag | Published | For |
+|---|---|---|---|---|
+| **Preview** | each green build of develop | the next version, the UTC date and time of the build, and the commit: `0.2.0-202610230124-34d3a62a1b0` | a pre-release in **`qso-graph/qso-graph-desktop-previews`**, a repository of its own | testing what is on develop, every day |
+| **Pre-release** | main, after a release PR from develop | the version itself, no suffix: `v0.2.0`, then `v0.2.1`, `v0.2.2` for fixes | a **pre-release** on this repository's Releases page | testing a release before it is called final |
+| **Release** | the same build as the pre-release it was | unchanged: `v0.2.1` | the pre-release **promoted** to a full release, marked **Latest** | everyone |
+
+### Previews
+
+- A preview's version is `<next version>-<YYYYMMDDHHMM>-<commit>`: the version
+  develop is heading for, the build's UTC date and time to the minute, and the
+  first 11 characters of the commit. `0.2.0-202610230124-34d3a62a1b0` sorts by
+  time and names exactly the code it was built from. The date and time are
+  added by the build and never committed.
+- They live in **their own repository**, as Podman Desktop's live in
+  `podman-desktop/testing-prereleases`, so this repository's Releases page
+  holds real versions only.
+- Each is a GitHub pre-release with every installer as its own download. The
+  newest 30 are kept.
+
+### Pre-releases and releases
+
+- **There are no release candidates by name.** A release goes out first as a
+  pre-release with its final version, `v0.2.0`. A fix is a new patch,
+  `v0.2.1`, also a pre-release. When one has proved itself it is **promoted**:
+  the same pre-release, its same files, marked a full release and Latest.
+  Nothing is rebuilt or renamed, so what was tested is what ships.
+- **main changes only by a release PR** from develop (or `security/*`), as this
+  repository's rules already require. A merged release PR builds the
+  pre-release; tagging it is part of that build.
+- **KI7MT decides** when a release PR is opened and when a pre-release is
+  promoted.
+
+## File names
+
+Every file is named
+
+```
+qso-graph-desktop-<version>-<os>-<arch>.<ext>
+```
+
+| Platform | Files |
+|---|---|
+| Windows x64 | `…-win-x64.exe` (installer), `…-win-x64.zip` (portable) |
+| macOS Apple Silicon | `…-mac-arm64.dmg`, `…-mac-arm64.zip` |
+| Linux x64 | `…-linux-x86_64.AppImage`, `…-linux-amd64.deb`, `…-linux-x86_64.rpm`, `…-linux-x64.zip` |
+| Linux arm64 | `…-linux-arm64.AppImage`, `…-linux-arm64.deb`, `…-linux-aarch64.rpm`, `…-linux-arm64.zip` |
+
+The architecture word follows each format's own convention (Debian says
+`amd64`, RPM and AppImage `x86_64`), as electron-builder writes it. No spaces,
+and the full version is in every name, so a file on its own says what it is.
+
+- **A `.zip` is the portable build:** unpack it anywhere and run it, with
+  nothing to install.
+- **macOS is Apple Silicon only.** Apple's macOS 26 is the last release for
+  Intel Macs.
+- **Each release has a `SHA256SUMS.txt`** listing every file's SHA-256, so a
+  download can be checked.
+
+## Release notes
+
+`CHANGELOG.md` collects changes under **Unreleased** as they land. A release
+renames that heading to its version and date, and the release's notes on
+GitHub are that section. A pull request never changes the version: a release
+does.
+
+## Signing
+
+Builds are **unsigned** until the Apple Developer ID and a Windows
+code-signing certificate are in place. Until then Windows SmartScreen and macOS
+Gatekeeper warn the first time it runs, and every release's notes say so.
+Signing will change nothing above but the warning.
+
+## Updates
+
+Later, the application will update itself with electron-updater, from this
+repository's releases: a full release reaches everyone, a pre-release only
+those who choose to test them. Previews are never offered as an update.
+
+## Not built yet
+
+1. The previews repository, `qso-graph/qso-graph-desktop-previews`.
+2. Publishing each green develop build there as a preview.
+3. The release workflow on main: build, tag, pre-release, and `SHA256SUMS.txt`.
+4. `CHANGELOG.md`.
+5. Self-update.
