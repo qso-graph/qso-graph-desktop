@@ -475,7 +475,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 10px; }
 .page-filters label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .page-filter-empty { margin: 0 0 12px; }
-.page-filters-clear { padding: 2px 10px; font-size: 12px; }
+.page-filters-clear { font-size: 13px; }
 #page-refresh { margin-left: 8px; padding: 2px 10px; font-size: 12px; }
 /* A sortable heading is a button that reads as the heading it is. */
 .page-sort { all: unset; cursor: pointer; font: inherit; color: inherit; }

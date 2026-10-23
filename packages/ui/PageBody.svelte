@@ -90,7 +90,7 @@
                 </select>
               </label>
             {/each}
-            {#if anyChosen(at)}<button type="button" class="secondary page-filters-clear" onclick={() => clearFilters(at)}>Clear filters</button>{/if}
+            {#if anyChosen(at)}<button type="button" class="link-button page-filters-clear" onclick={() => clearFilters(at)}>Clear filters</button>{/if}
           </div>
         {/if}
         {@const groups = sortedGroups(section, filteredGroups(section, chosen[at] ?? {}), sorts[at])}
