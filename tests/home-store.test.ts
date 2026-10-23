@@ -51,7 +51,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     store.start();
     await flush();
     store.openPage('air/conditions');
-    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, network: true, inputs: [], values: {}, area: 'air/conditions', areaName: 'Conditions', tabs: [] });
+    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, network: true, inputs: [], values: {}, area: 'air/conditions', areaName: 'Conditions', hue: 'general', tabs: [] });
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });

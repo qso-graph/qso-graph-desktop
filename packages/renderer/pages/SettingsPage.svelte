@@ -135,7 +135,7 @@
   }
 </script>
 
-<PageLayout eyebrow="PREFERENCES" title="Settings">
+<PageLayout eyebrow="PREFERENCES" title="Settings" hue="settings">
   <!-- About, first on the page, as macOS has About This Mac (KI7MT,
        2026-10-22: moved from Home, and at the top of Settings): the version,
        and what the application sends anywhere, said precisely, because it

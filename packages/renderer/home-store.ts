@@ -45,6 +45,8 @@ export interface HomeModel {
     // Its area's name and first page, and the area's pages as tabs, when it
     // has more than one.
     readonly area: string; readonly areaName: string;
+    // Its destination's colour, a theme token: the eyebrow matches the rail.
+    readonly hue: string;
     readonly tabs: readonly { readonly key: string; readonly label: string }[];
   } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
@@ -94,7 +96,7 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
     page: opened && head ? {
       key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
       network: opened.network, inputs: opened.inputs, values,
-      area: head.key, areaName: head.name,
+      area: head.key, areaName: head.name, hue: head.hue,
       tabs: inArea.length > 1 ? inArea.map(page => ({ key: page.key, label: page.tab })) : []
     } : null,
     notice,

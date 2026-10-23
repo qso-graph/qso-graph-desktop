@@ -231,9 +231,13 @@ main { flex: 1; min-height: 0; display: flex; }
 .page-main { container: page / inline-size; }
 .page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: 1.4px; margin: 0 0 6px; color: var(--ink-muted); }
-/* A page's eyebrow in its place's hue (Callsigns, Locations). */
+/* A page's eyebrow in its destination's hue, as on the rail: Callsigns,
+   Locations and Settings, and an extension's in the colour its manifest
+   names (KI7MT, 2026-10-23: the eyebrow matches the rail). */
+.eyebrow[data-hue="general"] { color: var(--hue-general); }
 .eyebrow[data-hue="callsigns"] { color: var(--hue-callsigns); }
 .eyebrow[data-hue="locations"] { color: var(--hue-locations); }
+.eyebrow[data-hue="settings"] { color: var(--hue-settings); }
 h1 { font-size: 26px; letter-spacing: -.5px; margin: 0; font-weight: 650; }
 #message { min-height: 20px; margin: 0 0 12px; color: var(--ok); font-size: 13px; }
 #message.error { color: var(--danger); }

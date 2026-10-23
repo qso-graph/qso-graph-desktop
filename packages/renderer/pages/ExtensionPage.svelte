@@ -102,7 +102,8 @@
 {/snippet}
 
 {#if page}
-  <PageLayout title={page.areaName} eyebrow={extensionName.toUpperCase()} width="full">
+  <PageLayout title={page.areaName} eyebrow={extensionName.toUpperCase()} width="full"
+    hue={page.hue === 'callsigns' || page.hue === 'locations' || page.hue === 'settings' ? page.hue : 'general'}>
     <!-- An area's pages, as tabs (KI7MT, 2026-10-23): each its own page,
          asked for only while it is the one shown (QGD-HOM-0005). -->
     {#if page.tabs.length > 1}
