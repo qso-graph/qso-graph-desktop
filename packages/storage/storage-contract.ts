@@ -16,7 +16,7 @@ import { AREA_ENTITIES, AREA_LOCATION, AREA_LOCATIONS, AREA_PROGRAMS, isAreaEntr
 import { ACTIVATION_PARKS, ACTIVATION_TEXT, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
 import {
   isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
-  isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
+  isStationId, isStationsBackup, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsBackup, type StationsView
 } from './station-contract.js';
 
 export const STORAGE_STATES = ['starting', 'ready', 'failed', 'unavailable'] as const;
@@ -98,6 +98,10 @@ export type StorageCommand =
   | { type: 'station-from-summit'; reference: string }
   // ADIF's own definitions, searched for ADIF Lookup (adif-search.ts).
   | { type: 'adif-search'; query: string }
+  // Every Location, for a backup the credential core seals (stations.ts).
+  | { type: 'stations-backup' }
+  // A restore onto a clean slate: replace says the Locations here go first.
+  | { type: 'stations-restore'; backup: StationsBackup; replace: boolean }
   // A whole enumeration by its name (adif-search.ts adifList, #58).
   | { type: 'adif-list'; name: string }
   // ADIF's bands with their edges (adif-search.ts), for an extension that
@@ -132,7 +136,7 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[]; near?: Near; adifList?: AdifList | null }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[]; near?: Near; adifList?: AdifList | null; backup?: StationsBackup; restored?: number }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 // The parks nearest the operator (Near Me), and where they are.
@@ -283,7 +287,9 @@ export function isStorageReply(value: unknown): value is StorageReply {
     // adif and bands were missing here, so every ADIF search and band list
     // QG Storage answered was refused as malformed; each layer's own tests
     // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places', 'near', 'adifList']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places', 'near', 'adifList', 'backup', 'restored']) && isStorageStatus(value.status)
+      && (value.backup === undefined || isStationsBackup(value.backup))
+      && (value.restored === undefined || (Number.isInteger(value.restored) && (value.restored as number) >= 0))
       && (value.adifList === undefined || value.adifList === null || isAdifList(value.adifList))
       && (value.near === undefined || isNear(value.near))
       && (value.places === undefined || (Array.isArray(value.places) && value.places.length <= AREA_LOCATIONS && value.places.every(isPlace)))
@@ -342,6 +348,8 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'station-from-summit': return exactly(['type', 'reference']) && isSummitReference(value.reference);
     case 'adif-search': return exactly(['type', 'query']) && plainQuery(value.query);
     case 'adif-list': return exactly(['type', 'name']) && plainQuery(value.name);
+    case 'stations-backup': return exactly(['type']);
+    case 'stations-restore': return exactly(['type', 'backup', 'replace']) && isStationsBackup(value.backup) && typeof value.replace === 'boolean';
     case 'adif-bands': return exactly(['type']);
     case 'area-choices': return exactly(['type']);
     case 'area-default': return exactly(['type']);

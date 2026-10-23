@@ -74,7 +74,11 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
     'packages/storage/storage-service.ts',
     // The reference forms only, to check a park or summit before its page is
     // opened (QGD-STN-0011); no station is read.
-    'packages/main/links-contract.ts'
+    'packages/main/links-contract.ts',
+    // A backup of the Locations, carried whole between QG Storage and the
+    // credential core and checked as a backup; nothing of it is turned into
+    // ADIF (KI7MT, 2026-10-23: callsigns and Locations move together).
+    'packages/main/callsign-broker.ts', 'packages/main/storage-broker.ts'
   ]);
 
   it('is read by the modules listed here and no others', () => {

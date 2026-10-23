@@ -15,7 +15,7 @@ import { ACTIVE_STATION_ID, activeStation, station, stationDefault, type stateSc
 import type { Store } from './sqlite.js';
 import {
   MAX_STATIONS, STATION_FIELDS, isStation, type Choice, type FieldProblem, type StationChoices, type ParkDraft, type Place, type Station, type StationDraft,
-  type StationsView
+  type StationsBackup, type StationsView
 } from './station-contract.js';
 export { adifLocation } from './station-contract.js';
 import { adifLocation, gridOf } from './station-contract.js';
@@ -439,4 +439,39 @@ export function stationChoices(
       ? counties.of(state.toUpperCase()).map(name => ({ code: `${state.toUpperCase()},${name}`, name }))
       : choose('Secondary_Administrative_Subdivision', 'Code', 'Secondary Administrative Subdivision', true)
   };
+}
+
+// Every Location, each callsign's default and the active one, for a backup
+// the credential core seals with the callsigns (KI7MT, 2026-10-23).
+export async function backupStations(state: StateStore): Promise<StationsBackup> {
+  const view = await viewStations(state, false);
+  return { stations: view.list, defaults: view.defaults, active: view.active };
+}
+
+// A restore onto a clean slate (KI7MT, 2026-10-23: "clean up the new first,
+// then it's a clean import"): the Locations here are removed first when the
+// operator says so, and refused otherwise, so nothing is merged. All of it in
+// one unit of work, so a failure leaves the Locations as they were. Each
+// Location keeps its id, so a callsign's default still names it.
+export async function restoreStations(state: StateStore, backup: StationsBackup, replace: boolean, now = new Date()): Promise<number | 'not empty'> {
+  return state.unit(async (db) => {
+    const here = await db.select({ id: station.id }).from(station).all();
+    if (here.length > 0 && !replace) return 'not empty';
+    // Defaults and the active one go with them, by the foreign keys.
+    await db.delete(station).run();
+    await db.delete(stationDefault).run();
+    const at = now.toISOString();
+    for (const entry of backup.stations) {
+      await db.insert(station).values({
+        id: entry.id, name: entry.name, kind: entry.kind ?? null, place: entry.place,
+        lotwPark: entry.lotwPark ?? null, notes: entry.notes ?? null, createdAt: at, updatedAt: at
+      }).run();
+    }
+    for (const [callsign, stationId] of Object.entries(backup.defaults)) {
+      await db.insert(stationDefault).values({ callsign, stationId }).run();
+    }
+    await db.insert(activeStation).values({ id: ACTIVE_STATION_ID, stationId: backup.active })
+      .onConflictDoUpdate({ target: activeStation.id, set: { stationId: backup.active } }).run();
+    return backup.stations.length;
+  });
 }

@@ -37,9 +37,25 @@ export interface FetchedReference {
 // What an export did, for the operator to read. The path is shown because the
 // operator chose it; nothing else about the file is.
 export interface ExportResult { written: string; bytes: number }
-// What an import would do, or did. Counts and names, never a value.
-export interface ImportPreview { created: string; callsigns: number; credentials: number; arriving: string[]; overwritten: string[] }
-export interface ImportResult { callsigns: number; credentials: number }
+// What a restore would do, or did (KI7MT, 2026-10-23: callsigns and
+// Locations move, logins do not). Counts and names, never a value: the
+// window is told which callsigns and Locations the file holds and which are
+// here to be removed first, and nothing of a Location but its name.
+export interface ImportPreview {
+  created: string; callsigns: number; arriving: string[];
+  // Logins in a file from before this release, which are not imported.
+  logins: number;
+  // The callsigns on this computer, which a restore removes first.
+  here: string[];
+  // The Locations in the file, by name, and how many are on this computer.
+  locations: string[]; locationsHere: number;
+}
+export interface ImportResult { callsigns: number; locations: number }
+// The same, as the credential core answers main: the Locations as the JSON
+// QG Storage handed the export, which main gives to QG Storage to restore
+// and turns into names for the window. Never sent to a window.
+export interface CoreImportPreview { created: string; callsigns: number; logins: number; arriving: string[]; here: string[]; locations: string }
+export interface CoreImportResult { callsigns: number; locations: string }
 export type CallsignCommand =
   | { type: 'list' }
   // The services this product can hold a credential for, with the fields and
@@ -62,7 +78,9 @@ export type CallsignCommand =
   // not: the main process shows the dialog and reads or writes the bytes, so
   // the renderer never touches an export.
   | { type: 'export-callsigns'; passphrase: string }
-  | { type: 'import-callsigns'; passphrase: string; apply: boolean };
+  // `replace`: what is on this computer is removed first, which a restore
+  // onto anything but an empty one needs (a clean slate, never a merge).
+  | { type: 'import-callsigns'; passphrase: string; apply: boolean; replace: boolean };
 // What a service lookup answers (QGD-APP-0007). Its own outcome set, not the
 // credential test's: a lookup can come back "not-found", which is an answer
 // about a callsign rather than anything about the credential, and
@@ -84,7 +102,7 @@ export type CallsignReply =
   | {
       ok: true;
       data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
-        | SealedExport | FetchedReference | ExportResult | ImportPreview | ImportResult
+        | SealedExport | FetchedReference | ExportResult | ImportPreview | ImportResult | CoreImportPreview | CoreImportResult
           | LookupAnswer | null;
     }
   | { ok: false; error: string };
@@ -142,8 +160,8 @@ export function validateCommand(value: unknown, providers: Services): value is C
     case 'export-callsigns':
       return keys(value, ['type', 'passphrase']) && passphrase(value.passphrase);
     case 'import-callsigns':
-      return keys(value, ['type', 'passphrase', 'apply'])
-        && passphrase(value.passphrase) && typeof value.apply === 'boolean';
+      return keys(value, ['type', 'passphrase', 'apply', 'replace'])
+        && passphrase(value.passphrase) && typeof value.apply === 'boolean' && typeof value.replace === 'boolean';
     case 'save-credentials': {
       if (!keys(value, ['type', 'id', 'provider', 'credentials']) || !isCallsignId(value.id) || typeof value.provider !== 'string' || !providers.has(value.provider) || !record(value.credentials) || !keys(value.credentials, ['username', 'password', 'apiKey'])) return false;
       return Object.values(value.credentials).every(item => item === undefined || (typeof item === 'string' && item.length <= 4096));
@@ -171,8 +189,10 @@ export function isReply(value: unknown): value is CallsignReply {
 // they actually receive rather than trusting the one before them
 // (QGD-SEC-0006).
 export type ServiceCommand =
-  | Exclude<CallsignCommand, { type: 'import-callsigns' }>
-  | { type: 'import-callsigns'; passphrase: string; apply: boolean; file: Uint8Array }
+  | Exclude<CallsignCommand, { type: 'import-callsigns' | 'export-callsigns' }>
+  // The Locations are added by main, from QG Storage, as JSON the core seals.
+  | { type: 'export-callsigns'; passphrase: string; locations: string }
+  | { type: 'import-callsigns'; passphrase: string; apply: boolean; replace: boolean; file: Uint8Array }
   // Fetching reference data, which the credential core does because KI7MT
   // decided all outbound HTTPS goes through it (D-18, D-31). It is not a
   // CallsignCommand: a renderer may not ask this product to fetch a URL, and
@@ -230,10 +250,14 @@ export function validateServiceCommand(value: unknown, providers: Services): val
       && (value.lastModified === undefined
         || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));
   }
+  if (value.type === 'export-callsigns') {
+    return keys(value, ['type', 'passphrase', 'locations']) && passphrase(value.passphrase)
+      && typeof value.locations === 'string' && value.locations.length <= 2_097_152;
+  }
   if (value.type === 'import-callsigns') {
-    return keys(value, ['type', 'passphrase', 'apply', 'file'])
+    return keys(value, ['type', 'passphrase', 'apply', 'replace', 'file'])
       && passphrase(value.passphrase)
-      && typeof value.apply === 'boolean'
+      && typeof value.apply === 'boolean' && typeof value.replace === 'boolean'
       // Bounded before it reaches the core, which bounds it again.
       && value.file instanceof Uint8Array && value.file.length > 0 && value.file.length <= 4_194_304;
   }

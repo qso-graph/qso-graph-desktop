@@ -7,6 +7,7 @@
 // screen asks, and pushed whenever it changes (an exit, a restart, a finished
 // reference build). So nothing polls and nothing goes stale.
 import type { AdifBand, AdifEntry, AdifList } from '../storage/adif-entry.js';
+import type { StationsBackup } from '../storage/station-contract.js';
 import type { AreaPlace } from '../storage/area-entry.js';
 import type { StationBrief } from '../extension-api/api-contract.js';
 import { activeStationBrief } from './station-brief.js';
@@ -55,6 +56,11 @@ export interface StorageBroker {
   adifSearch: (query: string) => Promise<AdifEntry[] | string>;
   // A whole enumeration by name, null when ADIF has none of that name (#58).
   adifList: (name: string) => Promise<AdifList | null | string>;
+  // The Locations, for a backup, and a restore onto a clean slate
+  // (KI7MT, 2026-10-23); how many are here now.
+  backupStations: () => Promise<StationsBackup | string>;
+  restoreStations: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
+  stationCount: () => number;
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
   parksToActivate: () => Promise<ToActivate | string>;
@@ -256,6 +262,17 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   return {
     stop,
     activeStation: () => activeStation,
+    async backupStations() {
+      const reply = await ask({ type: 'stations-backup' });
+      if (!reply.ok) return reply.error;
+      return reply.backup ?? 'The Locations could not be read just now.';
+    },
+    async restoreStations(backup, replace) {
+      const reply = await ask({ type: 'stations-restore', backup, replace });
+      if (!reply.ok) return reply.error;
+      return reply.restored ?? 'The Locations could not be restored.';
+    },
+    stationCount: () => last.stations?.list.length ?? 0,
     async adifList(name) {
       const reply = await ask({ type: 'adif-list', name });
       if (!reply.ok) return reply.error;

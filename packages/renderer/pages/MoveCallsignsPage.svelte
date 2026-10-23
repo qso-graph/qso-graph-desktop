@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  Moving callsigns to another machine (QGD-PSN-0007 to QGD-PSN-0011).
+  Moving callsigns and Locations to another computer (QGD-PSN-0007 to
+  QGD-PSN-0011). Logins do not move (KI7MT, 2026-10-23: "the Callsigns and
+  Locations are what we can manage. Users still manage their credentials"):
+  each service is listed again on the other computer, and its login is
+  entered there. A restore is onto a clean slate: what is here is removed
+  first, never merged.
 
   Two things this screen is careful about:
 
@@ -22,7 +27,7 @@
   interface Props {
     onExport: (passphrase: string) => Promise<ExportResult | string>;
     onInspect: (passphrase: string) => Promise<ImportPreview | string>;
-    onImport: (passphrase: string) => Promise<ImportResult | string>;
+    onImport: (passphrase: string, replace: boolean) => Promise<ImportResult | string>;
   }
   const { onExport, onInspect, onImport }: Props = $props();
 
@@ -36,6 +41,9 @@
   let importing = $state(false);
   let preview = $state<ImportPreview | undefined>(undefined);
   let importResult = $state('');
+  // Said yes to removing what is here first (a clean slate).
+  let removeFirst = $state(false);
+  const hasHere = $derived(preview !== undefined && (preview.here.length > 0 || preview.locationsHere > 0));
 
   // Said before the button is pressed, not after (QGD-CRD-0011).
   const exportWhy = $derived(
@@ -69,7 +77,7 @@
     try {
       const answer = await onInspect(importPassphrase);
       if (typeof answer === 'string') importResult = answer;
-      else preview = answer;
+      else { preview = answer; removeFirst = false; }
     } finally {
       inspecting = false;
     }
@@ -78,11 +86,11 @@
   async function runImport() {
     importing = true;
     try {
-      const answer = await onImport(importPassphrase);
+      const answer = await onImport(importPassphrase, removeFirst);
       importResult = typeof answer === 'string'
         ? answer
-        : `Imported ${answer.callsigns} callsign${answer.callsigns === 1 ? '' : 's'} ` +
-          `and ${answer.credentials} credential${answer.credentials === 1 ? '' : 's'}.`;
+        : `Restored ${answer.callsigns} callsign${answer.callsigns === 1 ? '' : 's'} ` +
+          `and ${answer.locations} Location${answer.locations === 1 ? '' : 's'}. Enter each service's login on the Callsigns page.`;
       if (typeof answer !== 'string') { preview = undefined; importPassphrase = ''; }
     } finally {
       importing = false;
@@ -106,11 +114,11 @@
 {/snippet}
 
 <section class="card" aria-labelledby="move-title">
-  <h2 id="move-title">Move callsigns to another computer</h2>
+  <h2 id="move-title">Move callsigns and Locations to another computer</h2>
   <p class="hint">
-    One encrypted file holding your callsigns, their service settings and the
-    credentials saved for them. Nothing is sent anywhere — the file goes where
-    you choose.
+    One encrypted file holding your callsigns, the services each one uses, and
+    your Locations. Logins are not in it: enter them again on the other
+    computer. Nothing is sent anywhere — the file goes where you choose.
   </p>
 
   <h3>Export</h3>
@@ -151,18 +159,24 @@
       <p>
         This file was made on {preview.created.slice(0, 10)} and holds
         {preview.callsigns} callsign{preview.callsigns === 1 ? '' : 's'} and
-        {preview.credentials} credential{preview.credentials === 1 ? '' : 's'}.
+        {preview.locations.length} Location{preview.locations.length === 1 ? '' : 's'}.
       </p>
-      {#if preview.arriving.length}
-        <p>New here: {preview.arriving.join(', ')}</p>
+      {#if preview.arriving.length}<p>Callsigns: {preview.arriving.join(', ')}</p>{/if}
+      {#if preview.locations.length}<p>Locations: {preview.locations.join(', ')}</p>{/if}
+      {#if preview.logins > 0}
+        <p class="hint">It also holds {preview.logins} login{preview.logins === 1 ? '' : 's'} from an earlier release, which are not restored: enter them again.</p>
       {/if}
-      {#if preview.overwritten.length}
+      {#if hasHere}
+        <!-- A clean slate, never a merge (KI7MT, 2026-10-23). -->
         <p class="overwrite">
-          Already here and would be replaced: {preview.overwritten.join(', ')}
+          This computer already has
+          {#if preview.here.length}{preview.here.length} callsign{preview.here.length === 1 ? '' : 's'} ({preview.here.join(', ')}){/if}{#if preview.here.length && preview.locationsHere} and {/if}{#if preview.locationsHere}{preview.locationsHere} Location{preview.locationsHere === 1 ? '' : 's'}{/if}.
+          A restore removes them first, with the logins saved for those callsigns.
         </p>
+        <label class="checkbox-row"><input type="checkbox" id="restore-remove-first" bind:checked={removeFirst} /> Remove them, then restore</label>
       {/if}
-      <button type="button" class:working={importing} disabled={importing} onclick={runImport}
-      >{importing ? 'Importing…' : 'Import these'}</button>
+      <button type="button" class:working={importing} disabled={importing || (hasHere && !removeFirst)} onclick={runImport}
+      >{importing ? 'Restoring…' : 'Restore'}</button>
       <button type="button" disabled={importing} onclick={() => { preview = undefined; }}>Cancel</button>
     </div>
   {/if}

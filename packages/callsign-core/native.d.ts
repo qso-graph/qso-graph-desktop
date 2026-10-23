@@ -53,9 +53,14 @@ export interface NativeCredentialTest {
 export interface NativeImportPreview {
   created: string;
   callsigns: number;
-  credentials: number;
+  // Logins in a file from before callsigns and Locations moved without them,
+  // which are not imported.
+  logins: number;
   arriving: string[];
-  overwritten: string[];
+  // The callsigns on this computer, which a restore removes first.
+  here: string[];
+  // The Locations, as QG Storage handed them to the export.
+  locations: string;
 }
 
 // What came back from a reference source. `fresh` false is a 304: the body is
@@ -69,7 +74,7 @@ export interface NativeFetchedReference {
 
 export interface NativeImportSummary {
   callsigns: number;
-  credentials: number;
+  locations: string;
 }
 
 export interface NativeLookupField {
@@ -107,9 +112,9 @@ export declare class CallsignCore {
   // source offers nothing newer), not Electron's BoringSSL.
   fetchReference(url: string, etag?: string, lastModified?: string): NativeFetchedReference;
   serviceLookup(id: string, provider: string, operation: string, callsign: string): NativeLookupResult;
-  exportCallsigns(passphrase: string): Buffer;
+  exportCallsigns(passphrase: string, locations: string): Buffer;
   inspectImport(file: Buffer, passphrase: string): NativeImportPreview;
-  applyImport(file: Buffer, passphrase: string): NativeImportSummary;
+  applyImport(file: Buffer, passphrase: string, replace: boolean): NativeImportSummary;
   // Trusted-core only. The broker never exposes this to a renderer.
   requireCredential(id: string, provider: string, prefer?: string): NativeCredentialInput;
 }

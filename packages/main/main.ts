@@ -195,7 +195,14 @@ if (!app.requestSingleInstanceLock()) {
       fetchReference: callsigns.fetchReference,
       area: () => load().area
     });
-    callsigns.onCallsignActivated(id => storageBroker.callsignActivated(id));
+    // The Locations travel with the callsigns in a backup, and come back in a
+    // restore (KI7MT, 2026-10-23); QG Storage holds them.
+    callsigns.connectStations({
+      backup: () => storageBroker.backupStations(),
+      restore: (backup, replace) => storageBroker.restoreStations(backup, replace),
+      count: () => storageBroker.stationCount()
+    });
+        callsigns.onCallsignActivated(id => storageBroker.callsignActivated(id));
     callsigns.onCallsignRemoved(id => storageBroker.callsignRemoved(id));
     // The extension API (QGD-APP-0002). Started after the brokers it reaches
     // through, because its ports are their methods.

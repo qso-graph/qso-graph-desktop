@@ -12,21 +12,22 @@
     args: {
       onExport: () => Promise.resolve({ written: 'qso-graph-callsigns.qgp', bytes: 1195 }),
       onInspect: () => Promise.resolve({
-        created: '2026-10-09T06:13:30Z', callsigns: 2, credentials: 3,
-        arriving: ['home', 'portable'], overwritten: []
+        created: '2026-10-09T06:13:30Z', callsigns: 2, logins: 0,
+        arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: [], locations: ['Home', 'Camp'], locationsHere: 0
       }),
-      onImport: () => Promise.resolve({ callsigns: 2, credentials: 3 })
+      onImport: () => Promise.resolve({ callsigns: 2, locations: 2 })
     }
   });
 </script>
 
 <Story name="Default" />
 
-<!-- QGD-PSN-0009: what an import would replace, said before it is done. -->
-<Story name="Would overwrite" args={{
+<!-- QGD-PSN-0009: a restore onto a computer that already has some removes
+     them first, said before it is done and only once the operator agrees. -->
+<Story name="Would remove what is here" args={{
   onInspect: () => Promise.resolve({
-    created: '2026-10-09T06:13:30Z', callsigns: 2, credentials: 3,
-    arriving: ['portable'], overwritten: ['home']
+    created: '2026-10-09T06:13:30Z', callsigns: 2, logins: 3,
+    arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: ['K7ABC · Shack'], locations: ['Home', 'Camp'], locationsHere: 4
   })
 }} />
 

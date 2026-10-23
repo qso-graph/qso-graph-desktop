@@ -34,7 +34,7 @@
   interface Props {
     onExportCallsigns: (passphrase: string) => Promise<ExportResult | string>;
     onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
-    onApplyImport: (passphrase: string) => Promise<ImportResult | string>;
+    onApplyImport: (passphrase: string, replace: boolean) => Promise<ImportResult | string>;
   }
   const { onExportCallsigns, onInspectImport, onApplyImport }: Props = $props();
 </script>

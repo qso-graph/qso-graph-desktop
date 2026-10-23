@@ -134,14 +134,14 @@ function execute(command: ServiceCommand): CallsignReply {
           : 'invalid-response';
         return { ok: true, data: { outcome, fields: looked.fields } };
       }
-      case 'export-callsigns': return { ok: true, data: { bytes: core.exportCallsigns(command.passphrase) } };
+      case 'export-callsigns': return { ok: true, data: { bytes: core.exportCallsigns(command.passphrase, command.locations) } };
       case 'import-callsigns': {
         const file = Buffer.from(command.file);
         if (!command.apply) {
           const preview = core.inspectImport(file, command.passphrase);
           return { ok: true, data: preview };
         }
-        return { ok: true, data: core.applyImport(file, command.passphrase) };
+        return { ok: true, data: core.applyImport(file, command.passphrase, command.replace) };
       }
     }
   } catch (error) {

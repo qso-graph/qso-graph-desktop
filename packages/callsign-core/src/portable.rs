@@ -83,6 +83,13 @@ pub struct Bundle {
     // and not a secret.
     #[zeroize(skip)]
     pub preferences: BTreeMap<String, BTreeMap<String, String>>,
+    // The Locations, as QG Storage hands them over: JSON the core seals and
+    // opens but does not read (KI7MT, 2026-10-23: one file moves callsigns
+    // and Locations). Absent in a file written before it, which opens with
+    // none; a build before it ignores it.
+    #[serde(default)]
+    #[zeroize(skip)]
+    pub locations: String,
 }
 
 // Hex rather than base64, written out rather than taken from a crate: these
@@ -285,7 +292,29 @@ mod tests {
             }],
             credentials,
             preferences: Default::default(),
+            locations: String::new(),
         }
+    }
+
+    // The Locations travel inside the encryption with the callsigns: a
+    // Location's street address must never be readable from the file
+    // (KI7MT, 2026-10-23: one file moves callsigns and Locations).
+    #[test]
+    fn carries_the_locations_sealed() {
+        let mut with = bundle();
+        with.locations = r#"{"stations":[{"name":"QG_FAKE_HOME","place":{"MY_STREET":"QG_FAKE_STREET"}}]}"#.into();
+        let file = seal(&with, "a passphrase", "2026-10-23T00:00:00Z".into()).unwrap();
+        for text in ["QG_FAKE_HOME", "QG_FAKE_STREET", "MY_STREET"] {
+            assert!(!file.windows(text.len()).any(|window| window == text.as_bytes()), "the export holds {text} in the clear");
+        }
+        assert_eq!(open(&file, "a passphrase").unwrap().bundle.locations, with.locations);
+    }
+
+    // A file from before the Locations opens, with none.
+    #[test]
+    fn opens_a_file_from_before_the_locations() {
+        let older: Bundle = serde_json::from_str(r#"{"callsigns":[],"credentials":{},"preferences":{}}"#).unwrap();
+        assert_eq!(older.locations, "");
     }
 
     #[test]

@@ -26,7 +26,7 @@ import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
 import { isCallsignId, type StationsView } from './station-contract.js';
 import {
-  deleteStation, draftFromPark, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
+  backupStations, deleteStation, draftFromPark, restoreStations, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -235,6 +235,18 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
         return { ok: false, error: 'ADIF\'s definitions are not downloaded. Download them in Settings, then try again.' };
       }
       return { ok: true, status: status(), adif: await searchAdif(reader, command.query) };
+    }
+    case 'stations-backup': {
+      if (!state) return { ok: false, error: 'Storage is not open yet.' };
+      return { ok: true, status: status(), backup: await backupStations(state) };
+    }
+    case 'stations-restore': {
+      if (!state) return { ok: false, error: 'Storage is not open yet.' };
+      const restored = await restoreStations(state, command.backup, command.replace);
+      if (restored === 'not empty') return { ok: false, error: 'This computer already has Locations. Remove them first, then restore.' };
+      await reloadStations();
+      publish();
+      return { ok: true, status: status(), restored };
     }
     case 'adif-list': {
       const reader = reference?.reader();

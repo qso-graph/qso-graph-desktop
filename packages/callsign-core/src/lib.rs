@@ -219,6 +219,11 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> CoreResult<()> {
 
 struct Store { directory: PathBuf }
 
+// A callsign as the operator knows it: the call, and its description.
+fn label(callsign: &Callsign) -> String {
+    if callsign.description.is_empty() { callsign.call.clone() } else { format!("{} · {}", callsign.call, callsign.description) }
+}
+
 impl Store {
     fn new(directory: PathBuf) -> CoreResult<Self> {
         fs::create_dir_all(&directory).map_err(|_| "Profile directory could not be created.")?;
@@ -438,48 +443,43 @@ impl Store {
 
     // ---- moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011) -
 
-    // Everything an export carries, read in one go.
-    //
-    // This is the one place that reads every secret the operator has, so it is
-    // the one place where QGD-CRD-0009's "only on an explicit action that
-    // needs it" is doing the most work: an export is such an action, and
-    // nothing else calls this.
-    fn gather(&self) -> CoreResult<portable::Bundle> {
+    // Everything an export carries: the callsigns, each service each one uses
+    // with its username, the preferences, and the Locations it is handed. No
+    // secret (KI7MT, 2026-10-23: "the Callsigns and Locations are what we can
+    // manage. Users still manage their credentials"): nothing here reads the
+    // Keychain, and a service's record goes as having no secret saved, which
+    // on the other computer is true until the operator enters it.
+    fn gather_without_secrets(&self, locations: String) -> CoreResult<portable::Bundle> {
         let index = self.load()?;
         let preferences = self.preferences()?.callsigns;
-        let mut credentials = BTreeMap::new();
-        for (id, callsign) in &index.callsigns {
-            for provider in callsign.providers.keys() {
-                // A provider in the index with nothing in the Keychain is
-                // carried as absent rather than as empty: an export says what
-                // there is, and inventing an empty credential for it would
-                // make the import create one.
-                if let Some(creds) = self.read_credentials(id, provider)? {
-                    credentials.insert(subject(id, provider)?, creds);
-                }
+        let callsigns = index.callsigns.into_values().map(|mut callsign| {
+            for reference in callsign.providers.values_mut() {
+                reference.has_password = false;
+                reference.has_api_key = false;
+                reference.saved_at = None;
             }
-        }
-        Ok(portable::Bundle {
-            callsigns: index.callsigns.into_values().collect(),
-            credentials,
-            preferences,
-        })
+            callsign
+        }).collect();
+        Ok(portable::Bundle { callsigns, credentials: BTreeMap::new(), preferences, locations })
+    }
+
+    // The callsigns on this computer, as the operator knows them, which a
+    // restore would remove first.
+    fn labels(&self) -> CoreResult<Vec<String>> {
+        Ok(self.load()?.callsigns.values().map(label).collect())
     }
 
     // What an import would change, without changing it (QGD-PSN-0009). A
     // callsign already here, by its id, is named, so the operator is told
     // before rather than after. Named as the operator knows it: the call and
     // the description.
-    fn preview(&self, bundle: &portable::Bundle) -> CoreResult<(Vec<String>, Vec<String>)> {
-        let existing = self.load()?;
+    fn preview(&self, bundle: &portable::Bundle) -> CoreResult<Vec<String>> {
         let mut arriving = Vec::new();
-        let mut overwritten = Vec::new();
         for callsign in &bundle.callsigns {
-            let id = callsign_id(&callsign.id)?;
-            let label = if callsign.description.is_empty() { callsign.call.clone() } else { format!("{} · {}", callsign.call, callsign.description) };
-            if existing.callsigns.contains_key(&id) { overwritten.push(label); } else { arriving.push(label); }
+            callsign_id(&callsign.id)?;
+            arriving.push(label(callsign));
         }
-        Ok((arriving, overwritten))
+        Ok(arriving)
     }
 
     // All of it or none of it. The index is written once, at the end, so a
@@ -488,7 +488,18 @@ impl Store {
     // the index does not have, which the next save overwrites. There is no
     // ordering that makes a Keychain and a file atomic together; what this
     // guarantees is that the index never half-changes.
-    fn absorb(&self, bundle: &portable::Bundle) -> CoreResult<(usize, usize)> {
+    //
+    // A restore onto a clean slate (KI7MT, 2026-10-23): the callsigns here,
+    // with every Keychain entry each one has, are removed first when the
+    // operator says so, and refused otherwise, so nothing is ever merged. No
+    // secret is written: a file from before this release that holds some has
+    // them left unread, and the operator enters each login again.
+    fn absorb(&self, bundle: &portable::Bundle, replace: bool) -> CoreResult<usize> {
+        let here: Vec<String> = self.load()?.callsigns.keys().cloned().collect();
+        if !here.is_empty() {
+            if !replace { return Err("This computer already has callsigns. Remove them first, then restore."); }
+            for id in &here { self.remove_callsign(id)?; }
+        }
         let mut index = self.load()?;
         for callsign in &bundle.callsigns {
             // Every field is checked as if it had been typed here.
@@ -496,25 +507,14 @@ impl Store {
             call_letters(&callsign.call)?;
             description_text(&callsign.description)?;
             Self::parse_dates(&callsign.start, &callsign.end)?;
-            index.callsigns.insert(id, callsign.clone());
-        }
-        let mut written = 0usize;
-        for (subject, creds) in &bundle.credentials {
-            let (id, provider) = subject.split_once(':').ok_or("This export holds a credential with no service.")?;
-            let id = callsign_id(id)?;
-            let raw = Zeroizing::new(serde_json::to_string(creds).map_err(|_| "This export could not be read.")?);
-            keyring::Entry::new(service(), &crate::subject(&id, provider)?).map_err(|_| "Keychain is unavailable.")?
-                .set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
-            // The index records which kinds arrived, so status answers without
-            // reading them back (QGD-CRD-0010).
-            if let Some(entry) = index.callsigns.get_mut(&id) {
-                let reference = entry.providers.entry(identifier(provider)?).or_insert_with(ProviderRef::default);
-                reference.username = creds.username.clone().unwrap_or_default();
-                reference.has_password = creds.password.is_some();
-                reference.has_api_key = creds.api_key.is_some();
-                reference.saved_at = Some(now_utc());
+            let mut callsign = callsign.clone();
+            // No secret arrives, so none is said to be saved.
+            for reference in callsign.providers.values_mut() {
+                reference.has_password = false;
+                reference.has_api_key = false;
+                reference.saved_at = None;
             }
-            written += 1;
+            index.callsigns.insert(id, callsign);
         }
         self.save(&index)?;
 
@@ -524,7 +524,7 @@ impl Store {
         }
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
-        Ok((bundle.callsigns.len(), written))
+        Ok(bundle.callsigns.len())
     }
     fn delete_credentials(&self, id: &str, provider: &str) -> CoreResult<bool> {
         self.lookup(id)?;
@@ -733,9 +733,13 @@ mod addon {
     pub struct ImportPreview {
         pub created: String,
         pub callsigns: u32,
-        pub credentials: u32,
+        // Logins in a file from before this release, which are not imported.
+        pub logins: u32,
         pub arriving: Vec<String>,
-        pub overwritten: Vec<String>,
+        // The callsigns on this computer, which a restore removes first.
+        pub here: Vec<String>,
+        // The Locations, as QG Storage handed them to the export.
+        pub locations: String,
     }
 
     /// What came back from a reference source. `fresh` false is a 304: the
@@ -751,7 +755,8 @@ mod addon {
     #[napi(object)]
     pub struct ImportSummary {
         pub callsigns: u32,
-        pub credentials: u32,
+        // The Locations, for QG Storage to restore.
+        pub locations: String,
     }
 
     #[napi]
@@ -925,8 +930,9 @@ mod addon {
         }
 
         #[napi]
-        pub fn export_callsigns(&self, passphrase: String) -> Result<Buffer> {
-            let bundle = self.store.gather().map_err(error)?;
+        pub fn export_callsigns(&self, passphrase: String, locations: String) -> Result<Buffer> {
+            if locations.len() > 2 * 1024 * 1024 { return Err(error("The Locations are too large to export.")); }
+            let bundle = self.store.gather_without_secrets(locations).map_err(error)?;
             let sealed = crate::portable::seal(&bundle, &passphrase, now_utc()).map_err(error)?;
             tracing::info!(callsigns = bundle.callsigns.len(), "callsigns exported");
             Ok(sealed.into())
@@ -937,28 +943,23 @@ mod addon {
         #[napi]
         pub fn inspect_import(&self, file: Buffer, passphrase: String) -> Result<ImportPreview> {
             let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
-            let (arriving, overwritten) = self.store.preview(&opened.bundle).map_err(error)?;
+            let arriving = self.store.preview(&opened.bundle).map_err(error)?;
             Ok(ImportPreview {
                 created: opened.header.created,
                 callsigns: opened.bundle.callsigns.len() as u32,
-                credentials: opened.bundle.credentials.len() as u32,
+                logins: opened.bundle.credentials.len() as u32,
                 arriving,
-                overwritten,
+                here: self.store.labels().map_err(error)?,
+                locations: opened.bundle.locations.clone(),
             })
         }
 
         #[napi]
-        pub fn apply_import(&self, file: Buffer, passphrase: String) -> Result<ImportSummary> {
+        pub fn apply_import(&self, file: Buffer, passphrase: String, replace: bool) -> Result<ImportSummary> {
             let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
-            let (callsigns, entries) = self.store.absorb(&opened.bundle).map_err(error)?;
-            // `entries`, not `credentials`, in the name and in the value:
-            // QGD-LOG-0004's gate refuses a tracing call that names a secret
-            // anywhere in it, including the expression it logs, and it is
-            // right to — the number is a count of Keychain entries written,
-            // and naming a log field after the thing it counts is how one
-            // that does hold a secret slips past later. The gate caught this.
-            tracing::info!(callsigns, entries, "callsigns imported");
-            Ok(ImportSummary { callsigns: callsigns as u32, credentials: entries as u32 })
+            let callsigns = self.store.absorb(&opened.bundle, replace).map_err(error)?;
+            tracing::info!(callsigns, "callsigns restored");
+            Ok(ImportSummary { callsigns: callsigns as u32, locations: opened.bundle.locations.clone() })
         }
         // Available to the trusted native owner for future grant enforcement and
         // interop proof. The app's broker never exposes this method to renderers.

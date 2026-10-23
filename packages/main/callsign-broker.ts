@@ -4,8 +4,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
   allowsSender, isReply, validateCommand,
-  type FetchedReference, type CallsignCommand, type CallsignReply, type SealedExport, type ServiceCommand
+  type FetchedReference, type CallsignCommand, type CallsignReply, type SealedExport, type ServiceCommand,
+  type CoreImportPreview, type CoreImportResult, type ImportPreview, type ImportResult
 } from '../callsigns/callsign-contract.js';
+import { isStationsBackup, type StationsBackup } from '../storage/station-contract.js';
 import { readServices, serviceIds } from '../callsigns/services.js';
 import { deadlineFor } from '../callsigns/deadlines.js';
 import { forStore } from '../callsigns/credential-store.js';
@@ -23,8 +25,18 @@ export const CALLSIGNS_STARTING = 'Callsigns are still starting. Try again.';
 // description, and nothing else (QGD-CRD-0010).
 export interface CallsignBrief { id: string; call: string; description: string }
 
+// The Locations, which QG Storage holds, for a backup and a restore: given
+// to this broker by main once QG Storage has started.
+export interface StationsHooks {
+  backup: () => Promise<StationsBackup | string>;
+  restore: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
+  count: () => number;
+}
+
 export interface CallsignBroker {
   stop: () => void;
+  // Main hands over the Locations once QG Storage has started.
+  connectStations: (hooks: StationsHooks) => void;
   // Called after a callsign was added, changed, removed or made active, so
   // what Home shows for the old one can be dropped (QGD-HOM-0005).
   onCallsignsChanged: (listener: () => void) => void;
@@ -77,6 +89,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
   let nextId = 0;
   let failures = 0;
   const pending = new Map<number, { resolve: (reply: CallsignReply) => void; timer: NodeJS.Timeout }>();
+  let stations: StationsHooks | undefined;
   // Inside the directory the operating system gives this application, beside
   // everything else it owns — the engine's data and the reference cache are
   // already under the same root (enginePaths, QGD-CRD-0013.1).
@@ -170,10 +183,14 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
         : await dialog.showSaveDialog({ defaultPath: 'qso-graph-callsigns.qgp' });
       if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Export cancelled.' };
 
+      // The Locations go in the same sealed file (KI7MT, 2026-10-23); no
+      // login does, and the core reads none for an export.
+      const backup = stations ? await stations.backup() : { stations: [], defaults: {}, active: null };
+      if (typeof backup === 'string') return { ok: false, error: backup };
       // Sealed first, written second: a cancelled or failed seal must not
       // leave a file behind, and a passphrase the core refuses is refused
       // before anything is created.
-      const sealed = await ask(command);
+      const sealed = await ask({ type: 'export-callsigns', passphrase: command.passphrase, locations: JSON.stringify(backup) });
       if (!sealed.ok) return sealed;
       const bytes = (sealed.data as SealedExport | null)?.bytes;
       if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
@@ -217,11 +234,43 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       inspected = undefined;
       return { ok: false, error: 'That file is not an export this product wrote.' };
     }
-    const answer = await ask({ type: 'import-callsigns', passphrase: command.passphrase, apply: command.apply, file });
-    // Remembered only while there is something to confirm: a look that
-    // succeeded. Forgotten the moment it is used, refused, or cancelled.
-    inspected = !command.apply && answer.ok ? path : undefined;
-    return answer;
+    // Looked at first, whether to show or to restore: what the file holds is
+    // checked whole before anything here changes.
+    const looked = await ask({ type: 'import-callsigns', passphrase: command.passphrase, apply: false, replace: false, file });
+    if (!looked.ok) { inspected = undefined; return looked; }
+    const core = looked.data as CoreImportPreview;
+    let backup: StationsBackup = { stations: [], defaults: {}, active: null };
+    if (core.locations !== '') {
+      let parsed: unknown;
+      try { parsed = JSON.parse(core.locations); } catch { parsed = undefined; }
+      if (!isStationsBackup(parsed)) { inspected = undefined; return { ok: false, error: 'The Locations in that file could not be read.' }; }
+      backup = parsed;
+    }
+    const locationsHere = stations?.count() ?? 0;
+    if (!command.apply) {
+      // Remembered only while there is something to confirm: a look that
+      // succeeded. Forgotten the moment it is used, refused, or cancelled.
+      inspected = path;
+      const preview: ImportPreview = {
+        created: core.created, callsigns: core.callsigns, arriving: core.arriving, logins: core.logins, here: core.here,
+        locations: backup.stations.map(entry => entry.name), locationsHere
+      };
+      return { ok: true, data: preview };
+    }
+    inspected = undefined;
+    // A clean slate, never a merge (KI7MT, 2026-10-23): with anything here,
+    // the operator must have said to remove it first.
+    if (!command.replace && (core.here.length > 0 || locationsHere > 0)) {
+      return { ok: false, error: 'This computer already has callsigns or Locations. Choose to remove them first, then restore.' };
+    }
+    if (!stations) return { ok: false, error: 'The Locations cannot be restored just now. Try again in a moment.' };
+    const applied = await ask({ type: 'import-callsigns', passphrase: command.passphrase, apply: true, replace: command.replace, file });
+    if (!applied.ok) return applied;
+    const restored = await stations.restore(backup, command.replace);
+    if (typeof restored === 'string') return { ok: false, error: `The callsigns were restored; the Locations were not: ${restored}` };
+    const result: ImportResult = { callsigns: (applied.data as CoreImportResult).callsigns, locations: restored };
+    log.info({ callsigns: result.callsigns, locations: result.locations }, 'callsigns and locations restored');
+    return { ok: true, data: result };
   }
 
   ipcMain.handle('callsigns:request', (event, command: unknown): Promise<CallsignReply> | CallsignReply => {
@@ -241,6 +290,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     return ask(command).then(told);
   });
   return {
+    connectStations: hooks => { stations = hooks; },
     onCallsignsChanged: listener => { changeListeners.add(listener); },
     onCallsignActivated: listener => { activationListeners.add(listener); },
     onCallsignRemoved: listener => { removalListeners.add(listener); },

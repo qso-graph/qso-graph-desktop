@@ -571,14 +571,15 @@ export async function exportCallsigns(passphrase: string): Promise<ExportResult 
 }
 
 export async function inspectImport(passphrase: string): Promise<ImportPreview | string> {
-  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: false });
+  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: false, replace: false });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportPreview | null;
   return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
 }
 
-export async function applyImport(passphrase: string): Promise<ImportResult | string> {
-  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: true });
+// `replace`: what is on this computer is removed first (a clean slate).
+export async function applyImport(passphrase: string, replace: boolean): Promise<ImportResult | string> {
+  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: true, replace });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportResult | null;
   if (!data || typeof data.callsigns !== 'number') return 'The import did not finish.';

@@ -361,3 +361,24 @@ export function gridOf(latitude: number, longitude: number, length: 2 | 4 | 6 | 
   }
   return grid;
 }
+
+// Every Location, each callsign's default and the active one, as a restore
+// carries them (KI7MT, 2026-10-23: callsigns and Locations move from one
+// computer to another; logins do not). Ids are kept, so each callsign's
+// default, which names a callsign's id and a Location's, still holds.
+export interface StationsBackup {
+  stations: Station[];
+  defaults: Record<string, string>;
+  active: string | null;
+}
+
+export function isStationsBackup(value: unknown): value is StationsBackup {
+  if (!record(value) || !only(value, ['stations', 'defaults', 'active'])) return false;
+  if (!Array.isArray(value.stations) || value.stations.length > MAX_STATIONS || !value.stations.every(isStation)) return false;
+  const ids = new Set(value.stations.map(entry => (entry as Station).id));
+  const names = new Set(value.stations.map(entry => (entry as Station).name.toLowerCase()));
+  if (ids.size !== value.stations.length || names.size !== value.stations.length) return false;
+  if (!record(value.defaults) || Object.keys(value.defaults).length > MAX_STATIONS) return false;
+  if (!Object.entries(value.defaults).every(([callsign, id]) => isCallsignId(callsign) && isStationId(id) && ids.has(id))) return false;
+  return value.active === null || (isStationId(value.active) && ids.has(value.active));
+}

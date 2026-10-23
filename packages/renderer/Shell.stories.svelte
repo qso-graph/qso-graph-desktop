@@ -34,9 +34,9 @@
     onFinishSetup: () => {},
     onExportCallsigns: () => Promise.resolve({ written: 'qso-graph-callsigns.qgp', bytes: 1195 }),
     onInspectImport: () => Promise.resolve({
-      created: '2026-10-09T06:13:30Z', callsigns: 1, credentials: 1, arriving: ['W1AW · Home'], overwritten: []
+      created: '2026-10-09T06:13:30Z', callsigns: 1, logins: 0, arriving: ['W1AW · Home'], here: [], locations: ['Home'], locationsHere: 0
     }),
-    onApplyImport: () => Promise.resolve({ callsigns: 1, credentials: 1 })
+    onApplyImport: () => Promise.resolve({ callsigns: 1, locations: 1 })
   };
 
   const { Story } = defineMeta({

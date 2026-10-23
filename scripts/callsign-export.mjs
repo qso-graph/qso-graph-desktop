@@ -4,15 +4,16 @@
 // P6-export-goes-nowhere (QGD-PSN-0001, QGD-PSN-0007 to QGD-PSN-0011).
 //
 // Against the real credential core and the real Keychain, because what is
-// being proved is that the secrets come out of the Keychain, go into one
-// encrypted file, and arrive in a second profile that had none — and a
-// round-trip through a mock proves nothing about the Keychain.
+// being proved is that callsigns and Locations go into one encrypted file and
+// arrive in a second profile that had none, and that no secret does: the
+// export reads none from the Keychain and the restore writes none to it
+// (KI7MT, 2026-10-23: "Users still manage their credentials"). A round-trip
+// through a mock proves nothing about the Keychain.
 //
 // Two profile directories stand in for two machines. They share one Keychain,
 // which is this machine's, and a callsign keeps its id when it moves, so the
-// first profile's entries are deleted before the import: what is being shown
-// is that the bundle carried the credential, not that the Keychain already
-// had it.
+// first profile's entries are deleted before the restore: what is shown is
+// that no login arrived, not that the Keychain lost one.
 import { createRequire } from 'node:module';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -78,14 +79,18 @@ try {
   }
 
   // ---- P6-export-encrypted --------------------------------------------
-  const file = from.exportCallsigns(passphrase);
+  // The Locations go in with the callsigns, as QG Storage hands them over
+  // (KI7MT, 2026-10-23); a street address is the value that must stay sealed.
+  const street = `QG_FAKE_STREET_${randomUUID()}`;
+  const locations = JSON.stringify({ stations: [{ id: randomUUID(), name: 'Home', place: { MY_GRIDSQUARE: 'DN13', MY_STREET: street } }], defaults: {}, active: null });
+  const file = from.exportCallsigns(passphrase, locations);
   check(Buffer.isBuffer(file) && file.length > 100, 'Export produced a file');
 
   // Every value that went in, searched for in the bytes that came out. The
   // sentinel scan is the same one make verify runs over every artifact, so a
   // credential in an export would be caught by the project's own rule as
   // well as by this.
-  for (const secret of [password, apiKey, 'W1AW', description, 'w1aw@example.invalid']) {
+  for (const secret of [password, apiKey, 'W1AW', description, 'w1aw@example.invalid', street]) {
     check(!file.includes(Buffer.from(secret)), 'Export holds no value in the clear');
   }
   check(sentinelsIn(file.toString('latin1')).length === 0, 'Export holds no credential sentinel');
@@ -94,7 +99,7 @@ try {
   // QGD-PSN-0007: without a passphrase there is no file, rather than a file
   // anyone can read.
   for (const empty of ['', '   ']) {
-    const message = refusal(() => from.exportCallsigns(empty), 'An export with no passphrase');
+    const message = refusal(() => from.exportCallsigns(empty, locations), 'An export with no passphrase');
     check(/passphrase/i.test(message), 'Refusal says a passphrase is needed');
   }
   notes.push('an export with no passphrase is refused rather than written in the clear');
@@ -117,7 +122,7 @@ try {
   // Two exports of the same profile share nothing: a salt and a nonce that
   // repeated would be the defect that makes the second file readable from
   // the first.
-  const again = from.exportCallsigns(passphrase);
+  const again = from.exportCallsigns(passphrase, locations);
   const headerAgain = JSON.parse(again.toString('utf8', again.indexOf(0x0a) + 1, again.indexOf(0x0a, again.indexOf(0x0a) + 1)));
   check(headerAgain.salt !== header.salt, 'A second export draws a new salt');
   check(headerAgain.nonce !== header.nonce, 'A second export draws a new nonce');
@@ -130,47 +135,51 @@ try {
   check(!from.credentialStatus(id, 'qrz').stored && !from.credentialStatus(id, 'clublog').stored,
     'The Keychain no longer holds what the file carries');
   const preview = to.inspectImport(file, passphrase);
-  check(preview.callsigns === 2 && preview.credentials === 2, 'The preview counts what is inside');
-  check(preview.arriving.length === 2 && preview.overwritten.length === 0, 'Nothing is overwritten on a clean machine');
+  // No login travels (KI7MT, 2026-10-23: "Users still manage their
+  // credentials"): the export read none, so the file holds none.
+  check(preview.callsigns === 2 && preview.logins === 0, 'The preview counts the callsigns, and no login');
+  check(preview.arriving.length === 2 && preview.here.length === 0, 'A clean machine has nothing to remove first');
+  check(preview.locations === locations, 'The Locations come back as they went in, for QG Storage');
   check(!JSON.stringify(preview).includes(password), 'The preview carries no secret');
 
-  const applied = to.applyImport(file, passphrase);
-  check(applied.callsigns === 2 && applied.credentials === 2, 'The import reports what it did');
+  const applied = to.applyImport(file, passphrase, false);
+  check(applied.callsigns === 2 && applied.locations === locations, 'The restore reports what it did');
   const ids = to.list().map(entry => entry.id);
   check(ids.includes(id) && ids.includes(alsoHere), 'Both callsigns arrived, with their ids');
   const arrived = to.list().find(entry => entry.id === id);
   check(arrived.call === 'W1AW' && arrived.description === description && arrived.start === '2026-01-01',
     'The callsign arrived whole');
 
-  // The secrets arrived, which is the half an operator would notice missing.
-  // Read through requireCredential, which is the trusted path that decrypts.
-  check(to.requireCredential(id, 'qrz').password === password, 'The password arrived');
-  check(to.requireCredential(id, 'clublog').password === apiKey, 'The preferred API key arrived');
+  // The services arrived, and no secret did: each is there to have its login
+  // entered, under the same id, so the Keychain name is the first machine's.
   check(to.credentialStatus(id, 'clublog').preferred === 'api_key', 'The service preference arrived');
-  const status = to.credentialStatus(id, 'clublog');
-  check(status.stored && status.kindsKnown && status.hasPassword && status.hasApiKey,
-    'The status answers without being asked to read anything');
-  notes.push('two callsigns, two credentials and a service preference arrive in a profile that had none, and the Keychain did not already hold them');
+  const status = to.credentialStatus(id, 'qrz');
+  check(!status.stored, 'No login arrived: none is in the Keychain');
+  refusal(() => to.requireCredential(id, 'qrz'), 'A login that was not restored');
+  notes.push('two callsigns and a service preference arrive in a profile that had none, with their ids, and no login: none is in the file or the Keychain');
 
   // ---- P6-import-all-or-none ------------------------------------------
   {
-    // A machine that already has one of them is told which, before anything
-    // is done. The second profile now holds both, so a second import of the
-    // same file overwrites both and says so.
+    // A clean slate, never a merge (KI7MT, 2026-10-23): a machine that has
+    // callsigns is told which, and a restore is refused until the operator
+    // says to remove them first; then they go, and the file's arrive.
     const second = to.inspectImport(file, passphrase);
-    check(second.overwritten.length === 2 && second.arriving.length === 0,
-      'An import onto a machine that has them says what it would overwrite');
-    notes.push('an import that would overwrite says which callsigns, before it does');
+    check(second.here.length === 2, 'A restore onto a machine that has callsigns names them');
+    refusal(() => to.applyImport(file, passphrase, false), 'A restore onto callsigns not said to be removed');
+    check(to.list().length === 2, 'And it changed nothing');
+    const replaced = to.applyImport(file, passphrase, true);
+    check(replaced.callsigns === 2 && to.list().length === 2, 'Said to remove them first, the restore replaces them');
+    notes.push('a restore onto a machine with callsigns names them, refuses until told to remove them, then replaces them');
 
     // A file that fails its tag changes nothing at all.
     const before = JSON.stringify(to.list());
     const altered = Buffer.from(file);
     altered[altered.length - 1] ^= 0x01;
-    refusal(() => to.applyImport(altered, passphrase), 'An altered file');
+    refusal(() => to.applyImport(altered, passphrase, true), 'An altered file');
     check(JSON.stringify(to.list()) === before, 'A refused import changed nothing');
 
     // And so does a file that is not an export at all.
-    refusal(() => to.applyImport(Buffer.from('hello'), passphrase), 'A file that is not an export');
+    refusal(() => to.applyImport(Buffer.from('hello'), passphrase, true), 'A file that is not an export');
     check(JSON.stringify(to.list()) === before, 'A file that is not an export changed nothing');
     notes.push('a file that fails its tag, and a file that is not an export, each change nothing');
   }
@@ -239,7 +248,7 @@ try {
     await new Promise(done => listener.close(done));
 
     // Then the thing being measured, inside the sampler's window.
-    const during = from.exportCallsigns(passphrase);
+    const during = from.exportCallsigns(passphrase, locations);
     const opened = to.inspectImport(during, passphrase);
     check(during.length > 100 && opened.callsigns === 2, 'The sampled export and open worked');
 

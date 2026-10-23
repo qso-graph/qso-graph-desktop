@@ -14,10 +14,10 @@ import { potaPark, referenceSchema, sotaSummit } from '../packages/storage/refer
 import { validateStorageCommand } from '../packages/storage/storage-contract.js';
 import { openStore } from '../packages/storage/sqlite.js';
 import {
-  ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsView, type StationDraft
+  ADDRESS_FIELDS, MAX_STATIONS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsBackup, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
-  adifLocation, checkStation, deleteStation, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
+  adifLocation, backupStations, checkStation, deleteStation, restoreStations, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
   setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
 } from '../packages/storage/stations.js';
 
@@ -679,5 +679,61 @@ describe('US counties: LoTW\'s list, filled and checked (QGD-STN-0010)', () => {
     expect(validateStorageCommand({ type: 'counties-at', south: '43', west: -116, north: 43, east: -116 })).toBe(false);
     expect(validateStorageCommand({ type: 'counties-at', south: Number.NaN, west: -116, north: 43, east: -116 })).toBe(false);
     expect(validateStorageCommand({ type: 'counties-at', south: 43, west: -116, north: 43, east: -116, extra: 1 })).toBe(false);
+  });
+});
+
+describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-10-23)', () => {
+  const CALLSIGN = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
+  it('carries every Location with its id, each callsign\'s default and the active one', async () => {
+    const from = await open();
+    try {
+      const home = await saveStation(from, draft({ MY_STREET: '1 Main' }, { notes: 'Gate code 1234' }), ruleset);
+      const camp = await saveStation(from, draft({}, { name: 'Camp', kind: 'Portable' }), ruleset);
+      if (!home.ok || !camp.ok) throw new Error('not saved');
+      await setDefaultStation(from, CALLSIGN, camp.id);
+      await setActiveStation(from, home.id);
+      const backup = await backupStations(from);
+      expect(isStationsBackup(backup)).toBe(true);
+      expect(backup.stations.map(entry => entry.name)).toEqual(['Camp', 'Home']);
+      expect(backup).toMatchObject({ defaults: { [CALLSIGN]: camp.id }, active: home.id });
+
+    } finally { from.close(); }
+  });
+
+  it('restores onto an empty computer, and onto one with Locations only when told to remove them first', async () => {
+    const state = await open();
+    try {
+      const old = await saveStation(state, draft({}, { name: 'Old shack' }), ruleset);
+      if (!old.ok) throw new Error('not saved');
+      const backup = {
+        stations: [
+          { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13', MY_STREET: '1 Main' }, notes: 'Gate code' },
+          { id: '22222222-2222-4222-8222-222222222222', name: 'Camp', kind: 'Portable' as const, place: { MY_GRIDSQUARE: 'DN24' } }
+        ],
+        defaults: { [CALLSIGN]: '22222222-2222-4222-8222-222222222222' }, active: '11111111-1111-4111-8111-111111111111'
+      };
+      expect(isStationsBackup(backup)).toBe(true);
+      // Not merged: refused while Locations are here and not said to go.
+      expect(await restoreStations(state, backup, false)).toBe('not empty');
+      expect((await viewStations(state, false)).list.map(entry => entry.name)).toEqual(['Old shack']);
+      // Said to remove them first: they go, and the file's arrive whole.
+      expect(await restoreStations(state, backup, true)).toBe(2);
+      const view = await viewStations(state, false);
+      expect(view.list.map(entry => [entry.id, entry.name])).toEqual([
+        ['22222222-2222-4222-8222-222222222222', 'Camp'], ['11111111-1111-4111-8111-111111111111', 'Home']]);
+      expect(view.list.find(entry => entry.name === 'Home')).toMatchObject({ place: { MY_STREET: '1 Main' }, notes: 'Gate code' });
+      expect(view.defaults).toEqual({ [CALLSIGN]: '22222222-2222-4222-8222-222222222222' });
+      expect(view.active).toBe('11111111-1111-4111-8111-111111111111');
+    } finally { state.close(); }
+  });
+
+  it('refuses a backup whose defaults or active one name a Location it does not hold, or that repeats a name', () => {
+    const one = { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13' } };
+    expect(isStationsBackup({ stations: [one], defaults: {}, active: '22222222-2222-4222-8222-222222222222' })).toBe(false);
+    expect(isStationsBackup({ stations: [one], defaults: { [CALLSIGN]: '22222222-2222-4222-8222-222222222222' }, active: null })).toBe(false);
+    expect(isStationsBackup({ stations: [one, { ...one, id: '22222222-2222-4222-8222-222222222222', name: 'home' }], defaults: {}, active: null })).toBe(false);
+    expect(isStationsBackup({ stations: [one], defaults: {}, active: null, extra: 1 })).toBe(false);
+    expect(validateStorageCommand({ type: 'stations-restore', backup: { stations: [one], defaults: {}, active: null }, replace: true })).toBe(true);
+    expect(validateStorageCommand({ type: 'stations-restore', backup: { stations: [one], defaults: {}, active: null } })).toBe(false);
   });
 });
