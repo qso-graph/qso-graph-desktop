@@ -158,8 +158,11 @@ try {
   await rail(page, 'Home').click();
   const notice = page.locator('#host-notice');
   await expect(notice, 'Home must say the extension host stopped').toBeVisible({ timeout: 30_000 });
-  // Every extension that was running in the host, in the order they load.
-  await expect(notice).toContainText('It affected ADIF Lookup, Astro and On the Air', { timeout: 30_000 });
+  // The extensions that were running in the host when it stopped: those
+  // whose pages were opened above, Astro and On the Air. ADIF Lookup's was
+  // not, so it was not running and is not named (CI, 2026-10-23: the test
+  // had guessed every loaded extension).
+  await expect(notice).toContainText('It affected Astro and On the Air.', { timeout: 30_000 });
   await expect(notice).toContainText('was restarted', { timeout: 30_000 });
   await expect(notice).not.toContainText(/caused|because/i);
   await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
@@ -181,7 +184,7 @@ try {
   await rail(page, 'Home').click();
   await notice.getByRole('button', { name: 'Dismiss' }).click();
   await expect(notice).toHaveCount(0, { timeout: 30_000 });
-  console.log('P8-supervision: the extension host killed; Home named ADIF Lookup, Astro and On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
+  console.log('P8-supervision: the extension host killed; Home named Astro and On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
 
   // Turned off in Settings: its tiles leave Home and the list.
   await rail(page, 'Settings').click();
