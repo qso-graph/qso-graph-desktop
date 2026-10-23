@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
 import { pageContents } from '../../../packages/ui/page-shapes.js';
-import { astroPage, subsolar, type Clock } from '../src/page.js';
+import { astroPage, clockNote, subsolar, type Clock } from '../src/page.js';
 import { sublunar } from '../src/moon.js';
 import { julian } from '../src/sun.js';
 
@@ -12,12 +12,12 @@ const BOISE = { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.
 const NOW = new Date('2026-10-22T18:00:00Z');
 const two = (n: number) => String(n).padStart(2, '0');
 const UTC_CLOCK: Clock = {
-  offset: () => 0, text: () => 'never shown',
+  offset: () => 0, text: () => 'never shown', zone: () => ({ name: 'Etc/UTC', short: 'UTC' }),
   time: at => `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`, date: at => `${at.getUTCDate()} Oct ${at.getUTCFullYear()}`
 };
 // Six hours behind UTC, as Idaho is in summer time.
 const MOUNTAIN: Clock = {
-  offset: () => -360, text: at => `local ${at.getUTCHours()}`,
+  offset: () => -360, text: at => `local ${at.getUTCHours()}`, zone: () => ({ name: 'America/Denver', short: 'MDT' }),
   time: at => { const local = new Date(at.getTime() - 6 * 3_600_000); return `${two(local.getUTCHours())}:${two(local.getUTCMinutes())}`; },
   date: at => { const local = new Date(at.getTime() - 6 * 3_600_000); return `${local.getUTCDate()} Oct ${local.getUTCFullYear()}`; }
 };
@@ -181,7 +181,7 @@ describe('Astro\'s page', () => {
   it('sets the day\'s times apart under a heading of their own', () => {
     const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
     const at = found.findIndex(section => section.heading === 'Today at Home');
-    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: 'All times are local, based on system clock setting.' });
+    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: 'All times are local, based on system clock setting: America/Denver (MDT, UTC−6).' });
     expect(found[at + 1]).toMatchObject({ shape: 'table' });
   });
 
@@ -190,6 +190,14 @@ describe('Astro\'s page', () => {
     // UTC in the shack, local on the laptop. Astro does not warn about it.
     const found = sections(astroPage({ name: 'London park', latitude: 51.5, longitude: -0.1 }, NOW, {}, MOUNTAIN));
     expect(found.some(section => section.shape === 'alert' && section.level === 'warning')).toBe(false);
+  });
+
+  it('names the zone the system clock is set to, so a time that looks off answers itself', () => {
+    expect(clockNote(MOUNTAIN, NOW)).toBe('All times are local, based on system clock setting: America/Denver (MDT, UTC−6).');
+    expect(clockNote(UTC_CLOCK, NOW)).toBe('All times are based on system clock setting: UTC.');
+    // A zone with no common short name gives the offset once; half hours too.
+    const kolkata: Clock = { ...MOUNTAIN, offset: () => 330, zone: () => ({ name: 'Asia/Kolkata', short: 'GMT+5:30' }) };
+    expect(clockNote(kolkata, NOW)).toBe('All times are local, based on system clock setting: Asia/Kolkata (UTC+5:30).');
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {

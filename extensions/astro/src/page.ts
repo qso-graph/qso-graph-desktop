@@ -29,14 +29,36 @@ export interface Clock {
   // The time alone, and the date alone with its year, on this clock.
   time(at: Date): string;
   date(at: Date): string;
+  // The zone the system clock is set to, as the system names it
+  // (America/Denver), and its short name at a moment (MDT, MST, or an
+  // offset where the zone has no common short name).
+  zone(at: Date): { readonly name: string; readonly short: string };
 }
 
 export const localClock: Clock = {
   offset: at => -at.getTimezoneOffset(),
   text: at => `${at.getDate()} ${MONTHS[at.getMonth()]} ${two(at.getHours())}:${two(at.getMinutes())}`,
   time: at => `${two(at.getHours())}:${two(at.getMinutes())}`,
-  date: at => `${at.getDate()} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`
+  date: at => `${at.getDate()} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`,
+  zone: at => ({
+    name: Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC',
+    short: new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(at).find(part => part.type === 'timeZoneName')?.value ?? ''
+  })
 };
+
+// What the page says about its times: the zone the system clock is set to,
+// so "sunrise was two hours off" answers itself (KI7MT, 2026-10-23).
+export function clockNote(clock: Clock, at: Date): string {
+  const { name, short } = clock.zone(at);
+  if (name === 'UTC' || name === 'Etc/UTC') return 'All times are based on system clock setting: UTC.';
+  const minutes = clock.offset(at);
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const rest = Math.abs(minutes) % 60;
+  const offset = `UTC${minutes < 0 ? '−' : '+'}${hours}${rest ? `:${two(rest)}` : ''}`;
+  const plainShort = short.replace(/[<>]/g, '').slice(0, 12);
+  const said = plainShort && plainShort !== offset && !plainShort.startsWith('GMT') ? `${plainShort}, ${offset}` : offset;
+  return `All times are local, based on system clock setting: ${name.replace(/[<>]/g, '').slice(0, 60)} (${said}).`;
+}
 
 // The sun for today and the four days after it, on this computer's clock,
 // which is the operator's to set: local in Idaho, UTC in a shack kept on UTC
@@ -231,9 +253,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // The day's times under a heading of their own, set apart from the grey
     // line above (KI7MT, 2026-10-23). Not in the contents line, which lists
     // Sun, Twilight, Moon and Radio depths below it.
-    { shape: 'text', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: yourClock
-      ? 'All times are local, based on system clock setting.'
-      : 'All times are based on system clock setting, which is UTC.' },
+    { shape: 'text', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: clockNote(clock, now) },
     // The sun, five days of it, on this computer's clock (KI7MT, 2026-10-23).
     { shape: 'table', heading: 'Sun', columns: ['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day'], rows: sunWeek(now, latitude, longitude, clock) },
     // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).
