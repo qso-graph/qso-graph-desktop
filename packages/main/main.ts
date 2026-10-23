@@ -409,8 +409,8 @@ if (!app.requestSingleInstanceLock()) {
         setupItem('settings', 'Settings…')
       ] },
       { label: 'Tools', submenu: [
-        setupItem('export-callsigns', 'Export Callsigns…'),
-        setupItem('import-callsigns', 'Import Callsigns…')
+        setupItem('export-callsigns', 'Back Up Callsigns and Locations…'),
+        setupItem('import-callsigns', 'Restore Callsigns and Locations…')
       ] },
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button
