@@ -58,6 +58,11 @@ const shell = createShellStore();
 // Home's pins and the open page: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
 home.start();
+// Offline or online, as the operating system says, with no polling: the
+// events fire only when it changes (KI7MT, 2026-10-23).
+home.setConnection(navigator.onLine);
+window.addEventListener('online', () => home.setConnection(true));
+window.addEventListener('offline', () => home.setConnection(false));
 
 mount(Shell, {
   target: document.body,

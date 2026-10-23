@@ -21,6 +21,11 @@ export interface HomeBrokerOptions {
   enablement: Pick<Enablement, 'isOn' | 'onChange'>;
   onCallsignsChanged: (listener: () => void) => void;
   logDirectory?: string;
+  // Whether the computer is on a network at the start; the window says, from
+  // the operating system, at its start and whenever it changes. Electron's
+  // net module is not used here: the main process opens no connection of its
+  // own (QGD-CRD-0007), and its network gate holds it to that.
+  online?: boolean;
 }
 
 export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void } {
@@ -33,11 +38,15 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
       key: `${extension.manifest.id}/${page.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
       page: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
       icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true,
-      inputs: page.inputs ?? []
+      inputs: page.inputs ?? [],
+      network: extension.manifest.grants.some(grant => grant.startsWith('source:') || grant.startsWith('service:'))
     })));
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
   let open: string | null = null;
+  // On a network, as the operating system last said: the window tells
+  // (connection), at its start and on every change.
+  let online = options.online ?? true;
   // What is in the open page's fields, as checked (inputs.ts).
   let openInputs: Readonly<Record<string, string>> = {};
   const scheduler = createPageScheduler({
@@ -51,7 +60,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
         if (!window.isDestroyed()) window.webContents.send(HOME_CARD_CHANNEL, view);
       }
     },
-    now: () => Date.now()
+    now: () => Date.now(),
+    online: () => online
   });
   options.onCallsignsChanged(() => scheduler.callsignsChanged());
   // Turned off, its pages go and what they had in flight is cancelled; on
@@ -72,7 +82,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   const stopNotices = options.supervisor.onChange(pushNotice);
 
   const state = (): HomeState => ({
-    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs }) => ({ key, name, description, extensionName, icon, rail, inputs })),
+    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network }) => ({ key, name, description, extensionName, icon, rail, inputs, network })),
     pins: load().pins,
     pages: scheduler.views(),
     notice: notice()
@@ -122,6 +132,9 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
         scheduler.changed();
         return { ok: true, state: state() };
       }
+      case 'connection':
+        if (command.online !== online) { online = command.online; scheduler.connectionChanged(); }
+        return { ok: true, state: state() };
       case 'refresh':
         // Only the page on screen; any other key is answered with the state.
         if (command.key === open) scheduler.refreshNow(open);

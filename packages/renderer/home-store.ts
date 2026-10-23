@@ -34,11 +34,15 @@ export interface HomeModel {
   // The open page and what it last said, or null on Home.
   readonly page: {
     readonly key: string; readonly name: string; readonly shown: PageShown;
+    // Whether it needs the internet (an extension that may fetch).
+    readonly network: boolean;
     // The page's fields, and what was last asked with them.
     readonly inputs: AvailablePage['inputs']; readonly values: Readonly<Record<string, string>>;
   } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
+  // On a network, as the operating system says (KI7MT, 2026-10-23).
+  readonly online: boolean;
   readonly error?: string;
 }
 
@@ -51,7 +55,7 @@ export function shownOf(view: PageView): PageShown {
   return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections };
 }
 
-function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, error?: string): HomeModel {
+function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, online: boolean, error?: string): HomeModel {
   const offered = new Map(state.available.map(page => [page.key, page]));
   const opened = open === null ? undefined : offered.get(open);
   return {
@@ -64,9 +68,10 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
     railPages: state.available.filter(page => page.rail),
     page: opened ? {
       key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
-      inputs: opened.inputs, values
+      network: opened.network, inputs: opened.inputs, values
     } : null,
     notice,
+    online,
     ...(error ? { error } : {})
   };
 }
@@ -81,6 +86,9 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   // The extension page on screen, or null.
   let open: string | null = null;
   let values: Readonly<Record<string, string>> = {};
+  // As the operating system last said; told to the broker at the start and
+  // whenever it changes. Unknown until then, so the first reading is sent.
+  let online: boolean | undefined;
   // Pushes are numbered, so a snapshot read before a push cannot replace it.
   let pushes = 0;
   const pushedAt = new Map<string, number>();
@@ -90,7 +98,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   let notice: HostNotice | null = state.notice;
   let noticePushes = 0;
 
-  const current = () => model(state, views, notice, open, values, error);
+  const current = () => model(state, views, notice, open, values, online ?? true, error);
   const changed = () => { const value = current(); for (const listener of listeners) listener(value); };
 
   // `asked` is how many pushes had arrived when the request was sent: a page
@@ -161,6 +169,17 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       const asked = pushes;
       const askedNotice = noticePushes;
       void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));
+    },
+    // The operating system said the network went or came back (the window's
+    // online and offline events). Nothing is polled to learn it.
+    setConnection(next: boolean): void {
+      if (next === online) return;
+      online = next;
+      changed();
+      if (!api) return;
+      const asked = pushes;
+      const askedNotice = noticePushes;
+      void api.request({ type: 'connection', online: next }).then(reply => take(reply, 'Home could not be told the network changed.', asked, askedNotice), () => undefined);
     },
     // Ask the open page again now (Refresh).
     refreshPage(key: string): void {

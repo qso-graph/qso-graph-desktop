@@ -170,7 +170,8 @@
     <div class="page" hidden={shell.page !== 'extension'}>
       <ExtensionPage page={homeModel.page} extensionName={openExtension?.extensionName ?? ''}
         onAsk={values => { if (shell.extensionPage) home.openPage(shell.extensionPage, values); }}
-        onRefresh={() => { if (shell.extensionPage) home.refreshPage(shell.extensionPage); }} />
+        onRefresh={() => { if (shell.extensionPage) home.refreshPage(shell.extensionPage); }}
+        offline={!homeModel.online && homeModel.page?.network === true} />
     </div>
     <div class="page" hidden={shell.page !== 'callsigns'}>
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
@@ -238,6 +239,7 @@
 </div>
 <StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}
+           offline={!homeModel.online}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
 {#if shell.troubleshooting}
   <TroubleshootingPanel storage={shell.storage}

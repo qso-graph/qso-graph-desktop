@@ -293,6 +293,8 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .status-slot::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
 .status-slot[data-hue="callsigns"]::before { background: var(--hue-callsigns); }
 .status-slot[data-hue="locations"]::before { background: var(--hue-locations); }
+/* No network: said in the warning's amber, the word beside it. */
+.status-offline { color: var(--warn); }
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
@@ -486,6 +488,7 @@ dialog.pins h2 { margin: 0 0 6px; }
    of what follows (KI7MT, 2026-10-23). */
 .page-table tbody:has(.page-table-group) th[scope="row"] { padding-left: 16px; }
 .page-table td[colspan] { color: inherit; white-space: normal; }
+.page-offline { color: var(--warn); font-weight: 600; }
 .page-text { margin: 0 0 12px; color: var(--ink-muted); font-size: 13px; }
 /* The contents line at the top of a long page: text links, one per part. */
 .page-contents { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 14px; font-size: 13px; }

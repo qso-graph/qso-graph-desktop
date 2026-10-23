@@ -19,8 +19,11 @@
     onRefresh?: (() => void) | undefined;
     // The page's fields, drawn where a fields section places them.
     fields?: Snippet | undefined;
+    // The page needs the internet and the computer has none: what it shows
+    // is from before, and it says so.
+    offline?: boolean;
   }
-  const { shown, onRefresh, fields }: Props = $props();
+  const { shown, onRefresh, fields, offline = false }: Props = $props();
 
   // A group's place in the table as sent, which its contents link names,
   // whatever the filters leave of the table.
@@ -73,7 +76,7 @@
 
 <section class="card page-body" aria-busy={shown.state === 'waiting'}>
   {#if shown.state === 'ready'}
-    <p class="page-time" id="page-observed">Updated {utc(shown.observedAt)}
+    <p class="page-time" id="page-observed">{#if offline}<span class="page-offline">Offline.</span> Last updated{:else}Updated{/if} {utc(shown.observedAt)}
       {#if onRefresh}<button type="button" class="secondary" id="page-refresh" onclick={refresh} disabled={resting}>{resting ? 'Refreshed' : 'Refresh'}</button>{/if}
     </p>
   {/if}

@@ -23,8 +23,10 @@
     onAsk?: (values: Record<string, string>) => void;
     // Ask the page again now (Refresh).
     onRefresh?: () => void;
+    // The page needs the internet and the computer has none.
+    offline?: boolean;
   }
-  const { page, extensionName, onAsk = () => {}, onRefresh }: Props = $props();
+  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false }: Props = $props();
 
   // Why a field's value is refused, by its kind, said as it is typed.
   const REASON = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
@@ -98,7 +100,7 @@
     {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->
-    {#key page.key}<PageBody shown={page.shown} {onRefresh} fields={placed ? fieldsForm : undefined} />{/key}
+    {#key page.key}<PageBody shown={page.shown} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} />{/key}
     <!-- Placed by the page, and the page between answers: kept below what
          it says rather than jumping to the top and back. -->
     {#if placed && page.shown.state !== 'ready'}{@render fieldsForm()}{/if}

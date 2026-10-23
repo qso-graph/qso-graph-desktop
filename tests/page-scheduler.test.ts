@@ -10,9 +10,9 @@ import type { PageOutcome } from '../packages/main/extension-host-supervisor.js'
 const AT = '2026-10-11T18:00:00Z';
 const answer = (text: string): PageAnswer => ({ ok: true, data: { version: 1, observedAt: AT, sections: [{ shape: 'alert', level: 'info', text }] } });
 const CARDS: CataloguePage[] = [
-  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', page: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false, inputs: [] },
-  { key: 'air/station', extension: 'air', extensionName: 'On the Air', page: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [] },
-  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', page: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [] }
+  { key: 'air/conditions', extension: 'air', extensionName: 'On the Air', page: 'conditions', name: 'Conditions', description: 'Solar.', refreshSeconds: 900, icon: 'sun', rail: false, inputs: [], network: true },
+  { key: 'air/station', extension: 'air', extensionName: 'On the Air', page: 'station', name: 'Your station', description: 'Time.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [], network: true },
+  { key: 'air/spare', extension: 'air', extensionName: 'On the Air', page: 'spare', name: 'Spare', description: 'Unpinned.', refreshSeconds: 60, icon: 'extension', rail: false, inputs: [], network: true }
 ];
 
 function harness(options: { pins?: string[]; respond?: (page: string, signal: AbortSignal) => Promise<PageOutcome> } = {}) {
@@ -284,6 +284,70 @@ describe('Refresh: the operator asks the open page now (KI7MT, 2026-10-23)', () 
     scheduler.setVisible(false);
     await vi.advanceTimersByTimeAsync(REFRESH_FLOOR_MS);
     expect(scheduler.refreshNow('air/conditions')).toBe(false);
+    scheduler.stop();
+  });
+});
+
+describe('offline: an internet page asks nothing until the network is back (KI7MT, 2026-10-23)', () => {
+  function offlineHarness() {
+    let online = false;
+    const asked: string[] = [];
+    const published: PageView[] = [];
+    const scheduler = createPageScheduler({
+      catalogue: () => CARDS,
+      pins: () => ['air/conditions'],
+      page: (_extension, page) => { asked.push(page); return Promise.resolve({ outcome: 'completed', answer: answer(page) }); },
+      publish: view => published.push(view),
+      now: () => Date.now(),
+      online: () => online
+    });
+    return { scheduler, asked, published, setOnline: (next: boolean) => { online = next; scheduler.connectionChanged(); } };
+  }
+
+  it('asks nothing, leaves no timer running, and says why, while offline', async () => {
+    const { scheduler, asked, published } = offlineHarness();
+    scheduler.setVisible(true);
+    await flush();
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(asked).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(published.at(-1)).toEqual({ key: 'air/conditions', state: 'failed', reason: 'Offline. Conditions needs the internet.' });
+    expect(scheduler.refreshNow('air/conditions')).toBe(false);
+    scheduler.stop();
+  });
+
+  it('asks at once when the network comes back, and stops when it goes, keeping what it showed', async () => {
+    const { scheduler, asked, published, setOnline } = offlineHarness();
+    scheduler.setVisible(true);
+    await flush();
+    setOnline(true);
+    await flush();
+    expect(asked).toEqual(['conditions']);
+    setOnline(false);
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(asked).toEqual(['conditions']);
+    // What it showed is kept, not replaced by the offline sentence.
+    expect(published.at(-1)?.state).toBe('ready');
+    setOnline(true);
+    await flush();
+    expect(asked).toEqual(['conditions', 'conditions']);
+    scheduler.stop();
+  });
+
+  it('keeps asking a page that needs no internet', async () => {
+    let online = false;
+    const asked: string[] = [];
+    const scheduler = createPageScheduler({
+      catalogue: () => CARDS.map(card => ({ ...card, network: false })),
+      pins: () => ['air/station'],
+      page: (_extension, page) => { asked.push(page); return Promise.resolve({ outcome: 'completed', answer: answer(page) }); },
+      publish: () => undefined, now: () => Date.now(), online: () => online
+    });
+    scheduler.setVisible(true);
+    await flush();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(asked).toEqual(['station', 'station']);
+    online = true;
     scheduler.stop();
   });
 });

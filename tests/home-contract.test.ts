@@ -20,6 +20,7 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
     }
     expect(validateHomeCommand({ type: 'pin', pins: ['on-the-air/conditions'] })).toBe(true);
     expect(validateHomeCommand({ type: 'refresh', key: 'on-the-air/parks' })).toBe(true);
+    expect(validateHomeCommand({ type: 'connection', online: false })).toBe(true);
     // Eight pins: two rows of four (KI7MT, 2026-10-22).
     expect(validateHomeCommand({ type: 'pin', pins: Array.from({ length: 8 }, (_, i) => `a-x/c-${i}`) })).toBe(true);
   });
@@ -28,6 +29,7 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
     for (const bad of [
       { type: 'read', extra: 1 }, { type: 'open', key: '../x' }, { type: 'open' }, { type: 'open', key: 7 },
       { type: 'visible', visible: true },
+      { type: 'connection' }, { type: 'connection', online: 'no' }, { type: 'connection', online: true, url: 'x' },
       { type: 'refresh' }, { type: 'refresh', key: '../x' }, { type: 'refresh', key: 'on-the-air/parks', now: true },
       { type: 'pin', pins: Array.from({ length: 9 }, (_, i) => `a-x/c-${i}`) },
       { type: 'pin', pins: ['dup/page', 'dup/page'] }, { type: 'page', key: 'a/b' }, null, []
@@ -41,7 +43,7 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: 'on-the-air/conditions', state: 'waiting' })).toBe(true);
     expect(isPageView({ key: 'on-the-air/conditions', state: 'failed', reason: 'NOAA did not answer.' })).toBe(true);
     expect(isHomeReply({ ok: true, state: {
-      available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [] }],
+      available: [{ key: 'on-the-air/conditions', name: 'Conditions', description: 'Solar flux.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false }],
       pins: ['on-the-air/conditions'], pages: [READY], notice: null } })).toBe(true);
   });
 
@@ -52,13 +54,15 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: '../x', state: 'waiting' })).toBe(false);
     // A field's hint is one of the fields an input may have: leaving it out
     // of this check would refuse the whole of Home's state.
-    const hinted = (hint: unknown) => isHomeReply({ ok: true, state: { available: [{ key: 'astro/astro', name: 'Astro', description: 'd', extensionName: 'Astro', icon: 'moon', rail: true,
+    const hinted = (hint: unknown) => isHomeReply({ ok: true, state: { available: [{ key: 'astro/astro', name: 'Astro', description: 'd', extensionName: 'Astro', icon: 'moon', rail: true, network: false,
       inputs: [{ id: 'dx', label: 'Grey line with', kind: 'grid', hint }] }], pins: [], pages: [], notice: null } });
     expect(hinted('A DX station\'s grid, as IO91.')).toBe(true);
     expect(hinted('<b>x</b>')).toBe(false);
     expect(hinted('x'.repeat(81))).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
-    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
+    // Whether a page needs the internet is part of what a page is.
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [], network: false }], pins: [], pages: [], notice: null } })).toBe(false);
+    expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false, inputs: [], network: false }], pins: [], pages: [], notice: null } })).toBe(false);
     // One page open at most, so at most one view.
     expect(isHomeReply({ ok: true, state: { available: [], pins: [], pages: [READY, READY], notice: null } })).toBe(false);
     // Lists with gaps: every() would skip the holes and pass.

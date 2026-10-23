@@ -28,6 +28,9 @@ export interface CataloguePage {
   readonly icon: string;
   readonly rail: boolean;
   readonly inputs: readonly PageInput[];
+  // Whether it needs the internet: its extension may ask the core to fetch
+  // (a source: or service: grant). Asked for only while online.
+  readonly network: boolean;
 }
 
 export type { PageView } from './home-contract.js';
@@ -42,6 +45,9 @@ export interface PageSchedulerDeps {
   inputs?(key: string): Readonly<Record<string, string>>;
   publish(view: PageView): void;
   now(): number;
+  // Whether the computer is on a network, as the operating system says
+  // (KI7MT, 2026-10-23). Absent, online.
+  online?(): boolean;
 }
 
 interface Tracked {
@@ -96,6 +102,12 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     deps.publish(view);
   }
 
+  // A page that needs the internet, while the computer has none: asked
+  // nothing, and no timer is left running for it, so an offline laptop is not
+  // woken to try (KI7MT, 2026-10-23: low power off the grid). What it showed
+  // stays; with nothing to show, it says why.
+  const offline = (page: CataloguePage) => page.network && deps.online?.() === false;
+
   function schedule(page: CataloguePage): void {
     if (!visible || stopped) return;
     let entry = tracked.get(page.key);
@@ -106,6 +118,10 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       if (before) { kept.delete(page.key); publish(entry, before); }
     }
     if (entry.timer || entry.work) return;
+    if (offline(page)) {
+      if (!entry.view || entry.view.state === 'waiting') publish(entry, { key: page.key, state: 'failed', reason: `Offline. ${page.name} needs the internet.`.slice(0, 160) });
+      return;
+    }
     const last = lastAsked.get(page.key);
     const due = last === undefined ? 0 : last + page.refreshSeconds * 1000 - deps.now();
     if (due <= 0) void ask(page, entry);
@@ -114,6 +130,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
 
   async function ask(page: CataloguePage, entry: Tracked): Promise<void> {
     if (!visible || stopped || entry.work) return;
+    if (offline(page)) { schedule(page); return; }
     // Pinned still, and still offered: checked at the moment of asking.
     if (!shown().some(candidate => candidate.key === page.key)) return;
     const generation = entry.generation;
@@ -195,12 +212,29 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     refreshNow(key: string): boolean {
       const entry = tracked.get(key);
       const page = shown().find(candidate => candidate.key === key);
-      if (!entry || !page || !visible || stopped || entry.work) return false;
+      if (!entry || !page || !visible || stopped || entry.work || offline(page)) return false;
       const last = lastAsked.get(key);
       if (last !== undefined && deps.now() - last < REFRESH_FLOOR_MS) return false;
       if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
       void ask(page, entry);
       return true;
+    },
+    // The operating system said the network went or came back. Gone: what an
+    // internet page has in flight or waiting is stopped. Back: each is asked
+    // at once, since what it shows is from before.
+    connectionChanged(): void {
+      const pages = new Map(shown().map(page => [page.key, page]));
+      for (const [key, entry] of tracked) {
+        const page = pages.get(key);
+        if (!page?.network) continue;
+        if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
+        if (deps.online?.() === false) { entry.generation += 1; entry.work?.abort(); }
+        else {
+          lastAsked.delete(key);
+          if (entry.view?.state === 'failed') { publish(entry, { key, state: 'waiting' }); }
+        }
+      }
+      reconcile();
     },
     // What each shown page last said, for a screen that has just opened.
     views(): PageView[] {

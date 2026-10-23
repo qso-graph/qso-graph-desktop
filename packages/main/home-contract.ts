@@ -34,6 +34,8 @@ export interface AvailablePage {
   readonly rail: boolean;
   // The fields the page asks for, which the window draws (inputs.ts).
   readonly inputs: readonly PageInput[];
+  // Whether it needs the internet, so the window can say it is offline.
+  readonly network: boolean;
 }
 
 export type PageView =
@@ -58,7 +60,10 @@ export type HomeCommand =
   | { readonly type: 'dismiss'; readonly id: number }
   // Ask the open page again now (Refresh): the broker asks only for the page
   // that is open, and the scheduler only when nothing is in flight.
-  | { readonly type: 'refresh'; readonly key: string };
+  | { readonly type: 'refresh'; readonly key: string }
+  // The window's network went or came back, as the operating system says
+  // (its online and offline events): nothing is polled to find out.
+  | { readonly type: 'connection'; readonly online: boolean };
 
 export type HomeReply = { readonly ok: true; readonly state: HomeState } | { readonly ok: false; readonly error: string };
 
@@ -84,6 +89,7 @@ export function validateHomeCommand(value: unknown): value is HomeCommand {
     return shape && key && inputs;
   }
   if (value.type === 'pin') return exactly(value, ['type', 'pins']) && isPins(value.pins);
+  if (value.type === 'connection') return exactly(value, ['type', 'online']) && typeof value.online === 'boolean';
   if (value.type === 'refresh') return exactly(value, ['type', 'key']) && typeof value.key === 'string' && KEY.test(value.key);
   if (value.type === 'dismiss') return exactly(value, ['type', 'id']) && Number.isSafeInteger(value.id) && (value.id as number) > 0;
   return false;
@@ -125,7 +131,8 @@ function isInput(value: unknown): boolean {
 }
 
 function isAvailable(value: unknown): value is AvailablePage {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs'])
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network'])
+    && typeof value.network === 'boolean'
     && typeof value.key === 'string' && KEY.test(value.key)
     && plainText(value.name, 40) && plainText(value.description, 120) && plainText(value.extensionName, 64)
     && typeof value.icon === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.icon) && typeof value.rail === 'boolean'
