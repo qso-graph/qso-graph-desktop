@@ -111,3 +111,18 @@ describe('QG Storage\'s ADIF replies pass the main process\'s check', () => {
     expect(isStorageReply({ ok: true, status, adif: [{ list: 'Band', key: '20m', columns: [{ name: 'Band', value: 'x'.repeat(201) }] }] })).toBe(false);
   });
 });
+
+describe('an exact match is never cut by the search\'s own limit (Codex review, 2026-10-23)', () => {
+  it('finds Mode AM first, though 161 other values mention AM and come before it', async () => {
+    const store = await reference();
+    try {
+      await store.unit(async (db) => {
+        await db.insert(enumerationValue).values(Array.from({ length: 161 }, (_, i) => (
+          { enumeration: 'Mode', key: `X${i}`, value: { Mode: `X${i}`, Submodes: '', Description: 'Something AM-like' } }))).run();
+        await db.insert(enumerationValue).values([{ enumeration: 'Mode', key: 'AM', value: { Mode: 'AM', Submodes: '', Description: '' } }]).run();
+      });
+      const [first] = await searchAdif(store, 'AM');
+      expect(first).toMatchObject({ list: 'Mode', key: 'AM' });
+    } finally { store.close(); }
+  });
+});

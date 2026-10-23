@@ -35,14 +35,21 @@ export async function searchAdif(reference: Store<typeof referenceSchema>, query
   const prefix = `${escaped}%`;
   const within = `%${escaped}%`;
   return reference.unit(async (db) => {
+    // Ranked in the query, before its limit: an unordered limit could keep
+    // 160 entries that only mention the search and drop the one whose name
+    // it is (Codex review, 2026-10-23). Exact first, then by name, then the
+    // rest; LIKE is case-insensitive for ASCII, as ADIF's names are.
+    const exact = q.toUpperCase();
     const fields = await db.select().from(field)
       .where(or(sql`${field.name} LIKE ${prefix} ESCAPE '\\'`, sql`${field.description} LIKE ${within} ESCAPE '\\'`))
+      .orderBy(sql`CASE WHEN upper(${field.name}) = ${exact} THEN 0 WHEN ${field.name} LIKE ${prefix} ESCAPE '\\' THEN 1 ELSE 2 END`, field.name)
       .limit(ADIF_RESULTS).all();
     const values = await db.select().from(enumerationValue)
       .where(or(
         sql`${enumerationValue.key} LIKE ${prefix} ESCAPE '\\'`,
         sql`${enumerationValue.value} LIKE ${within} ESCAPE '\\'`
       ))
+      .orderBy(sql`CASE WHEN upper(${enumerationValue.key}) = ${exact} THEN 0 WHEN ${enumerationValue.key} LIKE ${prefix} ESCAPE '\\' THEN 1 ELSE 2 END`, enumerationValue.enumeration, enumerationValue.key)
       .limit(ADIF_RESULTS * 4).all();
     const upper = q.toUpperCase();
     const rank = (key: string) => (key.toUpperCase() === upper ? 0 : key.toUpperCase().startsWith(upper) ? 1 : 2);

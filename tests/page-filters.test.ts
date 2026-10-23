@@ -24,11 +24,11 @@ describe('a table\'s filters', () => {
   });
 
   it('leaves a group out when none of its rows match, and a spanning row out once anything is chosen', () => {
-    const grouped: Table = { shape: 'table', columns: ['Event', 'UTC', 'Your clock'], groups: [
+    const grouped: Table = { shape: 'table', columns: ['Event', 'UTC', 'Your clock'], filters: [{ column: 1, label: 'UTC' }], groups: [
       { heading: 'Sun', rows: [['Sunrise', '13:55', '07:55'], ['Length of day', '10 h 42 min']] },
       { heading: 'Moon', rows: [['Moonrise', '23:07', '17:07']] }
     ] };
-    expect(filteredGroups(grouped, { 1: '13:55' })).toEqual([{ heading: 'Sun', rows: [['Sunrise', '13:55', '07:55']] }]);
+    expect(filteredGroups(grouped, { 1: '13:55' })).toEqual([{ heading: 'Sun', at: 0, rows: [['Sunrise', '13:55', '07:55']] }]);
   });
 });
 
@@ -82,5 +82,23 @@ describe('the page\'s contents line (KI7MT, 2026-10-23)', () => {
   });
   it('gives a short page none', () => {
     expect(pageContents([note('One'), note('Two')])).toEqual([]);
+  });
+});
+
+describe('a choice the table no longer offers (Codex review, 2026-10-23)', () => {
+  it('is not applied: a refreshed table without that filter shows all its rows', () => {
+    const refreshed: Table = { shape: 'table', columns: ['Mode', 'Count'], rows: [['CW', '3'], ['SSB', '5']] };
+    // Column 0 was set to 20m while it was a Band filter; now it is Mode, unfiltered.
+    expect(filteredGroups(refreshed, { 0: '20m' })[0]!.rows).toHaveLength(2);
+  });
+});
+
+describe('groups that share a heading (Codex review, 2026-10-23)', () => {
+  it('keep their own places, so each contents link reaches its own group', () => {
+    const repeated: Table = { shape: 'table', columns: ['Event', 'Time'], groups: [
+      { heading: 'Repeated', rows: [['a', '1']] }, { heading: 'Repeated', rows: [['b', '2']] }, { heading: 'Other', rows: [['c', '3']] }
+    ] };
+    expect(filteredGroups(repeated, {}).map(group => group.at)).toEqual([0, 1, 2]);
+    expect(pageContents([repeated, repeated]).map(entry => entry.id)).toContain('page-part-0-1');
   });
 });

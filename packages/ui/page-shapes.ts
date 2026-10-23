@@ -58,9 +58,16 @@ export function filterOptions(section: Extract<Section, { shape: 'table' }>, fil
 // left empty is left out. A choice of '' is "All". A row that spans its
 // columns has no cell to match, so it is kept only while nothing is chosen.
 export function filteredGroups(section: Extract<Section, { shape: 'table' }>, chosen: Readonly<Record<number, string>>) {
-  const active = Object.entries(chosen).filter(([, value]) => value !== '');
-  if (active.length === 0) return tableGroups(section);
-  return tableGroups(section)
+  // Only a choice the table still offers: a refresh can bring a table whose
+  // columns or filters differ, and a choice left over from the old one would
+  // hide every row with no filter drawn to clear it (Codex review, 2026-10-23).
+  const offered = new Set((section.filters ?? []).map(filter => filter.column));
+  const active = Object.entries(chosen).filter(([column, value]) => value !== '' && offered.has(Number(column)));
+  // Each group keeps its place in the table as sent (`at`), which its
+  // contents link names: two groups may share a heading (Codex review).
+  const placed = tableGroups(section).map((group, at) => ({ ...group, at }));
+  if (active.length === 0) return placed;
+  return placed
     .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
       && active.every(([column, value]) => row[Number(column)] === value)) }))
     .filter(group => group.rows.length > 0);

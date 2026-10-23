@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { filterOptions, filteredGroups, pageContents, sortedGroups, utc, type PageShown, type Section, type TableSort } from './page-shapes.js';
+  import { filterOptions, filteredGroups, pageContents, sortedGroups, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
 
   interface Props {
@@ -24,11 +24,6 @@
     offline?: boolean;
   }
   const { shown, onRefresh, fields, offline = false }: Props = $props();
-
-  // A group's place in the table as sent, which its contents link names,
-  // whatever the filters leave of the table.
-  const tableGroupIndex = (section: Extract<Section, { shape: 'table' }>, group: { heading?: string }) =>
-    'groups' in section ? section.groups.findIndex(candidate => candidate.heading === group.heading) : 0;
 
   // What each table's filters are set to, by section and column; '' is All.
   // Kept across a refresh, so a band chosen stays chosen as spots update.
@@ -140,7 +135,7 @@
                its one value across the columns after the first (version 5). -->
           {#each groups as group, g (g)}
             <tbody>
-              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{tableGroupIndex(section, group)}" tabindex="-1"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
+              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
                 <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td colspan={row.length < section.columns.length ? section.columns.length - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
               {/each}
