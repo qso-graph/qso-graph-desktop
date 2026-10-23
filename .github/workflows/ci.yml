@@ -175,10 +175,18 @@ jobs:
   # and Bitwarden use, laid out as Oracle's WebLogic Remote Console is): a DMG
   # and a zip on macOS, an NSIS installer and a zip on Windows, an AppImage,
   # deb, rpm and zip on Linux. A zip is the portable build: unpack it and run
-  # it. Unsigned until signing is set up (QGD-SCP-0003). Kept for a week.
+  # it. Kept for a week.
+  #
+  # macOS builds of develop and main are signed with the project's Developer
+  # ID and notarized by Apple (KI7MT, 2026-10-23; QGD-SCP-0005). The secrets
+  # are in the macos-signing Environment, which releases them only to jobs on
+  # develop and main: never to a pull request, never to a fork. Everything
+  # else is unsigned, as before, and Windows stays unsigned until it has a
+  # certificate.
   package:
     name: package (${{ matrix.os }})
     needs: [check, window]
+    environment: ${{ (matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')) && 'macos-signing' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -243,7 +251,43 @@ jobs:
           stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
           npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${GITHUB_SHA::11}"
           node -p "require('./package.json').version"
-      - run: npm run installer
+      - name: Installers
+        if: ${{ !(matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')) }}
+        run: npm run installer
+      # Signed and notarized. The secrets reach this step and no other. The
+      # notarization key is written to the runner's temporary folder, which
+      # is removed with the runner, because electron-builder takes a path.
+      - name: Installers, signed and notarized (macOS)
+        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID; do
+            [ -n "${!name}" ] || { echo "The macos-signing Environment has no $name." >&2; exit 1; }
+          done
+          key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
+          chmod 600 "$key"
+          unset APPLE_API_KEY_P8
+          APPLE_API_KEY="$key" npm run installer -- -c.mac.identity="Greg Beam (${APPLE_TEAM_ID})"
+          rm -f "$key"
+      # What Gatekeeper will say: signed by the project, notarized, and the
+      # ticket stapled, so it opens offline on first launch too.
+      - name: Signature and notarization (macOS)
+        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+        run: |
+          set -euo pipefail
+          app=$(ls -d out/mac-arm64/*.app)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv --verbose=2 "$app" 2>&1 | grep -E '^(Authority|TeamIdentifier|Runtime)'
+          spctl --assess --type execute --verbose=2 "$app"
+          xcrun stapler validate "$app"
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
       - run: npm run verify -- --suites package-contents
@@ -293,7 +337,7 @@ jobs:
             echo "Built from develop at ${SHA}: version ${version}."
             echo
             echo "A preview to test, not a release (docs/RELEASES.md). Each green build of develop replaces it."
-            echo "Unsigned for now, so Windows SmartScreen and macOS Gatekeeper warn the first time it runs."
+            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
             echo
             echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
             echo "Check a download against **SHA256SUMS.txt**."
@@ -354,7 +398,7 @@ jobs:
             echo "---"
             echo
             echo "A pre-release: the final ${version}, out for testing before it is marked Latest."
-            echo "Unsigned for now, so Windows SmartScreen and macOS Gatekeeper warn the first time it runs."
+            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
             echo
             echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
             echo "Check a download against **SHA256SUMS.txt**."

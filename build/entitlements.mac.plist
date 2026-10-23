@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  SPDX-License-Identifier: GPL-3.0-only
+  The hardened runtime's exceptions for the signed macOS build (docs/RELEASES.md,
+  Signing). One: V8 compiles JavaScript as it runs, which needs JIT memory.
+  Nothing else is asked for. Library validation stays on, because the
+  credential core and every other native library in the bundle are signed by
+  the same team as the application. No unsigned executable memory, no DYLD
+  environment variables, no debugger attach.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+</dict>
+</plist>

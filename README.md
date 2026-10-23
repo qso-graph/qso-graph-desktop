@@ -22,8 +22,9 @@ radio extensions build on.** One app for your station, with the tools you choose
 **Where:** the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). Until the
 first release, the **Preview** there is the newest build of `develop`, replaced each time one passes
 its tests: every installer is its own download, each `.zip` is a portable build you unpack and run,
-and `SHA256SUMS.txt` lets you check a download. It is a preview to test, not a release, and is
-unsigned for now, so Windows and macOS warn the first time it runs. How versions and releases are
+and `SHA256SUMS.txt` lets you check a download. It is a preview to test, not a release. The macOS
+build is signed and notarized by Apple, so it opens like any other app; Windows is unsigned for now,
+so SmartScreen warns the first time it runs. How versions and releases are
 named: [docs/RELEASES.md](docs/RELEASES.md).
 
 Your callsigns, logins and logs stay on your computer. There's no account to make and no server of
@@ -34,9 +35,8 @@ extension API anyone can build on, and you choose which ones run. Today the appl
 own official extensions; extensions by other authors arrive once the sandbox they run in is
 finished. Want to write one? See [CONTRIBUTING.md](CONTRIBUTING.md#writing-an-extension).
 
-> **Preview:** until Release 1, the downloads are the unsigned installers each CI run produces. Open
-> the latest run of the `ci` workflow on the Actions tab and download the one for your system.
-> Signed releases will appear on the Releases page.
+> **Preview:** until Release 1, the download is the **Preview** on the Releases page, rebuilt from
+> each build of `develop` that passes its tests.
 
 The core gives every extension, for free:
 
@@ -50,8 +50,8 @@ open-source practice.
 
 **Status:** a preview. macOS on Apple silicon is the primary platform, and every change is also
 built and tested on Windows and on Linux, x64 and arm64 (a Raspberry Pi 5 is the floor,
-`QGD-SCP-0009`). Each CI run carries unsigned installers to try: a DMG, a Windows installer, and an
-AppImage, `.deb` and `.rpm`. Create or edit callsigns, select the active callsign, and save
+`QGD-SCP-0009`). The Preview carries an installer for each to try: a Windows installer, an AppImage,
+`.deb` and `.rpm`, and a signed, notarized DMG. Create or edit callsigns, select the active callsign, and save
 or remove service credentials in the system's own store: Keychain on macOS, Credential Manager on
 Windows, the keyring on Linux. Saved passwords and API keys are never displayed.
 Remove password and API key independently, choose which to prefer, or remove a

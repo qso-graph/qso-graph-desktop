@@ -128,10 +128,22 @@ does.
 
 ## Signing
 
-Builds are **unsigned** until the Apple Developer ID and a Windows
-code-signing certificate are in place. Until then Windows SmartScreen and macOS
-Gatekeeper warn the first time it runs, and every release's notes say so.
-Signing will change nothing above but the warning.
+**macOS builds are signed and notarized** (KI7MT, 2026-10-23). Every macOS
+build of develop and main is signed with the project's Apple Developer ID,
+"Developer ID Application: Greg Beam (DP5KUCDR7L)", under the hardened
+runtime with one exception (JIT, which V8 needs: `build/entitlements.mac.plist`),
+notarized by Apple, and the ticket stapled, so Gatekeeper opens it on first
+launch, offline too. CI checks all three before the files are kept.
+
+- The certificate, its password and the notarization key are secrets in the
+  repository's **macos-signing** Environment, released only to jobs on develop
+  and main: never to a pull request, never to a fork. Only the macOS packaging
+  step reads them. They are KI7MT's; no agent holds or sees them.
+- A pull request's macOS build, and any build made locally, is unsigned, as
+  before.
+- **Windows is unsigned** until it has a certificate, so SmartScreen warns the
+  first time it runs, and every release's notes say so. Linux packages are
+  unsigned too.
 
 ## Updates
 
