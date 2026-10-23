@@ -141,6 +141,9 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%` }
     ] },
     map,
+    // The DX field here, under the map, with its answer just below it
+    // (KI7MT, 2026-10-23: above the map, it seemed to do nothing).
+    { shape: 'fields' },
     ...greyLineSection,
     { shape: 'alert', level: 'info', text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'

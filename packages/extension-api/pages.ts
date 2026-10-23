@@ -37,7 +37,9 @@
 // has the map and works out the night itself, so no extension draws a picture.
 // It also let a table name up to three of its columns as filters, which the
 // core draws as choices above it and applies at once, with no new question
-// (KI7MT, 2026-10-23: Parks On the Air's band and mode), and say it may be
+// (KI7MT, 2026-10-23: Parks On the Air's band and mode), mark where on the
+// page the core draws the page's fields, so an answer can sit just under the
+// question (Astro's grey line, below its map), and say it may be
 // sorted by any column, which the core does in the window when a heading is
 // clicked: a column with a filter's options sorts in their order.
 export const PAGE_DATA_VERSION = 6;
@@ -99,6 +101,9 @@ export type Section = (
   // overhead, and a twilight band from the horizon down to a depth, as the
   // grey line: the extension says which depth it means.
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
+  // Where the core draws the page's own fields (its manifest's inputs), once
+  // at most; without it they are at the top. Version 6.
+  | { readonly shape: 'fields' }
 ) & { readonly heading?: string };
 
 export type Row = readonly string[];
@@ -360,6 +365,11 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     });
     return { shape: 'table', columns, groups, ...withFilters };
   }
+  if (value.shape === 'fields') {
+    if (version < 6) throw new PageError(`${where} places the page's fields, which page data version ${version} does not have.`);
+    only(value, ['shape'], where);
+    return { shape: 'fields' };
+  }
   if (value.shape === 'map') {
     if (version < 6) throw new PageError(`${where} is a map, which page data version ${version} does not have.`);
     only(value, ['shape', 'sun', 'moon', 'twilight', 'marks'], where);
@@ -387,7 +397,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
       marks
     };
   }
-  throw new PageError(`${where} is not a figures, items, alert, table or map section.`);
+  throw new PageError(`${where} is not a figures, items, alert, table, map or fields section.`);
 }
 
 // The whole answer, checked before anything of it is drawn. Refused rather
@@ -413,8 +423,7 @@ export function validatePageAnswer(value: unknown): PageAnswer {
   if (!Array.isArray(data.sections) || data.sections.length === 0 || data.sections.length > PAGE_LIMITS.sections) {
     throw new PageError(`Page data has no sections, or more than ${PAGE_LIMITS.sections}.`);
   }
-  return {
-    ok: true,
-    data: { version, observedAt: data.observedAt, sections: each(data.sections, 'Page data', (entry, i) => section(entry, i, version)) }
-  };
+  const sections = each(data.sections, 'Page data', (entry, i) => section(entry, i, version));
+  if (sections.filter(entry => entry.shape === 'fields').length > 1) throw new PageError('Page data places the page\'s fields more than once.');
+  return { ok: true, data: { version, observedAt: data.observedAt, sections } };
 }

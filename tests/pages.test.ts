@@ -31,7 +31,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { colour: 'red' }))).toThrowError(/"colour"/);
     expect(() => validatePageAnswer(answer([{ ...FIGURES, style: 'big' }]))).toThrowError(/"style"/);
     expect(() => validatePageAnswer(answer([{ shape: 'figures', figures: [{ label: 'K', value: 2 }] }]))).toThrowError(/value is not text/);
-    expect(() => validatePageAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert, table or map section/);
+    expect(() => validatePageAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert, table, map or fields section/);
     expect(() => validatePageAnswer(answer([{ ...ALERT, level: 'panic' }]))).toThrowError(/no level of info, warning or severe/);
     expect(() => validatePageAnswer({ ok: 'yes', data: {} })).toThrowError(/neither ok nor not/);
   });
@@ -242,5 +242,16 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     [[{ column: 1, label: 'Band', default: '20m' }], /"default"/]
   ])('refuses an off-shape filter (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [{ ...table, filters: value }]))).toThrowError(message);
+  });
+});
+
+describe('where a page\'s fields go, page data version 6 (KI7MT, 2026-10-23)', () => {
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+  const note = { shape: 'alert', level: 'info', text: 'x' };
+  it('places them once, in version 6 data, and nowhere else', () => {
+    expect(validatePageAnswer(v(6, [note, { shape: 'fields' }, note]))).toEqual(v(6, [note, { shape: 'fields' }, note]));
+    expect(() => validatePageAnswer(v(5, [{ shape: 'fields' }]))).toThrowError(/version 5 does not have/);
+    expect(() => validatePageAnswer(v(6, [{ shape: 'fields' }, { shape: 'fields' }]))).toThrowError(/more than once/);
+    expect(() => validatePageAnswer(v(6, [{ shape: 'fields', inputs: [] }]))).toThrowError(/"inputs"/);
   });
 });

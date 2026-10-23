@@ -9,6 +9,7 @@
   the application, and no extension code runs in the window.
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { filterOptions, filteredGroups, sortedGroups, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
 
@@ -16,8 +17,10 @@
     shown: PageShown;
     // Ask the page again now; absent, no Refresh is drawn.
     onRefresh?: (() => void) | undefined;
+    // The page's fields, drawn where a fields section places them.
+    fields?: Snippet | undefined;
   }
-  const { shown, onRefresh }: Props = $props();
+  const { shown, onRefresh, fields }: Props = $props();
 
   // What each table's filters are set to, by section and column; '' is All.
   // Kept across a refresh, so a band chosen stays chosen as spots update.
@@ -119,6 +122,8 @@
             </tbody>
           {/each}
         </table>
+      {:else if section.shape === 'fields'}
+        {@render fields?.()}
       {:else if section.shape === 'map'}
         <WorldMap sun={section.sun} moon={section.moon} twilight={section.twilight} marks={section.marks} />
       {:else}

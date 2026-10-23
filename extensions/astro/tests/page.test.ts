@@ -63,13 +63,14 @@ describe('Astro\'s page', () => {
     if (!grey || grey.shape !== 'table') throw new Error('no grey line');
     expect(grey.rows.map(row => row[0])).toEqual(expect.arrayContaining(['D and E layers (−10.1°)', 'F2 layer (−17.2°)']));
     expect(grey.rows.some(row => /UTC|\d\d:\d\d/.test(row[1]))).toBe(true);
-    // Under the map, below the field it answers.
-    expect(found[2]).toBe(grey);
+    // Under the map, just below the field it answers.
+    expect(found[2]).toEqual({ shape: 'fields' });
+    expect(found[3]).toBe(grey);
   });
 
   it('says in words when the two ends share no twilight, rather than two empty rows', () => {
     const found = sections(astroPage(BOISE, new Date('2026-10-22T00:00:00Z'), { dx: 'IO91' }, UTC_CLOCK));
-    expect(found[2]).toEqual({
+    expect(found[3]).toEqual({
       shape: 'alert', level: 'info', heading: 'Grey line with IO91, the next 24 hours',
       text: 'Home and IO91 are not in twilight at the same time in the next 24 hours.'
     });

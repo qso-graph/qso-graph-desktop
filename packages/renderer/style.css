@@ -373,6 +373,9 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .page-inputs { max-width: 1088px; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 /* Show beside the box, level with it: below the label's line and its gap. */
 .page-inputs > button { margin-top: 22px; }
+/* Placed inside the page by its data, the fields are part of that card, not
+   a card of their own within it. */
+.page-body .page-inputs { border: 0; padding: 0; margin: 4px 0 8px; background: none; box-shadow: none; }
 /* A field as wide as what it takes, with Show beside it rather than across
    the page (KI7MT, 2026-10-23): a grid is at most eight characters. */
 .page-inputs .fields { flex: 0 1 auto; display: flex; flex-wrap: wrap; gap: 16px; }

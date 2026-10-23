@@ -46,6 +46,17 @@
   })));
   const ready = $derived(Object.values(problems).every(problem => problem === ''));
 
+  // Whether this page places its own fields: from its data when it has
+  // some, and remembered while it is between answers.
+  let placedBy = $state<Record<string, boolean>>({});
+  $effect(() => {
+    if (page?.shown.state === 'ready') {
+      const places = page.shown.sections.some(section => section.shape === 'fields');
+      if (placedBy[page.key] !== places) placedBy = { ...placedBy, [page.key]: places };
+    }
+  });
+  const placed = $derived(page ? placedBy[page.key] ?? false : false);
+
   function ask(event: SubmitEvent): void {
     event.preventDefault();
     if (!page || !ready) return;
@@ -58,28 +69,38 @@
   }
 </script>
 
+<!-- The page's fields, drawn by the core: at the top, or where the page's
+     own data places them (a fields section), so an answer can sit just under
+     its question (KI7MT, 2026-10-23: Astro's grey line, below its map). -->
+{#snippet fieldsForm()}
+  {#if page && page.inputs.length > 0}
+    <form class="card page-inputs" id="page-inputs" onsubmit={ask}>
+      <div class="fields">
+        {#each page.inputs as input (input.id)}
+          <label>
+            {input.label}
+            <input id="page-input-{input.id}" class="page-input-{input.kind}" bind:value={typed[input.id]} autocomplete="off"
+              maxlength={input.kind === 'text' ? (input.max ?? 64) : 32}
+              aria-invalid={problems[input.id] ? 'true' : undefined}
+              aria-describedby={problems[input.id] ? `page-input-${input.id}-problem` : (input.hint ?? HINT[input.kind]) ? `page-input-${input.id}-hint` : undefined} />
+            {#if problems[input.id]}<span class="field-error page-input-note" id="page-input-{input.id}-problem">{problems[input.id]}</span>
+            {:else if input.hint ?? HINT[input.kind]}<span class="page-input-hint page-input-note" id="page-input-{input.id}-hint">{input.hint ?? HINT[input.kind]}</span>{/if}
+          </label>
+        {/each}
+      </div>
+      <button type="submit" id="page-ask" disabled={!ready}>Show</button>
+    </form>
+  {/if}
+{/snippet}
+
 {#if page}
   <PageLayout title={page.name} eyebrow={extensionName.toUpperCase()} width="full">
-    {#if page.inputs.length > 0}
-      <form class="card page-inputs" id="page-inputs" onsubmit={ask}>
-        <div class="fields">
-          {#each page.inputs as input (input.id)}
-            <label>
-              {input.label}
-              <input id="page-input-{input.id}" class="page-input-{input.kind}" bind:value={typed[input.id]} autocomplete="off"
-                maxlength={input.kind === 'text' ? (input.max ?? 64) : 32}
-                aria-invalid={problems[input.id] ? 'true' : undefined}
-                aria-describedby={problems[input.id] ? `page-input-${input.id}-problem` : (input.hint ?? HINT[input.kind]) ? `page-input-${input.id}-hint` : undefined} />
-              {#if problems[input.id]}<span class="field-error page-input-note" id="page-input-{input.id}-problem">{problems[input.id]}</span>
-              {:else if input.hint ?? HINT[input.kind]}<span class="page-input-hint page-input-note" id="page-input-{input.id}-hint">{input.hint ?? HINT[input.kind]}</span>{/if}
-            </label>
-          {/each}
-        </div>
-        <button type="submit" id="page-ask" disabled={!ready}>Show</button>
-      </form>
-    {/if}
+    {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->
-    {#key page.key}<PageBody shown={page.shown} {onRefresh} />{/key}
+    {#key page.key}<PageBody shown={page.shown} {onRefresh} fields={placed ? fieldsForm : undefined} />{/key}
+    <!-- Placed by the page, and the page between answers: kept below what
+         it says rather than jumping to the top and back. -->
+    {#if placed && page.shown.state !== 'ready'}{@render fieldsForm()}{/if}
   </PageLayout>
 {/if}

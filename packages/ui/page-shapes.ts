@@ -16,6 +16,8 @@ export type Section = (
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
   // The world with the night greyed out, and places marked (version 6).
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
+  // Where the page's own fields are drawn (version 6).
+  | { readonly shape: 'fields' }
 ) & { readonly heading?: string };
 export interface Place { readonly latitude: number; readonly longitude: number }
 export interface Mark extends Place { readonly label: string }
