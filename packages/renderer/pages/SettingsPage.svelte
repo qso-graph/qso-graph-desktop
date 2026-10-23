@@ -43,6 +43,8 @@
   held (QGD-HOM-0007). Grants are not shown here (QGD-APP-0012.1).
 -->
 <script lang="ts">
+  import MoveCallsignsPage from './MoveCallsignsPage.svelte';
+  import type { ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import ThemeChoice from '../../ui/ThemeChoice.svelte';
   import type { ThemeChoice as Choice } from '../../main/settings-contract.js';
@@ -70,11 +72,19 @@
     // Opens one of Help's windows (QGD-FRM-0015).
     // Opens one of the project's documents in the browser (QGD-FRM-0015).
     onOpenDocument?: (name: DocumentName) => void;
+    // Back up and restore (KI7MT, 2026-10-23: a housekeeping action, in
+    // Settings and Tools, not a destination of its own).
+    onBackup?: () => Promise<ExportResult | string>;
+    onInspectBackup?: () => Promise<ImportPreview | string>;
+    onRestore?: (replace: boolean) => Promise<ImportResult | string>;
   }
   const {
     version = '', themeChoice, onChooseTheme, extensions, refusedExtensions = [], onSetExtension = () => Promise.resolve(false),
     storage, onUpdateReference = () => Promise.resolve('The update could not be started.'),
-    onOpenDocument = () => {}
+    onOpenDocument = () => {},
+    onBackup = () => Promise.resolve('Backing up is not available here.'),
+    onInspectBackup = () => Promise.resolve('Restoring is not available here.'),
+    onRestore = () => Promise.resolve('Restoring is not available here.')
   }: Props = $props();
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
@@ -227,4 +237,6 @@
       </ul>
     {/if}
   </section>
+
+  <MoveCallsignsPage onExport={onBackup} onInspect={onInspectBackup} onImport={onRestore} />
 </PageLayout>

@@ -306,16 +306,16 @@ try {
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById('setup-iota')?.enabled),
     'IOTA is named and greyed out until it exists').toBe(false);
   console.log('Setup menu: Callsigns, Locations and Customize your pins opened, IOTA shown greyed out: PASS');
-  // Tools (KI7MT, 2026-10-23): moving callsigns, from the menu, lands in the
-  // Move section with the cursor in its passphrase.
+  // Tools (KI7MT, 2026-10-23): Back Up and Restore, from the menu, land in
+  // Settings' Back up and restore at the button each needs.
   await setup('setup-export-callsigns');
-  await expect(page.locator('#export-passphrase')).toBeFocused({ timeout: 10_000 });
+  await expect(page.locator('#backup-export')).toBeFocused({ timeout: 10_000 });
   await setup('setup-import-callsigns');
-  await expect(page.locator('#import-passphrase')).toBeFocused({ timeout: 10_000 });
+  await expect(page.locator('#backup-import')).toBeFocused({ timeout: 10_000 });
   // No Window menu: the title bar has Minimize and Close (KI7MT, 2026-10-23).
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(item => item.label)))
     .toEqual(process.platform === 'darwin' ? ['QSO Graph Desktop', 'Edit', 'Setup', 'Tools', 'Help'] : ['File', 'Edit', 'Setup', 'Tools', 'Help']);
-  console.log('Tools menu: Export and Import Callsigns land in the Move section; the menu bar has no Window menu: PASS');
+  console.log('Tools menu: Back Up and Restore land in Settings at their buttons; the menu bar has no Window menu: PASS');
   console.log('P8-built-in: Conditions is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
   console.error('P8 Home pins suite failed.');

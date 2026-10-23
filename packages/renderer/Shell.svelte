@@ -239,7 +239,7 @@
           </section>
         {/if}
         <div class="page-row">
-          <CallsignsPage {onExportCallsigns} {onInspectImport} {onApplyImport} />
+          <CallsignsPage />
         </div>
       </div>
     </div>
@@ -267,7 +267,8 @@
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
-      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })} />
+      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
+        onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport} />
     </div>
   </main>
 </div>

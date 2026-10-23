@@ -786,10 +786,10 @@ window.menu?.onSetup?.(action => {
   }
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
-  // Tools (KI7MT, 2026-10-23): the Callsigns page's Move section, at the
-  // button the step needs.
+  // Tools (KI7MT, 2026-10-23): Settings' Back up and restore, at the button
+  // the step needs.
   else if (action === 'export-callsigns' || action === 'import-callsigns') {
-    shell.set({ page: 'callsigns', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null });
     const field = action === 'export-callsigns' ? 'backup-export' : 'backup-import';
     requestAnimationFrame(() => {
       const input = document.getElementById(field);

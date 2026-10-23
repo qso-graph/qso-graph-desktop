@@ -75,9 +75,10 @@
 </script>
 
 <section class="card" aria-labelledby="move-title">
-  <h2 id="move-title">Move callsigns and Locations to another computer</h2>
+  <h2 id="move-title">Back up and restore</h2>
   <p class="hint">
-    One file holding your callsigns, the services each one uses, and your
+    Move your callsigns and Locations to another computer, or keep a copy:
+    one file holding your callsigns, the services each one uses, and your
     Locations, all of it public. Logins are not in it: enter them again on the
     other computer. Location notes stay on this one. Nothing is sent anywhere:
     the file goes where you choose.

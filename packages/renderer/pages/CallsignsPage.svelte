@@ -21,22 +21,12 @@
 -->
 <script lang="ts">
   import { caseAsTyped } from '../../ui/typed-case.js';
-  // The only props are the three the move card needs, passed straight through.
-  // app.ts still owns everything else on this screen and finds its elements by
-  // id, by design.
-  import MoveCallsignsPage from './MoveCallsignsPage.svelte';
-  import type { ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
+  // app.ts owns this screen and finds its elements by id, by design. The
+  // backup that was here is in Settings (KI7MT, 2026-10-23).
   import { credentialStoreTitle, findInStore, forStore } from '../../callsigns/credential-store.js';
   // The store this platform has; the preload says which. A gallery story has
   // no preload, and shows macOS.
   const platform = (globalThis as { callsigns?: { platform?: string } }).callsigns?.platform ?? 'darwin';
-
-  interface Props {
-    onExportCallsigns: () => Promise<ExportResult | string>;
-    onInspectImport: () => Promise<ImportPreview | string>;
-    onApplyImport: (replace: boolean) => Promise<ImportResult | string>;
-  }
-  const { onExportCallsigns, onInspectImport, onApplyImport }: Props = $props();
 </script>
 
 <aside aria-label="Callsigns">
@@ -79,5 +69,4 @@
       <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">{forStore('Save in Keychain', platform)}</button></div>
     </form>
   </section>
-  <MoveCallsignsPage onExport={onExportCallsigns} onInspect={onInspectImport} onImport={onApplyImport} />
 </div>
