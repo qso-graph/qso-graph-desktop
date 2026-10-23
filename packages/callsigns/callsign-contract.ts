@@ -9,7 +9,9 @@ export interface Callsign {
   description: string;
   start?: string | null;
   end?: string | null;
-  providers: Record<string, { username: string }>;
+  // Which services it uses: whether a username and a secret are saved, never
+  // what (KI7MT, 2026-10-23).
+  providers: Record<string, { hasUsername: boolean; hasPassword: boolean; hasApiKey: boolean; savedAt?: string | null }>;
 }
 // `active` is the active callsign's id.
 export interface Snapshot { callsigns: Callsign[]; active: string | null }

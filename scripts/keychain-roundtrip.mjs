@@ -91,14 +91,18 @@ try {
   // information — and must not decrypt the entry to find out.
   {
     const before = JSON.parse(await readFile(join(directory, 'callsigns.json'), 'utf8'));
-    const reference = before.callsigns[id].providers[provider];
-    before.callsigns[id].providers[provider] = { username: reference.username };
+    // As an earlier build wrote it: the username itself in the file.
+    before.callsigns[id].providers[provider] = { username: 'W1AW' };
     await writeFile(join(directory, 'callsigns.json'), JSON.stringify(before, null, 2));
 
     const legacy = core.credentialStatus(id, provider);
     check(legacy.stored, 'A legacy entry is still reported as stored');
     check(!legacy.kindsKnown, 'A legacy entry reports that its kinds are unknown');
     check(!legacy.hasPassword && !legacy.hasApiKey, 'A legacy entry claims neither kind');
+    // And the username is gone from the file, kept only as "a username is
+    // saved" (KI7MT, 2026-10-23: nothing that is not public on disk).
+    check(legacy.hasUsername, 'A legacy entry still says a username is saved');
+    check(!(await readFile(join(directory, 'callsigns.json'), 'utf8')).includes('"username"'), 'No username is left in the file');
 
     // And it repairs itself the first time something with a reason to decrypt
     // it does. Nothing decrypts anything in order to repair it.

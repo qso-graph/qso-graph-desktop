@@ -11,8 +11,13 @@
 // between the renderer and the broker; this is the contract between the broker's
 // utility process and the addon. They look alike today and are free to differ.
 
+// Which services a callsign uses, and what is saved for each: whether, never
+// what (a username can be an email address, and lives in the Keychain).
 export interface NativeProviderRef {
-  username: string;
+  hasUsername: boolean;
+  hasPassword: boolean;
+  hasApiKey: boolean;
+  savedAt?: string | null;
 }
 
 // One of the operator's callsigns. `id` is permanent; the call and the

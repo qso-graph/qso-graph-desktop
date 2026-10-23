@@ -61,7 +61,13 @@ pub struct LookupResult {
 #[derive(Default, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
 pub struct ProviderRef {
-    pub username: String,
+    // Whether a username is saved, never the username (KI7MT, 2026-10-23:
+    // "we don't store anything that's not publicly available"): a username
+    // can be an email address, and it lives in the Keychain entry with the
+    // secret. An index an earlier build wrote held the username itself; it is
+    // read as having one, and the file is written again without it (load).
+    #[serde(default)]
+    pub has_username: bool,
     // QGD-CRD-0010: what is stored, without reading what is stored.
     //
     // Which kinds of secret an entry holds is not itself a secret, and it is
@@ -232,7 +238,31 @@ impl Store {
     fn load(&self) -> CoreResult<Index> {
         let path = self.directory.join("callsigns.json");
         match fs::read(path) {
-            Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes).map_err(|_| "The list of callsigns could not be read. It has not been changed."),
+            Ok(bytes) if bytes.len() <= 4_000_000 => {
+                let index: Index = serde_json::from_slice(&bytes).map_err(|_| "The list of callsigns could not be read. It has not been changed.")?;
+                // An earlier build kept each service's username in this file.
+                // Read again, it is gone, with only whether there was one
+                // kept: the file is written again at once so it is not left.
+                if let Ok(raw) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                    let mut index = index;
+                    let mut scrubbed = false;
+                    if let Some(callsigns) = raw.get("callsigns").and_then(|value| value.as_object()) {
+                        for (id, callsign) in callsigns {
+                            let Some(providers) = callsign.get("providers").and_then(|value| value.as_object()) else { continue; };
+                            for (provider, reference) in providers {
+                                let Some(name) = reference.get("username").and_then(|value| value.as_str()) else { continue; };
+                                scrubbed = true;
+                                if let Some(entry) = index.callsigns.get_mut(id).and_then(|c| c.providers.get_mut(provider)) {
+                                    entry.has_username = entry.has_username || !name.is_empty();
+                                }
+                            }
+                        }
+                    }
+                    if scrubbed { self.save(&index)?; }
+                    return Ok(index);
+                }
+                Ok(index)
+            }
             Ok(_) => Err("The list of callsigns is larger than this version supports."),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Index::default()),
             Err(_) => Err("The list of callsigns could not be read. It has not been changed."),
@@ -348,7 +378,7 @@ impl Store {
         let mut index = self.load()?;
         let profile = index.callsigns.get_mut(&id).ok_or("Callsign not found.")?;
         let reference = profile.providers.entry(provider).or_insert_with(ProviderRef::default);
-        reference.username = creds.username.clone().unwrap_or_default();
+        reference.has_username = creds.username.as_ref().is_some_and(|s| !s.is_empty());
         reference.has_password = creds.password.as_ref().is_some_and(|s| !s.is_empty());
         reference.has_api_key = creds.api_key.as_ref().is_some_and(|s| !s.is_empty());
         reference.saved_at = Some(now_utc());
@@ -443,8 +473,8 @@ impl Store {
 
     // ---- moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011) -
 
-    // Everything an export carries: the callsigns, each service each one uses
-    // with its username, the preferences, and the Locations it is handed. No
+    // Everything an export carries: the callsigns, which services each one
+    // uses, the preferences, and the Locations it is handed. No username and no
     // secret (KI7MT, 2026-10-23: "the Callsigns and Locations are what we can
     // manage. Users still manage their credentials"): nothing here reads the
     // Keychain, and a service's record goes as having no secret saved, which
@@ -454,6 +484,7 @@ impl Store {
         let preferences = self.preferences()?.callsigns;
         let callsigns = index.callsigns.into_values().map(|mut callsign| {
             for reference in callsign.providers.values_mut() {
+                reference.has_username = false;
                 reference.has_password = false;
                 reference.has_api_key = false;
                 reference.saved_at = None;
@@ -510,6 +541,7 @@ impl Store {
             let mut callsign = callsign.clone();
             // No secret arrives, so none is said to be saved.
             for reference in callsign.providers.values_mut() {
+                reference.has_username = false;
                 reference.has_password = false;
                 reference.has_api_key = false;
                 reference.saved_at = None;
@@ -640,7 +672,7 @@ impl Store {
             testable: validation::supported(&provider),
             stored: exists,
             kinds_known: !exists || known,
-            has_username: exists && reference.as_ref().is_some_and(|r| !r.username.is_empty()),
+            has_username: exists && reference.as_ref().is_some_and(|r| r.has_username),
             has_password,
             has_api_key,
             preferred,
@@ -1072,6 +1104,24 @@ mod tests {
         assert!(subject(&format!("{id}:qrz"), "qrz").is_err());
         assert!(subject("", "qrz").is_err());
     }
+    // QGD-INV-0004 (KI7MT, 2026-10-23): no username in the profile file. One
+    // an earlier build wrote there is read as "a username is saved" and the
+    // file is written again at once without it.
+    #[test]
+    fn a_username_an_earlier_build_kept_is_taken_out_of_the_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let id = "3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b";
+        let old = format!(r#"{{"callsigns":{{"{id}":{{"id":"{id}","call":"W1AW","description":"Home","start":null,"end":null,"providers":{{"clublog":{{"username":"qg_fake_person@example.invalid","has_password":true,"has_api_key":false,"saved_at":"2026-10-22T00:00:00Z"}}}}}}}}}}"#);
+        fs::write(temp.path().join("callsigns.json"), old).unwrap();
+        let store = Store::new(temp.path().into()).unwrap();
+        let index = store.load().unwrap();
+        assert!(index.callsigns[id].providers["clublog"].has_username);
+        let written = fs::read_to_string(temp.path().join("callsigns.json")).unwrap();
+        assert!(!written.contains("qg_fake_person"), "the username is still in the file");
+        assert!(!written.contains("\"username\""), "the field is still in the file");
+        assert!(written.contains("has_username"));
+    }
+
     #[test]
     fn failed_keychain_deletion_preserves_callsign_and_selection_for_retry() {
         let temp = tempfile::tempdir().unwrap();
