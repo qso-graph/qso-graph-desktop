@@ -216,7 +216,9 @@ jobs:
         # built-in extensions must always run on.
         os: ${{ fromJSON(inputs.mac_only && '["macos-latest"]' || '["macos-latest", "ubuntu-latest", "ubuntu-24.04-arm", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # Two hours for a signed Mac build: Apple's notarization queue decides,
+    # and a team's first submissions can take an hour. Others finish in minutes.
+    timeout-minutes: ${{ fromJSON(matrix.os == 'macos-latest' && '120' || '45') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -327,7 +329,11 @@ jobs:
           printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
           chmod 600 "$key"
           unset APPLE_API_KEY_P8
-          APPLE_API_KEY="$key" npm run installer -- -c.mac.identity="Greg Beam (${APPLE_TEAM_ID})"
+          # Said as it happens: each file signed, then the notarization's
+          # submission and Apple's answer, which electron-builder otherwise
+          # waits on in silence.
+          DEBUG='electron-osx-sign*,electron-notarize*,@electron/osx-sign*,@electron/notarize*' \
+            APPLE_API_KEY="$key" npm run installer -- -c.mac.identity="Greg Beam (${APPLE_TEAM_ID})"
           rm -f "$key"
       # What Gatekeeper will say: signed by the project, notarized, and the
       # ticket stapled, so it opens offline on first launch too.
