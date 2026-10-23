@@ -19,7 +19,7 @@ describe('Parks On the Air', () => {
   it('reads POTA\'s spots, and leaves out one with no call, no frequency, or marked invalid', () => {
     const spots = parseSpots(body)!;
     expect(spots.map(spot => spot.activator)).toEqual(['KI7MT', 'N0CALL/P', 'KI7MT/M']);
-    expect(spots[1]).toMatchObject({ reference: 'CA-0002', kHz: 7185.5, mode: 'SSB', park: 'Made-up Park Two with brackets' });
+    expect(spots[1]).toMatchObject({ reference: 'CA-0002', kHz: 7185.5, mode: 'SSB', park: 'Made-up Park Two with brackets', location: 'CA-ON, CA-QC' });
   });
 
   it('refuses what is not a spot list, rather than drawing an empty one', () => {
@@ -33,13 +33,13 @@ describe('Parks On the Air', () => {
     if (!answer.ok) throw new Error('not ok');
     const table = answer.data.sections.find(section => section.shape === 'table');
     if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no table');
-    expect(table.columns).toEqual(['Activator', 'Park', 'Name', 'MHz', 'Band', 'Mode', 'UTC']);
+    expect(table.columns).toEqual(['Activator', 'Park', 'Name', 'Location', 'MHz', 'Band', 'Mode', 'UTC']);
     expect(table.sortable).toBe(true);
-    expect(table.sortedBy).toEqual({ column: 6, direction: 'descending' });
+    expect(table.sortedBy).toEqual({ column: 7, direction: 'descending' });
     expect(table.rows).toEqual([
-      ['KI7MT', 'US-0001', 'Made-up Park One', '14.062', '20m', 'CW', '18:52'],
-      ['KI7MT/M', 'GB-0003', 'Made-up Park Three', '28.074', '10m', 'FT8', '18:45'],
-      ['N0CALL/P', 'CA-0002', 'Made-up Park Two with brackets', '7.186', '40m', 'SSB', '18:40']
+      ['KI7MT', 'US-0001', 'Made-up Park One', 'US-ID', '14.062', '20m', 'CW', '18:52'],
+      ['KI7MT/M', 'GB-0003', 'Made-up Park Three', 'GB-ENG', '28.074', '10m', 'FT8', '18:45'],
+      ['N0CALL/P', 'CA-0002', 'Made-up Park Two with brackets', 'CA-ON, CA-QC', '7.186', '40m', 'SSB', '18:40']
     ]);
     expect(answer.data.observedAt).toBe('2026-10-11T18:52:00Z');
     expect(answer.data.sections[0]).toEqual({ shape: 'figures', figures: [{ label: 'Activators', value: '3' }, { label: 'Parks', value: '3' }] });
@@ -49,8 +49,9 @@ describe('Parks On the Air', () => {
     const answer = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS));
     const table = answer.ok ? answer.data.sections.find(section => section.shape === 'table') : undefined;
     expect(table?.shape === 'table' && table.filters).toEqual([
-      { column: 4, label: 'Band', options: ['40m', '20m', '10m'] },
-      { column: 5, label: 'Mode', options: ['CW', 'FT8', 'SSB'] }
+      { column: 5, label: 'Band', options: ['40m', '20m', '10m'] },
+      { column: 6, label: 'Mode', options: ['CW', 'FT8', 'SSB'] },
+      { column: 3, label: 'Location', options: ['CA-ON, CA-QC', 'GB-ENG', 'US-ID'] }
     ]);
   });
 
@@ -60,8 +61,8 @@ describe('Parks On the Air', () => {
     expect(answer.data.sections[1]).toMatchObject({ shape: 'alert', text: expect.stringMatching(/ADIF's definitions/) });
     const table = answer.data.sections.find(section => section.shape === 'table');
     if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no table');
-    expect(table.rows.map(row => row[4])).toEqual(['—', '—', '—']);
-    expect(table.filters?.map(filter => filter.label)).toEqual(['Mode']);
+    expect(table.rows.map(row => row[5])).toEqual(['—', '—', '—']);
+    expect(table.filters?.map(filter => filter.label)).toEqual(['Mode', 'Location']);
   });
 
   it('names a band only where ADIF\'s edges hold the frequency', () => {

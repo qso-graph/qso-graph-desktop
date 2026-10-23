@@ -18,6 +18,8 @@ export interface Spot {
   readonly activator: string;
   readonly reference: string;
   readonly park?: string;
+  // POTA's location or locations for the park: US-ID, or JP-CH, JP-IB.
+  readonly location?: string;
   // In kHz, as POTA sends it.
   readonly kHz: number;
   readonly mode?: string;
@@ -52,8 +54,9 @@ export function parseSpots(body: string): Spot[] | undefined {
     const at = typeof row.spotTime === 'string' && TIME.test(row.spotTime) ? new Date(`${row.spotTime}Z`) : undefined;
     if (!CALL.test(activator) || !REFERENCE.test(reference) || !Number.isFinite(kHz) || kHz <= 0 || !at || Number.isNaN(at.getTime())) continue;
     const park = plain(row.name, 60);
+    const location = plain(typeof row.locationDesc === 'string' ? row.locationDesc.split(',').map(part => part.trim()).filter(Boolean).join(', ') : undefined, 40);
     const mode = plain(row.mode, 10);
-    spots.push({ activator, reference, kHz, at, ...(park ? { park } : {}), ...(mode ? { mode } : {}) });
+    spots.push({ activator, reference, kHz, at, ...(park ? { park } : {}), ...(location ? { location } : {}), ...(mode ? { mode } : {}) });
   }
   return spots;
 }
@@ -94,6 +97,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
     // (KI7MT, 2026-10-23).
     spot.reference,
     spot.park ?? NO_NAME,
+    spot.location ?? NO_NAME,
     frequencyText(spot),
     bandOf(spot.kHz, bands) ?? NO_BAND,
     spot.mode ?? NO_MODE,
@@ -102,22 +106,25 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   // The bands on the air, in ADIF's order, lowest first; the modes on the
   // air, alphabetically. Only what is there is offered.
   const present = (column: number) => new Set(rows.map(row => row[column]!));
-  const onBands = present(4);
-  const bandOptions = [...bands.map(band => band.band).filter(band => onBands.has(band)), ...(onBands.has(NO_BAND) ? [NO_BAND] : [])].slice(0, 40);
-  const modeOptions = [...present(5)].sort((a, b) => a.localeCompare(b)).slice(0, 40);
+  const onBands = present(5);
+  const bandOptions = [...bands.map(band => band.band).filter(band => onBands.has(band)), ...(onBands.has(NO_BAND) ? [NO_BAND] : [])].slice(0, 100);
+  const modeOptions = [...present(6)].sort((a, b) => a.localeCompare(b)).slice(0, 100);
+  // The locations on the air, alphabetically: "show me Idaho" (KI7MT, 2026-10-23).
+  const locationOptions = [...present(3)].sort((a, b) => a.localeCompare(b)).slice(0, 100);
   const sections: Section[] = [
     { shape: 'figures', figures: [
       { label: 'Activators', value: String(newest.length) },
       { label: 'Parks', value: String(parks) }
     ] },
     // Sortable by any column; the band sorts in ADIF's order (the filter's).
-    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true,
+    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'Location', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true,
       // Sent newest first by when spotted, which the core shows as the sort
       // and keeps right across midnight UTC (KI7MT, 2026-10-23).
-      sortedBy: { column: 6, direction: 'descending' }, filters: [
+      sortedBy: { column: 7, direction: 'descending' }, filters: [
       // No band to choose without ADIF's bands: every spot's would be "—".
-      ...(bands.length > 0 ? [{ column: 4, label: 'Band', options: bandOptions }] : []),
-      { column: 5, label: 'Mode', options: modeOptions }
+      ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),
+      { column: 6, label: 'Mode', options: modeOptions },
+      { column: 3, label: 'Location', options: locationOptions }
     ] }
   ];
   if (bands.length === 0) {

@@ -60,7 +60,7 @@ export const PAGE_LIMITS = {
   columns: 8,
   rows: 200,
   filters: 3,
-  options: 40,
+  options: 100,
   groups: 8,
   marks: 4,
   cell: 80,

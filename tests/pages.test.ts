@@ -238,7 +238,7 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     [[{ column: 1, label: '<b>Band</b>' }], /markup/],
     [[{ column: 1, label: 'Band', options: [] }], /no options/],
     [[{ column: 1, label: 'Band', options: ['20m', '20m'] }], /same option twice/],
-    [[{ column: 1, label: 'Band', options: Array.from({ length: 41 }, (_, i) => `b${i}`) }], /more than 40/],
+    [[{ column: 1, label: 'Band', options: Array.from({ length: 101 }, (_, i) => `b${i}`) }], /more than 100/],
     [[{ column: 1, label: 'Band', default: '20m' }], /"default"/]
   ])('refuses an off-shape filter (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [{ ...table, filters: value }]))).toThrowError(message);
