@@ -71,7 +71,10 @@ for (const [name, args] of commands) {
 // holding a sentinel is never shown, whatever else it says (QGD-CRD-0006).
 function summarize(output, leaked, stopped) {
   const lines = redact(output).split('\n').filter(line => line.trim() && sentinelsIn(line).length === 0);
-  const telling = lines.filter(line => /×|❯|FAIL|Error|expected|Expected|Received|Timed out|timed out|stdout \||stderr \|/.test(line));
+  // Playwright's own words too: "locator.click: Timeout 30000ms exceeded"
+  // and the call log's "waiting for getByRole(…)" name the element a suite
+  // stopped on, and without them a failure said only that it waited.
+  const telling = lines.filter(line => /×|❯|FAIL|Error|expected|Expected|Received|Timed out|timed out|Timeout \d+ms exceeded|waiting for (locator|getBy)|stdout \||stderr \|/.test(line));
   const shown = (telling.length ? telling : lines).slice(0, 40).join('\n');
   const head = (stopped ? `${stopped}\n` : '') + (leaked ? `Printed ${leaked} credential sentinel(s) to its output. Values omitted.\n` : '');
   return (head + shown).trim() || 'Command did not finish.';
