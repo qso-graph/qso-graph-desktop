@@ -486,6 +486,11 @@ dialog.pins h2 { margin: 0 0 6px; }
    of what follows (KI7MT, 2026-10-23). */
 .page-table tbody:has(.page-table-group) th[scope="row"] { padding-left: 16px; }
 .page-table td[colspan] { color: inherit; white-space: normal; }
+/* The contents line at the top of a long page: text links, one per part. */
+.page-contents { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 14px; font-size: 13px; }
+.page-contents .link-button { font-size: 13px; }
+.page-contents-gap { color: var(--ink-muted); }
+.page-section-heading:focus, .page-table-group:focus { outline: none; }
 /* A table's filters, above it, in a row that wraps on a narrow page. */
 .page-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 10px; }
 .page-filters label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }

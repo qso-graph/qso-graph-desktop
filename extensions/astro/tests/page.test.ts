@@ -3,6 +3,7 @@
 // own validator.
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
+import { pageContents } from '../../../packages/ui/page-shapes.js';
 import { astroPage, subsolar, type Clock } from '../src/page.js';
 import { sublunar } from '../src/moon.js';
 import { julian } from '../src/sun.js';
@@ -24,8 +25,8 @@ const today = (answer: ReturnType<typeof astroPage>) => {
 };
 
 describe('Astro\'s page', () => {
-  it('passes the core\'s own check, with Sun, Twilight, Radio depths and Moon as groups of one table', () => {
-    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Sun', 'Twilight', 'Radio depths', 'Moon']);
+  it('passes the core\'s own check, with Sun, Twilight, Moon and Radio depths as groups of one table', () => {
+    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Sun', 'Twilight', 'Moon', 'Radio depths']);
   });
 
   it('gives a value with no clock once, across both time columns', () => {
@@ -64,14 +65,14 @@ describe('Astro\'s page', () => {
     expect(grey.rows.map(row => row[0])).toEqual(expect.arrayContaining(['D and E layers (−10.1°)', 'F2 layer (−17.2°)']));
     expect(grey.rows.some(row => /UTC|\d\d:\d\d/.test(row[1]))).toBe(true);
     // Under the map, just below the field it answers.
-    expect(found[2]).toEqual({ shape: 'fields' });
+    expect(found[2]).toEqual({ shape: 'fields', heading: 'Grey line DX check' });
     expect(found[3]).toBe(grey);
   });
 
   it('says in words when the two ends share no twilight, rather than two empty rows', () => {
     const found = sections(astroPage(BOISE, new Date('2026-10-22T00:00:00Z'), { dx: 'IO91' }, UTC_CLOCK));
     expect(found[3]).toEqual({
-      shape: 'alert', level: 'info', heading: 'Grey line with IO91, the next 24 hours',
+      shape: 'alert', level: 'info', heading: 'Grey line with IO91, the next 24 hours', contents: false,
       text: 'Home and IO91 are not in twilight at the same time in the next 24 hours.'
     });
   });
@@ -114,6 +115,11 @@ describe('Astro\'s page', () => {
     };
     expect(apart(new Date('2026-10-26T04:12:00Z'))).toBeGreaterThan(172);
     expect(apart(new Date('2026-11-09T07:02:00Z'))).toBeLessThan(8);
+  });
+
+  it('lists the DX check and the day\'s parts at the top, and not the map or the answer (KI7MT, 2026-10-23)', () => {
+    const found = sections(astroPage(BOISE, NOW, { dx: 'IO91' }, UTC_CLOCK));
+    expect(pageContents(found).map(entry => entry.label)).toEqual(['Grey line DX check', 'Sun', 'Twilight', 'Moon', 'Radio depths']);
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {

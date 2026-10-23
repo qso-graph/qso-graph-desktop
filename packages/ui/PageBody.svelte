@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { filterOptions, filteredGroups, sortedGroups, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { filterOptions, filteredGroups, pageContents, sortedGroups, utc, type PageShown, type Section, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
 
   interface Props {
@@ -21,6 +21,11 @@
     fields?: Snippet | undefined;
   }
   const { shown, onRefresh, fields }: Props = $props();
+
+  // A group's place in the table as sent, which its contents link names,
+  // whatever the filters leave of the table.
+  const tableGroupIndex = (section: Extract<Section, { shape: 'table' }>, group: { heading?: string }) =>
+    'groups' in section ? section.groups.findIndex(candidate => candidate.heading === group.heading) : 0;
 
   // What each table's filters are set to, by section and column; '' is All.
   // Kept across a refresh, so a band chosen stays chosen as spots update.
@@ -45,6 +50,15 @@
     sorts = { ...sorts, [section]: { column, direction } };
   }
 
+  // A contents link goes to its part of the page without changing the
+  // window's address: scrolled to, and focused for a keyboard or a reader.
+  function go(id: string): void {
+    const target = document.getElementById(id);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.focus({ preventScroll: true });
+  }
+
   // Refresh rests for a few seconds after a press: the core asks at most
   // once in ten (page-scheduler.ts), and a button that seems to do nothing
   // when pressed again invites pressing it again.
@@ -63,13 +77,21 @@
       {#if onRefresh}<button type="button" class="secondary" id="page-refresh" onclick={refresh} disabled={resting}>{resting ? 'Refreshed' : 'Refresh'}</button>{/if}
     </p>
   {/if}
+  {#if shown.state === 'ready'}
+    {@const contents = pageContents(shown.sections)}
+    {#if contents.length > 0}
+      <nav class="page-contents" aria-label="On this page">
+        {#each contents as entry, i (entry.id)}{#if i > 0}<span class="page-contents-gap" aria-hidden="true">|</span>{/if}<button type="button" class="link-button" onclick={() => go(entry.id)}>{entry.label}</button>{/each}
+      </nav>
+    {/if}
+  {/if}
   {#if shown.state === 'waiting'}
     <p class="hint">Getting the latest…</p>
   {:else if shown.state === 'failed'}
     <p class="page-failed" role="status">{shown.reason}</p>
   {:else}
     {#each shown.sections as section, at (at)}
-      {#if section.heading}<h2 class="page-section-heading">{section.heading}</h2>{/if}
+      {#if section.heading}<h2 class="page-section-heading" id="page-part-{at}" tabindex="-1">{section.heading}</h2>{/if}
       {#if section.shape === 'alert'}
         <p class="page-alert {section.level}" role={section.level === 'info' ? 'status' : 'alert'}>{section.text}</p>
       {:else if section.shape === 'figures'}
@@ -115,7 +137,7 @@
                its one value across the columns after the first (version 5). -->
           {#each groups as group, g (g)}
             <tbody>
-              {#if group.heading}<tr class="page-table-group"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
+              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{tableGroupIndex(section, group)}" tabindex="-1"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
                 <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td colspan={row.length < section.columns.length ? section.columns.length - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
               {/each}

@@ -255,3 +255,14 @@ describe('where a page\'s fields go, page data version 6 (KI7MT, 2026-10-23)', (
     expect(() => validatePageAnswer(v(6, [{ shape: 'fields', inputs: [] }]))).toThrowError(/"inputs"/);
   });
 });
+
+describe('a heading left out of the page\'s contents, page data version 6 (KI7MT, 2026-10-23)', () => {
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+  const note = { shape: 'alert', level: 'info', text: 'x' };
+  it('takes contents: false on a section with a heading, and nothing else', () => {
+    expect(validatePageAnswer(v(6, [{ ...note, heading: 'Map', contents: false }]))).toEqual(v(6, [{ ...note, heading: 'Map', contents: false }]));
+    expect(() => validatePageAnswer(v(6, [{ ...note, contents: false }]))).toThrowError(/with a heading/);
+    expect(() => validatePageAnswer(v(6, [{ ...note, heading: 'Map', contents: true }]))).toThrowError(/not false/);
+    expect(() => validatePageAnswer(v(5, [{ ...note, heading: 'Map', contents: false }]))).toThrowError(/version 5 does not have/);
+  });
+});

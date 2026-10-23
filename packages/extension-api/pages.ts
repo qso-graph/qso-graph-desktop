@@ -39,7 +39,9 @@
 // core draws as choices above it and applies at once, with no new question
 // (KI7MT, 2026-10-23: Parks On the Air's band and mode), mark where on the
 // page the core draws the page's fields, so an answer can sit just under the
-// question (Astro's grey line, below its map), and say it may be
+// question (Astro's grey line, below its map), leave a section's heading out
+// of the page's contents line (which the core draws at the top of a page of
+// three or more headed parts), and say it may be
 // sorted by any column, which the core does in the window when a heading is
 // clicked: a column with a filter's options sorts in their order.
 export const PAGE_DATA_VERSION = 6;
@@ -104,7 +106,7 @@ export type Section = (
   // Where the core draws the page's own fields (its manifest's inputs), once
   // at most; without it they are at the top. Version 6.
   | { readonly shape: 'fields' }
-) & { readonly heading?: string };
+) & { readonly heading?: string; readonly contents?: false };
 
 export type Row = readonly string[];
 
@@ -227,10 +229,19 @@ function isUtcTime(value: unknown): value is string {
 function section(value: unknown, at: number, version: number): Section {
   const where = `Section ${at + 1}`;
   if (!isRecord(value)) throw new PageError(`${where} is not an object.`);
-  if (!Object.hasOwn(value, 'heading')) return shape(value, where, version);
-  const { heading, ...rest } = value;
+  const { heading, contents, ...rest } = value;
+  // Left out of the page's contents line: said only of a heading, and only
+  // as false, since every heading is in it otherwise (version 6).
+  if (Object.hasOwn(value, 'contents')) {
+    if (version < 6) throw new PageError(`${where} says whether it is in the page's contents, which page data version ${version} does not have.`);
+    if (contents !== false || !Object.hasOwn(value, 'heading')) throw new PageError(`${where}'s contents is not false on a section with a heading.`);
+  }
+  if (!Object.hasOwn(value, 'heading')) return shape(rest, where, version);
   if (version < 4) throw new PageError(`${where} has a heading, which page data version ${version} does not have.`);
-  return { ...shape(rest, where, version), heading: text(heading, PAGE_LIMITS.heading, `${where}'s heading`) };
+  return {
+    ...shape(rest, where, version), heading: text(heading, PAGE_LIMITS.heading, `${where}'s heading`),
+    ...(contents === false ? { contents: false as const } : {})
+  };
 }
 
 function shape(value: Record<string, unknown>, where: string, version: number): Section {

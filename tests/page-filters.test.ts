@@ -2,7 +2,7 @@
 // A table's filters as the core applies them (page data version 6): at once,
 // in the window, with no new question asked.
 import { describe, expect, it } from 'vitest';
-import { filterOptions, filteredGroups, sortedGroups, type Section } from '../packages/ui/page-shapes.js';
+import { filterOptions, filteredGroups, pageContents, sortedGroups, type Section } from '../packages/ui/page-shapes.js';
 
 type Table = Extract<Section, { shape: 'table' }>;
 const table: Table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [
@@ -69,5 +69,18 @@ describe('a table sent in order of a column (KI7MT, 2026-10-23)', () => {
   it('sorts that column by the order sent, and turned round the other way, not by its text', () => {
     expect(order('descending')).toEqual(['KI7MT', 'N0CALL', 'AB1C']);
     expect(order('ascending')).toEqual(['AB1C', 'N0CALL', 'KI7MT']);
+  });
+});
+
+describe('the page\'s contents line (KI7MT, 2026-10-23)', () => {
+  const note = (heading?: string, contents?: false): Section => ({ shape: 'alert', level: 'info', text: 'x', ...(heading ? { heading } : {}), ...(contents === false ? { contents } : {}) });
+  it('lists headings and table groups in order, each with where it goes, leaving out what is left out', () => {
+    const grouped: Section = { shape: 'table', columns: ['Event', 'UTC'], groups: [{ heading: 'Sun', rows: [] }, { heading: 'Moon', rows: [] }] };
+    expect(pageContents([note('Map', false), note('DX check'), note(), grouped])).toEqual([
+      { id: 'page-part-1', label: 'DX check' }, { id: 'page-part-3-0', label: 'Sun' }, { id: 'page-part-3-1', label: 'Moon' }
+    ]);
+  });
+  it('gives a short page none', () => {
+    expect(pageContents([note('One'), note('Two')])).toEqual([]);
   });
 });

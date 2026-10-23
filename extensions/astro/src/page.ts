@@ -117,16 +117,16 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // Neither depth shared: said once, in words, rather than as a table of
     // two empty rows that reads as if nothing happened.
     greyLineSection.push(found.every(({ windows }) => windows.length === 0)
-      ? { shape: 'alert', level: 'info', heading,
+      ? { shape: 'alert', level: 'info', heading, contents: false,
           text: `${station!.name.slice(0, 40)} and ${inputs.dx} are not in twilight at the same time in the next 24 hours.` }
-      : { shape: 'table', heading, columns: ['Depth both ends are within', 'UTC'], rows });
+      : { shape: 'table', heading, contents: false, columns: ['Depth both ends are within', 'UTC'], rows });
   }
 
   // The grey line on the map (KI7MT, 2026-10-22): the night greyed out, the
   // twilight to the D and E layers' depth lighter, which is the band the
   // windows below are worked out for, the moon where it is overhead, the
   // Location marked, and the DX grid when there is one.
-  const map: Section = { shape: 'map', heading: 'Grey line now', sun: subsolar(now), moon: sublunar(at), twilight: D_LAYER, marks: [
+  const map: Section = { shape: 'map', heading: 'Grey line now', contents: false, sun: subsolar(now), moon: sublunar(at), twilight: D_LAYER, marks: [
     { label: station!.name.slice(0, 40), latitude, longitude },
     ...(inputs.dx && dx ? [{ label: inputs.dx, latitude: dx.latitude, longitude: dx.longitude }] : [])
   ] };
@@ -143,7 +143,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     map,
     // The DX field here, under the map, with its answer just below it
     // (KI7MT, 2026-10-23: above the map, it seemed to do nothing).
-    { shape: 'fields' },
+    { shape: 'fields', heading: 'Grey line DX check' },
     ...greyLineSection,
     { shape: 'alert', level: 'info', text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
@@ -158,17 +158,18 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       ...pair(sunCrossings(now, latitude, longitude, NAUTICAL), 'Nautical dawn (−12°)', 'Nautical dusk (−12°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
       ...pair(sunCrossings(now, latitude, longitude, ASTRONOMICAL), 'Astronomical dawn (−18°)', 'Astronomical dusk (−18°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
     ], yourClock),
-    // What each depth means for radio, said beside it (QGD-AST-0022).
-    group('Radio depths', [
-      ...pair(sunCrossings(now, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
-      ...pair(sunCrossings(now, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
-    ], yourClock),
     group('Moon', [
       ...pair(moon, 'Moonrise', 'Moonset', 'None today: the moon does not rise', 'None today: the moon does not set'),
       ['Phase', `${phase.name}, ${Math.round(phase.fraction * 100)}% lit`],
       // The numbers EME turns on (QGD-AST-0031).
       ['Declination', `${moonNow.declination >= 0 ? '+' : '−'}${Math.abs(moonNow.declination).toFixed(1)}°`],
       ['Distance', `${Math.round(moonNow.distance).toLocaleString('en-US')} km`]
+    ], yourClock),
+    // What each depth means for radio, said beside it (QGD-AST-0022). Last:
+    // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
+    group('Radio depths', [
+      ...pair(sunCrossings(now, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
+      ...pair(sunCrossings(now, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
     ], yourClock)
     ] }
   ];

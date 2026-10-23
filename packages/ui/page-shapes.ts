@@ -18,7 +18,22 @@ export type Section = (
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
   // Where the page's own fields are drawn (version 6).
   | { readonly shape: 'fields' }
-) & { readonly heading?: string };
+) & { readonly heading?: string; readonly contents?: false };
+
+// The page's contents line: each section heading not left out of it, and
+// each table group's, in order, with the id of the place it goes to. Drawn
+// only when there are three or more, so a short page is not given one.
+export interface ContentsEntry { readonly id: string; readonly label: string }
+export function pageContents(sections: readonly Section[]): ContentsEntry[] {
+  const entries: ContentsEntry[] = [];
+  sections.forEach((section, at) => {
+    if (section.heading && section.contents !== false) entries.push({ id: `page-part-${at}`, label: section.heading });
+    if (section.shape === 'table' && 'groups' in section) {
+      section.groups.forEach((group, g) => entries.push({ id: `page-part-${at}-${g}`, label: group.heading }));
+    }
+  });
+  return entries.length >= 3 ? entries : [];
+}
 export interface Place { readonly latitude: number; readonly longitude: number }
 export interface Mark extends Place { readonly label: string }
 // A column to narrow the table by (version 6).
