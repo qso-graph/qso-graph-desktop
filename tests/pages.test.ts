@@ -31,7 +31,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { colour: 'red' }))).toThrowError(/"colour"/);
     expect(() => validatePageAnswer(answer([{ ...FIGURES, style: 'big' }]))).toThrowError(/"style"/);
     expect(() => validatePageAnswer(answer([{ shape: 'figures', figures: [{ label: 'K', value: 2 }] }]))).toThrowError(/value is not text/);
-    expect(() => validatePageAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert, table, map or fields section/);
+    expect(() => validatePageAnswer(answer([{ shape: 'html', html: 'x' }]))).toThrowError(/not a figures, items, alert, text, table, map or fields section/);
     expect(() => validatePageAnswer(answer([{ ...ALERT, level: 'panic' }]))).toThrowError(/no level of info, warning or severe/);
     expect(() => validatePageAnswer({ ok: 'yes', data: {} })).toThrowError(/neither ok nor not/);
   });
@@ -264,5 +264,17 @@ describe('a heading left out of the page\'s contents, page data version 6 (KI7MT
     expect(() => validatePageAnswer(v(6, [{ ...note, contents: false }]))).toThrowError(/with a heading/);
     expect(() => validatePageAnswer(v(6, [{ ...note, heading: 'Map', contents: true }]))).toThrowError(/not false/);
     expect(() => validatePageAnswer(v(5, [{ ...note, heading: 'Map', contents: false }]))).toThrowError(/version 5 does not have/);
+  });
+});
+
+describe('plain text, page data version 6 (KI7MT, 2026-10-23)', () => {
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+  it('carries a sentence with no box, bounded and plain, in version 6 data', () => {
+    const note = { shape: 'text', text: 'Times are in UTC.' };
+    expect(validatePageAnswer(v(6, [note]))).toEqual(v(6, [note]));
+    expect(() => validatePageAnswer(v(5, [note]))).toThrowError(/version 5 does not have/);
+    expect(() => validatePageAnswer(v(6, [{ shape: 'text', text: '<b>x</b>' }]))).toThrowError(/markup/);
+    expect(() => validatePageAnswer(v(6, [{ shape: 'text', text: 'x'.repeat(201) }]))).toThrowError(/text/);
+    expect(() => validatePageAnswer(v(6, [{ shape: 'text', text: 'x', level: 'info' }]))).toThrowError(/"level"/);
   });
 });

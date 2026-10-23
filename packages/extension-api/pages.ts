@@ -106,6 +106,9 @@ export type Section = (
   // Where the core draws the page's own fields (its manifest's inputs), once
   // at most; without it they are at the top. Version 6.
   | { readonly shape: 'fields' }
+  // A sentence or two as plain text, with no box: a note that is not an
+  // alert (KI7MT, 2026-10-23). Version 6.
+  | { readonly shape: 'text'; readonly text: string }
 ) & { readonly heading?: string; readonly contents?: false };
 
 export type Row = readonly string[];
@@ -376,6 +379,11 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     });
     return { shape: 'table', columns, groups, ...withFilters };
   }
+  if (value.shape === 'text') {
+    if (version < 6) throw new PageError(`${where} is text, which page data version ${version} does not have.`);
+    only(value, ['shape', 'text'], where);
+    return { shape: 'text', text: text(value.text, PAGE_LIMITS.alert, `${where}'s text`) };
+  }
   if (value.shape === 'fields') {
     if (version < 6) throw new PageError(`${where} places the page's fields, which page data version ${version} does not have.`);
     only(value, ['shape'], where);
@@ -408,7 +416,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
       marks
     };
   }
-  throw new PageError(`${where} is not a figures, items, alert, table, map or fields section.`);
+  throw new PageError(`${where} is not a figures, items, alert, text, table, map or fields section.`);
 }
 
 // The whole answer, checked before anything of it is drawn. Refused rather

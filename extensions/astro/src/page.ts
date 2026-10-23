@@ -156,7 +156,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // The day's times under a heading of their own, set apart from the grey
     // line above (KI7MT, 2026-10-23). Not in the contents line, which lists
     // Sun, Twilight, Moon and Radio depths below it.
-    { shape: 'alert', level: 'info', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: yourClock
+    { shape: 'text', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: yourClock
       ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
       : 'Times are in UTC, which is what this computer\'s clock is set to. The Location\'s own time zone is not known yet.' },
     // One table in four groups, so the times line up all the way down the

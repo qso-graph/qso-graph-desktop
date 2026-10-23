@@ -144,6 +144,8 @@
             </tbody>
           {/each}
         </table>
+      {:else if section.shape === 'text'}
+        <p class="page-text">{section.text}</p>
       {:else if section.shape === 'fields'}
         {@render fields?.()}
       {:else if section.shape === 'map'}

@@ -18,6 +18,8 @@ export type Section = (
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
   // Where the page's own fields are drawn (version 6).
   | { readonly shape: 'fields' }
+  // Plain text, no box (version 6).
+  | { readonly shape: 'text'; readonly text: string }
 ) & { readonly heading?: string; readonly contents?: false };
 
 // The page's contents line: each section heading not left out of it, and
