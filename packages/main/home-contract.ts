@@ -55,7 +55,10 @@ export type HomeCommand =
   // its fields: checked by kind against the page's own fields by the broker.
   | { readonly type: 'open'; readonly key: string | null; readonly inputs?: Readonly<Record<string, string>> }
   | { readonly type: 'pin'; readonly pins: readonly string[] }
-  | { readonly type: 'dismiss'; readonly id: number };
+  | { readonly type: 'dismiss'; readonly id: number }
+  // Ask the open page again now (Refresh): the broker asks only for the page
+  // that is open, and the scheduler only when nothing is in flight.
+  | { readonly type: 'refresh'; readonly key: string };
 
 export type HomeReply = { readonly ok: true; readonly state: HomeState } | { readonly ok: false; readonly error: string };
 
@@ -81,6 +84,7 @@ export function validateHomeCommand(value: unknown): value is HomeCommand {
     return shape && key && inputs;
   }
   if (value.type === 'pin') return exactly(value, ['type', 'pins']) && isPins(value.pins);
+  if (value.type === 'refresh') return exactly(value, ['type', 'key']) && typeof value.key === 'string' && KEY.test(value.key);
   if (value.type === 'dismiss') return exactly(value, ['type', 'id']) && Number.isSafeInteger(value.id) && (value.id as number) > 0;
   return false;
 }

@@ -238,6 +238,12 @@ if (!app.requestSingleInstanceLock()) {
           if (typeof found === 'string') throw new Error(found);
           return found;
         },
+        // ADIF's bands, for naming a frequency's band (reference:read).
+        adifBands: async () => {
+          const found = await storageBroker.adifBands();
+          if (typeof found === 'string') throw new Error(found);
+          return found;
+        },
         fetchSource: async url => {
           if (recorded) return recorded(url);
           // At a start the credential core may not be up yet: the request

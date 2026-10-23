@@ -11,7 +11,7 @@
 //
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
-import { ADIF_QUERY, type AdifEntry } from './adif-entry.js';
+import { ADIF_QUERY, type AdifBand, type AdifEntry } from './adif-entry.js';
 import {
   isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
   isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
@@ -94,6 +94,9 @@ export type StorageCommand =
   | { type: 'station-from-summit'; reference: string }
   // ADIF's own definitions, searched for ADIF Lookup (adif-search.ts).
   | { type: 'adif-search'; query: string }
+  // ADIF's bands with their edges (adif-search.ts), for an extension that
+  // names a frequency's band.
+  | { type: 'adif-bands' }
   // The editor's pick lists, for an entity or for none.
   | { type: 'station-choices'; entity: string | null; state: string | null }
   // The names of the parks a MY_POTA_REF value names, from POTA's list.
@@ -105,7 +108,7 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[] }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[] }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations', 'summits'] as const;
@@ -219,6 +222,7 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'station-from-park': return exactly(['type', 'reference']) && isPotaReference(value.reference);
     case 'station-from-summit': return exactly(['type', 'reference']) && isSummitReference(value.reference);
     case 'adif-search': return exactly(['type', 'query']) && plainQuery(value.query);
+    case 'adif-bands': return exactly(['type']);
     case 'look-up-parks':
       return exactly(['type', 'references']) && typeof value.references === 'string' && value.references.length > 0
         && value.references.length <= 100 && /^[0-9A-Za-z@,\- ]+$/.test(value.references);

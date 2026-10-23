@@ -40,6 +40,7 @@ export function plainRequest(request: ExtensionRequest): unknown {
     case 'callsign.list':
     case 'callsign.active':
     case 'station.active':
+    case 'adif.bands':
       return { kind: request.kind };
     case 'adif.search':
       return { kind: request.kind, query: request.query };

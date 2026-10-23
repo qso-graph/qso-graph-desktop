@@ -122,6 +122,10 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
         scheduler.changed();
         return { ok: true, state: state() };
       }
+      case 'refresh':
+        // Only the page on screen; any other key is answered with the state.
+        if (command.key === open) scheduler.refreshNow(open);
+        return { ok: true, state: state() };
       case 'dismiss': {
         // Only a stop that has happened can be dismissed; a later one shows.
         const next = dismiss(dismissed, command.id, options.supervisor.status().stops);

@@ -39,6 +39,10 @@ export type ExtensionRequest =
   // searches reference.sqlite and answers with ADIF's text; the extension
   // never opens a store (QGD-APP-0009).
   | { readonly kind: 'adif.search'; readonly query: string }
+  // ADIF's bands with the edges ADIF gives each, lowest first, so an
+  // extension names a frequency's band by ADIF's own table (KI7MT, 2026-10-23:
+  // Parks On the Air's band filter). Answered from reference.sqlite.
+  | { readonly kind: 'adif.bands' }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -82,6 +86,13 @@ export interface AdifEntry {
   readonly columns: readonly { readonly name: string; readonly value: string }[];
 }
 
+// One of ADIF's bands, as the frame answers adif.bands.
+export interface AdifBand {
+  readonly band: string;
+  readonly lowerMHz: number;
+  readonly upperMHz: number;
+}
+
 // The active station as an extension may see it. The position is the
 // station's own MY_LAT and MY_LON where it has them, otherwise the centre of
 // its grid square, in decimal degrees; absent when it has neither.
@@ -98,6 +109,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'callsign.active'; readonly callsign: CallsignBrief | null }
   | { readonly ok: true; readonly kind: 'station.active'; readonly station: StationBrief | null }
   | { readonly ok: true; readonly kind: 'adif.search'; readonly entries: readonly AdifEntry[] }
+  | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the
@@ -127,6 +139,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'callsign.active': return 'callsign:list';
     case 'station.active': return 'station:active';
     case 'adif.search': return 'reference:read';
+    case 'adif.bands': return 'reference:read';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -135,7 +148,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -186,6 +199,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'callsign.active': ['kind'],
   'station.active': ['kind'],
   'adif.search': ['kind', 'query'],
+  'adif.bands': ['kind'],
   'source.fetch': ['kind', 'source'],
   'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
@@ -208,6 +222,7 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'callsign.list':
     case 'callsign.active':
     case 'station.active':
+    case 'adif.bands':
       return bare();
     case 'adif.search': {
       // Bounded and plain, as a page's text field is (inputs.ts).

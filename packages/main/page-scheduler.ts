@@ -56,6 +56,12 @@ interface Tracked {
   view?: PageView;
 }
 
+// The least time between two questions the operator asks for with Refresh
+// (KI7MT, 2026-10-23). The operator is not throttled: a press inside it is
+// answered by what was fetched moments ago. It keeps a button held down, or
+// pressed in a hurry, from becoming a burst at somebody else's service.
+export const REFRESH_FLOOR_MS = 10_000;
+
 export function createPageScheduler(deps: PageSchedulerDeps) {
   let visible = false;
   let stopped = false;
@@ -179,6 +185,20 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       lastAsked.delete(key);
       kept.delete(key);
       reconcile();
+    },
+    // The operator pressed Refresh: ask now rather than when the interval
+    // allows, unless a question is in flight or one was asked inside the
+    // floor. What is shown stays until the answer replaces it. Says whether
+    // it asked.
+    refreshNow(key: string): boolean {
+      const entry = tracked.get(key);
+      const page = shown().find(candidate => candidate.key === key);
+      if (!entry || !page || !visible || stopped || entry.work) return false;
+      const last = lastAsked.get(key);
+      if (last !== undefined && deps.now() - last < REFRESH_FLOOR_MS) return false;
+      if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
+      void ask(page, entry);
+      return true;
     },
     // What each shown page last said, for a screen that has just opened.
     views(): PageView[] {

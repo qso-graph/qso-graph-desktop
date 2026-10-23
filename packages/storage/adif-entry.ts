@@ -8,6 +8,15 @@ export const ADIF_COLUMNS = 12;
 export const ADIF_TEXT = 200;
 export const ADIF_QUERY = 64;
 
+// One of ADIF's bands, with its edges as ADIF gives them (Band enumeration),
+// so an extension names a frequency's band by ADIF and never by a table of
+// its own (KI7MT: ADIF definitions, never home-made).
+export interface AdifBand {
+  readonly band: string;
+  readonly lowerMHz: number;
+  readonly upperMHz: number;
+}
+
 // One thing ADIF defines: a field, or a value of one of its enumerations.
 export interface AdifEntry {
   // 'Field', or the enumeration's own name (Mode, Band, DXCC_Entity_Code…).

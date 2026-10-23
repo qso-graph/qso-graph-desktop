@@ -35,6 +35,9 @@
 // night greyed out and the terminator drawn, for Astro's grey line. The
 // extension says where the sun is overhead and which places to mark; the core
 // has the map and works out the night itself, so no extension draws a picture.
+// It also let a table name up to three of its columns as filters, which the
+// core draws as choices above it and applies at once, with no new question
+// (KI7MT, 2026-10-23: Parks On the Air's band and mode).
 export const PAGE_DATA_VERSION = 6;
 export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
@@ -52,8 +55,10 @@ export const PAGE_LIMITS = {
   detail: 120,
   alert: 200,
   reason: 160,
-  columns: 4,
-  rows: 60,
+  columns: 6,
+  rows: 200,
+  filters: 3,
+  options: 40,
   groups: 8,
   marks: 4,
   cell: 80,
@@ -85,8 +90,8 @@ export type Section = (
   // Rows under named columns: the bands with their outlook. Version 2. From
   // version 5 the rows may come in named groups instead, and a row of two
   // cells in a wider table gives one value across the columns after its first.
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[] }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[] }
   // The world, with the night greyed out from where the sun is overhead, and
   // up to four places marked. Version 6. Optionally the moon, where it is
   // overhead, and a twilight band from the horizon down to a depth, as the
@@ -95,6 +100,16 @@ export type Section = (
 ) & { readonly heading?: string };
 
 export type Row = readonly string[];
+
+// A column the operator can narrow the table by: its index, what the choice
+// is called, and the values to offer in the order to offer them. Without
+// options the core offers the column's own values, in the order they first
+// appear. Version 6.
+export interface TableFilter {
+  readonly column: number;
+  readonly label: string;
+  readonly options?: readonly string[];
+}
 
 // A place on the earth, in degrees: north and east positive.
 export interface Place {
@@ -256,12 +271,37 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (version < 2) throw new PageError(`${where} is a table, which page data version ${version} does not have.`);
     const grouped = Object.hasOwn(value, 'groups');
     if (grouped && version < 5) throw new PageError(`${where} has groups, which page data version ${version} does not have.`);
-    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows'], where);
+    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters'], where);
     if (!Array.isArray(value.columns) || value.columns.length === 0 || value.columns.length > PAGE_LIMITS.columns) {
       throw new PageError(`${where} has no columns, or more than ${PAGE_LIMITS.columns}.`);
     }
     const columns = each(value.columns, where, (column: unknown, i: number) =>
       text(column, PAGE_LIMITS.label, `${where}, column ${i + 1}`));
+    const filtered = Object.hasOwn(value, 'filters');
+    if (filtered && version < 6) throw new PageError(`${where} has filters, which page data version ${version} does not have.`);
+    if (filtered && (!Array.isArray(value.filters) || value.filters.length === 0 || value.filters.length > PAGE_LIMITS.filters)) {
+      throw new PageError(`${where} has no filters, or more than ${PAGE_LIMITS.filters}.`);
+    }
+    const filters = filtered ? each(value.filters as unknown[], where, (filter: unknown, f: number): TableFilter => {
+      const name = `${where}, filter ${f + 1}`;
+      if (!isRecord(filter)) throw new PageError(`${name} is not an object.`);
+      only(filter, ['column', 'label', 'options'], name);
+      if (typeof filter.column !== 'number' || !Number.isInteger(filter.column) || filter.column < 0 || filter.column >= columns.length) {
+        throw new PageError(`${name} does not name one of the table's columns.`);
+      }
+      const label = text(filter.label, PAGE_LIMITS.label, `${name}'s label`);
+      if (filter.options === undefined) return { column: filter.column, label };
+      if (!Array.isArray(filter.options) || filter.options.length === 0 || filter.options.length > PAGE_LIMITS.options) {
+        throw new PageError(`${name} has no options, or more than ${PAGE_LIMITS.options}.`);
+      }
+      const options = each(filter.options, name, (option: unknown, o: number) => text(option, PAGE_LIMITS.cell, `${name}, option ${o + 1}`));
+      if (new Set(options).size !== options.length) throw new PageError(`${name} offers the same option twice.`);
+      return { column: filter.column, label, options };
+    }) : undefined;
+    if (filters && new Set(filters.map(filter => filter.column)).size !== filters.length) {
+      throw new PageError(`${where} filters one column twice.`);
+    }
+    const withFilters = filters ? { filters } : {};
     const rowsOf = (list: unknown, name: string, room: number): Row[] => {
       if (!Array.isArray(list) || list.length > room) {
         throw new PageError(`${name} has rows as something other than a list of at most ${PAGE_LIMITS.rows} in the table.`);
@@ -277,7 +317,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
         return each(row, at, (cell: unknown, c: number) => text(cell, PAGE_LIMITS.cell, `${at}, cell ${c + 1}`));
       });
     };
-    if (!grouped) return { shape: 'table', columns, rows: rowsOf(value.rows, where, PAGE_LIMITS.rows) };
+    if (!grouped) return { shape: 'table', columns, rows: rowsOf(value.rows, where, PAGE_LIMITS.rows), ...withFilters };
     if (!Array.isArray(value.groups) || value.groups.length === 0 || value.groups.length > PAGE_LIMITS.groups) {
       throw new PageError(`${where} has no groups, or more than ${PAGE_LIMITS.groups}.`);
     }
@@ -291,7 +331,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
       room -= rows.length;
       return { heading: text(group.heading, PAGE_LIMITS.heading, `${name}'s heading`), rows };
     });
-    return { shape: 'table', columns, groups };
+    return { shape: 'table', columns, groups, ...withFilters };
   }
   if (value.shape === 'map') {
     if (version < 6) throw new PageError(`${where} is a map, which page data version ${version} does not have.`);

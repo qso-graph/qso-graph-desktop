@@ -99,8 +99,8 @@ describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
   it.each([
     [{ ...table, rows: [['20m', 'Good']] }, /does not have 3 cells/],
     [{ ...table, columns: [] }, /no columns/],
-    [{ ...table, columns: ['a', 'b', 'c', 'd', 'e'], rows: [] }, /more than 4/],
-    [{ ...table, rows: Array.from({ length: 61 }, () => ['a', 'b', 'c']) }, /at most 60/],
+    [{ ...table, columns: ['a', 'b', 'c', 'd', 'e', 'f', 'g'], rows: [] }, /more than 6/],
+    [{ ...table, rows: Array.from({ length: 201 }, () => ['a', 'b', 'c']) }, /at most 200/],
     [{ ...table, rows: [['20m', 'Good', 'x'.repeat(81)]] }, /cell 3/],
     [{ ...table, rows: [['20m', 'Good', '<b>x</b>']] }, /./],
     [{ ...table, html: 'x' }, /./]
@@ -152,7 +152,7 @@ describe('a table in groups, and a value across its columns, page data version 5
     [{ ...grouped, groups: [{ heading: 'Sun', rows: [], note: 'x' }] }, /"note"/],
     [{ ...grouped, groups: [{ rows: [] }] }, /heading/],
     // The bound on rows is the table's, across its groups.
-    [{ ...grouped, groups: [0, 1].map(() => ({ heading: 'x', rows: Array.from({ length: 31 }, () => ['a', 'b']) })) }, /at most 60/]
+    [{ ...grouped, groups: [0, 1].map(() => ({ heading: 'x', rows: Array.from({ length: 101 }, () => ['a', 'b']) })) }, /at most 200/]
   ])('refuses an off-shape grouped table (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(5, [value]))).toThrowError(message);
   });
@@ -196,5 +196,35 @@ describe('the map, page data version 6 (KI7MT, 2026-10-22)', () => {
     [{ ...map, twilight: '-6' }, /twilight/]
   ])('refuses an off-shape map (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [value]))).toThrowError(message);
+  });
+});
+
+describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
+  const table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [['KI7MT', '20m', 'CW'], ['N0CALL', '40m', 'SSB']] };
+  const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
+  const filters = [{ column: 1, label: 'Band', options: ['40m', '20m'] }, { column: 2, label: 'Mode' }];
+
+  it('carries up to three filters, each naming a column, with options or without', () => {
+    expect(validatePageAnswer(v(6, [{ ...table, filters }]))).toEqual(v(6, [{ ...table, filters }]));
+  });
+
+  it('refuses filters in older data rather than guessing', () => {
+    expect(() => validatePageAnswer(v(5, [{ ...table, filters }]))).toThrowError(/version 5 does not have/);
+  });
+
+  it.each([
+    [[], /no filters/],
+    [[1, 2, 0, 1].map(column => ({ column, label: 'x' })), /more than 3/],
+    [[{ column: 3, label: 'Band' }], /columns/],
+    [[{ column: 1.5, label: 'Band' }], /columns/],
+    [[{ column: -1, label: 'Band' }], /columns/],
+    [[{ column: 1, label: 'Band' }, { column: 1, label: 'Again' }], /one column twice/],
+    [[{ column: 1, label: '<b>Band</b>' }], /markup/],
+    [[{ column: 1, label: 'Band', options: [] }], /no options/],
+    [[{ column: 1, label: 'Band', options: ['20m', '20m'] }], /same option twice/],
+    [[{ column: 1, label: 'Band', options: Array.from({ length: 41 }, (_, i) => `b${i}`) }], /more than 40/],
+    [[{ column: 1, label: 'Band', default: '20m' }], /"default"/]
+  ])('refuses an off-shape filter (%#)', (value, message) => {
+    expect(() => validatePageAnswer(v(6, [{ ...table, filters: value }]))).toThrowError(message);
   });
 });

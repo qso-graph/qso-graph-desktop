@@ -162,6 +162,13 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       const askedNotice = noticePushes;
       void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));
     },
+    // Ask the open page again now (Refresh).
+    refreshPage(key: string): void {
+      if (!api || key !== open) return;
+      const asked = pushes;
+      const askedNotice = noticePushes;
+      void api.request({ type: 'refresh', key }).then(reply => take(reply, 'The page could not be refreshed.', asked, askedNotice), () => undefined);
+    },
     // Hide the extension host's notice for the stop it is about.
     dismissNotice(id: number): void {
       if (!api) return;

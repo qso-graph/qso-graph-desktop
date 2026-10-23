@@ -21,8 +21,10 @@
     extensionName: string;
     // Ask the page again with what is in its fields.
     onAsk?: (values: Record<string, string>) => void;
+    // Ask the page again now (Refresh).
+    onRefresh?: () => void;
   }
-  const { page, extensionName, onAsk = () => {} }: Props = $props();
+  const { page, extensionName, onAsk = () => {}, onRefresh }: Props = $props();
 
   // Why a field's value is refused, by its kind, said as it is typed.
   const REASON = { grid: 'A grid locator, as FN31 or FN31pr.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
@@ -70,6 +72,8 @@
         <button type="submit" id="page-ask" disabled={!ready}>Show</button>
       </form>
     {/if}
-    <PageBody shown={page.shown} />
+    <!-- A page of its own each: what one page's filters were set to is not
+         carried to another. -->
+    {#key page.key}<PageBody shown={page.shown} {onRefresh} />{/key}
   </PageLayout>
 {/if}

@@ -18,7 +18,7 @@
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type AdifEntry, type CallsignBrief, type StationBrief
+  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type AdifBand, type AdifEntry, type CallsignBrief, type StationBrief
 } from '../extension-api/api-contract.js';
 import {
   extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
@@ -47,6 +47,7 @@ export interface ExtensionBrokerPorts {
   activeStation: () => Promise<StationBrief | null>;
   // ADIF's definitions searched by the frame (reference:read).
   adifSearch: (query: string) => Promise<readonly AdifEntry[]>;
+  adifBands: () => Promise<readonly AdifBand[]>;
   fetchSource: (url: string) => Promise<{ body: string; fresh: boolean }>;
   // Act with a credential and return the answer. The secret does not come
   // back (QGD-APP-0007).
@@ -116,6 +117,8 @@ export function createServe(deps: ServeDeps) {
           return { ok: true, kind: 'station.active', station: await deps.ports.activeStation() };
         case 'adif.search':
           return { ok: true, kind: 'adif.search', entries: await deps.ports.adifSearch(request.query) };
+        case 'adif.bands':
+          return { ok: true, kind: 'adif.bands', bands: await deps.ports.adifBands() };
         case 'source.fetch': {
           const url = deps.sources[request.source];
           // Decided already by the grant check — a source nobody registered

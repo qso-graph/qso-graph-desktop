@@ -11,15 +11,41 @@ export type Section = (
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[] }
   // In named groups, and a two-cell row across a wider table (version 5).
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[] }
   // The world with the night greyed out, and places marked (version 6).
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
 ) & { readonly heading?: string };
 export interface Place { readonly latitude: number; readonly longitude: number }
 export interface Mark extends Place { readonly label: string }
+// A column to narrow the table by (version 6).
+export interface TableFilter { readonly column: number; readonly label: string; readonly options?: readonly string[] }
 export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
+
+// What a filter offers: the extension's options, or else the column's own
+// values in the order they first appear.
+export function filterOptions(section: Extract<Section, { shape: 'table' }>, filter: TableFilter): readonly string[] {
+  if (filter.options) return filter.options;
+  const seen = new Set<string>();
+  for (const group of tableGroups(section)) for (const row of group.rows) {
+    const cell = row[filter.column];
+    if (cell !== undefined && row.length === section.columns.length) seen.add(cell);
+  }
+  return [...seen];
+}
+
+// The table's groups with only the rows every chosen filter matches; a group
+// left empty is left out. A choice of '' is "All". A row that spans its
+// columns has no cell to match, so it is kept only while nothing is chosen.
+export function filteredGroups(section: Extract<Section, { shape: 'table' }>, chosen: Readonly<Record<number, string>>) {
+  const active = Object.entries(chosen).filter(([, value]) => value !== '');
+  if (active.length === 0) return tableGroups(section);
+  return tableGroups(section)
+    .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
+      && active.every(([column, value]) => row[Number(column)] === value)) }))
+    .filter(group => group.rows.length > 0);
+}
 
 // A table's rows as groups: an ungrouped table is one group with no heading.
 export function tableGroups(section: Extract<Section, { shape: 'table' }>): readonly { readonly heading?: string; readonly rows: readonly (readonly string[])[] }[] {

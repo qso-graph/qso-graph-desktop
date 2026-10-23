@@ -188,6 +188,7 @@ describe('the decision', () => {
       'callsign.active': { kind: 'callsign.active' },
       'station.active': { kind: 'station.active' },
       'adif.search': { kind: 'adif.search', query: 'FT8' },
+      'adif.bands': { kind: 'adif.bands' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     };
@@ -316,6 +317,14 @@ describe('adif.search (ADIF Lookup, KI7MT 2026-10-22)', () => {
       expect(() => validateRequest({ kind: 'adif.search', query }), String(query)).toThrowError(/short plain search/);
     }
     expect(() => validateRequest({ kind: 'adif.search', query: 'FT8', sql: 'x' })).toThrowError(/takes no "sql"/);
+  });
+});
+
+describe('adif.bands (Parks On the Air\'s band filter, KI7MT 2026-10-23)', () => {
+  it('needs reference:read, and takes nothing but its kind', () => {
+    expect(requiredGrant({ kind: 'adif.bands' })).toBe('reference:read');
+    expect(validateRequest({ kind: 'adif.bands' })).toEqual({ kind: 'adif.bands' });
+    expect(() => validateRequest({ kind: 'adif.bands', where: 'x' })).toThrowError(/takes no "where"/);
   });
 });
 

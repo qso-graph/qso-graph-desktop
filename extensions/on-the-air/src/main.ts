@@ -37,6 +37,10 @@ export function activate(context: ExtensionContext): void {
     const body = await fetchBody(context, 'pota-spots', signal);
     if (body === undefined) return { ok: false, reason: 'POTA could not be reached just now.' };
     const spots = parseSpots(body);
-    return spots ? parksPage(spots, new Date()) : { ok: false, reason: "POTA's spots could not be read just now." };
+    if (!spots) return { ok: false, reason: "POTA's spots could not be read just now." };
+    // ADIF's bands name each spot's band; without them the page still shows
+    // the spots, and says how to get the bands.
+    const reply = await context.request({ kind: 'adif.bands' }, { signal });
+    return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : []);
   }));
 }

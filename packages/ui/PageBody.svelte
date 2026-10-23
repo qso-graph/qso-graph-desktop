@@ -9,17 +9,41 @@
   the application, and no extension code runs in the window.
 -->
 <script lang="ts">
-  import { tableGroups, utc, type PageShown } from './page-shapes.js';
+  import { filterOptions, filteredGroups, utc, type PageShown } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
 
   interface Props {
     shown: PageShown;
+    // Ask the page again now; absent, no Refresh is drawn.
+    onRefresh?: (() => void) | undefined;
   }
-  const { shown }: Props = $props();
+  const { shown, onRefresh }: Props = $props();
+
+  // What each table's filters are set to, by section and column; '' is All.
+  // Kept across a refresh, so a band chosen stays chosen as spots update.
+  let chosen = $state<Record<number, Record<number, string>>>({});
+  const choose = (section: number, column: number, value: string) => {
+    chosen = { ...chosen, [section]: { ...(chosen[section] ?? {}), [column]: value } };
+  };
+
+  // Refresh rests for a few seconds after a press: the core asks at most
+  // once in ten (page-scheduler.ts), and a button that seems to do nothing
+  // when pressed again invites pressing it again.
+  let resting = $state(false);
+  function refresh(): void {
+    if (resting || !onRefresh) return;
+    onRefresh();
+    resting = true;
+    setTimeout(() => { resting = false; }, 10_000);
+  }
 </script>
 
 <section class="card page-body" aria-busy={shown.state === 'waiting'}>
-  {#if shown.state === 'ready'}<p class="page-time" id="page-observed">Updated {utc(shown.observedAt)}</p>{/if}
+  {#if shown.state === 'ready'}
+    <p class="page-time" id="page-observed">Updated {utc(shown.observedAt)}
+      {#if onRefresh}<button type="button" class="secondary" id="page-refresh" onclick={refresh} disabled={resting}>{resting ? 'Refreshed' : 'Refresh'}</button>{/if}
+    </p>
+  {/if}
   {#if shown.state === 'waiting'}
     <p class="hint">Getting the latest…</p>
   {:else if shown.state === 'failed'}
@@ -40,12 +64,29 @@
           {/each}
         </dl>
       {:else if section.shape === 'table'}
-        <table class="page-table">
+        {#if section.filters}
+          <!-- Drawn by the core, applied here at once: no new question is
+               asked when a choice changes (page data version 6). -->
+          <div class="page-filters">
+            {#each section.filters as filter (filter.column)}
+              <label>{filter.label}
+                <select class="page-filter" value={chosen[at]?.[filter.column] ?? ''}
+                  onchange={event => choose(at, filter.column, event.currentTarget.value)}>
+                  <option value="">All</option>
+                  {#each filterOptions(section, filter) as option (option)}<option value={option}>{option}</option>{/each}
+                </select>
+              </label>
+            {/each}
+          </div>
+        {/if}
+        {@const groups = filteredGroups(section, chosen[at] ?? {})}
+        {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
+        <table class="page-table" hidden={groups.length === 0}>
           <thead><tr>{#each section.columns as column, c (c)}<th scope="col">{column}</th>{/each}</tr></thead>
           <!-- One table, its groups as row groups, so every group's columns line
                up with every other's. A two-cell row in a wider table gives
                its one value across the columns after the first (version 5). -->
-          {#each tableGroups(section) as group, g (g)}
+          {#each groups as group, g (g)}
             <tbody>
               {#if group.heading}<tr class="page-table-group"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}

@@ -4,7 +4,7 @@
 // Time is the test's: fake timers, and `now` read from the same fake clock.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PageAnswer } from '../packages/extension-api/pages.js';
-import { createPageScheduler, type PageView, type CataloguePage } from '../packages/main/page-scheduler.js';
+import { createPageScheduler, REFRESH_FLOOR_MS, type PageView, type CataloguePage } from '../packages/main/page-scheduler.js';
 import type { PageOutcome } from '../packages/main/extension-host-supervisor.js';
 
 const AT = '2026-10-11T18:00:00Z';
@@ -238,6 +238,51 @@ describe('a page\'s fields (inputs.ts, KI7MT 2026-10-22)', () => {
     expect(asked).toEqual([{}, { dx: 'FN31' }]);
     // What was shown for the old values was dropped before the new answer.
     expect(published.map(view => view.state)).toContain('waiting');
+    scheduler.stop();
+  });
+});
+
+describe('Refresh: the operator asks the open page now (KI7MT, 2026-10-23)', () => {
+  it('asks at once rather than when the interval allows, and keeps what is shown until the answer', async () => {
+    const { scheduler, asked, published } = harness({ pins: ['air/conditions'] });
+    scheduler.setVisible(true);
+    await flush();
+    await vi.advanceTimersByTimeAsync(REFRESH_FLOOR_MS);
+    expect(scheduler.refreshNow('air/conditions')).toBe(true);
+    await flush();
+    expect(asked).toEqual(['conditions', 'conditions']);
+    // No "Getting the latest…" between: the old answer stays on screen.
+    expect(published.map(view => view.state)).toEqual(['waiting', 'ready', 'ready']);
+    // And the interval runs from the refresh.
+    await vi.advanceTimersByTimeAsync(899_000);
+    expect(asked).toHaveLength(2);
+    scheduler.stop();
+  });
+
+  it('asks nothing inside the floor, while a question is in flight, or for a page not open', async () => {
+    let release: () => void = () => {};
+    let slow = false;
+    const { scheduler, asked } = harness({
+      pins: ['air/conditions'],
+      respond: () => slow
+        ? new Promise(done => { release = () => done({ outcome: 'completed', answer: answer('x') }); })
+        : Promise.resolve({ outcome: 'completed', answer: answer('x') })
+    });
+    scheduler.setVisible(true);
+    await flush();
+    expect(scheduler.refreshNow('air/conditions')).toBe(false);
+    await vi.advanceTimersByTimeAsync(REFRESH_FLOOR_MS);
+    slow = true;
+    expect(scheduler.refreshNow('air/conditions')).toBe(true);
+    await vi.advanceTimersByTimeAsync(REFRESH_FLOOR_MS);
+    expect(scheduler.refreshNow('air/conditions')).toBe(false);
+    release();
+    await flush();
+    expect(scheduler.refreshNow('air/spare')).toBe(false);
+    expect(asked).toEqual(['conditions', 'conditions']);
+    scheduler.setVisible(false);
+    await vi.advanceTimersByTimeAsync(REFRESH_FLOOR_MS);
+    expect(scheduler.refreshNow('air/conditions')).toBe(false);
     scheduler.stop();
   });
 });

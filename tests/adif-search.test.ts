@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { searchAdif, ADIF_RESULTS } from '../packages/storage/adif-search.js';
+import { adifBands, searchAdif, ADIF_RESULTS } from '../packages/storage/adif-search.js';
 import { enumeration, enumerationValue, field, referenceSchema } from '../packages/storage/reference-schema.js';
 import { openStore } from '../packages/storage/sqlite.js';
 
@@ -66,6 +66,25 @@ describe('ADIF Lookup\'s search', () => {
       expect(await searchAdif(store, '   ')).toEqual([]);
       expect(await searchAdif(store, 'x'.repeat(65))).toEqual([]);
       expect((await searchAdif(store, 'm')).length).toBeLessThanOrEqual(ADIF_RESULTS);
+    } finally { store.close(); }
+  });
+});
+
+describe('ADIF\'s bands (adif.bands)', () => {
+  it('gives each band with ADIF\'s own edges, lowest first, and leaves out a row with no edges', async () => {
+    const store = await reference();
+    try {
+      await store.unit(async (db) => {
+        await db.insert(enumerationValue).values([
+          { enumeration: 'Band', key: '40m', value: { Band: '40m', 'Lower Freq (MHz)': '7.0', 'Upper Freq (MHz)': '7.3' } },
+          { enumeration: 'Band', key: 'odd', value: { Band: 'odd', 'Lower Freq (MHz)': '', 'Upper Freq (MHz)': 'x' } }
+        ]).run();
+      });
+      expect(await adifBands(store)).toEqual([
+        { band: '40m', lowerMHz: 7, upperMHz: 7.3 },
+        { band: '20m', lowerMHz: 14, upperMHz: 14.35 },
+        { band: '2m', lowerMHz: 144, upperMHz: 148 }
+      ]);
     } finally { store.close(); }
   });
 });

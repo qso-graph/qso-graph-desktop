@@ -35,7 +35,8 @@ describe('On the Air (QGD-HOM-0007)', () => {
     expect(await ask(providers, 'conditions')).toMatchObject({ ok: true });
     expect(asked.map(request => request.kind === 'source.fetch' ? request.source : request.kind).sort()).toEqual(['noaa-flux', 'noaa-kp', 'noaa-scales']);
     expect(await ask(providers, 'parks')).toMatchObject({ ok: true });
-    expect(asked.at(-1)).toEqual({ kind: 'source.fetch', source: 'pota-spots' });
+    // POTA's spots by registered name, then ADIF's bands to name each band.
+    expect(asked.slice(-2)).toEqual([{ kind: 'source.fetch', source: 'pota-spots' }, { kind: 'adif.bands' }]);
     expect(value.subscriptions).toHaveLength(2);
   });
 

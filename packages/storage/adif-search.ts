@@ -7,12 +7,12 @@
 //
 // Read-only, and bounded: at most ADIF_RESULTS entries, each with at most
 // ADIF_COLUMNS of ADIF's columns, each value cut at ADIF_TEXT characters.
-import { or, sql } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import { enumerationValue, field, type referenceSchema } from './reference-schema.js';
 import type { Store } from './sqlite.js';
 
-import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifEntry } from './adif-entry.js';
-export { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifEntry };
+import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
+export { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry };
 
 const cut = (value: string) => (value.length > ADIF_TEXT ? `${value.slice(0, ADIF_TEXT - 1)}…` : value);
 
@@ -61,3 +61,22 @@ export async function searchAdif(reference: Store<typeof referenceSchema>, query
   });
 }
 
+
+// ADIF's bands, lowest first, each with the edges ADIF gives it. A row whose
+// edges are not numbers is left out rather than guessed at.
+export async function adifBands(reference: Store<typeof referenceSchema>): Promise<AdifBand[]> {
+  return reference.unit(async (db) => {
+    const rows = await db.select().from(enumerationValue).where(eq(enumerationValue.enumeration, 'Band')).all();
+    const bands: AdifBand[] = [];
+    for (const row of rows) {
+      const value = row.value as Record<string, unknown>;
+      // Number('') is 0, so an empty edge is refused before it is read.
+      const edge = (raw: unknown) => (typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN);
+      const lowerMHz = edge(value['Lower Freq (MHz)']);
+      const upperMHz = edge(value['Upper Freq (MHz)']);
+      if (typeof value.Band !== 'string' || !Number.isFinite(lowerMHz) || !Number.isFinite(upperMHz) || upperMHz < lowerMHz) continue;
+      bands.push({ band: value.Band, lowerMHz, upperMHz });
+    }
+    return bands.sort((a, b) => a.lowerMHz - b.lowerMHz);
+  });
+}

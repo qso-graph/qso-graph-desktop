@@ -19,6 +19,7 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
       expect(validateHomeCommand({ type: 'open', key: 'astro/astro', inputs }), JSON.stringify(inputs)).toBe(false);
     }
     expect(validateHomeCommand({ type: 'pin', pins: ['on-the-air/conditions'] })).toBe(true);
+    expect(validateHomeCommand({ type: 'refresh', key: 'on-the-air/parks' })).toBe(true);
     // Eight pins: two rows of four (KI7MT, 2026-10-22).
     expect(validateHomeCommand({ type: 'pin', pins: Array.from({ length: 8 }, (_, i) => `a-x/c-${i}`) })).toBe(true);
   });
@@ -27,6 +28,7 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
     for (const bad of [
       { type: 'read', extra: 1 }, { type: 'open', key: '../x' }, { type: 'open' }, { type: 'open', key: 7 },
       { type: 'visible', visible: true },
+      { type: 'refresh' }, { type: 'refresh', key: '../x' }, { type: 'refresh', key: 'on-the-air/parks', now: true },
       { type: 'pin', pins: Array.from({ length: 9 }, (_, i) => `a-x/c-${i}`) },
       { type: 'pin', pins: ['dup/page', 'dup/page'] }, { type: 'page', key: 'a/b' }, null, []
     ]) expect(validateHomeCommand(bad), JSON.stringify(bad)).toBe(false);
