@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9560891e-311a-4b8a-950e-53d634e9a940",
+  "id": "f4d81bde-fc9b-4be0-83d8-5bfac5e887f4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "data_type": {
@@ -321,6 +321,30 @@
         },
         "row_count": {
           "name": "row_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "pota_activation": {
+      "name": "pota_activation",
+      "columns": {
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "activations": {
+          "name": "activations",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

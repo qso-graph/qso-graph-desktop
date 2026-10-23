@@ -4,15 +4,18 @@
 //
 // A resource is the data a person cares about, listed in the register; it is
 // made of one or more sources. ADIF definitions are one archive; POTA parks are
-// three lists that always move together; SOTA summits are one list.
+// three lists that always move together; SOTA summits are one list; POTA
+// activations are one list for each location of My Area.
 import type { Register } from '../reference/register.js';
-import { ADIF_SOURCE, POTA_SOURCE_IDS, SOTA_SOURCE_IDS } from './reference-build.js';
+import { ADIF_SOURCE, POTA_SOURCE_IDS, SOTA_SOURCE_IDS, activationsSourceId } from './reference-build.js';
 import { POTA_LISTS, SOTA_LISTS } from './reference-cache.js';
 import { isReferenceResource, type DatasetState, type ReferenceResource, type ReferenceStatus, type RefreshOutcome } from './reference.js';
 import type { ResourceSummary } from './storage-contract.js';
 
-export function sourcesOf(resource: ReferenceResource): string[] {
+// The sources of a resource. Activations' are the locations the file holds.
+export function sourcesOf(resource: ReferenceResource, held?: ReferenceStatus): string[] {
   if (resource === 'adif') return [ADIF_SOURCE];
+  if (resource === 'activations') return Object.keys(held?.activations ?? {}).map(activationsSourceId);
   if (resource === 'sota') return SOTA_LISTS.map((list) => SOTA_SOURCE_IDS[list]);
   return POTA_LISTS.map((list) => POTA_SOURCE_IDS[list]);
 }
@@ -20,23 +23,32 @@ export function sourcesOf(resource: ReferenceResource): string[] {
 function datasetsOf(resource: ReferenceResource, held: ReferenceStatus): DatasetState[] {
   if (resource === 'adif') return [held.adif];
   if (resource === 'sota') return SOTA_LISTS.map((list) => held.sota[list]);
+  if (resource === 'activations') {
+    const sets = Object.values(held.activations);
+    return sets.length > 0 ? sets : [{ state: 'not loaded' }];
+  }
   return POTA_LISTS.map((list) => held.pota[list]);
 }
 
 // How long a resource's lists stay current: ADIF goes by release, not age.
 function refreshAfter(register: Register, resource: ReferenceResource): number {
-  return (resource === 'sota' ? register.sota.refreshAfterHours : register.pota.refreshAfterHours) * 3_600_000;
+  return (resource === 'sota' ? register.sota.refreshAfterHours
+    : resource === 'activations' ? register.activations.refreshAfterHours : register.pota.refreshAfterHours) * 3_600_000;
 }
 
 // In words a person can act on, or undefined when the last attempt worked.
 // Never a message, a path or a value (QGD-ENG-0016).
 export function problemOf(resource: ReferenceResource, outcome: RefreshOutcome): string | undefined {
+  if (resource === 'activations' && outcome.noArea) {
+    return 'Choose My Area on the Locations page first: activations are downloaded for its locations alone.';
+  }
   const inputs = resource === 'adif' ? [outcome.adif]
     : resource === 'sota' ? SOTA_LISTS.map((list) => outcome.sota[list])
-      : POTA_LISTS.map((list) => outcome.pota[list]);
+      : resource === 'activations' ? Object.values(outcome.activations)
+        : POTA_LISTS.map((list) => outcome.pota[list]);
   const kept = inputs.filter((input) => input.state === 'kept');
   if (outcome.deferred) {
-    if (resource === 'sota') return 'Could not be added: other reference data it would be built with is missing. Download it again, then this.';
+    if (resource === 'sota' || resource === 'activations') return 'Could not be added: other reference data it would be built with is missing. Download it again, then this.';
     return resource === 'adif'
       ? 'Could not be added: the POTA parks it would be built with are missing. Download POTA parks, then this.'
       : 'Could not be added: the ADIF definitions it would be built with are missing. Download ADIF definitions, then this.';
@@ -66,7 +78,7 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
     const fetched = sets.flatMap((set) => (set.state === 'loaded' ? [Date.parse(set.fetchedAt)] : [])).filter(Number.isFinite);
     // The last time every source of it answered: the oldest of the newest of
     // each source's check and its body's fetch.
-    const sources = sourcesOf(id);
+    const sources = sourcesOf(id, held);
     const answered = sources.map((source, at) => {
       const set = sets[at] ?? sets[0];
       const check = checks[source] ? Date.parse(checks[source]!) : NaN;
@@ -81,7 +93,9 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
     // ADIF's definitions change only with a new ADIF release, which reaches the
     // app when a release pins it, so Update is offered only then; an Update of
     // the pinned version would fetch nothing new (KI7MT, 2026-10-12, #37).
-    // POTA's and SOTA's lists change daily, so they can always be updated.
+    // POTA's and SOTA's lists change daily, so they can always be updated;
+    // so can activations, whose Update also fetches a location newly in
+    // My Area, while one fetched today is not asked again (QGD-REF-0019).
     const version = id === 'adif' && held.adif.state === 'loaded' ? held.adif.version : undefined;
     return {
       id, name: entry.name, what: entry.what, owner: entry.owner, size: entry.size,

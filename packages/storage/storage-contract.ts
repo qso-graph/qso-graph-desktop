@@ -85,7 +85,9 @@ export interface StorageStatus {
 
 export type StorageCommand =
   | { type: 'status' }
-  | { type: 'update-reference'; resource: string }
+  // An activations Update carries My Area as chosen, added by main from
+  // settings; empty means the active Location's own (QGD-STN-0012).
+  | { type: 'update-reference'; resource: string; area?: string[] }
   | { type: 'save-station'; station: StationDraft }
   | { type: 'delete-station'; id: string }
   | { type: 'set-default-station'; callsign: string; id: string | null }
@@ -135,6 +137,9 @@ function isDataset(value: unknown): value is DatasetSummary {
 }
 
 const RESOURCE_ID = /^[a-z][a-z0-9-]{1,30}$/;
+// My Area on an activations Update: settings' own bounds (MAX_AREA, LOCATION).
+const AREA_MOST = 10;
+const AREA_CODE = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
 const words = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit;
 
 function isVersion(value: unknown): boolean {
@@ -254,7 +259,10 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
   switch (value.type) {
     case 'status': return exactly(['type']);
     case 'update-reference':
-      return exactly(['type', 'resource']) && typeof value.resource === 'string' && RESOURCE_ID.test(value.resource);
+      return (exactly(['type', 'resource']) || exactly(['type', 'resource', 'area']))
+        && typeof value.resource === 'string' && RESOURCE_ID.test(value.resource)
+        && (value.area === undefined || (Array.isArray(value.area) && value.area.length <= AREA_MOST
+          && value.area.every(location => typeof location === 'string' && AREA_CODE.test(location))));
     case 'save-station': return exactly(['type', 'station']) && isStationDraft(value.station);
     case 'delete-station': return exactly(['type', 'id']) && isStationId(value.id);
     case 'set-default-station':

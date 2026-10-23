@@ -29,15 +29,17 @@ import { eq, sql } from 'drizzle-orm';
 import { openArchive, type FetchArchive, type FetchText } from '../reference/fetch.js';
 import type { Definitions } from '../reference/adif.js';
 import type { Register } from '../reference/register.js';
-import { ShapeError, readLocations, readParks, readPrograms, refuseIfShrunk } from '../reference/pota.js';
+import { LOCATION_CODE, ShapeError, readActivations, readLocations, readParks, readPrograms, refuseIfShrunk } from '../reference/pota.js';
 import { readSummits } from '../reference/sota.js';
 import { type StorageError, StorageFailure, failure, reduce } from './errors.js';
 import type { Layout } from './layout.js';
 import {
-  type BuildInputs, type BuildSummary, ADIF_SOURCE, POTA_SOURCE_IDS, SOTA_SOURCE_IDS
+  type BuildInputs, type BuildSummary, ACTIVATIONS_SOURCE_PREFIX, ADIF_SOURCE, POTA_SOURCE_IDS, SOTA_SOURCE_IDS,
+  activationsSourceId
 } from './reference-build.js';
 import {
-  POTA_LISTS, SOTA_LISTS, type AnyList, type ListedResource, type PotaList, type SotaList, commit, prune, readBody, readRecord
+  POTA_LISTS, SOTA_LISTS, type AnyList, type ListedResource, type PotaList, type SotaList, commit, forget, listsOf, prune,
+  readBody, readRecord
 } from './reference-cache.js';
 import { REFERENCE_SCHEMA_VERSION, referenceSchema, source } from './reference-schema.js';
 import { referenceRefresh, type stateSchema } from './schema.js';
@@ -52,6 +54,9 @@ export interface ReferenceStatus {
   adif: DatasetState;
   pota: Record<PotaList, DatasetState>;
   sota: Record<SotaList, DatasetState>;
+  // POTA's activations, by location: only the locations the file holds
+  // (QGD-REF-0019).
+  activations: Record<string, DatasetState>;
 }
 
 export type InputOutcome =
@@ -64,7 +69,7 @@ export type InputOutcome =
 // The resources this core knows how to load, by the register's ids
 // (data/reference-sources.json "resources"). A register row the core cannot
 // load, or an id here the register lacks, is a test failure, not a quiet gap.
-export const REFERENCE_RESOURCES = ['adif', 'pota', 'sota'] as const;
+export const REFERENCE_RESOURCES = ['adif', 'pota', 'activations', 'sota'] as const;
 export type ReferenceResource = (typeof REFERENCE_RESOURCES)[number];
 export function isReferenceResource(value: unknown): value is ReferenceResource {
   return typeof value === 'string' && (REFERENCE_RESOURCES as readonly string[]).includes(value);
@@ -73,6 +78,9 @@ export function isReferenceResource(value: unknown): value is ReferenceResource 
 export interface RefreshOptions {
   force?: boolean;
   only?: ReferenceResource;
+  // My Area's locations, for an activations refresh (QGD-STN-0012): only
+  // these are fetched, and a location no longer in it is let go.
+  area?: readonly string[];
 }
 
 // For the source not being fetched: the cache answers, or nothing does.
@@ -82,6 +90,9 @@ export interface RefreshOutcome {
   adif: InputOutcome;
   pota: Record<PotaList, InputOutcome>;
   sota: Record<SotaList, InputOutcome>;
+  activations: Record<string, InputOutcome>;
+  // An activations refresh with no location to fetch: My Area is empty.
+  noArea?: true;
   built: boolean;
   // A build that would have dropped a dataset the live file holds, and so was
   // not run. The file stands as it was.
@@ -229,7 +240,8 @@ export class Reference {
     const empty = (): ReferenceStatus => ({
       adif: NOT_LOADED,
       pota: { parks: NOT_LOADED, programs: NOT_LOADED, locations: NOT_LOADED },
-      sota: { summits: NOT_LOADED }
+      sota: { summits: NOT_LOADED },
+      activations: {}
     });
     const reader = this.reader();
     if (!reader) return empty();
@@ -246,7 +258,9 @@ export class Reference {
     return {
       adif: of(ADIF_SOURCE),
       pota: { parks: of(POTA_SOURCE_IDS.parks), programs: of(POTA_SOURCE_IDS.programs), locations: of(POTA_SOURCE_IDS.locations) },
-      sota: { summits: of(SOTA_SOURCE_IDS.summits) }
+      sota: { summits: of(SOTA_SOURCE_IDS.summits) },
+      activations: Object.fromEntries(rows.filter((row) => row.id.startsWith(ACTIVATIONS_SOURCE_PREFIX))
+        .map((row) => [row.id.slice(ACTIVATIONS_SOURCE_PREFIX.length), of(row.id)]))
     };
   }
 
@@ -254,7 +268,8 @@ export class Reference {
   // measured from this, not from when the body was fetched, so a list that
   // has not changed is current after an Update that found it unchanged.
   async lastChecks(): Promise<Record<string, string | undefined>> {
-    const ids = [ADIF_SOURCE, ...POTA_LISTS.map((list) => POTA_SOURCE_IDS[list]), ...SOTA_LISTS.map((list) => SOTA_SOURCE_IDS[list])];
+    const ids = [ADIF_SOURCE, ...POTA_LISTS.map((list) => POTA_SOURCE_IDS[list]), ...SOTA_LISTS.map((list) => SOTA_SOURCE_IDS[list]),
+      ...listsOf(this.#options.paths.referenceCache, 'activations').map(activationsSourceId)];
     const out: Record<string, string | undefined> = {};
     for (const id of ids) out[id] = (await this.#lastCheck(id))?.toISOString();
     return out;
@@ -325,6 +340,29 @@ export class Reference {
         : { state: 'not asked' };
     }
 
+    // And POTA's activations, only when they are what was asked for, and only
+    // for My Area's locations, one at a time (QGD-REF-0019). Never forced:
+    // each location is asked at most once a day however often Update is
+    // pressed. A location taken out of My Area is let go, which is the
+    // operator's choice and not a loss.
+    const activations: Record<string, InputOutcome> = {};
+    const letGo = new Set<string>();
+    let noArea = false;
+    if (options.only === 'activations') {
+      const area = [...new Set((options.area ?? []).filter((location) => LOCATION_CODE.test(location)))];
+      noArea = area.length === 0;
+      if (!noArea) {
+        for (const location of listsOf(paths.referenceCache, 'activations')) {
+          if (area.includes(location)) continue;
+          forget(paths.referenceCache, location, 'activations');
+          letGo.add(location);
+        }
+      }
+      for (const location of area) {
+        activations[location] = await this.#refreshList('activations', location, now, false, held.get(activationsSourceId(location)));
+      }
+    }
+
     // 3. Build, if what the file holds is not what the inputs now are.
     const adifFetchedAt = definitions
       // The same release (version and checksum together, QGD-REF-0003) keeps
@@ -336,7 +374,8 @@ export class Reference {
       register,
       ...(definitions && adifFetchedAt ? { adif: { definitions, fetchedAt: adifFetchedAt } } : {}),
       pota: {},
-      sota: {}
+      sota: {},
+      activations: {}
     };
     let buildFailure: StorageError | undefined;
     try {
@@ -347,6 +386,10 @@ export class Reference {
       for (const list of SOTA_LISTS) {
         const record = readRecord(paths.referenceCache, list, 'sota');
         if (record) inputs.sota![list] = { record, body: readBody(paths.referenceCache, record, 'sota') };
+      }
+      for (const list of listsOf(paths.referenceCache, 'activations')) {
+        const record = readRecord(paths.referenceCache, list, 'activations');
+        if (record) inputs.activations![list] = { record, body: readBody(paths.referenceCache, record, 'activations') };
       }
     } catch (error) {
       buildFailure = reduce(error, 'build');
@@ -363,13 +406,20 @@ export class Reference {
     // stale beats briefly wrong).
     const wouldLose = (held.has(ADIF_SOURCE) && !inputs.adif)
       || POTA_LISTS.some((list) => held.has(POTA_SOURCE_IDS[list]) && !inputs.pota[list])
-      || SOTA_LISTS.some((list) => held.has(SOTA_SOURCE_IDS[list]) && !inputs.sota?.[list]);
+      || SOTA_LISTS.some((list) => held.has(SOTA_SOURCE_IDS[list]) && !inputs.sota?.[list])
+      || Object.keys(before.activations).some((location) => !letGo.has(location) && !inputs.activations?.[location]);
+    // The activations the file holds are not the ones the inputs are: a
+    // location added, let go, or fetched again.
+    const activationsChanged = Object.keys(before.activations).length !== Object.keys(inputs.activations ?? {}).length
+      || Object.entries(inputs.activations ?? {}).some(([location, input]) => wanted(before.activations[location] ?? NOT_LOADED, input.record.sha256));
     const needed = !buildFailure && !wouldLose && (
       !this.reader()
       || wanted(before.adif, inputs.adif ? register.adif.source.sha256 : undefined)
       || POTA_LISTS.some((list) => wanted(before.pota[list], inputs.pota[list]?.record.sha256))
       || SOTA_LISTS.some((list) => wanted(before.sota[list], inputs.sota?.[list]?.record.sha256))
-    ) && (inputs.adif !== undefined || Object.keys(inputs.pota).length > 0 || Object.keys(inputs.sota ?? {}).length > 0);
+      || activationsChanged
+    ) && (inputs.adif !== undefined || Object.keys(inputs.pota).length > 0 || Object.keys(inputs.sota ?? {}).length > 0
+      || Object.keys(inputs.activations ?? {}).length > 0);
 
     let summary: BuildSummary | undefined;
     if (needed) {
@@ -389,6 +439,7 @@ export class Reference {
         this.#options.hooks?.afterSwap?.();
         prune(paths.referenceCache, 'pota');
         prune(paths.referenceCache, 'sota');
+        prune(paths.referenceCache, 'activations');
       } catch (error) {
         buildFailure = reduce(error, 'build');
         for (const name of [target, `${target}-journal`]) {
@@ -411,8 +462,13 @@ export class Reference {
       await this.#record(SOTA_SOURCE_IDS[list], at, outcome, outcome.state !== 'fresh enough' && outcome.state !== 'kept');
     }
 
+    for (const [location, outcome] of Object.entries(activations)) {
+      await this.#record(activationsSourceId(location), at, outcome, outcome.state !== 'fresh enough' && outcome.state !== 'kept');
+    }
+
     return {
-      adif, pota, sota, built: summary !== undefined,
+      adif, pota, sota, activations, built: summary !== undefined,
+      ...(noArea ? { noArea: true as const } : {}),
       ...(wouldLose ? { deferred: true as const } : {}),
       ...(buildFailure ? { buildFailure } : {}),
       ...(summary ? { summary } : {}),
@@ -424,10 +480,16 @@ export class Reference {
     resource: ListedResource, list: AnyList, now: Date, force: boolean, liveRows: number | undefined
   ): Promise<InputOutcome> {
     const { paths, register } = this.#options;
-    const sources: Record<string, (typeof register.pota.sources)['parks']> = resource === 'pota' ? register.pota.sources : register.sota.sources;
+    // An activations list is the register's one source with its location
+    // filled in, a code already held to LOCATION_CODE (QGD-REF-0019).
+    const sources: Record<string, (typeof register.pota.sources)['parks']> = resource === 'pota' ? register.pota.sources
+      : resource === 'sota' ? register.sota.sources
+        : { [list]: { ...register.activations.source, url: register.activations.source.url.replace('{location}', list) } };
     const sourceRegister = sources[list];
-    const sourceId = resource === 'pota' ? POTA_SOURCE_IDS[list as PotaList] : SOTA_SOURCE_IDS[list as SotaList];
-    const refreshAfterHours = resource === 'pota' ? register.pota.refreshAfterHours : register.sota.refreshAfterHours;
+    const sourceId = resource === 'pota' ? POTA_SOURCE_IDS[list as PotaList]
+      : resource === 'sota' ? SOTA_SOURCE_IDS[list as SotaList] : activationsSourceId(list);
+    const refreshAfterHours = resource === 'pota' ? register.pota.refreshAfterHours
+      : resource === 'sota' ? register.sota.refreshAfterHours : register.activations.refreshAfterHours;
     // A record is trusted only if the body it names is there and matches.
     // Otherwise it is as if there were none: no freshness, no validators, so
     // the fetch is unconditional and an unchanged list can repair the cache.
@@ -445,10 +507,11 @@ export class Reference {
       });
       if (answer.status === 'unchanged') return { state: 'unchanged' };
       // Checked before it can replace anything (QGD-REF-0010).
-      const rows = list === 'parks' ? readParks(answer.body, sourceRegister.columns).parks.length
-        : list === 'programs' ? readPrograms(answer.body).length
-          : list === 'summits' ? readSummits(answer.body, sourceRegister.columns).summits.length
-            : readLocations(answer.body).length;
+      const rows = resource === 'activations' ? readActivations(answer.body).length
+          : list === 'parks' ? readParks(answer.body, sourceRegister.columns).parks.length
+            : list === 'programs' ? readPrograms(answer.body).length
+              : list === 'summits' ? readSummits(answer.body, sourceRegister.columns).summits.length
+                : readLocations(answer.body).length;
       // Against the cache's count, or the live file's when the cache has
       // none, so losing a record does not switch off the truncation check.
       refuseIfShrunk(list, rows, record?.rowCount ?? liveRows);
@@ -467,7 +530,7 @@ export class Reference {
 // Used by status displays: whether reference data is loaded at all.
 export function anyLoaded(status: ReferenceStatus): boolean {
   return status.adif.state === 'loaded' || POTA_LISTS.some((list) => status.pota[list].state === 'loaded')
-    || SOTA_LISTS.some((list) => status.sota[list].state === 'loaded');
+    || SOTA_LISTS.some((list) => status.sota[list].state === 'loaded') || Object.keys(status.activations).length > 0;
 }
 
 // Sanity for the suites: a count by SQL on the live file.

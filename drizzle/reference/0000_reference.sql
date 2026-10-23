@@ -51,6 +51,11 @@ CREATE TABLE `list` (
 	`row_count` integer
 );
 --> statement-breakpoint
+CREATE TABLE `pota_activation` (
+	`reference` text PRIMARY KEY NOT NULL,
+	`activations` integer
+);
+--> statement-breakpoint
 CREATE TABLE `pota_location` (
 	`location_id` integer PRIMARY KEY NOT NULL,
 	`entity_id` integer,

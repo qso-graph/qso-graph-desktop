@@ -88,7 +88,9 @@ const hash = (path: string) => createHash('sha256').update(readFileSync(path)).d
 const DDL_BY_VERSION: Record<number, string> = {
   2: 'a62e6f5fd8824c3583e8cf88439b98361b66bca6f4d0d4b904c095a8b94e8820',
   // SOTA's summits added (QGD-REF-0018, 2026-10-22).
-  3: '9757de61fbe0afb387943bbca1d3ce8d621f0f27d8b803d441a8137357e4bb03'
+  3: '9757de61fbe0afb387943bbca1d3ce8d621f0f27d8b803d441a8137357e4bb03',
+  // POTA's activations added (QGD-REF-0019, 2026-10-23).
+  4: 'd4154efc64d80d365c8a381ada272bd8552be8039a8ce8d90022637da306c87e'
 };
 
 describe('P5-loads: the schema rendered from its declaration (QGD-ENG-0015)', () => {
@@ -717,3 +719,123 @@ describe('SOTA summits, a resource of one list (QGD-REF-0018)', () => {
   });
 });
 
+
+describe('POTA activations, a list for each location of My Area (QGD-REF-0019)', () => {
+  // Made-up parks in POTA's per-location shape: nothing of POTA's is in this
+  // repository. Every field POTA sends is here; only two are kept.
+  const park = (reference: string, activations: number | null, locationDesc: string) => ({
+    reference, name: 'Example Park', latitude: 43.7, longitude: -116.1, grid: 'DN13', locationDesc,
+    attempts: activations, activations, qsos: activations === null ? null : activations * 20, website: null, notes: null
+  });
+  const urlOf = (location: string) => register.activations.source.url.replace('{location}', location);
+  const LISTS: Record<string, string> = {
+    [urlOf('US-ID')]: JSON.stringify([park('US-0001', 12, 'US-ID'), park('US-0002', 0, 'US-ID'), park('US-0003', null, 'US-ID'),
+      park('US-0009', 4, 'US-ID,US-OR')]),
+    [urlOf('US-OR')]: JSON.stringify([park('US-0009', 4, 'US-ID,US-OR'), park('US-0010', 1, 'US-OR')])
+  };
+  const held = async (ref: Reference) => {
+    const reader = ref.reader();
+    if (!reader) return [];
+    return reader.unit(db => db.values<[string, number | null]>(sql`SELECT reference, activations FROM pota_activation ORDER BY reference`));
+  };
+
+  it('is fetched for My Area\'s locations alone, one request each, and keeps a null as null', async () => {
+    const calls: string[] = [];
+    const { ref, done } = await reference({ fetchText: pota(LISTS, [], calls), fetchArchive: offline });
+    try {
+      const outcome = await ref.refresh({ only: 'activations', force: true, area: ['US-ID'] });
+      expect(calls).toEqual([urlOf('US-ID')]);
+      expect(outcome.activations).toEqual({ 'US-ID': { state: 'loaded' } });
+      expect(outcome.adif).toEqual({ state: 'not asked' });
+      expect(outcome.pota.parks).toEqual({ state: 'not asked' });
+      expect(outcome.built).toBe(true);
+      expect(outcome.status.activations['US-ID']).toMatchObject({ state: 'loaded', rows: 4 });
+      expect(await held(ref)).toEqual([['US-0001', 12], ['US-0002', 0], ['US-0003', null], ['US-0009', 4]]);
+    } finally { done(); }
+  });
+
+  it('asks each location at most once a day, however often Update is pressed', async () => {
+    const calls: string[] = [];
+    const { ref, done } = await reference({ fetchText: pota(LISTS, [], calls), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'activations', force: true, area: ['US-ID'] });
+      const again = await ref.refresh({ only: 'activations', force: true, area: ['US-ID'] });
+      expect(again.activations['US-ID']).toEqual({ state: 'fresh enough' });
+      // A location new to My Area is fetched; the one fetched today is not.
+      const added = await ref.refresh({ only: 'activations', force: true, area: ['US-ID', 'US-OR'] });
+      expect(calls).toEqual([urlOf('US-ID'), urlOf('US-OR')]);
+      expect(Object.keys(added.status.activations).sort()).toEqual(['US-ID', 'US-OR']);
+      // A park in both locations is one row.
+      expect((await held(ref)).map(([reference]) => reference)).toEqual(['US-0001', 'US-0002', 'US-0003', 'US-0009', 'US-0010']);
+      clock += 86_400_000;
+      await ref.refresh({ only: 'activations', force: true, area: ['US-ID', 'US-OR'] });
+      expect(calls).toHaveLength(4);
+    } finally { done(); }
+  });
+
+  it('lets go of a location taken out of My Area', async () => {
+    const { ref, paths, done } = await reference({ fetchText: pota(LISTS), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'activations', force: true, area: ['US-ID', 'US-OR'] });
+      const outcome = await ref.refresh({ only: 'activations', force: true, area: ['US-OR'] });
+      expect(outcome.deferred).toBeUndefined();
+      expect(Object.keys(outcome.status.activations)).toEqual(['US-OR']);
+      expect((await held(ref)).map(([reference]) => reference)).toEqual(['US-0009', 'US-0010']);
+      expect(readdirSync(join(paths.referenceCache, 'activations')).filter(name => name.endsWith('.json'))).toEqual(['US-OR.json']);
+    } finally { done(); }
+  });
+
+  it('fetches nothing with no My Area, and says so', async () => {
+    const calls: string[] = [];
+    const { ref, done } = await reference({ fetchText: pota(LISTS, [], calls), fetchArchive: offline });
+    try {
+      const outcome = await ref.refresh({ only: 'activations', force: true, area: [] });
+      expect(calls).toEqual([]);
+      expect(outcome.noArea).toBe(true);
+      expect(outcome.built).toBe(false);
+    } finally { done(); }
+  });
+
+  it('never puts anything but a location code into the URL', async () => {
+    const calls: string[] = [];
+    const { ref, done } = await reference({ fetchText: pota(LISTS, [], calls), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'activations', force: true, area: ['../programs', 'US-ID/x', 'us-id', 'US-ID'] });
+      expect(calls).toEqual([urlOf('US-ID')]);
+    } finally { done(); }
+  });
+
+  it('keeps the last good list when POTA cannot be reached or sends something malformed', async () => {
+    const { ref, done } = await reference({ fetchText: pota(LISTS), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'activations', force: true, area: ['US-ID'] });
+      clock += 2 * 86_400_000;
+      ref.close();
+      for (const fetchText of [pota(LISTS, [urlOf('US-ID')]), pota({ [urlOf('US-ID')]: '{"not": "a list"}' })]) {
+        const failing = await reference({ fetchText, fetchArchive: offline });
+        try {
+          const outcome = await failing.ref.refresh({ only: 'activations', force: true, area: ['US-ID'] });
+          expect(outcome.activations['US-ID'].state).toBe('kept');
+          expect(outcome.status.activations['US-ID']).toMatchObject({ state: 'loaded', rows: 4 });
+        } finally { failing.done(); }
+      }
+    } finally { done(); }
+  });
+
+  it('stays when another resource is updated', async () => {
+    const { ref, done } = await reference({ fetchText: pota(LISTS), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'activations', force: true, area: ['US-ID'] });
+      const outcome = await ref.refresh({ only: 'adif', force: true });
+      expect(outcome.status.activations['US-ID']).toMatchObject({ state: 'loaded', rows: 4 });
+    } finally { done(); }
+  });
+
+  it('a window\'s Update may carry My Area as settings bound it, and nothing else', () => {
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'activations', area: ['US-ID', 'JP-FS'] })).toBe(true);
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'activations', area: [] })).toBe(true);
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'activations', area: ['../x'] })).toBe(false);
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'activations', area: 'US-ID' })).toBe(false);
+    expect(validateStorageCommand({ type: 'update-reference', resource: 'activations', area: Array(11).fill('US-ID') })).toBe(false);
+  });
+});

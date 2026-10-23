@@ -37,6 +37,10 @@ export interface StorageBrokerOptions {
   // connecting. The credential core is the one process that opens an
   // outbound connection (QGD-SEC-0020).
   fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
+  // My Area as the operator chose it (settings.json), which QG Storage does
+  // not read: added to an activations Update, so only its locations are
+  // fetched (QGD-STN-0012, QGD-REF-0019).
+  area?: () => readonly string[];
 }
 
 export interface StorageBroker {
@@ -207,7 +211,13 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       log.warn({ accepted: false }, 'storage request refused');
       return { ok: false, error: 'Invalid storage request.' };
     }
-    if (command.type === 'update-reference') log.info({}, 'reference update asked for');
+    if (command.type === 'update-reference') {
+      log.info({}, 'reference update asked for');
+      // The area is the settings', never the renderer's.
+      const asked = { type: command.type, resource: command.resource };
+      if (command.resource === 'activations') return ask({ ...asked, area: [...(options.area?.() ?? [])] });
+      return ask(asked);
+    }
     return ask(command);
   });
 

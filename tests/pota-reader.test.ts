@@ -10,8 +10,8 @@
 // rather than taken from a split.
 import { describe, expect, it } from 'vitest';
 import {
-  judgeCoordinates, parseCsv, readLocations, readParks, readPrograms,
-  refuseIfShrunk, ShapeError, PARK_COLUMNS
+  judgeCoordinates, parseCsv, readActivations, readLocations, readParks, readPrograms,
+  refuseIfShrunk, ShapeError, LOCATION_CODE, PARK_COLUMNS
 } from '../packages/reference/pota.js';
 
 const header = `"${PARK_COLUMNS.join('","')}"`;
@@ -189,5 +189,37 @@ describe('QGD-REF-0012 and QGD-REF-0013 what POTA publishes about a park', () =>
     expect(only.entityId).toBeNull();
     expect(only.locationDesc).toBe('US-AK');
     expect(only.latitude).toBe(61.37);
+  });
+});
+
+describe('QGD-REF-0019 a location\'s activations', () => {
+  const list = (...rows: unknown[]) => JSON.stringify(rows);
+  const row = (reference: string, activations: unknown) => ({ reference, name: 'Example', attempts: 1, activations, qsos: 9 });
+
+  it('keeps the reference and the count, and a null as null', () => {
+    expect(readActivations(list(row('US-0001', 7), row('US-0002', 0), row('US-0003', null))))
+      .toEqual([{ reference: 'US-0001', activations: 7 }, { reference: 'US-0002', activations: 0 }, { reference: 'US-0003', activations: null }]);
+  });
+
+  it('reads an empty list as a location with no parks', () => {
+    expect(readActivations('[]')).toEqual([]);
+  });
+
+  it.each([
+    ['not JSON', '<html>'],
+    ['not a list', '{"reference":"US-0001"}'],
+    ['a park with no count field', list({ reference: 'US-0001' })],
+    ['a park with no reference', list(row('', 3))],
+    ['a park twice', list(row('US-0001', 3), row('US-0001', 3))],
+    ['a count that is not a whole number', list(row('US-0001', 2.5))],
+    ['a count below zero', list(row('US-0001', -1))],
+    ['a count that is text', list(row('US-0001', 'many'))]
+  ])('refuses %s', (_, body) => {
+    expect(() => readActivations(body)).toThrow(ShapeError);
+  });
+
+  it('takes a location code and nothing that could change the URL', () => {
+    for (const code of ['US-ID', 'JP-FS', 'VE-ON', '9A-ZG']) expect(LOCATION_CODE.test(code)).toBe(true);
+    for (const code of ['us-id', 'US-ID/x', '../US', 'US-', 'US-ID?x=1', 'US-ID ', 'US-ID\n']) expect(LOCATION_CODE.test(code)).toBe(false);
   });
 });

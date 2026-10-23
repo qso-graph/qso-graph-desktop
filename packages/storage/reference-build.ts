@@ -18,7 +18,7 @@ import { count, isNotNull, sql } from 'drizzle-orm';
 import {
   type Definitions, dataTypes, derive, enumerations, fields, values
 } from '../reference/adif.js';
-import { type Location, type Park, type Program, ShapeError, readLocations, readParks, readPrograms } from '../reference/pota.js';
+import { type Activation, type Location, type Park, type Program, ShapeError, readActivations, readLocations, readParks, readPrograms } from '../reference/pota.js';
 import { type Summit, readSummits } from '../reference/sota.js';
 import type { Register } from '../reference/register.js';
 import type { PotaRegister } from '../reference/register.js';
@@ -26,7 +26,7 @@ import { StorageFailure, failure } from './errors.js';
 import { type PotaList, type PotaRecord, type SotaList, POTA_LISTS } from './reference-cache.js';
 import {
   REFERENCE_SCHEMA_VERSION, dataType, enumeration, enumerationValue, field, list, potaLocation,
-  potaPark, potaParkLocation, potaProgram, referenceSchema, sotaSummit, source, uninterpreted, zone
+  potaActivation, potaPark, potaParkLocation, potaProgram, referenceSchema, sotaSummit, source, uninterpreted, zone
 } from './reference-schema.js';
 import { applyDdl, stampVersion } from './migrate.js';
 import { openStore, type Store } from './sqlite.js';
@@ -37,6 +37,9 @@ export const POTA_SOURCE_IDS: Readonly<Record<PotaList, string>> = {
   parks: 'pota-parks', programs: 'pota-programs', locations: 'pota-locations'
 };
 export const SOTA_SOURCE_IDS: Readonly<Record<SotaList, string>> = { summits: 'sota-summits' };
+// One source per location of My Area (QGD-REF-0019): pota-activations-US-ID.
+export const ACTIVATIONS_SOURCE_PREFIX = 'pota-activations-';
+export const activationsSourceId = (location: string) => `${ACTIVATIONS_SOURCE_PREFIX}${location}`;
 
 export interface AdifInput {
   definitions: Definitions;
@@ -56,12 +59,16 @@ export interface BuildInputs {
   pota: Partial<Record<PotaList, PotaInput>>;
   // SOTA's summits (QGD-REF-0018), when they are downloaded.
   sota?: Partial<Record<SotaList, PotaInput>>;
+  // POTA's activations, by location (QGD-REF-0019), when they are downloaded.
+  activations?: Record<string, PotaInput>;
 }
 
 export interface BuildSummary {
   adif: { version: string; values: number; fields: number; zones: number } | undefined;
   pota: Partial<Record<PotaList, number>>;
   sota?: Partial<Record<SotaList, number>>;
+  // Parks with an activation count, a park in two locations once.
+  activations?: number;
   adifLinked: number;
   adifUnlinked: number;
 }
@@ -136,6 +143,7 @@ export async function buildReference(
     const pota = parsePota(register.pota, inputs.pota);
     const summits: Summit[] | undefined = inputs.sota?.summits
       ? readSummits(inputs.sota.summits.body, register.sota.sources.summits.columns).summits : undefined;
+    const activations = readAllActivations(inputs.activations);
 
     store = openStore(target, { schema: referenceSchema, journal: 'delete' });
     const ddl = referenceDdl(ddlFolder);
@@ -209,6 +217,15 @@ export async function buildReference(
           await insertAll(summits, (batch) => db.insert(sotaSummit).values(batch));
         }
         if (pota.locations) await insertAll(pota.locations, (batch) => db.insert(potaLocation).values(batch));
+        for (const [location, input] of Object.entries(inputs.activations ?? {})) {
+          await db.insert(source).values({
+            id: activationsSourceId(location), what: input.record.what, url: input.record.url,
+            etag: input.record.etag, lastModified: input.record.lastModified,
+            fetchedAt: input.record.fetchedAt, rowCount: activations.byLocation.get(location) ?? 0,
+            contentSha256: input.record.sha256
+          });
+        }
+        await insertAll(activations.rows, (batch) => db.insert(potaActivation).values(batch));
 
         // QGD-REF-0012: the ADIF entity is set only where POTA's number is also
         // one of ADIF's DXCC codes. With no ADIF in this build, every link stays null.
@@ -227,7 +244,7 @@ export async function buildReference(
 
     hooks.beforeChecks?.(store);
     await check(store, inputs, adif && { values: adif.values.length, fields: adif.fields.length,
-      types: adif.types.length, enumerations: adif.enumerations.length, zones: adif.derived.zones.length }, pota, summits);
+      types: adif.types.length, enumerations: adif.enumerations.length, zones: adif.derived.zones.length }, pota, summits, activations);
 
     stampVersion(store, REFERENCE_SCHEMA_VERSION);
     const linked = await store.unit((db) => db.values<[number, number]>(sql`
@@ -241,6 +258,7 @@ export async function buildReference(
       } : undefined,
       pota: Object.fromEntries(POTA_LISTS.filter((name) => pota[name]).map((name) => [name, pota[name]!.length])),
       ...(summits ? { sota: { summits: summits.length } } : {}),
+      ...(activations.rows.length > 0 ? { activations: activations.rows.length } : {}),
       adifLinked: linked[0][0],
       adifUnlinked: linked[0][1]
     };
@@ -249,6 +267,21 @@ export async function buildReference(
     removeFile(target);
     throw failure(error, error instanceof ShapeError ? 'shape' : 'build');
   }
+}
+
+// Each location's activations read and checked, then joined: a park in two
+// locations of My Area is one row. Both lists are POTA's, so where they were
+// fetched minutes apart and disagree, the later location's count stands.
+interface ReadActivations { rows: Activation[]; byLocation: Map<string, number> }
+function readAllActivations(inputs: BuildInputs['activations']): ReadActivations {
+  const parks = new Map<string, Activation>();
+  const byLocation = new Map<string, number>();
+  for (const [location, input] of Object.entries(inputs ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+    const rows = readActivations(input.body);
+    byLocation.set(location, rows.length);
+    for (const row of rows) parks.set(row.reference, row);
+  }
+  return { rows: [...parks.values()], byLocation };
 }
 
 function adifLists(register: Register, adif: {
@@ -287,7 +320,8 @@ async function check(
   inputs: BuildInputs,
   adif: { values: number; fields: number; types: number; enumerations: number; zones: number } | undefined,
   pota: Parsed,
-  summits: Summit[] | undefined
+  summits: Summit[] | undefined,
+  activations: ReadActivations
 ): Promise<void> {
   const refuse = (): never => { throw new StorageFailure({ kind: 'build' }); };
   await store.unit(async (db) => {
@@ -343,5 +377,17 @@ async function check(
       if (summitRow) refuse();
       if (await total(sotaSummit) !== 0) refuse();
     }
+
+    // The activations: a source row for each location given and no other,
+    // each held to its input, and one row per park.
+    const given = Object.entries(inputs.activations ?? {});
+    const heldLocations = sources.filter((row) => row.id.startsWith(ACTIVATIONS_SOURCE_PREFIX));
+    if (heldLocations.length !== given.length) refuse();
+    for (const [location, input] of given) {
+      const row = sourceOf(activationsSourceId(location));
+      if (!row || row.fetchedAt !== input.record.fetchedAt || row.contentSha256 !== input.record.sha256
+          || row.rowCount !== activations.byLocation.get(location)) refuse();
+    }
+    if (await total(potaActivation) !== activations.rows.length) refuse();
   });
 }

@@ -18,6 +18,13 @@
       "size": "about 10 MB"
     },
     {
+      "id": "activations",
+      "name": "POTA activations",
+      "what": "How many times each park in My Area has been activated, to find parks to activate, also offline",
+      "owner": "Parks on the Air",
+      "size": "about 150 KB a location"
+    },
+    {
       "id": "sota",
       "name": "SOTA summits",
       "what": "Every Summits on the Air summit, for summit references and a location's position and height",
@@ -174,6 +181,16 @@
       "supplied": true,
       "derived": false,
       "holds": "summits"
+    },
+    {
+      "id": "pota-activations",
+      "what": "How many times each park in the operator's My Area has been activated",
+      "authority": "Parks on the Air",
+      "copy": "fetched from POTA at run time, one location at a time, and never redistributed",
+      "source": "activations",
+      "supplied": true,
+      "derived": false,
+      "holds": "activations"
     }
   ],
   "pota": {
@@ -258,6 +275,20 @@
         ],
         "conditional": "etag offered"
       }
+    }
+  },
+  "activations": {
+    "what": "POTA's own count of each park's activations, for the locations of My Area alone (QGD-STN-0012, QGD-REF-0019). Fetched one location at a time, only when the operator asks, and at most once a day for each: POTA states no request limit, and its own page lists the same thing for a location in one request. Only the reference and the activation count are kept.",
+    "refreshAfterHours": 24,
+    "source": {
+      "url": "https://api.pota.app/location/parks/{location}",
+      "what": "Every park in one POTA location with its attempts, activations and QSO counts; the activations alone are kept",
+      "format": "json",
+      "columns": [
+        "reference",
+        "activations"
+      ],
+      "conditional": "neither etag nor last-modified is offered, so the daily limit is what prevents a refetch"
     }
   }
 }

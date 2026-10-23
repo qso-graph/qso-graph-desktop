@@ -25,6 +25,14 @@ export interface SotaRegister {
   sources: { summits: PotaSource };
 }
 
+// POTA's activations, one list per location of My Area (QGD-REF-0019). The
+// URL holds `{location}`, filled with a location code and nothing else.
+export interface ActivationsRegister {
+  what: string;
+  refreshAfterHours: number;
+  source: PotaSource;
+}
+
 // What the operator loads and updates, one control each. `id` names the
 // resource in a command and a status; the core knows how to load each id it
 // lists in REFERENCE_RESOURCES (packages/storage/reference.ts).
@@ -46,6 +54,7 @@ export interface Register {
   };
   pota: PotaRegister;
   sota: SotaRegister;
+  activations: ActivationsRegister;
   lists: {
     id: string; what: string; authority: string; copy: string;
     source: string | null; supplied: boolean; derived: boolean; holds?: string;

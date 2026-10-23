@@ -325,3 +325,48 @@ export function refuseIfShrunk(what: string, arrived: number, before: number | u
       'refused as a truncated download');
   }
 }
+
+// ---------------------------------------------------------------------------
+// A location's activations (QGD-REF-0019): POTA's park list for one location,
+// of which only the reference and the activation count are kept. A park POTA
+// has never seen attempted publishes its count as null, and null it stays
+// (QGD-REF-0011): "nobody has tried" is POTA's record, not a zero this
+// product decided on.
+
+export interface Activation {
+  reference: string;
+  activations: number | null;
+}
+
+export const ACTIVATION_FIELDS = ['reference', 'activations'] as const;
+
+// POTA writes a location as a program prefix and a part, `US-ID`, `JP-FS`.
+// The URL is built from it, so nothing else is let through.
+export const LOCATION_CODE = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
+
+export function readActivations(json: string): Activation[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch (error) {
+    throw new ShapeError(`the activations list is not JSON: ${(error as Error).message.slice(0, 80)}`);
+  }
+  if (!Array.isArray(parsed)) throw new ShapeError('the activations list is not an array');
+  // A location can lose its last active park, so an empty list is a list;
+  // a truncated one is caught by the shrink check, as for every list.
+  if (parsed.length > 0) requireFields(parsed[0] as Record<string, unknown>, ACTIVATION_FIELDS, 'park');
+  const seen = new Set<string>();
+  return (parsed as Record<string, unknown>[]).map((row, at) => {
+    if (typeof row !== 'object' || row === null) throw new ShapeError(`park ${at + 1} is not an object`);
+    const reference = typeof row.reference === 'string' ? row.reference.trim() : '';
+    if (reference === '') throw new ShapeError(`park ${at + 1} has no reference`);
+    if (seen.has(reference)) throw new ShapeError('the activations list repeats a park');
+    seen.add(reference);
+    const activations = row.activations === null || row.activations === undefined ? null : integerOf(row.activations);
+    if (activations === null && row.activations !== null && row.activations !== undefined) {
+      throw new ShapeError(`park ${at + 1} publishes activations that are not a whole number`);
+    }
+    if (activations !== null && activations < 0) throw new ShapeError(`park ${at + 1} publishes fewer than no activations`);
+    return { reference, activations };
+  });
+}

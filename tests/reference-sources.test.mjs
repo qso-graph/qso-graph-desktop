@@ -73,7 +73,7 @@ describe('QGD-REF-0009 and QGD-REF-0012 POTA', () => {
   const pota = sources.lists.filter(list => list.id.startsWith('pota-'));
 
   it('is recorded as POTA\u2019s, not as ADIF\u2019s and not as ours', () => {
-    expect(pota.map(list => list.id).sort()).toEqual(['pota-locations', 'pota-parks', 'pota-programs']);
+    expect(pota.map(list => list.id).sort()).toEqual(['pota-activations', 'pota-locations', 'pota-parks', 'pota-programs']);
     for (const list of pota) {
       expect(list.authority, `${list.id}: POTA issues its own references`).toContain('Parks on the Air');
       expect(list.copy, `${list.id}: fetched, not shipped`).toContain('run time');

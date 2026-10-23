@@ -116,7 +116,7 @@ try {
   const tables = rows(store, "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").map(row => row.name);
   expect(tables).toEqual([
     'data_type', 'enumeration', 'enumeration_value', 'field', 'list',
-    'pota_location', 'pota_park', 'pota_park_location', 'pota_program',
+    'pota_activation', 'pota_location', 'pota_park', 'pota_park_location', 'pota_program',
     'sota_summit', 'source', 'uninterpreted', 'zone'
   ]);
   notes.push('the reference data is in reference.sqlite, built from the declared schema');

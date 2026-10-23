@@ -191,7 +191,8 @@ if (!app.requestSingleInstanceLock()) {
       appVersion: app.getVersion(),
       // QG Storage never opens a connection of its own: it asks the
       // credential core, the one process that reaches the network (QGD-SEC-0020).
-      fetchReference: callsigns.fetchReference
+      fetchReference: callsigns.fetchReference,
+      area: () => load().area
     });
     callsigns.onCallsignActivated(id => storageBroker.callsignActivated(id));
     callsigns.onCallsignRemoved(id => storageBroker.callsignRemoved(id));

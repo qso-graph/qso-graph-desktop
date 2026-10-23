@@ -7,11 +7,13 @@
 // kept here with a record of where it came from, and a rebuild reads these and
 // never invents a fetch time.
 //
-// The layout, under <userData>/reference/<resource>/ (pota/, sota/), one
-// folder each, so pruning one resource can never remove another's bodies:
+// The layout, under <userData>/reference/<resource>/ (pota/, sota/,
+// activations/), one folder each, so pruning one resource can never remove
+// another's bodies:
 //   <sha256>.body  a list exactly as it arrived, named by its own SHA-256
 //   <list>.json    the record: URL, ETag, Last-Modified, fetch time, row
-//                  count, and the SHA-256 of the body it describes
+//                  count, and the SHA-256 of the body it describes; an
+//                  activations list is named by its location, US-ID.json
 //
 // The order is what makes it safe. The body is written first, under a name
 // nothing points to yet. Then the record is written beside its final name and
@@ -29,10 +31,14 @@ export type PotaList = (typeof POTA_LISTS)[number];
 export const SOTA_LISTS = ['summits'] as const;
 export type SotaList = (typeof SOTA_LISTS)[number];
 
-// Each resource that is a set of lists, and its lists.
-export const LISTED = { pota: POTA_LISTS, sota: SOTA_LISTS } as const;
+// Each resource that is a set of lists, and its lists. POTA's activations
+// are one list per location of My Area (QGD-REF-0019), so theirs are not a
+// fixed set: a list is named by its location, and the lists are whichever
+// records the folder holds.
+export const LISTED = { pota: POTA_LISTS, sota: SOTA_LISTS, activations: [] as readonly string[] } as const;
 export type ListedResource = keyof typeof LISTED;
-export type AnyList = PotaList | SotaList;
+export type AnyList = PotaList | SotaList | string;
+const LOCATION_LIST = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
 
 export interface PotaRecord {
   list: AnyList;
@@ -59,6 +65,8 @@ function digest(text: string): string {
 }
 
 function isRecord(value: unknown, list: AnyList): value is PotaRecord {
+  // A list's name becomes a file name, so it is held to its shape here too.
+  if (!/^[a-z]+$/.test(list) && !LOCATION_LIST.test(list)) return false;
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
   // Absent as well as null: a server that sends no ETag or Last-Modified
@@ -129,12 +137,33 @@ export function commit(
   return record;
 }
 
+// The lists a resource has records for: its fixed lists, or, for
+// activations, each location with a record in its folder.
+export function listsOf(referenceCache: string, resource: ListedResource): string[] {
+  if (resource !== 'activations') return [...LISTED[resource]];
+  let names: string[];
+  try { names = readdirSync(listDirectory(referenceCache, resource)); } catch { return []; }
+  return names.flatMap((name) => {
+    const list = /^(.+)\.json$/.exec(name)?.[1];
+    return list && LOCATION_LIST.test(list) && readRecord(referenceCache, list, resource) ? [list] : [];
+  }).sort();
+}
+
+// A list's record removed, when the operator has taken its location out of
+// My Area: its body goes at the next prune.
+export function forget(referenceCache: string, list: AnyList, resource: ListedResource): void {
+  if (!LOCATION_LIST.test(list) && !/^[a-z]+$/.test(list)) return;
+  try { rmSync(join(listDirectory(referenceCache, resource), `${list}.json`), { force: true }); } catch (error) {
+    throw failure(error, 'build');
+  }
+}
+
 // After a successful build: every body no record points to is removed, so a
 // list that changes daily does not keep every day it ever had (QGD-REF-0010).
 // Leftover .part files go too.
 export function prune(referenceCache: string, resource: ListedResource = 'pota'): number {
   const directory = listDirectory(referenceCache, resource);
-  const wanted = new Set(LISTED[resource].map((list) => readRecord(referenceCache, list, resource)?.sha256).filter(Boolean));
+  const wanted = new Set(listsOf(referenceCache, resource).map((list) => readRecord(referenceCache, list, resource)?.sha256).filter(Boolean));
   let removed = 0;
   let names: string[];
   try { names = readdirSync(directory); } catch { return 0; }

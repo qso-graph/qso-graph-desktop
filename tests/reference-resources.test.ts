@@ -16,7 +16,8 @@ const loaded = (fetched: number, version?: string) =>
 const held = (potaFetched: number, adifVersion = register.adif.version): ReferenceStatus => ({
   adif: loaded(NOW - DAY, adifVersion),
   pota: { parks: loaded(potaFetched), programs: loaded(potaFetched), locations: loaded(potaFetched) },
-  sota: { summits: { state: 'not loaded' } }
+  sota: { summits: { state: 'not loaded' } },
+  activations: {}
 }) as unknown as ReferenceStatus;
 const pota = (status: ReferenceStatus, checks: Record<string, string | undefined> = {}, problems = new Map<string, string>()) =>
   summarize({ register, held: status, checks, problems, updating: undefined, now: NOW }).find(resource => resource.id === 'pota')!;
@@ -24,7 +25,7 @@ const pota = (status: ReferenceStatus, checks: Record<string, string | undefined
 describe('QGD-REF-0017: out of date, measured from when a source last answered', () => {
   it('lists the register\'s resources in its order', () => {
     expect(summarize({ register, held: held(NOW), checks: {}, problems: new Map(), updating: 'adif', now: NOW })
-      .map(resource => [resource.id, resource.updating])).toEqual([['adif', true], ['pota', false], ['sota', false]]);
+      .map(resource => [resource.id, resource.updating])).toEqual([['adif', true], ['pota', false], ['activations', false], ['sota', false]]);
   });
 
   it('is out of date once the oldest fetch passes the refresh interval', () => {
@@ -80,7 +81,7 @@ describe('#37: Update is offered only when it could bring something new', () => 
   });
 
   it('never calls a resource that was never loaded out of date', () => {
-    const none = { adif: { state: 'not loaded' }, pota: { parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' } }, sota: { summits: { state: 'not loaded' } } } as unknown as ReferenceStatus;
+    const none = { adif: { state: 'not loaded' }, pota: { parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' } }, sota: { summits: { state: 'not loaded' } }, activations: {} } as unknown as ReferenceStatus;
     for (const resource of summarize({ register, held: none, checks: {}, problems: new Map(), updating: undefined, now: NOW })) {
       expect(resource.state).toBe('not loaded');
       expect(resource.due).toBe(false);
@@ -90,7 +91,7 @@ describe('#37: Update is offered only when it could bring something new', () => 
 });
 
 describe('the last attempt\'s problem, in words a person can act on', () => {
-  const base = { adif: { state: 'current' }, pota: { parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' } }, sota: { summits: { state: 'not asked' } }, built: true, status: {} } as unknown as RefreshOutcome;
+  const base = { adif: { state: 'current' }, pota: { parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' } }, sota: { summits: { state: 'not asked' } }, activations: {}, built: true, status: {} } as unknown as RefreshOutcome;
   it('is none when it worked', () => { expect(problemOf('pota', base)).toBeUndefined(); });
   it('names the source that could not be reached', () => {
     const outcome = { ...base, pota: { ...base.pota, programs: { state: 'kept', failure: { kind: 'fetch' } } } } as unknown as RefreshOutcome;
@@ -137,9 +138,32 @@ describe('SOTA summits, a resource of one list (QGD-REF-0018)', () => {
 
   it('names its own list when it could not be reached', () => {
     const base = { adif: { state: 'not asked' }, pota: { parks: { state: 'not asked' }, programs: { state: 'not asked' }, locations: { state: 'not asked' } },
-      sota: { summits: { state: 'kept', failure: { kind: 'fetch' } } }, built: false, status: {} } as unknown as RefreshOutcome;
+      sota: { summits: { state: 'kept', failure: { kind: 'fetch' } } }, activations: {}, built: false, status: {} } as unknown as RefreshOutcome;
     expect(problemOf('sota', base)).toMatch(/could not be reached/i);
     expect(problemOf('pota', base)).toBeUndefined();
   });
 });
 
+
+describe('POTA activations, a list for each location of My Area (QGD-REF-0019)', () => {
+  const summary = (activations: Record<string, unknown>, checks: Record<string, string | undefined> = {}) =>
+    summarize({ register, held: { ...held(NOW), activations } as unknown as ReferenceStatus, checks, problems: new Map(), updating: undefined, now: NOW })
+      .find(resource => resource.id === 'activations')!;
+
+  it('is not loaded until a location is downloaded, and then can always be updated', () => {
+    expect(summary({})).toMatchObject({ state: 'not loaded', updatable: false, due: false });
+    expect(summary({ 'US-ID': loaded(NOW - 1000) })).toMatchObject({ state: 'loaded', updatable: true, due: false });
+  });
+
+  it('is out of date once any location is a day old', () => {
+    expect(summary({ 'US-ID': loaded(NOW - 1000), 'US-OR': loaded(NOW - 2 * DAY) }).due).toBe(true);
+    expect(summary({ 'US-ID': loaded(NOW - 1000), 'US-OR': loaded(NOW - 2 * DAY) }, { 'pota-activations-US-OR': at(NOW - 1000) }).due).toBe(false);
+  });
+
+  it('says to choose My Area when there is none to download for', () => {
+    const outcome = { adif: { state: 'not asked' }, pota: {}, sota: {}, activations: {}, noArea: true, built: false, status: {} } as unknown as RefreshOutcome;
+    expect(problemOf('activations', outcome)).toMatch(/My Area/);
+    const unreachable = { ...outcome, noArea: undefined, activations: { 'US-ID': { state: 'kept', failure: { kind: 'fetch' } } } } as unknown as RefreshOutcome;
+    expect(problemOf('activations', unreachable)).toMatch(/Could not be reached/);
+  });
+});

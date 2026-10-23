@@ -12,7 +12,7 @@
 // than read.
 import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-export const REFERENCE_SCHEMA_VERSION = 3;
+export const REFERENCE_SCHEMA_VERSION = 4;
 
 export const source = sqliteTable('source', {
   id: text('id').primaryKey(),
@@ -155,7 +155,17 @@ export const sotaSummit = sqliteTable('sota_summit', {
   validTo: text('valid_to').notNull()
 });
 
+// How many times each park in My Area has been activated (QGD-REF-0019), as
+// POTA publishes it for each location: null where POTA publishes null, a park
+// no one has attempted. No foreign key to pota_park: the two lists are fetched
+// at different times, and a park new since the park list was is still POTA's
+// record (QGD-REF-0011). A park in two locations of My Area is one row.
+export const potaActivation = sqliteTable('pota_activation', {
+  reference: text('reference').primaryKey(),
+  activations: integer('activations')
+});
+
 export const referenceSchema = {
   source, list, dataType, field, enumeration, enumerationValue, zone, uninterpreted,
-  potaProgram, potaLocation, potaPark, potaParkLocation, sotaSummit
+  potaProgram, potaLocation, potaPark, potaParkLocation, sotaSummit, potaActivation
 };

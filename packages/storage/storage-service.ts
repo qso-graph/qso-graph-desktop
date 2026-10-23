@@ -242,12 +242,8 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       }
       return { ok: true, status: status(), areaChoices: await areaChoices(reader) };
     }
-    case 'area-default': {
-      const reader = reference?.reader();
-      if (!reader || referenceStatus?.pota.parks.state !== 'loaded') return { ok: true, status: status(), areaDefault: null };
-      const active = stations?.list.find(entry => entry.id === stations?.active);
-      return { ok: true, status: status(), areaDefault: (await areaDefault(reader, active?.place.MY_DXCC, active?.place.MY_STATE)) ?? null };
-    }
+    case 'area-default':
+      return { ok: true, status: status(), areaDefault: (await ownArea())[0] ?? null };
     case 'adif-bands': {
       const reader = reference?.reader();
       if (!reader || referenceStatus?.adif.state !== 'loaded') {
@@ -281,6 +277,15 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
 
 const publish = () => process.parentPort.postMessage({ status: status() });
 
+// The active Location's own POTA location, or none: My Area's default.
+async function ownArea(): Promise<string[]> {
+  const reader = reference?.reader();
+  if (!reader || referenceStatus?.pota.parks.state !== 'loaded') return [];
+  const active = stations?.list.find(entry => entry.id === stations?.active);
+  const own = await areaDefault(reader, active?.place.MY_DXCC, active?.place.MY_STATE);
+  return own ? [own] : [];
+}
+
 // When each source last answered, and the last attempt's problem per
 // resource: what Settings needs beyond the file itself (reference-resources.ts).
 let checks: Record<string, string | undefined> = {};
@@ -293,7 +298,7 @@ setInterval(() => { if (state && !failed) publish(); }, 3_600_000).unref?.();
 // Reference data is fetched only when the operator asks (KI7MT, 2026-10-11):
 // a start fetches nothing, so it is never slowed by a download or a build.
 // A request that fails is said so, and is asked again when they ask again.
-async function refresh(resource: ReferenceResource): Promise<void> {
+async function refresh(resource: ReferenceResource, chosen: readonly string[] = []): Promise<void> {
   if (!reference || refreshing) return;
   refreshing = true;
   updating = resource;
@@ -301,7 +306,10 @@ async function refresh(resource: ReferenceResource): Promise<void> {
   try {
     // Asked for by the operator, so not held back by the once-a-day check;
     // POTA is still asked conditionally, so an unchanged list costs a 304.
-    const outcome = await reference.refresh({ force: true, only: resource });
+    // Activations are fetched for My Area alone: as chosen, or else the
+    // active Location's own POTA location, as area.get answers (QGD-STN-0012).
+    const area = resource !== 'activations' ? undefined : chosen.length > 0 ? chosen : await ownArea();
+    const outcome = await reference.refresh({ force: true, only: resource, ...(area ? { area } : {}) });
     referenceStatus = outcome.status;
     checks = await reference.lastChecks();
     const problem = problemOf(resource, outcome);
@@ -312,7 +320,9 @@ async function refresh(resource: ReferenceResource): Promise<void> {
       built: outcome.built, deferred: outcome.deferred === true,
       adif: outcome.adif.state, buildFailure: outcome.buildFailure?.kind,
       pota: Object.fromEntries(Object.entries(outcome.pota).map(([list, result]) =>
-        [list, result.state === 'kept' ? `kept (${result.failure.kind})` : result.state]))
+        [list, result.state === 'kept' ? `kept (${result.failure.kind})` : result.state])),
+      // How many locations, never which: a location says where the operator is.
+      ...(resource === 'activations' ? { locations: Object.keys(outcome.activations).length } : {})
     }, 'reference data');
   } catch (error) {
     problems.set(resource, 'Could not be loaded. Try again; if it keeps failing, Troubleshooting has the logs.');
@@ -427,7 +437,7 @@ process.parentPort.on('message', (event) => {
     // status is pushed like every other change.
     // refresh() marks itself running before its first await, so the reply
     // below already says so; a second press while it runs does nothing.
-    void refresh(resource);
+    void refresh(resource, data.command.area);
   }
   const reply: StorageReply = { ok: true, status: status() };
   process.parentPort.postMessage({ id: data.id, reply });

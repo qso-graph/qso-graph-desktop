@@ -58,6 +58,10 @@ your copy of the application and is never redistributed by this project.
 - **Parks on the Air**: POTA parks, programs and locations, downloaded when you
   ask, and the activators spotted now, for Parks On the Air. Public data,
   fetched from POTA and never redistributed.
+<!-- credit: reference/activations -->
+- **Parks on the Air**: POTA activations, how many times each park in My Area
+  has been activated. Downloaded when you ask. Public data, fetched from POTA
+  and never redistributed.
 <!-- credit: reference/sota -->
 - **Summits on the Air**: SOTA summits, each summit's reference, name, height
   and position. Downloaded when you ask. Public data, fetched from SOTA and
