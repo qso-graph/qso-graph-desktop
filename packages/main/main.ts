@@ -318,8 +318,16 @@ if (!app.requestSingleInstanceLock()) {
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
     });
+    // The menu bar (KI7MT, 2026-10-23): the application's own menu on macOS,
+    // which Apple requires, and File with Exit elsewhere, where Hide, Hide
+    // Others and Show All do nothing; no Window menu, whose Minimize and Close
+    // the title bar already has; Tools for what the operator does with their
+    // data, such as moving callsigns to another computer.
+    const mac = process.platform === 'darwin';
     Menu.setApplicationMenu(Menu.buildFromTemplate([
-      { label: 'QSO Graph Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
+      mac
+        ? { label: 'QSO Graph Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }
+        : { label: 'File', submenu: [{ role: 'quit', label: 'Exit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
       // Setup (KI7MT, 2026-10-22): everything Home's welcome offers, from the
       // menu as well. The window does each; this only says which, by a name
@@ -339,7 +347,10 @@ if (!app.requestSingleInstanceLock()) {
         setupItem('pins', 'Customize Your Pins…'),
         setupItem('settings', 'Settings…')
       ] },
-      { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] },
+      { label: 'Tools', submenu: [
+        setupItem('export-callsigns', 'Export Callsigns…'),
+        setupItem('import-callsigns', 'Import Callsigns…')
+      ] },
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button
       // (QGD-LOG-0013). The window opens the panel; this only says so.
@@ -351,7 +362,7 @@ if (!app.requestSingleInstanceLock()) {
           id: name, label, click: () => links.open({ type: 'document', name })
         })),
         { type: 'separator' },
-        // Troubleshooting last, below the separator (KI7MT, 2026-10-22).
+        // Troubleshooting below the separator (KI7MT, 2026-10-22).
         {
           id: 'troubleshooting',
           label: 'Troubleshooting…',
@@ -359,7 +370,10 @@ if (!app.requestSingleInstanceLock()) {
             const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
             if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
           }
-        }
+        },
+        // About, where Windows and Linux keep it; macOS has it in the
+        // application's own menu.
+        ...(mac ? [] : [{ type: 'separator' as const }, { role: 'about' as const, label: 'About QSO Graph Desktop' }])
       ] }
     ]));
     createWindow();

@@ -761,6 +761,17 @@ window.menu?.onSetup?.(action => {
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
+  // Tools (KI7MT, 2026-10-23): the Callsigns page's Move section, with the
+  // cursor in the passphrase the step needs.
+  else if (action === 'export-callsigns' || action === 'import-callsigns') {
+    shell.set({ page: 'callsigns', extensionPage: null });
+    const field = action === 'export-callsigns' ? 'export-passphrase' : 'import-passphrase';
+    requestAnimationFrame(() => {
+      const input = document.getElementById(field);
+      input?.scrollIntoView({ block: 'center' });
+      input?.focus();
+    });
+  }
   else if (action === 'adif' || action === 'pota' || action === 'sota') {
     shell.set({ page: 'settings', extensionPage: null });
     void updateReference(action);
