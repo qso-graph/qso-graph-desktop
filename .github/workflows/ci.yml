@@ -11,12 +11,18 @@ on:
   pull_request:
     branches: [develop, main]
   workflow_dispatch:
+    inputs:
+      mac_only:
+        description: 'Only the macOS package: sign, notarize and launch it, without the test suites (about 20 minutes). Publishes nothing.'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # By event too, so a macOS-only run by hand never cancels a push's run.
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   # Never on main: a release half published is worse than one that waits.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
@@ -28,6 +34,7 @@ env:
 jobs:
   check:
     name: check (${{ matrix.os }})
+    if: ${{ !inputs.mac_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -100,6 +107,7 @@ jobs:
 
   window:
     name: window (${{ matrix.os }})
+    if: ${{ !inputs.mac_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -196,13 +204,17 @@ jobs:
   package:
     name: package (${{ matrix.os }})
     needs: [check, window]
-    environment: ${{ (matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')) && 'macos-signing' || '' }}
+    # After both test jobs pass; or alone, for a macOS-only run by hand.
+    if: ${{ !cancelled() && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
+    environment: ${{ (matrix.os == 'macos-latest' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')) && 'macos-signing' || '' }}
+    env:
+      SIGN_MAC: ${{ matrix.os == 'macos-latest' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
     strategy:
       fail-fast: false
       matrix:
         # ubuntu-24.04-arm: Linux arm64, the Raspberry Pi 5 the core and its
         # built-in extensions must always run on.
-        os: [macos-latest, ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+        os: ${{ fromJSON(inputs.mac_only && '["macos-latest"]' || '["macos-latest", "ubuntu-latest", "ubuntu-24.04-arm", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -262,13 +274,13 @@ jobs:
           npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${GITHUB_SHA::11}"
           node -p "require('./package.json').version"
       - name: Installers
-        if: ${{ !(matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')) }}
+        if: env.SIGN_MAC != 'true'
         run: npm run installer
       # Signed and notarized. The secrets reach this step and no other. The
       # notarization key is written to the runner's temporary folder, which
       # is removed with the runner, because electron-builder takes a path.
       - name: Installers, signed and notarized (macOS)
-        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+        if: env.SIGN_MAC == 'true'
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -287,9 +299,30 @@ jobs:
           [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "APPLE_TEAM_ID should be the 10-character Team ID." >&2; exit 1; }
           [[ "$APPLE_API_ISSUER" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || { echo "APPLE_API_ISSUER should be the Issuer ID, a UUID." >&2; exit 1; }
           [[ "$APPLE_API_KEY_P8" == *"-----BEGIN PRIVATE KEY-----"*"-----END PRIVATE KEY-----"* ]] || { echo "APPLE_API_KEY_P8 should be the whole .p8 file, BEGIN and END lines included." >&2; exit 1; }
-          # The certificate as one line of base64, whatever wrapping it was pasted with.
-          CSC_LINK=$(printf '%s' "$CSC_LINK" | tr -d ' \r\n')
-          export CSC_LINK
+          # The signing keychain, made here rather than by electron-builder:
+          # 26.15.3 passes the certificate's password where the keychain's
+          # belongs (set-key-partition-list -k), and the unlock fails. Its
+          # password is random, masked, and dies with the runner. Apple's
+          # Developer ID G2 intermediate goes in beside the certificate, so
+          # the identity is valid; codesign still checks the chain to
+          # Apple's root, so the intermediate cannot vouch for anything else.
+          keychain="$RUNNER_TEMP/qgd-signing.keychain-db"
+          keychain_password=$(openssl rand -base64 32)
+          echo "::add-mask::$keychain_password"
+          p12="$RUNNER_TEMP/qgd-signing.p12"
+          printf '%s' "$CSC_LINK" | tr -d ' \r\n' | base64 --decode > "$p12"
+          unset CSC_LINK
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain"
+          security import "$p12" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+          unset CSC_KEY_PASSWORD
+          rm -f "$p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$keychain"
           key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
           chmod 600 "$key"
@@ -299,7 +332,7 @@ jobs:
       # What Gatekeeper will say: signed by the project, notarized, and the
       # ticket stapled, so it opens offline on first launch too.
       - name: Signature and notarization (macOS)
-        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+        if: env.SIGN_MAC == 'true'
         run: |
           set -euo pipefail
           app=$(ls -d out/mac-arm64/*.app)
@@ -311,7 +344,7 @@ jobs:
       # credential core loaded and a credential saved in the Keychain. A
       # signature that is valid on an app that will not start is no release.
       - name: The signed build launches (macOS)
-        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+        if: env.SIGN_MAC == 'true'
         run: npm run verify -- --suites packaged-launch
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
