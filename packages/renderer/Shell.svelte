@@ -120,12 +120,16 @@
   // Read only when a pin or rail item is pressed, so it need not be reactive.
   const lastTab: Record<string, string> = {};
   $effect(() => { const page = homeModel.page; if (page) lastTab[page.area] = page.key; });
-  // From a pin or the rail: the area, on its last tab. From a tab: that page.
+  // From a pin or the rail: the area, on its last tab, or else its first
+  // tab in the manifest's order (KI7MT, 2026-10-23: Parks On the Air opens
+  // on Near Me). From a tab: that page.
   function openPage(key: string): void {
     const page = homeModel.available.find(entry => entry.key === key);
     if (!page) return;
+    const inArea = homeModel.available.filter(entry => entry.area === page.area);
     const last = Object.hasOwn(lastTab, page.area) ? lastTab[page.area] : undefined;
-    const to = page.key === page.area && last && homeModel.available.some(entry => entry.key === last && entry.area === page.area) ? last : key;
+    const first = inArea[0]?.key ?? key;
+    const to = page.key !== page.area ? key : last && inArea.some(entry => entry.key === last) ? last : first;
     store.set({ page: 'extension', extensionPage: to });
   }
   function openTab(key: string): void {
