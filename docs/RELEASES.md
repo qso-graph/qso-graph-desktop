@@ -4,8 +4,9 @@ Decided by KI7MT, 2026-10-23. It follows **Podman Desktop**, which is built the
 way this application is (Electron, electron-builder, published on GitHub), so
 there is a working example of every rule below.
 
-Previews are published by CI (`.github/workflows/ci.yml`, the `preview` job).
-Releases are not automated yet; the last section lists what is still to build.
+Previews and pre-releases are published by CI (`.github/workflows/ci.yml`, the
+`preview` and `release` jobs); promoting a pre-release is
+`.github/workflows/promote.yml`. The last section lists what is still to build.
 
 ## Versions
 
@@ -63,6 +64,29 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
   pre-release; tagging it is part of that build.
 - **KI7MT decides** when a release PR is opened and when a pre-release is
   promoted.
+
+### Making a release
+
+The text steps are `scripts/release.mjs`; the builds are CI's.
+
+1. **On develop:** `node scripts/release.mjs prepare`. CHANGELOG.md's
+   `[Unreleased]` becomes `[0.2.0] - <today>`, under a new empty
+   `[Unreleased]`. Commit it.
+2. **The release PR**, develop to main, when KI7MT says so. Merging it is the
+   release.
+3. **main's build checks first:** the version is a plain `MAJOR.MINOR.PATCH`,
+   CHANGELOG.md has its section, and the tag is not taken. Any one missing
+   stops the build in minutes, before hours of packaging.
+4. **main's build publishes the pre-release** `v0.2.0`: every installer, each
+   file checked to carry that version, `SHA256SUMS.txt`, and that version's
+   CHANGELOG section as the notes. Creating the release creates the tag, on
+   the commit that was built; a version already released is refused.
+5. **On develop:** `node scripts/release.mjs next minor` (or `patch`, or
+   `major`) moves `package.json` and its lock to the next version. Commit it.
+6. **Promote**, when the pre-release has proved itself and KI7MT says so:
+   Actions → **Promote** → Run workflow, with the version. It checks the
+   release is a pre-release this repository built from main, then marks it a
+   full release and Latest. Nothing is rebuilt.
 
 ## File names
 
@@ -158,6 +182,4 @@ testing develop, not for running the station.
 
 ## Not built yet
 
-1. The release workflow on main: build, tag, pre-release, and `SHA256SUMS.txt`.
-2. `CHANGELOG.md`.
-3. Self-update, as above.
+1. Self-update, as above.
