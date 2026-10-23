@@ -54,6 +54,7 @@
   /* The Internet lamp: on and off, on the clock's black. */
   --lamp-on: #39ff6a;
   --lamp-off: #ff4d4d;
+  --lamp-trouble: #ffc940;
   /* The world map (page data version 6): sea, land, the night over both, the
      terminator, the sun and the places marked. */
   --map-sea: #e4edf4;
@@ -101,6 +102,7 @@
     --clock-label: #5fa86f;
     --lamp-on: #39ff6a;
     --lamp-off: #ff4d4d;
+    --lamp-trouble: #ffc940;
     --map-sea: #0f1a24;
     --map-land: #2b3a44;
     --map-night: rgba(0, 0, 0, 0.55);
@@ -150,6 +152,7 @@
   /* The Internet lamp: on and off, on the clock's black. */
   --lamp-on: #39ff6a;
   --lamp-off: #ff4d4d;
+  --lamp-trouble: #ffc940;
   --map-sea: #0f1a24;
   --map-land: #2b3a44;
   --map-night: rgba(0, 0, 0, 0.55);
@@ -178,7 +181,8 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 .clock-label { color: var(--clock-label); font-size: 11px; font-weight: 600; margin-right: 4px; }
 /* The Internet lamp on the clock's panel (KI7MT, 2026-10-23). */
 .net-light { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: 0; background: var(--lamp-off); box-shadow: 0 0 6px var(--lamp-off); }
-.net-lamp[data-online="true"] .net-light { background: var(--lamp-on); box-shadow: 0 0 6px var(--lamp-on); }
+.net-lamp[data-lamp="on"] .net-light { background: var(--lamp-on); box-shadow: 0 0 6px var(--lamp-on); }
+.net-lamp[data-lamp="trouble"] .net-light { background: var(--lamp-trouble); box-shadow: 0 0 6px var(--lamp-trouble); }
 .clock-time { color: var(--clock-ink); font-weight: 650; font-variant-numeric: tabular-nums;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
 .hint, .sidebar-note, .optional { color: var(--ink-muted); }

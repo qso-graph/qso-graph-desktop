@@ -78,7 +78,7 @@ describe('the notice at the window boundary (QGD-SEC-0006)', () => {
 });
 
 describe('the store keeps the newest notice', () => {
-  const STATE = { available: [], pins: [], pages: [] };
+  const STATE = { available: [], pins: [], pages: [], reached: null };
   const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
   it('shows a pushed notice and ignores one off the contract', async () => {

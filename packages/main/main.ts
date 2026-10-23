@@ -203,6 +203,9 @@ if (!app.requestSingleInstanceLock()) {
     const recorded = sourceFixtures(app.isPackaged, process.env.QG_DESKTOP_SOURCE_FIXTURES);
     // The callsign service's answer while it is still starting (until-ready.ts).
     const starting = (answer: unknown): boolean => answer === CALLSIGNS_STARTING;
+    // Told when a page's request reached its source or could not connect,
+    // for the Internet lamp; Home's broker takes it once it has started.
+    let onReached: (ok: boolean) => void = () => undefined;
     const extensionBroker = await startExtensionBroker({
       // The package's own extensions, and in a development run any more
       // directories the environment names; those are never official, and a
@@ -250,7 +253,16 @@ if (!app.requestSingleInstanceLock()) {
           // waits for it, up to 30 s, rather than failing a page that then
           // waits fifteen minutes to ask again (until-ready.ts).
           const fetched = await untilReady(() => callsigns.fetchReference(url), starting, { withinMs: 30_000 });
-          if (typeof fetched === 'string') throw new Error(fetched);
+          // The Internet lamp learns from this request, which was being made
+          // anyway: only "could not be reached" (the core's connection
+          // failing, as behind a wifi login page) means the internet did not
+          // answer; any answer from the far end, even a refusal, means it did.
+          if (typeof fetched === 'string') {
+            if (fetched === 'The reference source could not be reached.') onReached(false);
+            else if (fetched.startsWith('The reference source')) onReached(true);
+            throw new Error(fetched);
+          }
+          onReached(true);
           // The core hands back bytes, because reference data includes a zip.
           // A source an application reads is text, decoded here rather than in
           // the core: what the bytes mean is the caller's business.
@@ -285,6 +297,7 @@ if (!app.requestSingleInstanceLock()) {
         storageBroker.onActiveStationChanged(listener);
       }
     }) : undefined;
+    if (homeBroker) onReached = homeBroker.reached;
 
     // Closing the stores is the one thing here worth waiting for: a clean
     // close checkpoints the WAL, so the next start has nothing to replay. So

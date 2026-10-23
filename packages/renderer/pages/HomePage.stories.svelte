@@ -17,7 +17,7 @@
     return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
   });
   const pins = available.map(page => page.key);
-  const pinned: HomeModel = { available, pins, tiles: tiles(pins), railPages: available.filter(page => page.rail), page: null, notice: null, online: true };
+  const pinned: HomeModel = { available, pins, tiles: tiles(pins), railPages: available.filter(page => page.rail), page: null, notice: null, online: true, reached: null };
   const nothingPinned: HomeModel = { ...pinned, pins: [], tiles: [] };
 
   const { Story } = defineMeta({

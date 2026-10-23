@@ -12,7 +12,7 @@ const STATE = {
     { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: true },
     { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false }
   ],
-  pins: ['air/conditions', 'gone/page'], pages: [], notice: null
+  pins: ['air/conditions', 'gone/page'], pages: [], notice: null, reached: null
 };
 
 function api() {

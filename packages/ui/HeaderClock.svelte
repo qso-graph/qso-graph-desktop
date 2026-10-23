@@ -11,6 +11,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { clockText } from './clock-text.js';
+  import { lampState, lampWords } from './net-lamp.js';
 
   interface Props {
     now?: Date;
@@ -18,8 +19,14 @@
     // the Internet lamp beside the clocks, an instrument reading always in
     // view (KI7MT, 2026-10-23). Absent, no lamp.
     online?: boolean | undefined;
+    // Whether the last request a page made reached its source; false lights
+    // the lamp yellow while the network is up (QGD-HOM-0005).
+    reached?: boolean | null | undefined;
   }
-  const { now, online }: Props = $props();
+  const { now, online, reached }: Props = $props();
+  // Red, yellow or green, and in words (net-lamp.ts).
+  const lamp = $derived(lampState(online, reached));
+  const said = $derived(lampWords(lamp));
 
   // Each tick is scheduled for just after the next whole second, not every
   // 1000 ms from whenever the page opened. An interval started at .7 of a
@@ -44,10 +51,9 @@
     <span class="clock-part"><span class="clock-label">UTC</span> <time class="clock-time">{text.utcDate} {text.utcTime}</time></span>
     <span class="clock-part"><span class="clock-label">Local</span> <time class="clock-time">{text.localTime}</time></span>
     {#if online !== undefined}
-      <!-- A green dot online, a red one offline (KI7MT, 2026-10-23): no word
-           beside it. A screen reader and the tooltip say which. -->
-      <span class="clock-part net-lamp" id="net-lamp" data-online={online ? 'true' : 'false'} role="status"
-        aria-label={online ? 'Internet: online' : 'Internet: offline'} title={online ? 'Internet: online' : 'Internet: offline'}>
+      <!-- A dot, red, yellow or green (KI7MT, 2026-10-23): no word beside it.
+           A screen reader and the tooltip say which. -->
+      <span class="clock-part net-lamp" id="net-lamp" data-lamp={lamp} role="status" aria-label={said} title={said}>
         <span class="clock-label">Internet</span> <span class="net-light" aria-hidden="true"></span>
       </span>
     {/if}

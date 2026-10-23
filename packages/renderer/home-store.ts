@@ -14,6 +14,7 @@ export interface HomeApi {
   request(command: unknown): Promise<unknown>;
   onPage(listener: (page: unknown) => void): () => void;
   onNotice?(listener: (notice: unknown) => void): () => void;
+  onReached?(listener: (reached: unknown) => void): () => void;
 }
 
 // A pinned page, as its tile draws it: from the manifest, nothing fetched.
@@ -43,6 +44,9 @@ export interface HomeModel {
   readonly notice: HostNotice | null;
   // On a network, as the operating system says (KI7MT, 2026-10-23).
   readonly online: boolean;
+  // Whether the last request a page made reached its source; null when none
+  // has since the network came up. The Internet lamp's yellow.
+  readonly reached: boolean | null;
   readonly error?: string;
 }
 
@@ -55,7 +59,7 @@ export function shownOf(view: PageView): PageShown {
   return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections };
 }
 
-function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, online: boolean, error?: string): HomeModel {
+function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, online: boolean, reached: boolean | null, error?: string): HomeModel {
   const offered = new Map(state.available.map(page => [page.key, page]));
   const opened = open === null ? undefined : offered.get(open);
   return {
@@ -72,11 +76,12 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
     } : null,
     notice,
     online,
+    reached,
     ...(error ? { error } : {})
   };
 }
 
-const EMPTY: HomeState = { available: [], pins: [], pages: [], notice: null };
+const EMPTY: HomeState = { available: [], pins: [], pages: [], notice: null, reached: null };
 
 export function createHomeStore(api: HomeApi | undefined, initial?: { state: HomeState; error?: string }) {
   let state: HomeState = initial?.state ?? EMPTY;
@@ -89,6 +94,9 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   // As the operating system last said; told to the broker at the start and
   // whenever it changes. Unknown until then, so the first reading is sent.
   let online: boolean | undefined;
+  // Pushed when it changes; read from the state until the first push.
+  let reached: boolean | null = null;
+  let reachPushes = 0;
   // Pushes are numbered, so a snapshot read before a push cannot replace it.
   let pushes = 0;
   const pushedAt = new Map<string, number>();
@@ -98,7 +106,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   let notice: HostNotice | null = state.notice;
   let noticePushes = 0;
 
-  const current = () => model(state, views, notice, open, values, online ?? true, error);
+  const current = () => model(state, views, notice, open, values, online ?? true, reached, error);
   const changed = () => { const value = current(); for (const listener of listeners) listener(value); };
 
   // `asked` is how many pushes had arrived when the request was sent: a page
@@ -107,6 +115,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
     if (isHomeReply(reply) && reply.ok) {
       state = reply.state;
       if (noticePushes === askedNotice) notice = reply.state.notice;
+      if (reachPushes === 0) reached = reply.state.reached;
       for (const page of reply.state.pages) {
         if ((pushedAt.get(page.key) ?? 0) <= asked) views.set(page.key, page);
       }
@@ -139,7 +148,13 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
         noticePushes += 1;
         changed();
       });
-      const stop = () => { stopPages(); stopNotices?.(); };
+      const stopReached = api.onReached?.(pushed => {
+        if (pushed !== null && typeof pushed !== 'boolean') return;
+        reached = pushed;
+        reachPushes += 1;
+        changed();
+      });
+      const stop = () => { stopPages(); stopNotices?.(); stopReached?.(); };
       const asked = pushes;
       const askedNotice = noticePushes;
       void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));

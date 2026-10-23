@@ -15,6 +15,9 @@ export const HOME_CHANNEL = 'home:request';
 export const HOME_CARD_CHANNEL = 'home:page';
 // The extension host's notice, pushed when it changes (QGD-APP-0022).
 export const HOME_NOTICE_CHANNEL = 'home:notice';
+// Whether the last request a page made reached its source, pushed when it
+// changes: the Internet lamp's yellow (QGD-HOM-0005).
+export const HOME_REACH_CHANNEL = 'home:reach';
 
 // Which extensions a stopped extension host affected, until the operator
 // dismisses it (home-notice.ts); the window words it (renderer/host-notice.ts).
@@ -49,6 +52,10 @@ export interface HomeState {
   // What the open page last said, if a page is open: at most one.
   readonly pages: readonly PageView[];
   readonly notice: HostNotice | null;
+  // Whether the last request a page made reached its source: true, false
+  // when it could not connect, null when none has been made since the
+  // network came up (KI7MT, 2026-10-23: the Internet lamp).
+  readonly reached: boolean | null;
 }
 
 export type HomeCommand =
@@ -154,7 +161,8 @@ export function isHomeReply(value: unknown): value is HomeReply {
   if (value.ok === false) return exactly(value, ['ok', 'error']) && typeof value.error === 'string';
   if (value.ok !== true || !exactly(value, ['ok', 'state']) || !record(value.state)) return false;
   const state = value.state;
-  return exactly(state, ['available', 'pins', 'pages', 'notice'])
+  return exactly(state, ['available', 'pins', 'pages', 'notice', 'reached'])
+    && (state.reached === null || typeof state.reached === 'boolean')
     && isHostNotice(state.notice)
     && everyIndex(state.available, isAvailable)
     && isPins(state.pins)

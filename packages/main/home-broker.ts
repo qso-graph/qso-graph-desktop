@@ -9,7 +9,7 @@ import type { LoadedExtension } from './extension-runtime.js';
 import type { Supervisor } from './extension-host-supervisor.js';
 import type { Enablement } from './extension-enablement.js';
 import { createPageScheduler, keepHidden, type CataloguePage } from './page-scheduler.js';
-import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
+import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, HOME_REACH_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
 import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
 import { isExtensionIcon } from '../ui/icons.js';
@@ -28,7 +28,7 @@ export interface HomeBrokerOptions {
   online?: boolean;
 }
 
-export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void } {
+export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void; reached: (ok: boolean) => void } {
   const log = createLogger('home', options.logDirectory);
 
   // Every page a loaded extension offers. An extension that is turned off
@@ -81,11 +81,23 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   };
   const stopNotices = options.supervisor.onChange(pushNotice);
 
+  // Whether the last request a page made reached its source (the Internet
+  // lamp's yellow): learnt from requests made anyway, never by asking.
+  let reached: boolean | null = null;
+  const setReached = (next: boolean | null) => {
+    if (next === reached) return;
+    reached = next;
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send(HOME_REACH_CHANNEL, reached);
+    }
+  };
+
   const state = (): HomeState => ({
     available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network }) => ({ key, name, description, extensionName, icon, rail, inputs, network })),
     pins: load().pins,
     pages: scheduler.views(),
-    notice: notice()
+    notice: notice(),
+    reached
   });
 
   // A window that closes while a page is open stops the asking: on macOS the
@@ -133,7 +145,9 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
         return { ok: true, state: state() };
       }
       case 'connection':
-        if (command.online !== online) { online = command.online; scheduler.connectionChanged(); }
+        // A network that comes or goes starts the lamp afresh: what the last
+        // request found was on the old one.
+        if (command.online !== online) { online = command.online; setReached(null); scheduler.connectionChanged(); }
         return { ok: true, state: state() };
       case 'refresh':
         // Only the page on screen; any other key is answered with the state.
@@ -151,6 +165,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void 
   });
 
   return {
-    stop: () => { stopListening(); stopNotices(); scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); }
+    stop: () => { stopListening(); stopNotices(); scheduler.stop(); ipcMain.removeHandler(HOME_CHANNEL); },
+    // A page's request reached its source, or could not connect.
+    reached: (ok: boolean) => setReached(ok)
   };
 }

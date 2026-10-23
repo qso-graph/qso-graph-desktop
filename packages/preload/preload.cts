@@ -41,6 +41,14 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
     const handler = (_event: unknown, notice: unknown) => listener(notice);
     ipcRenderer.on('home:notice', handler);
     return () => { ipcRenderer.removeListener('home:notice', handler); };
+  },
+  // Whether the last request a page made reached its source (the Internet
+  // lamp's yellow), checked by the window.
+  onReached: (listener: (reached: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, reached: unknown) => listener(reached);
+    ipcRenderer.on('home:reach', handler);
+    return () => { ipcRenderer.removeListener('home:reach', handler); };
   }
 }));
 // The Help menu's Troubleshooting (KI7MT, 2026-10-22): main says it was

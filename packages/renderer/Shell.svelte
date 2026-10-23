@@ -145,7 +145,7 @@
        bar already names the application. The clock at the left, as it is
        always there; the right is kept for what extensions add, as a rig's
        frequency and mode (#43). -->
-  <HeaderClock online={homeModel.online} />
+  <HeaderClock online={homeModel.online} reached={homeModel.reached} />
 </header>
 <div class="workspace">
   <Rail pages={railPages} current={railCurrent} onNavigate={navigate} />
