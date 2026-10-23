@@ -106,8 +106,17 @@ describe('the real tree', () => {
     // A package added without a line in ALLOWED would be refused the moment it
     // imported anything — but a package that imports nothing would slip past
     // undecided, so the set is compared directly.
-    const onDisk = (await readdir('packages', { withFileTypes: true }))
-      .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+    // A folder holding only build output is not a package: an old checkout's
+    // packages/persona-core/target, left behind by the callsign rename,
+    // failed this on the M3 while develop was right (Watson, 2026-10-23).
+    const BUILD_OUTPUT = new Set(['target', 'node_modules']);
+    const onDisk = [];
+    for (const entry of await readdir('packages', { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const inside = await readdir(`packages/${entry.name}`);
+      if (inside.some(name => !BUILD_OUTPUT.has(name))) onDisk.push(entry.name);
+    }
+    onDisk.sort();
     expect(Object.keys(ALLOWED).sort()).toEqual(onDisk);
   });
 
