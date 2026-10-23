@@ -231,8 +231,8 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // line above (KI7MT, 2026-10-23). Not in the contents line, which lists
     // Sun, Twilight, Moon and Radio depths below it.
     { shape: 'text', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: yourClock
-      ? 'Times are on this computer\'s clock; Radio depths gives UTC as well.'
-      : 'Times are in UTC, which is what this computer\'s clock is set to.' },
+      ? 'Times are local, on this computer\'s clock.'
+      : 'Times are on this computer\'s clock, which is set to UTC.' },
     // The sun, five days of it, on this computer's clock (KI7MT, 2026-10-23).
     { shape: 'table', heading: 'Sun', columns: ['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day'], rows: sunWeek(now, latitude, longitude, clock) },
     // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).

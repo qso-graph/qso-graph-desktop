@@ -181,7 +181,7 @@ describe('Astro\'s page', () => {
   it('sets the day\'s times apart under a heading of their own', () => {
     const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
     const at = found.findIndex(section => section.heading === 'Today at Home');
-    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: expect.stringMatching(/^Times are on this computer's clock/) });
+    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: 'Times are local, on this computer\'s clock.' });
     expect(found[at + 1]).toMatchObject({ shape: 'table' });
   });
 
