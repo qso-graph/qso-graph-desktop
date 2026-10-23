@@ -64,6 +64,53 @@ export function sunWeek(now: Date, latitude: number, longitude: number, clock: C
   return rows;
 }
 
+// A crossing on this clock, or a dash where the day has none.
+const timeOr = (clock: Clock, at: Date | undefined) => (at ? clock.time(at) : '—');
+
+// Twilight for the same five days: each depth's dawn and dusk, on this
+// computer's clock (KI7MT, 2026-10-23). A depth the sun does not reach that
+// day, or does not leave, is a dash.
+export function twilightWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
+  const rows: string[][] = [];
+  for (let day = 0; day < SUN_DAYS; day += 1) {
+    const at = new Date(now.getTime() + day * 86_400_000);
+    const row = [clock.date(solarNoon(at, latitude, longitude))];
+    for (const depth of [CIVIL, NAUTICAL, ASTRONOMICAL]) {
+      const found: Crossings = sunCrossings(at, latitude, longitude, depth);
+      row.push(timeOr(clock, found.rising), timeOr(clock, found.setting));
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+// The moon for the same five days, on this computer's clock: rise and set,
+// and at the day's solar noon its phase, how much is lit, and the
+// declination and distance EME turns on (QGD-AST-0031). The moon's day is
+// about 24 h 50 min, so roughly once a month a day has no rise or no set:
+// a dash, not a failure (QGD-AST-0007).
+export function moonWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
+  const rows: string[][] = [];
+  for (let day = 0; day < SUN_DAYS; day += 1) {
+    const at = new Date(now.getTime() + day * 86_400_000);
+    const noon = solarNoon(at, latitude, longitude);
+    const found = moonCrossings(at, latitude, longitude);
+    const jd = julian(noon.getTime());
+    const phase = moonPhase(jd);
+    const position = moonAt(jd);
+    rows.push([
+      clock.date(noon),
+      timeOr(clock, found.rising),
+      timeOr(clock, found.setting),
+      phase.name,
+      `${Math.round(phase.fraction * 100)}%`,
+      `${position.declination >= 0 ? '+' : '−'}${Math.abs(position.declination).toFixed(1)}°`,
+      `${Math.round(position.distance).toLocaleString('en-US')} km`
+    ]);
+  }
+  return rows;
+}
+
 interface Inputs { readonly dx?: string }
 
 // A row's times, or a sentence where there is no event (QGD-AST-0007).
@@ -71,12 +118,20 @@ type Row = [label: string, at: Date | string];
 
 // A group of the one table. A time is given on each clock; a sentence or a
 // span has no clock, so it is given once, across both (page data version 5).
+// The date apart from the time (KI7MT, 2026-10-23): the date and time on
+// this computer's clock, then the time in UTC, carrying its own date where it
+// falls on another. On a computer kept on UTC, the date and UTC alone.
 function group(heading: string, rows: Row[], clock: Clock | undefined): TableGroup {
+  const utcDate = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()}`;
+  const utcTime = (at: Date) => `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`;
   return {
     heading,
-    rows: rows.map(([label, at]) => typeof at === 'string'
-      ? [label, at]
-      : (clock ? [label, utcText(at), clock.text(at)] : [label, utcText(at)]))
+    rows: rows.map(([label, at]) => {
+      if (typeof at === 'string') return [label, at];
+      if (!clock) return [label, utcDate(at), utcTime(at)];
+      const date = clock.date(at);
+      return [label, date, clock.time(at), utcDate(at) === date ? utcTime(at) : `${utcTime(at)} (${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]})`];
+    })
   };
 }
 
@@ -117,10 +172,8 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
   }
   const { latitude, longitude } = position;
   const yourClock = clock.offset(now) !== 0 ? clock : undefined;
-  const moon = moonCrossings(now, latitude, longitude);
   const at = julian(now.getTime());
   const phase = moonPhase(at);
-  const moonNow = moonAt(at);
   // The DX question (QGD-AST-0041): when both ends are inside the same depth.
   // Drawn under the figures, just below the field it answers, not after the
   // day's whole table (KI7MT, 2026-10-22).
@@ -178,32 +231,26 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // line above (KI7MT, 2026-10-23). Not in the contents line, which lists
     // Sun, Twilight, Moon and Radio depths below it.
     { shape: 'text', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: yourClock
-      ? 'Times are in UTC and on this computer\'s clock.'
+      ? 'Times are on this computer\'s clock; Radio depths gives UTC as well.'
       : 'Times are in UTC, which is what this computer\'s clock is set to.' },
-    // One table in four groups, so the times line up all the way down the
-    // page rather than moving with each group's longest name (Watson and
-    // KI7MT, 2026-10-22).
     // The sun, five days of it, on this computer's clock (KI7MT, 2026-10-23).
     { shape: 'table', heading: 'Sun', columns: ['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day'], rows: sunWeek(now, latitude, longitude, clock) },
-    { shape: 'table', columns: yourClock ? ['Event', 'UTC', 'Your clock'] : ['Event', 'UTC'], groups: [
-    group('Twilight', [
-      ...pair(sunCrossings(now, latitude, longitude, CIVIL), 'Civil dawn (−6°)', 'Civil dusk (−6°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
-      ...pair(sunCrossings(now, latitude, longitude, NAUTICAL), 'Nautical dawn (−12°)', 'Nautical dusk (−12°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
-      ...pair(sunCrossings(now, latitude, longitude, ASTRONOMICAL), 'Astronomical dawn (−18°)', 'Astronomical dusk (−18°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
-    ], yourClock),
-    group('Moon', [
-      ...pair(moon, 'Moonrise', 'Moonset', 'None today: the moon does not rise', 'None today: the moon does not set'),
-      ['Phase', `${phase.name}, ${Math.round(phase.fraction * 100)}% lit`],
-      // The numbers EME turns on (QGD-AST-0031).
-      ['Declination', `${moonNow.declination >= 0 ? '+' : '−'}${Math.abs(moonNow.declination).toFixed(1)}°`],
-      ['Distance', `${Math.round(moonNow.distance).toLocaleString('en-US')} km`]
-    ], yourClock),
+    // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).
+    { shape: 'table', heading: 'Twilight', columns: ['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk'], rows: twilightWeek(now, latitude, longitude, clock) },
+    { shape: 'table', heading: 'Moon', columns: ['Date', 'Moonrise', 'Moonset', 'Phase', 'Lit', 'Declination', 'Distance'], rows: moonWeek(now, latitude, longitude, clock) },
+    { shape: 'table', columns: yourClock ? ['Event', 'Date', 'Your clock', 'UTC'] : ['Event', 'Date', 'UTC'], groups: [
     // What each depth means for radio, said beside it (QGD-AST-0022). Last:
     // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
-    group('Radio depths', [
-      ...pair(sunCrossings(now, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
-      ...pair(sunCrossings(now, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher')
-    ], yourClock)
+    // Today and tomorrow, as it was laid out (KI7MT, 2026-10-23): the date in
+    // each time tells the two days apart.
+    group('Radio depths', [0, 1].flatMap(day => {
+      const at = new Date(now.getTime() + day * 86_400_000);
+      const when = day === 0 ? 'today' : 'tomorrow';
+      return [
+        ...pair(sunCrossings(at, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`),
+        ...pair(sunCrossings(at, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`)
+      ];
+    }), yourClock)
     ] }
   ];
 

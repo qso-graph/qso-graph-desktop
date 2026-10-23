@@ -34,8 +34,29 @@ const today = (answer: ReturnType<typeof astroPage>) => {
 };
 
 describe('Astro\'s page', () => {
-  it('passes the core\'s own check, with Twilight, Moon and Radio depths as groups of one table', () => {
-    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Twilight', 'Moon', 'Radio depths']);
+  it('passes the core\'s own check, with Radio depths as the group left of the table of events', () => {
+    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Radio depths']);
+  });
+
+  it('gives twilight and the moon for the same five days on this computer\'s clock (KI7MT, 2026-10-23)', () => {
+    const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
+    const twilight = found.find(section => section.heading === 'Twilight');
+    const moon = found.find(section => section.heading === 'Moon');
+    if (!twilight || twilight.shape !== 'table' || !('rows' in twilight) || !moon || moon.shape !== 'table' || !('rows' in moon)) throw new Error('missing');
+    expect(twilight.columns).toEqual(['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk']);
+    expect(twilight.rows).toHaveLength(5);
+    // Each dawn earlier the deeper it is, each dusk later.
+    const [, civilDawn, civilDusk, , , astroDawn, astroDusk] = twilight.rows[0]!;
+    expect(astroDawn! < civilDawn!).toBe(true);
+    expect(astroDusk! > civilDusk!).toBe(true);
+    expect(moon.columns).toEqual(['Date', 'Moonrise', 'Moonset', 'Phase', 'Lit', 'Declination', 'Distance']);
+    expect(moon.rows.map(row => row[0])).toEqual(['22 Oct 2026', '23 Oct 2026', '24 Oct 2026', '25 Oct 2026', '26 Oct 2026']);
+    // Waxing to the 26 October full moon, which falls between the 25th's
+    // noon and the 26th's: lit rises to 100%, then begins to fall.
+    const lit = moon.rows.map(row => parseInt(row[4]!, 10));
+    expect(Math.max(...lit)).toBe(100);
+    expect(lit[0]!).toBeLessThan(lit[2]!);
+    expect(moon.rows.every(row => /^(\d\d:\d\d|—)$/.test(row[1]!) && /^(\d\d:\d\d|—)$/.test(row[2]!))).toBe(true);
   });
 
   it('gives the sun for today and the next four days, every time on this computer\'s clock (KI7MT, 2026-10-23)', () => {
@@ -51,18 +72,25 @@ describe('Astro\'s page', () => {
     expect(minutes(sun.rows[4]![4]!)).toBeLessThan(minutes(sun.rows[0]![4]!));
   });
 
+  it('gives the radio depths for today and tomorrow, as they were laid out', () => {
+    const rows = today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups[0]!.rows;
+    expect(rows).toHaveLength(8);
+    expect(rows[0]![1]).not.toEqual(rows[4]![1]);
+  });
+
   it('gives a value with no clock once, across both time columns', () => {
     const table = today(astroPage(BOISE, NOW, {}, MOUNTAIN));
     const rows = table.groups.flatMap(group => group.rows);
-    for (const name of ['Phase', 'Declination', 'Distance']) {
-      expect(rows.find(row => row[0] === name)).toHaveLength(2);
-    }
-    expect(rows.find(row => row[0] === 'Civil dawn (−6°)')).toEqual(['Civil dawn (−6°)', expect.any(String), expect.stringMatching(/^local /)]);
+    // The date apart from the time: Date, Your clock, then UTC, with UTC's
+    // own date only where it is another day.
+    expect(rows.find(row => row[0].startsWith('Dawn: the absorbing'))).toEqual([
+      expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/), expect.stringMatching(/^\d\d:\d\d( \(\d{1,2} Oct\))?$/)
+    ]);
   });
 
   it('gives UTC alone when the computer is on UTC, and the operator\'s clock beside it when not (QGD-AST-0010)', () => {
-    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).columns).toEqual(['Event', 'UTC']);
-    expect(today(astroPage(BOISE, NOW, {}, MOUNTAIN)).columns).toEqual(['Event', 'UTC', 'Your clock']);
+    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).columns).toEqual(['Event', 'Date', 'UTC']);
+    expect(today(astroPage(BOISE, NOW, {}, MOUNTAIN)).columns).toEqual(['Event', 'Date', 'Your clock', 'UTC']);
   });
 
   it('says what it needs, and names the Location, rather than guessing (QGD-AST-0008)', () => {
@@ -153,7 +181,7 @@ describe('Astro\'s page', () => {
   it('sets the day\'s times apart under a heading of their own', () => {
     const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
     const at = found.findIndex(section => section.heading === 'Today at Home');
-    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: expect.stringMatching(/^Times are in UTC/) });
+    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: expect.stringMatching(/^Times are on this computer's clock/) });
     expect(found[at + 1]).toMatchObject({ shape: 'table' });
   });
 
