@@ -173,8 +173,8 @@ describe('Astro\'s page', () => {
 
   it('sets the day\'s times apart under a heading of their own', () => {
     const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
-    const at = found.findIndex(section => section.heading === 'Today at Home');
-    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: 'All times are local, based on system clock setting: America/Denver (MDT, UTC−6).' });
+    const at = found.findIndex(section => section.heading === 'Almanac for Home');
+    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: 'Active Location almanac times are based on system clock setting: America/Denver (MDT, UTC−6).' });
     expect(found[at + 1]).toMatchObject({ shape: 'table' });
   });
 
@@ -186,11 +186,11 @@ describe('Astro\'s page', () => {
   });
 
   it('names the zone the system clock is set to, so a time that looks off answers itself', () => {
-    expect(clockNote(MOUNTAIN, NOW)).toBe('All times are local, based on system clock setting: America/Denver (MDT, UTC−6).');
-    expect(clockNote(UTC_CLOCK, NOW)).toBe('All times are based on system clock setting: UTC.');
+    expect(clockNote(MOUNTAIN, NOW)).toBe('Active Location almanac times are based on system clock setting: America/Denver (MDT, UTC−6).');
+    expect(clockNote(UTC_CLOCK, NOW)).toBe('Active Location almanac times are based on system clock setting: UTC.');
     // A zone with no common short name gives the offset once; half hours too.
     const kolkata: Clock = { ...MOUNTAIN, offset: () => 330, zone: () => ({ name: 'Asia/Kolkata', short: 'GMT+5:30' }) };
-    expect(clockNote(kolkata, NOW)).toBe('All times are local, based on system clock setting: Asia/Kolkata (UTC+5:30).');
+    expect(clockNote(kolkata, NOW)).toBe('Active Location almanac times are based on system clock setting: Asia/Kolkata (UTC+5:30).');
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {
