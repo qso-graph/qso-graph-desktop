@@ -49,14 +49,14 @@ describe('Astro\'s page', () => {
     const [, civilDawn, civilDusk, , , astroDawn, astroDusk] = twilight.rows[0]!;
     expect(astroDawn! < civilDawn!).toBe(true);
     expect(astroDusk! > civilDusk!).toBe(true);
-    expect(moon.columns).toEqual(['Date', 'Moonrise', 'Moonset', 'Phase', 'Lit', 'Declination', 'Distance']);
+    expect(moon.columns).toEqual(['Date', 'Phase', 'Moonrise', 'Moonset', 'Lit', 'Declination', 'Distance']);
     expect(moon.rows.map(row => row[0])).toEqual(['22 Oct 2026', '23 Oct 2026', '24 Oct 2026', '25 Oct 2026', '26 Oct 2026']);
     // Waxing to the 26 October full moon, which falls between the 25th's
     // noon and the 26th's: lit rises to 100%, then begins to fall.
     const lit = moon.rows.map(row => parseInt(row[4]!, 10));
     expect(Math.max(...lit)).toBe(100);
     expect(lit[0]!).toBeLessThan(lit[2]!);
-    expect(moon.rows.every(row => /^(\d\d:\d\d|—)$/.test(row[1]!) && /^(\d\d:\d\d|—)$/.test(row[2]!))).toBe(true);
+    expect(moon.rows.every(row => /^(\d\d:\d\d|—)$/.test(row[2]!) && /^(\d\d:\d\d|—)$/.test(row[3]!))).toBe(true);
   });
 
   it('gives the sun for today and the next four days, every time on this computer\'s clock (KI7MT, 2026-10-23)', () => {

@@ -98,11 +98,12 @@ export function moonWeek(now: Date, latitude: number, longitude: number, clock: 
     const jd = julian(noon.getTime());
     const phase = moonPhase(jd);
     const position = moonAt(jd);
+    // The date and the phase first, then the rest (KI7MT, 2026-10-23).
     rows.push([
       clock.date(noon),
+      phase.name,
       timeOr(clock, found.rising),
       timeOr(clock, found.setting),
-      phase.name,
       `${Math.round(phase.fraction * 100)}%`,
       `${position.declination >= 0 ? '+' : '−'}${Math.abs(position.declination).toFixed(1)}°`,
       `${Math.round(position.distance).toLocaleString('en-US')} km`
@@ -237,7 +238,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     { shape: 'table', heading: 'Sun', columns: ['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day'], rows: sunWeek(now, latitude, longitude, clock) },
     // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).
     { shape: 'table', heading: 'Twilight', columns: ['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk'], rows: twilightWeek(now, latitude, longitude, clock) },
-    { shape: 'table', heading: 'Moon', columns: ['Date', 'Moonrise', 'Moonset', 'Phase', 'Lit', 'Declination', 'Distance'], rows: moonWeek(now, latitude, longitude, clock) },
+    { shape: 'table', heading: 'Moon', columns: ['Date', 'Phase', 'Moonrise', 'Moonset', 'Lit', 'Declination', 'Distance'], rows: moonWeek(now, latitude, longitude, clock) },
     { shape: 'table', columns: yourClock ? ['Event', 'Date', 'Your clock', 'UTC'] : ['Event', 'Date', 'UTC'], groups: [
     // What each depth means for radio, said beside it (QGD-AST-0022). Last:
     // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
