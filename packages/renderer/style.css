@@ -467,6 +467,9 @@ dialog.pins h2 { margin: 0 0 6px; }
    value given across the columns reads as the row's own, not a side note. */
 .page-table .page-table-group th { padding-top: 18px; font-size: 15px; font-weight: 600; border-top: 0; }
 .page-table tbody:first-of-type .page-table-group th { padding-top: 6px; }
+/* A group's rows sit in under its name, so the name reads as the heading
+   of what follows (KI7MT, 2026-10-23). */
+.page-table tbody:has(.page-table-group) th[scope="row"] { padding-left: 16px; }
 .page-table td[colspan] { color: inherit; white-space: normal; }
 /* The world map fills the page's width at its own 2:1 shape. */
 .world-map { margin: 4px 0 14px; }
