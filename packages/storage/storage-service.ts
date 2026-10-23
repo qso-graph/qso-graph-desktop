@@ -13,6 +13,7 @@
 // (QGD-ENG-0016).
 import { adifBands, searchAdif } from './adif-search.js';
 import { areaChoices, areaDefault } from './area.js';
+import { parksToActivate } from './activations.js';
 import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
 import { createForwardingLogger } from '../logging/logger.js';
@@ -244,6 +245,18 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
     }
     case 'area-default':
       return { ok: true, status: status(), areaDefault: (await ownArea())[0] ?? null };
+    case 'parks-to-activate': {
+      // My Area as chosen, or else the active Location's own (QGD-STN-0012).
+      const area = command.locations.length > 0 ? command.locations : await ownArea();
+      const held = Object.entries(referenceStatus?.activations ?? {}).filter(([location]) => area.includes(location));
+      const reader = reference?.reader();
+      if (!reader || held.length === 0) {
+        return { ok: false, error: 'POTA activations are not downloaded for My Area. Download them in Settings, under Reference data.' };
+      }
+      // When the oldest of them was fetched, so the page can say how old it is.
+      const fetched = held.flatMap(([, set]) => (set.state === 'loaded' ? [set.fetchedAt] : [])).sort()[0];
+      return { ok: true, status: status(), toActivate: { parks: await parksToActivate(reader, area), fetchedAt: fetched ?? new Date(0).toISOString() } };
+    }
     case 'adif-bands': {
       const reader = reference?.reader();
       if (!reader || referenceStatus?.adif.state !== 'loaded') {

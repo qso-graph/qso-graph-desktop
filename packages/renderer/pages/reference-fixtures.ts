@@ -4,17 +4,20 @@ import type { ResourceSummary } from '../../storage/storage-contract.js';
 
 const ADIF = { id: 'adif', name: 'ADIF definitions', what: "ADIF's fields, data types and enumerations, which QSO records are checked against", owner: 'the ADIF Development Group', size: 'about 2 MB' };
 const SOTA = { id: 'sota', name: 'SOTA summits', what: 'Every Summits on the Air summit, for summit references and a location\'s position and height', owner: 'Summits on the Air', size: 'about 25 MB' };
+const ACTIVATIONS = { id: 'activations', name: 'POTA activations', what: 'How many times each park in My Area has been activated, to find parks to activate, also offline', owner: 'Parks on the Air', size: 'about 150 KB a location' };
 const POTA = { id: 'pota', name: 'POTA parks', what: 'Every Parks on the Air park, program and location, for park references and lookups', owner: 'Parks on the Air', size: 'about 10 MB' };
 
 export const RESOURCES_LOADED: ResourceSummary[] = [
   { ...ADIF, state: 'loaded', fetchedAt: '2026-10-11T18:00:00Z', due: false, updatable: false, version: '3.1.7', updating: false },
   { ...POTA, state: 'loaded', fetchedAt: '2026-10-11T18:00:00Z', due: false, updatable: true, updating: false },
+  { ...ACTIVATIONS, state: 'loaded', fetchedAt: '2026-10-11T18:00:00Z', due: false, updatable: true, updating: false },
   { ...SOTA, state: 'loaded', fetchedAt: '2026-10-11T18:00:00Z', due: false, updatable: true, updating: false }
 ];
 
 export const RESOURCES_NOT_LOADED: ResourceSummary[] = [
   { ...ADIF, state: 'not loaded', due: false, updatable: false, updating: false },
   { ...POTA, state: 'not loaded', due: false, updatable: false, updating: false },
+  { ...ACTIVATIONS, state: 'not loaded', due: false, updatable: false, updating: false },
   { ...SOTA, state: 'not loaded', due: false, updatable: false, updating: false }
 ];
 
@@ -22,5 +25,6 @@ export const RESOURCES_NOT_LOADED: ResourceSummary[] = [
 export const RESOURCES_ADIF_AVAILABLE: ResourceSummary[] = [
   { ...ADIF, state: 'loaded', fetchedAt: '2026-10-11T18:00:00Z', due: true, updatable: true, version: '3.1.7', available: '3.1.8', updating: false },
   { ...POTA, state: 'loaded', fetchedAt: '2026-10-11T18:00:00Z', due: false, updatable: true, updating: false },
+  { ...ACTIVATIONS, state: 'not loaded', due: false, updatable: false, updating: false },
   { ...SOTA, state: 'not loaded', due: false, updatable: false, updating: false }
 ];

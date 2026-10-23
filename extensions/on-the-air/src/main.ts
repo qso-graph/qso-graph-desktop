@@ -13,6 +13,7 @@ import type { ExtensionContext } from '../../../packages/extension-api/context.j
 import type { PageAnswer } from '../../../packages/extension-api/pages.js';
 import { conditionsPage, parseConditions } from './conditions.js';
 import { parksPage, parseSpots } from './parks.js';
+import { activatePage } from './activate.js';
 
 const UNREACHABLE: PageAnswer = { ok: false, reason: 'NOAA could not be reached just now.' };
 const UNREADABLE: PageAnswer = { ok: false, reason: "NOAA's data could not be read just now." };
@@ -46,5 +47,14 @@ export function activate(context: ExtensionContext): void {
     const area = await context.request({ kind: 'area.get' }, { signal });
     return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : [],
       area.ok && area.kind === 'area.get' ? area.locations : []);
+  }));
+  // Parks to Activate (QGD-HOM-0013): My Area's parks with their activation
+  // counts, from reference data on this computer, so it works at camp.
+  context.subscriptions.push(context.pages.register('activate', async ({ signal }) => {
+    const found = await context.request({ kind: 'pota.activations' }, { signal });
+    if (!found.ok) return { ok: false, reason: found.error };
+    if (found.kind !== 'pota.activations') return { ok: false, reason: 'POTA activations could not be read just now.' };
+    const station = await context.request({ kind: 'station.active' }, { signal });
+    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null);
   }));
 }

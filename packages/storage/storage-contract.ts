@@ -13,6 +13,7 @@
 // the Stations page and the status bar are never polling and never stale.
 import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
 import { AREA_LOCATIONS, AREA_PROGRAMS, type AreaProgram } from './area-entry.js';
+import { ACTIVATION_PARKS, ACTIVATION_TEXT, type ActivationPark } from './activation-entry.js';
 import {
   isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
   isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
@@ -104,6 +105,9 @@ export type StorageCommand =
   | { type: 'area-choices' }
   // The POTA location the active Location is in, for My Area's default.
   | { type: 'area-default' }
+  // My Area's parks with their activation counts (activations.ts,
+  // QGD-REF-0019). The locations are added by main, from My Area.
+  | { type: 'parks-to-activate'; locations: string[] }
   // The editor's pick lists, for an entity or for none.
   | { type: 'station-choices'; entity: string | null; state: string | null }
   // The names of the parks a MY_POTA_REF value names, from POTA's list.
@@ -115,8 +119,11 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate }
   | { ok: false; error: string; problems?: FieldProblem[] };
+
+// The parks to activate, and when the oldest of their lists was fetched.
+export interface ToActivate { parks: ActivationPark[]; fetchedAt: string }
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations', 'summits'] as const;
 
@@ -209,6 +216,18 @@ function isAreaChoices(value: unknown): value is AreaProgram[] {
       && typeof location.code === 'string' && LOCATION_CODE.test(location.code) && areaText(location.name)));
 }
 
+// The parks to activate (activations.ts), bounded as the store bounds them.
+const activationText = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= ACTIVATION_TEXT;
+function isToActivate(value: unknown): value is ToActivate {
+  return record(value) && only(value, ['parks', 'fetchedAt']) && typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))
+    && Array.isArray(value.parks) && value.parks.length <= ACTIVATION_PARKS && value.parks.every(park => record(park)
+      && only(park, ['reference', 'name', 'latitude', 'longitude', 'locations', 'activations'])
+      && activationText(park.reference) && activationText(park.name) && activationText(park.locations)
+      && typeof park.latitude === 'number' && Math.abs(park.latitude) <= 90
+      && typeof park.longitude === 'number' && Math.abs(park.longitude) <= 180
+      && (park.activations === null || (Number.isSafeInteger(park.activations) && (park.activations as number) >= 0)));
+}
+
 // A reply from the storage process, checked whole before it is read or passed
 // on (QGD-SEC-0006). Null, an array, a missing field or an extra one: refused.
 export function isStorageReply(value: unknown): value is StorageReply {
@@ -217,7 +236,8 @@ export function isStorageReply(value: unknown): value is StorageReply {
     // adif and bands were missing here, so every ADIF search and band list
     // QG Storage answered was refused as malformed; each layer's own tests
     // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate']) && isStorageStatus(value.status)
+      && (value.toActivate === undefined || isToActivate(value.toActivate))
       && (value.areaChoices === undefined || isAreaChoices(value.areaChoices))
       && (value.areaDefault === undefined || value.areaDefault === null || (typeof value.areaDefault === 'string' && LOCATION_CODE.test(value.areaDefault)))
       && (value.adif === undefined || isAdifEntries(value.adif))
@@ -274,6 +294,9 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'adif-bands': return exactly(['type']);
     case 'area-choices': return exactly(['type']);
     case 'area-default': return exactly(['type']);
+    case 'parks-to-activate':
+      return exactly(['type', 'locations']) && Array.isArray(value.locations) && value.locations.length <= AREA_MOST
+        && value.locations.every(location => typeof location === 'string' && AREA_CODE.test(location));
     case 'look-up-parks':
       return exactly(['type', 'references']) && typeof value.references === 'string' && value.references.length > 0
         && value.references.length <= 100 && /^[0-9A-Za-z@,\- ]+$/.test(value.references);

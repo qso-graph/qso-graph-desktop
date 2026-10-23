@@ -253,6 +253,13 @@ if (!app.requestSingleInstanceLock()) {
           const own = await storageBroker.areaDefault();
           return own ? [own] : [];
         },
+        // My Area's parks with their activations (QGD-REF-0019), read from
+        // reference data on this computer: nothing is fetched.
+        potaActivations: async () => {
+          const found = await storageBroker.parksToActivate();
+          if (typeof found === 'string') throw new Error(found);
+          return found;
+        },
         // ADIF's bands, for naming a frequency's band (reference:read).
         adifBands: async () => {
           const found = await storageBroker.adifBands();

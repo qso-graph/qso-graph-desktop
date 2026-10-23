@@ -839,3 +839,32 @@ describe('POTA activations, a list for each location of My Area (QGD-REF-0019)',
     expect(validateStorageCommand({ type: 'update-reference', resource: 'activations', area: Array(11).fill('US-ID') })).toBe(false);
   });
 });
+
+describe('the parks to activate, read from reference.sqlite (QGD-REF-0019, QGD-HOM-0013)', () => {
+  // Made-up parks and counts: nothing of POTA's is committed.
+  const header = (register.pota.sources.parks.columns as string[]).map(column => `"${column}"`).join(',');
+  const row = (reference: string, active: string, locations: string, latitude: string) =>
+    `"${reference}","Park ${reference}","${active}","291","${locations}","${latitude}","-116.2","DN13"`;
+  const parks = [header, row('US-0001', '1', 'US-ID', '43.7'), row('US-0002', '0', 'US-ID', '43.8'), row('US-0003', '1', 'US-ID', '200'),
+    row('US-0009', '1', 'US-ID,US-OR', '44.1'), row('US-0010', '1', 'US-OR', '44.5'), row('K-TEST', '1', 'US-ID', '43.6')].join('\n') + '\n';
+  const counts = JSON.stringify(['US-0001', 'US-0002', 'US-0003', 'US-0009', 'US-0010', 'K-TEST', 'US-0099']
+    .map((reference, at) => ({ reference, activations: at === 0 ? null : at })));
+  const input = (list: string, body: string) => ({
+    record: { list, url: `https://example.invalid/${list}`, what: list, etag: null, lastModified: null, fetchedAt: '2026-10-23T12:00:00Z',
+      rowCount: 0, sha256: createHash('sha256').update(body).digest('hex') }, body });
+
+  it('gives the active, measurable, real parks in the locations asked for, with their counts', async () => {
+    const target = join(root, 'reference.sqlite');
+    await buildReference(target, DDL, { register, pota: { parks: input('parks', parks) }, activations: { 'US-ID': input('US-ID', counts) } });
+    const store = openStore(target, { schema: referenceSchema.referenceSchema, readOnly: true });
+    try {
+      const { parksToActivate } = await import('../packages/storage/activations.js');
+      // Not the retired park, the one beyond the poles, POTA's test park, or
+      // a count for a park the park list does not have.
+      expect((await parksToActivate(store, ['US-ID'])).map(park => [park.reference, park.activations, park.locations]))
+        .toEqual([['US-0001', null, 'US-ID'], ['US-0009', 3, 'US-ID,US-OR']]);
+      expect((await parksToActivate(store, ['US-OR'])).map(park => park.reference)).toEqual(['US-0009', 'US-0010']);
+      expect(await parksToActivate(store, [])).toEqual([]);
+    } finally { store.close(); }
+  });
+});

@@ -25,6 +25,14 @@
         "icon": "tree",
         "rail": true,
         "network": true
+      },
+      {
+        "id": "activate",
+        "name": "Parks to Activate",
+        "description": "The parks in My Area and how many times each has been activated, nearest first. Works offline once downloaded.",
+        "refreshSeconds": 600,
+        "icon": "map",
+        "network": false
       }
     ]
   }

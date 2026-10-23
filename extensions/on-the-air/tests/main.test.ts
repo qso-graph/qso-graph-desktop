@@ -31,13 +31,28 @@ describe('On the Air (QGD-HOM-0007)', () => {
       ? { ok: true, kind: 'source.fetch', body: readFileSync(`tests/fixtures/noaa/quiet/${FILES[request.source]}`, 'utf8'), fresh: true }
       : { ok: false, error: 'refused', refused: 'station:active' });
     activate(value);
-    expect([...providers.keys()]).toEqual(['conditions', 'parks']);
+    expect([...providers.keys()]).toEqual(['conditions', 'parks', 'activate']);
     expect(await ask(providers, 'conditions')).toMatchObject({ ok: true });
     expect(asked.map(request => request.kind === 'source.fetch' ? request.source : request.kind).sort()).toEqual(['noaa-flux', 'noaa-kp', 'noaa-scales']);
     expect(await ask(providers, 'parks')).toMatchObject({ ok: true });
     // POTA's spots by registered name, then ADIF's bands to name each band.
     expect(asked.slice(-3)).toEqual([{ kind: 'source.fetch', source: 'pota-spots' }, { kind: 'adif.bands' }, { kind: 'area.get' }]);
-    expect(value.subscriptions).toHaveLength(2);
+    expect(value.subscriptions).toHaveLength(3);
+  });
+
+  it('draws Parks to Activate from reference data alone, and says why when it is not there', async () => {
+    const park = { reference: 'US-0001', name: 'Example Park', latitude: 43.7, longitude: -116.1, locations: 'US-ID', activations: 0 };
+    const { value, providers, asked } = context(request => request.kind === 'pota.activations'
+      ? { ok: true, kind: 'pota.activations', parks: [park], fetchedAt: '2026-10-23T12:00:00Z' }
+      : request.kind === 'station.active' ? { ok: true, kind: 'station.active', station: { name: 'Home', latitude: 43.6, longitude: -116.2 } }
+        : { ok: false, error: 'refused' });
+    activate(value);
+    expect(await ask(providers, 'activate')).toMatchObject({ ok: true });
+    // Nothing fetched: the page works offline.
+    expect(asked.map(request => request.kind)).toEqual(['pota.activations', 'station.active']);
+    const missing = context(() => ({ ok: false, error: 'POTA activations are not downloaded for My Area.' }));
+    activate(missing.value);
+    expect(await ask(missing.providers, 'activate')).toEqual({ ok: false, reason: 'POTA activations are not downloaded for My Area.' });
   });
 
   it('says NOAA could not be reached when a fetch is refused', async () => {

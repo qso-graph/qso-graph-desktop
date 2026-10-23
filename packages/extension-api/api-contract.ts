@@ -47,6 +47,10 @@ export type ExtensionRequest =
   // as US-ID, or the active Location's own where they have chosen none. It
   // says roughly where the operator is, so it needs station:active.
   | { readonly kind: 'area.get' }
+  // My Area's parks with how many times POTA has counted each activated
+  // (QGD-REF-0019), from reference data on this computer. It says where the
+  // operator works, as area.get does, so it needs station:active.
+  | { readonly kind: 'pota.activations' }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -97,6 +101,18 @@ export interface AdifBand {
   readonly upperMHz: number;
 }
 
+// A park of My Area as pota.activations answers it: its position is POTA's
+// park list's, and its count null where POTA publishes null, a park nobody
+// has attempted.
+export interface ActivationPark {
+  readonly reference: string;
+  readonly name: string;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly locations: string;
+  readonly activations: number | null;
+}
+
 // The active station as an extension may see it. The position is the
 // station's own MY_LAT and MY_LON where it has them, otherwise the centre of
 // its grid square, in decimal degrees; absent when it has neither.
@@ -115,6 +131,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'adif.search'; readonly entries: readonly AdifEntry[] }
   | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
   | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
+  | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the
@@ -146,6 +163,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'adif.search': return 'reference:read';
     case 'adif.bands': return 'reference:read';
     case 'area.get': return 'station:active';
+    case 'pota.activations': return 'station:active';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -154,7 +172,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'pota.activations', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -207,6 +225,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'adif.search': ['kind', 'query'],
   'adif.bands': ['kind'],
   'area.get': ['kind'],
+  'pota.activations': ['kind'],
   'source.fetch': ['kind', 'source'],
   'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
@@ -231,6 +250,7 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'station.active':
     case 'adif.bands':
     case 'area.get':
+    case 'pota.activations':
       return bare();
     case 'adif.search': {
       // Bounded and plain, as a page's text field is (inputs.ts).

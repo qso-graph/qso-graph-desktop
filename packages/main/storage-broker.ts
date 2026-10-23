@@ -15,7 +15,7 @@ import { allowsSender, type FetchedReference } from '../callsigns/callsign-contr
 import { CALLSIGNS_STARTING } from './callsign-broker.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 import {
-  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus,
+  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus, type ToActivate,
   isStorageReply, isStorageStatus, validateStorageCommand
 } from '../storage/storage-contract.js';
 
@@ -53,6 +53,8 @@ export interface StorageBroker {
   // (ADIF Lookup); a sentence when they cannot be.
   adifSearch: (query: string) => Promise<AdifEntry[] | string>;
   adifBands: () => Promise<AdifBand[] | string>;
+  // My Area's parks with their activations, or why there are none.
+  parksToActivate: () => Promise<ToActivate | string>;
   // The POTA location the active Location is in, or none (area.ts).
   areaDefault: () => Promise<string | undefined>;
   onActiveStationChanged: (listener: () => void) => void;
@@ -253,6 +255,13 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     async areaDefault() {
       const reply = await ask({ type: 'area-default' });
       return reply.ok && reply.areaDefault ? reply.areaDefault : undefined;
+    },
+    // My Area's parks with their activations (QGD-REF-0019), for the area
+    // as settings hold it; QG Storage falls back to the Location's own.
+    async parksToActivate() {
+      const reply = await ask({ type: 'parks-to-activate', locations: [...(options.area?.() ?? [])] });
+      if (!reply.ok) return reply.error;
+      return reply.toActivate ?? 'POTA activations could not be read just now.';
     },
     async adifBands() {
       const reply = await ask({ type: 'adif-bands' });

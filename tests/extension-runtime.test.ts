@@ -190,6 +190,7 @@ describe('the decision', () => {
       'adif.search': { kind: 'adif.search', query: 'FT8' },
       'adif.bands': { kind: 'adif.bands' },
       'area.get': { kind: 'area.get' },
+      'pota.activations': { kind: 'pota.activations' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     };
