@@ -101,6 +101,8 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
     { shape: 'table', columns, rows, sortable: true,
       ...(here ? { sortedBy: { column: 2, direction: 'ascending' as const } } : {}),
       ...(located.hidden ? { hidden: located.hidden } : {}),
+      // Each park's reference opens its page on pota.app (#59).
+      links: [{ column: 0, kind: 'pota' }],
       filters: [
         // Program, Entity and Location first, as POTA's own park list starts.
         ...located.filters,

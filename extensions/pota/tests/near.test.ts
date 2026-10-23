@@ -31,6 +31,8 @@ describe('Near Me (QGD-HOM-0013)', () => {
     expect(shown.columns.slice(0, 5)).toEqual(['Park', 'Name', 'km', 'Bearing °', 'Location']);
     expect(shown.rows.map(row => [row[0], row[4]])).toEqual([['US-0001', 'US-ID'], ['US-0002', 'US-WY'], ['US-0003', 'US-MT']]);
     expect(shown.sortedBy).toEqual({ column: 2, direction: 'ascending' });
+    // Each reference opens its park's page on pota.app (#59).
+    expect(shown.links).toEqual([{ column: 0, kind: 'pota' }]);
     expect(() => validatePageAnswer(answer)).not.toThrow();
   });
 

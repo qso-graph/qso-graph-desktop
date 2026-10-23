@@ -237,6 +237,24 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [hidden]))).toThrowError(/version 5/);
   });
 
+  it('links a column of references to their pages, by kind only, never a URL (#59)', () => {
+    const parks = { shape: 'table', columns: ['Park', 'Name'], rows: [['US-0001', 'Acadia']] };
+    expect(validatePageAnswer(v(6, [{ ...parks, links: [{ column: 0, kind: 'pota' }] }]))).toEqual(v(6, [{ ...parks, links: [{ column: 0, kind: 'pota' }] }]));
+    for (const [links, message] of [
+      [[], /no links/],
+      [[{ column: 0, kind: 'https://evil.example/' }], /pota or sota/],
+      [[{ column: 0, kind: 'pota', url: 'https://x' }], /"url"/],
+      [[{ column: 2, kind: 'pota' }], /does not name a column/],
+      [[{ column: 0, kind: 'pota' }, { column: 0, kind: 'sota' }], /one column twice/]
+    ] as const) {
+      expect(() => validatePageAnswer(v(6, [{ ...parks, links }])), String(message)).toThrowError(message);
+    }
+    // Not a hidden column: a link must be drawn to be followed.
+    const hidden = { shape: 'table', columns: ['Park', 'Entity'], rows: [['US-0001', 'CONUS']], hidden: 1, filters: [{ column: 1, label: 'Entity' }] };
+    expect(() => validatePageAnswer(v(6, [{ ...hidden, links: [{ column: 1, kind: 'pota' }] }]))).toThrowError(/does not name a column the table draws/);
+    expect(() => validatePageAnswer(v(5, [{ ...parks, links: [{ column: 0, kind: 'pota' }] }]))).toThrowError(/version 5/);
+  });
+
   it('carries up-to choices for a column of numbers (KI7MT, 2026-10-23)', () => {
     const within = { ...table, filters: [{ column: 1, label: 'Distance', upTo: [{ label: 'Within 50 km', value: 50 }], start: 'Within 50 km' }] };
     expect(validatePageAnswer(v(6, [within]))).toEqual(v(6, [within]));

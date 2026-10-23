@@ -44,6 +44,8 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     expect(shown.rows[0]![3]).toBe('1');
     expect(shown.rows[3]![5]).toBe('US-ID, US-OR');
     expect(shown.sortedBy).toEqual({ column: 2, direction: 'ascending' });
+    // Each reference opens its park's page on pota.app (#59).
+    expect(shown.links).toEqual([{ column: 0, kind: 'pota' }]);
     // A page the core accepts, as the core checks it.
     expect(() => validatePageAnswer(answer)).not.toThrow();
   });

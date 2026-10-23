@@ -27,8 +27,10 @@
     offline?: boolean;
     // Open another page of the same area, from its tab.
     onTab?: (key: string) => void;
+    // A park's or summit's page in the browser, from a linked column (#59).
+    onOpenReference?: (kind: 'pota' | 'sota', reference: string) => void;
   }
-  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {} }: Props = $props();
+  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {}, onOpenReference }: Props = $props();
 
   // Why a field's value is refused, by its kind, said as it is typed.
   const REASON = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
@@ -117,7 +119,7 @@
     {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->
-    {#key page.key}<PageBody shown={page.shown} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} rememberAs={page.key} />{/key}
+    {#key page.key}<PageBody shown={page.shown} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} rememberAs={page.key} {onOpenReference} />{/key}
     <!-- Placed by the page, and the page between answers: kept below what
          it says rather than jumping to the top and back. -->
     {#if placed && page.shown.state !== 'ready'}{@render fieldsForm()}{/if}

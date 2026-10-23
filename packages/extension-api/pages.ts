@@ -104,8 +104,11 @@ export type Section = (
   // `hidden`: how many of the last columns are not drawn, each there for a
   // filter alone (KI7MT, 2026-10-23: Program and Entity, as POTA narrows its
   // parks, on a table already as wide as a table is drawn).
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number }
+  // `links`: columns whose cells are a park's or summit's reference, which
+  // the core draws as a link to its page from the link register, never a URL
+  // from the extension (QGD-SEC-0009; KI7MT, 2026-10-23, #59).
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   // The world, with the night greyed out from where the sun is overhead, and
   // up to four places marked. Version 6. Optionally the moon, where it is
   // overhead, and a twilight band from the horizon down to a depth, as the
@@ -129,6 +132,11 @@ export interface TableSort {
   readonly column: number;
   readonly direction: 'ascending' | 'descending';
 }
+
+// A column of references the core links to their pages: a POTA park or a
+// SOTA summit, by the link register's own templates.
+export const LINK_KINDS = ['pota', 'sota'] as const;
+export interface TableLink { readonly column: number; readonly kind: (typeof LINK_KINDS)[number] }
 
 // A column the operator can narrow the table by: its index, what the choice
 // is called, and the values to offer in the order to offer them. Without
@@ -325,7 +333,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (version < 2) throw new PageError(`${where} is a table, which page data version ${version} does not have.`);
     const grouped = Object.hasOwn(value, 'groups');
     if (grouped && version < 5) throw new PageError(`${where} has groups, which page data version ${version} does not have.`);
-    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable', 'sortedBy', 'hidden'], where);
+    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable', 'sortedBy', 'hidden', 'links'], where);
     if (value.sortable !== undefined) {
       if (version < 6) throw new PageError(`${where} is sortable, which page data version ${version} does not have.`);
       if (value.sortable !== true) throw new PageError(`${where}'s sortable is not true.`);
@@ -419,6 +427,22 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
       }
     }
     if (columns.length - hidden > PAGE_LIMITS.shown) throw new PageError(`${where} draws more than ${PAGE_LIMITS.shown} columns.`);
+    let links: TableLink[] | undefined;
+    if (value.links !== undefined) {
+      if (version < 6) throw new PageError(`${where} links references, which page data version ${version} does not have.`);
+      if (!Array.isArray(value.links) || value.links.length === 0 || value.links.length > 2) throw new PageError(`${where} has no links, or more than 2.`);
+      links = each(value.links, where, (link: unknown, l: number): TableLink => {
+        const at = `${where}, link ${l + 1}`;
+        if (!isRecord(link)) throw new PageError(`${at} is not an object.`);
+        only(link, ['column', 'kind'], at);
+        if (typeof link.column !== 'number' || !Number.isInteger(link.column) || link.column < 0 || link.column >= columns.length - hidden) {
+          throw new PageError(`${at} does not name a column the table draws.`);
+        }
+        if (!(LINK_KINDS as readonly unknown[]).includes(link.kind)) throw new PageError(`${at} is not a link to ${LINK_KINDS.join(' or ')}.`);
+        return { column: link.column, kind: link.kind as TableLink['kind'] };
+      });
+      if (new Set(links.map(link => link.column)).size !== links.length) throw new PageError(`${where} links one column twice.`);
+    }
     let sortedBy: TableSort | undefined;
     if (value.sortedBy !== undefined) {
       if (value.sortable !== true) throw new PageError(`${where} says how it is sorted but is not sortable.`);
@@ -433,7 +457,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
       sortedBy = { column: sort.column, direction: sort.direction };
     }
     const withFilters = { ...(filters ? { filters } : {}), ...(value.sortable === true ? { sortable: true as const } : {}), ...(sortedBy ? { sortedBy } : {}),
-      ...(hidden > 0 ? { hidden } : {}) };
+      ...(hidden > 0 ? { hidden } : {}), ...(links ? { links } : {}) };
     const rowsOf = (list: unknown, name: string, room: number): Row[] => {
       if (!Array.isArray(list) || list.length > room) {
         throw new PageError(`${name} has rows as something other than a list of at most ${PAGE_LIMITS.rows} in the table.`);

@@ -26,8 +26,11 @@
     // The page's key, under which its filters and sorts are remembered for
     // the session (page-memory.ts).
     rememberAs?: string | undefined;
+    // Open a park's or summit's page in the browser, for a column the page
+    // links (#59). The core builds the URL from its register.
+    onOpenReference?: ((kind: 'pota' | 'sota', reference: string) => void) | undefined;
   }
-  const { shown, onRefresh, fields, offline = false, rememberAs }: Props = $props();
+  const { shown, onRefresh, fields, offline = false, rememberAs, onOpenReference }: Props = $props();
 
   // What each table's filters are set to, by section and column; '' is All.
   // Kept across a refresh, so a band chosen stays chosen as spots update,
@@ -83,6 +86,12 @@
     setTimeout(() => { resting = false; }, 10_000);
   }
 </script>
+
+<!-- A reference as a link to its page, opened by the core in the browser. -->
+{#snippet reference(kind: 'pota' | 'sota', cell: string)}
+  <button type="button" class="link-button page-reference" title="Open {cell} on {kind === 'pota' ? 'pota.app' : 'SOTA'}"
+    onclick={() => onOpenReference?.(kind, cell)}>{cell}</button>
+{/snippet}
 
 <section class="card page-body" aria-busy={shown.state === 'waiting'}>
   {#if shown.state === 'ready'}
@@ -143,6 +152,8 @@
         {@const drawn = section.columns.length - (section.hidden ?? 0)}
         <!-- The columns that hold lists: a long one is drawn short (shortList). -->
         {@const lists = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column))}
+        <!-- The columns of references the core links to their pages (#59). -->
+        {@const linked = new Map((section.links ?? []).map(link => [link.column, link.kind]))}
         <table class="page-table" hidden={groups.length === 0}>
           <thead><tr>{#each section.columns.slice(0, drawn) as column, c (c)}
             {#if section.sortable}
@@ -158,7 +169,7 @@
             <tbody>
               {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={drawn}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
-                <tr>{#each row.slice(0, drawn) as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}{@const short = lists.has(c) && row.length === section.columns.length ? shortList(cell) : undefined}<td class:wrap={short === undefined && cell.length > 48} title={short === undefined ? undefined : cell} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{short ?? cell}</td>{/if}{/each}</tr>
+                <tr>{#each row.slice(0, drawn) as cell, c (c)}{@const kind = row.length === section.columns.length && onOpenReference ? linked.get(c) : undefined}{#if c === 0}<th scope="row">{#if kind}{@render reference(kind, cell)}{:else}{cell}{/if}</th>{:else}{@const short = lists.has(c) && row.length === section.columns.length ? shortList(cell) : undefined}<td class:wrap={short === undefined && cell.length > 48} title={short === undefined ? undefined : cell} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{#if kind}{@render reference(kind, cell)}{:else}{short ?? cell}{/if}</td>{/if}{/each}</tr>
               {/each}
             </tbody>
           {/each}

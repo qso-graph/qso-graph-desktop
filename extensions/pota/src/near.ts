@@ -40,6 +40,8 @@ export function nearPage(parks: readonly NearPark[], observedAt: string, station
     ] },
     { shape: 'table', columns: ['Park', 'Name', 'km', 'Bearing °', 'Location', ...located.columns], rows: located.rows, sortable: true,
       sortedBy: { column: 2, direction: 'ascending' }, ...(located.hidden ? { hidden: located.hidden } : {}),
+      // Each park's reference opens its page on pota.app (#59).
+      links: [{ column: 0, kind: 'pota' }],
       filters: [
         // Program, Entity and Location first, as POTA's own park list starts,
         // each where the active Location is; then how far.

@@ -147,5 +147,7 @@ describe('Spots narrows by Entity, the DXCC entity a chaser counts (KI7MT, 2026-
     expect(table.filters!.map(filter => filter.label)).toEqual(['Entity', 'Band', 'Mode', 'Location']);
     expect(table.filters![0]!.options).toEqual(['Canada', 'England', 'United States of America']);
     expect(table.hidden).toBe(1);
+    // Each park reference opens its page on pota.app (#59).
+    expect(table.links).toEqual([{ column: 1, kind: 'pota' }]);
   });
 });

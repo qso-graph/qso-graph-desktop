@@ -11,9 +11,9 @@ export type Section = (
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   // In named groups, and a two-cell row across a wider table (version 5).
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   // The world with the night greyed out, and places marked (version 6).
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
   // Where the page's own fields are drawn (version 6).
@@ -48,6 +48,8 @@ export interface TableFilter {
   // "Within 50 km": rows whose number is at most the bound.
   readonly upTo?: readonly { readonly label: string; readonly value: number }[];
 }
+// A column of references the core links to their pages (version 6).
+export interface TableLink { readonly column: number; readonly kind: 'pota' | 'sota' }
 export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
 
 // What a filter offers: the extension's options, or else the column's own

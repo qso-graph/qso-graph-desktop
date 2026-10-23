@@ -153,6 +153,8 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
     // Sortable by any column; the band sorts in ADIF's order (the filter's).
     { shape: 'table', columns: ['Activator', 'Park', 'Name', 'Location', 'MHz', 'Band', 'Mode', 'UTC', ...located.columns], rows, sortable: true,
       ...(located.hidden ? { hidden: located.hidden } : {}),
+      // Each park's reference opens its page on pota.app (#59).
+      links: [{ column: 1, kind: 'pota' }],
       // Sent newest first by when spotted, which the core shows as the sort
       // and keeps right across midnight UTC (KI7MT, 2026-10-23).
       sortedBy: { column: 7, direction: 'descending' }, filters: [
