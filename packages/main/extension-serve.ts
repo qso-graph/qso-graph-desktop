@@ -167,6 +167,12 @@ export function buildInventory(deps: ServeDeps, off: readonly string[] = []): Ex
         })
       };
     }),
-    refused: deps.refused.map(entry => ({ source: entry.source, reason: entry.reason }))
+    // A reason can quote what a manifest held, markup and all: made plain and
+    // bounded here, as the window's check requires, so one bad manifest
+    // cannot cost Settings the whole list (Codex review, 2026-10-23).
+    refused: deps.refused.map(entry => ({
+      source: entry.source,
+      reason: entry.reason.replace(/[<>]/g, '').slice(0, 400).trim() || 'It could not be loaded.'
+    }))
   };
 }

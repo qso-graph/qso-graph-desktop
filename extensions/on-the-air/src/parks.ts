@@ -38,6 +38,26 @@ function plain(value: unknown, limit: number): string | undefined {
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
 
+// A frequency in kHz as POTA writes one: digits, perhaps a decimal part.
+// Number() alone takes 0x36ee and 1e4 as frequencies (Codex review,
+// 2026-10-23); checked part by part, as the security lint asks of a pattern.
+const DIGITS = /^\d{1,9}$/;
+function frequencyOf(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  if (typeof value !== 'string') return NaN;
+  const parts = value.trim().split('.');
+  if (parts.length > 2 || !parts.every(part => DIGITS.test(part))) return NaN;
+  return Number(parts.join('.'));
+}
+
+// A time that exists. Date rolls 30 February over to 2 March, so the time
+// is written back out and compared with what was sent (Codex review).
+function timeOf(value: unknown): Date | undefined {
+  if (typeof value !== 'string' || !TIME.test(value)) return undefined;
+  const at = new Date(`${value}Z`);
+  return !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 19) === value ? at : undefined;
+}
+
 export function parseSpots(body: string): Spot[] | undefined {
   let data: unknown;
   try { data = JSON.parse(body); } catch { return undefined; }
@@ -49,9 +69,9 @@ export function parseSpots(body: string): Spot[] | undefined {
     if (row.invalid) continue;
     const activator = typeof row.activator === 'string' ? row.activator.trim().toUpperCase() : '';
     const reference = typeof row.reference === 'string' ? row.reference.trim().toUpperCase() : '';
-    const kHz = typeof row.frequency === 'string' || typeof row.frequency === 'number' ? Number(row.frequency) : NaN;
+    const kHz = frequencyOf(row.frequency);
     // POTA's times carry no zone and are UTC.
-    const at = typeof row.spotTime === 'string' && TIME.test(row.spotTime) ? new Date(`${row.spotTime}Z`) : undefined;
+    const at = timeOf(row.spotTime);
     if (!CALL.test(activator) || !REFERENCE.test(reference) || !Number.isFinite(kHz) || kHz <= 0 || !at || Number.isNaN(at.getTime())) continue;
     const park = plain(row.name, 60);
     const location = plain(typeof row.locationDesc === 'string' ? row.locationDesc.split(',').map(part => part.trim()).filter(Boolean).join(', ') : undefined, 40);

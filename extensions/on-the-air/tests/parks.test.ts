@@ -88,3 +88,18 @@ describe('Parks On the Air', () => {
     expect(frequencyText({ activator: 'KI7MT', reference: 'US-0001', kHz: 50313, at: NOW })).toBe('50.313');
   });
 });
+
+describe('odd values in POTA\'s feed (Codex review, 2026-10-23)', () => {
+  const spot = (fields: Record<string, unknown>) => JSON.stringify([{ activator: 'KI7MT', reference: 'US-0001', frequency: '14062', mode: 'CW', spotTime: '2026-10-11T18:52:10', ...fields }]);
+  it('leaves out a time that does not exist rather than rolling it over', () => {
+    expect(parseSpots(spot({ spotTime: '2026-02-30T12:00:00' }))).toEqual([]);
+    expect(parseSpots(spot({ spotTime: '2026-10-11T25:00:00' }))).toEqual([]);
+  });
+  it('takes a frequency only as plain digits, with or without a decimal part', () => {
+    expect(parseSpots(spot({ frequency: '0x36ee' }))).toEqual([]);
+    expect(parseSpots(spot({ frequency: '1e4' }))).toEqual([]);
+    expect(parseSpots(spot({ frequency: ' 14062 ' }))?.[0]?.kHz).toBe(14062);
+    expect(parseSpots(spot({ frequency: '7185.5' }))?.[0]?.kHz).toBe(7185.5);
+    expect(parseSpots(spot({ frequency: 14062 }))?.[0]?.kHz).toBe(14062);
+  });
+});

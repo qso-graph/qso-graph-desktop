@@ -169,3 +169,16 @@ describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
     scheduler.stop();
   });
 });
+
+describe('a refusal that quotes markup (Codex review, 2026-10-23)', () => {
+  it('does not cost Settings the whole inventory', async () => {
+    const { buildInventory } = await import('../packages/main/extension-serve.js');
+    const register = JSON.parse((await import('node:fs')).readFileSync('data/extension-grants.json', 'utf8'));
+    const inventory = buildInventory({
+      ports: { allowed: () => ({}) }, register, extensions: [],
+      refused: [{ id: undefined, source: 'extensions/bad/manifest.json', reason: 'The manifest has a field the core does not know: "<bad>".' }]
+    } as never);
+    expect(isExtensionsReply({ ok: true, inventory })).toBe(true);
+    expect(inventory.refused[0]?.reason).not.toMatch(/[<>]/);
+  });
+});
