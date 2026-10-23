@@ -13,7 +13,7 @@
     directory: '/Users/you/Library/Logs/QSO Graph Desktop'
   };
   const settled = {
-    version: '0.0.0-preview.1',
+    version: '0.1.0',
     onChooseTheme: () => Promise.resolve(true),
     onSetExtension: () => Promise.resolve(true),
     onUpdateReference: () => Promise.resolve(undefined),
