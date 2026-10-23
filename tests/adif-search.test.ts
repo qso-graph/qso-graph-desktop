@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { adifBands, searchAdif, ADIF_RESULTS } from '../packages/storage/adif-search.js';
 import { enumeration, enumerationValue, field, referenceSchema } from '../packages/storage/reference-schema.js';
 import { openStore } from '../packages/storage/sqlite.js';
+import { isStorageReply } from '../packages/storage/storage-contract.js';
 
 let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'qg-adif-search-')); });
@@ -86,5 +87,27 @@ describe('ADIF\'s bands (adif.bands)', () => {
         { band: '2m', lowerMHz: 144, upperMHz: 148 }
       ]);
     } finally { store.close(); }
+  });
+});
+
+// What QG Storage answers must pass the main process's check of its replies,
+// or the main process refuses it and the extension gets nothing: both the
+// search's and the bands' fields were missing from that check, and every
+// test above passed (KI7MT, 2026-10-23: Parks On the Air showed no bands).
+describe('QG Storage\'s ADIF replies pass the main process\'s check', () => {
+  const status = { state: 'ready' };
+  it('passes a real search and a real band list, end to end', async () => {
+    const store = await reference();
+    try {
+      expect(isStorageReply({ ok: true, status, adif: await searchAdif(store, '20m') })).toBe(true);
+      expect(isStorageReply({ ok: true, status, bands: await adifBands(store) })).toBe(true);
+    } finally { store.close(); }
+  });
+
+  it('refuses a band list that is not one', () => {
+    for (const bands of [[{ band: '20m', lowerMHz: 14 }], [{ band: '20m', lowerMHz: 14.35, upperMHz: 14 }], [{ band: 20, lowerMHz: 14, upperMHz: 14.35 }], [{ band: '20m', lowerMHz: 14, upperMHz: 14.35, x: 1 }], 'bands']) {
+      expect(isStorageReply({ ok: true, status, bands }), JSON.stringify(bands)).toBe(false);
+    }
+    expect(isStorageReply({ ok: true, status, adif: [{ list: 'Band', key: '20m', columns: [{ name: 'Band', value: 'x'.repeat(201) }] }] })).toBe(false);
   });
 });

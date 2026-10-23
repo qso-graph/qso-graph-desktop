@@ -11,7 +11,7 @@
 //
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
-import { ADIF_QUERY, type AdifBand, type AdifEntry } from './adif-entry.js';
+import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
 import {
   isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
   isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
@@ -170,12 +170,35 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
   return value.stations === undefined || isStationsView(value.stations);
 }
 
+// ADIF's text as QG Storage answers a search (adif-search.ts): bounded as the
+// search bounds it, so what passes here is what the search can send.
+const adifText = (value: unknown) => typeof value === 'string' && value.length <= ADIF_TEXT;
+function isAdifEntries(value: unknown): value is AdifEntry[] {
+  return Array.isArray(value) && value.length <= ADIF_RESULTS && value.every(entry => record(entry)
+    && only(entry, ['list', 'key', 'columns']) && adifText(entry.list) && adifText(entry.key)
+    && Array.isArray(entry.columns) && entry.columns.length <= ADIF_COLUMNS
+    && entry.columns.every(column => record(column) && only(column, ['name', 'value']) && adifText(column.name) && adifText(column.value)));
+}
+
+// ADIF's bands (adif-search.ts): ADIF 3.1.7 has 33; room is left for more.
+function isAdifBands(value: unknown): value is AdifBand[] {
+  return Array.isArray(value) && value.length <= 100 && value.every(band => record(band)
+    && only(band, ['band', 'lowerMHz', 'upperMHz']) && typeof band.band === 'string' && band.band.length <= 16
+    && typeof band.lowerMHz === 'number' && Number.isFinite(band.lowerMHz)
+    && typeof band.upperMHz === 'number' && Number.isFinite(band.upperMHz) && band.upperMHz >= band.lowerMHz);
+}
+
 // A reply from the storage process, checked whole before it is read or passed
 // on (QGD-SEC-0006). Null, an array, a missing field or an extra one: refused.
 export function isStorageReply(value: unknown): value is StorageReply {
   if (!record(value)) return false;
   if (value.ok === true) {
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections']) && isStorageStatus(value.status)
+    // adif and bands were missing here, so every ADIF search and band list
+    // QG Storage answered was refused as malformed; each layer's own tests
+    // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands']) && isStorageStatus(value.status)
+      && (value.adif === undefined || isAdifEntries(value.adif))
+      && (value.bands === undefined || isAdifBands(value.bands))
       && (value.sections === undefined || (typeof value.sections === 'object' && value.sections !== null && !Array.isArray(value.sections)
         && Object.keys(value.sections).length <= 200
         && Object.entries(value.sections).every(([county, code]) => county.length <= 64 && typeof code === 'string' && /^[A-Z]{1,4}$/.test(code))))
