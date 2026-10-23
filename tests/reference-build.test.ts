@@ -897,6 +897,9 @@ describe('the parks to activate, read from reference.sqlite (QGD-REF-0019, QGD-H
       // Active, measurable and real only, nearest first, across locations.
       expect((await parksNear(store, 44.5, -116.2)).map(park => [park.reference, park.locations]))
         .toEqual([['US-0010', 'US-OR'], ['US-0009', 'US-ID,US-OR'], ['US-0001', 'US-ID']]);
+      // Within a day's drive only: 50 km leaves out Idaho's park 89 km off.
+      expect((await parksNear(store, 44.5, -116.2, 50)).map(park => park.reference)).toEqual(['US-0010', 'US-0009']);
+      expect(await parksNear(store, 10, 10)).toEqual([]);
     } finally { store.close(); }
   });
 });

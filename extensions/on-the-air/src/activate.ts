@@ -38,7 +38,7 @@ const countText = (park: ActivationPark) => (park.activations === null ? NONE : 
 const count = (park: ActivationPark) => park.activations ?? 0;
 
 // The Distance filter's bounds, in km.
-export const WITHIN = [25, 50, 100, 200, 400] as const;
+export const WITHIN = [25, 50, 100, 200, 300] as const;
 
 // The page's table holds at most 500 rows (PAGE_LIMITS).
 export const SHOWN = 500;

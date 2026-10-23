@@ -15,7 +15,7 @@ export function nearPage(parks: readonly NearPark[], observedAt: string, station
     return { ok: false, reason: 'The active Location has no position. Give it a grid or a latitude and longitude on the Locations page.' };
   }
   if (parks.length === 0) {
-    return { ok: true, data: { version: 6, observedAt, sections: [{ shape: 'alert', level: 'info', text: 'POTA lists no active park near here.' }] } };
+    return { ok: true, data: { version: 6, observedAt, sections: [{ shape: 'alert', level: 'info', text: `POTA lists no active park within ${WITHIN.at(-1)} km.` }] } };
   }
   const here = { latitude: station.latitude, longitude: station.longitude };
   // Sent nearest first; measured again here so the page says the distance.

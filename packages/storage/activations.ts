@@ -2,8 +2,8 @@
 // The parks of My Area with how many times each has been activated
 // (QGD-REF-0019), for an activator looking for one nobody has worked from.
 // Read-only, from reference.sqlite, so it answers with no network at all.
-import { and, eq, exists, inArray } from 'drizzle-orm';
-import { ACTIVATION_PARKS, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
+import { and, between, eq, exists, inArray } from 'drizzle-orm';
+import { ACTIVATION_PARKS, NEAR_KM, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
 import { potaActivation, potaPark, potaParkLocation, type referenceSchema } from './reference-schema.js';
 import type { Store } from './sqlite.js';
 export type { ActivationPark, NearPark } from './activation-entry.js';
@@ -52,12 +52,30 @@ function nearest<T extends { reference: string; latitude: number; longitude: num
 // The parks nearest a place, from POTA's park list alone, so Near Me works
 // with no network and nothing downloaded beyond POTA's parks (KI7MT,
 // 2026-10-23: "Near Me can't rely on internet"). Active, not POTA's test
-// park, and with a position to measure from (QGD-REF-0011). Nearest first by
-// great-circle distance, at most NEAR_PARKS.
-export async function parksNear(reference: Store<typeof referenceSchema>, latitude: number, longitude: number): Promise<NearPark[]> {
+// park, and with a position to measure from (QGD-REF-0011). Within NEAR_KM,
+// nearest first by great-circle distance, at most NEAR_PARKS. The database
+// is asked only for the box around that circle, so the exact measure runs
+// over hundreds of parks rather than all 97,000 (a Raspberry Pi, #63).
+export async function parksNear(reference: Store<typeof referenceSchema>, latitude: number, longitude: number, km: number = NEAR_KM): Promise<NearPark[]> {
+  const latitudeSpan = km / 111.2;
+  const cos = Math.cos(latitude * Math.PI / 180);
+  // Near a pole, or across the date line, the box is every longitude.
+  const longitudeSpan = cos < 0.05 ? 180 : km / (111.2 * cos);
+  const across = longitude - longitudeSpan < -180 || longitude + longitudeSpan > 180 || longitudeSpan >= 180;
   const rows = await reference.unit((db) => db.select({
     reference: potaPark.reference, name: potaPark.name, latitude: potaPark.latitude, longitude: potaPark.longitude, locations: potaPark.locationDesc
-  }).from(potaPark).where(and(eq(potaPark.active, true), eq(potaPark.isTest, false), eq(potaPark.coordinatesUsable, true))).all());
-  return nearest(rows.flatMap(row => (row.latitude === null || row.longitude === null ? []
-    : [{ reference: row.reference, name: row.name, latitude: row.latitude, longitude: row.longitude, locations: row.locations }])), latitude, longitude);
+  }).from(potaPark).where(and(eq(potaPark.active, true), eq(potaPark.isTest, false), eq(potaPark.coordinatesUsable, true),
+    between(potaPark.latitude, latitude - latitudeSpan, latitude + latitudeSpan),
+    ...(across ? [] : [between(potaPark.longitude, longitude - longitudeSpan, longitude + longitudeSpan)]))).all());
+  const parks = rows.flatMap(row => (row.latitude === null || row.longitude === null ? []
+    : [{ reference: row.reference, name: row.name, latitude: row.latitude, longitude: row.longitude, locations: row.locations }]))
+    .filter(park => kilometres(latitude, longitude, park.latitude, park.longitude) <= km);
+  return nearest(parks, latitude, longitude);
+}
+
+// Great-circle distance in km.
+function kilometres(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const radians = Math.PI / 180;
+  const a = Math.sin((lat2 - lat1) * radians / 2) ** 2 + Math.cos(lat1 * radians) * Math.cos(lat2 * radians) * Math.sin((lon2 - lon1) * radians / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
 }

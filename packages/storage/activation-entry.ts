@@ -32,3 +32,6 @@ export interface NearPark {
 
 // How many of the nearest a page is sent: a table draws 500.
 export const NEAR_PARKS = 500;
+// How far Near Me looks: about a day's drive (KI7MT, 2026-10-23: "Even 500
+// km is a stretch in a day").
+export const NEAR_KM = 300;
