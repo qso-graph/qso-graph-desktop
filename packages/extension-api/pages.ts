@@ -57,7 +57,7 @@ export const PAGE_LIMITS = {
   detail: 120,
   alert: 200,
   reason: 160,
-  columns: 6,
+  columns: 8,
   rows: 200,
   filters: 3,
   options: 40,

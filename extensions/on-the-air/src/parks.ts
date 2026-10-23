@@ -75,6 +75,7 @@ export function bandOf(kHz: number, bands: readonly AdifBand[]): string | undefi
 // to be unknown rather than guessed.
 const NO_BAND = '—';
 const NO_MODE = '—';
+const NO_NAME = '—';
 export const SHOWN = 200;
 
 export function parksPage(spots: readonly Spot[], now: Date, bands: readonly AdifBand[] = []): PageAnswer {
@@ -89,7 +90,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   const parks = new Set(newest.map(spot => spot.reference)).size;
   const rows = shown.map(spot => [
     spot.activator,
-    (spot.park ? `${spot.reference} ${spot.park}` : spot.reference).slice(0, 80),
+    // The reference and the park's name apart, which reads more easily
+    // (KI7MT, 2026-10-23).
+    spot.reference,
+    spot.park ?? NO_NAME,
     frequencyText(spot),
     bandOf(spot.kHz, bands) ?? NO_BAND,
     spot.mode ?? NO_MODE,
@@ -98,19 +102,19 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   // The bands on the air, in ADIF's order, lowest first; the modes on the
   // air, alphabetically. Only what is there is offered.
   const present = (column: number) => new Set(rows.map(row => row[column]!));
-  const onBands = present(3);
+  const onBands = present(4);
   const bandOptions = [...bands.map(band => band.band).filter(band => onBands.has(band)), ...(onBands.has(NO_BAND) ? [NO_BAND] : [])].slice(0, 40);
-  const modeOptions = [...present(4)].sort((a, b) => a.localeCompare(b)).slice(0, 40);
+  const modeOptions = [...present(5)].sort((a, b) => a.localeCompare(b)).slice(0, 40);
   const sections: Section[] = [
     { shape: 'figures', figures: [
       { label: 'Activators', value: String(newest.length) },
       { label: 'Parks', value: String(parks) }
     ] },
     // Sortable by any column; the band sorts in ADIF's order (the filter's).
-    { shape: 'table', columns: ['Activator', 'Park', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true, filters: [
+    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true, filters: [
       // No band to choose without ADIF's bands: every spot's would be "—".
-      ...(bands.length > 0 ? [{ column: 3, label: 'Band', options: bandOptions }] : []),
-      { column: 4, label: 'Mode', options: modeOptions }
+      ...(bands.length > 0 ? [{ column: 4, label: 'Band', options: bandOptions }] : []),
+      { column: 5, label: 'Mode', options: modeOptions }
     ] }
   ];
   if (bands.length === 0) {
