@@ -23,7 +23,7 @@ import { layout, openState } from '../packages/storage/layout.js';
 import { buildReference, referenceDdl } from '../packages/storage/reference-build.js';
 import { POTA_LISTS, commit, potaDirectory, readRecord } from '../packages/storage/reference-cache.js';
 import * as referenceSchema from '../packages/storage/reference-schema.js';
-import { REFERENCE_RESOURCES, Reference, workerBuild, type RunBuild } from '../packages/storage/reference.js';
+import { REFERENCE_RESOURCES, Reference, UNLISTED_RESOURCES, workerBuild, type RunBuild } from '../packages/storage/reference.js';
 import { validateStorageCommand } from '../packages/storage/storage-contract.js';
 import { readReferenceRuleset } from '../packages/storage/reference-read.js';
 import { openStore } from '../packages/storage/sqlite.js';
@@ -655,8 +655,9 @@ describe('each resource loaded by its own control (KI7MT, 2026-10-11)', () => {
     } finally { done(); }
   });
 
-  it('the register lists exactly the resources the core can load', () => {
-    expect(register.resources.map((entry: { id: string }) => entry.id).sort()).toEqual([...REFERENCE_RESOURCES].sort());
+  it('the register lists exactly the resources the core can load, but those Settings does not list', () => {
+    expect(register.resources.map((entry: { id: string }) => entry.id).sort())
+      .toEqual(REFERENCE_RESOURCES.filter(id => !UNLISTED_RESOURCES.includes(id)).sort());
   });
 
   it('a window may name a resource to update, and nothing else', () => {
@@ -879,6 +880,23 @@ describe('the parks to activate, read from reference.sqlite (QGD-REF-0019, QGD-H
         .toEqual([['US-0001', null, 'US-ID'], ['US-0009', 3, 'US-ID,US-OR']]);
       expect((await parksToActivate(store, ['US-OR'])).map(park => park.reference)).toEqual(['US-0009', 'US-0010']);
       expect(await parksToActivate(store, [])).toEqual([]);
+      // From a place, the nearest first; otherwise the least activated.
+      expect((await parksToActivate(store, ['US-ID', 'US-OR'], { latitude: 44.5, longitude: -116.2 })).map(park => park.reference))
+        .toEqual(['US-0010', 'US-0009', 'US-0001']);
+      expect((await parksToActivate(store, ['US-ID', 'US-OR'])).map(park => park.reference)).toEqual(['US-0001', 'US-0009', 'US-0010']);
+    } finally { store.close(); }
+  });
+
+  it('gives the parks nearest a place from the park list alone, for Near Me (QGD-HOM-0013)', async () => {
+    const target = join(root, 'reference.sqlite');
+    // No activations at all: Near Me needs none.
+    await buildReference(target, DDL, { register, pota: { parks: input('parks', parks) } });
+    const store = openStore(target, { schema: referenceSchema.referenceSchema, readOnly: true });
+    try {
+      const { parksNear } = await import('../packages/storage/activations.js');
+      // Active, measurable and real only, nearest first, across locations.
+      expect((await parksNear(store, 44.5, -116.2)).map(park => [park.reference, park.locations]))
+        .toEqual([['US-0010', 'US-OR'], ['US-0009', 'US-ID,US-OR'], ['US-0001', 'US-ID']]);
     } finally { store.close(); }
   });
 });

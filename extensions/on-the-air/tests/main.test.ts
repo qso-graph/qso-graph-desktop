@@ -31,7 +31,7 @@ describe('On the Air (QGD-HOM-0007)', () => {
       ? { ok: true, kind: 'source.fetch', body: readFileSync(`tests/fixtures/noaa/quiet/${FILES[request.source]}`, 'utf8'), fresh: true }
       : { ok: false, error: 'refused', refused: 'station:active' });
     activate(value);
-    expect([...providers.keys()]).toEqual(['conditions', 'parks', 'activate']);
+    expect([...providers.keys()]).toEqual(['conditions', 'parks', 'near', 'wanted']);
     expect(await ask(providers, 'conditions')).toMatchObject({ ok: true });
     expect(asked.map(request => request.kind === 'source.fetch' ? request.source : request.kind).sort()).toEqual(['noaa-flux', 'noaa-kp', 'noaa-scales']);
     expect(await ask(providers, 'parks')).toMatchObject({ ok: true });
@@ -39,22 +39,36 @@ describe('On the Air (QGD-HOM-0007)', () => {
     // And the program and entity of each location on the air, by name.
     expect(asked.slice(-4, -1)).toEqual([{ kind: 'source.fetch', source: 'pota-spots' }, { kind: 'adif.bands' }, { kind: 'area.get' }]);
     expect(asked.at(-1)).toMatchObject({ kind: 'pota.places' });
-    expect(value.subscriptions).toHaveLength(3);
+    expect(value.subscriptions).toHaveLength(4);
   });
 
-  it('draws Parks Near Me from reference data alone, and says why when it is not there', async () => {
+  it('draws Near Me from POTA\'s park list on this computer, asking nothing of the network', async () => {
+    const park = { reference: 'US-0001', name: 'Example Park', latitude: 43.7, longitude: -116.1, locations: 'US-ID' };
+    const { value, providers, asked } = context(request => request.kind === 'pota.near'
+      ? { ok: true, kind: 'pota.near', parks: [park] }
+      : request.kind === 'station.active' ? { ok: true, kind: 'station.active', station: { name: 'Home', latitude: 43.6, longitude: -116.2 } }
+        : { ok: false, error: 'refused' });
+    activate(value);
+    expect(await ask(providers, 'near')).toMatchObject({ ok: true });
+    expect(asked.map(request => request.kind)).toEqual(['pota.near', 'station.active', 'pota.places']);
+    const missing = context(() => ({ ok: false, error: 'POTA parks are not downloaded.' }));
+    activate(missing.value);
+    expect(await ask(missing.providers, 'near')).toEqual({ ok: false, reason: 'POTA parks are not downloaded.' });
+  });
+
+  it('draws Most Wanted from POTA\'s activation counts, and says why when it has none', async () => {
     const park = { reference: 'US-0001', name: 'Example Park', latitude: 43.7, longitude: -116.1, locations: 'US-ID', activations: 0 };
     const { value, providers, asked } = context(request => request.kind === 'pota.activations'
       ? { ok: true, kind: 'pota.activations', parks: [park], fetchedAt: '2026-10-23T12:00:00Z', locations: ['US-ID'] }
       : request.kind === 'station.active' ? { ok: true, kind: 'station.active', station: { name: 'Home', latitude: 43.6, longitude: -116.2 } }
         : { ok: false, error: 'refused' });
     activate(value);
-    expect(await ask(providers, 'activate')).toMatchObject({ ok: true });
-    // Nothing fetched: the page works offline.
+    expect(await ask(providers, 'wanted')).toMatchObject({ ok: true });
+    // Its counts come through the core, which asks POTA (QGD-REF-0019).
     expect(asked.map(request => request.kind)).toEqual(['pota.activations', 'station.active', 'pota.places']);
     const missing = context(() => ({ ok: false, error: 'POTA activations are not downloaded for My Area.' }));
     activate(missing.value);
-    expect(await ask(missing.providers, 'activate')).toEqual({ ok: false, reason: 'POTA activations are not downloaded for My Area.' });
+    expect(await ask(missing.providers, 'wanted')).toEqual({ ok: false, reason: 'POTA activations are not downloaded for My Area.' });
   });
 
   it('says NOAA could not be reached when a fetch is refused', async () => {

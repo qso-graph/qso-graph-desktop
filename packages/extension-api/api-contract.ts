@@ -51,6 +51,10 @@ export type ExtensionRequest =
   // (QGD-REF-0019), from reference data on this computer. It says where the
   // operator works, as area.get does, so it needs station:active.
   | { readonly kind: 'pota.activations' }
+  // The parks nearest the active Location, from POTA's park list alone, so
+  // it needs no network (Near Me, QGD-HOM-0013). It says where the operator
+  // is, so it needs station:active.
+  | { readonly kind: 'pota.near' }
   // Each POTA location's program and entity by name, from reference data:
   // the Program and Entity POTA's own park list narrows by (KI7MT,
   // 2026-10-23). At most 1000 location codes.
@@ -118,6 +122,15 @@ export interface ActivationPark {
 }
 
 // A POTA location's program and entity, as pota.places answers.
+// A park near the operator, as pota.near answers: POTA's park list's own.
+export interface NearPark {
+  readonly reference: string;
+  readonly name: string;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly locations: string;
+}
+
 export interface PotaPlace { readonly location: string; readonly program: string; readonly entity: string }
 
 // The active station as an extension may see it. The position is the
@@ -139,6 +152,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
   | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
   // `locations` are the POTA locations My Area covers.
+  | { readonly ok: true; readonly kind: 'pota.near'; readonly parks: readonly NearPark[]; readonly home?: PotaPlace }
   | { readonly ok: true; readonly kind: 'pota.places'; readonly places: readonly PotaPlace[] }
   // `home`: where the active Location is, as POTA names it, when known.
   | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string; readonly locations: readonly string[]; readonly home?: PotaPlace }
@@ -175,6 +189,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'area.get': return 'station:active';
     case 'pota.activations': return 'station:active';
     case 'pota.places': return 'reference:read';
+    case 'pota.near': return 'station:active';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -183,7 +198,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'pota.activations', 'pota.places', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -238,6 +253,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'area.get': ['kind'],
   'pota.activations': ['kind'],
   'pota.places': ['kind', 'locations'],
+  'pota.near': ['kind'],
   'source.fetch': ['kind', 'source'],
   'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
@@ -263,6 +279,7 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'adif.bands':
     case 'area.get':
     case 'pota.activations':
+    case 'pota.near':
       return bare();
     case 'pota.places': {
       // POTA location codes, as US-ID: nothing else reaches the query.

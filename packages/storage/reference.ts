@@ -68,9 +68,12 @@ export type InputOutcome =
   | { state: 'kept'; failure: StorageError };
 
 // The resources this core knows how to load, by the register's ids
-// (data/reference-sources.json "resources"). A register row the core cannot
-// load, or an id here the register lacks, is a test failure, not a quiet gap.
+// (data/reference-sources.json "resources"), and POTA's activations, which
+// Settings does not list: Most Wanted fetches them when it is opened online
+// (QGD-REF-0019). A register row the core cannot load, or an id here the
+// register lacks, is a test failure, not a quiet gap.
 export const REFERENCE_RESOURCES = ['adif', 'pota', 'activations', 'sota'] as const;
+export const UNLISTED_RESOURCES: readonly ReferenceResource[] = ['activations'];
 export type ReferenceResource = (typeof REFERENCE_RESOURCES)[number];
 export function isReferenceResource(value: unknown): value is ReferenceResource {
   return typeof value === 'string' && (REFERENCE_RESOURCES as readonly string[]).includes(value);

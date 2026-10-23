@@ -18,7 +18,7 @@
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type ActivationPark, type PotaPlace, type AdifBand, type AdifEntry, type CallsignBrief, type StationBrief
+  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type CallsignBrief, type StationBrief
 } from '../extension-api/api-contract.js';
 import {
   extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
@@ -51,6 +51,7 @@ export interface ExtensionBrokerPorts {
   area: () => Promise<readonly string[]>;
   // My Area's parks with their activations, from reference data (QGD-REF-0019).
   potaPlaces: (locations: readonly string[]) => Promise<readonly PotaPlace[]>;
+  potaNear: () => Promise<{ parks: readonly NearPark[]; home?: PotaPlace }>;
   potaActivations: () => Promise<{ parks: readonly ActivationPark[]; fetchedAt: string; locations: readonly string[]; home?: PotaPlace }>;
   fetchSource: (url: string) => Promise<{ body: string; fresh: boolean }>;
   // Act with a credential and return the answer. The secret does not come
@@ -125,6 +126,10 @@ export function createServe(deps: ServeDeps) {
           return { ok: true, kind: 'adif.bands', bands: await deps.ports.adifBands() };
         case 'area.get':
           return { ok: true, kind: 'area.get', locations: await deps.ports.area() };
+        case 'pota.near': {
+          const { parks, home } = await deps.ports.potaNear();
+          return { ok: true, kind: 'pota.near', parks, ...(home ? { home } : {}) };
+        }
         case 'pota.places':
           return { ok: true, kind: 'pota.places', places: await deps.ports.potaPlaces(request.locations) };
         case 'pota.activations': {

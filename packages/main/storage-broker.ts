@@ -16,7 +16,7 @@ import { allowsSender, type FetchedReference } from '../callsigns/callsign-contr
 import { CALLSIGNS_STARTING } from './callsign-broker.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 import {
-  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus, type ToActivate,
+  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus, type ToActivate, type Near,
   isStorageReply, isStorageStatus, validateStorageCommand
 } from '../storage/storage-contract.js';
 
@@ -56,6 +56,8 @@ export interface StorageBroker {
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
   parksToActivate: () => Promise<ToActivate | string>;
+  // The parks nearest a place, from POTA's park list alone, or why not.
+  parksNear: (latitude: number, longitude: number) => Promise<Near | string>;
   // Each location's program and entity by name, or why not.
   potaPlaces: (locations: readonly string[]) => Promise<AreaPlace[] | string>;
   // The POTA locations My Area covers: its entities' and programs' too.
@@ -264,9 +266,18 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     // My Area's parks with their activations (QGD-REF-0019), for the area
     // as settings hold it; QG Storage falls back to the Location's own.
     async parksToActivate() {
-      const reply = await ask({ type: 'parks-to-activate', locations: [...(options.area?.() ?? [])] });
+      // Nearest the active Location when it has a position. Given as long as
+      // a source fetch: QG Storage may fetch from POTA first (Most Wanted).
+      const at = activeStation;
+      const position = at?.latitude !== undefined && at.longitude !== undefined ? { latitude: at.latitude, longitude: at.longitude } : {};
+      const reply = await ask({ type: 'parks-to-activate', locations: [...(options.area?.() ?? [])], ...position }, 130_000);
       if (!reply.ok) return reply.error;
       return reply.toActivate ?? 'POTA activations could not be read just now.';
+    },
+    async parksNear(latitude, longitude) {
+      const reply = await ask({ type: 'parks-near', latitude, longitude });
+      if (!reply.ok) return reply.error;
+      return reply.near ?? 'POTA\'s parks could not be read just now.';
     },
     async potaPlaces(locations) {
       const reply = await ask({ type: 'pota-places', locations: [...locations] });

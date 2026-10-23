@@ -250,6 +250,17 @@ if (!app.requestSingleInstanceLock()) {
         // As locations, whatever level it was chosen at: an entity or a
         // program stands for its locations (KI7MT, 2026-10-23).
         area: async () => storageBroker.areaLocations(),
+        // The parks nearest the active Location, from POTA's park list alone
+        // (Near Me): it works offline.
+        potaNear: async () => {
+          const station = storageBroker.activeStation();
+          if (!station || station.latitude === undefined || station.longitude === undefined) {
+            throw new Error('The active Location has no position. Give it a grid or a latitude and longitude on the Locations page.');
+          }
+          const found = await storageBroker.parksNear(station.latitude, station.longitude);
+          if (typeof found === 'string') throw new Error(found);
+          return found;
+        },
         // Each POTA location's program and entity, for Program and Entity
         // filters (reference:read).
         potaPlaces: async locations => {

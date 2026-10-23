@@ -28,14 +28,24 @@
         "tab": "Spots"
       },
       {
-        "id": "activate",
+        "id": "near",
         "name": "Parks Near Me",
-        "description": "The parks in My Area and how many times each has been activated, nearest first. Works offline once downloaded.",
+        "description": "The parks nearest you, with how far and which way, from POTA's park list. Works offline.",
         "refreshSeconds": 600,
         "icon": "map",
         "network": false,
         "under": "parks",
-        "tab": "Near me"
+        "tab": "Near Me"
+      },
+      {
+        "id": "wanted",
+        "name": "Most Wanted",
+        "description": "The parks in My Area activated least, nearest first, from POTA. Needs the internet.",
+        "refreshSeconds": 3600,
+        "icon": "map",
+        "network": true,
+        "under": "parks",
+        "tab": "Most Wanted"
       }
     ]
   }

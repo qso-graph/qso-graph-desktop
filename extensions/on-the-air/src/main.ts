@@ -15,6 +15,7 @@ import type { PotaPlace } from '../../../packages/extension-api/api-contract.js'
 import { conditionsPage, parseConditions } from './conditions.js';
 import { parksPage, parseSpots } from './parks.js';
 import { activatePage } from './activate.js';
+import { nearPage } from './near.js';
 
 const UNREACHABLE: PageAnswer = { ok: false, reason: 'NOAA could not be reached just now.' };
 const UNREADABLE: PageAnswer = { ok: false, reason: "NOAA's data could not be read just now." };
@@ -60,9 +61,20 @@ export function activate(context: ExtensionContext): void {
     return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : [],
       area.ok && area.kind === 'area.get' ? area.locations : [], places);
   }));
-  // Parks Near Me (QGD-HOM-0013): My Area's parks with their activation
-  // counts, from reference data on this computer, so it works at camp.
-  context.subscriptions.push(context.pages.register('activate', async ({ signal }) => {
+  // Near Me (QGD-HOM-0013): the parks nearest the active Location, from
+  // POTA's park list on this computer, so it works with no internet.
+  context.subscriptions.push(context.pages.register('near', async ({ signal }) => {
+    const found = await context.request({ kind: 'pota.near' }, { signal });
+    if (!found.ok) return { ok: false, reason: found.error };
+    if (found.kind !== 'pota.near') return { ok: false, reason: "POTA's parks could not be read just now." };
+    const station = await context.request({ kind: 'station.active' }, { signal });
+    const places = await placesFor(context, found.parks.flatMap(park => park.locations.split(',').map(value => value.trim())), signal);
+    const minute = new Date(Math.floor(Date.now() / 60_000) * 60_000).toISOString().replace('.000Z', 'Z');
+    return nearPage(found.parks, minute, station.ok && station.kind === 'station.active' ? station.station : null, places, found.home);
+  }));
+  // Most Wanted (QGD-HOM-0014): My Area's parks activated least, from POTA's
+  // own counts, which only its API has, so the page needs the internet.
+  context.subscriptions.push(context.pages.register('wanted', async ({ signal }) => {
     const found = await context.request({ kind: 'pota.activations' }, { signal });
     if (!found.ok) return { ok: false, reason: found.error };
     if (found.kind !== 'pota.activations') return { ok: false, reason: 'POTA activations could not be read just now.' };

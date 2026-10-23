@@ -43,6 +43,7 @@ export function plainRequest(request: ExtensionRequest): unknown {
     case 'adif.bands':
     case 'area.get':
     case 'pota.activations':
+    case 'pota.near':
       return { kind: request.kind };
     case 'adif.search':
       return { kind: request.kind, query: request.query };

@@ -202,7 +202,9 @@ export function createSupervisor(deps: SupervisorDeps) {
       if (waiting >= limits.inFlight) { reply({ ok: false, error: SAID.tooMany }); return; }
       generation.inFlight.set(id, waiting + 1);
       const kind = (message.request as { kind?: unknown } | null)?.kind;
-      const deadline = kind === 'source.fetch' ? limits.sourceFetchDeadlineMs : limits.requestDeadlineMs;
+      // Most Wanted's counts may be fetched from POTA first, so they are
+      // given a fetch's deadline.
+      const deadline = kind === 'source.fetch' || kind === 'pota.activations' ? limits.sourceFetchDeadlineMs : limits.requestDeadlineMs;
       // The slot is held until the work ends, not until the deadline: a
       // request answered late is still running, and still counts.
       let replied = false;

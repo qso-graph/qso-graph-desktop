@@ -13,7 +13,7 @@
 // (QGD-ENG-0016).
 import { adifBands, searchAdif } from './adif-search.js';
 import { areaChoices, areaDefault, areaLocations, homeLocation, placesOf } from './area.js';
-import { parksToActivate } from './activations.js';
+import { parksNear, parksToActivate } from './activations.js';
 import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
 import { createForwardingLogger } from '../logging/logger.js';
@@ -248,10 +248,16 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
     case 'parks-to-activate': {
       // My Area as chosen, or else the active Location's own (QGD-STN-0012).
       const area = command.locations.length > 0 ? command.locations : await ownArea();
+      // Most Wanted is online only (KI7MT, 2026-10-23: what needs POTA's API
+      // is an online tab): asked for, it first fetches each part of the area
+      // not fetched today, one at a time. A failure keeps what was held.
+      if (area.length > 0 && !refreshing) await refresh('activations', area);
       const held = Object.entries(referenceStatus?.activations ?? {}).filter(([entry]) => area.includes(entry));
       const reader = reference?.reader();
       if (!reader || held.length === 0) {
-        return { ok: false, error: 'POTA activations are not downloaded for My Area. Download them in Settings, under Reference data.' };
+        return { ok: false, error: area.length === 0
+          ? 'My Area is not set, and the active Location does not say where it is. Choose My Area on the Locations page.'
+          : 'POTA\'s activation counts could not be fetched just now. Try again with Refresh.' };
       }
       // When the oldest of them was fetched, so the page can say how old it is.
       const fetched = held.flatMap(([, set]) => (set.state === 'loaded' ? [set.fetchedAt] : [])).sort()[0];
@@ -263,8 +269,19 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       const here = await homeLocation(reader, active?.place.MY_DXCC, active?.place.MY_STATE);
       const home = here ? (await placesOf(reader, [here]))[0] : undefined;
       return { ok: true, status: status(), toActivate: {
-        parks: await parksToActivate(reader, locations), fetchedAt: fetched ?? new Date(0).toISOString(), locations, ...(home ? { home } : {})
+        parks: await parksToActivate(reader, locations, command.latitude !== undefined && command.longitude !== undefined
+          ? { latitude: command.latitude, longitude: command.longitude } : undefined), fetchedAt: fetched ?? new Date(0).toISOString(), locations, ...(home ? { home } : {})
       } };
+    }
+    case 'parks-near': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.pota.parks.state !== 'loaded') {
+        return { ok: false, error: 'POTA parks are not downloaded. Download them in Settings, under Reference data; after that this works offline.' };
+      }
+      const active = stations?.list.find(entry => entry.id === stations?.active);
+      const here = await homeLocation(reader, active?.place.MY_DXCC, active?.place.MY_STATE);
+      const home = here ? (await placesOf(reader, [here]))[0] : undefined;
+      return { ok: true, status: status(), near: { parks: await parksNear(reader, command.latitude, command.longitude), ...(home ? { home } : {}) } };
     }
     case 'pota-places': {
       const reader = reference?.reader();

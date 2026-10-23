@@ -13,7 +13,7 @@
 // the Stations page and the status bar are never polling and never stale.
 import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
 import { AREA_ENTITIES, AREA_LOCATION, AREA_LOCATIONS, AREA_PROGRAMS, isAreaEntry, type AreaPlace, type AreaProgram } from './area-entry.js';
-import { ACTIVATION_PARKS, ACTIVATION_TEXT, type ActivationPark } from './activation-entry.js';
+import { ACTIVATION_PARKS, ACTIVATION_TEXT, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
 import {
   isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
   isStationId, isStationsView, type FieldProblem, type ParkDraft, type StationChoices, type StationDraft, type StationsView
@@ -108,10 +108,15 @@ export type StorageCommand =
   // My Area's parks with their activation counts (activations.ts,
   // QGD-REF-0019). The area is added by main, from settings; empty means the
   // active Location's own.
-  | { type: 'parks-to-activate'; locations: string[] }
+  // With the active Location's position, the nearest; and fetched from POTA
+  // first, for any part not fetched today (Most Wanted is online only).
+  | { type: 'parks-to-activate'; locations: string[]; latitude?: number; longitude?: number }
   // The POTA locations an area covers (area.ts): its entities' and programs'
   // locations, for what filters by location. Empty means the Location's own.
   | { type: 'area-locations'; entries: string[] }
+  // The parks nearest a place, from POTA's park list alone (Near Me), and
+  // where the active Location is by POTA's levels.
+  | { type: 'parks-near'; latitude: number; longitude: number }
   // Each location's program and entity by name (area.ts placesOf).
   | { type: 'pota-places'; locations: string[] }
   // The editor's pick lists, for an entity or for none.
@@ -125,8 +130,11 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[] }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[]; near?: Near }
   | { ok: false; error: string; problems?: FieldProblem[] };
+
+// The parks nearest the operator (Near Me), and where they are.
+export interface Near { parks: NearPark[]; home?: AreaPlace }
 
 // The parks to activate, and when the oldest of their lists was fetched.
 // `locations` are the POTA locations the area covers, for the page's filter.
@@ -235,6 +243,15 @@ function isPlace(place: unknown): place is AreaPlace {
     && areaText(place.program) && areaText(place.entity);
 }
 
+function isNear(value: unknown): value is Near {
+  return record(value) && only(value, ['parks', 'home']) && (value.home === undefined || isPlace(value.home))
+    && Array.isArray(value.parks) && value.parks.length <= NEAR_PARKS && value.parks.every(park => record(park)
+      && only(park, ['reference', 'name', 'latitude', 'longitude', 'locations'])
+      && activationText(park.reference) && activationText(park.name) && activationText(park.locations)
+      && typeof park.latitude === 'number' && Math.abs(park.latitude) <= 90
+      && typeof park.longitude === 'number' && Math.abs(park.longitude) <= 180);
+}
+
 // The parks to activate (activations.ts), bounded as the store bounds them.
 const activationText = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= ACTIVATION_TEXT;
 function isToActivate(value: unknown): value is ToActivate {
@@ -257,7 +274,8 @@ export function isStorageReply(value: unknown): value is StorageReply {
     // adif and bands were missing here, so every ADIF search and band list
     // QG Storage answered was refused as malformed; each layer's own tests
     // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places', 'near']) && isStorageStatus(value.status)
+      && (value.near === undefined || isNear(value.near))
       && (value.places === undefined || (Array.isArray(value.places) && value.places.length <= AREA_LOCATIONS && value.places.every(isPlace)))
       && (value.areaLocations === undefined || isLocationCodes(value.areaLocations))
       && (value.toActivate === undefined || isToActivate(value.toActivate))
@@ -317,8 +335,13 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'area-choices': return exactly(['type']);
     case 'area-default': return exactly(['type']);
     case 'parks-to-activate':
-      return exactly(['type', 'locations']) && isArea(value.locations);
+      return (exactly(['type', 'locations']) || exactly(['type', 'locations', 'latitude', 'longitude'])) && isArea(value.locations)
+        && (value.latitude === undefined || (typeof value.latitude === 'number' && Number.isFinite(value.latitude) && Math.abs(value.latitude) <= 90
+          && typeof value.longitude === 'number' && Number.isFinite(value.longitude) && Math.abs(value.longitude) <= 180));
     case 'area-locations': return exactly(['type', 'entries']) && isArea(value.entries);
+    case 'parks-near': return exactly(['type', 'latitude', 'longitude'])
+      && typeof value.latitude === 'number' && Number.isFinite(value.latitude) && Math.abs(value.latitude) <= 90
+      && typeof value.longitude === 'number' && Number.isFinite(value.longitude) && Math.abs(value.longitude) <= 180;
     case 'pota-places': return exactly(['type', 'locations']) && isLocationCodes(value.locations);
     case 'look-up-parks':
       return exactly(['type', 'references']) && typeof value.references === 'string' && value.references.length > 0
