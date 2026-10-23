@@ -288,6 +288,12 @@ jobs:
           codesign -dv --verbose=2 "$app" 2>&1 | grep -E '^(Authority|TeamIdentifier|Runtime)'
           spctl --assess --type execute --verbose=2 "$app"
           xcrun stapler validate "$app"
+      # And that it runs: the signed bundle under the hardened runtime, the
+      # credential core loaded and a credential saved in the Keychain. A
+      # signature that is valid on an app that will not start is no release.
+      - name: The signed build launches (macOS)
+        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+        run: npm run verify -- --suites packaged-launch
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
       - run: npm run verify -- --suites package-contents
