@@ -34,13 +34,16 @@ export const placesBy = (places: readonly PotaPlace[]) => new Map(places.map(pla
 // there's only one choice"). In CONUS both are hidden; near the Canadian
 // border both show; in Scotland near England, Entity alone. A column the
 // core does not draw is only there for its filter. `start`, where each
-// starts when it offers that choice.
-export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], start: Partial<Placed> = {}):
+// starts when it offers that choice. `offered`, which of the two a page
+// wants: Spots has Entity alone, the DXCC entity a chaser counts (KI7MT,
+// 2026-10-23), since its programs and entities are nearly the same list.
+export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], start: Partial<Placed> = {},
+  offered: readonly (keyof Placed)[] = ['program', 'entity']):
   { rows: string[][]; columns: string[]; hidden?: number; filters: TableFilter[] } {
   const plain = { rows: rows.map(row => [...row]), columns: [], filters: [] };
   if (rows.length === 0 || cells.length !== rows.length) return plain;
   const at = rows[0]!.length;
-  const levels = (['program', 'entity'] as const).filter(level => valuesOf(cells.map(cell => cell[level])).length >= 2);
+  const levels = (['program', 'entity'] as const).filter(level => offered.includes(level) && valuesOf(cells.map(cell => cell[level])).length >= 2);
   if (levels.length === 0) return plain;
   const placed = rows.map((row, index) => [...row, ...levels.map(level => cells[index]![level])]);
   const label = (level: keyof Placed) => (level === 'program' ? 'Program' : 'Entity');

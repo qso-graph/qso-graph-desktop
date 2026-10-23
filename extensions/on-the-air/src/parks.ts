@@ -106,7 +106,7 @@ const NO_NAME = '—';
 export const SHOWN = 200;
 
 // `places` names each location's program and entity (pota.places), for the
-// Program and Entity filters; without POTA's lists there are none.
+// Entity filter; without POTA's lists there is none.
 export function parksPage(spots: readonly Spot[], now: Date, bands: readonly AdifBand[] = [], area: readonly string[] = [], places: readonly PotaPlace[] = []): PageAnswer {
   const newest = [...spots].sort((a, b) => b.at.getTime() - a.at.getTime());
   const observedAt = new Date(Math.floor((newest[0]?.at ?? now).getTime() / 60_000) * 60_000).toISOString().replace('.000Z', 'Z');
@@ -130,9 +130,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
     spot.mode ?? NO_MODE,
     `${two(spot.at.getUTCHours())}:${two(spot.at.getUTCMinutes())}`
   ]);
-  // Program and Entity, not drawn: for their filters alone (places.ts).
+  // Entity, not drawn, for its filter alone (places.ts): the DXCC entity a
+  // chaser counts. Program would repeat it here (KI7MT, 2026-10-23).
   const located = withPlaces(drawn, byPlace.size === 0 ? [] : shown.map(spot =>
-    placeCells((spot.location ?? '').split(',').map(value => value.trim()).filter(Boolean), byPlace)));
+    placeCells((spot.location ?? '').split(',').map(value => value.trim()).filter(Boolean), byPlace)), {}, ['entity']);
   const rows = located.rows;
   // The bands on the air, in ADIF's order, lowest first; the modes on the
   // air, alphabetically. Only what is there is offered.
@@ -155,8 +156,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       // Sent newest first by when spotted, which the core shows as the sort
       // and keeps right across midnight UTC (KI7MT, 2026-10-23).
       sortedBy: { column: 7, direction: 'descending' }, filters: [
-      // Program and Entity first, as POTA's own park list starts (KI7MT,
-      // 2026-10-23); then what a chaser narrows by.
+      // Entity first (KI7MT, 2026-10-23); then what a chaser narrows by.
       ...located.filters,
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),

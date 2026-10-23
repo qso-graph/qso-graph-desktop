@@ -132,3 +132,20 @@ describe('My area (KI7MT, 2026-10-23)', () => {
     expect(plain?.shape === 'table' && plain.filters?.find(filter => filter.label === 'Location')?.start).toBeUndefined();
   });
 });
+
+describe('Spots narrows by Entity, the DXCC entity a chaser counts (KI7MT, 2026-10-23)', () => {
+  const places = [
+    { location: 'US-ID', program: 'United States of America', entity: 'United States of America' },
+    { location: 'GB-ENG', program: 'Great Britain', entity: 'England' },
+    { location: 'CA-ON', program: 'Canada', entity: 'Canada' },
+    { location: 'CA-QC', program: 'Canada', entity: 'Canada' }
+  ];
+  it('leads with Entity, hidden, and has no Program', () => {
+    const answer = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS, [], places));
+    const table = answer.ok ? answer.data.sections.find(section => section.shape === 'table') : undefined;
+    if (!table || table.shape !== 'table') throw new Error('no table');
+    expect(table.filters!.map(filter => filter.label)).toEqual(['Entity', 'Band', 'Mode', 'Location']);
+    expect(table.filters![0]!.options).toEqual(['Canada', 'England', 'United States of America']);
+    expect(table.hidden).toBe(1);
+  });
+});

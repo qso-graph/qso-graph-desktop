@@ -44,3 +44,11 @@ describe('Program and Entity', () => {
     expect(added.filters.map(filter => filter.start)).toEqual(['United States of America', undefined]);
   });
 });
+
+describe('only the levels a page wants (KI7MT, 2026-10-23)', () => {
+  it('gives Spots Entity alone, the DXCC entity a chaser counts', () => {
+    const added = withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['IT-LZ'], places)], {}, ['entity']);
+    expect(added.columns).toEqual(['Entity']);
+    expect(added.filters.map(filter => filter.label)).toEqual(['Entity']);
+  });
+});
