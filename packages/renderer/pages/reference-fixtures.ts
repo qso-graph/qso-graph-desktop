@@ -4,7 +4,7 @@ import type { ResourceSummary } from '../../storage/storage-contract.js';
 
 const ADIF = { id: 'adif', name: 'ADIF definitions', what: "ADIF's fields, data types and enumerations, which QSO records are checked against", owner: 'the ADIF Development Group', size: 'about 2 MB' };
 const SOTA = { id: 'sota', name: 'SOTA summits', what: 'Every Summits on the Air summit, for summit references and a location\'s position and height', owner: 'Summits on the Air', size: 'about 25 MB' };
-const ACTIVATIONS = { id: 'activations', name: 'POTA activations', what: 'How many times each park in My Area has been activated, to find parks to activate, also offline', owner: 'Parks on the Air', size: 'about 150 KB a location' };
+const ACTIVATIONS = { id: 'activations', name: 'POTA activations', what: 'How many times each park in My Area has been activated, to find parks to activate, also offline', owner: 'Parks on the Air', size: '150 KB to 5 MB a part' };
 const POTA = { id: 'pota', name: 'POTA parks', what: 'Every Parks on the Air park, program and location, for park references and lookups', owner: 'Parks on the Air', size: 'about 10 MB' };
 
 export const RESOURCES_LOADED: ResourceSummary[] = [

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { problemOf, summarize } from '../packages/storage/reference-resources.js';
 import { isStorageStatus } from '../packages/storage/storage-contract.js';
-import { RESOURCES_ADIF_AVAILABLE } from '../packages/renderer/pages/reference-fixtures.js';
+import { RESOURCES_ADIF_AVAILABLE, RESOURCES_LOADED, RESOURCES_NOT_LOADED } from '../packages/renderer/pages/reference-fixtures.js';
 import type { ReferenceStatus, RefreshOutcome } from '../packages/storage/reference.js';
 
 const register = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
@@ -108,6 +108,20 @@ describe('#37: the window checks the versions it is sent', () => {
     state: 'ready',
     reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'not loaded' }, refreshing: false, resources }
   });
+  // The register as shipped, through the window's own check, in every state
+  // Settings can show it in. A size four words too long was refused, so no
+  // status reached the window at all: Settings sat on "Reading the reference
+  // data…" and every page waited on storage (KI7MT, 2026-10-23).
+  it('passes every resource the register ships, as the window checks it', () => {
+    for (const updating of [undefined, 'activations']) {
+      const resources = summarize({ register, held: held(NOW), checks: {}, problems: new Map([['activations', 'Could not be reached. What was loaded before is kept; try again later.']]),
+        updating, now: NOW });
+      expect(resources.map(resource => resource.id)).toEqual(register.resources.map((entry: { id: string }) => entry.id));
+      for (const resource of resources) expect(isStorageStatus(status([resource])), resource.id).toBe(true);
+    }
+    for (const fixture of [...RESOURCES_LOADED, ...RESOURCES_NOT_LOADED]) expect(isStorageStatus(status([fixture])), fixture.id).toBe(true);
+  });
+
   it('takes a version and an available version', () => {
     expect(isStorageStatus(status(RESOURCES_ADIF_AVAILABLE))).toBe(true);
   });

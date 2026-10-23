@@ -22,7 +22,7 @@
       "name": "POTA activations",
       "what": "How many times each park in My Area has been activated, to find parks to activate, also offline",
       "owner": "Parks on the Air",
-      "size": "about 150 KB a location, up to 5 MB for the largest entity"
+      "size": "150 KB to 5 MB a part"
     },
     {
       "id": "sota",
