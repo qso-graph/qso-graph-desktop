@@ -81,8 +81,8 @@
     <section class="welcome-feature" id="welcome-extensions" aria-labelledby="welcome-extensions-title">
       <h3 id="welcome-extensions-title">No Vendor or Developer Lock-In</h3>
       <p>
-        Everything past the core, Conditions included, is an extension, built on the same extension API
-        other hams will build on, and you choose which ones run. Extensions by other authors arrive once
+        Everything past the core frame is an extension, built on the same extension API other hams
+        will build on, and you choose which ones run. Extensions by other authors arrive once
         the sandbox they run in is finished.
         <button type="button" class="link-button" id="welcome-contributing" onclick={onContributing}>Write one</button>
       </p>
