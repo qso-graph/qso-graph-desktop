@@ -149,10 +149,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),
       { column: 6, label: 'Mode', options: modeOptions },
-      // My area first, and where the page starts, when the operator has one
-      // (KI7MT, 2026-10-23): their own spots before the world's.
+      // My area offered first when the operator has one, one choice away;
+      // the page starts on All (KI7MT, 2026-10-23).
       { column: 3, label: 'Location', options: locationOptions, multiple: true,
-        ...(area.length > 0 ? { named: [{ label: 'My area', values: [...area] }], start: 'My area' } : {}) }
+        ...(area.length > 0 ? { named: [{ label: 'My area', values: [...area] }] } : {}) }
     ] }
   ];
   if (bands.length === 0) {
