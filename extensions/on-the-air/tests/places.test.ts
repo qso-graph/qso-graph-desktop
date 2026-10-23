@@ -18,29 +18,28 @@ describe('Program and Entity', () => {
     expect(placeCells(['ZZ-QQ'], places)).toEqual({ program: '—', entity: '—' });
   });
 
-  it('adds both columns, hidden, with their two filters, offering only real names', () => {
+  it('adds a column, hidden, with its filter, only where it offers two choices or more (KI7MT, 2026-10-23)', () => {
     const rows = [['A'], ['B'], ['C']];
-    const cells = [placeCells(['US-ID'], places), placeCells(['US-AK'], places), placeCells(['ZZ-QQ'], places)];
-    const added = withPlaces(rows, cells);
-    expect(added.columns).toEqual(['Program', 'Entity']);
-    expect(added.hidden).toBe(2);
-    expect(added.rows[1]).toEqual(['B', 'United States of America', 'Alaska']);
-    expect(added.filters).toEqual([
-      { column: 1, label: 'Program', options: ['United States of America'], multiple: true },
-      { column: 2, label: 'Entity', options: ['Alaska', 'United States of America'], multiple: true }
-    ]);
+    // Idaho, Alaska and nowhere: one program, two entities, so Entity alone.
+    const added = withPlaces(rows, [placeCells(['US-ID'], places), placeCells(['US-AK'], places), placeCells(['ZZ-QQ'], places)]);
+    expect(added.columns).toEqual(['Entity']);
+    expect(added.hidden).toBe(1);
+    expect(added.rows[1]).toEqual(['B', 'Alaska']);
+    expect(added.filters).toEqual([{ column: 1, label: 'Entity', options: ['Alaska', 'United States of America'], multiple: true }]);
+    // Idaho and Italy: two of each.
+    const both = withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['IT-LZ'], places)]);
+    expect(both.columns).toEqual(['Program', 'Entity']);
+    expect(both.filters.map(filter => [filter.column, filter.label])).toEqual([[1, 'Program'], [2, 'Entity']]);
   });
 
-  it('adds nothing without places, or where none has a choice to offer', () => {
+  it('adds nothing without places, or where each has a single choice', () => {
     expect(withPlaces([['A']], [])).toEqual({ rows: [['A']], columns: [], filters: [] });
     expect(withPlaces([['A']], [placeCells(['ZZ-QQ'], places)])).toEqual({ rows: [['A']], columns: [], filters: [] });
-    // Asked for at least two choices, one place alone adds nothing.
-    expect(withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['US-OR'], places)], 2).columns).toEqual([]);
-    expect(withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['IT-LZ'], places)], 2).columns).toEqual(['Program', 'Entity']);
+    expect(withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['US-OR'], places)]).columns).toEqual([]);
   });
 
   it('starts each filter on a given choice it offers, and on All otherwise', () => {
-    const added = withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['US-AK'], places)], 1,
+    const added = withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['IT-LZ'], places)],
       { program: 'United States of America', entity: 'Hawaii' });
     expect(added.filters.map(filter => filter.start)).toEqual(['United States of America', undefined]);
   });

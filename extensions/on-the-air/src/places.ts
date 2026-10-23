@@ -20,35 +20,36 @@ export function placeCells(locations: readonly string[], places: ReadonlyMap<str
   };
 }
 
-// The two filters over the two hidden columns, at `at` and `at + 1`: each a
-// column's own values, alphabetically, at most a filter's hundred.
-export function placeFilters(rows: readonly (readonly string[])[], at: number): TableFilter[] {
-  const valuesAt = (column: number) => [...new Set(rows.flatMap(row => (row[column] ?? '').split(',').map(value => value.trim()).filter(value => value !== '' && value !== UNPLACED)))]
-    .sort((a, b) => a.localeCompare(b)).slice(0, 100);
-  const filters: TableFilter[] = [
-    { column: at, label: 'Program', options: valuesAt(at), multiple: true },
-    { column: at + 1, label: 'Entity', options: valuesAt(at + 1), multiple: true }
-  ];
-  return filters.filter(filter => (filter.options?.length ?? 0) > 0);
+// The names in some cells, each once, alphabetically, "—" left out.
+function valuesOf(cells: readonly string[]): string[] {
+  return [...new Set(cells.flatMap(cell => cell.split(',').map(value => value.trim()).filter(value => value !== '' && value !== UNPLACED)))]
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export const placesBy = (places: readonly PotaPlace[]) => new Map(places.map(place => [place.location, place]));
 
-// The rows with their Program and Entity cells added after `rows`' own, and
-// the two filters over them, which come first. Without both filters to offer,
-// or with `atLeast` and fewer choices than that in each, the rows stay as
-// they were: a column the core does not draw is only there for its filter.
-// `start`, where each filter starts when it offers that choice: Near me's
-// opens on where the active Location is (KI7MT, 2026-10-23).
-export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], atLeast = 1, start: Partial<Placed> = {}):
+// The rows with Program and Entity cells added after `rows`' own, each only
+// where it offers two choices or more, and its filter, which comes first: a
+// filter of one choice says nothing (KI7MT, 2026-10-23: "hide them when
+// there's only one choice"). In CONUS both are hidden; near the Canadian
+// border both show; in Scotland near England, Entity alone. A column the
+// core does not draw is only there for its filter. `start`, where each
+// starts when it offers that choice.
+export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], start: Partial<Placed> = {}):
   { rows: string[][]; columns: string[]; hidden?: number; filters: TableFilter[] } {
   const plain = { rows: rows.map(row => [...row]), columns: [], filters: [] };
   if (rows.length === 0 || cells.length !== rows.length) return plain;
   const at = rows[0]!.length;
-  const placed = rows.map((row, index) => [...row, cells[index]!.program, cells[index]!.entity]);
-  const filters = placeFilters(placed, at);
-  if (filters.length !== 2 || filters.every(filter => (filter.options?.length ?? 0) < atLeast)) return plain;
-  const startAt = (filter: TableFilter, value: string | undefined): TableFilter =>
-    value !== undefined && filter.options?.includes(value) ? { ...filter, start: value } : filter;
-  return { rows: placed, columns: ['Program', 'Entity'], hidden: 2, filters: [startAt(filters[0]!, start.program), startAt(filters[1]!, start.entity)] };
+  const levels = (['program', 'entity'] as const).filter(level => valuesOf(cells.map(cell => cell[level])).length >= 2);
+  if (levels.length === 0) return plain;
+  const placed = rows.map((row, index) => [...row, ...levels.map(level => cells[index]![level])]);
+  const label = (level: keyof Placed) => (level === 'program' ? 'Program' : 'Entity');
+  // Each column's own values, alphabetically, at most a filter's hundred.
+  const filters = levels.map((level, index): TableFilter => {
+    const options = valuesOf(cells.map(cell => cell[level])).slice(0, 100);
+    const begin = start[level];
+    return { column: at + index, label: label(level), options, multiple: true,
+      ...(begin !== undefined && options.includes(begin) ? { start: begin } : {}) };
+  });
+  return { rows: placed, columns: levels.map(label), hidden: levels.length, filters };
 }

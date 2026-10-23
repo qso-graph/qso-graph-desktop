@@ -100,7 +100,7 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     expect(filter(['US-ID'])).toEqual(['US-ID']);
   });
 
-  it('leads with Program, Entity and Location, each starting where the active Location is (KI7MT, 2026-10-23)', () => {
+  it('leads with Location at the active Location, and Program and Entity only where each has two choices (KI7MT, 2026-10-23)', () => {
     const places = [
       { location: 'US-ID', program: 'United States of America', entity: 'United States of America' },
       { location: 'US-OR', program: 'United States of America', entity: 'United States of America' }
@@ -108,14 +108,14 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     const home = places[0]!;
     const shown = table(activatePage(parks, FETCHED, BOISE, ['US-ID', 'US-OR'], places, home));
     expect(shown.filters!.map(filter => [filter.label, filter.start])).toEqual([
-      ['Program', 'United States of America'], ['Entity', 'United States of America'], ['Location', 'US-ID'],
-      ['Activations', 'Never activated'], ['Distance', undefined]
-    ]);
-    expect(shown.hidden).toBe(2);
-    // One program and one entity are still offered: they say where the page is.
-    expect(shown.filters![0]!.options).toEqual(['United States of America']);
-    // Over the border is one choice away: Location's options hold Oregon.
-    expect(shown.filters![2]!.options).toEqual(['US-ID', 'US-OR']);
+      ['Location', 'US-ID'], ['Activations', 'Never activated'], ['Distance', undefined]]);
+    expect(shown.hidden).toBeUndefined();
+    expect(shown.filters![0]!.options).toEqual(['US-ID', 'US-OR']);
+    // With Alaska in it, Entity shows; Program, one choice, does not.
+    const alaska = { location: 'US-AK', program: 'United States of America', entity: 'Alaska' };
+    const wider = table(activatePage([...parks, park('US-0020', 61.2, -149.9, 0, 'US-AK')], FETCHED, BOISE, [], [...places, alaska], home));
+    expect(wider.filters!.map(filter => filter.label)).toEqual(['Entity', 'Location', 'Activations', 'Distance']);
+    expect(wider.filters![0]).toMatchObject({ start: 'United States of America', options: ['Alaska', 'United States of America'] });
     // A home the parks do not hold starts nothing.
     const away = table(activatePage(parks, FETCHED, BOISE, [], places, { location: 'US-MT', program: 'United States of America', entity: 'United States of America' }));
     expect(away.filters!.find(filter => filter.label === 'Location')!.start).toBeUndefined();

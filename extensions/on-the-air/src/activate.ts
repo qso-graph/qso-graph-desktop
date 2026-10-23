@@ -79,7 +79,7 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
   // Program and Entity, not drawn, for their filters alone (places.ts).
   const byPlace = placesBy(places);
   const located = withPlaces(drawn, byPlace.size === 0 ? [] : shown.map(({ park }) =>
-    placeCells(park.locations.split(',').map(value => value.trim()).filter(Boolean), byPlace)), 1, home ?? {});
+    placeCells(park.locations.split(',').map(value => value.trim()).filter(Boolean), byPlace)), home ?? {});
   const rows = located.rows;
   const columns = ['Park', 'Name', ...(here ? ['km', 'Bearing °'] : []), 'Activations', 'Location', ...located.columns];
   const activations = here ? 4 : 2;

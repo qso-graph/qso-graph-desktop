@@ -34,12 +34,17 @@ describe('Near Me (QGD-HOM-0013)', () => {
     expect(() => validatePageAnswer(answer)).not.toThrow();
   });
 
-  it('leads with Program, Entity and Location at the active Location, then Distance', () => {
+  it('leads with Location at the active Location, then Distance; Program and Entity only with two choices', () => {
+    // All of it in CONUS: Program and Entity would each offer one, so neither shows.
     const shown = table(nearPage(parks, AT, HERE, places, places[0]));
-    expect(shown.filters!.map(filter => [filter.label, filter.start])).toEqual([
-      ['Program', 'United States of America'], ['Entity', 'United States of America'], ['Location', 'US-ID'], ['Distance', undefined]]);
+    expect(shown.filters!.map(filter => [filter.label, filter.start])).toEqual([['Location', 'US-ID'], ['Distance', undefined]]);
     // Montana and Wyoming one choice away.
-    expect(shown.filters![2]!.options).toEqual(['US-ID', 'US-MT', 'US-WY']);
+    expect(shown.filters![0]!.options).toEqual(['US-ID', 'US-MT', 'US-WY']);
+    // Near the Canadian line both show, starting where the Location is.
+    const canada = { location: 'CA-BC', program: 'Canada', entity: 'Canada' };
+    const border = table(nearPage([...parks, park('CA-0001', 44.6, -111.4, 'CA-BC')], AT, HERE, [...places, canada], places[0]));
+    expect(border.filters!.map(filter => [filter.label, filter.start])).toEqual([
+      ['Program', 'United States of America'], ['Entity', 'United States of America'], ['Location', 'US-ID'], ['Distance', undefined]]);
   });
 
   it('works without POTA\'s names, with Location and Distance alone', () => {

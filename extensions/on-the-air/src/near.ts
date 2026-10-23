@@ -28,7 +28,7 @@ export function nearPage(parks: readonly NearPark[], observedAt: string, station
   // Program and Entity, not drawn, for their filters alone, starting where
   // the active Location is (places.ts).
   const byPlace = placesBy(places);
-  const located = withPlaces(drawn, byPlace.size === 0 ? [] : measured.map(({ park }) => placeCells(locationsOf(park), byPlace)), 1, home ?? {});
+  const located = withPlaces(drawn, byPlace.size === 0 ? [] : measured.map(({ park }) => placeCells(locationsOf(park), byPlace)), home ?? {});
   const locationOptions = [...new Set(drawn.flatMap(row => row[4]!.split(',').map(value => value.trim()).filter(Boolean)))]
     .sort((a, b) => a.localeCompare(b)).slice(0, 100);
   const farthest = Math.round(measured.at(-1)!.km);
