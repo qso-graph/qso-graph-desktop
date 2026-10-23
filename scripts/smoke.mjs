@@ -556,6 +556,12 @@ try {
   });
   await page.getByRole('button', { name: 'Export diagnostics', exact: true }).click();
   await expect(page.locator('#export-result')).toHaveText('Export cancelled.', { timeout: 30_000 });
+  // Closed when done with, as an operator would. The panel stays open across
+  // pages by design, and left open it covered the Callsigns page's lower
+  // buttons once the backup card moved to Settings (2026-10-23): the click on
+  // Remove saved credential below then waited behind it on some platforms.
+  await page.locator('#close-troubleshooting').click();
+  await expect(page.locator('#close-troubleshooting')).toHaveCount(0);
 
   await railAgain('Callsigns').click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
