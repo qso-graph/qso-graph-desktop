@@ -85,6 +85,17 @@ export function offeredOptions(
   return all.filter(option => present.has(option) || option === own);
 }
 
+// A list cell as drawn: at most three values, then how many more, so one
+// park in sixteen states (the Lewis and Clark trail) does not widen its
+// column for every other row (KI7MT, 2026-10-23). Only how it is drawn: the
+// cell and what its filter matches are whole, and the whole list is its
+// title. Undefined when the cell is short enough to draw as it is.
+export const LIST_SHOWN = 3;
+export function shortList(cell: string): string | undefined {
+  const values = valuesOf(cell);
+  return values.length > LIST_SHOWN ? `${values.slice(0, LIST_SHOWN).join(', ')} +${values.length - LIST_SHOWN} more` : undefined;
+}
+
 // A cell holding several values, as "JP-FS, JP-GM" (a multiple filter).
 export const valuesOf = (cell: string) => cell.split(',').map(value => value.trim()).filter(Boolean);
 

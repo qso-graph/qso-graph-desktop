@@ -2,7 +2,7 @@
 // A table's filters as the core applies them (page data version 6): at once,
 // in the window, with no new question asked.
 import { describe, expect, it } from 'vitest';
-import { filterOptions, filteredGroups, offeredOptions, pageContents, sortedGroups, startingChoices, type Section } from '../packages/ui/page-shapes.js';
+import { filterOptions, filteredGroups, offeredOptions, pageContents, shortList, sortedGroups, startingChoices, type Section } from '../packages/ui/page-shapes.js';
 
 type Table = Extract<Section, { shape: 'table' }>;
 const table: Table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [
@@ -188,5 +188,13 @@ describe('each filter offers what the others leave (KI7MT, 2026-10-23)', () => {
 
   it('keeps a filter\'s own choice offered when the others would leave it no row', () => {
     expect(offeredOptions(section, entity!, { 2: 'Italy', 3: 'Alaska' })).toEqual(['Alaska', 'Italy']);
+  });
+});
+
+describe('a long list drawn short (KI7MT, 2026-10-23)', () => {
+  it('draws three values and how many more, and leaves a short list as it is', () => {
+    expect(shortList('US-IA, US-ID, US-IL, US-IN, US-KS')).toBe('US-IA, US-ID, US-IL +2 more');
+    expect(shortList('US-ID, US-MT, US-OR')).toBeUndefined();
+    expect(shortList('US-ID')).toBeUndefined();
   });
 });

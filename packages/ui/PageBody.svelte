@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
-  import { filteredGroups, offeredOptions, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
   import { recall, remember } from './page-memory.js';
 
@@ -141,6 +141,8 @@
         {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
         <!-- The last `hidden` columns are a filter's alone and are not drawn. -->
         {@const drawn = section.columns.length - (section.hidden ?? 0)}
+        <!-- The columns that hold lists: a long one is drawn short (shortList). -->
+        {@const lists = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column))}
         <table class="page-table" hidden={groups.length === 0}>
           <thead><tr>{#each section.columns.slice(0, drawn) as column, c (c)}
             {#if section.sortable}
@@ -156,7 +158,7 @@
             <tbody>
               {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={drawn}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
-                <tr>{#each row.slice(0, drawn) as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td class:wrap={cell.length > 48} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
+                <tr>{#each row.slice(0, drawn) as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}{@const short = lists.has(c) && row.length === section.columns.length ? shortList(cell) : undefined}<td class:wrap={short === undefined && cell.length > 48} title={short === undefined ? undefined : cell} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{short ?? cell}</td>{/if}{/each}</tr>
               {/each}
             </tbody>
           {/each}
