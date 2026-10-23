@@ -92,13 +92,13 @@ try {
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
   // P8-built-in, first half: a new profile has On the Air and Astro on, and
-  // Conditions, Astro and Parks On the Air pinned (QGD-HOM-0004), drawn as tiles from the
+  // Conditions, Astro, Parks On the Air and ADIF Lookup pinned (QGD-HOM-0004), drawn as tiles from the
   // manifests alone. Home asks no extension for anything, so no host starts
   // until a page is opened.
   await rm(settingsFile, { force: true });
   ({ application, page } = await launch());
   await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
-  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air']);
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air', 'ADIF Lookup']);
   // The Internet lamp on the clock's panel, from the operating system's own
   // reading (KI7MT, 2026-10-23).
   await expect(page.locator('#net-lamp')).toHaveAttribute('aria-label', 'Internet: online');
@@ -157,8 +157,8 @@ try {
   await rail(page, 'Home').click();
   const notice = page.locator('#host-notice');
   await expect(notice, 'Home must say the extension host stopped').toBeVisible({ timeout: 30_000 });
-  // Both extensions that were running: Astro's page was opened above.
-  await expect(notice).toContainText('It affected Astro and On the Air', { timeout: 30_000 });
+  // Every extension that was running in the host, in the order they load.
+  await expect(notice).toContainText('It affected ADIF Lookup, Astro and On the Air', { timeout: 30_000 });
   await expect(notice).toContainText('was restarted', { timeout: 30_000 });
   await expect(notice).not.toContainText(/caused|because/i);
   await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
@@ -180,7 +180,7 @@ try {
   await rail(page, 'Home').click();
   await notice.getByRole('button', { name: 'Dismiss' }).click();
   await expect(notice).toHaveCount(0, { timeout: 30_000 });
-  console.log('P8-supervision: the extension host killed; Home named Astro and On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
+  console.log('P8-supervision: the extension host killed; Home named ADIF Lookup, Astro and On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
 
   // Turned off in Settings: its tiles leave Home and the list.
   await rail(page, 'Settings').click();
@@ -191,7 +191,7 @@ try {
   expect((await settings()).extensionsOff).toEqual(['on-the-air']);
   await rail(page, 'Home').click();
   await expect(tile(page, 'Conditions')).toHaveCount(0, { timeout: 30_000 });
-  await expect(tiles(page)).toHaveCount(1);
+  await expect(tiles(page)).toHaveCount(2);
   await page.locator('#customize-pins').click();
   const dialog = page.getByRole('dialog', { name: 'Customize your pins' });
   await expect(dialog).toBeVisible();
@@ -199,7 +199,7 @@ try {
   await expect(dialog).not.toContainText('Parks On the Air');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   // The pins are kept, so they come back where they were.
-  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'astro/astro', 'on-the-air/parks']);
+  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'astro/astro', 'on-the-air/parks', 'adif-lookup/lookup']);
 
   // On again in the same run: its page shows at once what it last said, not
   // "Getting the latest…" until Conditions' fifteen minutes run out.
@@ -237,8 +237,8 @@ try {
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
-  await expect(tiles(page)).toHaveCount(3, { timeout: 30_000 });
-  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air']);
+  await expect(tiles(page)).toHaveCount(4, { timeout: 30_000 });
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air', 'ADIF Lookup']);
   await openPin(page, 'Conditions');
   await expect(body(page)).toContainText(String(expected.sfi), { timeout: 30_000 });
   // A change that cannot be saved leaves the switch showing what was

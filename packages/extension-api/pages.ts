@@ -67,7 +67,9 @@ export const PAGE_LIMITS = {
   options: 100,
   groups: 8,
   marks: 4,
-  cell: 80,
+  // A cell holds ADIF's own text, up to the 200 characters QG Storage gives
+  // it (ADIF Lookup, KI7MT 2026-10-23): cut at 80, ADIF would be reworded.
+  cell: 200,
   heading: 60
 } as const;
 

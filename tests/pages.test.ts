@@ -101,7 +101,7 @@ describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
     [{ ...table, columns: [] }, /no columns/],
     [{ ...table, columns: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], rows: [] }, /more than 8/],
     [{ ...table, rows: Array.from({ length: 201 }, () => ['a', 'b', 'c']) }, /at most 200/],
-    [{ ...table, rows: [['20m', 'Good', 'x'.repeat(81)]] }, /cell 3/],
+    [{ ...table, rows: [['20m', 'Good', 'x'.repeat(201)]] }, /cell 3/],
     [{ ...table, rows: [['20m', 'Good', '<b>x</b>']] }, /./],
     [{ ...table, html: 'x' }, /./]
   ])('refuses an off-shape table (%#)', (value, message) => {
