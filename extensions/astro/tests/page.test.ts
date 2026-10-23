@@ -78,20 +78,13 @@ describe('Astro\'s page', () => {
     expect(rows[0]![1]).not.toEqual(rows[4]![1]);
   });
 
-  it('gives a value with no clock once, across both time columns', () => {
+  it('gives the radio depths on this computer\'s clock alone: they are the Location\'s (KI7MT, 2026-10-23)', () => {
     const table = today(astroPage(BOISE, NOW, {}, MOUNTAIN));
-    const rows = table.groups.flatMap(group => group.rows);
-    // The date apart from the time: Date, Your clock, then UTC, with UTC's
-    // own date only where it is another day.
-    expect(rows.find(row => row[0].startsWith('Dawn: the absorbing'))).toEqual([
-      expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/), expect.stringMatching(/^\d\d:\d\d( \(\d{1,2} Oct\))?$/)
-    ]);
+    expect(table.columns).toEqual(['Event', 'Date', 'Time']);
+    const dawn = table.groups.flatMap(group => group.rows).find(row => row[0].startsWith('Dawn: the absorbing'));
+    expect(dawn).toEqual([expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/)]);
   });
 
-  it('gives UTC alone when the computer is on UTC, and the operator\'s clock beside it when not (QGD-AST-0010)', () => {
-    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).columns).toEqual(['Event', 'Date', 'UTC']);
-    expect(today(astroPage(BOISE, NOW, {}, MOUNTAIN)).columns).toEqual(['Event', 'Date', 'Your clock', 'UTC']);
-  });
 
   it('says what it needs, and names the Location, rather than guessing (QGD-AST-0008)', () => {
     const none = sections(astroPage(null, NOW, {}, UTC_CLOCK));

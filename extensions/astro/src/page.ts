@@ -14,12 +14,6 @@ import {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const two = (n: number) => String(n).padStart(2, '0');
 
-// To the minute, which is the accuracy claimed (QGD-AST-0006), with the day,
-// since an evening's events in UTC are often tomorrow's date.
-export function utcText(at: Date): string {
-  return `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`;
-}
-
 // The operator's own clock, where it differs from UTC (QGD-AST-0010): many
 // keep the computer on UTC, and a third column the same as UTC is noise.
 export interface Clock {
@@ -141,20 +135,13 @@ type Row = [label: string, at: Date | string];
 
 // A group of the one table. A time is given on each clock; a sentence or a
 // span has no clock, so it is given once, across both (page data version 5).
-// The date apart from the time (KI7MT, 2026-10-23): the date and time on
-// this computer's clock, then the time in UTC, carrying its own date where it
-// falls on another. On a computer kept on UTC, the date and UTC alone.
-function group(heading: string, rows: Row[], clock: Clock | undefined): TableGroup {
-  const utcDate = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()}`;
-  const utcTime = (at: Date) => `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`;
+// A group of radio depths: each event's date and time on this computer's
+// clock, which is the Location's rule (KI7MT, 2026-10-23: logs are UTC,
+// Locations are local). A sentence where there is no event, once, across.
+function group(heading: string, rows: Row[], clock: Clock): TableGroup {
   return {
     heading,
-    rows: rows.map(([label, at]) => {
-      if (typeof at === 'string') return [label, at];
-      if (!clock) return [label, utcDate(at), utcTime(at)];
-      const date = clock.date(at);
-      return [label, date, clock.time(at), utcDate(at) === date ? utcTime(at) : `${utcTime(at)} (${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]})`];
-    })
+    rows: rows.map(([label, at]) => (typeof at === 'string' ? [label, at] : [label, clock.date(at), clock.time(at)]))
   };
 }
 
@@ -194,7 +181,6 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     return { ok: true, data: { version: 6, observedAt, sections: [{ shape: 'alert', level: 'info', text }] } };
   }
   const { latitude, longitude } = position;
-  const yourClock = clock.offset(now) !== 0 ? clock : undefined;
   const at = julian(now.getTime());
   const phase = moonPhase(at);
   // The DX question (QGD-AST-0041): when both ends are inside the same depth.
@@ -259,7 +245,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).
     { shape: 'table', heading: 'Twilight', columns: ['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk'], rows: twilightWeek(now, latitude, longitude, clock) },
     { shape: 'table', heading: 'Moon', columns: ['Date', 'Phase', 'Moonrise', 'Moonset', 'Lit', 'Declination', 'Distance'], rows: moonWeek(now, latitude, longitude, clock) },
-    { shape: 'table', columns: yourClock ? ['Event', 'Date', 'Your clock', 'UTC'] : ['Event', 'Date', 'UTC'], groups: [
+    { shape: 'table', columns: ['Event', 'Date', 'Time'], groups: [
     // What each depth means for radio, said beside it (QGD-AST-0022). Last:
     // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
     // Today and tomorrow, as it was laid out (KI7MT, 2026-10-23): the date in
@@ -271,7 +257,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
         ...pair(sunCrossings(at, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`),
         ...pair(sunCrossings(at, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`)
       ];
-    }), yourClock)
+    }), clock)
     ] }
   ];
 
