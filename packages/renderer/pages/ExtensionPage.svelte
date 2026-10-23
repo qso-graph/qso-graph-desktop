@@ -27,7 +27,10 @@
   const { page, extensionName, onAsk = () => {}, onRefresh }: Props = $props();
 
   // Why a field's value is refused, by its kind, said as it is typed.
-  const REASON = { grid: 'A grid locator, as FN31 or FN31pr.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
+  const REASON = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
+  // What a field wants, by its kind, said under it before anything is typed
+  // (KI7MT, 2026-10-23); a value it refuses says why in the same place.
+  const HINT = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: '' } as const;
   // What is being typed, per field, until it is asked with.
   let typed = $state<Record<string, string>>({});
   let lastKey = '';
@@ -61,11 +64,12 @@
           {#each page.inputs as input (input.id)}
             <label>
               {input.label}
-              <input id="page-input-{input.id}" bind:value={typed[input.id]} autocomplete="off"
+              <input id="page-input-{input.id}" class="page-input-{input.kind}" bind:value={typed[input.id]} autocomplete="off"
                 maxlength={input.kind === 'text' ? (input.max ?? 64) : 32}
                 aria-invalid={problems[input.id] ? 'true' : undefined}
-                aria-describedby={problems[input.id] ? `page-input-${input.id}-problem` : undefined} />
-              {#if problems[input.id]}<span class="field-error" id="page-input-{input.id}-problem">{problems[input.id]}</span>{/if}
+                aria-describedby={problems[input.id] ? `page-input-${input.id}-problem` : HINT[input.kind] ? `page-input-${input.id}-hint` : undefined} />
+              {#if problems[input.id]}<span class="field-error page-input-note" id="page-input-{input.id}-problem">{problems[input.id]}</span>
+              {:else if HINT[input.kind]}<span class="page-input-hint page-input-note" id="page-input-{input.id}-hint">{HINT[input.kind]}</span>{/if}
             </label>
           {/each}
         </div>

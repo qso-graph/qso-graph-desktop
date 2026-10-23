@@ -137,6 +137,8 @@ try {
   await openPin(page, 'Astro');
   await expect(body(page)).toContainText('Astro needs a Location', { timeout: 30_000 });
   await expect(page.locator('#page-input-dx')).toBeVisible();
+  // An empty field says what it wants, under the box (KI7MT, 2026-10-23).
+  await expect(page.locator('#page-input-dx-hint')).toHaveText('A grid locator, as IO91 or IO91wm.');
   // A grid its kind refuses is said so as it is typed, and not asked with.
   await page.locator('#page-input-dx').fill('ZZ99');
   await expect(page.locator('#page-ask')).toBeDisabled();

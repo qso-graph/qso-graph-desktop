@@ -370,8 +370,20 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .page-section-heading { margin: 18px 0 8px; font-size: 15px; }
 .page-body > .page-section-heading:first-of-type { margin-top: 4px; }
 /* A page's fields, drawn by the core (inputs.ts), above its data. */
-.page-inputs { max-width: 1088px; display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-.page-inputs .fields { flex: 1; }
+.page-inputs { max-width: 1088px; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+/* Show beside the box, level with it: below the label's line and its gap. */
+.page-inputs > button { margin-top: 22px; }
+/* A field as wide as what it takes, with Show beside it rather than across
+   the page (KI7MT, 2026-10-23): a grid is at most eight characters. */
+.page-inputs .fields { flex: 0 1 auto; display: flex; flex-wrap: wrap; gap: 16px; }
+.page-inputs .page-input-grid { width: 10ch; }
+.page-inputs .page-input-callsign { width: 12ch; }
+.page-inputs .page-input-text { width: 24ch; }
+/* The line under a field: what it wants, or why what is typed is refused.
+   It runs past the field rather than widening it, so Show stays beside the
+   box. */
+.page-input-note { width: 0; overflow: visible; white-space: nowrap; margin: 0; font-size: 11px; }
+.page-input-hint { color: var(--ink-muted); font-weight: 400; }
 /* An extension's page: its data in one card at the page's width. */
 .page-body { max-width: 1088px; }
 .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
