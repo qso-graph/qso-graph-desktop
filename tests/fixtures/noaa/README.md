@@ -19,3 +19,7 @@ the card always did.
 The six response files are pinned by SHA-256 on both sides: in
 `extensions/on-the-air/tests/conditions.test.ts` here and in solar-mcp's
 `tests/test_fixtures_noaa.py`. Re-recording them means changing both.
+
+`quiet/activator.json` is not NOAA's: it is the made-up POTA spot list from
+`tests/fixtures/pota/`, here so the window suites and the screenshots draw Parks
+On the Air from it rather than the network.

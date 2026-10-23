@@ -364,5 +364,7 @@ describe('recorded responses for the suites, never in a package', () => {
     expect(JSON.parse(flux.body)).toBeTruthy();
     await expect(recorded('https://services.swpc.noaa.gov/products/%2e%2e%2fexpected.json')).rejects.toThrow();
     await expect(recorded('https://services.swpc.noaa.gov/products/')).rejects.toThrow();
+    // A URL with no extension is answered from its .json recording.
+    expect(JSON.parse((await recorded('https://api.pota.app/spot/activator')).body)).toBeInstanceOf(Array);
   });
 });

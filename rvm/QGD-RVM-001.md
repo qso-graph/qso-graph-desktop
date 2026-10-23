@@ -1,10 +1,10 @@
-<!-- GENERATED from spec/QGD-SPEC-001.md at `e0a2f320d4d4640e1b06a8069f834e2dcb5ab81f` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
+<!-- GENERATED from spec/QGD-SPEC-001.md at `144f7b7423bfbddf9dcccbf7af24c924f97f7299` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived. -->
 
 # QSO Graph Desktop — Requirements Verification Matrix (QGD-RVM-001)
 
-> **GENERATED from spec/QGD-SPEC-001.md at `e0a2f320d4d4640e1b06a8069f834e2dcb5ab81f` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
+> **GENERATED from spec/QGD-SPEC-001.md at `144f7b7423bfbddf9dcccbf7af24c924f97f7299` — hand edits fail `make verify` (QGD-TST-0004); the spec's Verify columns are normative, this matrix is derived.**
 >
-> 227 requirements · 13 Parts · 9 Demo · 45 Inspection · 39 Static · 174 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
+> 228 requirements · 13 Parts · 9 Demo · 45 Inspection · 39 Static · 175 Test. NASA/SP-2016-6105 Rev 2, Appendix D structure — identifier → method(s). **Automatable** reflects the method the spec declares, not whether a check is implemented yet.
 
 ## Requirements
 
@@ -230,6 +230,7 @@
 | `QGD-HOM-0007` | **On the Air** is a built-in extension: it ships with the application, is on by default, and can be turned off, which removes its cards from Home and from the list. It reaches the core only through the extension API and its grants (`QGD-APP-0002`). | Test | ✓ |
 | `QGD-HOM-0008` | **Conditions:** solar flux, the planetary K and A indices, NOAA's space weather scales (R, S and G), an alert when any of them is above 0, each reading with its own observed time (KI7MT, 2026-10-22: NOAA measures the flux once a day, at 20:00 UTC, and the K index every three hours, so one time for the card made one of them look a day old), the flux as the number alone, and the band-by-band outlook as a table of band, status and comment whose status is one of five words defined in `extensions/on-the-air/BAND-OUTLOOK.md` (Excellent, Good, Fair, Poor, Sporadic; KI7MT, 2026-10-22: no standard defines them, so this project does, and its per-band thresholds are rules of thumb, said so), from NOAA's Space Weather Prediction Center, fetched through the credential core like every outbound request (`QGD-SEC-0020`). `solar-mcp` is the specification for its behaviour: both are tested against the same recorded NOAA responses, and neither copies the other's code. | Test | ✓ |
 | `QGD-HOM-0010` | Home meets the floor: with its day-one cards pinned it stays within `QGD-SCP-0009`'s memory and responsiveness on a Raspberry Pi 5. | Demo |  |
+| `QGD-HOM-0011` | **Parks On the Air:** who is activating a POTA park now, from POTA's own spot list, fetched by the core from the registered source (`QGD-APP-0008`): each activator, the park's reference and name, the frequency in MHz with the mode, and the time last spotted in UTC, newest first, with how many activators and parks are on. A spot that is not in POTA's shape is left out rather than guessed at, and when no one is spotted the page says so. Refreshed at most once a minute while the page is open: POTA states no request limit, and once a minute is the restraint its own spot list needs (KI7MT, 2026-10-23). Summits join it, as Parks and Summits On the Air, once SOTA has agreed to this application's use of its API, whose terms ask for that. | Test | ✓ |
 | `QGD-TST-0001` | One command, `make verify`, runs every check and produces the report. | Test | ✓ |
 | `QGD-TST-0002` | `make verify` exits non-zero on any failure. | Test | ✓ |
 | `QGD-TST-0003` | The report records pending acceptance evidence honestly — a gate not yet met is reported as not met, never as passed or omitted. | Inspection |  |

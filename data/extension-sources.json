@@ -5,6 +5,7 @@
     "solar": "https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json",
     "noaa-flux": "https://services.swpc.noaa.gov/products/summary/10cm-flux.json",
     "noaa-kp": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
-    "noaa-scales": "https://services.swpc.noaa.gov/products/noaa-scales.json"
+    "noaa-scales": "https://services.swpc.noaa.gov/products/noaa-scales.json",
+    "pota-spots": "https://api.pota.app/spot/activator"
   }
 }

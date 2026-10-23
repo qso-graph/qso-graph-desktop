@@ -92,13 +92,13 @@ try {
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
   // P8-built-in, first half: a new profile has On the Air and Astro on, and
-  // Conditions and Astro pinned (QGD-HOM-0004), drawn as tiles from the
+  // Conditions, Astro and Parks On the Air pinned (QGD-HOM-0004), drawn as tiles from the
   // manifests alone. Home asks no extension for anything, so no host starts
   // until a page is opened.
   await rm(settingsFile, { force: true });
   ({ application, page } = await launch());
   await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
-  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro']);
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air']);
   // The welcome above the pins (QGD-FRM-0011): what this is, and on a new
   // profile the three steps to start, each a way to where it is done.
   await expect(page.locator('#welcome-headline')).toHaveText('QSO Graph Desktop');
@@ -191,9 +191,10 @@ try {
   const dialog = page.getByRole('dialog', { name: 'Customize your pins' });
   await expect(dialog).toBeVisible();
   await expect(dialog).not.toContainText('Conditions');
+  await expect(dialog).not.toContainText('Parks On the Air');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   // The pins are kept, so they come back where they were.
-  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'astro/astro']);
+  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'astro/astro', 'on-the-air/parks']);
 
   // On again in the same run: its page shows at once what it last said, not
   // "Getting the latest…" until Conditions' fifteen minutes run out.
@@ -231,8 +232,8 @@ try {
   await page.getByRole('switch', { name: /On the Air/ }).click();
   await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
-  await expect(tiles(page)).toHaveCount(2, { timeout: 30_000 });
-  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro']);
+  await expect(tiles(page)).toHaveCount(3, { timeout: 30_000 });
+  expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air']);
   await openPin(page, 'Conditions');
   await expect(body(page)).toContainText(String(expected.sfi), { timeout: 30_000 });
   // A change that cannot be saved leaves the switch showing what was

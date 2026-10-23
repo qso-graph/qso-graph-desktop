@@ -57,6 +57,12 @@
       "needsOperator": false
     },
     {
+      "id": "source:pota-spots",
+      "what": "Ask the core to fetch POTA's list of activators spotted now. The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, no naming of a destination, and nothing sent to POTA about the operator (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
       "id": "files:chosen",
       "what": "Read or write the one path the operator chose in a dialog, for that action.",
       "notWhat": "No ambient filesystem: the path is not kept and nothing else is reachable (QGD-APP-0010).",

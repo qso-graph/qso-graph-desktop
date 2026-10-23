@@ -12,6 +12,7 @@
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
 import type { PageAnswer } from '../../../packages/extension-api/pages.js';
 import { conditionsPage, parseConditions } from './conditions.js';
+import { parksPage, parseSpots } from './parks.js';
 
 const UNREACHABLE: PageAnswer = { ok: false, reason: 'NOAA could not be reached just now.' };
 const UNREADABLE: PageAnswer = { ok: false, reason: "NOAA's data could not be read just now." };
@@ -28,5 +29,14 @@ export function activate(context: ExtensionContext): void {
     if (flux === undefined || kp === undefined || scales === undefined) return UNREACHABLE;
     const conditions = parseConditions({ flux, kp, scales });
     return conditions ? conditionsPage(conditions) : UNREADABLE;
+  }));
+  // Parks On the Air (QGD-HOM-0011): POTA's spots, once a minute while the
+  // page is open, which is as often as POTA's spot list changes in practice
+  // and the same restraint pota-mcp records. POTA states no request limit.
+  context.subscriptions.push(context.pages.register('parks', async ({ signal }) => {
+    const body = await fetchBody(context, 'pota-spots', signal);
+    if (body === undefined) return { ok: false, reason: 'POTA could not be reached just now.' };
+    const spots = parseSpots(body);
+    return spots ? parksPage(spots, new Date()) : { ok: false, reason: "POTA's spots could not be read just now." };
   }));
 }

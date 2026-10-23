@@ -9,7 +9,7 @@ import type { ExtensionReply, ExtensionRequest } from '../../../packages/extensi
 import { activate } from '../src/main.js';
 
 const FILES: Record<string, string> = {
-  'noaa-flux': '10cm-flux.json', 'noaa-kp': 'noaa-planetary-k-index.json', 'noaa-scales': 'noaa-scales.json'
+  'noaa-flux': '10cm-flux.json', 'noaa-kp': 'noaa-planetary-k-index.json', 'noaa-scales': 'noaa-scales.json', 'pota-spots': 'activator.json'
 };
 
 function context(answer: (request: ExtensionRequest) => ExtensionReply) {
@@ -31,21 +31,25 @@ describe('On the Air (QGD-HOM-0007)', () => {
       ? { ok: true, kind: 'source.fetch', body: readFileSync(`tests/fixtures/noaa/quiet/${FILES[request.source]}`, 'utf8'), fresh: true }
       : { ok: false, error: 'refused', refused: 'station:active' });
     activate(value);
-    expect([...providers.keys()]).toEqual(['conditions']);
+    expect([...providers.keys()]).toEqual(['conditions', 'parks']);
     expect(await ask(providers, 'conditions')).toMatchObject({ ok: true });
     expect(asked.map(request => request.kind === 'source.fetch' ? request.source : request.kind).sort()).toEqual(['noaa-flux', 'noaa-kp', 'noaa-scales']);
-    expect(value.subscriptions).toHaveLength(1);
+    expect(await ask(providers, 'parks')).toMatchObject({ ok: true });
+    expect(asked.at(-1)).toEqual({ kind: 'source.fetch', source: 'pota-spots' });
+    expect(value.subscriptions).toHaveLength(2);
   });
 
   it('says NOAA could not be reached when a fetch is refused', async () => {
     const { value, providers } = context(() => ({ ok: false, error: 'The reference source could not be reached.' }));
     activate(value);
     expect(await ask(providers, 'conditions')).toEqual({ ok: false, reason: 'NOAA could not be reached just now.' });
+    expect(await ask(providers, 'parks')).toEqual({ ok: false, reason: 'POTA could not be reached just now.' });
   });
 
   it('says the data could not be read when NOAA sends something else', async () => {
     const { value, providers } = context(() => ({ ok: true, kind: 'source.fetch', body: '<html>maintenance</html>', fresh: true }));
     activate(value);
     expect(await ask(providers, 'conditions')).toEqual({ ok: false, reason: "NOAA's data could not be read just now." });
+    expect(await ask(providers, 'parks')).toEqual({ ok: false, reason: "POTA's spots could not be read just now." });
   });
 });

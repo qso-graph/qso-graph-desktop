@@ -18,7 +18,10 @@ const FILE = /^[a-z0-9][a-z0-9.-]{0,80}\.json$/;
 export function sourceFixtures(packaged: boolean, directory: string | undefined) {
   if (packaged || !directory) return undefined;
   return async (url: string): Promise<{ body: string; fresh: boolean }> => {
-    const name = new URL(url).pathname.split('/').pop() ?? '';
+    // POTA's spot list is …/spot/activator, with no extension: its recording
+    // is activator.json, as every recording is a .json file.
+    const last = new URL(url).pathname.split('/').pop() ?? '';
+    const name = last.endsWith('.json') ? last : `${last}.json`;
     if (!FILE.test(name)) throw new Error('There is no recorded response for that source.');
     return { body: await readFile(join(directory, name), 'utf8'), fresh: true };
   };

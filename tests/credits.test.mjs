@@ -28,7 +28,7 @@ describe('NOTICE credits every data source', () => {
 
   it('credits each source a card may fetch', () => {
     // Who each host belongs to, as the credit names them.
-    const owner = { 'services.swpc.noaa.gov': 'noaa' };
+    const owner = { 'services.swpc.noaa.gov': 'noaa', 'api.pota.app': 'reference/pota' };
     const hosts = new Set(Object.values(sources.sources).map(url => new URL(url).hostname));
     expect(hosts.size, 'the register names sources, or this check is vacuous').toBeGreaterThan(0);
     for (const host of hosts) {

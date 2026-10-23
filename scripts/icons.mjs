@@ -38,6 +38,7 @@ export const ICONS = [
   { key: 'sun', name: 'sun', style: 'solid', forExtensions: true },
   { key: 'moon', name: 'moon', style: 'solid', forExtensions: true },
   { key: 'tower-broadcast', name: 'tower-broadcast', style: 'solid', forExtensions: true },
+  { key: 'tree', name: 'tree', style: 'solid', forExtensions: true },
   { key: 'satellite-dish', name: 'satellite-dish', style: 'solid', forExtensions: true },
   { key: 'map', name: 'map-location-dot', style: 'solid', forExtensions: true },
   { key: 'chart', name: 'chart-line', style: 'solid', forExtensions: true },

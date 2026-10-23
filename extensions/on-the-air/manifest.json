@@ -5,7 +5,7 @@
   "tier": "official",
   "version": "1.0.0",
   "engines": { "qgd": "^1.0.0" },
-  "grants": ["source:noaa-flux", "source:noaa-kp", "source:noaa-scales"],
+  "grants": ["source:noaa-flux", "source:noaa-kp", "source:noaa-scales", "source:pota-spots"],
   "main": "main.js",
   "contributes": {
     "pages": [
@@ -15,6 +15,13 @@
         "description": "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.",
         "refreshSeconds": 900,
         "icon": "sun"
+      },
+      {
+        "id": "parks",
+        "name": "Parks On the Air",
+        "description": "Who is activating a POTA park now: the park, the frequency and mode, and when they were spotted.",
+        "refreshSeconds": 60,
+        "icon": "tree"
       }
     ]
   }
