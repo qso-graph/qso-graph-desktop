@@ -145,7 +145,7 @@
        bar already names the application. The clock at the left, as it is
        always there; the right is kept for what extensions add, as a rig's
        frequency and mode (#43). -->
-  <HeaderClock />
+  <HeaderClock online={homeModel.online} />
 </header>
 <div class="workspace">
   <Rail pages={railPages} current={railCurrent} onNavigate={navigate} />
@@ -239,7 +239,6 @@
 </div>
 <StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}
-           offline={!homeModel.online}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })} />
 {#if shell.troubleshooting}
   <TroubleshootingPanel storage={shell.storage}

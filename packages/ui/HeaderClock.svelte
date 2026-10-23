@@ -14,8 +14,12 @@
 
   interface Props {
     now?: Date;
+    // Whether the computer is on a network, as the operating system says:
+    // the Internet lamp beside the clocks, an instrument reading always in
+    // view (KI7MT, 2026-10-23). Absent, no lamp.
+    online?: boolean | undefined;
   }
-  const { now }: Props = $props();
+  const { now, online }: Props = $props();
 
   // Each tick is scheduled for just after the next whole second, not every
   // 1000 ms from whenever the page opened. An interval started at .7 of a
@@ -39,5 +43,11 @@
   <div class="header-clock" id="header-clock" role="group" aria-label="Clock">
     <span class="clock-part"><span class="clock-label">UTC</span> <time class="clock-time">{text.utcDate} {text.utcTime}</time></span>
     <span class="clock-part"><span class="clock-label">Local</span> <time class="clock-time">{text.localTime}</time></span>
+    {#if online !== undefined}
+      <!-- Green on, red off, with the word: colour never says it alone. -->
+      <span class="clock-part net-lamp" id="net-lamp" data-online={online ? 'true' : 'false'} role="status" aria-label={online ? 'Internet: online' : 'Internet: offline'}>
+        <span class="clock-label">Internet</span> <span class="net-light" aria-hidden="true"></span> <span class="net-word" aria-hidden="true">{online ? 'On' : 'Off'}</span>
+      </span>
+    {/if}
   </div>
 </div>

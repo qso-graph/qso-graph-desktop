@@ -51,6 +51,9 @@
   --clock-ink: #39ff6a;
   --clock-ground: #000000;
   --clock-label: #5fa86f;
+  /* The Internet lamp: on and off, on the clock's black. */
+  --lamp-on: #39ff6a;
+  --lamp-off: #ff4d4d;
   /* The world map (page data version 6): sea, land, the night over both, the
      terminator, the sun and the places marked. */
   --map-sea: #e4edf4;
@@ -96,6 +99,8 @@
     --clock-ink: #39ff6a;
     --clock-ground: #000000;
     --clock-label: #5fa86f;
+    --lamp-on: #39ff6a;
+    --lamp-off: #ff4d4d;
     --map-sea: #0f1a24;
     --map-land: #2b3a44;
     --map-night: rgba(0, 0, 0, 0.55);
@@ -142,6 +147,9 @@
   --clock-ink: #39ff6a;
   --clock-ground: #000000;
   --clock-label: #5fa86f;
+  /* The Internet lamp: on and off, on the clock's black. */
+  --lamp-on: #39ff6a;
+  --lamp-off: #ff4d4d;
   --map-sea: #0f1a24;
   --map-land: #2b3a44;
   --map-night: rgba(0, 0, 0, 0.55);
@@ -168,6 +176,11 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 .header-clock { display: flex; gap: 18px; font-size: 13px; padding: 6px 14px; border-radius: 6px;
   background: var(--clock-ground); border: 1px solid var(--border); }
 .clock-label { color: var(--clock-label); font-size: 11px; font-weight: 600; margin-right: 4px; }
+/* The Internet lamp on the clock's panel (KI7MT, 2026-10-23). */
+.net-light { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: 0; background: var(--lamp-off); box-shadow: 0 0 6px var(--lamp-off); }
+.net-lamp[data-online="true"] .net-light { background: var(--lamp-on); box-shadow: 0 0 6px var(--lamp-on); }
+.net-word { color: var(--lamp-off); font-weight: 650; font-size: 12px; }
+.net-lamp[data-online="true"] .net-word { color: var(--lamp-on); }
 .clock-time { color: var(--clock-ink); font-weight: 650; font-variant-numeric: tabular-nums;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
 .hint, .sidebar-note, .optional { color: var(--ink-muted); }
@@ -293,8 +306,6 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .status-slot::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
 .status-slot[data-hue="callsigns"]::before { background: var(--hue-callsigns); }
 .status-slot[data-hue="locations"]::before { background: var(--hue-locations); }
-/* No network: said in the warning's amber, the word beside it. */
-.status-offline { color: var(--warn); }
 @media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */

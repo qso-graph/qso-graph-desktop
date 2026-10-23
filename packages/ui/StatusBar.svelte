@@ -31,15 +31,12 @@
     dataContext?: string;
     // Opens the Troubleshooting panel.
     onOpenTroubleshooting?: () => void;
-    // The computer has no network, as the operating system says.
-    offline?: boolean;
   }
   const {
     activeCallsign,
     activeStation = '',
     dataContext,
-    onOpenTroubleshooting,
-    offline = false
+    onOpenTroubleshooting
   }: Props = $props();
   // The line that said when the application goes online is gone: Home's cards
   // made it untrue, and it is said in full under Help → Privacy and Licences
@@ -50,7 +47,6 @@
   <!-- Each slot in its place's hue, the word always beside it (style.css). -->
   <span id="active-callsign" class="status-slot" data-hue="callsigns">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
   <span id="active-station" class="status-slot" data-hue="locations">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
-  {#if offline}<span id="offline" class="status-slot status-offline" role="status">Offline</span>{/if}
   <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
   {#if onOpenTroubleshooting}
     <button type="button" id="open-troubleshooting" class="bar-button" onclick={onOpenTroubleshooting}

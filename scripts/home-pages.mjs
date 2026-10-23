@@ -99,6 +99,9 @@ try {
   ({ application, page } = await launch());
   await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
   expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air']);
+  // The Internet lamp on the clock's panel, from the operating system's own
+  // reading (KI7MT, 2026-10-23).
+  await expect(page.locator('#net-lamp')).toHaveAttribute('aria-label', 'Internet: online');
   // The welcome above the pins (QGD-FRM-0011): what this is, and on a new
   // profile the three steps to start, each a way to where it is done.
   await expect(page.locator('#welcome-headline')).toHaveText('QSO Graph Desktop');
