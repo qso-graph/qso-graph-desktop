@@ -28,13 +28,13 @@ describe('ADIF Lookup', () => {
     expect([...providers.keys()]).toEqual(['lookup']);
     expect(await ask(providers, {})).toMatchObject({ ok: true });
     expect(asked).toEqual([]);
-    await ask(providers, { q: 'FT8' });
+    await ask(providers, { search: 'FT8' });
     expect(asked).toEqual([{ kind: 'adif.search', query: 'FT8' }]);
   });
 
   it('passes on the core\'s words when it cannot search', async () => {
     const { value, providers } = context(() => ({ ok: false, error: 'ADIF\'s definitions are not downloaded. Download them in Settings, then try again.' }));
     activate(value);
-    expect(await ask(providers, { q: 'FT8' })).toMatchObject({ ok: true, data: { sections: [{ shape: 'alert', text: expect.stringMatching(/not downloaded/) }] } });
+    expect(await ask(providers, { search: 'FT8' })).toMatchObject({ ok: true, data: { sections: [{ shape: 'alert', text: expect.stringMatching(/not downloaded/) }] } });
   });
 });

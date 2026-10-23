@@ -9,7 +9,7 @@ import { lookupPage } from './page.js';
 
 export function activate(context: ExtensionContext): void {
   context.subscriptions.push(context.pages.register('lookup', async ({ signal, inputs }) => {
-    const query = inputs.q;
+    const query = inputs.search;
     if (query === undefined) return lookupPage(undefined, [], new Date());
     const reply = await context.request({ kind: 'adif.search', query }, { signal });
     const found = reply.ok && reply.kind === 'adif.search' ? reply.entries

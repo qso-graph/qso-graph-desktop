@@ -16,7 +16,7 @@
         "refreshSeconds": 86400,
         "icon": "book",
         "rail": true,
-        "inputs": [{ "id": "q", "label": "Search", "kind": "text", "max": 64, "hint": "A field, a band, a mode or any ADIF value, as FT8, 20m or MY_GRIDSQUARE." }]
+        "inputs": [{ "id": "search", "label": "Search", "kind": "text", "max": 64, "hint": "A field, a band, a mode or any ADIF value, as FT8, 20m or MY_GRIDSQUARE." }]
       }
     ]
   }
