@@ -9,9 +9,10 @@
   the application, and no extension code runs in the window.
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import { filterOptions, filteredGroups, pageContents, sortedGroups, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { untrack, type Snippet } from 'svelte';
+  import { filterOptions, filteredGroups, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
+  import { recall, remember } from './page-memory.js';
 
   interface Props {
     shown: PageShown;
@@ -22,23 +23,37 @@
     // The page needs the internet and the computer has none: what it shows
     // is from before, and it says so.
     offline?: boolean;
+    // The page's key, under which its filters and sorts are remembered for
+    // the session (page-memory.ts).
+    rememberAs?: string | undefined;
   }
-  const { shown, onRefresh, fields, offline = false }: Props = $props();
+  const { shown, onRefresh, fields, offline = false, rememberAs }: Props = $props();
 
   // What each table's filters are set to, by section and column; '' is All.
-  // Kept across a refresh, so a band chosen stays chosen as spots update.
-  let chosen = $state<Record<number, Record<number, string>>>({});
+  // Kept across a refresh, so a band chosen stays chosen as spots update,
+  // and across visits, by the page's key. A table not yet touched starts
+  // where its filters say (My area, for Parks On the Air).
+  // Read once: the page is drawn afresh for each page key ({#key} in
+  // ExtensionPage), so the key a body starts with is the one it keeps.
+  const before = untrack(() => recall(rememberAs));
+  let chosen = $state<Record<number, Record<number, string>>>(before?.chosen ?? {});
   const choose = (section: number, column: number, value: string) => {
-    chosen = { ...chosen, [section]: { ...(chosen[section] ?? {}), [column]: value } };
+    chosen = { ...chosen, [section]: { ...choicesOf(section), [column]: value } };
   };
-  const anyChosen = (section: number) => Object.values(chosen[section] ?? {}).some(value => value !== '');
+  const choicesOf = (at: number): Record<number, string> => {
+    if (chosen[at]) return chosen[at];
+    const section = shown.state === 'ready' ? shown.sections[at] : undefined;
+    return section?.shape === 'table' ? startingChoices(section) : {};
+  };
+  $effect(() => { remember(rememberAs, { chosen, sorts }); });
+  const anyChosen = (section: number) => Object.values(choicesOf(section)).some(value => value !== '');
   // Every filter of a table back to All (KI7MT, 2026-10-23).
   const clearFilters = (section: number) => { chosen = { ...chosen, [section]: {} }; };
 
   // How each sortable table is sorted, by section: none until a heading is
   // clicked, then ascending, then each click turns it round. Kept across a
   // refresh, like the filters.
-  let sorts = $state<Record<number, TableSort>>({});
+  let sorts = $state<Record<number, TableSort>>(before?.sorts ?? {});
   // The sort a table is in: the operator's, or else the order the extension
   // says it sent.
   const sortOf = (section: number, sent: TableSort | undefined) => sorts[section] ?? sent;
@@ -109,8 +124,9 @@
           <div class="page-filters">
             {#each section.filters as filter (filter.column)}
               <label>{filter.label}
-                <select class="page-filter" value={chosen[at]?.[filter.column] ?? ''}
+                <select class="page-filter" value={choicesOf(at)[filter.column] ?? ''}
                   onchange={event => choose(at, filter.column, event.currentTarget.value)}>
+                  {#each filter.named ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
                   <option value="">All</option>
                   {#each filterOptions(section, filter) as option (option)}<option value={option}>{option}</option>{/each}
                 </select>
@@ -120,7 +136,7 @@
           </div>
         {/if}
         {@const sort = sortOf(at, section.sortedBy)}
-        {@const groups = sortedGroups(section, filteredGroups(section, chosen[at] ?? {}), sort)}
+        {@const groups = sortedGroups(section, filteredGroups(section, choicesOf(at)), sort)}
         {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
         <table class="page-table" hidden={groups.length === 0}>
           <thead><tr>{#each section.columns as column, c (c)}

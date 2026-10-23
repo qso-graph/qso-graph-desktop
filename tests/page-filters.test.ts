@@ -2,7 +2,7 @@
 // A table's filters as the core applies them (page data version 6): at once,
 // in the window, with no new question asked.
 import { describe, expect, it } from 'vitest';
-import { filterOptions, filteredGroups, pageContents, sortedGroups, type Section } from '../packages/ui/page-shapes.js';
+import { filterOptions, filteredGroups, pageContents, sortedGroups, startingChoices, type Section } from '../packages/ui/page-shapes.js';
 
 type Table = Extract<Section, { shape: 'table' }>;
 const table: Table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [
@@ -111,5 +111,16 @@ describe('a filter over cells with several values (KI7MT, 2026-10-23)', () => {
     expect(filterOptions(parks, parks.filters![0]!)).toEqual(['JP-FS', 'JP-GM', 'JP-NI', 'JP-TC', 'GB-ENG']);
     expect(filteredGroups(parks, { 1: 'JP-FS' })[0]!.rows.map(row => row[0])).toEqual(['JP-0011', 'JP-1874']);
     expect(filteredGroups(parks, { 1: 'JP-TC' })[0]!.rows.map(row => row[0])).toEqual(['JP-0011']);
+  });
+});
+
+describe('a named choice and where a filter starts (KI7MT, 2026-10-23)', () => {
+  const parks: Table = { shape: 'table', columns: ['Park', 'Location'], rows: [
+    ['JP-0011', 'JP-FS, JP-GM'], ['US-0001', 'US-ID'], ['US-0002', 'US-MT'], ['GB-0612', 'GB-ENG']
+  ], filters: [{ column: 1, label: 'Location', multiple: true, named: [{ label: 'My area', values: ['US-ID', 'US-MT'] }], start: 'My area' }] };
+  it('keeps the rows any of whose values is among the named choice\'s, and starts there', () => {
+    expect(startingChoices(parks)).toEqual({ 1: 'My area' });
+    expect(filteredGroups(parks, startingChoices(parks))[0]!.rows.map(row => row[0])).toEqual(['US-0001', 'US-0002']);
+    expect(filteredGroups(parks, { 1: '' })[0]!.rows).toHaveLength(4);
   });
 });

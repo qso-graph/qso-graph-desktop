@@ -5,7 +5,7 @@
   "tier": "official",
   "version": "1.0.0",
   "engines": { "qgd": "^1.0.0" },
-  "grants": ["source:noaa-flux", "source:noaa-kp", "source:noaa-scales", "source:pota-spots", "reference:read"],
+  "grants": ["source:noaa-flux", "source:noaa-kp", "source:noaa-scales", "source:pota-spots", "reference:read", "station:active"],
   "main": "main.js",
   "contributes": {
     "pages": [

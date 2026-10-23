@@ -104,7 +104,7 @@ const NO_MODE = '—';
 const NO_NAME = '—';
 export const SHOWN = 200;
 
-export function parksPage(spots: readonly Spot[], now: Date, bands: readonly AdifBand[] = []): PageAnswer {
+export function parksPage(spots: readonly Spot[], now: Date, bands: readonly AdifBand[] = [], area: readonly string[] = []): PageAnswer {
   const newest = [...spots].sort((a, b) => b.at.getTime() - a.at.getTime());
   const observedAt = new Date(Math.floor((newest[0]?.at ?? now).getTime() / 60_000) * 60_000).toISOString().replace('.000Z', 'Z');
   if (newest.length === 0) {
@@ -149,7 +149,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),
       { column: 6, label: 'Mode', options: modeOptions },
-      { column: 3, label: 'Location', options: locationOptions, multiple: true }
+      // My area first, and where the page starts, when the operator has one
+      // (KI7MT, 2026-10-23): their own spots before the world's.
+      { column: 3, label: 'Location', options: locationOptions, multiple: true,
+        ...(area.length > 0 ? { named: [{ label: 'My area', values: [...area] }], start: 'My area' } : {}) }
     ] }
   ];
   if (bands.length === 0) {

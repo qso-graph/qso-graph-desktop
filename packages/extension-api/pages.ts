@@ -137,6 +137,13 @@ export interface TableFilter {
   // single values (KI7MT, 2026-10-23: a park in JP-FS, JP-GM, JP-NI and
   // JP-TC is a park in JP-FS).
   readonly multiple?: true;
+  // Choices that stand for several values, offered first: "My area" for the
+  // operator's locations (KI7MT, 2026-10-23). A row matches one when its
+  // value, or any of its values, is among them.
+  readonly named?: readonly { readonly label: string; readonly values: readonly string[] }[];
+  // The choice the filter starts at, rather than All: one of its options or
+  // a named choice's label.
+  readonly start?: string;
 }
 
 // A place on the earth, in degrees: north and east positive.
@@ -326,19 +333,41 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     const filters = filtered ? each(value.filters as unknown[], where, (filter: unknown, f: number): TableFilter => {
       const name = `${where}, filter ${f + 1}`;
       if (!isRecord(filter)) throw new PageError(`${name} is not an object.`);
-      only(filter, ['column', 'label', 'options', 'multiple'], name);
+      only(filter, ['column', 'label', 'options', 'multiple', 'named', 'start'], name);
       if (filter.multiple !== undefined && filter.multiple !== true) throw new PageError(`${name}'s multiple is not true.`);
-      const multiple = filter.multiple === true ? { multiple: true as const } : {};
+      let named: { label: string; values: string[] }[] | undefined;
+      if (filter.named !== undefined) {
+        if (!Array.isArray(filter.named) || filter.named.length === 0 || filter.named.length > 5) {
+          throw new PageError(`${name} has no named choices, or more than 5.`);
+        }
+        named = each(filter.named, name, (choice: unknown, n: number) => {
+          const at = `${name}, named choice ${n + 1}`;
+          if (!isRecord(choice)) throw new PageError(`${at} is not an object.`);
+          only(choice, ['label', 'values'], at);
+          if (!Array.isArray(choice.values) || choice.values.length === 0 || choice.values.length > PAGE_LIMITS.options) {
+            throw new PageError(`${at} has no values, or more than ${PAGE_LIMITS.options}.`);
+          }
+          return { label: text(choice.label, PAGE_LIMITS.label, `${at}'s label`), values: each(choice.values, at, (value: unknown, v: number) => text(value, PAGE_LIMITS.cell, `${at}, value ${v + 1}`)) };
+        });
+      }
+      const start = filter.start === undefined ? undefined : text(filter.start, PAGE_LIMITS.cell, `${name}'s start`);
+      const multiple = { ...(filter.multiple === true ? { multiple: true as const } : {}), ...(named ? { named } : {}), ...(start !== undefined ? { start } : {}) };
       if (typeof filter.column !== 'number' || !Number.isInteger(filter.column) || filter.column < 0 || filter.column >= columns.length) {
         throw new PageError(`${name} does not name one of the table's columns.`);
       }
       const label = text(filter.label, PAGE_LIMITS.label, `${name}'s label`);
-      if (filter.options === undefined) return { column: filter.column, label, ...multiple };
+      if (filter.options === undefined) {
+        if (start !== undefined && !named?.some(choice => choice.label === start)) throw new PageError(`${name} starts at a choice it does not offer.`);
+        return { column: filter.column, label, ...multiple };
+      }
       if (!Array.isArray(filter.options) || filter.options.length === 0 || filter.options.length > PAGE_LIMITS.options) {
         throw new PageError(`${name} has no options, or more than ${PAGE_LIMITS.options}.`);
       }
       const options = each(filter.options, name, (option: unknown, o: number) => text(option, PAGE_LIMITS.cell, `${name}, option ${o + 1}`));
       if (new Set(options).size !== options.length) throw new PageError(`${name} offers the same option twice.`);
+      if (start !== undefined && !options.includes(start) && !named?.some(choice => choice.label === start)) {
+        throw new PageError(`${name} starts at a choice it does not offer.`);
+      }
       return { column: filter.column, label, options, ...multiple };
     }) : undefined;
     if (filters && new Set(filters.map(filter => filter.column)).size !== filters.length) {

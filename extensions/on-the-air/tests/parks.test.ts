@@ -119,3 +119,15 @@ describe('long names and parks in several locations (KI7MT, 2026-10-23)', () => 
     expect(table.filters?.find(filter => filter.label === 'Location')).toEqual({ column: 3, label: 'Location', options: ['FR-OCC', 'JP-FS', 'JP-GM', 'JP-NI', 'JP-TC'], multiple: true });
   });
 });
+
+describe('My area (KI7MT, 2026-10-23)', () => {
+  it('offers My area first and starts there when the operator has one, and All otherwise', () => {
+    const withArea = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS, ['US-ID', 'GB-ENG']));
+    const table = withArea.ok ? withArea.data.sections.find(section => section.shape === 'table') : undefined;
+    if (!table || table.shape !== 'table') throw new Error('no table');
+    expect(table.filters?.find(filter => filter.label === 'Location')).toMatchObject({ named: [{ label: 'My area', values: ['US-ID', 'GB-ENG'] }], start: 'My area' });
+    const without = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS, []));
+    const plain = without.ok ? without.data.sections.find(section => section.shape === 'table') : undefined;
+    expect(plain?.shape === 'table' && plain.filters?.find(filter => filter.label === 'Location')?.start).toBeUndefined();
+  });
+});

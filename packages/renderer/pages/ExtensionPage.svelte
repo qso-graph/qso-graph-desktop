@@ -104,7 +104,7 @@
     {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->
-    {#key page.key}<PageBody shown={page.shown} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} />{/key}
+    {#key page.key}<PageBody shown={page.shown} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} rememberAs={page.key} />{/key}
     <!-- Placed by the page, and the page between answers: kept below what
          it says rather than jumping to the top and back. -->
     {#if placed && page.shown.state !== 'ready'}{@render fieldsForm()}{/if}

@@ -240,7 +240,12 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     [[{ column: 1, label: 'Band', options: ['20m', '20m'] }], /same option twice/],
     [[{ column: 1, label: 'Band', options: Array.from({ length: 101 }, (_, i) => `b${i}`) }], /more than 100/],
     [[{ column: 1, label: 'Band', default: '20m' }], /"default"/],
-    [[{ column: 1, label: 'Band', multiple: false }], /multiple is not true/]
+    [[{ column: 1, label: 'Band', multiple: false }], /multiple is not true/],
+    [[{ column: 1, label: 'Band', start: 'Nowhere' }], /does not offer/],
+    [[{ column: 1, label: 'Band', options: ['20m'], start: '40m' }], /does not offer/],
+    [[{ column: 1, label: 'Band', named: [] }], /no named choices/],
+    [[{ column: 1, label: 'Band', named: [{ label: 'Mine', values: [] }] }], /no values/],
+    [[{ column: 1, label: 'Band', named: [{ label: '<b>', values: ['20m'] }] }], /markup/]
   ])('refuses an off-shape filter (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(6, [{ ...table, filters: value }]))).toThrowError(message);
   });

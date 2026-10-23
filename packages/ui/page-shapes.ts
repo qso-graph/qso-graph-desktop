@@ -42,7 +42,10 @@ export function pageContents(sections: readonly Section[]): ContentsEntry[] {
 export interface Place { readonly latitude: number; readonly longitude: number }
 export interface Mark extends Place { readonly label: string }
 // A column to narrow the table by (version 6).
-export interface TableFilter { readonly column: number; readonly label: string; readonly options?: readonly string[]; readonly multiple?: true }
+export interface TableFilter {
+  readonly column: number; readonly label: string; readonly options?: readonly string[]; readonly multiple?: true;
+  readonly named?: readonly { readonly label: string; readonly values: readonly string[] }[]; readonly start?: string;
+}
 export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
 
 // What a filter offers: the extension's options, or else the column's own
@@ -70,6 +73,10 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
   // hide every row with no filter drawn to clear it (Codex review, 2026-10-23).
   const offered = new Set((section.filters ?? []).map(filter => filter.column));
   const several = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column));
+  // A named choice stands for its values (My area for the operator's
+  // locations): the row matches when its value, or any of them, is one.
+  const namedValues = (column: number, value: string) =>
+    section.filters?.find(filter => filter.column === column)?.named?.find(choice => choice.label === value)?.values;
   const active = Object.entries(chosen).filter(([column, value]) => value !== '' && offered.has(Number(column)));
   // Each group keeps its place in the table as sent (`at`), which its
   // contents link names: two groups may share a heading (Codex review).
@@ -77,10 +84,18 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
   if (active.length === 0) return placed;
   return placed
     .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
-      && active.every(([column, value]) => (several.has(Number(column))
-        ? valuesOf(row[Number(column)] ?? '').includes(value)
-        : row[Number(column)] === value))) }))
+      && active.every(([column, value]) => {
+        const cell = row[Number(column)] ?? '';
+        const values = several.has(Number(column)) ? valuesOf(cell) : [cell];
+        const wanted = namedValues(Number(column), value);
+        return wanted ? values.some(entry => wanted.includes(entry)) : values.includes(value);
+      })) }))
     .filter(group => group.rows.length > 0);
+}
+
+// Where a table's filters start: each one's start, where it gives one.
+export function startingChoices(section: Extract<Section, { shape: 'table' }>): Record<number, string> {
+  return Object.fromEntries((section.filters ?? []).flatMap(filter => (filter.start !== undefined ? [[filter.column, filter.start]] : [])));
 }
 
 // A sort the operator chose by clicking a heading (version 6).

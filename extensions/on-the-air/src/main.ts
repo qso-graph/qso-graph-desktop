@@ -41,6 +41,10 @@ export function activate(context: ExtensionContext): void {
     // ADIF's bands name each spot's band; without them the page still shows
     // the spots, and says how to get the bands.
     const reply = await context.request({ kind: 'adif.bands' }, { signal });
-    return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : []);
+    // My Area, so the page starts on the operator's own locations (KI7MT,
+    // 2026-10-23). Without it, the page starts on All, as before.
+    const area = await context.request({ kind: 'area.get' }, { signal });
+    return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : [],
+      area.ok && area.kind === 'area.get' ? area.locations : []);
   }));
 }
