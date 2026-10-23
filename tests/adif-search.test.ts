@@ -108,7 +108,7 @@ describe('QG Storage\'s ADIF replies pass the main process\'s check', () => {
     for (const bands of [[{ band: '20m', lowerMHz: 14 }], [{ band: '20m', lowerMHz: 14.35, upperMHz: 14 }], [{ band: 20, lowerMHz: 14, upperMHz: 14.35 }], [{ band: '20m', lowerMHz: 14, upperMHz: 14.35, x: 1 }], 'bands']) {
       expect(isStorageReply({ ok: true, status, bands }), JSON.stringify(bands)).toBe(false);
     }
-    expect(isStorageReply({ ok: true, status, adif: [{ list: 'Band', key: '20m', columns: [{ name: 'Band', value: 'x'.repeat(201) }] }] })).toBe(false);
+    expect(isStorageReply({ ok: true, status, adif: [{ list: 'Band', key: '20m', columns: [{ name: 'Band', value: 'x'.repeat(1001) }] }] })).toBe(false);
   });
 });
 

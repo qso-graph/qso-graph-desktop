@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import type { AdifEntry } from '../../../packages/extension-api/api-contract.js';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
-import { adifSays, lookupPage } from '../src/page.js';
+import { adifRows, lookupPage } from '../src/page.js';
+import { pageContents } from '../../../packages/ui/page-shapes.js';
 
 const NOW = new Date('2026-10-23T18:00:00Z');
 const FOUND: AdifEntry[] = [
@@ -24,20 +25,23 @@ describe('ADIF Lookup', () => {
     expect(sections(lookupPage(undefined, [], NOW))).toEqual([{ shape: 'text', text: expect.stringMatching(/^Search ADIF's own definitions/) }]);
   });
 
-  it('shows ADIF\'s text under ADIF\'s own column names, nothing added, the name not said twice', () => {
-    expect(adifSays(FOUND[0]!)).toBe('Lower Freq (MHz): 14.0 · Upper Freq (MHz): 14.35');
-    expect(adifSays(FOUND[1]!)).toBe('Data Type: Enumeration · Enumeration: Band · Description: QSO band');
-    // A value with nothing but its own name: an empty column is not filled.
-    expect(adifSays(FOUND[2]!)).toBe('—');
+  it('gives each of ADIF\'s columns its own row, under ADIF\'s own name, nothing joined or left out', () => {
+    expect(adifRows(FOUND[0]!)).toEqual([
+      ['Band', 'Band', '20m'], ['Band', 'Lower Freq (MHz)', '14.0'], ['Band', 'Upper Freq (MHz)', '14.35']
+    ]);
+    expect(adifRows(FOUND[1]!)).toEqual([
+      ['Field', 'Data Type', 'Enumeration'], ['Field', 'Enumeration', 'Band'], ['Field', 'Description', 'QSO band']
+    ]);
   });
 
-  it('draws the matches as a sortable table, narrowed by list, Field first', () => {
-    const [table] = sections(lookupPage('20m', FOUND, NOW));
-    if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no table');
-    expect(table.columns).toEqual(['List', 'Name', 'ADIF says']);
-    expect(table.rows.map(row => row[1])).toEqual(['20m', 'BAND', 'FT8']);
-    expect(table.sortable).toBe(true);
+  it('draws each match as a group headed by its name, narrowed by list, Field first, and not as forty contents links', () => {
+    const found = sections(lookupPage('20m', FOUND, NOW));
+    const [table] = found;
+    if (!table || table.shape !== 'table' || !('groups' in table)) throw new Error('no table');
+    expect(table.columns).toEqual(['List', 'ADIF column', 'Value']);
+    expect(table.groups.map(group => group.heading)).toEqual(['20m', 'BAND', 'FT8']);
     expect(table.filters).toEqual([{ column: 0, label: 'List', options: ['Field', 'Band', 'Mode'] }]);
+    expect(pageContents(found)).toEqual([]);
   });
 
   it('says so when nothing matches, and passes on in its own words why it could not search', () => {
@@ -51,11 +55,15 @@ describe('ADIF Lookup', () => {
     expect(sections(lookupPage('M', many, NOW)).at(-1)).toEqual({ shape: 'text', text: 'The first 40 matches are shown. A longer search narrows them.' });
   });
 
-  it('keeps ADIF\'s long text whole up to what a cell holds, and never sends markup', () => {
-    const long = { list: 'Field', key: 'COMMENT', columns: [{ name: 'Description', value: `<b>${'y'.repeat(300)}</b>` }] };
-    const said = adifSays(long);
-    expect(said.length).toBeLessThanOrEqual(200);
-    expect(said).not.toMatch(/[<>]/);
-    expect(() => validatePageAnswer(lookupPage('COMMENT', [long], NOW))).not.toThrow();
+  it('keeps ADIF\'s longest text whole: 3.1.7\'s longest description is 634 characters', () => {
+    const long = 'y'.repeat(634);
+    const entry = { list: 'Field', key: 'MY_GRIDSQUARE_EXT', columns: [{ name: 'Description', value: long }] };
+    expect(adifRows(entry)[0]![2]).toBe(long);
+    expect(() => validatePageAnswer(lookupPage('MY_GRIDSQUARE_EXT', [entry], NOW))).not.toThrow();
+  });
+
+  it('never sends markup to the page', () => {
+    const entry = { list: 'Field', key: 'COMMENT', columns: [{ name: 'Description', value: '<b>bold</b>' }] };
+    expect(adifRows(entry)[0]![2]).toBe('bbold/b');
   });
 });

@@ -62,14 +62,14 @@ export const PAGE_LIMITS = {
   alert: 200,
   reason: 160,
   columns: 8,
-  rows: 200,
+  rows: 500,
   filters: 3,
   options: 100,
-  groups: 8,
+  groups: 40,
   marks: 4,
-  // A cell holds ADIF's own text, up to the 200 characters QG Storage gives
-  // it (ADIF Lookup, KI7MT 2026-10-23): cut at 80, ADIF would be reworded.
-  cell: 200,
+  // A cell holds ADIF's own text whole, up to the 1000 characters QG Storage
+  // allows it (ADIF Lookup, KI7MT 2026-10-23): cut, ADIF would be reworded.
+  cell: 1000,
   heading: 60
 } as const;
 

@@ -29,7 +29,10 @@ export interface ContentsEntry { readonly id: string; readonly label: string }
 export function pageContents(sections: readonly Section[]): ContentsEntry[] {
   const entries: ContentsEntry[] = [];
   sections.forEach((section, at) => {
-    if (section.heading && section.contents !== false) entries.push({ id: `page-part-${at}`, label: section.heading });
+    // A section left out of the contents is left out with its groups: ADIF
+    // Lookup's forty matches would otherwise be forty links (2026-10-23).
+    if (section.contents === false) return;
+    if (section.heading) entries.push({ id: `page-part-${at}`, label: section.heading });
     if (section.shape === 'table' && 'groups' in section) {
       section.groups.forEach((group, g) => entries.push({ id: `page-part-${at}-${g}`, label: group.heading }));
     }

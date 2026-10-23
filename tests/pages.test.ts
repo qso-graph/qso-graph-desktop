@@ -100,8 +100,8 @@ describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
     [{ ...table, rows: [['20m', 'Good']] }, /does not have 3 cells/],
     [{ ...table, columns: [] }, /no columns/],
     [{ ...table, columns: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], rows: [] }, /more than 8/],
-    [{ ...table, rows: Array.from({ length: 201 }, () => ['a', 'b', 'c']) }, /at most 200/],
-    [{ ...table, rows: [['20m', 'Good', 'x'.repeat(201)]] }, /cell 3/],
+    [{ ...table, rows: Array.from({ length: 501 }, () => ['a', 'b', 'c']) }, /at most 500/],
+    [{ ...table, rows: [['20m', 'Good', 'x'.repeat(1001)]] }, /cell 3/],
     [{ ...table, rows: [['20m', 'Good', '<b>x</b>']] }, /./],
     [{ ...table, html: 'x' }, /./]
   ])('refuses an off-shape table (%#)', (value, message) => {
@@ -146,13 +146,13 @@ describe('a table in groups, and a value across its columns, page data version 5
   it.each([
     [{ ...grouped, rows: [] }, /a field pages do not have: "rows"/],
     [{ ...grouped, groups: [] }, /no groups/],
-    [{ ...grouped, groups: Array.from({ length: 9 }, () => ({ heading: 'x', rows: [] })) }, /more than 8/],
+    [{ ...grouped, groups: Array.from({ length: 41 }, () => ({ heading: 'x', rows: [] })) }, /more than 40/],
     [{ ...grouped, groups: [{ heading: 'Sun', rows: [['Sunrise']] }] }, /does not have 3 cells/],
     [{ ...grouped, groups: [{ heading: '<b>Sun</b>', rows: [] }] }, /markup/],
     [{ ...grouped, groups: [{ heading: 'Sun', rows: [], note: 'x' }] }, /"note"/],
     [{ ...grouped, groups: [{ rows: [] }] }, /heading/],
     // The bound on rows is the table's, across its groups.
-    [{ ...grouped, groups: [0, 1].map(() => ({ heading: 'x', rows: Array.from({ length: 101 }, () => ['a', 'b']) })) }, /at most 200/]
+    [{ ...grouped, groups: [0, 1].map(() => ({ heading: 'x', rows: Array.from({ length: 251 }, () => ['a', 'b']) })) }, /at most 500/]
   ])('refuses an off-shape grouped table (%#)', (value, message) => {
     expect(() => validatePageAnswer(v(5, [value]))).toThrowError(message);
   });
