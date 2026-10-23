@@ -139,8 +139,10 @@
         {@const sort = sortOf(at, section.sortedBy)}
         {@const groups = sortedGroups(section, filteredGroups(section, choicesOf(at)), sort)}
         {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
+        <!-- The last `hidden` columns are a filter's alone and are not drawn. -->
+        {@const drawn = section.columns.length - (section.hidden ?? 0)}
         <table class="page-table" hidden={groups.length === 0}>
-          <thead><tr>{#each section.columns as column, c (c)}
+          <thead><tr>{#each section.columns.slice(0, drawn) as column, c (c)}
             {#if section.sortable}
               <th scope="col" aria-sort={sort?.column === c ? sort.direction : undefined}>
                 <button type="button" class="page-sort" onclick={() => sortBy(at, c, section.sortedBy)}>{column}<span class="page-sort-mark" aria-hidden="true">{sort?.column === c ? (sort.direction === 'ascending' ? ' ▲' : ' ▼') : ''}</span></button>
@@ -152,9 +154,9 @@
                its one value across the columns after the first (version 5). -->
           {#each groups as group, g (g)}
             <tbody>
-              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={section.columns.length}>{group.heading}</th></tr>{/if}
+              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={drawn}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
-                <tr>{#each row as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td class:wrap={cell.length > 48} colspan={row.length < section.columns.length ? section.columns.length - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
+                <tr>{#each row.slice(0, drawn) as cell, c (c)}{#if c === 0}<th scope="row">{cell}</th>{:else}<td class:wrap={cell.length > 48} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{cell}</td>{/if}{/each}</tr>
               {/each}
             </tbody>
           {/each}

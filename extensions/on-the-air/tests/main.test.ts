@@ -36,7 +36,9 @@ describe('On the Air (QGD-HOM-0007)', () => {
     expect(asked.map(request => request.kind === 'source.fetch' ? request.source : request.kind).sort()).toEqual(['noaa-flux', 'noaa-kp', 'noaa-scales']);
     expect(await ask(providers, 'parks')).toMatchObject({ ok: true });
     // POTA's spots by registered name, then ADIF's bands to name each band.
-    expect(asked.slice(-3)).toEqual([{ kind: 'source.fetch', source: 'pota-spots' }, { kind: 'adif.bands' }, { kind: 'area.get' }]);
+    // And the program and entity of each location on the air, by name.
+    expect(asked.slice(-4, -1)).toEqual([{ kind: 'source.fetch', source: 'pota-spots' }, { kind: 'adif.bands' }, { kind: 'area.get' }]);
+    expect(asked.at(-1)).toMatchObject({ kind: 'pota.places' });
     expect(value.subscriptions).toHaveLength(3);
   });
 
@@ -49,7 +51,7 @@ describe('On the Air (QGD-HOM-0007)', () => {
     activate(value);
     expect(await ask(providers, 'activate')).toMatchObject({ ok: true });
     // Nothing fetched: the page works offline.
-    expect(asked.map(request => request.kind)).toEqual(['pota.activations', 'station.active']);
+    expect(asked.map(request => request.kind)).toEqual(['pota.activations', 'station.active', 'pota.places']);
     const missing = context(() => ({ ok: false, error: 'POTA activations are not downloaded for My Area.' }));
     activate(missing.value);
     expect(await ask(missing.providers, 'activate')).toEqual({ ok: false, reason: 'POTA activations are not downloaded for My Area.' });

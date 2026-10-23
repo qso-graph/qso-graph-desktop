@@ -250,6 +250,13 @@ if (!app.requestSingleInstanceLock()) {
         // As locations, whatever level it was chosen at: an entity or a
         // program stands for its locations (KI7MT, 2026-10-23).
         area: async () => storageBroker.areaLocations(),
+        // Each POTA location's program and entity, for Program and Entity
+        // filters (reference:read).
+        potaPlaces: async locations => {
+          const found = await storageBroker.potaPlaces(locations);
+          if (typeof found === 'string') throw new Error(found);
+          return found;
+        },
         // My Area's parks with their activations (QGD-REF-0019), read from
         // reference data on this computer: nothing is fetched.
         potaActivations: async () => {

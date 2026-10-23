@@ -61,9 +61,12 @@ export const PAGE_LIMITS = {
   detail: 120,
   alert: 200,
   reason: 160,
-  columns: 8,
+  // Columns in all, and drawn: a table may carry up to two more than it
+  // shows, for filters alone (hidden).
+  columns: 10,
+  shown: 8,
   rows: 500,
-  filters: 3,
+  filters: 6,
   options: 100,
   groups: 40,
   marks: 4,
@@ -98,8 +101,11 @@ export type Section = (
   // Rows under named columns: the bands with their outlook. Version 2. From
   // version 5 the rows may come in named groups instead, and a row of two
   // cells in a wider table gives one value across the columns after its first.
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
+  // `hidden`: how many of the last columns are not drawn, each there for a
+  // filter alone (KI7MT, 2026-10-23: Program and Entity, as POTA narrows its
+  // parks, on a table already as wide as a table is drawn).
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number }
   // The world, with the night greyed out from where the sun is overhead, and
   // up to four places marked. Version 6. Optionally the moon, where it is
   // overhead, and a twilight band from the horizon down to a depth, as the
@@ -319,7 +325,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (version < 2) throw new PageError(`${where} is a table, which page data version ${version} does not have.`);
     const grouped = Object.hasOwn(value, 'groups');
     if (grouped && version < 5) throw new PageError(`${where} has groups, which page data version ${version} does not have.`);
-    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable', 'sortedBy'], where);
+    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable', 'sortedBy', 'hidden'], where);
     if (value.sortable !== undefined) {
       if (version < 6) throw new PageError(`${where} is sortable, which page data version ${version} does not have.`);
       if (value.sortable !== true) throw new PageError(`${where}'s sortable is not true.`);
@@ -399,6 +405,20 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (filters && new Set(filters.map(filter => filter.column)).size !== filters.length) {
       throw new PageError(`${where} filters one column twice.`);
     }
+    // The last columns, not drawn: each must be a filter's, since nothing
+    // else would ever show it, and the first column is always drawn.
+    let hidden = 0;
+    if (value.hidden !== undefined) {
+      if (version < 6) throw new PageError(`${where} hides columns, which page data version ${version} does not have.`);
+      if (typeof value.hidden !== 'number' || !Number.isInteger(value.hidden) || value.hidden < 1 || value.hidden >= columns.length) {
+        throw new PageError(`${where}'s hidden is not a count of its last columns, leaving one drawn.`);
+      }
+      hidden = value.hidden;
+      for (let column = columns.length - hidden; column < columns.length; column++) {
+        if (!filters?.some(filter => filter.column === column)) throw new PageError(`${where} hides a column no filter names.`);
+      }
+    }
+    if (columns.length - hidden > PAGE_LIMITS.shown) throw new PageError(`${where} draws more than ${PAGE_LIMITS.shown} columns.`);
     let sortedBy: TableSort | undefined;
     if (value.sortedBy !== undefined) {
       if (value.sortable !== true) throw new PageError(`${where} says how it is sorted but is not sortable.`);
@@ -409,9 +429,11 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
         || (sort.direction !== 'ascending' && sort.direction !== 'descending')) {
         throw new PageError(`${where}'s sortedBy does not name a column and ascending or descending.`);
       }
+      if (sort.column >= columns.length - hidden) throw new PageError(`${where} is sorted by a column it does not draw.`);
       sortedBy = { column: sort.column, direction: sort.direction };
     }
-    const withFilters = { ...(filters ? { filters } : {}), ...(value.sortable === true ? { sortable: true as const } : {}), ...(sortedBy ? { sortedBy } : {}) };
+    const withFilters = { ...(filters ? { filters } : {}), ...(value.sortable === true ? { sortable: true as const } : {}), ...(sortedBy ? { sortedBy } : {}),
+      ...(hidden > 0 ? { hidden } : {}) };
     const rowsOf = (list: unknown, name: string, room: number): Row[] => {
       if (!Array.isArray(list) || list.length > room) {
         throw new PageError(`${name} has rows as something other than a list of at most ${PAGE_LIMITS.rows} in the table.`);

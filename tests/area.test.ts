@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { areaChoices, areaDefault, areaLocations } from '../packages/storage/area.js';
+import { areaChoices, areaDefault, areaLocations, placesOf } from '../packages/storage/area.js';
 import { areaKind } from '../packages/storage/area-entry.js';
 import { potaLocation, potaPark, potaProgram, referenceSchema } from '../packages/storage/reference-schema.js';
 import { openStore } from '../packages/storage/sqlite.js';
@@ -84,6 +84,17 @@ describe('My Area', () => {
       expect(await areaLocations(store, ['US'])).toEqual(['US-AK', 'US-ID', 'US-MT']);
       expect(await areaLocations(store, ['IT', 'US-ID', '6'])).toEqual(['IT-LM', 'IT-LZ', 'US-AK', 'US-ID']);
       expect(await areaLocations(store, [])).toEqual([]);
+    } finally { store.close(); }
+  });
+
+  it('names each location\'s program and entity, and leaves out what POTA does not hold', async () => {
+    const store = await reference();
+    try {
+      expect(await placesOf(store, ['US-AK', 'US-ID', 'ZZ-QQ', 'US-ID', '291'])).toEqual([
+        { location: 'US-AK', program: 'United States of America', entity: 'Alaska' },
+        { location: 'US-ID', program: 'United States of America', entity: 'United States of America' }
+      ]);
+      expect(await placesOf(store, [])).toEqual([]);
     } finally { store.close(); }
   });
 

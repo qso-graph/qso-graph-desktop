@@ -12,7 +12,7 @@
 // (QGD-SEC-0020). Every failure is reduced before it is logged or sent
 // (QGD-ENG-0016).
 import { adifBands, searchAdif } from './adif-search.js';
-import { areaChoices, areaDefault, areaLocations } from './area.js';
+import { areaChoices, areaDefault, areaLocations, placesOf } from './area.js';
 import { parksToActivate } from './activations.js';
 import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
@@ -258,6 +258,13 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       // An entity or a program stands for its locations (area.ts).
       const locations = await areaLocations(reader, area);
       return { ok: true, status: status(), toActivate: { parks: await parksToActivate(reader, locations), fetchedAt: fetched ?? new Date(0).toISOString(), locations } };
+    }
+    case 'pota-places': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.pota.locations.state !== 'loaded') {
+        return { ok: false, error: 'POTA\'s lists are not downloaded. Download POTA Parks in Settings, then try again.' };
+      }
+      return { ok: true, status: status(), places: await placesOf(reader, command.locations) };
     }
     case 'area-locations': {
       const reader = reference?.reader();

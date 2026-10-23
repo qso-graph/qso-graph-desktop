@@ -14,6 +14,9 @@ export interface AreaLocation { readonly code: string; readonly name: string }
 export interface AreaEntity { readonly id: string; readonly name: string; readonly locations: readonly AreaLocation[] }
 export interface AreaProgram { readonly prefix: string; readonly name: string; readonly entities: readonly AreaEntity[] }
 
+// A POTA location's program and entity, by name (pota.places).
+export interface AreaPlace { readonly location: string; readonly program: string; readonly entity: string }
+
 // Bounds on what the store sends: POTA has some 250 programs, 4,000
 // locations, and at most 6 entities in a program; these sit well past each.
 export const AREA_PROGRAMS = 400;

@@ -7,7 +7,8 @@
 // Pure: it takes the parks and the active station and returns the page, so it
 // runs under unit tests. The parks come from reference data already on this
 // computer (pota.activations), so the page works with no network at all.
-import type { ActivationPark, StationBrief } from '../../../packages/extension-api/api-contract.js';
+import type { ActivationPark, PotaPlace, StationBrief } from '../../../packages/extension-api/api-contract.js';
+import { placeCells, placesBy, withPlaces } from './places.js';
 import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
 
 const EARTH_KM = 6371;
@@ -48,7 +49,11 @@ const fewerThan = (n: number) => [NONE, ...Array.from({ length: n }, (_, at) => 
 // `area` is the POTA locations My Area covers: the Location filter offers
 // those alone, so a trail through sixteen states does not offer all sixteen
 // to an operator whose area is Idaho (KI7MT, 2026-10-23).
-export function activatePage(parks: readonly ActivationPark[], fetchedAt: string, station: StationBrief | null, area: readonly string[] = []): PageAnswer {
+// `places` names each location's program and entity (pota.places): Program
+// and Entity lead the filters, as POTA's own do, where My Area spans more
+// than one of either.
+export function activatePage(parks: readonly ActivationPark[], fetchedAt: string, station: StationBrief | null, area: readonly string[] = [],
+  places: readonly PotaPlace[] = []): PageAnswer {
   const observedAt = fetchedAt;
   if (parks.length === 0) {
     return { ok: true, data: { version: 6, observedAt, sections: [
@@ -62,14 +67,20 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
   // position, the fewest first.
   measured.sort((a, b) => (here ? a.km - b.km : 0) || count(a.park) - count(b.park) || a.park.reference.localeCompare(b.park.reference));
   const shown = measured.slice(0, SHOWN);
-  const rows = shown.map(({ park, km, bearing }) => [
+  const drawn = shown.map(({ park, km, bearing }) => [
     park.reference,
     park.name,
     ...(here ? [String(Math.round(km)), String(Math.round(bearing) % 360)] : []),
     countText(park),
     park.locations.split(',').map(value => value.trim()).filter(Boolean).join(', ')
   ]);
-  const columns = ['Park', 'Name', ...(here ? ['km', 'Bearing °'] : []), 'Activations', 'Location'];
+  // Program and Entity, not drawn, for their filters alone, and only where
+  // My Area spans more than one of either (places.ts).
+  const byPlace = placesBy(places);
+  const located = withPlaces(drawn, byPlace.size === 0 ? [] : shown.map(({ park }) =>
+    placeCells(park.locations.split(',').map(value => value.trim()).filter(Boolean), byPlace)), 2);
+  const rows = located.rows;
+  const columns = ['Park', 'Name', ...(here ? ['km', 'Bearing °'] : []), 'Activations', 'Location', ...located.columns];
   const activations = here ? 4 : 2;
   const location = activations + 1;
   const inArea = new Set(area);
@@ -88,7 +99,10 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
       text: 'The active Location has no position, so distances are not shown. Give it a grid or a latitude and longitude on the Locations page.' }]),
     { shape: 'table', columns, rows, sortable: true,
       ...(here ? { sortedBy: { column: 2, direction: 'ascending' as const } } : {}),
+      ...(located.hidden ? { hidden: located.hidden } : {}),
       filters: [
+        // Program and Entity first, as POTA's own park list starts.
+        ...located.filters,
         // Starts on the never activated: the target list (KI7MT, 2026-10-23).
         { column: activations, label: 'Activations', options: fewerThan(10),
           named: [

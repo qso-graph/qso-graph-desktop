@@ -12,7 +12,7 @@
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
 import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
-import { AREA_ENTITIES, AREA_LOCATION, AREA_LOCATIONS, AREA_PROGRAMS, isAreaEntry, type AreaProgram } from './area-entry.js';
+import { AREA_ENTITIES, AREA_LOCATION, AREA_LOCATIONS, AREA_PROGRAMS, isAreaEntry, type AreaPlace, type AreaProgram } from './area-entry.js';
 import { ACTIVATION_PARKS, ACTIVATION_TEXT, type ActivationPark } from './activation-entry.js';
 import {
   isEntityCode, isNamedReferences, isSubdivisionCode, isFieldProblems, type NamedReferences, isParkDraft, isCallsignId, isPotaReference, isSummitReference, isStationChoices, isStationDraft,
@@ -112,6 +112,8 @@ export type StorageCommand =
   // The POTA locations an area covers (area.ts): its entities' and programs'
   // locations, for what filters by location. Empty means the Location's own.
   | { type: 'area-locations'; entries: string[] }
+  // Each location's program and entity by name (area.ts placesOf).
+  | { type: 'pota-places'; locations: string[] }
   // The editor's pick lists, for an entity or for none.
   | { type: 'station-choices'; entity: string | null; state: string | null }
   // The names of the parks a MY_POTA_REF value names, from POTA's list.
@@ -123,7 +125,7 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[] }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[] }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 // The parks to activate, and when the oldest of their lists was fetched.
@@ -246,7 +248,10 @@ export function isStorageReply(value: unknown): value is StorageReply {
     // adif and bands were missing here, so every ADIF search and band list
     // QG Storage answered was refused as malformed; each layer's own tests
     // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places']) && isStorageStatus(value.status)
+      && (value.places === undefined || (Array.isArray(value.places) && value.places.length <= AREA_LOCATIONS && value.places.every(place => record(place)
+        && only(place, ['location', 'program', 'entity']) && typeof place.location === 'string' && AREA_LOCATION.test(place.location)
+        && areaText(place.program) && areaText(place.entity))))
       && (value.areaLocations === undefined || isLocationCodes(value.areaLocations))
       && (value.toActivate === undefined || isToActivate(value.toActivate))
       && (value.areaChoices === undefined || isAreaChoices(value.areaChoices))
@@ -307,6 +312,7 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'parks-to-activate':
       return exactly(['type', 'locations']) && isArea(value.locations);
     case 'area-locations': return exactly(['type', 'entries']) && isArea(value.entries);
+    case 'pota-places': return exactly(['type', 'locations']) && isLocationCodes(value.locations);
     case 'look-up-parks':
       return exactly(['type', 'references']) && typeof value.references === 'string' && value.references.length > 0
         && value.references.length <= 100 && /^[0-9A-Za-z@,\- ]+$/.test(value.references);

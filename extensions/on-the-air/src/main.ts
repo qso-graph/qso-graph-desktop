@@ -11,6 +11,7 @@
 // move to the Astro extension.
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
 import type { PageAnswer } from '../../../packages/extension-api/pages.js';
+import type { PotaPlace } from '../../../packages/extension-api/api-contract.js';
 import { conditionsPage, parseConditions } from './conditions.js';
 import { parksPage, parseSpots } from './parks.js';
 import { activatePage } from './activate.js';
@@ -21,6 +22,14 @@ const UNREADABLE: PageAnswer = { ok: false, reason: "NOAA's data could not be re
 async function fetchBody(context: ExtensionContext, source: string, signal: AbortSignal): Promise<string | undefined> {
   const reply = await context.request({ kind: 'source.fetch', source }, { signal });
   return reply.ok && reply.kind === 'source.fetch' ? reply.body : undefined;
+}
+
+// Each location's program and entity (pota.places), or none.
+async function placesFor(context: ExtensionContext, locations: readonly string[], signal: AbortSignal): Promise<readonly PotaPlace[]> {
+  const codes = [...new Set(locations.filter(code => /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/.test(code)))].slice(0, 1000);
+  if (codes.length === 0) return [];
+  const reply = await context.request({ kind: 'pota.places', locations: codes }, { signal });
+  return reply.ok && reply.kind === 'pota.places' ? reply.places : [];
 }
 
 export function activate(context: ExtensionContext): void {
@@ -45,8 +54,11 @@ export function activate(context: ExtensionContext): void {
     // My Area, so the page starts on the operator's own locations (KI7MT,
     // 2026-10-23). Without it, the page starts on All, as before.
     const area = await context.request({ kind: 'area.get' }, { signal });
+    // Program and Entity by name, from POTA's lists when they are
+    // downloaded; without them the page has no such filters.
+    const places = await placesFor(context, spots.flatMap(spot => (spot.location ?? '').split(',').map(value => value.trim())), signal);
     return parksPage(spots, new Date(), reply.ok && reply.kind === 'adif.bands' ? reply.bands : [],
-      area.ok && area.kind === 'area.get' ? area.locations : []);
+      area.ok && area.kind === 'area.get' ? area.locations : [], places);
   }));
   // Parks Near Me (QGD-HOM-0013): My Area's parks with their activation
   // counts, from reference data on this computer, so it works at camp.
@@ -55,6 +67,7 @@ export function activate(context: ExtensionContext): void {
     if (!found.ok) return { ok: false, reason: found.error };
     if (found.kind !== 'pota.activations') return { ok: false, reason: 'POTA activations could not be read just now.' };
     const station = await context.request({ kind: 'station.active' }, { signal });
-    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null, found.locations);
+    const places = await placesFor(context, found.parks.flatMap(park => park.locations.split(',').map(value => value.trim())), signal);
+    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null, found.locations, places);
   }));
 }

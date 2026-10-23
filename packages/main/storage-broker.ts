@@ -7,6 +7,7 @@
 // screen asks, and pushed whenever it changes (an exit, a restart, a finished
 // reference build). So nothing polls and nothing goes stale.
 import type { AdifBand, AdifEntry } from '../storage/adif-entry.js';
+import type { AreaPlace } from '../storage/area-entry.js';
 import type { StationBrief } from '../extension-api/api-contract.js';
 import { activeStationBrief } from './station-brief.js';
 import { app, BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
@@ -55,6 +56,8 @@ export interface StorageBroker {
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
   parksToActivate: () => Promise<ToActivate | string>;
+  // Each location's program and entity by name, or why not.
+  potaPlaces: (locations: readonly string[]) => Promise<AreaPlace[] | string>;
   // The POTA locations My Area covers: its entities' and programs' too.
   areaLocations: () => Promise<readonly string[]>;
   // The POTA location the active Location is in, or none (area.ts).
@@ -264,6 +267,11 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       const reply = await ask({ type: 'parks-to-activate', locations: [...(options.area?.() ?? [])] });
       if (!reply.ok) return reply.error;
       return reply.toActivate ?? 'POTA activations could not be read just now.';
+    },
+    async potaPlaces(locations) {
+      const reply = await ask({ type: 'pota-places', locations: [...locations] });
+      if (!reply.ok) return reply.error;
+      return reply.places ?? 'POTA\'s programs and entities could not be read just now.';
     },
     async areaLocations() {
       const reply = await ask({ type: 'area-locations', entries: [...(options.area?.() ?? [])] });

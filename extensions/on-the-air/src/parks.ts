@@ -11,8 +11,9 @@
 // that is not what POTA sends is left out rather than drawn as a guess, and
 // anything a page cannot hold (markup, too long) is made safe here, because
 // the core refuses the whole page over one bad cell.
-import type { AdifBand } from '../../../packages/extension-api/api-contract.js';
+import type { AdifBand, PotaPlace } from '../../../packages/extension-api/api-contract.js';
 import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
+import { placeCells, placesBy, withPlaces } from './places.js';
 
 export interface Spot {
   readonly activator: string;
@@ -104,7 +105,9 @@ const NO_MODE = '—';
 const NO_NAME = '—';
 export const SHOWN = 200;
 
-export function parksPage(spots: readonly Spot[], now: Date, bands: readonly AdifBand[] = [], area: readonly string[] = []): PageAnswer {
+// `places` names each location's program and entity (pota.places), for the
+// Program and Entity filters; without POTA's lists there are none.
+export function parksPage(spots: readonly Spot[], now: Date, bands: readonly AdifBand[] = [], area: readonly string[] = [], places: readonly PotaPlace[] = []): PageAnswer {
   const newest = [...spots].sort((a, b) => b.at.getTime() - a.at.getTime());
   const observedAt = new Date(Math.floor((newest[0]?.at ?? now).getTime() / 60_000) * 60_000).toISOString().replace('.000Z', 'Z');
   if (newest.length === 0) {
@@ -114,7 +117,8 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   }
   const shown = newest.slice(0, SHOWN);
   const parks = new Set(newest.map(spot => spot.reference)).size;
-  const rows = shown.map(spot => [
+  const byPlace = placesBy(places);
+  const drawn = shown.map(spot => [
     spot.activator,
     // The reference and the park's name apart, which reads more easily
     // (KI7MT, 2026-10-23).
@@ -126,6 +130,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
     spot.mode ?? NO_MODE,
     `${two(spot.at.getUTCHours())}:${two(spot.at.getUTCMinutes())}`
   ]);
+  // Program and Entity, not drawn: for their filters alone (places.ts).
+  const located = withPlaces(drawn, byPlace.size === 0 ? [] : shown.map(spot =>
+    placeCells((spot.location ?? '').split(',').map(value => value.trim()).filter(Boolean), byPlace)));
+  const rows = located.rows;
   // The bands on the air, in ADIF's order, lowest first; the modes on the
   // air, alphabetically. Only what is there is offered.
   const present = (column: number) => new Set(rows.map(row => row[column]!));
@@ -142,10 +150,14 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       { label: 'Parks', value: String(parks) }
     ] },
     // Sortable by any column; the band sorts in ADIF's order (the filter's).
-    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'Location', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true,
+    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'Location', 'MHz', 'Band', 'Mode', 'UTC', ...located.columns], rows, sortable: true,
+      ...(located.hidden ? { hidden: located.hidden } : {}),
       // Sent newest first by when spotted, which the core shows as the sort
       // and keeps right across midnight UTC (KI7MT, 2026-10-23).
       sortedBy: { column: 7, direction: 'descending' }, filters: [
+      // Program and Entity first, as POTA's own park list starts (KI7MT,
+      // 2026-10-23); then what a chaser narrows by.
+      ...located.filters,
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),
       { column: 6, label: 'Mode', options: modeOptions },

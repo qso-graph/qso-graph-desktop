@@ -219,6 +219,24 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [{ ...table, sortable: true }]))).toThrowError(/version 5 does not have/);
   });
 
+  it('hides its last columns for filters alone, and refuses what would hide too much (KI7MT, 2026-10-23)', () => {
+    const wide = { shape: 'table', columns: ['Call', 'Band', 'Program'], rows: [['W1AW', '20m', 'United States of America']] };
+    const hidden = { ...wide, hidden: 1, filters: [{ column: 2, label: 'Program' }] };
+    expect(validatePageAnswer(v(6, [hidden]))).toEqual(v(6, [hidden]));
+    for (const [section, message] of [
+      [{ ...wide, hidden: 1 }, /no filter names/],
+      [{ ...wide, hidden: 1, filters: [{ column: 1, label: 'Band' }] }, /no filter names/],
+      [{ ...wide, hidden: 3, filters: [{ column: 2, label: 'Program' }] }, /leaving one drawn/],
+      [{ ...wide, hidden: 0 }, /leaving one drawn/],
+      [{ ...wide, hidden: '1', filters: [{ column: 2, label: 'Program' }] }, /leaving one drawn/],
+      [{ ...hidden, sortable: true, sortedBy: { column: 2, direction: 'ascending' } }, /does not draw/],
+      [{ shape: 'table', columns: Array.from({ length: 9 }, (_, i) => `c${i}`), rows: [] }, /draws more than 8/]
+    ] as const) {
+      expect(() => validatePageAnswer(v(6, [section])), String(message)).toThrowError(message);
+    }
+    expect(() => validatePageAnswer(v(5, [hidden]))).toThrowError(/version 5/);
+  });
+
   it('carries up-to choices for a column of numbers (KI7MT, 2026-10-23)', () => {
     const within = { ...table, filters: [{ column: 1, label: 'Distance', upTo: [{ label: 'Within 50 km', value: 50 }], start: 'Within 50 km' }] };
     expect(validatePageAnswer(v(6, [within]))).toEqual(v(6, [within]));
@@ -235,7 +253,7 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
 
   it.each([
     [[], /no filters/],
-    [[1, 2, 0, 1].map(column => ({ column, label: 'x' })), /more than 3/],
+    [Array.from({ length: 7 }, (_, column) => ({ column, label: 'x' })), /more than 6/],
     [[{ column: 3, label: 'Band' }], /columns/],
     [[{ column: 1.5, label: 'Band' }], /columns/],
     [[{ column: -1, label: 'Band' }], /columns/],

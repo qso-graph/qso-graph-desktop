@@ -6,8 +6,8 @@
 import { eq, inArray, like, or, sql } from 'drizzle-orm';
 import { potaLocation, potaPark, potaProgram, type referenceSchema } from './reference-schema.js';
 import type { Store } from './sqlite.js';
-import { AREA_LOCATIONS, areaKind, type AreaEntity, type AreaProgram } from './area-entry.js';
-export type { AreaEntity, AreaLocation, AreaProgram } from './area-entry.js';
+import { AREA_LOCATIONS, areaKind, type AreaEntity, type AreaPlace, type AreaProgram } from './area-entry.js';
+export type { AreaEntity, AreaLocation, AreaPlace, AreaProgram } from './area-entry.js';
 
 // Every active program with its entities and their locations, by name, as
 // POTA names them. A location belongs to the program its code begins with
@@ -84,4 +84,22 @@ export async function areaLocations(reference: Store<typeof referenceSchema>, en
     for (const row of rows) found.add(row.code);
   }
   return [...found].sort().slice(0, AREA_LOCATIONS);
+}
+
+// Each location's program and entity by name, as POTA names them: for the
+// Program and Entity filters POTA's own park list starts with (KI7MT,
+// 2026-10-23). A code POTA's lists do not hold is left out.
+export async function placesOf(reference: Store<typeof referenceSchema>, codes: readonly string[]): Promise<AreaPlace[]> {
+  const wanted = [...new Set(codes.filter(code => areaKind(code) === 'location'))].slice(0, AREA_LOCATIONS);
+  if (wanted.length === 0) return [];
+  return reference.unit(async (db) => {
+    const rows = await db.select({ code: potaLocation.locationDesc, entity: potaLocation.entityName }).from(potaLocation)
+      .where(inArray(potaLocation.locationDesc, wanted)).all();
+    const programs = new Map((await db.select({ prefix: potaProgram.prefix, name: potaProgram.name }).from(potaProgram).all())
+      .map(program => [program.prefix, program.name]));
+    return rows.flatMap(row => {
+      const program = programs.get(row.code.split('-')[0] ?? '');
+      return program && row.entity ? [{ location: row.code, program, entity: row.entity }] : [];
+    }).sort((a, b) => a.location.localeCompare(b.location));
+  });
 }

@@ -51,6 +51,10 @@ export type ExtensionRequest =
   // (QGD-REF-0019), from reference data on this computer. It says where the
   // operator works, as area.get does, so it needs station:active.
   | { readonly kind: 'pota.activations' }
+  // Each POTA location's program and entity by name, from reference data:
+  // the Program and Entity POTA's own park list narrows by (KI7MT,
+  // 2026-10-23). At most 1000 location codes.
+  | { readonly kind: 'pota.places'; readonly locations: readonly string[] }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -113,6 +117,9 @@ export interface ActivationPark {
   readonly activations: number | null;
 }
 
+// A POTA location's program and entity, as pota.places answers.
+export interface PotaPlace { readonly location: string; readonly program: string; readonly entity: string }
+
 // The active station as an extension may see it. The position is the
 // station's own MY_LAT and MY_LON where it has them, otherwise the centre of
 // its grid square, in decimal degrees; absent when it has neither.
@@ -132,6 +139,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
   | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
   // `locations` are the POTA locations My Area covers.
+  | { readonly ok: true; readonly kind: 'pota.places'; readonly places: readonly PotaPlace[] }
   | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string; readonly locations: readonly string[] }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
@@ -165,6 +173,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'adif.bands': return 'reference:read';
     case 'area.get': return 'station:active';
     case 'pota.activations': return 'station:active';
+    case 'pota.places': return 'reference:read';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -173,7 +182,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'pota.activations', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'pota.activations', 'pota.places', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -227,6 +236,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'adif.bands': ['kind'],
   'area.get': ['kind'],
   'pota.activations': ['kind'],
+  'pota.places': ['kind', 'locations'],
   'source.fetch': ['kind', 'source'],
   'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
@@ -253,6 +263,14 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'area.get':
     case 'pota.activations':
       return bare();
+    case 'pota.places': {
+      // POTA location codes, as US-ID: nothing else reaches the query.
+      if (!Array.isArray(value.locations) || value.locations.length > 1000
+        || !value.locations.every(location => typeof location === 'string' && /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/.test(location))) {
+        throw new RequestError('locations is not a list of at most 1000 POTA location codes', 'locations');
+      }
+      return { kind, locations: [...value.locations as string[]] };
+    }
     case 'adif.search': {
       // Bounded and plain, as a page's text field is (inputs.ts).
       if (typeof value.query !== 'string' || value.query.trim() === '' || value.query.length > 64
