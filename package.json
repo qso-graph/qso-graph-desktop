@@ -110,6 +110,15 @@
       "category": "Utility",
       "icon": "build/icon.png",
       "maintainer": "QSO Graph contributors <maintainers@qso-graph.io>"
+    },
+    "appImage": {
+      "artifactName": "qso-graph-desktop-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "qso-graph-desktop-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "qso-graph-desktop-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {
