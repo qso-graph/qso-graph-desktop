@@ -62,8 +62,10 @@ export interface ExtensionBrokerOptions {
   ports: ExtensionBrokerPorts;
   // The extensions the operator turned off, kept in settings.json
   // (QGD-HOM-0007).
-  readOff: () => readonly string[];
-  writeOff: (off: readonly string[]) => boolean;
+  readOn: () => readonly string[];
+  writeOn: (on: readonly string[]) => boolean;
+  // After one is turned on (extension-enablement.ts).
+  onTurnedOn?: (id: string) => void;
   logDirectory?: string;
 }
 
@@ -147,8 +149,9 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
 
   const enablement = createEnablement({
     loaded: () => deps.extensions.map(extension => extension.manifest.id),
-    readOff: options.readOff,
-    writeOff: options.writeOff,
+    readOn: options.readOn,
+    writeOn: options.writeOn,
+    ...(options.onTurnedOn ? { onTurnedOn: options.onTurnedOn } : {}),
     supervisor
   });
   await enablement.start();
@@ -163,7 +166,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
       if (!done.ok) return done;
       log.info({ extension: command.id, enabled: command.enabled }, 'extension turned on or off');
     }
-    return { ok: true, inventory: buildInventory(deps, options.readOff()) };
+    return { ok: true, inventory: buildInventory(deps, deps.extensions.map(entry => entry.manifest.id).filter(id => !enablement.isOn(id))) };
   };
   ipcMain.handle(EXTENSIONS_INVENTORY_CHANNEL, inventoryHandler);
 

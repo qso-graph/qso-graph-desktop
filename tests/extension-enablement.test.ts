@@ -8,78 +8,85 @@ import { createPageScheduler, keepHidden, type PageView, type CataloguePage } fr
 import { readSettings, validateSettingsCommand } from '../packages/main/settings-contract.js';
 import { isExtensionsReply, validateExtensionsCommand } from '../packages/main/extensions-contract.js';
 
-function harness(options: { off?: string[]; write?: boolean } = {}) {
-  let off = options.off ?? [];
+function harness(options: { on?: string[]; write?: boolean } = {}) {
+  let on = options.on ?? [];
   const writes: string[][] = [];
   const calls: [string, boolean][] = [];
+  const turnedOn: string[] = [];
   const enablement = createEnablement({
-    loaded: () => ['on-the-air', 'other'],
-    readOff: () => off,
-    writeOff: next => { writes.push([...next]); if (options.write === false) return false; off = [...next]; return true; },
-    supervisor: { setEnabled: (id, enabled) => { calls.push([id, enabled]); return Promise.resolve(); } }
+    loaded: () => ['pota', 'other'],
+    readOn: () => on,
+    writeOn: next => { writes.push([...next]); if (options.write === false) return false; on = [...next]; return true; },
+    supervisor: { setEnabled: (id, enabled) => { calls.push([id, enabled]); return Promise.resolve(); } },
+    onTurnedOn: id => { turnedOn.push(id); }
   });
-  return { enablement, writes, calls, off: () => off };
+  return { enablement, writes, calls, on: () => on, turnedOn };
 }
 
-describe('P8-built-in: turning an extension off and on (QGD-HOM-0007)', () => {
-  it('is on by default, as a new profile has it', () => {
-    expect(harness().enablement.isOn('on-the-air')).toBe(true);
-    expect(readSettings({}).extensionsOff).toEqual([]);
+describe('P8-built-in: turning an extension on and off (QGD-HOM-0007)', () => {
+  it('is off by default, as a new profile has it (KI7MT, 2026-10-23)', () => {
+    expect(harness().enablement.isOn('pota')).toBe(false);
+    expect(readSettings({}).extensionsOn).toEqual([]);
   });
 
-  it('records off, stops the extension, and says so; on undoes all three', async () => {
-    const { enablement, calls, off } = harness();
+  it('records on, starts the extension, pins it and says so; off undoes it', async () => {
+    const { enablement, calls, on, turnedOn } = harness();
     const heard = vi.fn();
     enablement.onChange(heard);
-    expect(await enablement.set('on-the-air', false)).toEqual({ ok: true });
-    expect(off()).toEqual(['on-the-air']);
-    expect(calls).toEqual([['on-the-air', false]]);
-    expect(enablement.isOn('on-the-air')).toBe(false);
-    expect(await enablement.set('on-the-air', true)).toEqual({ ok: true });
-    expect(off()).toEqual([]);
-    expect(calls.at(-1)).toEqual(['on-the-air', true]);
+    expect(await enablement.set('pota', true)).toEqual({ ok: true });
+    expect(on()).toEqual(['pota']);
+    expect(calls).toEqual([['pota', true]]);
+    expect(turnedOn).toEqual(['pota']);
+    expect(enablement.isOn('pota')).toBe(true);
+    expect(await enablement.set('pota', false)).toEqual({ ok: true });
+    expect(on()).toEqual([]);
+    expect(calls.at(-1)).toEqual(['pota', false]);
+    expect(turnedOn).toEqual(['pota']);
     expect(heard).toHaveBeenCalledTimes(2);
   });
 
   it('refuses an extension that did not load, and writes nothing', async () => {
     const { enablement, writes, calls } = harness();
-    expect(await enablement.set('nobody', false)).toEqual({ ok: false, error: 'There is no such extension.' });
+    expect(await enablement.set('nobody', true)).toEqual({ ok: false, error: 'There is no such extension.' });
     expect(writes).toEqual([]);
     expect(calls).toEqual([]);
   });
 
-  it('does not stop the extension when the choice could not be saved', async () => {
-    const { enablement, calls } = harness({ write: false });
-    expect((await enablement.set('on-the-air', false)).ok).toBe(false);
+  it('does not start the extension when the choice could not be saved', async () => {
+    const { enablement, calls, turnedOn } = harness({ write: false });
+    expect((await enablement.set('pota', true)).ok).toBe(false);
     expect(calls).toEqual([]);
+    expect(turnedOn).toEqual([]);
   });
 
-  it('applies what the file says at start, for extensions that loaded', async () => {
-    const { enablement, calls } = harness({ off: ['on-the-air', 'gone'] });
+  it('at start, tells the supervisor every loaded extension the file does not say is on is off', async () => {
+    const { enablement, calls } = harness({ on: ['pota', 'gone'] });
     await enablement.start();
-    expect(calls).toEqual([['on-the-air', false]]);
+    expect(calls).toEqual([['other', false]]);
   });
 
-  it('takes changes one at a time, so off, on, off ends off', async () => {
-    const { enablement, off, calls } = harness();
-    await Promise.all([enablement.set('on-the-air', false), enablement.set('on-the-air', true), enablement.set('on-the-air', false)]);
-    expect(off()).toEqual(['on-the-air']);
-    expect(calls.map(([, enabled]) => enabled)).toEqual([false, true, false]);
+  it('takes changes one at a time, so on, off, on ends on', async () => {
+    const { enablement, on, calls } = harness();
+    await Promise.all([enablement.set('pota', true), enablement.set('pota', false), enablement.set('pota', true)]);
+    expect(on()).toEqual(['pota']);
+    expect(calls.map(([, enabled]) => enabled)).toEqual([true, false, true]);
   });
 
   it('cannot be changed through the settings channel, only the extensions channel', () => {
-    expect(validateSettingsCommand({ type: 'write', key: 'extensionsOff', value: ['on-the-air'] })).toBe(false);
+    expect(validateSettingsCommand({ type: 'write', key: 'extensionsOn', value: ['on-the-air'] })).toBe(false);
     expect(validateExtensionsCommand({ type: 'set-enabled', id: 'on-the-air', enabled: false })).toBe(true);
     expect(validateExtensionsCommand({ type: 'set-enabled', id: 'On The Air', enabled: false })).toBe(false);
     expect(validateExtensionsCommand({ type: 'set-enabled', id: 'on-the-air', enabled: 'no' })).toBe(false);
     expect(validateExtensionsCommand({ type: 'set-enabled', id: 'on-the-air', enabled: false, extra: 1 })).toBe(false);
   });
 
-  it('reads a bad list in the file as none off, never as a crash', () => {
-    expect(readSettings({ extensionsOff: ['on-the-air'] }).extensionsOff).toEqual(['on-the-air']);
-    expect(readSettings({ extensionsOff: 'on-the-air' }).extensionsOff).toEqual([]);
-    expect(readSettings({ extensionsOff: ['on-the-air', 'on-the-air'] }).extensionsOff).toEqual([]);
-    expect(readSettings({ extensionsOff: ['<b>'] }).extensionsOff).toEqual([]);
+  it('reads a bad list in the file as none on, never as a crash, and an old off list as nothing', () => {
+    expect(readSettings({ extensionsOn: ['pota'] }).extensionsOn).toEqual(['pota']);
+    expect(readSettings({ extensionsOn: 'pota' }).extensionsOn).toEqual([]);
+    expect(readSettings({ extensionsOn: ['pota', 'pota'] }).extensionsOn).toEqual([]);
+    expect(readSettings({ extensionsOn: ['<b>'] }).extensionsOn).toEqual([]);
+    // An earlier build's file: its off list says nothing about what is on.
+    expect(readSettings({ extensionsOff: [] }).extensionsOn).toEqual([]);
   });
 
   it('the window refuses a reply it cannot show', () => {

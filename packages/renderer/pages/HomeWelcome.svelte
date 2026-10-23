@@ -3,7 +3,7 @@
   The top of Home: ours, as the top of a GitHub profile is its owner's
   (KI7MT, 2026-10-22). It says what QSO Graph Desktop is, and every part of
   it does something: each point opens the place it speaks of, the release
-  line opens what is new, and a new install gets three steps that disappear
+  line opens what is new, and a new install gets four steps that disappear
   once done. Static words and what the window already knows; nothing is
   fetched, and nothing here repeats the status bar.
 -->
@@ -17,7 +17,8 @@
     platform: string;
     // Undefined until known; empty once every step is done.
     steps: readonly WelcomeStep[] | undefined;
-    onGo: (place: 'callsigns' | 'stations' | 'settings') => void;
+    // 'extensions' is Settings, at its Extensions card.
+    onGo: (place: 'callsigns' | 'stations' | 'settings' | 'extensions') => void;
     onCustomize: () => void;
     onWhatsNew: () => void;
     // Where to get it for another computer, in the browser.
@@ -35,7 +36,7 @@
     { id: 'welcome-locations', icon: 'stations', hue: 'locations', text: 'Locations ready for LoTW, POTA and SOTA', go: () => onGo('stations') },
     { id: 'welcome-pins', icon: 'extension', hue: 'general', text: 'Pin what you use', go: onCustomize }
   ]);
-  const STEP_PLACE = { callsign: 'callsigns', location: 'stations', adif: 'settings', parks: 'settings', summits: 'settings' } as const;
+  const STEP_PLACE = { callsign: 'callsigns', location: 'stations', extensions: 'extensions', adif: 'settings', parks: 'settings', summits: 'settings' } as const;
 </script>
 
 <section class="home-welcome" id="home-welcome" aria-labelledby="welcome-headline">

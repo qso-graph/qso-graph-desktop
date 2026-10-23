@@ -91,20 +91,40 @@ try {
   application = undefined;
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
-  // P8-built-in, first half: a new profile has Conditions, Parks On the Air and Astro on, and
-  // Conditions, Astro, Parks On the Air and ADIF Lookup pinned (QGD-HOM-0004), drawn as tiles from the
-  // manifests alone. Home asks no extension for anything, so no host starts
+  // P8-built-in, first half: a new profile has every extension off, so Home,
+  // Callsigns, Locations and Settings alone, nothing pinned and no
+  // destination on the rail (KI7MT, 2026-10-23), and the welcome's "Choose
+  // what to add" step leads to Settings' Extensions. Turned on there, each
+  // extension's destination is pinned, in the order turned on: the launch row
+  // (QGD-HOM-0004), drawn as tiles from the manifests alone. Turning one on
+  // starts nothing; Home asks no extension for anything, so no host starts
   // until a page is opened.
   await rm(settingsFile, { force: true });
   ({ application, page } = await launch());
+  await expect(page.locator('#customize-pins')).toBeVisible({ timeout: 30_000 });
+  await expect(tiles(page)).toHaveCount(0);
+  await expect(rail(page, 'Parks On the Air')).toHaveCount(0);
+  await expect(rail(page, 'Astro')).toHaveCount(0);
+  await page.locator('#welcome-step-extensions').click();
+  await expect(page.locator('#extensions-title')).toBeVisible({ timeout: 30_000 });
+  for (const name of ['Conditions', 'Astro', 'Parks On the Air', 'ADIF Lookup']) {
+    const toggle = page.getByRole('switch', { name: new RegExp(`^${name}`) });
+    await expect(toggle).not.toBeChecked({ timeout: 30_000 });
+    await toggle.click();
+    await expect(toggle).toBeChecked({ timeout: 30_000 });
+  }
+  expect((await settings()).extensionsOn).toEqual(['conditions', 'astro', 'pota', 'adif-lookup']);
+  await rail(page, 'Home').click();
   await expect(tile(page, 'Conditions')).toBeVisible({ timeout: 30_000 });
   expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air', 'ADIF Lookup']);
+  await expect(page.locator('#welcome-step-extensions')).toHaveAttribute('aria-label', 'Choose what to add: done');
+  console.log('P8-built-in: a new profile has every extension off and the welcome leads to them; turned on, each is pinned in turn: PASS');
   // The Internet lamp on the clock's panel, from the operating system's own
   // reading (KI7MT, 2026-10-23).
   await expect(page.locator('#net-lamp')).toHaveAttribute('aria-label', 'Internet: online');
   await expect(page.locator('#net-lamp')).toHaveAttribute('data-lamp', 'on');
   // The welcome above the pins (QGD-FRM-0011): what this is, and on a new
-  // profile the three steps to start, each a way to where it is done.
+  // profile the four steps to start, each a way to where it is done.
   await expect(page.locator('#welcome-headline')).toHaveText('QSO Graph Desktop');
   await expect(page.locator('#welcome-steps')).toBeVisible({ timeout: 30_000 });
   await page.locator('#welcome-step-callsign').click();
@@ -192,7 +212,7 @@ try {
   await expect(onTheAir).toBeChecked({ timeout: 30_000 });
   await onTheAir.click();
   await expect(onTheAir).not.toBeChecked({ timeout: 30_000 });
-  expect((await settings()).extensionsOff).toEqual(['conditions']);
+  expect((await settings()).extensionsOn).toEqual(['astro', 'pota', 'adif-lookup']);
   await rail(page, 'Home').click();
   await expect(tile(page, 'Conditions')).toHaveCount(0, { timeout: 30_000 });
   // Conditions alone: Parks On the Air is its own extension (KI7MT,
@@ -260,7 +280,7 @@ try {
     } finally {
       await chmod(userData, 0o700);
     }
-    expect((await settings()).extensionsOff).toEqual([]);
+    expect((await settings()).extensionsOn).toContain('conditions');
   }
   // Help → Troubleshooting… opens the same panel as the status bar's
   // button (QGD-LOG-0013, KI7MT 2026-10-22).

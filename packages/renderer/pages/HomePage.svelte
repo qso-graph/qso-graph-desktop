@@ -37,7 +37,7 @@
     // the getting-started steps, and where its links go.
     platform?: string;
     steps?: readonly WelcomeStep[];
-    onGo?: (place: 'callsigns' | 'stations' | 'settings') => void;
+    onGo?: (place: 'callsigns' | 'stations' | 'settings' | 'extensions') => void;
     onWhatsNew?: () => void;
     onDownloads?: () => void;
     onContributing?: () => void;

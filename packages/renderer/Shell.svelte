@@ -179,8 +179,14 @@
         onDismissNotice={id => home.dismissNotice(id)}
         onOpenPage={openPage}
         platform={(globalThis as { callsigns?: { platform?: string } }).callsigns?.platform ?? 'darwin'}
-        steps={welcomeSteps(!shell.firstRun, shell.storage)}
-        onGo={place => store.set({ page: place, extensionPage: null })}
+        steps={welcomeSteps(!shell.firstRun, shell.storage, homeModel.available.length > 0)}
+        onGo={place => {
+          // Choose what to add: Settings, at its Extensions card.
+          if (place === 'extensions') {
+            store.set({ page: 'settings', extensionPage: null });
+            requestAnimationFrame(() => document.getElementById('extensions-title')?.scrollIntoView({ block: 'start' }));
+          } else store.set({ page: place, extensionPage: null });
+        }}
         onWhatsNew={() => store.set({ welcome: true })}
         onDownloads={() => onOpenPage({ type: 'document', name: 'downloads' })}
         onContributing={() => onOpenPage({ type: 'document', name: 'contributing' })}

@@ -11,6 +11,7 @@ import { CALLSIGNS_STARTING, startCallsignBroker } from './callsign-broker.js';
 import { untilReady } from './until-ready.js';
 import { createLogger } from '../logging/logger.js';
 import { load, save, startSettingsBroker } from './settings.js';
+import { MAX_PINS } from './settings-contract.js';
 import { windowBackground } from './window-background.js';
 import { windowVisibility } from './window-visibility.js';
 import { startAppearanceBroker } from './system-appearance.js';
@@ -219,8 +220,20 @@ if (!app.requestSingleInstanceLock()) {
       sourceRegisterFile: join(app.getAppPath(), 'data', 'extension-sources.json'),
       limitsFile: join(app.getAppPath(), 'data', 'extension-limits.json'),
       distDirectory: join(app.getAppPath(), 'dist'),
-      readOff: () => load().extensionsOff,
-      writeOff: off => save({ ...load(), extensionsOff: [...off] }),
+      readOn: () => load().extensionsOn,
+      writeOn: on => save({ ...load(), extensionsOn: [...on] }),
+      // Turned on, its destinations are pinned to Home where there is room
+      // and they are not already: every extension starts off, so this is how
+      // one first appears (KI7MT, 2026-10-23). A tab under another page is
+      // reached from its area's pin, so only destinations are pinned.
+      onTurnedOn: id => {
+        const extension = extensionBroker?.loaded().find(entry => entry.manifest.id === id);
+        if (!extension) return;
+        const settings = load();
+        const wanted = extension.manifest.contributes.pages.filter(page => page.under === undefined).map(page => `${id}/${page.id}`);
+        const pins = [...settings.pins, ...wanted.filter(key => !settings.pins.includes(key))].slice(0, MAX_PINS);
+        if (pins.length !== settings.pins.length) save({ ...settings, pins });
+      },
       ports: {
         allowed: () => load().grants,
         // Every request through the callsign service waits for it at a

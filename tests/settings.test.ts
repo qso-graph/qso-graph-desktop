@@ -127,17 +127,17 @@ describe('QGD-SEC-0006 the settings channel rejects rather than coerces', () => 
 
 describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () => {
   it('reads what is valid and defaults the rest, key by key', () => {
-    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
+    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
-    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
-    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] });
+    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] });
+    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
+    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] });
   });
 });
 
@@ -274,8 +274,10 @@ describe('the grants the operator has allowed', () => {
 
 describe('P8-pins: pins in settings.json (QGD-HOM-0003, QGD-HOM-0004)', () => {
   it('starts a new install with the day-one cards pinned, in order', () => {
-    expect(readSettings({})).toMatchObject({ pins: ['conditions/conditions', 'astro/astro', 'pota/parks', 'adif-lookup/lookup'] });
-    expect(DAY_ONE_PINS).toEqual(['conditions/conditions', 'astro/astro', 'pota/parks', 'adif-lookup/lookup']);
+    // Nothing: every extension starts off, and turning one on pins it
+    // (KI7MT, 2026-10-23).
+    expect(readSettings({})).toMatchObject({ pins: [], extensionsOn: [] });
+    expect(DAY_ONE_PINS).toEqual([]);
   });
 
   it('keeps the order an operator set', () => {

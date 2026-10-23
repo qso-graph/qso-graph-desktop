@@ -28,10 +28,11 @@ export interface Settings {
   // is kept and not shown, so a page whose extension is turned off comes back
   // where it was when it is turned on.
   pins: readonly string[];
-  // The extensions the operator has turned off, by id (QGD-HOM-0007). Absent
-  // or empty means every extension that loaded is on, which is how a fresh
-  // install starts.
-  extensionsOff: readonly string[];
+  // The extensions the operator has turned on, by id (QGD-HOM-0007). Absent
+  // or empty means none is: a new install starts with Home, Callsigns,
+  // Locations and Settings alone, and the operator adds what they use (KI7MT,
+  // 2026-10-23). An extension a later release brings arrives off too.
+  extensionsOn: readonly string[];
   // The release the operator ticked "Don't show this again" on the welcome
   // for (QGD-FRM-0016), or empty. A new release does not match it, so the
   // welcome shows once more, as WSJT-X's versioned setting does.
@@ -63,13 +64,13 @@ export const MAX_PINS = 8;
 // The day-one pages (QGD-HOM-0004): what a new install starts with. Your
 // station was the second until it was retired (KI7MT, 2026-10-22); a pin for
 // it in an older settings.json names no page, and Home skips it.
-// Astro joins it (KI7MT, 2026-10-22: the launch row is Conditions, Astro,
-// Parks and Summits On the Air, and ADIF Lookup).
-export const DAY_ONE_PINS: readonly string[] = ['conditions/conditions', 'astro/astro', 'pota/parks', 'adif-lookup/lookup'];
+// Astro joined it (KI7MT, 2026-10-22). None since 2026-10-23 (KI7MT): every
+// extension starts off, and turning one on pins its destinations.
+export const DAY_ONE_PINS: readonly string[] = [];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [] };
 
 // A release name, as package.json writes one, or empty.
 export function isWelcomeHidden(value: unknown): value is string {
@@ -95,7 +96,7 @@ export function isPins(value: unknown): value is readonly string[] {
 const APP_ID = /^[a-z][a-z0-9-]{1,30}$/;
 const GRANT_ID = /^[a-z]+:[a-z0-9-]+$/;
 
-export function isExtensionsOff(value: unknown): value is readonly string[] {
+export function isExtensionIds(value: unknown): value is readonly string[] {
   if (!Array.isArray(value) || value.length > 64) return false;
   const seen = new Set<string>();
   for (let at = 0; at < value.length; at++) {
@@ -136,9 +137,9 @@ export function isGrantMap(value: unknown): value is Readonly<Record<string, rea
 // What the settings channel may write. Pins are not among them: they change
 // only through Home's channel, which cancels what an unpinned page has in
 // flight (QGD-HOM-0005); a write that bypassed it would leave that running.
-// Nor is which extensions are off: that changes only through the extensions
+// Nor is which extensions are on: that changes only through the extensions
 // channel, which stops the extension as it records it (QGD-HOM-0007).
-export type WritableSetting = Exclude<keyof Settings, 'pins' | 'extensionsOff'>;
+export type WritableSetting = Exclude<keyof Settings, 'pins' | 'extensionsOn'>;
 
 export type SettingsCommand =
   | { type: 'read' }
@@ -214,7 +215,7 @@ export function readSettings(stored: unknown): Settings {
   // operator made; a typo must never widen what an extension holds.
   if (Object.hasOwn(source, 'grants')) settings.grants = readGrants(source.grants);
   read('pins', isPins);
-  read('extensionsOff', isExtensionsOff);
+  read('extensionsOn', isExtensionIds);
   read('welcomeHidden', isWelcomeHidden);
   read('area', isArea);
   return settings;

@@ -270,6 +270,14 @@ async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pan
 }
 
 try {
+  // Every extension starts off (KI7MT, 2026-10-23). The screens are of an
+  // operator who has turned on the launch row, pinned in that order, so the
+  // built-in extensions' pages are in the captures.
+  await mkdir(join(directory, 'chromium'), { recursive: true });
+  await writeFile(join(directory, 'chromium', 'settings.json'), JSON.stringify({
+    extensionsOn: ['conditions', 'astro', 'pota', 'adif-lookup'],
+    pins: ['conditions/conditions', 'astro/astro', 'pota/parks', 'adif-lookup/lookup']
+  }));
   application = await electron.launch({
     // Rendered the same way every time, rather than the way this display
     // happens to render today. Without these, half the pixels differ between
