@@ -11,9 +11,9 @@ export type Section = (
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
   // In named groups, and a two-cell row across a wider table (version 5).
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
   // The world with the night greyed out, and places marked (version 6).
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
 ) & { readonly heading?: string };
@@ -63,6 +63,15 @@ export function sortedGroups<G extends { readonly rows: readonly (readonly strin
   section: Extract<Section, { shape: 'table' }>, groups: readonly G[], sort: TableSort | undefined
 ): readonly G[] {
   if (!sort) return groups;
+  // The column the extension sent the rows in order of is sorted by that
+  // order: as sent one way, turned round the other.
+  const sent = section.sortedBy;
+  if (sent && sent.column === sort.column) {
+    return sort.direction === sent.direction ? groups : groups.map(group => ({
+      ...group,
+      rows: [...group.rows.filter(row => row.length === section.columns.length).reverse(), ...group.rows.filter(row => row.length !== section.columns.length)]
+    }));
+  }
   const options = section.filters?.find(filter => filter.column === sort.column)?.options;
   const rank = options ? new Map(options.map((option, at) => [option, at])) : undefined;
   const sign = sort.direction === 'ascending' ? 1 : -1;

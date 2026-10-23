@@ -219,6 +219,15 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [{ ...table, sortable: true }]))).toThrowError(/version 5 does not have/);
   });
 
+  it('carries the order the rows were sent in, for a sortable table only', () => {
+    const sent = { ...table, sortable: true, sortedBy: { column: 1, direction: 'descending' } };
+    expect(validatePageAnswer(v(6, [sent]))).toEqual(v(6, [sent]));
+    expect(() => validatePageAnswer(v(6, [{ ...table, sortedBy: { column: 1, direction: 'descending' } }]))).toThrowError(/not sortable/);
+    for (const sortedBy of [{ column: 3, direction: 'descending' }, { column: 1, direction: 'down' }, { column: 1 }, { column: 1, direction: 'ascending', x: 1 }]) {
+      expect(() => validatePageAnswer(v(6, [{ ...table, sortable: true, sortedBy }])), JSON.stringify(sortedBy)).toThrowError(/sortedBy/);
+    }
+  });
+
   it.each([
     [[], /no filters/],
     [[1, 2, 0, 1].map(column => ({ column, label: 'x' })), /more than 3/],

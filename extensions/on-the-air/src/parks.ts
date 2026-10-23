@@ -111,7 +111,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       { label: 'Parks', value: String(parks) }
     ] },
     // Sortable by any column; the band sorts in ADIF's order (the filter's).
-    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true, filters: [
+    { shape: 'table', columns: ['Activator', 'Park', 'Name', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true,
+      // Sent newest first by when spotted, which the core shows as the sort
+      // and keeps right across midnight UTC (KI7MT, 2026-10-23).
+      sortedBy: { column: 6, direction: 'descending' }, filters: [
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 4, label: 'Band', options: bandOptions }] : []),
       { column: 5, label: 'Mode', options: modeOptions }

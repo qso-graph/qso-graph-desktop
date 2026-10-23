@@ -35,6 +35,7 @@ describe('Parks On the Air', () => {
     if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no table');
     expect(table.columns).toEqual(['Activator', 'Park', 'Name', 'MHz', 'Band', 'Mode', 'UTC']);
     expect(table.sortable).toBe(true);
+    expect(table.sortedBy).toEqual({ column: 6, direction: 'descending' });
     expect(table.rows).toEqual([
       ['KI7MT', 'US-0001', 'Made-up Park One', '14.062', '20m', 'CW', '18:52'],
       ['KI7MT/M', 'GB-0003', 'Made-up Park Three', '28.074', '10m', 'FT8', '18:45'],

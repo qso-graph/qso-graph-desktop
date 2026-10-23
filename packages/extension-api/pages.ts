@@ -92,8 +92,8 @@ export type Section = (
   // Rows under named columns: the bands with their outlook. Version 2. From
   // version 5 the rows may come in named groups instead, and a row of two
   // cells in a wider table gives one value across the columns after its first.
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort }
   // The world, with the night greyed out from where the sun is overhead, and
   // up to four places marked. Version 6. Optionally the moon, where it is
   // overhead, and a twilight band from the horizon down to a depth, as the
@@ -102,6 +102,15 @@ export type Section = (
 ) & { readonly heading?: string };
 
 export type Row = readonly string[];
+
+// The order the extension sent a sortable table's rows in: by this column,
+// this way. The core shows it as the table's sort from the start, and sorts
+// that column by the order sent rather than by its text, so a time of day
+// that crosses midnight still sorts newest first (KI7MT, 2026-10-23).
+export interface TableSort {
+  readonly column: number;
+  readonly direction: 'ascending' | 'descending';
+}
 
 // A column the operator can narrow the table by: its index, what the choice
 // is called, and the values to offer in the order to offer them. Without
@@ -273,7 +282,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (version < 2) throw new PageError(`${where} is a table, which page data version ${version} does not have.`);
     const grouped = Object.hasOwn(value, 'groups');
     if (grouped && version < 5) throw new PageError(`${where} has groups, which page data version ${version} does not have.`);
-    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable'], where);
+    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable', 'sortedBy'], where);
     if (value.sortable !== undefined) {
       if (version < 6) throw new PageError(`${where} is sortable, which page data version ${version} does not have.`);
       if (value.sortable !== true) throw new PageError(`${where}'s sortable is not true.`);
@@ -307,7 +316,19 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (filters && new Set(filters.map(filter => filter.column)).size !== filters.length) {
       throw new PageError(`${where} filters one column twice.`);
     }
-    const withFilters = { ...(filters ? { filters } : {}), ...(value.sortable === true ? { sortable: true as const } : {}) };
+    let sortedBy: TableSort | undefined;
+    if (value.sortedBy !== undefined) {
+      if (value.sortable !== true) throw new PageError(`${where} says how it is sorted but is not sortable.`);
+      const sort = value.sortedBy;
+      if (!isRecord(sort)) throw new PageError(`${where}'s sortedBy is not an object.`);
+      only(sort, ['column', 'direction'], `${where}'s sortedBy`);
+      if (typeof sort.column !== 'number' || !Number.isInteger(sort.column) || sort.column < 0 || sort.column >= columns.length
+        || (sort.direction !== 'ascending' && sort.direction !== 'descending')) {
+        throw new PageError(`${where}'s sortedBy does not name a column and ascending or descending.`);
+      }
+      sortedBy = { column: sort.column, direction: sort.direction };
+    }
+    const withFilters = { ...(filters ? { filters } : {}), ...(value.sortable === true ? { sortable: true as const } : {}), ...(sortedBy ? { sortedBy } : {}) };
     const rowsOf = (list: unknown, name: string, room: number): Row[] => {
       if (!Array.isArray(list) || list.length > room) {
         throw new PageError(`${name} has rows as something other than a list of at most ${PAGE_LIMITS.rows} in the table.`);

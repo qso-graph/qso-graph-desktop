@@ -57,3 +57,17 @@ describe('a sortable table (KI7MT, 2026-10-23)', () => {
     expect(order(3, 'ascending')).toEqual(['N0CALL', 'AB1C', 'KI7MT/P', 'KI7MT']);
   });
 });
+
+describe('a table sent in order of a column (KI7MT, 2026-10-23)', () => {
+  // Newest first, across midnight UTC: as text, 00:05 would sort below 23:50.
+  const spots: Table = { shape: 'table', sortable: true, sortedBy: { column: 1, direction: 'descending' }, columns: ['Activator', 'UTC'], rows: [
+    ['KI7MT', '00:05'], ['N0CALL', '23:50'], ['AB1C', '23:40']
+  ] };
+  const order = (direction: 'ascending' | 'descending') =>
+    sortedGroups(spots, filteredGroups(spots, {}), { column: 1, direction })[0]!.rows.map(row => row[0]);
+
+  it('sorts that column by the order sent, and turned round the other way, not by its text', () => {
+    expect(order('descending')).toEqual(['KI7MT', 'N0CALL', 'AB1C']);
+    expect(order('ascending')).toEqual(['AB1C', 'N0CALL', 'KI7MT']);
+  });
+});

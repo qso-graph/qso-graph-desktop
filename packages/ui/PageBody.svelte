@@ -33,8 +33,11 @@
   // clicked, then ascending, then each click turns it round. Kept across a
   // refresh, like the filters.
   let sorts = $state<Record<number, TableSort>>({});
-  function sortBy(section: number, column: number): void {
-    const now = sorts[section];
+  // The sort a table is in: the operator's, or else the order the extension
+  // says it sent.
+  const sortOf = (section: number, sent: TableSort | undefined) => sorts[section] ?? sent;
+  function sortBy(section: number, column: number, sent: TableSort | undefined): void {
+    const now = sortOf(section, sent);
     const direction = now?.column === column && now.direction === 'ascending' ? 'descending' : 'ascending';
     sorts = { ...sorts, [section]: { column, direction } };
   }
@@ -93,13 +96,14 @@
             {#if anyChosen(at)}<button type="button" class="link-button page-filters-clear" onclick={() => clearFilters(at)}>Clear filters</button>{/if}
           </div>
         {/if}
-        {@const groups = sortedGroups(section, filteredGroups(section, chosen[at] ?? {}), sorts[at])}
+        {@const sort = sortOf(at, section.sortedBy)}
+        {@const groups = sortedGroups(section, filteredGroups(section, chosen[at] ?? {}), sort)}
         {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
         <table class="page-table" hidden={groups.length === 0}>
           <thead><tr>{#each section.columns as column, c (c)}
             {#if section.sortable}
-              <th scope="col" aria-sort={sorts[at]?.column === c ? sorts[at]!.direction : undefined}>
-                <button type="button" class="page-sort" onclick={() => sortBy(at, c)}>{column}<span class="page-sort-mark" aria-hidden="true">{sorts[at]?.column === c ? (sorts[at]!.direction === 'ascending' ? ' ▲' : ' ▼') : ''}</span></button>
+              <th scope="col" aria-sort={sort?.column === c ? sort.direction : undefined}>
+                <button type="button" class="page-sort" onclick={() => sortBy(at, c, section.sortedBy)}>{column}<span class="page-sort-mark" aria-hidden="true">{sort?.column === c ? (sort.direction === 'ascending' ? ' ▲' : ' ▼') : ''}</span></button>
               </th>
             {:else}<th scope="col">{column}</th>{/if}
           {/each}</tr></thead>
