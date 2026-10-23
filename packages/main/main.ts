@@ -253,6 +253,12 @@ if (!app.requestSingleInstanceLock()) {
         // Name, grid and position only (station-brief.ts, QGD-STN-0003).
         activeStation: async () => storageBroker.activeStation(),
         // ADIF Lookup's search, answered from reference.sqlite (reference:read).
+        // A whole enumeration by its name (reference:read, #58).
+        adifList: async name => {
+          const found = await storageBroker.adifList(name);
+          if (typeof found === 'string') throw new Error(found);
+          return found;
+        },
         adifSearch: async query => {
           const found = await storageBroker.adifSearch(query);
           if (typeof found === 'string') throw new Error(found);

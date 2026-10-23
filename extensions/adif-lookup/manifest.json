@@ -15,7 +15,7 @@
         "description": "ADIF's own definitions, searched: every field, and every value of every enumeration.",
         "refreshSeconds": 86400,
         "icon": "book",
-        "inputs": [{ "id": "search", "label": "Search", "kind": "text", "max": 64, "hint": "A field, a band, a mode or any ADIF value, as FT8, 20m or MY_GRIDSQUARE." }]
+        "inputs": [{ "id": "search", "label": "Search", "kind": "text", "max": 64, "hint": "A field or value, as FT8; a list's name, as Band, shows the whole list." }]
       }
     ]
   }

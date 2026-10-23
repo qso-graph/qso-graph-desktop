@@ -29,7 +29,23 @@ describe('ADIF Lookup', () => {
     expect(await ask(providers, {})).toMatchObject({ ok: true });
     expect(asked).toEqual([]);
     await ask(providers, { search: 'FT8' });
-    expect(asked).toEqual([{ kind: 'adif.search', query: 'FT8' }]);
+    // A word that could be a list's name is asked for as one first; ADIF has
+    // no list called FT8, so it is searched.
+    expect(asked).toEqual([{ kind: 'adif.list', name: 'FT8' }, { kind: 'adif.search', query: 'FT8' }]);
+    // Something no list could be called is searched at once.
+    asked.length = 0;
+    await ask(providers, { search: '14.074' });
+    expect(asked).toEqual([{ kind: 'adif.search', query: '14.074' }]);
+  });
+
+  it('shows a whole list when its name is typed (#58)', async () => {
+    const list = { name: 'Band', columns: ['Band', 'Lower Freq (MHz)', 'Upper Freq (MHz)'], rows: [['20m', '14.0', '14.35'], ['40m', '7.0', '7.3']] };
+    const { value, providers, asked } = context(request => request.kind === 'adif.list'
+      ? { ok: true, kind: 'adif.list', list } : { ok: true, kind: 'adif.search', entries: [] });
+    activate(value);
+    const answer = await ask(providers, { search: 'band' });
+    expect(asked).toEqual([{ kind: 'adif.list', name: 'band' }]);
+    expect(answer).toMatchObject({ ok: true, data: { sections: [{ shape: 'text' }, { shape: 'table', columns: list.columns, rows: list.rows }] } });
   });
 
   it('passes on the core\'s words when it cannot search', async () => {

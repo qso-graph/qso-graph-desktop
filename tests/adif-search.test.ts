@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { adifBands, searchAdif, ADIF_RESULTS } from '../packages/storage/adif-search.js';
+import { adifBands, adifList, searchAdif, ADIF_RESULTS } from '../packages/storage/adif-search.js';
 import { enumeration, enumerationValue, field, referenceSchema } from '../packages/storage/reference-schema.js';
 import { openStore } from '../packages/storage/sqlite.js';
 import { isStorageReply } from '../packages/storage/storage-contract.js';
@@ -23,13 +23,17 @@ async function reference() {
   await store.unit(async (db) => {
     await db.insert(enumeration).values([
       { name: 'Band', header: ['Band', 'Lower Freq (MHz)', 'Upper Freq (MHz)'], valueColumn: 'Band', rowCount: 2 },
-      { name: 'Mode', header: ['Mode', 'Submodes', 'Description'], valueColumn: 'Mode', rowCount: 2 }
+      { name: 'Mode', header: ['Mode', 'Submodes', 'Description'], valueColumn: 'Mode', rowCount: 2 },
+      { name: 'DXCC_Entity_Code', header: ['Enumeration Name', 'Entity Code', 'Entity Name', 'Deleted', 'Import-only'], valueColumn: 'Entity Code', rowCount: 3 }
     ]).run();
     await db.insert(enumerationValue).values([
       { enumeration: 'Band', key: '20m', value: { Band: '20m', 'Lower Freq (MHz)': '14.0', 'Upper Freq (MHz)': '14.35' } },
       { enumeration: 'Band', key: '2m', value: { Band: '2m', 'Lower Freq (MHz)': '144', 'Upper Freq (MHz)': '148' } },
       { enumeration: 'Mode', key: 'MFSK', value: { Mode: 'MFSK', Submodes: 'FT4, JS8', Description: '' } },
-      { enumeration: 'Mode', key: 'FT8', value: { Mode: 'FT8', Submodes: '', Description: 'Weak signal on 20m and elsewhere' } }
+      { enumeration: 'Mode', key: 'FT8', value: { Mode: 'FT8', Submodes: '', Description: 'Weak signal on 20m and elsewhere' } },
+      { enumeration: 'DXCC_Entity_Code', key: '291', value: { 'Enumeration Name': 'DXCC_Entity_Code', 'Entity Code': '291', 'Entity Name': 'UNITED STATES OF AMERICA', Deleted: '', 'Import-only': '' } },
+      { enumeration: 'DXCC_Entity_Code', key: '1', value: { 'Enumeration Name': 'DXCC_Entity_Code', 'Entity Code': '1', 'Entity Name': 'CANADA', Deleted: '', 'Import-only': '' } },
+      { enumeration: 'DXCC_Entity_Code', key: '21', value: { 'Enumeration Name': 'DXCC_Entity_Code', 'Entity Code': '21', 'Entity Name': 'BALEARIC IS.', Deleted: 'Y', 'Import-only': '' } }
     ]).run();
     await db.insert(field).values([
       { name: 'BAND', dataType: 'Enumeration', dataTypes: ['Enumeration'], enumerationName: 'Band', description: 'QSO band' }
@@ -123,6 +127,33 @@ describe('an exact match is never cut by the search\'s own limit (Codex review, 
       });
       const [first] = await searchAdif(store, 'AM');
       expect(first).toMatchObject({ list: 'Mode', key: 'AM' });
+    } finally { store.close(); }
+  });
+});
+
+describe('a whole list by its name (#58)', () => {
+  it('gives every value under ADIF\'s columns in ADIF\'s order, in any case, numbers in number order', async () => {
+    const store = await reference();
+    try {
+      // The list's own name is its heading, and a column empty in every row is
+      // left out (Import-only); one empty in some rows stays (Deleted).
+      expect(await adifList(store, 'dxcc_entity_code')).toEqual({
+        name: 'DXCC_Entity_Code', columns: ['Entity Code', 'Entity Name', 'Deleted'],
+        rows: [['1', 'CANADA', ''], ['21', 'BALEARIC IS.', 'Y'], ['291', 'UNITED STATES OF AMERICA', '']]
+      });
+      expect((await adifList(store, 'Mode'))?.rows).toEqual([['FT8', '', 'Weak signal on 20m and elsewhere'], ['MFSK', 'FT4, JS8', '']]);
+    } finally { store.close(); }
+  });
+
+  it('gives nothing for a name ADIF has no list of, and the window takes both answers', async () => {
+    const store = await reference();
+    const status = { state: 'ready' };
+    try {
+      expect(await adifList(store, 'FT8')).toBeUndefined();
+      expect(await adifList(store, '')).toBeUndefined();
+      expect(isStorageReply({ ok: true, status, adifList: await adifList(store, 'Band') })).toBe(true);
+      expect(isStorageReply({ ok: true, status, adifList: null })).toBe(true);
+      expect(isStorageReply({ ok: true, status, adifList: { name: 'Band', columns: ['Band'], rows: [['20m', 'extra']] } })).toBe(false);
     } finally { store.close(); }
   });
 });

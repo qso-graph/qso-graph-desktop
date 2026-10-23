@@ -47,6 +47,8 @@ export function plainRequest(request: ExtensionRequest): unknown {
       return { kind: request.kind };
     case 'adif.search':
       return { kind: request.kind, query: request.query };
+    case 'adif.list':
+      return { kind: request.kind, name: request.name };
     case 'pota.places':
       // A new array of what crosses: a proxy's own would not survive the copy.
       return { kind: request.kind, locations: Array.isArray(request.locations) ? Array.from(request.locations as readonly unknown[]) : request.locations };

@@ -11,7 +11,7 @@
 //
 // Stations (QGD-STN-*) are kept here too, and travel in the same status, so
 // the Stations page and the status bar are never polling and never stale.
-import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
+import { ADIF_COLUMNS, ADIF_LIST_COLUMNS, ADIF_LIST_ROWS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry, type AdifList } from './adif-entry.js';
 import { AREA_ENTITIES, AREA_LOCATION, AREA_LOCATIONS, AREA_PROGRAMS, isAreaEntry, type AreaPlace, type AreaProgram } from './area-entry.js';
 import { ACTIVATION_PARKS, ACTIVATION_TEXT, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
 import {
@@ -98,6 +98,8 @@ export type StorageCommand =
   | { type: 'station-from-summit'; reference: string }
   // ADIF's own definitions, searched for ADIF Lookup (adif-search.ts).
   | { type: 'adif-search'; query: string }
+  // A whole enumeration by its name (adif-search.ts adifList, #58).
+  | { type: 'adif-list'; name: string }
   // ADIF's bands with their edges (adif-search.ts), for an extension that
   // names a frequency's band.
   | { type: 'adif-bands' }
@@ -130,7 +132,7 @@ export type StorageCommand =
 // A refused station says which fields and why, so the editor can show each
 // beside its own field. A park draft is what a station from a park would be.
 export type StorageReply =
-  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[]; near?: Near }
+  | { ok: true; status: StorageStatus; saved?: string; park?: ParkDraft; choices?: StationChoices; named?: NamedReferences; counties?: string[]; sections?: Record<string, string>; adif?: AdifEntry[]; bands?: AdifBand[]; areaChoices?: AreaProgram[]; areaDefault?: string | null; toActivate?: ToActivate; areaLocations?: string[]; places?: AreaPlace[]; near?: Near; adifList?: AdifList | null }
   | { ok: false; error: string; problems?: FieldProblem[] };
 
 // The parks nearest the operator (Near Me), and where they are.
@@ -207,6 +209,13 @@ export function isStorageStatus(value: unknown): value is StorageStatus {
 // ADIF's text as QG Storage answers a search (adif-search.ts): bounded as the
 // search bounds it, so what passes here is what the search can send.
 const adifText = (value: unknown) => typeof value === 'string' && value.length <= ADIF_TEXT;
+// A whole enumeration (#58), bounded as adifList bounds it.
+function isAdifList(value: unknown): value is AdifList {
+  return record(value) && only(value, ['name', 'columns', 'rows']) && adifText(value.name)
+    && Array.isArray(value.columns) && value.columns.length <= ADIF_LIST_COLUMNS && value.columns.every(adifText)
+    && Array.isArray(value.rows) && value.rows.length <= ADIF_LIST_ROWS
+    && value.rows.every(row => Array.isArray(row) && row.length === (value.columns as unknown[]).length && row.every(adifText));
+}
 function isAdifEntries(value: unknown): value is AdifEntry[] {
   return Array.isArray(value) && value.length <= ADIF_RESULTS && value.every(entry => record(entry)
     && only(entry, ['list', 'key', 'columns']) && adifText(entry.list) && adifText(entry.key)
@@ -274,7 +283,8 @@ export function isStorageReply(value: unknown): value is StorageReply {
     // adif and bands were missing here, so every ADIF search and band list
     // QG Storage answered was refused as malformed; each layer's own tests
     // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
-    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places', 'near']) && isStorageStatus(value.status)
+    return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places', 'near', 'adifList']) && isStorageStatus(value.status)
+      && (value.adifList === undefined || value.adifList === null || isAdifList(value.adifList))
       && (value.near === undefined || isNear(value.near))
       && (value.places === undefined || (Array.isArray(value.places) && value.places.length <= AREA_LOCATIONS && value.places.every(isPlace)))
       && (value.areaLocations === undefined || isLocationCodes(value.areaLocations))
@@ -331,6 +341,7 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'station-from-park': return exactly(['type', 'reference']) && isPotaReference(value.reference);
     case 'station-from-summit': return exactly(['type', 'reference']) && isSummitReference(value.reference);
     case 'adif-search': return exactly(['type', 'query']) && plainQuery(value.query);
+    case 'adif-list': return exactly(['type', 'name']) && plainQuery(value.name);
     case 'adif-bands': return exactly(['type']);
     case 'area-choices': return exactly(['type']);
     case 'area-default': return exactly(['type']);

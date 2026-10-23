@@ -11,7 +11,7 @@
 // which asks the credential core, the one process that reaches the network
 // (QGD-SEC-0020). Every failure is reduced before it is logged or sent
 // (QGD-ENG-0016).
-import { adifBands, searchAdif } from './adif-search.js';
+import { adifBands, adifList, searchAdif } from './adif-search.js';
 import { areaChoices, areaDefault, areaLocations, homeLocation, placesOf } from './area.js';
 import { parksNear, parksToActivate } from './activations.js';
 import { readFile } from 'node:fs/promises';
@@ -235,6 +235,13 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
         return { ok: false, error: 'ADIF\'s definitions are not downloaded. Download them in Settings, then try again.' };
       }
       return { ok: true, status: status(), adif: await searchAdif(reader, command.query) };
+    }
+    case 'adif-list': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.adif.state !== 'loaded') {
+        return { ok: false, error: 'ADIF\'s definitions are not downloaded. Download them in Settings, then try again.' };
+      }
+      return { ok: true, status: status(), adifList: (await adifList(reader, command.name)) ?? null };
     }
     case 'area-choices': {
       const reader = reference?.reader();

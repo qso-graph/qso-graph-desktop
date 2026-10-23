@@ -189,6 +189,7 @@ describe('the decision', () => {
       'station.active': { kind: 'station.active' },
       'adif.search': { kind: 'adif.search', query: 'FT8' },
       'adif.bands': { kind: 'adif.bands' },
+      'adif.list': { kind: 'adif.list', name: 'Band' },
       'area.get': { kind: 'area.get' },
       'pota.activations': { kind: 'pota.activations' },
       'pota.places': { kind: 'pota.places', locations: ['US-ID'] },

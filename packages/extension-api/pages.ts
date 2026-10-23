@@ -62,9 +62,11 @@ export const PAGE_LIMITS = {
   alert: 200,
   reason: 160,
   // Columns in all, and drawn: a table may carry up to two more than it
-  // shows, for filters alone (hidden).
-  columns: 10,
-  shown: 8,
+  // shows, for filters alone (hidden). Twelve drawn hold ADIF's widest list,
+  // Primary Administrative Subdivision's ten columns (#58); a table wider
+  // than the page scrolls in its own box.
+  columns: 14,
+  shown: 12,
   rows: 500,
   filters: 6,
   options: 100,

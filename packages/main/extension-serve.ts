@@ -18,7 +18,7 @@
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type CallsignBrief, type StationBrief
+  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type AdifList, type CallsignBrief, type StationBrief
 } from '../extension-api/api-contract.js';
 import {
   extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
@@ -47,6 +47,7 @@ export interface ExtensionBrokerPorts {
   activeStation: () => Promise<StationBrief | null>;
   // ADIF's definitions searched by the frame (reference:read).
   adifSearch: (query: string) => Promise<readonly AdifEntry[]>;
+  adifList: (name: string) => Promise<AdifList | null>;
   adifBands: () => Promise<readonly AdifBand[]>;
   area: () => Promise<readonly string[]>;
   // My Area's parks with their activations, from reference data (QGD-REF-0019).
@@ -122,6 +123,8 @@ export function createServe(deps: ServeDeps) {
           return { ok: true, kind: 'station.active', station: await deps.ports.activeStation() };
         case 'adif.search':
           return { ok: true, kind: 'adif.search', entries: await deps.ports.adifSearch(request.query) };
+        case 'adif.list':
+          return { ok: true, kind: 'adif.list', list: await deps.ports.adifList(request.name) };
         case 'adif.bands':
           return { ok: true, kind: 'adif.bands', bands: await deps.ports.adifBands() };
         case 'area.get':

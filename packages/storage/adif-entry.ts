@@ -28,3 +28,15 @@ export interface AdifEntry {
   // ADIF's columns for it, in ADIF's order, the empty ones left out.
   readonly columns: readonly { readonly name: string; readonly value: string }[];
 }
+
+// A whole enumeration, as ADIF Lookup shows it when its name is typed
+// (#58): ADIF's own columns in ADIF's order, those empty in every row and
+// the list's own name left out, and every value. The longest, Primary
+// Administrative Subdivision, has 1,965 values and 10 such columns.
+export interface AdifList {
+  readonly name: string;
+  readonly columns: readonly string[];
+  readonly rows: readonly (readonly string[])[];
+}
+export const ADIF_LIST_ROWS = 3000;
+export const ADIF_LIST_COLUMNS = 12;

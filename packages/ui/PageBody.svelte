@@ -154,7 +154,9 @@
         {@const lists = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column))}
         <!-- The columns of references the core links to their pages (#59). -->
         {@const linked = new Map((section.links ?? []).map(link => [link.column, link.kind]))}
-        <table class="page-table" hidden={groups.length === 0}>
+        <!-- A table wider than the page scrolls in its own box (#58). -->
+        <div class="page-table-box" hidden={groups.length === 0}>
+        <table class="page-table">
           <thead><tr>{#each section.columns.slice(0, drawn) as column, c (c)}
             {#if section.sortable}
               <th scope="col" aria-sort={sort?.column === c ? sort.direction : undefined}>
@@ -174,6 +176,7 @@
             </tbody>
           {/each}
         </table>
+        </div>
       {:else if section.shape === 'text'}
         <p class="page-text">{section.text}</p>
       {:else if section.shape === 'fields'}

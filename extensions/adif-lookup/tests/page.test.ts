@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AdifEntry } from '../../../packages/extension-api/api-contract.js';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
-import { adifRows, lookupPage } from '../src/page.js';
+import { LIST_ROWS, adifRows, listPage, lookupPage } from '../src/page.js';
 import { pageContents } from '../../../packages/ui/page-shapes.js';
 
 const NOW = new Date('2026-10-23T18:00:00Z');
@@ -65,5 +65,34 @@ describe('ADIF Lookup', () => {
   it('never sends markup to the page', () => {
     const entry = { list: 'Field', key: 'COMMENT', columns: [{ name: 'Description', value: '<b>bold</b>' }] };
     expect(adifRows(entry)[0]![2]).toBe('bbold/b');
+  });
+});
+
+describe('a whole list (#58)', () => {
+  const NOW = new Date('2026-10-23T12:00:00Z');
+  it('draws every value under ADIF\'s own columns, an empty cell as —', () => {
+    const answer = listPage({ name: 'DXCC_Entity_Code', columns: ['Entity Code', 'Entity Name', 'Deleted'], rows: [['1', 'CANADA', ''], ['291', 'UNITED STATES OF AMERICA', '']] }, NOW);
+    expect(() => validatePageAnswer(answer)).not.toThrow();
+    expect(answer).toMatchObject({ ok: true, data: { sections: [
+      { shape: 'text', text: 'DXCC_Entity_Code: the whole list, 2 values, as ADIF publishes it.' },
+      { shape: 'table', columns: ['Entity Code', 'Entity Name', 'Deleted'], rows: [['1', 'CANADA', '—'], ['291', 'UNITED STATES OF AMERICA', '—']], sortable: true }
+    ] } });
+  });
+
+  it('splits a list longer than a table into tables of 500, headed by where each runs, and cuts nothing', () => {
+    const rows = Array.from({ length: 1965 }, (_, i) => [`K${i}`, `Name ${i}`]);
+    const answer = listPage({ name: 'Primary_Administrative_Subdivision', columns: ['Code', 'Primary Administrative Subdivision'], rows }, NOW);
+    expect(() => validatePageAnswer(answer)).not.toThrow();
+    if (!answer.ok) throw new Error(answer.reason);
+    const tables = answer.data.sections.filter(section => section.shape === 'table');
+    expect(tables.map(table => table.heading)).toEqual([
+      'Primary_Administrative_Subdivision, 1 to 500', 'Primary_Administrative_Subdivision, 501 to 1000',
+      'Primary_Administrative_Subdivision, 1001 to 1500', 'Primary_Administrative_Subdivision, 1501 to 1965']);
+    expect(tables.reduce((sum, table) => sum + (table.shape === 'table' && 'rows' in table ? table.rows.length : 0), 0)).toBe(LIST_ROWS * 3 + 465);
+  });
+
+  it('takes ADIF\'s widest list, ten columns, as the core checks it', () => {
+    const columns = Array.from({ length: 10 }, (_, i) => `Column ${i}`);
+    expect(() => validatePageAnswer(listPage({ name: 'Wide', columns, rows: [columns.map(() => 'x')] }, NOW))).not.toThrow();
   });
 });

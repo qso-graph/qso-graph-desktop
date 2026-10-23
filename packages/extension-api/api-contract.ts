@@ -43,6 +43,9 @@ export type ExtensionRequest =
   // extension names a frequency's band by ADIF's own table (KI7MT, 2026-10-23:
   // Parks On the Air's band filter). Answered from reference.sqlite.
   | { readonly kind: 'adif.bands' }
+  // A whole enumeration by its name, as DXCC_Entity_Code (#58): every value
+  // with ADIF's own columns. The list is null when ADIF has none of that name.
+  | { readonly kind: 'adif.list'; readonly name: string }
   // My Area (KI7MT, 2026-10-23): the POTA locations the operator works in,
   // as US-ID, or the active Location's own where they have chosen none. It
   // says roughly where the operator is, so it needs station:active.
@@ -102,6 +105,13 @@ export interface AdifEntry {
   readonly columns: readonly { readonly name: string; readonly value: string }[];
 }
 
+// A whole enumeration, as the frame answers adif.list.
+export interface AdifList {
+  readonly name: string;
+  readonly columns: readonly string[];
+  readonly rows: readonly (readonly string[])[];
+}
+
 // One of ADIF's bands, as the frame answers adif.bands.
 export interface AdifBand {
   readonly band: string;
@@ -150,6 +160,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'station.active'; readonly station: StationBrief | null }
   | { readonly ok: true; readonly kind: 'adif.search'; readonly entries: readonly AdifEntry[] }
   | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
+  | { readonly ok: true; readonly kind: 'adif.list'; readonly list: AdifList | null }
   | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
   // `locations` are the POTA locations My Area covers.
   | { readonly ok: true; readonly kind: 'pota.near'; readonly parks: readonly NearPark[]; readonly home?: PotaPlace }
@@ -186,6 +197,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'station.active': return 'station:active';
     case 'adif.search': return 'reference:read';
     case 'adif.bands': return 'reference:read';
+    case 'adif.list': return 'reference:read';
     case 'area.get': return 'station:active';
     case 'pota.activations': return 'station:active';
     case 'pota.places': return 'reference:read';
@@ -198,7 +210,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -250,6 +262,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'station.active': ['kind'],
   'adif.search': ['kind', 'query'],
   'adif.bands': ['kind'],
+  'adif.list': ['kind', 'name'],
   'area.get': ['kind'],
   'pota.activations': ['kind'],
   'pota.places': ['kind', 'locations'],
@@ -288,6 +301,13 @@ export function validateRequest(value: unknown): ExtensionRequest {
         throw new RequestError('locations is not a list of at most 1000 POTA location codes', 'locations');
       }
       return { kind, locations: [...value.locations as string[]] };
+    }
+    case 'adif.list': {
+      // An enumeration's name: ADIF's are letters, digits and underscores.
+      if (typeof value.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(value.name)) {
+        throw new RequestError('name is not an ADIF enumeration name', 'name');
+      }
+      return { kind, name: value.name };
     }
     case 'adif.search': {
       // Bounded and plain, as a page's text field is (inputs.ts).

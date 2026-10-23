@@ -6,7 +6,7 @@
 // up (QGD-ENG-0003). Its status reaches the screen two ways: once when the
 // screen asks, and pushed whenever it changes (an exit, a restart, a finished
 // reference build). So nothing polls and nothing goes stale.
-import type { AdifBand, AdifEntry } from '../storage/adif-entry.js';
+import type { AdifBand, AdifEntry, AdifList } from '../storage/adif-entry.js';
 import type { AreaPlace } from '../storage/area-entry.js';
 import type { StationBrief } from '../extension-api/api-contract.js';
 import { activeStationBrief } from './station-brief.js';
@@ -53,6 +53,8 @@ export interface StorageBroker {
   // ADIF's definitions searched, for an extension holding reference:read
   // (ADIF Lookup); a sentence when they cannot be.
   adifSearch: (query: string) => Promise<AdifEntry[] | string>;
+  // A whole enumeration by name, null when ADIF has none of that name (#58).
+  adifList: (name: string) => Promise<AdifList | null | string>;
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
   parksToActivate: () => Promise<ToActivate | string>;
@@ -254,6 +256,11 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
   return {
     stop,
     activeStation: () => activeStation,
+    async adifList(name) {
+      const reply = await ask({ type: 'adif-list', name });
+      if (!reply.ok) return reply.error;
+      return reply.adifList ?? null;
+    },
     async adifSearch(query) {
       const reply = await ask({ type: 'adif-search', query });
       if (!reply.ok) return reply.error;

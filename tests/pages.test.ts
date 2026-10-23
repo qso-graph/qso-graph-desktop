@@ -99,7 +99,7 @@ describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
   it.each([
     [{ ...table, rows: [['20m', 'Good']] }, /does not have 3 cells/],
     [{ ...table, columns: [] }, /no columns/],
-    [{ ...table, columns: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], rows: [] }, /more than 8/],
+    [{ ...table, columns: Array.from({ length: 15 }, (_, i) => `c${i}`), rows: [] }, /more than 14/],
     [{ ...table, rows: Array.from({ length: 501 }, () => ['a', 'b', 'c']) }, /at most 500/],
     [{ ...table, rows: [['20m', 'Good', 'x'.repeat(1001)]] }, /cell 3/],
     [{ ...table, rows: [['20m', 'Good', '<b>x</b>']] }, /./],
@@ -230,7 +230,7 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
       [{ ...wide, hidden: 0 }, /leaving one drawn/],
       [{ ...wide, hidden: '1', filters: [{ column: 2, label: 'Program' }] }, /leaving one drawn/],
       [{ ...hidden, sortable: true, sortedBy: { column: 2, direction: 'ascending' } }, /does not draw/],
-      [{ shape: 'table', columns: Array.from({ length: 9 }, (_, i) => `c${i}`), rows: [] }, /draws more than 8/]
+      [{ shape: 'table', columns: Array.from({ length: 13 }, (_, i) => `c${i}`), rows: [] }, /draws more than 12/]
     ] as const) {
       expect(() => validatePageAnswer(v(6, [section])), String(message)).toThrowError(message);
     }

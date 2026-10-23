@@ -6,7 +6,7 @@
 // ADIF is ADIF: what is shown is ADIF's text under ADIF's own column names,
 // nothing added and nothing reworded; an empty column is left out rather than
 // filled. Pure: what the core answered in, a page answer out.
-import type { AdifEntry } from '../../../packages/extension-api/api-contract.js';
+import type { AdifEntry, AdifList } from '../../../packages/extension-api/api-contract.js';
 import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
 
 // The most the core answers with (adif-entry.ts ADIF_RESULTS).
@@ -42,4 +42,31 @@ export function lookupPage(query: string | undefined, found: readonly AdifEntry[
   }];
   if (found.length >= MOST) sections.push({ shape: 'text', text: `The first ${MOST} matches are shown. A longer search narrows them.` });
   return page(sections);
+}
+
+// A table holds 500 rows (PAGE_LIMITS): a longer list is split, never cut.
+export const LIST_ROWS = 500;
+
+// A whole enumeration, typed by its name (#58): every value, one row each,
+// under ADIF's own columns in ADIF's order, ADIF's text whole. A list longer
+// than a table holds is split into tables of LIST_ROWS, each headed by where
+// it runs from and to. An empty cell is drawn as —, as a search draws one.
+export function listPage(list: AdifList, now: Date): PageAnswer {
+  const observedAt = new Date(Math.floor(now.getTime() / 60_000) * 60_000).toISOString().replace('.000Z', 'Z');
+  const name = plain(list.name, 60) || '—';
+  const columns = list.columns.map(column => plain(column, 1000) || '—');
+  const rows = list.rows.map(row => row.map(cell => plain(cell, 1000) || '—'));
+  const parts: Section[] = [];
+  for (let from = 0; from < rows.length; from += LIST_ROWS) {
+    const part = rows.slice(from, from + LIST_ROWS);
+    parts.push({
+      shape: 'table', columns, rows: part, sortable: true,
+      ...(rows.length > LIST_ROWS ? { heading: `${name}, ${from + 1} to ${from + part.length}` } : {})
+    });
+  }
+  const sections: Section[] = [
+    { shape: 'text', text: plain(`${name}: the whole list, ${rows.length} values, as ADIF publishes it.`, 200) },
+    ...(parts.length > 0 ? parts : [{ shape: 'text' as const, text: 'ADIF lists no values for it.' }])
+  ];
+  return { ok: true, data: { version: 6, observedAt, sections } };
 }

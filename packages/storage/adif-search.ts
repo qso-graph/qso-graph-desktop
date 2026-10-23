@@ -8,11 +8,11 @@
 // Read-only, and bounded: at most ADIF_RESULTS entries, each with at most
 // ADIF_COLUMNS of ADIF's columns, each value cut at ADIF_TEXT characters.
 import { eq, or, sql } from 'drizzle-orm';
-import { enumerationValue, field, type referenceSchema } from './reference-schema.js';
+import { enumeration, enumerationValue, field, type referenceSchema } from './reference-schema.js';
 import type { Store } from './sqlite.js';
 
-import { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry } from './adif-entry.js';
-export { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry };
+import { ADIF_COLUMNS, ADIF_LIST_COLUMNS, ADIF_LIST_ROWS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry, type AdifList } from './adif-entry.js';
+export { ADIF_COLUMNS, ADIF_QUERY, ADIF_RESULTS, ADIF_TEXT, type AdifBand, type AdifEntry, type AdifList };
 
 const cut = (value: string) => (value.length > ADIF_TEXT ? `${value.slice(0, ADIF_TEXT - 1)}…` : value);
 
@@ -85,5 +85,28 @@ export async function adifBands(reference: Store<typeof referenceSchema>): Promi
       bands.push({ band: value.Band, lowerMHz, upperMHz });
     }
     return bands.sort((a, b) => a.lowerMHz - b.lowerMHz);
+  });
+}
+
+// A whole enumeration by its name, as ADIF spells it or in any case
+// (DXCC_Entity_Code, dxcc_entity_code), or undefined when ADIF has no list of
+// that name (#58). ADIF's text, whole: nothing added, nothing reworded.
+export async function adifList(reference: Store<typeof referenceSchema>, name: string): Promise<AdifList | undefined> {
+  const wanted = name.trim();
+  if (wanted === '' || wanted.length > ADIF_QUERY) return undefined;
+  return reference.unit(async (db) => {
+    const list = await db.select().from(enumeration).where(sql`upper(${enumeration.name}) = ${wanted.toUpperCase()}`).get();
+    if (!list) return undefined;
+    const values = await db.select().from(enumerationValue).where(eq(enumerationValue.enumeration, list.name)).all();
+    // ADIF's columns in its order; the list's own name is the heading, and a
+    // column empty in every row is left out, as a search leaves one out.
+    const columns = list.header.filter(column => column !== 'Enumeration Name'
+      && values.some(row => typeof row.value[column] === 'string' && row.value[column]!.trim() !== '')).slice(0, ADIF_LIST_COLUMNS);
+    const numeric = values.every(row => /^[0-9]+$/.test(row.key));
+    const ordered = [...values].sort((a, b) => (numeric ? Number(a.key) - Number(b.key) : a.key.localeCompare(b.key)));
+    return {
+      name: list.name, columns,
+      rows: ordered.slice(0, ADIF_LIST_ROWS).map(row => columns.map(column => cut(typeof row.value[column] === 'string' ? row.value[column]! : '')))
+    };
   });
 }
