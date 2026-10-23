@@ -17,7 +17,13 @@ export interface PageInput {
   readonly kind: InputKind;
   // For text: the longest value, at most TEXT_MAX.
   readonly max?: number;
+  // What the field is for, said under it, at most HINT_MAX characters
+  // (KI7MT, 2026-10-23: a box marked "DX grid" did not say what it did).
+  // Without one, the core says what the kind wants.
+  readonly hint?: string;
 }
+
+export const HINT_MAX = 80;
 
 export const MAX_INPUTS = 4;
 export const TEXT_MAX = 64;

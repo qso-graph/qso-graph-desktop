@@ -50,6 +50,13 @@ describe('what the window accepts (QGD-HOM-0002)', () => {
     expect(isPageView({ key: 'on-the-air/conditions', state: 'failed', reason: '<img onerror=1>' })).toBe(false);
     expect(isPageView({ ...READY, colour: 'red' })).toBe(false);
     expect(isPageView({ key: '../x', state: 'waiting' })).toBe(false);
+    // A field's hint is one of the fields an input may have: leaving it out
+    // of this check would refuse the whole of Home's state.
+    const hinted = (hint: unknown) => isHomeReply({ ok: true, state: { available: [{ key: 'astro/astro', name: 'Astro', description: 'd', extensionName: 'Astro', icon: 'moon', rail: true,
+      inputs: [{ id: 'dx', label: 'Grey line with', kind: 'grid', hint }] }], pins: [], pages: [], notice: null } });
+    expect(hinted('A DX station\'s grid, as IO91.')).toBe(true);
+    expect(hinted('<b>x</b>')).toBe(false);
+    expect(hinted('x'.repeat(81))).toBe(false);
     expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: '<b>', description: 'd', extensionName: 'e', icon: 'sun', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
     expect(isHomeReply({ ok: true, state: { available: [{ key: 'a-b/c-d', name: 'n', description: 'd', extensionName: 'e', icon: '../x', rail: false, inputs: [] }], pins: [], pages: [], notice: null } })).toBe(false);
     // One page open at most, so at most one view.

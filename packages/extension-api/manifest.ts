@@ -26,7 +26,7 @@ export const LOADABLE_TIERS: readonly Tier[] = ['official'];
 // The manifest format this core reads, and the extension API version it
 // serves (QGD-APP-0019). A manifest states both, so a manifest written for a
 // later core is refused with the version it needs rather than half-understood.
-import { INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from './inputs.js';
+import { HINT_MAX, INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from './inputs.js';
 
 export const MANIFEST_VERSION = 1;
 export const API_VERSION = '1.0.0';
@@ -127,7 +127,7 @@ export function isTier(value: unknown): value is Tier {
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
 const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs'];
-const INPUT_FIELDS = ['id', 'label', 'kind', 'max'];
+const INPUT_FIELDS = ['id', 'label', 'kind', 'max', 'hint'];
 const MAX_PAGES = 16;
 // A tile shows the name on one line and the description on two (KI7MT,
 // 2026-10-22: every extension conforms to one tile).
@@ -213,7 +213,7 @@ function validInputs(value: unknown, page: string, id: string): PageInput[] {
   return value.map((entry: unknown): PageInput => {
     if (!isRecord(entry)) throw new ManifestError(`The page "${page}" in "${id}" has a field that is not an object.`, page);
     onlyKnown(entry, INPUT_FIELDS, `A field on the page "${page}" in "${id}"`, id);
-    const { id: field, label, kind, max } = entry;
+    const { id: field, label, kind, max, hint } = entry;
     if (typeof field !== 'string' || !APP_ID.test(field) || seen.has(field)) {
       throw new ManifestError(`The page "${page}" in "${id}" has a field with no well-formed, unique id.`, page);
     }
@@ -227,7 +227,10 @@ function validInputs(value: unknown, page: string, id: string): PageInput[] {
     if (max !== undefined && (kind !== 'text' || !Number.isInteger(max) || (max as number) < 1 || (max as number) > TEXT_MAX)) {
       throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" gives a longest value that is not a whole number from 1 to ${TEXT_MAX}, or is not a text.`, field);
     }
-    return { id: field, label, kind: kind as PageInput['kind'], ...(max !== undefined ? { max: max as number } : {}) };
+    if (hint !== undefined && (typeof hint !== 'string' || hint.trim() === '' || hint.length > HINT_MAX || /[<>]/.test(hint))) {
+      throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" has a hint that is not plain text of at most ${HINT_MAX} characters.`, field);
+    }
+    return { id: field, label, kind: kind as PageInput['kind'], ...(max !== undefined ? { max: max as number } : {}), ...(hint !== undefined ? { hint: hint as string } : {}) };
   });
 }
 

@@ -104,7 +104,7 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
   });
 
   it('takes up to four typed fields, each with a plain label and a kind the core can check', () => {
-    const inputs = [{ id: 'dx', label: 'DX grid', kind: 'grid' }, { id: 'search', label: 'Search', kind: 'text', max: 40 }];
+    const inputs = [{ id: 'dx', label: 'Grey line with', kind: 'grid', hint: 'A DX station\'s grid, as IO91.' }, { id: 'search', label: 'Search', kind: 'text', max: 40 }];
     expect(validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, inputs }] } }, known).contributes.pages[0].inputs).toEqual(inputs);
     for (const [bad, message] of [
       [Array.from({ length: 5 }, (_, i) => ({ id: `f-${i}`, label: 'F', kind: 'text' })), /at most 4/],
@@ -113,7 +113,10 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
       [[{ id: 'dx', label: 'DX', kind: 'grid', max: 4 }], /is not a text/],
       [[{ id: 'search', label: 'Q', kind: 'text', max: 65 }], /from 1 to 64/],
       [[{ id: 'dx', label: 'A', kind: 'grid' }, { id: 'dx', label: 'B', kind: 'grid' }], /unique id/],
-      [[{ id: 'dx', label: 'DX', kind: 'grid', html: 'x' }], /does not know: "html"/]
+      [[{ id: 'dx', label: 'DX', kind: 'grid', html: 'x' }], /does not know: "html"/],
+      [[{ id: 'dx', label: 'DX', kind: 'grid', hint: '<b>grid</b>' }], /hint/],
+      [[{ id: 'dx', label: 'DX', kind: 'grid', hint: 'x'.repeat(81) }], /hint/],
+      [[{ id: 'dx', label: 'DX', kind: 'grid', hint: '' }], /hint/]
     ] as const) {
       expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, inputs: bad }] } }, known)).toThrowError(message);
     }

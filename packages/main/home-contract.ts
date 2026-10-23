@@ -7,7 +7,7 @@
 // the pins. Home itself shows tiles drawn from the manifests and fetches
 // nothing (KI7MT, 2026-10-22); the open page's data arrives unasked, pushed as
 // the broker gets it, so the window never polls.
-import { INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from '../extension-api/inputs.js';
+import { HINT_MAX, INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from '../extension-api/inputs.js';
 import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
 import { isPins } from './settings-contract.js';
 
@@ -115,9 +115,11 @@ export function isPageView(value: unknown): value is PageView {
 
 function isInput(value: unknown): boolean {
   if (!record(value)) return false;
-  const keys = Object.keys(value).sort().join(',');
-  if (keys !== 'id,kind,label' && keys !== 'id,kind,label,max') return false;
-  return typeof value.id === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.id) && plainText(value.label, 32)
+  // Every field a manifest's input may have (manifest.ts INPUT_FIELDS): one
+  // missing here refuses the whole of Home's state, as a missing reply field
+  // refused ADIF's bands (2026-10-23).
+  if (!Object.keys(value).every(key => ['id', 'label', 'kind', 'max', 'hint'].includes(key))) return false;
+  return (value.hint === undefined || plainText(value.hint, HINT_MAX)) && typeof value.id === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.id) && plainText(value.label, 32)
     && (INPUT_KINDS as readonly unknown[]).includes(value.kind)
     && (value.max === undefined || (Number.isInteger(value.max) && (value.max as number) >= 1 && (value.max as number) <= TEXT_MAX));
 }
