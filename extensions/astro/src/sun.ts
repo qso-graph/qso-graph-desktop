@@ -111,6 +111,24 @@ export function sunCrossings(now: Date, latitude: number, longitude: number, alt
   return crossings(dayStart(now, longitude), 1440, ms => sunAltitude(julian(ms), latitude, longitude) - altitude);
 }
 
+// The same over any span, as a day on the operator's clock (page.ts): from
+// `start`, as milliseconds UTC, for `minutes`.
+export function sunCrossingsOver(start: number, minutes: number, latitude: number, longitude: number, altitude: number): Crossings {
+  return crossings(start, minutes, ms => sunAltitude(julian(ms), latitude, longitude) - altitude);
+}
+
+// The sun at its highest over a span, to the minute.
+export function highestOver(start: number, minutes: number, latitude: number, longitude: number): Date {
+  let best = start;
+  let highest = -Infinity;
+  for (let minute = 0; minute < minutes; minute += 1) {
+    const at = start + minute * 60_000;
+    const altitude = sunAltitude(julian(at), latitude, longitude);
+    if (altitude > highest) { highest = altitude; best = at; }
+  }
+  return new Date(best);
+}
+
 // Sunrise and sunset in the station's own day, as the core's card had them.
 export interface SunDay {
   sunrise?: Date;

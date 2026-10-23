@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
 import { pageContents } from '../../../packages/ui/page-shapes.js';
-import { astroPage, clockNote, subsolar, type Clock } from '../src/page.js';
+import { astroPage, clockNote, moonWeek, subsolar, sunWeek, twilightWeek, type Clock } from '../src/page.js';
 import { sublunar } from '../src/moon.js';
 import { julian } from '../src/sun.js';
 
@@ -191,6 +191,29 @@ describe('Astro\'s page', () => {
     // A zone with no common short name gives the offset once; half hours too.
     const kolkata: Clock = { ...MOUNTAIN, offset: () => 330, zone: () => ({ name: 'Asia/Kolkata', short: 'GMT+5:30' }) };
     expect(clockNote(kolkata, NOW)).toBe('Active Location almanac times are based on system clock setting: Asia/Kolkata (UTC+5:30).');
+  });
+
+  it('puts every event on the row of its own date on this clock, and starts at this clock\'s today (Codex review, 2026-10-23)', () => {
+    // A clock whose times carry their dates, so each cell can be checked
+    // against its row.
+    const dated = (offsetHours: number): Clock => {
+      const local = (at: Date) => new Date(at.getTime() + offsetHours * 3_600_000);
+      const date = (at: Date) => `${local(at).getUTCDate()} Oct ${local(at).getUTCFullYear()}`;
+      return { offset: () => offsetHours * 60, text: () => '', zone: () => ({ name: 'Test', short: 'T' }), date,
+        time: at => `${date(at)} ${two(local(at).getUTCHours())}:${two(local(at).getUTCMinutes())}` };
+    };
+    for (const offset of [0, -6, 9]) {
+      const clock = dated(offset);
+      for (const rows of [sunWeek(NOW, 43.625, -116.2083, clock), twilightWeek(NOW, 43.625, -116.2083, clock), moonWeek(NOW, 43.625, -116.2083, clock).map(row => [row[0]!, row[2]!, row[3]!])]) {
+        for (const row of rows) {
+          const cells = (rows[0]!.length === 5 ? row.slice(1, 4) : row.slice(1)).filter(cell => cell !== '—');
+          for (const cell of cells) expect(cell.startsWith(`${row[0]} `), `${offset}: ${row[0]} holds ${cell}`).toBe(true);
+        }
+      }
+    }
+    // Half past midnight on the 23rd on a Mountain clock, while the Location's
+    // solar day is still the 22nd: the table starts on the clock's today.
+    expect(sunWeek(new Date('2026-10-23T06:30:00Z'), 43.625, -116.2083, MOUNTAIN)[0]![0]).toBe('23 Oct 2026');
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {

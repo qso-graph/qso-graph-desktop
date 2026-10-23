@@ -139,6 +139,11 @@ export function moonCrossings(now: Date, latitude: number, longitude: number): C
   return crossings(dayStart(now, longitude), 1440, ms => aboveRiseSet(julian(ms), latitude, longitude));
 }
 
+// The same over any span, as a day on the operator's clock (page.ts).
+export function moonCrossingsOver(start: number, minutes: number, latitude: number, longitude: number): Crossings {
+  return crossings(start, minutes, ms => aboveRiseSet(julian(ms), latitude, longitude));
+}
+
 export interface MoonPhase {
   // 0 at new moon, 0.5 at full.
   fraction: number;

@@ -6,9 +6,9 @@
 import type { PageAnswer, Section, TableGroup } from '../../../packages/extension-api/pages.js';
 import type { StationBrief } from '../../../packages/extension-api/api-contract.js';
 import { greyLine, gridCentre } from './greyline.js';
-import { moonAt, moonCrossings, moonPhase, sublunar } from './moon.js';
+import { moonAt, moonCrossingsOver, moonPhase, sublunar } from './moon.js';
 import {
-  ASTRONOMICAL, CIVIL, D_LAYER, F2_LAYER, HORIZON, NAUTICAL, julian, solarNoon, sunAltitude, sunAt, sunCrossings, type Crossings
+  ASTRONOMICAL, CIVIL, D_LAYER, F2_LAYER, HORIZON, NAUTICAL, highestOver, julian, sunAltitude, sunAt, sunCrossings, sunCrossingsOver, type Crossings
 } from './sun.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -54,30 +54,57 @@ export function clockNote(clock: Clock, at: Date): string {
   return `Active Location almanac times are based on system clock setting: ${name.replace(/[<>]/g, '').slice(0, 60)} (${said}).`;
 }
 
-// The sun for today and the four days after it, on this computer's clock,
-// which is the operator's to set: local in Idaho, UTC in a shack kept on UTC
-// (KI7MT, 2026-10-23: a sunrise in UTC means nothing in Idaho). A day is the
-// Location's own, as the crossings are worked out (sun.ts); its date is the
-// date of its solar noon on this clock.
+// The days the almanac is in: today and the four after it, each a day on
+// this computer's clock, from its midnight to the next, so every event is on
+// the row of its own date on that clock and the table starts on the clock's
+// today (Codex review, 2026-10-23: a day was the Location's solar day, so on
+// a UTC clock Boise's 00:50 sunset sat under the day before, and just after
+// local midnight the table still began yesterday). A day with a change of
+// summer time is 23 or 25 hours long.
 export const SUN_DAYS = 5;
+const DAY = 86_400_000;
+export interface ClockDay { readonly start: number; readonly minutes: number; readonly noon: Date }
+export function clockDays(now: Date, clock: Clock, count = SUN_DAYS): ClockDay[] {
+  const midnight = (at: number) => {
+    let offset = clock.offset(new Date(at)) * 60_000;
+    let start = Math.floor((at + offset) / DAY) * DAY - offset;
+    // The offset in force at that midnight decides it, not the one now.
+    offset = clock.offset(new Date(start + DAY / 2)) * 60_000;
+    start = Math.floor((at + offset) / DAY) * DAY - offset;
+    return start;
+  };
+  const days: ClockDay[] = [];
+  let start = midnight(now.getTime());
+  for (let day = 0; day < count; day += 1) {
+    const next = midnight(start + DAY + DAY / 2);
+    days.push({ start, minutes: Math.round((next - start) / 60_000), noon: new Date(start + DAY / 2) });
+    start = next;
+  }
+  return days;
+}
+
+// The sun for those days: Date, Sunrise, Solar noon, Sunset, and the length
+// of the daylight around that day's solar noon, on this computer's clock,
+// which is the operator's to set: local in Idaho, UTC in a shack kept on UTC
+// (KI7MT, 2026-10-23: a sunrise in UTC means nothing in Idaho).
 export function sunWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
-  const rows: string[][] = [];
-  for (let day = 0; day < SUN_DAYS; day += 1) {
-    const at = new Date(now.getTime() + day * 86_400_000);
-    const found = sunCrossings(at, latitude, longitude, HORIZON);
-    const noon = solarNoon(at, latitude, longitude);
-    const length = found.rising && found.setting && found.setting > found.rising
-      ? duration((found.setting.getTime() - found.rising.getTime()) / 60_000)
-      : found.allDay === 'above' ? '24 h: the sun does not set' : found.allDay === 'below' ? 'None: the sun does not rise' : 'Not one span';
-    rows.push([
-      clock.date(noon),
+  return clockDays(now, clock).map(({ start, minutes, noon: middle }) => {
+    const found = sunCrossingsOver(start, minutes, latitude, longitude, HORIZON);
+    const noon = highestOver(start, minutes, latitude, longitude);
+    // The day's length is its daylight, the span that holds its solar noon,
+    // whichever clock days its rise and set fall on.
+    const span = sunCrossings(noon, latitude, longitude, HORIZON);
+    const length = span.rising && span.setting && span.setting > span.rising
+      ? duration((span.setting.getTime() - span.rising.getTime()) / 60_000)
+      : span.allDay === 'above' ? '24 h: the sun does not set' : span.allDay === 'below' ? 'None: the sun does not rise' : 'Not one span';
+    return [
+      clock.date(middle),
       found.rising ? clock.time(found.rising) : '—',
       clock.time(noon),
       found.setting ? clock.time(found.setting) : '—',
       length
-    ]);
-  }
-  return rows;
+    ];
+  });
 }
 
 // A crossing on this clock, or a dash where the day has none.
@@ -87,35 +114,29 @@ const timeOr = (clock: Clock, at: Date | undefined) => (at ? clock.time(at) : '�
 // computer's clock (KI7MT, 2026-10-23). A depth the sun does not reach that
 // day, or does not leave, is a dash.
 export function twilightWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
-  const rows: string[][] = [];
-  for (let day = 0; day < SUN_DAYS; day += 1) {
-    const at = new Date(now.getTime() + day * 86_400_000);
-    const row = [clock.date(solarNoon(at, latitude, longitude))];
+  return clockDays(now, clock).map(({ start, minutes, noon }) => {
+    const row = [clock.date(noon)];
     for (const depth of [CIVIL, NAUTICAL, ASTRONOMICAL]) {
-      const found: Crossings = sunCrossings(at, latitude, longitude, depth);
+      const found: Crossings = sunCrossingsOver(start, minutes, latitude, longitude, depth);
       row.push(timeOr(clock, found.rising), timeOr(clock, found.setting));
     }
-    rows.push(row);
-  }
-  return rows;
+    return row;
+  });
 }
 
 // The moon for the same five days, on this computer's clock: rise and set,
-// and at the day's solar noon its phase, how much is lit, and the
+// and at the day's midday on this clock its phase, how much is lit, and the
 // declination and distance EME turns on (QGD-AST-0031). The moon's day is
 // about 24 h 50 min, so roughly once a month a day has no rise or no set:
 // a dash, not a failure (QGD-AST-0007).
 export function moonWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
-  const rows: string[][] = [];
-  for (let day = 0; day < SUN_DAYS; day += 1) {
-    const at = new Date(now.getTime() + day * 86_400_000);
-    const noon = solarNoon(at, latitude, longitude);
-    const found = moonCrossings(at, latitude, longitude);
+  return clockDays(now, clock).map(({ start, minutes, noon }) => {
+    const found = moonCrossingsOver(start, minutes, latitude, longitude);
     const jd = julian(noon.getTime());
     const phase = moonPhase(jd);
     const position = moonAt(jd);
     // The date and the phase first, then the rest (KI7MT, 2026-10-23).
-    rows.push([
+    return [
       clock.date(noon),
       phase.name,
       timeOr(clock, found.rising),
@@ -123,9 +144,8 @@ export function moonWeek(now: Date, latitude: number, longitude: number, clock: 
       `${Math.round(phase.fraction * 100)}%`,
       `${position.declination >= 0 ? '+' : '−'}${Math.abs(position.declination).toFixed(1)}°`,
       `${Math.round(position.distance).toLocaleString('en-US')} km`
-    ]);
-  }
-  return rows;
+    ];
+  });
 }
 
 interface Inputs { readonly dx?: string }
