@@ -40,7 +40,7 @@ function refreshAfter(register: Register, resource: ReferenceResource): number {
 // Never a message, a path or a value (QGD-ENG-0016).
 export function problemOf(resource: ReferenceResource, outcome: RefreshOutcome): string | undefined {
   if (resource === 'activations' && outcome.noArea) {
-    return 'Choose My Area on the Locations page first: activations are downloaded for its locations alone.';
+    return 'Choose My POTA Focus Area on the Locations page first: activations are downloaded for it alone.';
   }
   const inputs = resource === 'adif' ? [outcome.adif]
     : resource === 'sota' ? SOTA_LISTS.map((list) => outcome.sota[list])

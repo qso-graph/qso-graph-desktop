@@ -125,7 +125,7 @@ describe('My area (KI7MT, 2026-10-23)', () => {
     const withArea = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS, ['US-ID', 'GB-ENG']));
     const table = withArea.ok ? withArea.data.sections.find(section => section.shape === 'table') : undefined;
     if (!table || table.shape !== 'table') throw new Error('no table');
-    expect(table.filters?.find(filter => filter.label === 'Location')).toMatchObject({ named: [{ label: 'My area', values: ['US-ID', 'GB-ENG'] }] });
+    expect(table.filters?.find(filter => filter.label === 'Location')).toMatchObject({ named: [{ label: 'My focus area', values: ['US-ID', 'GB-ENG'] }] });
     expect(table.filters?.find(filter => filter.label === 'Location')?.start).toBeUndefined();
     const without = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS, []));
     const plain = without.ok ? without.data.sections.find(section => section.shape === 'table') : undefined;

@@ -166,7 +166,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       // My area offered first when the operator has one, one choice away;
       // the page starts on All (KI7MT, 2026-10-23).
       { column: 3, label: 'Location', options: locationOptions, multiple: true,
-        ...(area.length > 0 ? { named: [{ label: 'My area', values: [...area] }] } : {}) }
+        ...(area.length > 0 ? { named: [{ label: 'My focus area', values: [...area] }] } : {}) }
     ] }
   ];
   if (bands.length === 0) {

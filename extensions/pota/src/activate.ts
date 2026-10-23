@@ -59,7 +59,7 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
   const observedAt = fetchedAt;
   if (parks.length === 0) {
     return { ok: true, data: { version: 6, observedAt, sections: [
-      { shape: 'alert', level: 'info', text: 'POTA lists no active parks in My Area.' }
+      { shape: 'alert', level: 'info', text: 'POTA lists no active parks in your POTA focus area.' }
     ] } };
   }
   const here = station && typeof station.latitude === 'number' && typeof station.longitude === 'number'

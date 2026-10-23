@@ -396,7 +396,7 @@ if (!app.requestSingleInstanceLock()) {
       { label: 'Setup', submenu: [
         setupItem('callsigns', 'Callsigns…'),
         setupItem('locations', 'Locations…'),
-        setupItem('area', 'My Area…'),
+        setupItem('area', 'My POTA Focus Area…'),
         { type: 'separator' },
         { label: 'Reference Data', submenu: [
           setupItem('adif', 'ADIF Definitions'),

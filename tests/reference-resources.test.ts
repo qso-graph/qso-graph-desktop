@@ -165,9 +165,9 @@ describe('POTA activations, fetched for Most Wanted (QGD-REF-0019)', () => {
       .map(resource => resource.id)).not.toContain('activations');
   });
 
-  it('say to choose My Area when there is none to fetch for', () => {
+  it('say to choose My POTA Focus Area when there is none to fetch for', () => {
     const outcome = { adif: { state: 'not asked' }, pota: {}, sota: {}, activations: {}, noArea: true, built: false, status: {} } as unknown as RefreshOutcome;
-    expect(problemOf('activations', outcome)).toMatch(/My Area/);
+    expect(problemOf('activations', outcome)).toMatch(/My POTA Focus Area/);
     const unreachable = { ...outcome, noArea: undefined, activations: { 'US-ID': { state: 'kept', failure: { kind: 'fetch' } } } } as unknown as RefreshOutcome;
     expect(problemOf('activations', unreachable)).toMatch(/Could not be reached/);
   });

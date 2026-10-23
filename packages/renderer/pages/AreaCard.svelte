@@ -53,19 +53,22 @@
   });
 
   async function save(): Promise<void> {
-    saved = (await onSave(chosen)) ? 'Saved.' : 'My Area could not be saved.';
+    saved = (await onSave(chosen)) ? 'Saved.' : 'The focus area could not be saved.';
   }
 </script>
 
 <section class="card" aria-labelledby="area-title" id="my-area">
-  <h2 id="area-title">My Area</h2>
+  <!-- Named for what it is for (KI7MT, 2026-10-23: "I had no idea what it
+       was for"). -->
+  <h2 id="area-title">My POTA Focus Area</h2>
   <p class="hint">
-    The parts of POTA you work in: a whole program, an entity, or locations, as POTA's own park
-    list narrows them. Only these are fetched for, so nothing outside your area is downloaded,
-    and pages that show parks start with them.
+    The part of POTA you activate and chase in: a whole program, an entity, or locations, as
+    POTA's own park list narrows them. Parks On the Air's Most Wanted fetches activation counts
+    for these alone, and Spots offers them as "My focus area". Left as it is, it is your
+    Location's own entity.
   </p>
   {#if !parksLoaded}
-    <p class="hint">My Area is chosen from POTA's lists. Download POTA Parks first.</p>
+    <p class="hint">It is chosen from POTA's lists. Download POTA Parks first.</p>
     {#if onDownloadParks}<button type="button" class="secondary" onclick={onDownloadParks}>Download POTA Parks</button>{/if}
   {:else if problem}
     <p class="field-error" role="status">{problem}</p>
@@ -73,7 +76,7 @@
     <AreaPicker {nodes} {chosen} {most} searchLabel="Find a program, entity or location" onChange={next => { chosen = next; saved = ''; }} />
     <div class="form-footer">
       {#if own}<button type="button" class="secondary" id="area-own" onclick={() => { chosen = [own!]; saved = ''; }}>Just my Location's ({labelOf(nodes, own) ?? own})</button>{/if}
-      <button type="button" id="area-save" onclick={save}>Save My Area</button>
+      <button type="button" id="area-save" onclick={save}>Save focus area</button>
     </div>
     {#if saved}<p class="hint" role="status" id="area-saved">{saved}</p>{/if}
   {/if}
