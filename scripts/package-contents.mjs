@@ -169,7 +169,7 @@ else notes.push(`${scanned.length} dist entr(ies) read, including every source m
 // nothing of their tests does.
 {
   const relative = entries.map(entry => entry.replace(/^\//, ''));
-  for (const wanted of ['dist/extension-host/host.js', 'dist/extensions/on-the-air/manifest.json', 'dist/extensions/on-the-air/main.js']) {
+  for (const wanted of ['dist/extension-host/host.js', 'dist/extensions/conditions/manifest.json', 'dist/extensions/conditions/main.js', 'dist/extensions/pota/manifest.json', 'dist/extensions/pota/main.js']) {
     if (!relative.includes(wanted)) failures.push(`${wanted} is not in the archive`);
   }
   const tests = relative.filter(entry => /^dist\/extensions\/.*\.test\.js$/.test(entry));
@@ -177,16 +177,20 @@ else notes.push(`${scanned.length} dist entr(ies) read, including every source m
   // Read and checked as the product checks it when it loads, against the
   // grant register shipped beside it: a manifest that is there but cannot load
   // is no better than a missing one.
-  let loadable = false;
-  try {
-    const manifest = validateManifest(JSON.parse(extract('dist/extensions/on-the-air/manifest.json').toString('utf8')),
-      grantIds(validateGrantRegister(JSON.parse(extract('data/extension-grants.json').toString('utf8')))));
-    if (manifest.main !== 'main.js') failures.push('On the Air\'s packaged manifest does not name the main.js shipped beside it');
-    else loadable = true;
-  } catch (error) {
-    failures.push(`On the Air's packaged manifest would not load: ${error instanceof Error ? error.message : String(error)}`);
+  // Each built-in extension that fetches: Conditions and Parks On the Air,
+  // their own extensions since 2026-10-23.
+  let loadable = 0;
+  for (const id of ['conditions', 'pota']) {
+    try {
+      const manifest = validateManifest(JSON.parse(extract(`dist/extensions/${id}/manifest.json`).toString('utf8')),
+        grantIds(validateGrantRegister(JSON.parse(extract('data/extension-grants.json').toString('utf8')))));
+      if (manifest.main !== 'main.js') failures.push(`${id}'s packaged manifest does not name the main.js shipped beside it`);
+      else loadable += 1;
+    } catch (error) {
+      failures.push(`${id}'s packaged manifest would not load: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
-  if (loadable && tests.length === 0) notes.push('On the Air ships in the package with the extension host, its manifest loads, and none of its tests do');
+  if (loadable === 2 && tests.length === 0) notes.push('Conditions and Parks On the Air ship in the package with the extension host, their manifests load, and none of their tests do');
 }
 
 // --------------------------------------------------------------------------

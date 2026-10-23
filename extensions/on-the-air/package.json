@@ -1,8 +1,0 @@
-{
-  "name": "@qso-graph/on-the-air",
-  "private": true,
-  "version": "1.0.0",
-  "description": "QSO Graph Desktop's built-in On the Air extension: the Home cards about what is happening on the air now.",
-  "license": "GPL-3.0-only",
-  "type": "module"
-}

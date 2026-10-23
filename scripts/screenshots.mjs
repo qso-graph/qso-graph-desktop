@@ -397,7 +397,7 @@ try {
       // with it the precondition. P8 brought two more answers, Home's pins
       // and Settings' extension switch, and both are waited for below.
       if (name === 'Home') await expect(page.locator('.pin-tile', { hasText: 'Conditions' })).toBeVisible({ timeout: 30_000 });
-      if (name === 'Settings') await expect(page.getByRole('switch', { name: /On the Air/ })).toBeVisible({ timeout: 30_000 });
+      if (name === 'Settings') await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeVisible({ timeout: 30_000 });
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
       // Home and Callsigns run past the first screen; what is below it is
       // captured too (the credentials and
@@ -406,7 +406,7 @@ try {
     }
 
     // Conditions' page, opened from its pin (KI7MT, 2026-10-22): the data
-    // that used to be on Home, drawn by the core from On the Air's answer.
+    // that used to be on Home, drawn by the core from the Conditions extension's answer.
     await rail('Home').click();
     await page.locator('.pin-tile', { hasText: 'Conditions' }).click();
     await expect(page.locator('section.page-body')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
@@ -419,9 +419,9 @@ try {
     // scrolled to the end, and the switch proven to be inside the frame.
     await rail('Settings').click();
     await record(page, `settings-extensions-${theme}.png`, theme, VOLATILE, { scroll: 'end' });
-    const switchBox = await page.getByRole('switch', { name: /On the Air/ }).boundingBox();
+    const switchBox = await page.getByRole('switch', { name: /^Conditions/ }).boundingBox();
     expect(switchBox && switchBox.y >= 0 && switchBox.y + switchBox.height <= VIEW.height,
-      'the On the Air switch must be inside the settings-extensions capture').toBe(true);
+      'the Conditions switch must be inside the settings-extensions capture').toBe(true);
 
     // "Customize your pins" (QGD-HOM-0003), opened over Home and cancelled.
     await rail('Home').click();

@@ -1,22 +1,14 @@
 {
   "manifestVersion": 1,
-  "id": "on-the-air",
-  "name": "On the Air",
+  "id": "pota",
+  "name": "Parks On the Air",
   "tier": "official",
   "version": "1.0.0",
   "engines": { "qgd": "^1.0.0" },
-  "grants": ["source:noaa-flux", "source:noaa-kp", "source:noaa-scales", "source:pota-spots", "reference:read", "station:active"],
+  "grants": ["source:pota-spots", "reference:read", "station:active"],
   "main": "main.js",
   "contributes": {
     "pages": [
-      {
-        "id": "conditions",
-        "name": "Conditions",
-        "description": "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.",
-        "refreshSeconds": 900,
-        "icon": "sun",
-        "network": true
-      },
       {
         "id": "near",
         "name": "Parks Near Me",

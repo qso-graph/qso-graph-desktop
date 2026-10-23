@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// P8 in the running application: Home's pins as tiles from On the Air's
+// P8 in the running application: Home's pins as tiles from Conditions'
 // manifest, its page drawn from the data its code answers in the QG Extensions
-// process and nowhere else, Home asking for nothing, and On the Air turned off
+// process and nowhere else, Home asking for nothing, and Conditions turned off
 // and on (KI7MT, 2026-10-22: a pin opens a page; Home is not a dashboard).
 //
 //   P8-window      the window is ready with nothing pinned, and no extension
@@ -11,7 +11,7 @@
 //                  process, which is neither main nor the window's, and which
 //                  opens no connection of its own (QGD-APP-0015,
 //                  QGD-PRC-0004, QGD-SEC-0020)
-//   P8-built-in    On the Air is on in a new profile; turned off, its tiles
+//   P8-built-in    Conditions is on in a new profile; turned off, its tiles
 //                  leave Home and "Customize your pins", and stay gone across a
 //                  restart; turned on, they come back to their pins
 //                  (QGD-HOM-0007)
@@ -91,7 +91,7 @@ try {
   application = undefined;
   console.log('P8-window: the window is ready with nothing pinned, and no extension host starts: PASS');
 
-  // P8-built-in, first half: a new profile has On the Air and Astro on, and
+  // P8-built-in, first half: a new profile has Conditions, Parks On the Air and Astro on, and
   // Conditions, Astro, Parks On the Air and ADIF Lookup pinned (QGD-HOM-0004), drawn as tiles from the
   // manifests alone. Home asks no extension for anything, so no host starts
   // until a page is opened.
@@ -159,10 +159,10 @@ try {
   const notice = page.locator('#host-notice');
   await expect(notice, 'Home must say the extension host stopped').toBeVisible({ timeout: 30_000 });
   // The extensions that were running in the host when it stopped: those
-  // whose pages were opened above, Astro and On the Air. ADIF Lookup's was
+  // whose pages were opened above, Astro and Conditions. ADIF Lookup's was
   // not, so it was not running and is not named (CI, 2026-10-23: the test
   // had guessed every loaded extension).
-  await expect(notice).toContainText('It affected Astro and On the Air.', { timeout: 30_000 });
+  await expect(notice).toContainText('It affected Astro and Conditions.', { timeout: 30_000 });
   await expect(notice).toContainText('was restarted', { timeout: 30_000 });
   await expect(notice).not.toContainText(/caused|because/i);
   await expect.poll(async () => (await extensionHost(application)).filter(pid => pid !== hosts[0]).length,
@@ -184,32 +184,34 @@ try {
   await rail(page, 'Home').click();
   await notice.getByRole('button', { name: 'Dismiss' }).click();
   await expect(notice).toHaveCount(0, { timeout: 30_000 });
-  console.log('P8-supervision: the extension host killed; Home named Astro and On the Air as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
+  console.log('P8-supervision: the extension host killed; Home named Astro and Conditions as affected, the host restarted and answered afresh, and Dismiss hid the notice: PASS');
 
   // Turned off in Settings: its tiles leave Home and the list.
   await rail(page, 'Settings').click();
-  const onTheAir = page.getByRole('switch', { name: /On the Air/ });
+  const onTheAir = page.getByRole('switch', { name: /^Conditions/ });
   await expect(onTheAir).toBeChecked({ timeout: 30_000 });
   await onTheAir.click();
   await expect(onTheAir).not.toBeChecked({ timeout: 30_000 });
-  expect((await settings()).extensionsOff).toEqual(['on-the-air']);
+  expect((await settings()).extensionsOff).toEqual(['conditions']);
   await rail(page, 'Home').click();
   await expect(tile(page, 'Conditions')).toHaveCount(0, { timeout: 30_000 });
-  await expect(tiles(page)).toHaveCount(2);
+  // Conditions alone: Parks On the Air is its own extension (KI7MT,
+  // 2026-10-23: "On switch, the lights go out"), and stays.
+  await expect(tiles(page)).toHaveCount(3);
   await page.locator('#customize-pins').click();
   const dialog = page.getByRole('dialog', { name: 'Customize your pins' });
   await expect(dialog).toBeVisible();
   await expect(dialog).not.toContainText('Conditions');
-  await expect(dialog).not.toContainText('Parks On the Air');
+  await expect(dialog).toContainText('Parks On the Air');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   // The pins are kept, so they come back where they were.
-  expect((await settings()).pins).toEqual(['on-the-air/conditions', 'astro/astro', 'on-the-air/parks', 'adif-lookup/lookup']);
+  expect((await settings()).pins).toEqual(['conditions/conditions', 'astro/astro', 'pota/parks', 'adif-lookup/lookup']);
 
   // On again in the same run: its page shows at once what it last said, not
   // "Getting the latest…" until Conditions' fifteen minutes run out.
   await rail(page, 'Settings').click();
-  await page.getByRole('switch', { name: /On the Air/ }).click();
-  await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
+  await page.getByRole('switch', { name: /^Conditions/ }).click();
+  await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
   await tile(page, 'Conditions').click();
   // What it last said was the storm, answered by the restarted host above.
@@ -217,16 +219,16 @@ try {
 
   // A page open when its extension is turned off goes back to Home.
   await rail(page, 'Settings').click();
-  await page.getByRole('switch', { name: /On the Air/ }).click();
-  await expect(page.getByRole('switch', { name: /On the Air/ })).not.toBeChecked({ timeout: 30_000 });
-  await page.getByRole('switch', { name: /On the Air/ }).click();
-  await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
+  await page.getByRole('switch', { name: /^Conditions/ }).click();
+  await expect(page.getByRole('switch', { name: /^Conditions/ })).not.toBeChecked({ timeout: 30_000 });
+  await page.getByRole('switch', { name: /^Conditions/ }).click();
+  await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
 
   // And off again, for the restart below.
   await rail(page, 'Settings').click();
-  await page.getByRole('switch', { name: /On the Air/ }).click();
-  await expect(page.getByRole('switch', { name: /On the Air/ })).not.toBeChecked({ timeout: 30_000 });
+  await page.getByRole('switch', { name: /^Conditions/ }).click();
+  await expect(page.getByRole('switch', { name: /^Conditions/ })).not.toBeChecked({ timeout: 30_000 });
 
   // Off holds across a restart, and the host is not started for it.
   await application.close();
@@ -238,8 +240,8 @@ try {
 
   // Turned on again: the tile back, in its place, and its page answering.
   await rail(page, 'Settings').click();
-  await page.getByRole('switch', { name: /On the Air/ }).click();
-  await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked({ timeout: 30_000 });
+  await page.getByRole('switch', { name: /^Conditions/ }).click();
+  await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
   await expect(tiles(page)).toHaveCount(4, { timeout: 30_000 });
   expect(await tiles(page).locator('.pin-tile-name').allInnerTexts()).toEqual(['Conditions', 'Astro', 'Parks On the Air', 'ADIF Lookup']);
@@ -252,9 +254,9 @@ try {
     await rail(page, 'Settings').click();
     await chmod(userData, 0o500);
     try {
-      await page.getByRole('switch', { name: /On the Air/ }).click();
-      await expect(page.getByRole('alert')).toContainText('On the Air could not be turned off', { timeout: 30_000 });
-      await expect(page.getByRole('switch', { name: /On the Air/ })).toBeChecked();
+      await page.getByRole('switch', { name: /^Conditions/ }).click();
+      await expect(page.getByRole('alert')).toContainText('Conditions could not be turned off', { timeout: 30_000 });
+      await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeChecked();
     } finally {
       await chmod(userData, 0o700);
     }
@@ -294,7 +296,7 @@ try {
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(item => item.label)))
     .toEqual(process.platform === 'darwin' ? ['QSO Graph Desktop', 'Edit', 'Setup', 'Tools', 'Help'] : ['File', 'Edit', 'Setup', 'Tools', 'Help']);
   console.log('Tools menu: Export and Import Callsigns land in the Move section; the menu bar has no Window menu: PASS');
-  console.log('P8-built-in: On the Air is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
+  console.log('P8-built-in: Conditions is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
   console.error('P8 Home pins suite failed.');
   console.error(redact(error.message).split('\n').slice(0, 20).join('\n'));

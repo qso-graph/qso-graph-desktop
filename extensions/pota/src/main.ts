@@ -1,24 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// On the Air: QSO Graph Desktop's built-in extension for Home's pages about
-// what is happening on the air now (QGD-HOM-0007).
+// Parks On the Air: QSO Graph Desktop's built-in extension for POTA, one
+// destination with three tabs (QGD-HOM-0003): Near Me, Spots and Most Wanted.
+// Its own extension, so its switch in Settings turns off POTA and nothing
+// else (KI7MT, 2026-10-23: "On switch, the lights go out").
 //
 // It runs in the extension host (QGD-APP-0015) and reaches the core only
-// through `context` (QGD-APP-0002): NOAA's data is fetched by the core from
-// the sources the register names. The core decides when each page is asked
-// for (QGD-HOM-0005); this module only answers. Your station, its other page,
-// was retired on 2026-10-22 (KI7MT): the header carries the clock and the
-// status bar the callsign and location (QGD-FRM-0014); sunrise and sunset
-// move to the Astro extension.
+// through `context` (QGD-APP-0002): POTA's spots are fetched by the core from
+// the registered source, and the park list, the places and the activation
+// counts are the core's to answer. The core decides when each page is asked
+// for (QGD-HOM-0005); this module only answers.
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
-import type { PageAnswer } from '../../../packages/extension-api/pages.js';
 import type { PotaPlace } from '../../../packages/extension-api/api-contract.js';
-import { conditionsPage, parseConditions } from './conditions.js';
 import { parksPage, parseSpots } from './parks.js';
 import { activatePage } from './activate.js';
 import { nearPage } from './near.js';
-
-const UNREACHABLE: PageAnswer = { ok: false, reason: 'NOAA could not be reached just now.' };
-const UNREADABLE: PageAnswer = { ok: false, reason: "NOAA's data could not be read just now." };
 
 async function fetchBody(context: ExtensionContext, source: string, signal: AbortSignal): Promise<string | undefined> {
   const reply = await context.request({ kind: 'source.fetch', source }, { signal });
@@ -34,14 +29,7 @@ async function placesFor(context: ExtensionContext, locations: readonly string[]
 }
 
 export function activate(context: ExtensionContext): void {
-  context.subscriptions.push(context.pages.register('conditions', async ({ signal }) => {
-    const [flux, kp, scales] = await Promise.all(
-      ['noaa-flux', 'noaa-kp', 'noaa-scales'].map(source => fetchBody(context, source, signal)));
-    if (flux === undefined || kp === undefined || scales === undefined) return UNREACHABLE;
-    const conditions = parseConditions({ flux, kp, scales });
-    return conditions ? conditionsPage(conditions) : UNREADABLE;
-  }));
-  // Parks On the Air (QGD-HOM-0011): POTA's spots, once a minute while the
+  // Spots (QGD-HOM-0011): POTA's spots, once a minute while the
   // page is open, which is as often as POTA's spot list changes in practice
   // and the same restraint pota-mcp records. POTA states no request limit.
   context.subscriptions.push(context.pages.register('parks', async ({ signal }) => {

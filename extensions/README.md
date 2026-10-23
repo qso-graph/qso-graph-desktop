@@ -17,7 +17,8 @@ None of them is here yet, and that is the build order rather than an omission:
 
 | Extension | Part | What |
 |---|---|---|
-| `on-the-air` | `QGD-PRT-0108` | On the Air — the Home cards: Conditions first (built-in) |
+| `conditions` | `QGD-PRT-0108` | Conditions — solar flux, the K and A indices, NOAA's scales and the band outlook (built-in) |
+| `pota` | `QGD-PRT-0108` | Parks On the Air — Near Me, Spots and Most Wanted (built-in); split from On the Air with Conditions on 2026-10-23 so each switch turns off one destination |
 | `club` | `QGD-PRT-0110` | QG Club — club definition and roster |
 | `editor` | `QGD-PRT-0111` | QG Editor — generate, validate and maintain a club's `.cli` and `.prf` files in NetLogger's own format |
 

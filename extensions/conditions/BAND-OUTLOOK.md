@@ -1,7 +1,7 @@
 # The band outlook: what Excellent, Good, Fair, Poor and Sporadic mean
 
 Conditions on Home shows each band with a status and a comment (`QGD-HOM-0008`). This document
-says what each status means and how each band gets one. On the Air and `solar-mcp` grade bands the
+says what each status means and how each band gets one. Conditions and `solar-mcp` grade bands the
 same way; `solar-mcp` is the specification for Conditions, and the tests hold the two to the same
 answers over the same recorded NOAA responses (`tests/fixtures/noaa`).
 
