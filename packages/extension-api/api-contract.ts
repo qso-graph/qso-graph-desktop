@@ -43,6 +43,10 @@ export type ExtensionRequest =
   // extension names a frequency's band by ADIF's own table (KI7MT, 2026-10-23:
   // Parks On the Air's band filter). Answered from reference.sqlite.
   | { readonly kind: 'adif.bands' }
+  // My Area (KI7MT, 2026-10-23): the POTA locations the operator works in,
+  // as US-ID, or the active Location's own where they have chosen none. It
+  // says roughly where the operator is, so it needs station:active.
+  | { readonly kind: 'area.get' }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
   // (QGD-APP-0008, D-18, D-31).
@@ -110,6 +114,7 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'station.active'; readonly station: StationBrief | null }
   | { readonly ok: true; readonly kind: 'adif.search'; readonly entries: readonly AdifEntry[] }
   | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
+  | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the
@@ -140,6 +145,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'station.active': return 'station:active';
     case 'adif.search': return 'reference:read';
     case 'adif.bands': return 'reference:read';
+    case 'area.get': return 'station:active';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
   }
@@ -148,7 +154,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'area.get', 'source.fetch', 'service.request'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -200,6 +206,7 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'station.active': ['kind'],
   'adif.search': ['kind', 'query'],
   'adif.bands': ['kind'],
+  'area.get': ['kind'],
   'source.fetch': ['kind', 'source'],
   'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
 };
@@ -223,6 +230,7 @@ export function validateRequest(value: unknown): ExtensionRequest {
     case 'callsign.active':
     case 'station.active':
     case 'adif.bands':
+    case 'area.get':
       return bare();
     case 'adif.search': {
       // Bounded and plain, as a page's text field is (inputs.ts).

@@ -189,6 +189,7 @@ describe('the decision', () => {
       'station.active': { kind: 'station.active' },
       'adif.search': { kind: 'adif.search', query: 'FT8' },
       'adif.bands': { kind: 'adif.bands' },
+      'area.get': { kind: 'area.get' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
       'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
     };
@@ -317,6 +318,14 @@ describe('adif.search (ADIF Lookup, KI7MT 2026-10-22)', () => {
       expect(() => validateRequest({ kind: 'adif.search', query }), String(query)).toThrowError(/short plain search/);
     }
     expect(() => validateRequest({ kind: 'adif.search', query: 'FT8', sql: 'x' })).toThrowError(/takes no "sql"/);
+  });
+});
+
+describe('area.get (My Area, KI7MT 2026-10-23)', () => {
+  it('needs station:active, since it says roughly where the operator is, and takes nothing but its kind', () => {
+    expect(requiredGrant({ kind: 'area.get' })).toBe('station:active');
+    expect(validateRequest({ kind: 'area.get' })).toEqual({ kind: 'area.get' });
+    expect(() => validateRequest({ kind: 'area.get', all: true })).toThrowError(/takes no "all"/);
   });
 });
 

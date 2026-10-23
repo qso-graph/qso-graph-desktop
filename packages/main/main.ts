@@ -244,6 +244,14 @@ if (!app.requestSingleInstanceLock()) {
           if (typeof found === 'string') throw new Error(found);
           return found;
         },
+        // My Area: the operator's choice, or else the active Location's own
+        // POTA location (station:active; KI7MT, 2026-10-23).
+        area: async () => {
+          const chosen = load().area;
+          if (chosen.length > 0) return chosen;
+          const own = await storageBroker.areaDefault();
+          return own ? [own] : [];
+        },
         // ADIF's bands, for naming a frequency's band (reference:read).
         adifBands: async () => {
           const found = await storageBroker.adifBands();

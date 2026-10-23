@@ -12,6 +12,7 @@
 // (QGD-SEC-0020). Every failure is reduced before it is logged or sent
 // (QGD-ENG-0016).
 import { adifBands, searchAdif } from './adif-search.js';
+import { areaChoices, areaDefault } from './area.js';
 import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
 import { createForwardingLogger } from '../logging/logger.js';
@@ -233,6 +234,19 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
         return { ok: false, error: 'ADIF\'s definitions are not downloaded. Download them in Settings, then try again.' };
       }
       return { ok: true, status: status(), adif: await searchAdif(reader, command.query) };
+    }
+    case 'area-choices': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.pota.parks.state !== 'loaded') {
+        return { ok: false, error: 'POTA\'s lists are not downloaded. Download POTA Parks in Settings, then try again.' };
+      }
+      return { ok: true, status: status(), areaChoices: await areaChoices(reader) };
+    }
+    case 'area-default': {
+      const reader = reference?.reader();
+      if (!reader || referenceStatus?.pota.parks.state !== 'loaded') return { ok: true, status: status(), areaDefault: null };
+      const active = stations?.list.find(entry => entry.id === stations?.active);
+      return { ok: true, status: status(), areaDefault: (await areaDefault(reader, active?.place.MY_DXCC, active?.place.MY_STATE)) ?? null };
     }
     case 'adif-bands': {
       const reader = reference?.reader();

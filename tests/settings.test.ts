@@ -127,17 +127,17 @@ describe('QGD-SEC-0006 the settings channel rejects rather than coerces', () => 
 
 describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () => {
   it('reads what is valid and defaults the rest, key by key', () => {
-    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
+    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
-    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
-    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
+    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
+    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' });
+    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] });
   });
 });
 
@@ -333,3 +333,17 @@ describe('QGD-FRM-0016: the welcome remembers the release it was hidden for', ()
   });
 });
 
+
+describe('My Area (KI7MT, 2026-10-23)', () => {
+  it('keeps up to ten POTA locations, and refuses anything else', async () => {
+    const { isArea, MAX_AREA } = await import('../packages/main/settings-contract.js');
+    expect(readSettings({ area: ['US-ID', 'US-MT', 'JP-TK'] }).area).toEqual(['US-ID', 'US-MT', 'JP-TK']);
+    expect(MAX_AREA).toBe(10);
+    for (const bad of [Array.from({ length: 11 }, (_, i) => `US-A${i}`), ['US-ID', 'US-ID'], ['us-id'], ['Idaho'], ['US-ID<'], 'US-ID', [7]]) {
+      expect(isArea(bad), JSON.stringify(bad)).toBe(false);
+      expect(readSettings({ area: bad }).area).toEqual([]);
+    }
+    expect(validateSettingsCommand({ type: 'write', key: 'area', value: ['US-ID'] })).toBe(true);
+    expect(validateSettingsCommand({ type: 'write', key: 'area', value: ['nope'] })).toBe(false);
+  });
+});

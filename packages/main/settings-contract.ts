@@ -35,6 +35,27 @@ export interface Settings {
   // for (QGD-FRM-0016), or empty. A new release does not match it, so the
   // welcome shows once more, as WSJT-X's versioned setting does.
   welcomeHidden: string;
+  // My Area (KI7MT, 2026-10-23): the POTA locations the operator works in,
+  // as US-ID, at most MAX_AREA. Chosen before anything is fetched for them,
+  // so nothing outside it is. Empty means the active Location's own.
+  area: readonly string[];
+}
+
+// Enough for a home location, its neighbours and a trip's, and never the
+// world (KI7MT, 2026-10-23).
+export const MAX_AREA = 10;
+// A POTA location, PROGRAM-REGION, as US-ID, JP-TK or GB-ENG.
+const LOCATION = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
+
+export function isArea(value: unknown): value is readonly string[] {
+  if (!Array.isArray(value) || value.length > MAX_AREA) return false;
+  const seen = new Set<string>();
+  for (let at = 0; at < value.length; at++) {
+    const location: unknown = value[at];
+    if (!Object.hasOwn(value, at) || typeof location !== 'string' || !LOCATION.test(location) || seen.has(location)) return false;
+    seen.add(location);
+  }
+  return true;
 }
 
 // Two rows of four on Home (KI7MT, 2026-10-22; was six).
@@ -48,7 +69,7 @@ export const DAY_ONE_PINS: readonly string[] = ['on-the-air/conditions', 'astro/
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '' };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOff: [], welcomeHidden: '', area: [] };
 
 // A release name, as package.json writes one, or empty.
 export function isWelcomeHidden(value: unknown): value is string {
@@ -140,7 +161,8 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean {
 const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Settings[K] } = {
   theme: isThemeChoice,
   grants: isGrantMap,
-  welcomeHidden: isWelcomeHidden
+  welcomeHidden: isWelcomeHidden,
+  area: isArea
 };
 
 export function validateSettingsCommand(value: unknown): value is SettingsCommand {
@@ -194,5 +216,6 @@ export function readSettings(stored: unknown): Settings {
   read('pins', isPins);
   read('extensionsOff', isExtensionsOff);
   read('welcomeHidden', isWelcomeHidden);
+  read('area', isArea);
   return settings;
 }

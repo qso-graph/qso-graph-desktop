@@ -49,6 +49,8 @@ export interface StorageBroker {
   // (ADIF Lookup); a sentence when they cannot be.
   adifSearch: (query: string) => Promise<AdifEntry[] | string>;
   adifBands: () => Promise<AdifBand[] | string>;
+  // The POTA location the active Location is in, or none (area.ts).
+  areaDefault: () => Promise<string | undefined>;
   onActiveStationChanged: (listener: () => void) => void;
   // The callsign made active, whose default station QG Storage makes active
   // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
@@ -237,6 +239,10 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       const reply = await ask({ type: 'adif-search', query });
       if (!reply.ok) return reply.error;
       return reply.adif ?? 'ADIF\'s definitions could not be searched just now.';
+    },
+    async areaDefault() {
+      const reply = await ask({ type: 'area-default' });
+      return reply.ok && reply.areaDefault ? reply.areaDefault : undefined;
     },
     async adifBands() {
       const reply = await ask({ type: 'adif-bands' });

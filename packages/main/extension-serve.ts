@@ -48,6 +48,7 @@ export interface ExtensionBrokerPorts {
   // ADIF's definitions searched by the frame (reference:read).
   adifSearch: (query: string) => Promise<readonly AdifEntry[]>;
   adifBands: () => Promise<readonly AdifBand[]>;
+  area: () => Promise<readonly string[]>;
   fetchSource: (url: string) => Promise<{ body: string; fresh: boolean }>;
   // Act with a credential and return the answer. The secret does not come
   // back (QGD-APP-0007).
@@ -119,6 +120,8 @@ export function createServe(deps: ServeDeps) {
           return { ok: true, kind: 'adif.search', entries: await deps.ports.adifSearch(request.query) };
         case 'adif.bands':
           return { ok: true, kind: 'adif.bands', bands: await deps.ports.adifBands() };
+        case 'area.get':
+          return { ok: true, kind: 'area.get', locations: await deps.ports.area() };
         case 'source.fetch': {
           const url = deps.sources[request.source];
           // Decided already by the grant check — a source nobody registered
