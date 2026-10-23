@@ -106,12 +106,58 @@ Signing will change nothing above but the warning.
 
 ## Updates
 
-Later, the application will update itself with electron-updater, from this
-repository's releases: a full release reaches everyone, a pre-release only
-those who choose to test them. Previews are never offered as an update.
+Decided by KI7MT, 2026-10-23: **an easy update is a must**, whichever kind of
+ham is updating. Some always want the newest; some want it to just keep
+working. Both get one click.
+
+### Two tracks
+
+| Track | Offered | For |
+|---|---|---|
+| **Stable** (the default) | full releases only | hams who want it to just work |
+| **Early** | full releases and pre-releases | hams who want the newest the day it is out |
+
+Chosen in Settings. Previews are never offered as an update: they are for
+testing develop, not for running the station.
+
+### How it asks
+
+- **Never forced, and never restarted without asking.** When an update has
+  downloaded, a quiet line says *"Version 0.2.0 is ready. What's new ·
+  Restart to update"*. Ignored, it installs the next time the application
+  quits.
+- **What's new** opens that version's notes (its `CHANGELOG.md` section).
+- **Offline, nothing is tried.** The check waits for the network, as every
+  page that needs the internet does.
+
+### What updates itself
+
+| Build | Update |
+|---|---|
+| Windows installer | itself: downloads in the background, installs on restart |
+| Linux AppImage | itself: the new AppImage replaces the old |
+| macOS | itself **once the app is signed** (Apple's updater refuses an unsigned app); until then, a notice with the download link |
+| Linux deb and rpm | through a package repository later, with the rest of the system; until then, a notice with the download link |
+| A portable zip | a notice with the download link, by design: it lives where the operator put it |
+
+### How it is safe
+
+- **Through the credential core**, as every outbound connection is
+  (`QGD-SEC-0020`): the core fetches the release's update information and the
+  download, and only a file the core fetched and checked is handed to
+  electron-updater to install. The application opens no connection of its own
+  for updates.
+- **Checked:** every download against the SHA-512 its release publishes.
+  Until the builds are signed that catches a broken download, not a tampered
+  release, because the sum is published beside the file; signing closes that,
+  and is wanted before 1.0.
+- **Private:** checking for updates is going online, so **Check for updates**
+  is a switch in Settings, **on** by default, and Privacy names it. It asks
+  this repository's releases what is newest and sends nothing about the
+  operator.
 
 ## Not built yet
 
 1. The release workflow on main: build, tag, pre-release, and `SHA256SUMS.txt`.
 2. `CHANGELOG.md`.
-3. Self-update.
+3. Self-update, as above.
