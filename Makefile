@@ -21,12 +21,10 @@ help:
 # installs.
 setup:
 	npm ci
-# ADIF's archive, the US county sources and the world map come before the
-# build: the build turns the county sources into the county data that ships
-# (QGD-STN-0010), and the map's into the outline Astro's grey line is drawn on.
+# ADIF's archive and the US county sources come before the build: the build
+# turns the county sources into the county data that ships (QGD-STN-0010).
 	node scripts/fetch-adif.mjs
 	node scripts/fetch-counties.mjs
-	node scripts/fetch-map.mjs
 # scripts/fetch-pota.mjs imports the POTA reader from dist/, so the build has to
 # have happened. It always had on a machine that had built before, which is why
 # this ordering was wrong for months without anyone noticing — the first clean
@@ -57,7 +55,6 @@ after-pull:
 	npm ci
 	node scripts/fetch-adif.mjs
 	node scripts/fetch-counties.mjs
-	node scripts/fetch-map.mjs
 	npm run build
 
 # One suite by name, as the CI window jobs run them: `make suite SUITE=stations`.

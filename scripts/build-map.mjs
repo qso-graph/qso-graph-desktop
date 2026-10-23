@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Builds packages/ui/generated/world-land.ts, the world map's coastlines as
-// one SVG outline, from the file scripts/fetch-map.mjs fetched and checked.
+// one SVG outline, from Natural Earth's land in data/map/, checked against
+// its SHA-256 first.
 // Run by `npm run build` before anything compiles the window: the window loads
 // three files of its own and nothing else (QGD-PRC-0006), so the map is in its
 // bundle rather than beside it.
@@ -13,10 +14,9 @@ import { dirname, resolve } from 'node:path';
 
 const OUT = resolve('packages', 'ui', 'generated', 'world-land.ts');
 const { land } = JSON.parse(await readFile('data/map-sources.json', 'utf8'));
-const bytes = await readFile(resolve('vendor', '.cache', `map-${land.sha256.slice(0, 16)}`)).catch(() => undefined);
+const bytes = await readFile(resolve(land.file)).catch(() => undefined);
 if (!bytes || createHash('sha256').update(bytes).digest('hex') !== land.sha256) {
-  console.error('The world map is not fetched. Run: node scripts/fetch-map.mjs');
-  console.error('`make setup` and `make update` run it for you.');
+  console.error(`${land.file} is missing or is not the file pinned in data/map-sources.json.`);
   process.exit(1);
 }
 

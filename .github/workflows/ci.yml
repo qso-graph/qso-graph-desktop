@@ -77,10 +77,9 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor/.cache
-          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json', 'data/map-sources.json') }}
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-counties.mjs
-      - run: node scripts/fetch-map.mjs
       - run: npm run build
       - run: node scripts/fetch-pota.mjs
       - run: npm run check
@@ -143,10 +142,9 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor/.cache
-          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json', 'data/map-sources.json') }}
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-counties.mjs
-      - run: node scripts/fetch-map.mjs
       - run: npm run build
       - run: node scripts/fetch-pota.mjs
       - name: Window suites (Linux)
@@ -217,10 +215,9 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor/.cache
-          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json', 'data/map-sources.json') }}
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-counties.mjs
-      - run: node scripts/fetch-map.mjs
       - run: npm run installer
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
