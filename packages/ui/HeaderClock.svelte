@@ -44,9 +44,11 @@
     <span class="clock-part"><span class="clock-label">UTC</span> <time class="clock-time">{text.utcDate} {text.utcTime}</time></span>
     <span class="clock-part"><span class="clock-label">Local</span> <time class="clock-time">{text.localTime}</time></span>
     {#if online !== undefined}
-      <!-- Green on, red off, with the word: colour never says it alone. -->
-      <span class="clock-part net-lamp" id="net-lamp" data-online={online ? 'true' : 'false'} role="status" aria-label={online ? 'Internet: online' : 'Internet: offline'}>
-        <span class="clock-label">Internet</span> <span class="net-light" aria-hidden="true"></span> <span class="net-word" aria-hidden="true">{online ? 'On' : 'Off'}</span>
+      <!-- A green dot online, a red one offline (KI7MT, 2026-10-23): no word
+           beside it. A screen reader and the tooltip say which. -->
+      <span class="clock-part net-lamp" id="net-lamp" data-online={online ? 'true' : 'false'} role="status"
+        aria-label={online ? 'Internet: online' : 'Internet: offline'} title={online ? 'Internet: online' : 'Internet: offline'}>
+        <span class="clock-label">Internet</span> <span class="net-light" aria-hidden="true"></span>
       </span>
     {/if}
   </div>

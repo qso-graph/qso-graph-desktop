@@ -179,8 +179,6 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 /* The Internet lamp on the clock's panel (KI7MT, 2026-10-23). */
 .net-light { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: 0; background: var(--lamp-off); box-shadow: 0 0 6px var(--lamp-off); }
 .net-lamp[data-online="true"] .net-light { background: var(--lamp-on); box-shadow: 0 0 6px var(--lamp-on); }
-.net-word { color: var(--lamp-off); font-weight: 650; font-size: 12px; }
-.net-lamp[data-online="true"] .net-word { color: var(--lamp-on); }
 .clock-time { color: var(--clock-ink); font-weight: 650; font-variant-numeric: tabular-nums;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
 .hint, .sidebar-note, .optional { color: var(--ink-muted); }
