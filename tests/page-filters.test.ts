@@ -2,7 +2,7 @@
 // A table's filters as the core applies them (page data version 6): at once,
 // in the window, with no new question asked.
 import { describe, expect, it } from 'vitest';
-import { filterOptions, filteredGroups, pageContents, sortedGroups, startingChoices, type Section } from '../packages/ui/page-shapes.js';
+import { filterOptions, filteredGroups, offeredOptions, pageContents, sortedGroups, startingChoices, type Section } from '../packages/ui/page-shapes.js';
 
 type Table = Extract<Section, { shape: 'table' }>;
 const table: Table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [
@@ -153,5 +153,40 @@ describe('sorting a column of counts with a filter over some of them (KI7MT, 202
     const bands = { shape: 'table' as const, columns: ['Call', 'Band'], sortable: true as const,
       rows: [['A', '20m'], ['B', '160m'], ['C', '6m']], filters: [{ column: 1, label: 'Band', options: ['160m', '20m', '6m'] }] };
     expect(sortedGroups(bands, filteredGroups(bands, {}), { column: 1, direction: 'ascending' })[0]!.rows.map(row => row[0])).toEqual(['B', 'A', 'C']);
+  });
+});
+
+describe('each filter offers what the others leave (KI7MT, 2026-10-23)', () => {
+  // Spotted now's Program and Entity: United States should leave the United
+  // States' entities, and Location its locations.
+  const section = { shape: 'table' as const, columns: ['Call', 'Location', 'Program', 'Entity'], hidden: 2,
+    rows: [
+      ['A', 'US-ID', 'United States of America', 'United States of America'],
+      ['B', 'US-AK', 'United States of America', 'Alaska'],
+      ['C', 'IT-LZ', 'Italy', 'Italy'],
+      ['D', 'US-ID, US-OR', 'United States of America', 'United States of America']
+    ],
+    filters: [
+      { column: 2, label: 'Program', options: ['Italy', 'United States of America'], multiple: true as const },
+      { column: 3, label: 'Entity', options: ['Alaska', 'Italy', 'United States of America'], multiple: true as const },
+      { column: 1, label: 'Location', multiple: true as const }
+    ] };
+  const [program, entity, location] = section.filters;
+
+  it('offers every option while nothing else is chosen', () => {
+    expect(offeredOptions(section, entity!, {})).toEqual(['Alaska', 'Italy', 'United States of America']);
+    expect(offeredOptions(section, entity!, { 3: '' })).toEqual(['Alaska', 'Italy', 'United States of America']);
+  });
+
+  it('narrows each filter by the others\' choices, never by its own', () => {
+    const us = { 2: 'United States of America' };
+    expect(offeredOptions(section, entity!, us)).toEqual(['Alaska', 'United States of America']);
+    expect(offeredOptions(section, location!, us)).toEqual(['US-ID', 'US-AK', 'US-OR']);
+    expect(offeredOptions(section, program!, us)).toEqual(['Italy', 'United States of America']);
+    expect(offeredOptions(section, location!, { 2: 'United States of America', 3: 'Alaska' })).toEqual(['US-AK']);
+  });
+
+  it('keeps a filter\'s own choice offered when the others would leave it no row', () => {
+    expect(offeredOptions(section, entity!, { 2: 'Italy', 3: 'Alaska' })).toEqual(['Alaska', 'Italy']);
   });
 });

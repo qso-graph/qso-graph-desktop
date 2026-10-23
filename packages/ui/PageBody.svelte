@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
-  import { filterOptions, filteredGroups, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { filteredGroups, offeredOptions, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
   import { recall, remember } from './page-memory.js';
 
@@ -129,7 +129,7 @@
                   {#each filter.named ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
                   {#each filter.upTo ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
                   <option value="">All</option>
-                  {#each filterOptions(section, filter) as option (option)}<option value={option}>{option}</option>{/each}
+                  {#each offeredOptions(section, filter, choicesOf(at)) as option (option)}<option value={option}>{option}</option>{/each}
                 </select>
               </label>
             {/each}

@@ -64,6 +64,27 @@ export function filterOptions(section: Extract<Section, { shape: 'table' }>, fil
   return [...seen];
 }
 
+// What a filter offers given the others' choices (KI7MT, 2026-10-23: Program
+// United States should leave Entity with the United States' entities): its
+// options that some row still has once every other filter is applied, as
+// POTA's own park list narrows. The filter's own choice stays offered even
+// when the others leave no row with it, so nothing chosen disappears.
+export function offeredOptions(
+  section: Extract<Section, { shape: 'table' }>, filter: TableFilter, chosen: Readonly<Record<number, string>>
+): readonly string[] {
+  const all = filterOptions(section, filter);
+  const others = Object.fromEntries(Object.entries(chosen).filter(([column]) => Number(column) !== filter.column));
+  if (all.length === 0 || Object.values(others).every(value => value === '')) return all;
+  const present = new Set<string>();
+  for (const group of filteredGroups(section, others)) for (const row of group.rows) {
+    const cell = row[filter.column];
+    if (cell === undefined) continue;
+    for (const value of filter.multiple ? valuesOf(cell) : [cell]) present.add(value);
+  }
+  const own = chosen[filter.column];
+  return all.filter(option => present.has(option) || option === own);
+}
+
 // A cell holding several values, as "JP-FS, JP-GM" (a multiple filter).
 export const valuesOf = (cell: string) => cell.split(',').map(value => value.trim()).filter(Boolean);
 
