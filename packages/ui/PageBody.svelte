@@ -9,7 +9,7 @@
   the application, and no extension code runs in the window.
 -->
 <script lang="ts">
-  import { filterOptions, filteredGroups, utc, type PageShown } from './page-shapes.js';
+  import { filterOptions, filteredGroups, sortedGroups, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
 
   interface Props {
@@ -25,6 +25,19 @@
   const choose = (section: number, column: number, value: string) => {
     chosen = { ...chosen, [section]: { ...(chosen[section] ?? {}), [column]: value } };
   };
+  const anyChosen = (section: number) => Object.values(chosen[section] ?? {}).some(value => value !== '');
+  // Every filter of a table back to All (KI7MT, 2026-10-23).
+  const clearFilters = (section: number) => { chosen = { ...chosen, [section]: {} }; };
+
+  // How each sortable table is sorted, by section: none until a heading is
+  // clicked, then ascending, then each click turns it round. Kept across a
+  // refresh, like the filters.
+  let sorts = $state<Record<number, TableSort>>({});
+  function sortBy(section: number, column: number): void {
+    const now = sorts[section];
+    const direction = now?.column === column && now.direction === 'ascending' ? 'descending' : 'ascending';
+    sorts = { ...sorts, [section]: { column, direction } };
+  }
 
   // Refresh rests for a few seconds after a press: the core asks at most
   // once in ten (page-scheduler.ts), and a button that seems to do nothing
@@ -77,12 +90,19 @@
                 </select>
               </label>
             {/each}
+            {#if anyChosen(at)}<button type="button" class="secondary page-filters-clear" onclick={() => clearFilters(at)}>Clear filters</button>{/if}
           </div>
         {/if}
-        {@const groups = filteredGroups(section, chosen[at] ?? {})}
+        {@const groups = sortedGroups(section, filteredGroups(section, chosen[at] ?? {}), sorts[at])}
         {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
         <table class="page-table" hidden={groups.length === 0}>
-          <thead><tr>{#each section.columns as column, c (c)}<th scope="col">{column}</th>{/each}</tr></thead>
+          <thead><tr>{#each section.columns as column, c (c)}
+            {#if section.sortable}
+              <th scope="col" aria-sort={sorts[at]?.column === c ? sorts[at]!.direction : undefined}>
+                <button type="button" class="page-sort" onclick={() => sortBy(at, c)}>{column}<span class="page-sort-mark" aria-hidden="true">{sorts[at]?.column === c ? (sorts[at]!.direction === 'ascending' ? ' ▲' : ' ▼') : ''}</span></button>
+              </th>
+            {:else}<th scope="col">{column}</th>{/if}
+          {/each}</tr></thead>
           <!-- One table, its groups as row groups, so every group's columns line
                up with every other's. A two-cell row in a wider table gives
                its one value across the columns after the first (version 5). -->

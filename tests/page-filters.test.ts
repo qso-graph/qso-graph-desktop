@@ -2,7 +2,7 @@
 // A table's filters as the core applies them (page data version 6): at once,
 // in the window, with no new question asked.
 import { describe, expect, it } from 'vitest';
-import { filterOptions, filteredGroups, type Section } from '../packages/ui/page-shapes.js';
+import { filterOptions, filteredGroups, sortedGroups, type Section } from '../packages/ui/page-shapes.js';
 
 type Table = Extract<Section, { shape: 'table' }>;
 const table: Table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [
@@ -29,5 +29,31 @@ describe('a table\'s filters', () => {
       { heading: 'Moon', rows: [['Moonrise', '23:07', '17:07']] }
     ] };
     expect(filteredGroups(grouped, { 1: '13:55' })).toEqual([{ heading: 'Sun', rows: [['Sunrise', '13:55', '07:55']] }]);
+  });
+});
+
+describe('a sortable table (KI7MT, 2026-10-23)', () => {
+  const spots: Table = { shape: 'table', sortable: true, columns: ['Activator', 'MHz', 'Band', 'UTC'], rows: [
+    ['KI7MT', '14.062', '20m', '18:52'], ['N0CALL', '7.186', '40m', '18:40'], ['KI7MT/P', '1.840', '160m', '18:45'], ['AB1C', '28.074', '10m', '18:40']
+  ], filters: [{ column: 2, label: 'Band', options: ['160m', '40m', '20m', '10m'] }] };
+  const order = (column: number, direction: 'ascending' | 'descending') =>
+    sortedGroups(spots, filteredGroups(spots, {}), { column, direction })[0]!.rows.map(row => row[0]);
+
+  it('keeps the extension\'s order until a heading is chosen', () => {
+    expect(sortedGroups(spots, filteredGroups(spots, {}), undefined)[0]!.rows.map(row => row[0])).toEqual(['KI7MT', 'N0CALL', 'KI7MT/P', 'AB1C']);
+  });
+
+  it('sorts numbers as numbers, both ways', () => {
+    expect(order(1, 'ascending')).toEqual(['KI7MT/P', 'N0CALL', 'KI7MT', 'AB1C']);
+    expect(order(1, 'descending')).toEqual(['AB1C', 'KI7MT', 'N0CALL', 'KI7MT/P']);
+  });
+
+  it('sorts a column with a filter\'s options in their order: 160m before 10m', () => {
+    expect(order(2, 'ascending')).toEqual(['KI7MT/P', 'N0CALL', 'KI7MT', 'AB1C']);
+  });
+
+  it('sorts text with its numbers as numbers, and keeps equal rows in the extension\'s order', () => {
+    expect(order(0, 'ascending')).toEqual(['AB1C', 'KI7MT', 'KI7MT/P', 'N0CALL']);
+    expect(order(3, 'ascending')).toEqual(['N0CALL', 'AB1C', 'KI7MT/P', 'KI7MT']);
   });
 });

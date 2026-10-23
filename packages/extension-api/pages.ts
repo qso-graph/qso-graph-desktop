@@ -37,7 +37,9 @@
 // has the map and works out the night itself, so no extension draws a picture.
 // It also let a table name up to three of its columns as filters, which the
 // core draws as choices above it and applies at once, with no new question
-// (KI7MT, 2026-10-23: Parks On the Air's band and mode).
+// (KI7MT, 2026-10-23: Parks On the Air's band and mode), and say it may be
+// sorted by any column, which the core does in the window when a heading is
+// clicked: a column with a filter's options sorts in their order.
 export const PAGE_DATA_VERSION = 6;
 export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
@@ -90,8 +92,8 @@ export type Section = (
   // Rows under named columns: the bands with their outlook. Version 2. From
   // version 5 the rows may come in named groups instead, and a row of two
   // cells in a wider table gives one value across the columns after its first.
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[] }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
   // The world, with the night greyed out from where the sun is overhead, and
   // up to four places marked. Version 6. Optionally the moon, where it is
   // overhead, and a twilight band from the horizon down to a depth, as the
@@ -271,7 +273,11 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (version < 2) throw new PageError(`${where} is a table, which page data version ${version} does not have.`);
     const grouped = Object.hasOwn(value, 'groups');
     if (grouped && version < 5) throw new PageError(`${where} has groups, which page data version ${version} does not have.`);
-    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters'], where);
+    only(value, ['shape', 'columns', grouped ? 'groups' : 'rows', 'filters', 'sortable'], where);
+    if (value.sortable !== undefined) {
+      if (version < 6) throw new PageError(`${where} is sortable, which page data version ${version} does not have.`);
+      if (value.sortable !== true) throw new PageError(`${where}'s sortable is not true.`);
+    }
     if (!Array.isArray(value.columns) || value.columns.length === 0 || value.columns.length > PAGE_LIMITS.columns) {
       throw new PageError(`${where} has no columns, or more than ${PAGE_LIMITS.columns}.`);
     }
@@ -301,7 +307,7 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
     if (filters && new Set(filters.map(filter => filter.column)).size !== filters.length) {
       throw new PageError(`${where} filters one column twice.`);
     }
-    const withFilters = filters ? { filters } : {};
+    const withFilters = { ...(filters ? { filters } : {}), ...(value.sortable === true ? { sortable: true as const } : {}) };
     const rowsOf = (list: unknown, name: string, room: number): Row[] => {
       if (!Array.isArray(list) || list.length > room) {
         throw new PageError(`${name} has rows as something other than a list of at most ${PAGE_LIMITS.rows} in the table.`);

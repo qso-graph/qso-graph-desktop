@@ -212,6 +212,13 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [{ ...table, filters }]))).toThrowError(/version 5 does not have/);
   });
 
+  it('carries sortable: true, and nothing else for it', () => {
+    expect(validatePageAnswer(v(6, [{ ...table, sortable: true }]))).toEqual(v(6, [{ ...table, sortable: true }]));
+    expect(() => validatePageAnswer(v(6, [{ ...table, sortable: false }]))).toThrowError(/not true/);
+    expect(() => validatePageAnswer(v(6, [{ ...table, sortable: 'yes' }]))).toThrowError(/not true/);
+    expect(() => validatePageAnswer(v(5, [{ ...table, sortable: true }]))).toThrowError(/version 5 does not have/);
+  });
+
   it.each([
     [[], /no filters/],
     [[1, 2, 0, 1].map(column => ({ column, label: 'x' })), /more than 3/],

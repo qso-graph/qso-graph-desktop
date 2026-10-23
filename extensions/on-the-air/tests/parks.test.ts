@@ -34,6 +34,7 @@ describe('Parks On the Air', () => {
     const table = answer.data.sections.find(section => section.shape === 'table');
     if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no table');
     expect(table.columns).toEqual(['Activator', 'Park', 'MHz', 'Band', 'Mode', 'UTC']);
+    expect(table.sortable).toBe(true);
     expect(table.rows).toEqual([
       ['KI7MT', 'US-0001 Made-up Park One', '14.062', '20m', 'CW', '18:52'],
       ['KI7MT/M', 'GB-0003 Made-up Park Three', '28.074', '10m', 'FT8', '18:45'],

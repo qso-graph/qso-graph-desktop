@@ -106,7 +106,8 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       { label: 'Activators', value: String(newest.length) },
       { label: 'Parks', value: String(parks) }
     ] },
-    { shape: 'table', columns: ['Activator', 'Park', 'MHz', 'Band', 'Mode', 'UTC'], rows, filters: [
+    // Sortable by any column; the band sorts in ADIF's order (the filter's).
+    { shape: 'table', columns: ['Activator', 'Park', 'MHz', 'Band', 'Mode', 'UTC'], rows, sortable: true, filters: [
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 3, label: 'Band', options: bandOptions }] : []),
       { column: 4, label: 'Mode', options: modeOptions }

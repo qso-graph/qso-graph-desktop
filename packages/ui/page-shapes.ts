@@ -11,9 +11,9 @@ export type Section = (
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
   // In named groups, and a two-cell row across a wider table (version 5).
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean }
   // The world with the night greyed out, and places marked (version 6).
   | { readonly shape: 'map'; readonly sun: Place; readonly moon?: Place; readonly twilight?: number; readonly marks: readonly Mark[] }
 ) & { readonly heading?: string };
@@ -45,6 +45,41 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
     .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
       && active.every(([column, value]) => row[Number(column)] === value)) }))
     .filter(group => group.rows.length > 0);
+}
+
+// A sort the operator chose by clicking a heading (version 6).
+export interface TableSort { readonly column: number; readonly direction: 'ascending' | 'descending' }
+
+// A cell that is a number and nothing else: "14.062", not "20m".
+const isNumber = (cell: string) => cell.trim() !== '' && Number.isFinite(Number(cell));
+const words = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+// Each group's rows in the chosen order. A column a filter offers options for
+// sorts in their order (ADIF's bands, lowest first, rather than "10m" before
+// "160m"); a column of numbers sorts as numbers; any other as text, with the
+// numbers in it compared as numbers. Equal rows keep the extension's order,
+// and a row that spans its columns stays at the end of its group.
+export function sortedGroups<G extends { readonly rows: readonly (readonly string[])[] }>(
+  section: Extract<Section, { shape: 'table' }>, groups: readonly G[], sort: TableSort | undefined
+): readonly G[] {
+  if (!sort) return groups;
+  const options = section.filters?.find(filter => filter.column === sort.column)?.options;
+  const rank = options ? new Map(options.map((option, at) => [option, at])) : undefined;
+  const sign = sort.direction === 'ascending' ? 1 : -1;
+  return groups.map(group => {
+    const full = group.rows.filter(row => row.length === section.columns.length);
+    const spanning = group.rows.filter(row => row.length !== section.columns.length);
+    const numeric = full.every(row => isNumber(row[sort.column] ?? ''));
+    const compare = (a: readonly string[], b: readonly string[]) => {
+      const x = a[sort.column] ?? '';
+      const y = b[sort.column] ?? '';
+      if (rank) return ((rank.get(x) ?? Infinity) - (rank.get(y) ?? Infinity) || 0) * sign;
+      if (numeric) return (Number(x) - Number(y)) * sign;
+      return words.compare(x, y) * sign;
+    };
+    const ordered = full.map((row, at) => ({ row, at })).sort((a, b) => compare(a.row, b.row) || a.at - b.at).map(entry => entry.row);
+    return { ...group, rows: [...ordered, ...spanning] };
+  });
 }
 
 // A table's rows as groups: an ungrouped table is one group with no heading.
