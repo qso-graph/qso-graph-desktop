@@ -127,6 +127,13 @@ describe('Astro\'s page', () => {
     expect(pageContents(found).map(entry => entry.label)).toEqual(['Grey line DX check', 'Sun', 'Twilight', 'Moon', 'Radio depths']);
   });
 
+  it('sets the day\'s times apart under a heading of their own', () => {
+    const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
+    const at = found.findIndex(section => section.heading === 'Today at Home');
+    expect(found[at]).toMatchObject({ shape: 'alert', contents: false, text: expect.stringMatching(/^Times are in UTC/) });
+    expect(found[at + 1]).toMatchObject({ shape: 'table' });
+  });
+
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {
     const text = JSON.stringify(astroPage(BOISE, NOW, { dx: 'FN31' }, UTC_CLOCK));
     expect(text).not.toMatch(/\b(good|poor|fair|excellent|forecast|score|rating)\b/i);
