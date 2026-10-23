@@ -86,7 +86,11 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
       const page = offered.get(key);
       return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
     }),
-    railPages: areas.filter(page => page.rail),
+    // In the pins' order (KI7MT, 2026-10-23: the rail matches the pins), the
+    // unpinned after them in the order their extensions offer them.
+    railPages: areas.filter(page => page.rail).map((page, at) => ({ page, at, pin: pinned.indexOf(page.key) }))
+      .sort((a, b) => (a.pin < 0 ? Infinity : a.pin) - (b.pin < 0 ? Infinity : b.pin) || a.at - b.at)
+      .map(entry => entry.page),
     page: opened && head ? {
       key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
       network: opened.network, inputs: opened.inputs, values,

@@ -150,3 +150,19 @@ describe('an area of pages, reached from one pin (KI7MT, 2026-10-23)', () => {
     expect(store.get().page).toMatchObject({ area: 'air/conditions', areaName: 'Conditions', tabs: [] });
   });
 });
+
+describe('the rail in the pins\' order (KI7MT, 2026-10-23)', () => {
+  const page = (key: string, rail = true) =>
+    ({ key, name: key, description: 'd', extensionName: 'e', icon: 'tree', rail, inputs: [], network: false, area: key, tab: key });
+  const make = async (pins: string[]) => {
+    const state = { available: [page('a-a/one'), page('b-b/two'), page('c-c/three'), page('d-d/four', false)], pins, pages: [], notice: null, reached: null };
+    const store = createHomeStore({ request: async () => ({ ok: true, state }), onPage: () => () => {} });
+    store.start();
+    await flush();
+    return store;
+  };
+  it('puts the pinned destinations first, in pin order, then the rest as offered', async () => {
+    expect((await make(['c-c/three', 'd-d/four', 'a-a/one'])).get().railPages.map(entry => entry.key)).toEqual(['c-c/three', 'a-a/one', 'b-b/two']);
+    expect((await make([])).get().railPages.map(entry => entry.key)).toEqual(['a-a/one', 'b-b/two', 'c-c/three']);
+  });
+});
