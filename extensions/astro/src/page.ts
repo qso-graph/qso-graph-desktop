@@ -3,7 +3,7 @@
 // active Location, as the core's page shapes. Pure: a position, a moment and
 // what the operator typed in, a page answer out. Nothing here fetches, and
 // nothing here rates or forecasts (QGD-AST-0050).
-import type { PageAnswer, Section, TableGroup } from '../../../packages/extension-api/pages.js';
+import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
 import type { StationBrief } from '../../../packages/extension-api/api-contract.js';
 import { greyLine, gridCentre } from './greyline.js';
 import { moonAt, moonCrossingsOver, moonPhase, sublunar } from './moon.js';
@@ -155,14 +155,11 @@ type Row = [label: string, at: Date | string];
 
 // A group of the one table. A time is given on each clock; a sentence or a
 // span has no clock, so it is given once, across both (page data version 5).
-// A group of radio depths: each event's date and time on this computer's
+// The radio depths' rows: each event's date and time on this computer's
 // clock, which is the Location's rule (KI7MT, 2026-10-23: logs are UTC,
 // Locations are local). A sentence where there is no event, once, across.
-function group(heading: string, rows: Row[], clock: Clock): TableGroup {
-  return {
-    heading,
-    rows: rows.map(([label, at]) => (typeof at === 'string' ? [label, at] : [label, clock.date(at), clock.time(at)]))
-  };
+function radioRows(rows: Row[], clock: Clock): string[][] {
+  return rows.map(([label, at]) => (typeof at === 'string' ? [label, at] : [label, clock.date(at), clock.time(at)]));
 }
 
 // The morning's and the evening's crossing, each or the reason it is absent.
@@ -265,20 +262,21 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).
     { shape: 'table', heading: 'Twilight', columns: ['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk'], rows: twilightWeek(now, latitude, longitude, clock) },
     { shape: 'table', heading: 'Moon', columns: ['Date', 'Phase', 'Moonrise', 'Moonset', 'Lit', 'Declination', 'Distance'], rows: moonWeek(now, latitude, longitude, clock) },
-    { shape: 'table', columns: ['Event', 'Date', 'Time'], groups: [
+    // A table headed Radio depths as the other three are: a table of one
+    // group drew its column headings above its title (KI7MT, 2026-10-23).
+    { shape: 'table', heading: 'Radio depths', columns: ['Event', 'Date', 'Time'], rows: radioRows(
     // What each depth means for radio, said beside it (QGD-AST-0022). Last:
     // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
     // Today and tomorrow, as it was laid out (KI7MT, 2026-10-23): the date in
     // each time tells the two days apart.
-    group('Radio depths', [0, 1].flatMap(day => {
+    [0, 1].flatMap(day => {
       const at = new Date(now.getTime() + day * 86_400_000);
       const when = day === 0 ? 'today' : 'tomorrow';
       return [
         ...pair(sunCrossings(at, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`),
         ...pair(sunCrossings(at, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`)
       ];
-    }), clock)
-    ] }
+    }), clock) }
   ];
 
   return { ok: true, data: { version: 6, observedAt, sections } };

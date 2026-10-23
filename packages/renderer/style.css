@@ -492,8 +492,11 @@ dialog.pins h2 { margin: 0 0 6px; }
 .fill-from-grid { grid-column: 1 / -1; margin: -4px 0 4px; display: flex; flex-wrap: wrap; gap: 10px; }
 .fill-from-grid > .hint { flex-basis: 100%; margin: 0; }
 .county-choices { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
-.page-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
-.page-table th, .page-table td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.page-table { width: auto; max-width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
+/* As wide as what it holds, with a steady gap between columns, rather than
+   stretched to the page and its columns pushed apart (KI7MT, 2026-10-23). */
+.page-table th, .page-table td { text-align: left; padding: 6px 28px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.page-table th:last-child, .page-table td:last-child { padding-right: 0; }
 .page-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
 .page-table tbody th { font-weight: 600; white-space: nowrap; }
 .page-table td:last-child { color: var(--ink-muted); }

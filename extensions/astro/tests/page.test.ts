@@ -26,16 +26,18 @@ const sections = (answer: ReturnType<typeof astroPage>) => {
   if (!valid.ok) throw new Error('not ok');
   return valid.data.sections;
 };
-// The one table of the day's events, and its groups.
+// The radio depths' table.
 const today = (answer: ReturnType<typeof astroPage>) => {
-  const table = sections(answer).find(section => section.shape === 'table' && 'groups' in section);
-  if (!table || table.shape !== 'table' || !('groups' in table)) throw new Error('no table of events');
+  const table = sections(answer).find(section => section.heading === 'Radio depths');
+  if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no radio depths');
   return table;
 };
 
 describe('Astro\'s page', () => {
-  it('passes the core\'s own check, with Radio depths as the group left of the table of events', () => {
-    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Radio depths']);
+  it('passes the core\'s own check, Radio depths a table under its own heading, as Sun, Twilight and Moon are', () => {
+    const found = sections(astroPage(BOISE, NOW, {}, UTC_CLOCK));
+    expect(found.filter(section => section.shape === 'table' && 'groups' in section)).toEqual([]);
+    expect(found.filter(section => section.shape === 'table').map(section => section.heading)).toEqual(['Sun', 'Twilight', 'Moon', 'Radio depths']);
   });
 
   it('gives twilight and the moon for the same five days on this computer\'s clock (KI7MT, 2026-10-23)', () => {
@@ -73,7 +75,7 @@ describe('Astro\'s page', () => {
   });
 
   it('gives the radio depths for today and tomorrow, as they were laid out', () => {
-    const rows = today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups[0]!.rows;
+    const rows = today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).rows;
     expect(rows).toHaveLength(8);
     expect(rows[0]![1]).not.toEqual(rows[4]![1]);
   });
@@ -81,7 +83,7 @@ describe('Astro\'s page', () => {
   it('gives the radio depths on this computer\'s clock alone: they are the Location\'s (KI7MT, 2026-10-23)', () => {
     const table = today(astroPage(BOISE, NOW, {}, MOUNTAIN));
     expect(table.columns).toEqual(['Event', 'Date', 'Time']);
-    const dawn = table.groups.flatMap(group => group.rows).find(row => row[0].startsWith('Dawn: the absorbing'));
+    const dawn = table.rows.find(row => row[0]!.startsWith('Dawn: the absorbing'));
     expect(dawn).toEqual([expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/)]);
   });
 
