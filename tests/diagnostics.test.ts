@@ -51,7 +51,10 @@ describe('QGD-LOG-0012 the archive', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  });
+    // It waits on the operating system's own tools, twice: on a cold Windows
+    // runner tar took 5.3 s and the default 5 s limit failed it (CI on PR #50,
+    // 2026-10-23), with nothing wrong in the archive.
+  }, 30_000);
 
   it('writes a well-formed empty archive rather than a corrupt one', async () => {
     const archive = zip([]);
