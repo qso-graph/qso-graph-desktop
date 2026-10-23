@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
 import { pageContents } from '../../../packages/ui/page-shapes.js';
-import { astroPage, subsolar, type Clock } from '../src/page.js';
+import { astroPage, clockElsewhere, subsolar, type Clock } from '../src/page.js';
 import { sublunar } from '../src/moon.js';
 import { julian } from '../src/sun.js';
 
@@ -132,6 +132,21 @@ describe('Astro\'s page', () => {
     const at = found.findIndex(section => section.heading === 'Today at Home');
     expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: expect.stringMatching(/^Times are in UTC/) });
     expect(found[at + 1]).toMatchObject({ shape: 'table' });
+  });
+
+  it('warns when this computer\'s clock looks to be in another time zone from the Location, and only then', () => {
+    // Boise's computer (MDT, UTC−6) at Boise, in Arizona, in Hawaii and in London.
+    expect(clockElsewhere(-360, -116.2)).toBe(false);
+    expect(clockElsewhere(-360, -111.9)).toBe(false);
+    expect(clockElsewhere(-360, -157.8)).toBe(true);
+    expect(clockElsewhere(-360, -0.1)).toBe(true);
+    // Seattle from Boise in summer: an hour west, the same as zones go.
+    expect(clockElsewhere(-360, -122.3)).toBe(false);
+    const warned = (station: typeof BOISE) => sections(astroPage(station, NOW, {}, MOUNTAIN)).some(section => section.shape === 'alert' && section.level === 'warning');
+    expect(warned(BOISE)).toBe(false);
+    expect(warned({ name: 'London park', latitude: 51.5, longitude: -0.1, grid: 'IO91wm' })).toBe(true);
+    // On UTC there is no clock column, so nothing to warn about.
+    expect(sections(astroPage({ name: 'London park', latitude: 51.5, longitude: -0.1 }, NOW, {}, UTC_CLOCK)).some(section => section.shape === 'alert' && section.level === 'warning')).toBe(false);
   });
 
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {

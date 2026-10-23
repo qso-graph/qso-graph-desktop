@@ -69,6 +69,16 @@ export function subsolar(now: Date): { latitude: number; longitude: number } {
   return { latitude: sun.declination, longitude };
 }
 
+// Whether this computer's clock looks to be in another time zone from the
+// Location. Without a map of the world's zones (QGD-AST-0011) it is judged
+// from the longitude: each 15° east is an hour ahead of UTC. Zones and summer
+// time put places as much as two hours from that, so only more than three
+// hours apart is taken to mean another zone: Boise's computer at a park in
+// Hawaii or Europe, never one in Arizona.
+export function clockElsewhere(offsetMinutes: number, longitude: number): boolean {
+  return Math.abs(offsetMinutes / 60 - longitude / 15) > 3;
+}
+
 function duration(minutes: number): string {
   return `${Math.floor(minutes / 60)} h ${two(Math.round(minutes % 60))} min`;
 }
@@ -157,8 +167,14 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // line above (KI7MT, 2026-10-23). Not in the contents line, which lists
     // Sun, Twilight, Moon and Radio depths below it.
     { shape: 'text', heading: `Today at ${station!.name}`.slice(0, 60), contents: false, text: yourClock
-      ? 'Times are in UTC and on this computer\'s clock. The Location\'s own time zone is not known yet.'
-      : 'Times are in UTC, which is what this computer\'s clock is set to. The Location\'s own time zone is not known yet.' },
+      ? 'Times are in UTC and on this computer\'s clock.'
+      : 'Times are in UTC, which is what this computer\'s clock is set to.' },
+    // Said only when it looks to be so, and as a warning: the times are the
+    // Location's, but "Your clock" is this computer's (KI7MT, 2026-10-23).
+    ...(yourClock && clockElsewhere(yourClock.offset(now), longitude) ? [{
+      shape: 'alert' as const, level: 'warning' as const,
+      text: `This computer's clock looks to be in a different time zone from ${station!.name.slice(0, 40)}, so the Your clock times may not be that Location's own. The UTC times are right wherever it is.`
+    }] : []),
     // One table in four groups, so the times line up all the way down the
     // page rather than moving with each group's longest name (Watson and
     // KI7MT, 2026-10-22).
