@@ -654,6 +654,16 @@ try {
   const at = String(error.stack ?? '').split('\n').find(line => line.includes('smoke.mjs'));
   if (at) console.error(redact(at.trim()));
   process.exitCode = 1;
+  // What the window showed and what the application logged when it stopped,
+  // kept in report/ for CI to upload: the message names the step, these say
+  // why. The logs are the product's own, already redacted, and redacted
+  // again here.
+  await mkdir(resolve('report', 'smoke-failure'), { recursive: true }).catch(() => {});
+  await application?.windows()[0]?.screenshot({ path: resolve('report', 'smoke-failure', 'window.png') }).catch(() => {});
+  for (const name of await readdir(logs).catch(() => [])) {
+    const text = await readFile(join(logs, name), 'utf8').catch(() => '');
+    await writeFile(resolve('report', 'smoke-failure', `${name}.txt`), redact(text)).catch(() => {});
+  }
 } finally {
   if (application) await application.close().catch(() => {});
   try {

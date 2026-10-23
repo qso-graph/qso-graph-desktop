@@ -170,6 +170,16 @@ jobs:
       - name: Window suites (macOS, Windows)
         if: runner.os != 'Linux'
         run: npm run verify -- --suites ${{ env.SUITES }}
+      # A failed window suite's screenshots and logs (report/), so a failure
+      # can be seen rather than guessed at. Credentials in them are the
+      # suites' own fakes, and logs are redacted before they are written.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: window-report-${{ runner.os }}-${{ runner.arch }}
+          path: report/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The installers each platform ships (electron-builder, as Podman Desktop
   # and Bitwarden use, laid out as Oracle's WebLogic Remote Console is): a DMG
