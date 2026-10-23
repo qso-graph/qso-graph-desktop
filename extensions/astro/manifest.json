@@ -15,7 +15,6 @@
         "description": "The sun, the moon and the grey line at your location, worked out on this computer.",
         "refreshSeconds": 60,
         "icon": "moon",
-        "rail": true,
         "inputs": [{ "id": "dx", "label": "Grey line with", "kind": "grid", "hint": "A DX station's grid, as IO91. Shows when you're both in the grey line." }]
       }
     ]

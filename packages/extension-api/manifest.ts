@@ -40,9 +40,11 @@ export const ACTIVATION_EVENTS = ['onStartupFinished'] as const;
 // data the extension answers with, and no extension code or markup runs in
 // the window. It can be pinned to Home, where it is a tile drawn from this
 // entry alone, its name, description and icon, the same shape for every
-// extension; clicking the tile opens the page. With `rail` it also has an
-// item in the rail. Its identifier, once published, never changes, because
-// a pin names it (QGD-APP-0019).
+// extension; clicking the tile opens the page. A page under no other is a
+// destination, on the rail whenever its extension is on (KI7MT, 2026-10-23:
+// "enable in settings, add to the rail"), so a manifest does not say so. Its
+// identifier, once published, never changes, because a pin names it
+// (QGD-APP-0019).
 export interface PageContribution {
   readonly id: string;
   readonly name: string;
@@ -53,7 +55,6 @@ export interface PageContribution {
   // A name from the core's own icon set; the window draws no extension
   // artwork. An unknown name is drawn as a generic icon.
   readonly icon?: string;
-  readonly rail?: boolean;
   // The fields the page asks the operator for, drawn and checked by the core
   // (inputs.ts).
   readonly inputs?: readonly PageInput[];
@@ -144,7 +145,7 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs', 'network', 'under', 'tab', 'hue'];
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'inputs', 'network', 'under', 'tab', 'hue'];
 export const TAB_MAX = 24;
 const INPUT_FIELDS = ['id', 'label', 'kind', 'max', 'hint'];
 const MAX_PAGES = 16;
@@ -195,7 +196,7 @@ export function pageNeedsNetwork(manifest: Pick<ExtensionManifest, 'grants'>, pa
 function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
   onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
-  const { id: page, name, description, refreshSeconds, icon, rail, inputs, network, under, tab, hue } = value;
+  const { id: page, name, description, refreshSeconds, icon, inputs, network, under, tab, hue } = value;
   if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
   if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
   seen.add(page);
@@ -217,18 +218,11 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (icon !== undefined && (typeof icon !== 'string' || !APP_ID.test(icon))) {
     throw new ManifestError(`The page "${page}" in "${id}" names an icon that is not a plain name.`, page);
   }
-  if (rail !== undefined && typeof rail !== 'boolean') {
-    throw new ManifestError(`The page "${page}" in "${id}" says whether it is in the rail with something other than true or false.`, page);
-  }
   if (network !== undefined && typeof network !== 'boolean') {
     throw new ManifestError(`The page "${page}" in "${id}" says whether it needs the internet with something other than true or false.`, page);
   }
   if (under !== undefined && (typeof under !== 'string' || !APP_ID.test(under) || under === page)) {
     throw new ManifestError(`The page "${page}" in "${id}" is under something that is not another page's id.`, page);
-  }
-  // Its area's pin and rail item are the area's first page's.
-  if (under !== undefined && rail === true) {
-    throw new ManifestError(`The page "${page}" in "${id}" is under another page and in the rail; its area's first page is.`, page);
   }
   if (tab !== undefined && (typeof tab !== 'string' || tab.trim() === '' || tab.length > TAB_MAX || /[<>]/.test(tab))) {
     throw new ManifestError(`The page "${page}" in "${id}" has a tab name that is not plain text of at most ${TAB_MAX} characters.`, page);
@@ -239,7 +233,7 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   const fields = validInputs(inputs, page, id);
   return {
     id: page, name, description, refreshSeconds: refreshSeconds as number,
-    ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {}),
+    ...(icon !== undefined ? { icon: icon as string } : {}),
     ...(fields.length > 0 ? { inputs: fields } : {}),
     ...(network !== undefined ? { network: network as boolean } : {}),
     ...(under !== undefined ? { under: under as string } : {}), ...(tab !== undefined ? { tab: tab as string } : {}),

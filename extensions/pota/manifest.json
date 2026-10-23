@@ -25,7 +25,6 @@
         "description": "Who is activating a POTA park now: the park, the frequency and mode, and when they were spotted.",
         "refreshSeconds": 60,
         "icon": "tree",
-        "rail": true,
         "network": true,
         "tab": "Spots",
         "hue": "green"

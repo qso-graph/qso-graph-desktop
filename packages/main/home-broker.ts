@@ -38,7 +38,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
     extension.manifest.contributes.pages.map(page => ({
       key: `${extension.manifest.id}/${page.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
       page: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
-      icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.rail === true,
+      icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.under === undefined,
       inputs: page.inputs ?? [],
       // The page's own word, or else its extension's grants (manifest.ts).
       network: pageNeedsNetwork(extension.manifest, page),
