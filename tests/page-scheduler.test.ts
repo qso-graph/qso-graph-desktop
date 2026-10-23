@@ -351,3 +351,75 @@ describe('offline: an internet page asks nothing until the network is back (KI7M
     scheduler.stop();
   });
 });
+
+describe('leaving and coming back (Codex review, 2026-10-23)', () => {
+  function pendingHarness(initialInputs: Record<string, string> = {}) {
+    let pins = ['air/conditions'];
+    let inputs = initialInputs;
+    const asked: Record<string, string>[] = [];
+    const releases: (() => void)[] = [];
+    const published: PageView[] = [];
+    const scheduler = createPageScheduler({
+      catalogue: () => CARDS,
+      pins: () => pins,
+      inputs: () => inputs,
+      // Settles only when released, aborted or not: an extension that ignores
+      // its signal, as a slow one can.
+      page: (_extension, _page, _signal, given) => { asked.push({ ...given }); return new Promise(done => { releases.push(() => done({ outcome: 'completed', answer: answer(JSON.stringify(given)) })); }); },
+      publish: view => published.push(view),
+      now: () => Date.now()
+    });
+    return {
+      scheduler, asked, published, releases,
+      setPins: (next: string[]) => { pins = next; scheduler.changed(); },
+      setInputs: (next: Record<string, string>) => { inputs = next; }
+    };
+  }
+
+  it('asks again on return when it left before the first answer, not a whole interval later', async () => {
+    const { scheduler, asked, releases, setPins } = pendingHarness();
+    scheduler.setVisible(true);
+    await flush();
+    setPins([]);
+    releases[0]!();
+    await flush();
+    setPins(['air/conditions']);
+    await flush();
+    expect(asked).toHaveLength(2);
+    scheduler.stop();
+  });
+
+  it('never asks a page twice at once, even when it is left and opened again while asking', async () => {
+    const { scheduler, asked, releases, setPins, setInputs } = pendingHarness();
+    scheduler.setVisible(true);
+    await flush();
+    setPins([]);
+    setPins(['air/conditions']);
+    setInputs({ dx: 'FN31' });
+    scheduler.inputsChanged('air/conditions');
+    await flush();
+    expect(asked).toHaveLength(1);
+    // Once the first settles, the new question is asked, with its inputs.
+    releases[0]!();
+    await flush();
+    expect(asked).toEqual([{}, { dx: 'FN31' }]);
+    scheduler.stop();
+  });
+
+  it('does not show an answer to other inputs when the page is opened again', async () => {
+    const { scheduler, asked, published, releases, setPins, setInputs } = pendingHarness({ q: 'FT8' });
+    scheduler.setVisible(true);
+    await flush();
+    releases[0]!();
+    await flush();
+    setPins([]);
+    setInputs({});
+    setPins(['air/conditions']);
+    await flush();
+    // Asked afresh with the empty fields, and the FT8 answer not shown again.
+    expect(asked).toEqual([{ q: 'FT8' }, {}]);
+    const afterReturn = published.slice(published.findIndex(view => view.state === 'ready') + 1);
+    expect(afterReturn.some(view => view.state === 'ready')).toBe(false);
+    scheduler.stop();
+  });
+});

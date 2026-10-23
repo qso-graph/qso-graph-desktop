@@ -60,6 +60,8 @@ interface Tracked {
   // recognised and dropped.
   generation: number;
   view?: PageView;
+  // The inputs its view answered, so it is never shown again for others.
+  inputs?: string;
 }
 
 // The least time between two questions the operator asks for with Refresh
@@ -81,7 +83,14 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
   // extension turned off), so that shown again inside its interval it shows
   // that rather than "Getting the latest…" until the interval runs out. A
   // callsign change drops it with everything else.
-  const kept = new Map<string, PageView>();
+  // With the inputs it answered: shown again only for the same ones.
+  const kept = new Map<string, { view: PageView; inputs: string | undefined }>();
+  // The pages with a question in flight, held apart from the tracked entries:
+  // a page left and opened again while asking gets a new entry, and must not
+  // be asked a second time until the first question settles (Codex review,
+  // 2026-10-23).
+  const busy = new Set<string>();
+  const inputsOf = (key: string) => JSON.stringify(deps.inputs?.(key) ?? {});
 
   // The pinned pages that some extension offers, in pin order.
   function shown(): CataloguePage[] {
@@ -91,9 +100,13 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
 
   // Cancel what is in flight and stop the clock; the answer, if one still
   // comes, is for an older generation and is dropped.
-  function halt(entry: Tracked): void {
+  // A question cancelled before it had any answer leaves nothing to show,
+  // so it does not count against the interval: the page is asked again when
+  // it next shows, not a whole interval later (Codex review, 2026-10-23).
+  function halt(entry: Tracked, key?: string): void {
     if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
     entry.generation += 1;
+    if (entry.work && key !== undefined && (!entry.view || entry.view.state === 'waiting')) lastAsked.delete(key);
     entry.work?.abort();
   }
 
@@ -115,7 +128,10 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       entry = { generation: 0 };
       tracked.set(page.key, entry);
       const before = kept.get(page.key);
-      if (before) { kept.delete(page.key); publish(entry, before); }
+      kept.delete(page.key);
+      // What it said for other inputs is not shown: it is asked afresh.
+      if (before && before.inputs === inputsOf(page.key)) { entry.inputs = before.inputs; publish(entry, before.view); }
+      else if (before) lastAsked.delete(page.key);
     }
     if (entry.timer || entry.work) return;
     if (offline(page)) {
@@ -129,7 +145,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
   }
 
   async function ask(page: CataloguePage, entry: Tracked): Promise<void> {
-    if (!visible || stopped || entry.work) return;
+    if (!visible || stopped || entry.work || busy.has(page.key)) return;
     if (offline(page)) { schedule(page); return; }
     // Pinned still, and still offered: checked at the moment of asking.
     if (!shown().some(candidate => candidate.key === page.key)) return;
@@ -137,21 +153,26 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     const work = new AbortController();
     entry.work = work;
     lastAsked.set(page.key, deps.now());
+    busy.add(page.key);
     if (!entry.view) publish(entry, { key: page.key, state: 'waiting' });
+    const given = deps.inputs?.(page.key) ?? {};
     let outcome: PageOutcome;
     try {
-      outcome = await deps.page(page.extension, page.page, work.signal, deps.inputs?.(page.key) ?? {});
+      outcome = await deps.page(page.extension, page.page, work.signal, given);
     } finally {
       if (entry.work === work) entry.work = undefined;
+      busy.delete(page.key);
     }
     const current = !stopped && generation === entry.generation && tracked.get(page.key) === entry;
     if (current && outcome.outcome === 'completed') {
+      entry.inputs = JSON.stringify(given);
       publish(entry, { key: page.key, state: 'ready', answer: outcome.answer, fetchedAt: new Date(deps.now()).toISOString() });
     } else if (current && outcome.outcome === 'unknown') {
       publish(entry, { key: page.key, state: 'failed', reason: outcome.reason });
     }
-    // Whatever happened, the next question is decided by the clock.
-    if (tracked.get(page.key) === entry) schedule(page);
+    // Whatever happened, the next question is decided by the clock, for this
+    // entry or the one that replaced it while this was asked.
+    if (tracked.has(page.key)) schedule(page);
   }
 
   function reconcile(): void {
@@ -160,8 +181,8 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       if (keep.has(key)) continue;
       // Unpinned, or its extension turned off: what is in flight is cancelled
       // and nothing more is asked (QGD-HOM-0005). An answer it had is kept.
-      halt(entry);
-      if (entry.view && entry.view.state !== 'waiting') kept.set(key, entry.view);
+      halt(entry, key);
+      if (entry.view && entry.view.state !== 'waiting') kept.set(key, { view: entry.view, inputs: entry.inputs });
       tracked.delete(key);
     }
     for (const page of shown()) schedule(page);
@@ -172,7 +193,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     // cancelled; shown again, each page is asked when its interval allows.
     setVisible(showing: boolean): void {
       visible = showing;
-      if (!showing) { for (const entry of tracked.values()) halt(entry); return; }
+      if (!showing) { for (const [key, entry] of tracked) halt(entry, key); return; }
       reconcile();
     },
     // The pins changed, or an extension was turned on or off.
@@ -238,7 +259,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     },
     // What each shown page last said, for a screen that has just opened.
     views(): PageView[] {
-      return shown().map(page => tracked.get(page.key)?.view ?? kept.get(page.key) ?? { key: page.key, state: 'waiting' });
+      return shown().map(page => tracked.get(page.key)?.view ?? kept.get(page.key)?.view ?? { key: page.key, state: 'waiting' });
     },
     shown,
     stop(): void {
