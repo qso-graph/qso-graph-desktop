@@ -10,8 +10,17 @@ import { julian } from '../src/sun.js';
 
 const BOISE = { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.2083 };
 const NOW = new Date('2026-10-22T18:00:00Z');
-const UTC_CLOCK: Clock = { offset: () => 0, text: () => 'never shown' };
-const MOUNTAIN: Clock = { offset: () => -360, text: at => `local ${at.getUTCHours()}` };
+const two = (n: number) => String(n).padStart(2, '0');
+const UTC_CLOCK: Clock = {
+  offset: () => 0, text: () => 'never shown',
+  time: at => `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`, date: at => `${at.getUTCDate()} Oct ${at.getUTCFullYear()}`
+};
+// Six hours behind UTC, as Idaho is in summer time.
+const MOUNTAIN: Clock = {
+  offset: () => -360, text: at => `local ${at.getUTCHours()}`,
+  time: at => { const local = new Date(at.getTime() - 6 * 3_600_000); return `${two(local.getUTCHours())}:${two(local.getUTCMinutes())}`; },
+  date: at => { const local = new Date(at.getTime() - 6 * 3_600_000); return `${local.getUTCDate()} Oct ${local.getUTCFullYear()}`; }
+};
 const sections = (answer: ReturnType<typeof astroPage>) => {
   const valid = validatePageAnswer(answer);
   if (!valid.ok) throw new Error('not ok');
@@ -25,17 +34,30 @@ const today = (answer: ReturnType<typeof astroPage>) => {
 };
 
 describe('Astro\'s page', () => {
-  it('passes the core\'s own check, with Sun, Twilight, Moon and Radio depths as groups of one table', () => {
-    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Sun', 'Twilight', 'Moon', 'Radio depths']);
+  it('passes the core\'s own check, with Twilight, Moon and Radio depths as groups of one table', () => {
+    expect(today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).groups.map(group => group.heading)).toEqual(['Twilight', 'Moon', 'Radio depths']);
+  });
+
+  it('gives the sun for today and the next four days, every time on this computer\'s clock (KI7MT, 2026-10-23)', () => {
+    const sun = sections(astroPage(BOISE, NOW, {}, MOUNTAIN)).find(section => section.heading === 'Sun');
+    if (!sun || sun.shape !== 'table' || !('rows' in sun)) throw new Error('no sun');
+    expect(sun.columns).toEqual(['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day']);
+    expect(sun.rows.map(row => row[0])).toEqual(['22 Oct 2026', '23 Oct 2026', '24 Oct 2026', '25 Oct 2026', '26 Oct 2026']);
+    // Boise in late October, on Mountain summer time: sunrise a little after
+    // eight, sunset a little before seven, the days drawing in.
+    expect(sun.rows[0]![1]).toMatch(/^08:\d\d$/);
+    expect(sun.rows[0]![3]).toMatch(/^18:\d\d$/);
+    const minutes = (text: string) => { const [h, m] = text.split(' h ').map(part => parseInt(part, 10)); return h! * 60 + m!; };
+    expect(minutes(sun.rows[4]![4]!)).toBeLessThan(minutes(sun.rows[0]![4]!));
   });
 
   it('gives a value with no clock once, across both time columns', () => {
     const table = today(astroPage(BOISE, NOW, {}, MOUNTAIN));
     const rows = table.groups.flatMap(group => group.rows);
-    for (const name of ['Length of day', 'Phase', 'Declination', 'Distance']) {
+    for (const name of ['Phase', 'Declination', 'Distance']) {
       expect(rows.find(row => row[0] === name)).toHaveLength(2);
     }
-    expect(rows.find(row => row[0] === 'Sunrise')).toEqual(['Sunrise', expect.any(String), expect.stringMatching(/^local /)]);
+    expect(rows.find(row => row[0] === 'Civil dawn (−6°)')).toEqual(['Civil dawn (−6°)', expect.any(String), expect.stringMatching(/^local /)]);
   });
 
   it('gives UTC alone when the computer is on UTC, and the operator\'s clock beside it when not (QGD-AST-0010)', () => {
@@ -52,9 +74,10 @@ describe('Astro\'s page', () => {
 
   it('names an absent event and why, never a blank (QGD-AST-0007)', () => {
     const svalbard = { name: 'Longyearbyen', latitude: 78.2232, longitude: 15.6267 };
-    const sun = today(astroPage(svalbard, new Date('2026-06-21T12:00:00Z'), {}, UTC_CLOCK)).groups.find(group => group.heading === 'Sun');
-    if (!sun) throw new Error('no sun');
-    expect(sun.rows.find(row => row[0] === 'Sunrise')?.[1]).toBe('None: the sun does not set today');
+    const sun = sections(astroPage(svalbard, new Date('2026-06-21T12:00:00Z'), {}, UTC_CLOCK)).find(section => section.heading === 'Sun');
+    if (!sun || sun.shape !== 'table' || !('rows' in sun)) throw new Error('no sun');
+    expect(sun.rows[0]![1]).toBe('—');
+    expect(sun.rows[0]![4]).toBe('24 h: the sun does not set');
     expect(sun.rows.every(row => row.every(cell => cell !== ''))).toBe(true);
   });
 

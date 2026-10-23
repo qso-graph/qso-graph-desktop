@@ -26,12 +26,43 @@ export interface Clock {
   // Minutes east of UTC at a moment, as Date's offset reversed.
   offset(at: Date): number;
   text(at: Date): string;
+  // The time alone, and the date alone with its year, on this clock.
+  time(at: Date): string;
+  date(at: Date): string;
 }
 
 export const localClock: Clock = {
   offset: at => -at.getTimezoneOffset(),
-  text: at => `${at.getDate()} ${MONTHS[at.getMonth()]} ${two(at.getHours())}:${two(at.getMinutes())}`
+  text: at => `${at.getDate()} ${MONTHS[at.getMonth()]} ${two(at.getHours())}:${two(at.getMinutes())}`,
+  time: at => `${two(at.getHours())}:${two(at.getMinutes())}`,
+  date: at => `${at.getDate()} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`
 };
+
+// The sun for today and the four days after it, on this computer's clock,
+// which is the operator's to set: local in Idaho, UTC in a shack kept on UTC
+// (KI7MT, 2026-10-23: a sunrise in UTC means nothing in Idaho). A day is the
+// Location's own, as the crossings are worked out (sun.ts); its date is the
+// date of its solar noon on this clock.
+export const SUN_DAYS = 5;
+export function sunWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
+  const rows: string[][] = [];
+  for (let day = 0; day < SUN_DAYS; day += 1) {
+    const at = new Date(now.getTime() + day * 86_400_000);
+    const found = sunCrossings(at, latitude, longitude, HORIZON);
+    const noon = solarNoon(at, latitude, longitude);
+    const length = found.rising && found.setting && found.setting > found.rising
+      ? duration((found.setting.getTime() - found.rising.getTime()) / 60_000)
+      : found.allDay === 'above' ? '24 h: the sun does not set' : found.allDay === 'below' ? 'None: the sun does not rise' : 'Not one span';
+    rows.push([
+      clock.date(noon),
+      found.rising ? clock.time(found.rising) : '—',
+      clock.time(noon),
+      found.setting ? clock.time(found.setting) : '—',
+      length
+    ]);
+  }
+  return rows;
+}
 
 interface Inputs { readonly dx?: string }
 
@@ -86,20 +117,10 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
   }
   const { latitude, longitude } = position;
   const yourClock = clock.offset(now) !== 0 ? clock : undefined;
-  const sun = sunCrossings(now, latitude, longitude, HORIZON);
-  const noon = solarNoon(now, latitude, longitude);
   const moon = moonCrossings(now, latitude, longitude);
   const at = julian(now.getTime());
   const phase = moonPhase(at);
   const moonNow = moonAt(at);
-  const dayLength = sun.rising && sun.setting && sun.setting > sun.rising
-    ? duration((sun.setting.getTime() - sun.rising.getTime()) / 60_000)
-    : sun.allDay === 'above' ? '24 h: the sun does not set' : sun.allDay === 'below' ? 'None: the sun does not rise' : 'Not one span today';
-
-  // Sunrise, solar noon, sunset, then the length of the day.
-  const [sunrise, sunset] = pair(sun, 'Sunrise', 'Sunset', 'None: the sun does not rise today', 'None: the sun does not set today');
-  const sunRows: Row[] = [sunrise, ['Solar noon', noon], sunset, ['Length of day', dayLength]];
-
   // The DX question (QGD-AST-0041): when both ends are inside the same depth.
   // Drawn under the figures, just below the field it answers, not after the
   // day's whole table (KI7MT, 2026-10-22).
@@ -162,8 +183,9 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // One table in four groups, so the times line up all the way down the
     // page rather than moving with each group's longest name (Watson and
     // KI7MT, 2026-10-22).
+    // The sun, five days of it, on this computer's clock (KI7MT, 2026-10-23).
+    { shape: 'table', heading: 'Sun', columns: ['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day'], rows: sunWeek(now, latitude, longitude, clock) },
     { shape: 'table', columns: yourClock ? ['Event', 'UTC', 'Your clock'] : ['Event', 'UTC'], groups: [
-    group('Sun', sunRows, yourClock),
     group('Twilight', [
       ...pair(sunCrossings(now, latitude, longitude, CIVIL), 'Civil dawn (−6°)', 'Civil dusk (−6°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
       ...pair(sunCrossings(now, latitude, longitude, NAUTICAL), 'Nautical dawn (−12°)', 'Nautical dusk (−12°)', 'Not today: the sun stays lower', 'Not today: the sun stays higher'),
