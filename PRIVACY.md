@@ -14,7 +14,9 @@ the keyring on Linux), not in the application's files.
 Only when you:
 - **test a login** for a service you've set up;
 - **download or update reference data**, such as ADIF definitions, POTA's parks or SOTA's summits;
-- **pin a card on Home** that shows outside data, such as Conditions from NOAA.
+- **open a page that shows outside data**, such as Conditions from NOAA or Parks On the Air's spots from
+  POTA. Only the page on screen is asked for; Home's tiles fetch nothing, and a page that needs no outside
+  data, such as Astro or ADIF Lookup, makes no request at all.
 
 Nothing about you is sent with any of these. All of the application's connections go through its
 credential core, over HTTPS (`QGD-SEC-0020`); the screens never open one.

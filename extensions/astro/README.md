@@ -6,11 +6,13 @@ can be turned off, and has an item in the rail as well as a page you can pin.
 
 | On the page | What it is |
 |---|---|
-| **Sun** | Sunrise and sunset (the centre at −0.833°), solar noon and the length of the day |
-| **Twilight** | Civil, nautical and astronomical dawn and dusk (−6°, −12°, −18°) |
-| **Radio depths** | When the absorbing D and E layers (−10.1°) and the reflecting F2 layer (−17.2°) go dark and come back into sunlight |
-| **Moon** | Moonrise and moonset, phase and how much is lit, declination and distance |
-| **Grey line** | A world map with the night greyed out and the terminator drawn, the Location marked; given a DX grid, that grid marked too, and the windows in the next 24 hours when both ends are within the same depth |
+| **Grey line now** | A world map with the night greyed out, the twilight down to −10.1° lighter as the grey line, the terminator, the sun and the moon where each is overhead, and the Location marked |
+| **Grey line DX check** | Given a DX station's grid, that grid marked on the map, and the windows in the next 24 hours when both ends are in twilight within the same depth, as date, start and end in **UTC**: a contact with another station is UTC |
+| **Almanac** | For the Location, on the computer's clock (local), headed with the zone the clock is set to: |
+| · Sun | Five days: sunrise and sunset (the centre at −0.833°), solar noon and the length of the day |
+| · Twilight | Five days: civil, nautical and astronomical dawn and dusk (−6°, −12°, −18°) |
+| · Moon | Five days: phase, moonrise and moonset, how much is lit, declination and distance |
+| · Radio depths | Today and tomorrow: when the absorbing D and E layers (−10.1°) and the reflecting F2 layer (−17.2°) go dark and come back into sunlight |
 
 Everything is worked out on this computer: Astro makes no network request at all
 (`QGD-AST-0004`). It holds one grant, to read the active Location's name, grid and
@@ -23,6 +25,7 @@ layer 100 km and 300 km up entering the earth's shadow, not a standard.
 Times are to the minute, the accuracy it claims. The sun is checked against
 PyEphem; the moon, a method of its own (Meeus, *Astronomical Algorithms*, chapter
 47), against PyEphem as well, at five places from the equator to the Arctic
-across a year (`QGD-AST-0005`, `QGD-AST-0006`). Times are in UTC and on this
-computer's clock where that differs; the Location's own time zone is not known
-yet (`QGD-AST-0011`).
+across a year (`QGD-AST-0005`, `QGD-AST-0006`). The almanac's times are on the
+computer's clock, which is the operator's to set, and the page names the zone it is
+set to; the grey-line windows with another station are in UTC (KI7MT, 2026-10-23:
+Locations are local, logs are UTC).

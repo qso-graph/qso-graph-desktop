@@ -30,7 +30,7 @@ export type ExtensionRequest =
   // because it is the same information (QGD-CRD-0010).
   | { readonly kind: 'callsign.active' }
   // Where the operator is operating from: the active station's name, grid and
-  // position, or none (QGD-STN-0005, QGD-HOM-0009). Never its street, city or
+  // position, or none (QGD-STN-0005; Astro is its first reader). Never its street, city or
   // postal code, which stay on this machine and out of every extension
   // (QGD-STN-0003).
   | { readonly kind: 'station.active' }

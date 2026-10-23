@@ -76,8 +76,9 @@ your copy of the application and is never redistributed by this project.
 - **ARRL Section Boundaries**: ARRL sections and the counties each holds.
   Section assignments only; ARRL's page is not included.
 <!-- credit: map/land -->
-- **Natural Earth**: the world map's coastlines, at 1:110m, for Astro's grey
-  line. Ships with the application. Public domain; made with Natural Earth.
+- **Natural Earth**: the world map's coastlines, at 1:110m, version 5.1.2, for
+  Astro's grey line, simplified to a tenth of a degree. Ships with the
+  application. Public domain; made with Natural Earth.
 <!-- credit: icons -->
 - **Font Awesome Free, by Fonticons, Inc.**: the navigation icons. CC BY 4.0,
   as recorded above.

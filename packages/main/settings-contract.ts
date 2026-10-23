@@ -22,7 +22,7 @@ export interface Settings {
   // Absent or empty means an application holds only the grants that need
   // nobody — which is the safe default and the one a fresh install has.
   grants: Readonly<Record<string, readonly string[]>>;
-  // The pages pinned to Home, in order: at most six, each named
+  // The pages pinned to Home, in order: at most eight, each named
   // "extension/page" (QGD-HOM-0003). A pin naming a page no extension offers
   // is kept and not shown, so a page whose extension is turned off comes back
   // where it was when it is turned on.

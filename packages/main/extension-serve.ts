@@ -43,7 +43,7 @@ export interface ExtensionBrokerPorts {
   // The active callsign, or none (QGD-CRD-0010).
   activeCallsign: () => Promise<CallsignBrief | null>;
   // The active station: name, grid and position only, never its address
-  // (QGD-STN-0003, QGD-HOM-0009).
+  // (QGD-STN-0003).
   activeStation: () => Promise<StationBrief | null>;
   // ADIF's definitions searched by the frame (reference:read).
   adifSearch: (query: string) => Promise<readonly AdifEntry[]>;
