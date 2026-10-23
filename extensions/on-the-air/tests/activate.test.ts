@@ -94,6 +94,12 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     expect(() => validatePageAnswer(answer)).not.toThrow();
   });
 
+  it('offers only My Area\'s locations to narrow by, however many a park is in', () => {
+    const filter = (area: string[]) => table(activatePage(parks, FETCHED, BOISE, area)).filters!.find(entry => entry.label === 'Location')!.options;
+    expect(filter([])).toEqual(['US-ID', 'US-OR']);
+    expect(filter(['US-ID'])).toEqual(['US-ID']);
+  });
+
   it('says so when My Area has no active park', () => {
     expect(activatePage([], FETCHED, BOISE)).toMatchObject({ ok: true, data: { sections: [{ shape: 'alert' }] } });
   });

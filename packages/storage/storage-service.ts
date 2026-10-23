@@ -12,7 +12,7 @@
 // (QGD-SEC-0020). Every failure is reduced before it is logged or sent
 // (QGD-ENG-0016).
 import { adifBands, searchAdif } from './adif-search.js';
-import { areaChoices, areaDefault } from './area.js';
+import { areaChoices, areaDefault, areaLocations } from './area.js';
 import { parksToActivate } from './activations.js';
 import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
@@ -248,14 +248,23 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
     case 'parks-to-activate': {
       // My Area as chosen, or else the active Location's own (QGD-STN-0012).
       const area = command.locations.length > 0 ? command.locations : await ownArea();
-      const held = Object.entries(referenceStatus?.activations ?? {}).filter(([location]) => area.includes(location));
+      const held = Object.entries(referenceStatus?.activations ?? {}).filter(([entry]) => area.includes(entry));
       const reader = reference?.reader();
       if (!reader || held.length === 0) {
         return { ok: false, error: 'POTA activations are not downloaded for My Area. Download them in Settings, under Reference data.' };
       }
       // When the oldest of them was fetched, so the page can say how old it is.
       const fetched = held.flatMap(([, set]) => (set.state === 'loaded' ? [set.fetchedAt] : [])).sort()[0];
-      return { ok: true, status: status(), toActivate: { parks: await parksToActivate(reader, area), fetchedAt: fetched ?? new Date(0).toISOString() } };
+      // An entity or a program stands for its locations (area.ts).
+      const locations = await areaLocations(reader, area);
+      return { ok: true, status: status(), toActivate: { parks: await parksToActivate(reader, locations), fetchedAt: fetched ?? new Date(0).toISOString(), locations } };
+    }
+    case 'area-locations': {
+      const reader = reference?.reader();
+      const area = command.entries.length > 0 ? command.entries : await ownArea();
+      // Without POTA's lists only a location names itself.
+      if (!reader) return { ok: true, status: status(), areaLocations: area.filter(entry => /-/.test(entry)) };
+      return { ok: true, status: status(), areaLocations: await areaLocations(reader, area) };
     }
     case 'adif-bands': {
       const reader = reference?.reader();

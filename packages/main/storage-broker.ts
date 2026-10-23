@@ -55,6 +55,8 @@ export interface StorageBroker {
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
   parksToActivate: () => Promise<ToActivate | string>;
+  // The POTA locations My Area covers: its entities' and programs' too.
+  areaLocations: () => Promise<readonly string[]>;
   // The POTA location the active Location is in, or none (area.ts).
   areaDefault: () => Promise<string | undefined>;
   onActiveStationChanged: (listener: () => void) => void;
@@ -262,6 +264,10 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       const reply = await ask({ type: 'parks-to-activate', locations: [...(options.area?.() ?? [])] });
       if (!reply.ok) return reply.error;
       return reply.toActivate ?? 'POTA activations could not be read just now.';
+    },
+    async areaLocations() {
+      const reply = await ask({ type: 'area-locations', entries: [...(options.area?.() ?? [])] });
+      return reply.ok ? reply.areaLocations ?? [] : [];
     },
     async adifBands() {
       const reply = await ask({ type: 'adif-bands' });

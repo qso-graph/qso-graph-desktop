@@ -43,7 +43,7 @@ describe('On the Air (QGD-HOM-0007)', () => {
   it('draws Parks Near Me from reference data alone, and says why when it is not there', async () => {
     const park = { reference: 'US-0001', name: 'Example Park', latitude: 43.7, longitude: -116.1, locations: 'US-ID', activations: 0 };
     const { value, providers, asked } = context(request => request.kind === 'pota.activations'
-      ? { ok: true, kind: 'pota.activations', parks: [park], fetchedAt: '2026-10-23T12:00:00Z' }
+      ? { ok: true, kind: 'pota.activations', parks: [park], fetchedAt: '2026-10-23T12:00:00Z', locations: ['US-ID'] }
       : request.kind === 'station.active' ? { ok: true, kind: 'station.active', station: { name: 'Home', latitude: 43.6, longitude: -116.2 } }
         : { ok: false, error: 'refused' });
     activate(value);

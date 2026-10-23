@@ -247,12 +247,9 @@ if (!app.requestSingleInstanceLock()) {
         },
         // My Area: the operator's choice, or else the active Location's own
         // POTA location (station:active; KI7MT, 2026-10-23).
-        area: async () => {
-          const chosen = load().area;
-          if (chosen.length > 0) return chosen;
-          const own = await storageBroker.areaDefault();
-          return own ? [own] : [];
-        },
+        // As locations, whatever level it was chosen at: an entity or a
+        // program stands for its locations (KI7MT, 2026-10-23).
+        area: async () => storageBroker.areaLocations(),
         // My Area's parks with their activations (QGD-REF-0019), read from
         // reference data on this computer: nothing is fetched.
         potaActivations: async () => {

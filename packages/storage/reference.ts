@@ -29,8 +29,9 @@ import { eq, sql } from 'drizzle-orm';
 import { openArchive, type FetchArchive, type FetchText } from '../reference/fetch.js';
 import type { Definitions } from '../reference/adif.js';
 import type { Register } from '../reference/register.js';
-import { LOCATION_CODE, ShapeError, readActivations, readLocations, readParks, readPrograms, refuseIfShrunk } from '../reference/pota.js';
+import { ShapeError, readActivations, readLocations, readParks, readPrograms, refuseIfShrunk } from '../reference/pota.js';
 import { readSummits } from '../reference/sota.js';
+import { areaKind, isAreaEntry } from './area-entry.js';
 import { type StorageError, StorageFailure, failure, reduce } from './errors.js';
 import type { Layout } from './layout.js';
 import {
@@ -349,7 +350,7 @@ export class Reference {
     const letGo = new Set<string>();
     let noArea = false;
     if (options.only === 'activations') {
-      const area = [...new Set((options.area ?? []).filter((location) => LOCATION_CODE.test(location)))];
+      const area = [...new Set((options.area ?? []).filter(isAreaEntry))];
       noArea = area.length === 0;
       if (!noArea) {
         for (const location of listsOf(paths.referenceCache, 'activations')) {
@@ -480,11 +481,14 @@ export class Reference {
     resource: ListedResource, list: AnyList, now: Date, force: boolean, liveRows: number | undefined
   ): Promise<InputOutcome> {
     const { paths, register } = this.#options;
-    // An activations list is the register's one source with its location
-    // filled in, a code already held to LOCATION_CODE (QGD-REF-0019).
+    // An activations list is the register's URL for its level, with the
+    // entry filled in, already held to area-entry.ts (QGD-REF-0019).
+    const kind = resource === 'activations' ? areaKind(list) : undefined;
+    const activations = register.activations.source;
     const sources: Record<string, (typeof register.pota.sources)['parks']> = resource === 'pota' ? register.pota.sources
       : resource === 'sota' ? register.sota.sources
-        : { [list]: { ...register.activations.source, url: register.activations.source.url.replace('{location}', list) } };
+        : kind ? { [list]: { url: activations.urls[kind].replace('{code}', list), what: activations.what, format: activations.format, columns: activations.columns, conditional: activations.conditional } } : {};
+    if (!sources[list]) return { state: 'kept', failure: { kind: 'shape' } };
     const sourceRegister = sources[list];
     const sourceId = resource === 'pota' ? POTA_SOURCE_IDS[list as PotaList]
       : resource === 'sota' ? SOTA_SOURCE_IDS[list as SotaList] : activationsSourceId(list);

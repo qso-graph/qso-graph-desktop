@@ -45,7 +45,10 @@ export const SHOWN = 500;
 // Fewer than n activations, as the filter's values: none, 0, 1 … n−1.
 const fewerThan = (n: number) => [NONE, ...Array.from({ length: n }, (_, at) => String(at))];
 
-export function activatePage(parks: readonly ActivationPark[], fetchedAt: string, station: StationBrief | null): PageAnswer {
+// `area` is the POTA locations My Area covers: the Location filter offers
+// those alone, so a trail through sixteen states does not offer all sixteen
+// to an operator whose area is Idaho (KI7MT, 2026-10-23).
+export function activatePage(parks: readonly ActivationPark[], fetchedAt: string, station: StationBrief | null, area: readonly string[] = []): PageAnswer {
   const observedAt = fetchedAt;
   if (parks.length === 0) {
     return { ok: true, data: { version: 6, observedAt, sections: [
@@ -69,7 +72,9 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
   const columns = ['Park', 'Name', ...(here ? ['km', 'Bearing °'] : []), 'Activations', 'Location'];
   const activations = here ? 4 : 2;
   const location = activations + 1;
+  const inArea = new Set(area);
   const locationOptions = [...new Set(rows.flatMap(row => row[location]!.split(',').map(value => value.trim()).filter(Boolean)))]
+    .filter(value => inArea.size === 0 || inArea.has(value))
     .sort((a, b) => a.localeCompare(b)).slice(0, 100);
 
   const never = parks.filter(park => count(park) === 0).length;

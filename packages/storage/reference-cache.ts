@@ -25,6 +25,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StorageFailure, failure } from './errors.js';
+import { isAreaEntry } from './area-entry.js';
 
 export const POTA_LISTS = ['parks', 'programs', 'locations'] as const;
 export type PotaList = (typeof POTA_LISTS)[number];
@@ -38,7 +39,8 @@ export type SotaList = (typeof SOTA_LISTS)[number];
 export const LISTED = { pota: POTA_LISTS, sota: SOTA_LISTS, activations: [] as readonly string[] } as const;
 export type ListedResource = keyof typeof LISTED;
 export type AnyList = PotaList | SotaList | string;
-const LOCATION_LIST = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
+// A list named by a part of My Area: US-ID, 291 or IT (area-entry.ts).
+const LOCATION_LIST = { test: (list: string) => isAreaEntry(list) };
 
 export interface PotaRecord {
   list: AnyList;

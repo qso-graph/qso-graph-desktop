@@ -7,6 +7,7 @@
 // rejected, never coerced into something near enough.
 // The three values are the theme control's own (QGD-REP-0004); this contract
 // says what a *stored* theme may be, which is the same set.
+import { isAreaEntry } from '../storage/area-entry.js';
 import { THEME_CHOICES, isThemeChoice, type ThemeChoice } from '../ui/theme-choice.js';
 export { THEME_CHOICES, isThemeChoice, type ThemeChoice };
 
@@ -35,8 +36,9 @@ export interface Settings {
   // for (QGD-FRM-0016), or empty. A new release does not match it, so the
   // welcome shows once more, as WSJT-X's versioned setting does.
   welcomeHidden: string;
-  // My Area (KI7MT, 2026-10-23): the POTA locations the operator works in,
-  // as US-ID, at most MAX_AREA. Chosen before anything is fetched for them,
+  // My Area (KI7MT, 2026-10-23): the parts of POTA the operator works in, at
+  // POTA's own three levels, a program (IT), an entity (291) or a location
+  // (US-ID), at most MAX_AREA. Chosen before anything is fetched for them,
   // so nothing outside it is. Empty means the active Location's own.
   area: readonly string[];
 }
@@ -44,15 +46,13 @@ export interface Settings {
 // Enough for a home location, its neighbours and a trip's, and never the
 // world (KI7MT, 2026-10-23).
 export const MAX_AREA = 10;
-// A POTA location, PROGRAM-REGION, as US-ID, JP-TK or GB-ENG.
-const LOCATION = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
 
 export function isArea(value: unknown): value is readonly string[] {
   if (!Array.isArray(value) || value.length > MAX_AREA) return false;
   const seen = new Set<string>();
   for (let at = 0; at < value.length; at++) {
     const location: unknown = value[at];
-    if (!Object.hasOwn(value, at) || typeof location !== 'string' || !LOCATION.test(location) || seen.has(location)) return false;
+    if (!Object.hasOwn(value, at) || !isAreaEntry(location) || seen.has(location)) return false;
     seen.add(location);
   }
   return true;

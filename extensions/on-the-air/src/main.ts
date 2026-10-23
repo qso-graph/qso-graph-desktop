@@ -55,6 +55,6 @@ export function activate(context: ExtensionContext): void {
     if (!found.ok) return { ok: false, reason: found.error };
     if (found.kind !== 'pota.activations') return { ok: false, reason: 'POTA activations could not be read just now.' };
     const station = await context.request({ kind: 'station.active' }, { signal });
-    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null);
+    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null, found.locations);
   }));
 }

@@ -340,10 +340,6 @@ export interface Activation {
 
 export const ACTIVATION_FIELDS = ['reference', 'activations'] as const;
 
-// POTA writes a location as a program prefix and a part, `US-ID`, `JP-FS`.
-// The URL is built from it, so nothing else is let through.
-export const LOCATION_CODE = /^[A-Z0-9]{1,4}-[A-Z0-9]{1,8}$/;
-
 export function readActivations(json: string): Activation[] {
   let parsed: unknown;
   try {

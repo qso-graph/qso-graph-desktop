@@ -25,12 +25,13 @@ export interface SotaRegister {
   sources: { summits: PotaSource };
 }
 
-// POTA's activations, one list per location of My Area (QGD-REF-0019). The
-// URL holds `{location}`, filled with a location code and nothing else.
+// POTA's activations, one list per part of My Area (QGD-REF-0019): a
+// location, an entity or a program, each with its own URL holding `{code}`,
+// filled with that part as area-entry.ts writes it and nothing else.
 export interface ActivationsRegister {
   what: string;
   refreshAfterHours: number;
-  source: PotaSource;
+  source: Omit<PotaSource, 'url'> & { urls: { location: string; entity: string; program: string } };
 }
 
 // What the operator loads and updates, one control each. `id` names the

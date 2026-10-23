@@ -131,7 +131,8 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'adif.search'; readonly entries: readonly AdifEntry[] }
   | { readonly ok: true; readonly kind: 'adif.bands'; readonly bands: readonly AdifBand[] }
   | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
-  | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string }
+  // `locations` are the POTA locations My Area covers.
+  | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string; readonly locations: readonly string[] }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the

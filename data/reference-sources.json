@@ -22,7 +22,7 @@
       "name": "POTA activations",
       "what": "How many times each park in My Area has been activated, to find parks to activate, also offline",
       "owner": "Parks on the Air",
-      "size": "about 150 KB a location"
+      "size": "about 150 KB a location, up to 5 MB for the largest entity"
     },
     {
       "id": "sota",
@@ -278,11 +278,15 @@
     }
   },
   "activations": {
-    "what": "POTA's own count of each park's activations, for the locations of My Area alone (QGD-STN-0012, QGD-REF-0019). Fetched one location at a time, only when the operator asks, and at most once a day for each: POTA states no request limit, and its own page lists the same thing for a location in one request. Only the reference and the activation count are kept.",
+    "what": "POTA's own count of each park's activations, for My Area alone (QGD-STN-0012, QGD-REF-0019), at whichever of POTA's three levels each part of it was chosen: a program, an entity or a location, one request each. Fetched only when the operator asks, and at most once a day for each: POTA states no request limit, and its own site lists the same thing in one request. Only the reference and the activation count are kept.",
     "refreshAfterHours": 24,
     "source": {
-      "url": "https://api.pota.app/location/parks/{location}",
-      "what": "Every park in one POTA location with its attempts, activations and QSO counts; the activations alone are kept",
+      "urls": {
+        "location": "https://api.pota.app/location/parks/{code}",
+        "entity": "https://api.pota.app/entity/parks/{code}",
+        "program": "https://api.pota.app/program/parks/{code}"
+      },
+      "what": "Every park in one POTA location, entity or program with its attempts, activations and QSO counts; the activations alone are kept",
       "format": "json",
       "columns": [
         "reference",

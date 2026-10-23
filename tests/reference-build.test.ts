@@ -727,7 +727,8 @@ describe('POTA activations, a list for each location of My Area (QGD-REF-0019)',
     reference, name: 'Example Park', latitude: 43.7, longitude: -116.1, grid: 'DN13', locationDesc,
     attempts: activations, activations, qsos: activations === null ? null : activations * 20, website: null, notes: null
   });
-  const urlOf = (location: string) => register.activations.source.url.replace('{location}', location);
+  const urlOf = (location: string) => register.activations.source.urls.location.replace('{code}', location);
+  const urlFor = (kind: 'entity' | 'program', code: string) => register.activations.source.urls[kind].replace('{code}', code);
   const LISTS: Record<string, string> = {
     [urlOf('US-ID')]: JSON.stringify([park('US-0001', 12, 'US-ID'), park('US-0002', 0, 'US-ID'), park('US-0003', null, 'US-ID'),
       park('US-0009', 4, 'US-ID,US-OR')]),
@@ -800,8 +801,21 @@ describe('POTA activations, a list for each location of My Area (QGD-REF-0019)',
     const calls: string[] = [];
     const { ref, done } = await reference({ fetchText: pota(LISTS, [], calls), fetchArchive: offline });
     try {
-      await ref.refresh({ only: 'activations', force: true, area: ['../programs', 'US-ID/x', 'us-id', 'US-ID'] });
+      await ref.refresh({ only: 'activations', force: true, area: ['../programs', 'US-ID/x', 'us-id', '1234', 'US-ID'] });
       expect(calls).toEqual([urlOf('US-ID')]);
+    } finally { done(); }
+  });
+
+  it('fetches a whole entity or program from its own list, one request each (KI7MT, 2026-10-23)', async () => {
+    const calls: string[] = [];
+    const lists = { ...LISTS, [urlFor('entity', '6')]: JSON.stringify([park('US-0020', 0, 'US-AK')]),
+      [urlFor('program', 'IT')]: JSON.stringify([park('IT-0001', null, 'IT-LZ'), park('IT-0002', 5, 'IT-LM')]) };
+    const { ref, done } = await reference({ fetchText: pota(lists, [], calls), fetchArchive: offline });
+    try {
+      const outcome = await ref.refresh({ only: 'activations', force: true, area: ['6', 'IT'] });
+      expect(calls).toEqual([urlFor('entity', '6'), urlFor('program', 'IT')]);
+      expect(Object.keys(outcome.status.activations).sort()).toEqual(['6', 'IT']);
+      expect((await held(ref)).map(([reference]) => reference)).toEqual(['IT-0001', 'IT-0002', 'US-0020']);
     } finally { done(); }
   });
 

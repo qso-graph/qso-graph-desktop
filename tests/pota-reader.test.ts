@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   judgeCoordinates, parseCsv, readActivations, readLocations, readParks, readPrograms,
-  refuseIfShrunk, ShapeError, LOCATION_CODE, PARK_COLUMNS
+  refuseIfShrunk, ShapeError, PARK_COLUMNS
 } from '../packages/reference/pota.js';
 
 const header = `"${PARK_COLUMNS.join('","')}"`;
@@ -216,10 +216,5 @@ describe('QGD-REF-0019 a location\'s activations', () => {
     ['a count that is text', list(row('US-0001', 'many'))]
   ])('refuses %s', (_, body) => {
     expect(() => readActivations(body)).toThrow(ShapeError);
-  });
-
-  it('takes a location code and nothing that could change the URL', () => {
-    for (const code of ['US-ID', 'JP-FS', 'VE-ON', '9A-ZG']) expect(LOCATION_CODE.test(code)).toBe(true);
-    for (const code of ['us-id', 'US-ID/x', '../US', 'US-', 'US-ID?x=1', 'US-ID ', 'US-ID\n']) expect(LOCATION_CODE.test(code)).toBe(false);
   });
 });

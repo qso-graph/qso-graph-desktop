@@ -50,7 +50,7 @@ export interface ExtensionBrokerPorts {
   adifBands: () => Promise<readonly AdifBand[]>;
   area: () => Promise<readonly string[]>;
   // My Area's parks with their activations, from reference data (QGD-REF-0019).
-  potaActivations: () => Promise<{ parks: readonly ActivationPark[]; fetchedAt: string }>;
+  potaActivations: () => Promise<{ parks: readonly ActivationPark[]; fetchedAt: string; locations: readonly string[] }>;
   fetchSource: (url: string) => Promise<{ body: string; fresh: boolean }>;
   // Act with a credential and return the answer. The secret does not come
   // back (QGD-APP-0007).
@@ -125,8 +125,8 @@ export function createServe(deps: ServeDeps) {
         case 'area.get':
           return { ok: true, kind: 'area.get', locations: await deps.ports.area() };
         case 'pota.activations': {
-          const { parks, fetchedAt } = await deps.ports.potaActivations();
-          return { ok: true, kind: 'pota.activations', parks, fetchedAt };
+          const { parks, fetchedAt, locations } = await deps.ports.potaActivations();
+          return { ok: true, kind: 'pota.activations', parks, fetchedAt, locations };
         }
         case 'source.fetch': {
           const url = deps.sources[request.source];
