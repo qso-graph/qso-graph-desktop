@@ -248,9 +248,9 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
     case 'parks-to-activate': {
       // My Area as chosen, or else the active Location's own (QGD-STN-0012).
       const area = command.locations.length > 0 ? command.locations : await ownArea();
-      // Most Wanted is online only (KI7MT, 2026-10-23: what needs POTA's API
-      // is an online tab): asked for, it first fetches each part of the area
-      // not fetched today, one at a time. A failure keeps what was held.
+      // Most Wanted is online only, since only POTA's API has these counts:
+      // asked for, it first fetches each part of the area not fetched today,
+      // one at a time. A failure keeps what was held.
       if (area.length > 0 && !refreshing) await refresh('activations', area);
       const held = Object.entries(referenceStatus?.activations ?? {}).filter(([entry]) => area.includes(entry));
       const reader = reference?.reader();

@@ -271,7 +271,7 @@
     }
   },
   "activations": {
-    "what": "POTA's own count of each park's activations, for My Area alone (QGD-STN-0012, QGD-REF-0019), at whichever of POTA's three levels each part of it was chosen: a program, an entity or a location, one request each. Not a resource in Settings: fetched when Most Wanted is opened online, the one place it is used, and at most once a day for each part (KI7MT, 2026-10-23: what needs POTA's API is an online tab). POTA states no request limit. Only the reference and the activation count are kept.",
+    "what": "POTA's own count of each park's activations, for My Area alone (QGD-STN-0012, QGD-REF-0019), at whichever of POTA's three levels each part of it was chosen: a program, an entity or a location, one request each. Not a resource in Settings: fetched when Most Wanted is opened online, the one place it is used, and at most once a day for each part (only POTA's API gives them, so that tab is online only). POTA states no request limit. Only the reference and the activation count are kept.",
     "refreshAfterHours": 24,
     "source": {
       "urls": {
