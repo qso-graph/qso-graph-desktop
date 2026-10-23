@@ -28,6 +28,8 @@ export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-err
 // The sealed file on its way from the core to the broker. It never reaches a
 // renderer: the broker writes it where the operator chose and replies with
 // ExportResult instead.
+// A backup's bytes, from the core to main, which writes them where the
+// operator chose.
 export interface SealedExport { bytes: Uint8Array }
 // A reference source's answer, on its way back from the credential core.
 export interface FetchedReference {
@@ -45,8 +47,6 @@ export interface ExportResult { written: string; bytes: number }
 // here to be removed first, and nothing of a Location but its name.
 export interface ImportPreview {
   created: string; callsigns: number; arriving: string[];
-  // Logins in a file from before this release, which are not imported.
-  logins: number;
   // The callsigns on this computer, which a restore removes first.
   here: string[];
   // The Locations in the file, by name, and how many are on this computer.
@@ -56,7 +56,7 @@ export interface ImportResult { callsigns: number; locations: number }
 // The same, as the credential core answers main: the Locations as the JSON
 // QG Storage handed the export, which main gives to QG Storage to restore
 // and turns into names for the window. Never sent to a window.
-export interface CoreImportPreview { created: string; callsigns: number; logins: number; arriving: string[]; here: string[]; locations: string }
+export interface CoreImportPreview { created: string; callsigns: number; arriving: string[]; here: string[]; locations: string }
 export interface CoreImportResult { callsigns: number; locations: string }
 export type CallsignCommand =
   | { type: 'list' }
@@ -74,15 +74,14 @@ export type CallsignCommand =
   | { type: 'remove-secret'; id: string; provider: string; field: 'password' | 'api_key' }
   | { type: 'set-preference'; id: string; provider: string; preferred: 'service' | 'password' | 'api_key' }
   | { type: 'save-credentials'; id: string; provider: string; credentials: { username?: string; password?: string; apiKey?: string } }
-  // Moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011). The
-  // passphrase travels the same path a credential already does — collected by
-  // the renderer, held by nothing, forwarded to the core. The file itself does
-  // not: the main process shows the dialog and reads or writes the bytes, so
-  // the renderer never touches an export.
-  | { type: 'export-callsigns'; passphrase: string }
+  // Moving callsigns and Locations between machines, as a plain file of
+  // what is public (QGD-PSN-0007 to QGD-PSN-0011). The main process shows
+  // the dialog and reads or writes the bytes, so the renderer never touches
+  // a file.
+  | { type: 'export-callsigns' }
   // `replace`: what is on this computer is removed first, which a restore
   // onto anything but an empty one needs (a clean slate, never a merge).
-  | { type: 'import-callsigns'; passphrase: string; apply: boolean; replace: boolean };
+  | { type: 'import-callsigns'; apply: boolean; replace: boolean };
 // What a service lookup answers (QGD-APP-0007). Its own outcome set, not the
 // credential test's: a lookup can come back "not-found", which is an answer
 // about a callsign rather than anything about the credential, and
@@ -128,12 +127,6 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean { retu
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f]/;
 function text(value: unknown, maximum = 128): value is string { return typeof value === 'string' && value.length > 0 && value.length <= maximum && !CONTROL.test(value); }
-// A passphrase is a secret the operator types. Bounded like the other
-// secrets, and never defaulted: an empty one is refused here as well as in the
-// core, because an export with no passphrase is not written (QGD-PSN-0007).
-function passphrase(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 4096;
-}
 function date(value: unknown): boolean { return value === undefined || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)); }
 // A callsign's id: a version 4 UUID, as the core writes one.
 const CALLSIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -157,13 +150,10 @@ export function validateCommand(value: unknown, providers: Services): value is C
     case 'delete-credentials': return keys(value, ['type', 'id', 'provider']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider);
     case 'remove-secret': return keys(value, ['type', 'id', 'provider', 'field']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider) && ['password', 'api_key'].includes(value.field as string);
     case 'set-preference': return keys(value, ['type', 'id', 'provider', 'preferred']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider) && ['service', 'password', 'api_key'].includes(value.preferred as string);
-    // A passphrase is a secret the operator types, so it is bounded the way
-    // the other secrets are and nothing else travels with it.
     case 'export-callsigns':
-      return keys(value, ['type', 'passphrase']) && passphrase(value.passphrase);
+      return keys(value, ['type']);
     case 'import-callsigns':
-      return keys(value, ['type', 'passphrase', 'apply', 'replace'])
-        && passphrase(value.passphrase) && typeof value.apply === 'boolean' && typeof value.replace === 'boolean';
+      return keys(value, ['type', 'apply', 'replace']) && typeof value.apply === 'boolean' && typeof value.replace === 'boolean';
     case 'save-credentials': {
       if (!keys(value, ['type', 'id', 'provider', 'credentials']) || !isCallsignId(value.id) || typeof value.provider !== 'string' || !providers.has(value.provider) || !record(value.credentials) || !keys(value.credentials, ['username', 'password', 'apiKey'])) return false;
       return Object.values(value.credentials).every(item => item === undefined || (typeof item === 'string' && item.length <= 4096));
@@ -193,8 +183,8 @@ export function isReply(value: unknown): value is CallsignReply {
 export type ServiceCommand =
   | Exclude<CallsignCommand, { type: 'import-callsigns' | 'export-callsigns' }>
   // The Locations are added by main, from QG Storage, as JSON the core seals.
-  | { type: 'export-callsigns'; passphrase: string; locations: string }
-  | { type: 'import-callsigns'; passphrase: string; apply: boolean; replace: boolean; file: Uint8Array }
+  | { type: 'export-callsigns'; locations: string }
+  | { type: 'import-callsigns'; apply: boolean; replace: boolean; file: Uint8Array }
   // Fetching reference data, which the credential core does because KI7MT
   // decided all outbound HTTPS goes through it (D-18, D-31). It is not a
   // CallsignCommand: a renderer may not ask this product to fetch a URL, and
@@ -253,12 +243,11 @@ export function validateServiceCommand(value: unknown, providers: Services): val
         || (typeof value.lastModified === 'string' && value.lastModified.length <= 256));
   }
   if (value.type === 'export-callsigns') {
-    return keys(value, ['type', 'passphrase', 'locations']) && passphrase(value.passphrase)
+    return keys(value, ['type', 'locations'])
       && typeof value.locations === 'string' && value.locations.length <= 2_097_152;
   }
   if (value.type === 'import-callsigns') {
-    return keys(value, ['type', 'passphrase', 'apply', 'replace', 'file'])
-      && passphrase(value.passphrase)
+    return keys(value, ['type', 'apply', 'replace', 'file'])
       && typeof value.apply === 'boolean' && typeof value.replace === 'boolean'
       // Bounded before it reaches the core, which bounds it again.
       && value.file instanceof Uint8Array && value.file.length > 0 && value.file.length <= 4_194_304;

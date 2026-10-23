@@ -10,9 +10,9 @@
     title: 'pages/MoveCallsignsPage',
     component: MoveCallsignsPage,
     args: {
-      onExport: () => Promise.resolve({ written: 'qso-graph-callsigns.qgp', bytes: 1195 }),
+      onExport: () => Promise.resolve({ written: 'qso-graph-backup.json', bytes: 1195 }),
       onInspect: () => Promise.resolve({
-        created: '2026-10-09T06:13:30Z', callsigns: 2, logins: 0,
+        created: '2026-10-09T06:13:30Z', callsigns: 2,
         arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: [], locations: ['Home', 'Camp'], locationsHere: 0
       }),
       onImport: () => Promise.resolve({ callsigns: 2, locations: 2 })
@@ -26,19 +26,17 @@
      them first, said before it is done and only once the operator agrees. -->
 <Story name="Would remove what is here" args={{
   onInspect: () => Promise.resolve({
-    created: '2026-10-09T06:13:30Z', callsigns: 2, logins: 3,
+    created: '2026-10-09T06:13:30Z', callsigns: 2,
     arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: ['K7ABC · Shack'], locations: ['Home', 'Camp'], locationsHere: 4
   })
 }} />
 
-<!-- QGD-PSN-0010: the one message, which says it cannot tell which. -->
-<Story name="Cannot be opened" args={{
-  onInspect: () => Promise.resolve(
-    'This file could not be opened with that passphrase. It may be the wrong passphrase, ' +
-    'or the file may have been altered.')
+<!-- An encrypted export from an earlier build, said as such. -->
+<Story name="Earlier encrypted file" args={{
+  onInspect: () => Promise.resolve('That is an encrypted export from an earlier build, which this one does not read. Back up again from that computer.')
 }} />
 
-<Story name="Export cancelled" args={{ onExport: () => Promise.resolve('Export cancelled.') }} />
+<Story name="Backup cancelled" args={{ onExport: () => Promise.resolve('Backup cancelled.') }} />
 
 <Story name="Not an export" args={{
   onInspect: () => Promise.resolve('This is not a QSO Graph Desktop export.')

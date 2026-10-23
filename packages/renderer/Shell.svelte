@@ -66,9 +66,9 @@
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
-    onExportCallsigns: (passphrase: string) => Promise<ExportResult | string>;
-    onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
-    onApplyImport: (passphrase: string, replace: boolean) => Promise<ImportResult | string>;
+    onExportCallsigns: () => Promise<ExportResult | string>;
+    onInspectImport: () => Promise<ImportPreview | string>;
+    onApplyImport: (replace: boolean) => Promise<ImportResult | string>;
     version: string;
   }
   const {

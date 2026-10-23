@@ -32,9 +32,9 @@
     onCreateCallsign: () => Promise.resolve(undefined),
     onSaveCredential: () => Promise.resolve(undefined),
     onFinishSetup: () => {},
-    onExportCallsigns: () => Promise.resolve({ written: 'qso-graph-callsigns.qgp', bytes: 1195 }),
+    onExportCallsigns: () => Promise.resolve({ written: 'qso-graph-backup.json', bytes: 1195 }),
     onInspectImport: () => Promise.resolve({
-      created: '2026-10-09T06:13:30Z', callsigns: 1, logins: 0, arriving: ['W1AW · Home'], here: [], locations: ['Home'], locationsHere: 0
+      created: '2026-10-09T06:13:30Z', callsigns: 1, arriving: ['W1AW · Home'], here: [], locations: ['Home'], locationsHere: 0
     }),
     onApplyImport: () => Promise.resolve({ callsigns: 1, locations: 1 })
   };

@@ -36,7 +36,7 @@ fn service() -> &'static str {
     if std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() { TEST_SERVICE } else { SERVICE }
 }
 mod corelog;
-mod portable;
+mod backup;
 mod reference;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
@@ -479,7 +479,7 @@ impl Store {
     // manage. Users still manage their credentials"): nothing here reads the
     // Keychain, and a service's record goes as having no secret saved, which
     // on the other computer is true until the operator enters it.
-    fn gather_without_secrets(&self, locations: String) -> CoreResult<portable::Bundle> {
+    fn gather_without_secrets(&self, locations: serde_json::Value) -> CoreResult<backup::Backup> {
         let index = self.load()?;
         let preferences = self.preferences()?.callsigns;
         let callsigns = index.callsigns.into_values().map(|mut callsign| {
@@ -491,7 +491,7 @@ impl Store {
             }
             callsign
         }).collect();
-        Ok(portable::Bundle { callsigns, credentials: BTreeMap::new(), preferences, locations })
+        Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(), callsigns, preferences, locations })
     }
 
     // The callsigns on this computer, as the operator knows them, which a
@@ -504,7 +504,7 @@ impl Store {
     // callsign already here, by its id, is named, so the operator is told
     // before rather than after. Named as the operator knows it: the call and
     // the description.
-    fn preview(&self, bundle: &portable::Bundle) -> CoreResult<Vec<String>> {
+    fn preview(&self, bundle: &backup::Backup) -> CoreResult<Vec<String>> {
         let mut arriving = Vec::new();
         for callsign in &bundle.callsigns {
             callsign_id(&callsign.id)?;
@@ -525,7 +525,7 @@ impl Store {
     // operator says so, and refused otherwise, so nothing is ever merged. No
     // secret is written: a file from before this release that holds some has
     // them left unread, and the operator enters each login again.
-    fn absorb(&self, bundle: &portable::Bundle, replace: bool) -> CoreResult<usize> {
+    fn absorb(&self, bundle: &backup::Backup, replace: bool) -> CoreResult<usize> {
         let here: Vec<String> = self.load()?.callsigns.keys().cloned().collect();
         if !here.is_empty() {
             if !replace { return Err("This computer already has callsigns. Remove them first, then restore."); }
@@ -765,8 +765,6 @@ mod addon {
     pub struct ImportPreview {
         pub created: String,
         pub callsigns: u32,
-        // Logins in a file from before this release, which are not imported.
-        pub logins: u32,
         pub arriving: Vec<String>,
         // The callsigns on this computer, which a restore removes first.
         pub here: Vec<String>,
@@ -931,9 +929,8 @@ mod addon {
 
         // ---- moving callsigns between machines -------------------------
         //
-        // What crosses this boundary is ciphertext. The bundle is built,
-        // sealed and dropped inside the core, so the plaintext never reaches a
-        // JavaScript heap that nothing can zeroize (QGD-PSN-0007).
+        // A plain file of what is public (backup.rs): no login is read for
+        // it, so nothing secret crosses this boundary (QGD-PSN-0007).
         // ---- reference data, fetched through this process's TLS ---------
         //
         // D-18 and D-31: all of the app's outbound HTTPS goes through this
@@ -961,37 +958,40 @@ mod addon {
             })
         }
 
+        /// A plain backup of the callsigns and the Locations it is handed,
+        /// with nothing of any login (QGD-PSN-0007).
         #[napi]
-        pub fn export_callsigns(&self, passphrase: String, locations: String) -> Result<Buffer> {
-            if locations.len() > 2 * 1024 * 1024 { return Err(error("The Locations are too large to export.")); }
+        pub fn export_backup(&self, locations: String) -> Result<Buffer> {
+            if locations.len() > 2 * 1024 * 1024 { return Err(error("The Locations are too large to back up.")); }
+            let locations: serde_json::Value = serde_json::from_str(&locations).map_err(|_| error("The Locations could not be backed up."))?;
             let bundle = self.store.gather_without_secrets(locations).map_err(error)?;
-            let sealed = crate::portable::seal(&bundle, &passphrase, now_utc()).map_err(error)?;
-            tracing::info!(callsigns = bundle.callsigns.len(), "callsigns exported");
-            Ok(sealed.into())
+            let text = crate::backup::write(&bundle).map_err(error)?;
+            tracing::info!(callsigns = bundle.callsigns.len(), "callsigns backed up");
+            Ok(text.into_bytes().into())
         }
 
-        /// What an import would do, without doing it (QGD-PSN-0009). It opens
-        /// the file, so it needs the passphrase; it keeps nothing afterwards.
+        /// What a restore would do, without doing it (QGD-PSN-0009).
         #[napi]
-        pub fn inspect_import(&self, file: Buffer, passphrase: String) -> Result<ImportPreview> {
-            let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
-            let arriving = self.store.preview(&opened.bundle).map_err(error)?;
+        pub fn inspect_backup(&self, file: Buffer) -> Result<ImportPreview> {
+            let text = std::str::from_utf8(file.as_ref()).map_err(|_| error("That file is not a backup this product wrote."))?;
+            let bundle = crate::backup::read(text).map_err(error)?;
+            let arriving = self.store.preview(&bundle).map_err(error)?;
             Ok(ImportPreview {
-                created: opened.header.created,
-                callsigns: opened.bundle.callsigns.len() as u32,
-                logins: opened.bundle.credentials.len() as u32,
+                created: bundle.created.clone(),
+                callsigns: bundle.callsigns.len() as u32,
                 arriving,
                 here: self.store.labels().map_err(error)?,
-                locations: opened.bundle.locations.clone(),
+                locations: if bundle.locations.is_null() { String::new() } else { bundle.locations.to_string() },
             })
         }
 
         #[napi]
-        pub fn apply_import(&self, file: Buffer, passphrase: String, replace: bool) -> Result<ImportSummary> {
-            let opened = crate::portable::open(file.as_ref(), &passphrase).map_err(error)?;
-            let callsigns = self.store.absorb(&opened.bundle, replace).map_err(error)?;
+        pub fn apply_backup(&self, file: Buffer, replace: bool) -> Result<ImportSummary> {
+            let text = std::str::from_utf8(file.as_ref()).map_err(|_| error("That file is not a backup this product wrote."))?;
+            let bundle = crate::backup::read(text).map_err(error)?;
+            let callsigns = self.store.absorb(&bundle, replace).map_err(error)?;
             tracing::info!(callsigns, "callsigns restored");
-            Ok(ImportSummary { callsigns: callsigns as u32, locations: opened.bundle.locations.clone() })
+            Ok(ImportSummary { callsigns: callsigns as u32, locations: if bundle.locations.is_null() { String::new() } else { bundle.locations.to_string() } })
         }
         // Available to the trusted native owner for future grant enforcement and
         // interop proof. The app's broker never exposes this method to renderers.

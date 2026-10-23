@@ -58,9 +58,6 @@ export interface NativeCredentialTest {
 export interface NativeImportPreview {
   created: string;
   callsigns: number;
-  // Logins in a file from before callsigns and Locations moved without them,
-  // which are not imported.
-  logins: number;
   arriving: string[];
   // The callsigns on this computer, which a restore removes first.
   here: string[];
@@ -117,9 +114,10 @@ export declare class CallsignCore {
   // source offers nothing newer), not Electron's BoringSSL.
   fetchReference(url: string, etag?: string, lastModified?: string): NativeFetchedReference;
   serviceLookup(id: string, provider: string, operation: string, callsign: string): NativeLookupResult;
-  exportCallsigns(passphrase: string, locations: string): Buffer;
-  inspectImport(file: Buffer, passphrase: string): NativeImportPreview;
-  applyImport(file: Buffer, passphrase: string, replace: boolean): NativeImportSummary;
+  // A plain backup, and a restore from one (backup.rs): no login in either.
+  exportBackup(locations: string): Buffer;
+  inspectBackup(file: Buffer): NativeImportPreview;
+  applyBackup(file: Buffer, replace: boolean): NativeImportSummary;
   // Trusted-core only. The broker never exposes this to a renderer.
   requireCredential(id: string, provider: string, prefer?: string): NativeCredentialInput;
 }

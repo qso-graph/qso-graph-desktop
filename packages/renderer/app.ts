@@ -558,28 +558,27 @@ export async function exportDiagnostics(): Promise<string> {
 
 // Moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011).
 //
-// The renderer collects the passphrase and nothing else: the file is chosen,
-// read and written by the main process. A refusal is returned as its sentence
+// The renderer asks and shows the answer: the file is chosen, read and
+// written by the main process. A refusal is returned as its sentence
 // rather than thrown, because every one of them is something the operator can
-// act on — most of all the one that says a file could not be opened and that
-// it cannot tell whether the passphrase or the file is at fault.
-export async function exportCallsigns(passphrase: string): Promise<ExportResult | string> {
-  const reply = await window.callsigns.request({ type: 'export-callsigns', passphrase });
+// act on.
+export async function exportCallsigns(): Promise<ExportResult | string> {
+  const reply = await window.callsigns.request({ type: 'export-callsigns' });
   if (!reply.ok) return reply.error;
   const data = reply.data as ExportResult | null;
   return data && typeof data.written === 'string' ? data : 'The export could not be written.';
 }
 
-export async function inspectImport(passphrase: string): Promise<ImportPreview | string> {
-  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: false, replace: false });
+export async function inspectImport(): Promise<ImportPreview | string> {
+  const reply = await window.callsigns.request({ type: 'import-callsigns', apply: false, replace: false });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportPreview | null;
   return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
 }
 
 // `replace`: what is on this computer is removed first (a clean slate).
-export async function applyImport(passphrase: string, replace: boolean): Promise<ImportResult | string> {
-  const reply = await window.callsigns.request({ type: 'import-callsigns', passphrase, apply: true, replace });
+export async function applyImport(replace: boolean): Promise<ImportResult | string> {
+  const reply = await window.callsigns.request({ type: 'import-callsigns', apply: true, replace });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportResult | null;
   if (!data || typeof data.callsigns !== 'number') return 'The import did not finish.';
@@ -787,11 +786,11 @@ window.menu?.onSetup?.(action => {
   }
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
-  // Tools (KI7MT, 2026-10-23): the Callsigns page's Move section, with the
-  // cursor in the passphrase the step needs.
+  // Tools (KI7MT, 2026-10-23): the Callsigns page's Move section, at the
+  // button the step needs.
   else if (action === 'export-callsigns' || action === 'import-callsigns') {
     shell.set({ page: 'callsigns', extensionPage: null });
-    const field = action === 'export-callsigns' ? 'export-passphrase' : 'import-passphrase';
+    const field = action === 'export-callsigns' ? 'backup-export' : 'backup-import';
     requestAnimationFrame(() => {
       const input = document.getElementById(field);
       input?.scrollIntoView({ block: 'center' });

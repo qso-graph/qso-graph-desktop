@@ -134,14 +134,14 @@ function execute(command: ServiceCommand): CallsignReply {
           : 'invalid-response';
         return { ok: true, data: { outcome, fields: looked.fields } };
       }
-      case 'export-callsigns': return { ok: true, data: { bytes: core.exportCallsigns(command.passphrase, command.locations) } };
+      case 'export-callsigns': return { ok: true, data: { bytes: core.exportBackup(command.locations) } };
       case 'import-callsigns': {
         const file = Buffer.from(command.file);
         if (!command.apply) {
-          const preview = core.inspectImport(file, command.passphrase);
+          const preview = core.inspectBackup(file);
           return { ok: true, data: preview };
         }
-        return { ok: true, data: core.applyImport(file, command.passphrase, command.replace) };
+        return { ok: true, data: core.applyBackup(file, command.replace) };
       }
     }
   } catch (error) {
@@ -159,21 +159,16 @@ function execute(command: ServiceCommand): CallsignReply {
       'Credential preference is invalid.', 'Credential preferences could not be read.', 'Secret field is invalid.',
       'The callsign was not removed because Keychain could not delete a credential. Some credentials may already be removed; retry to finish.',
       'Secure client is unavailable.', 'No username is stored.', 'No password or API key is stored.',
-      // Moving callsigns between machines. Each is a fixed sentence from the
-      // core, carrying no value (QGD-PSN-0010's is the one that must reach the
-      // operator intact, because it is the one that says what it cannot tell).
-      'Choose a passphrase. An export is encrypted or it is not written.',
-      'This file could not be opened with that passphrase. It may be the wrong passphrase, or the file may have been altered.',
-      'This is not a QSO Graph Desktop export.',
-      "This file's header is not the shape an export has.",
-      'This export was written by a different version of QSO Graph Desktop.',
-      'This export uses an algorithm this version does not have.',
-      'This export opened, and what is inside it is not an export of callsigns.',
-      'This file is larger than any export this product writes.',
-      'This export holds a credential with no service.',
-      'This export could not be read.',
-      'The export could not be written.',
-      "This machine's random number generator is unavailable.",
+      // Moving callsigns and Locations between machines (backup.rs). Each is
+      // a fixed sentence from the core, carrying no value.
+      'The Locations are too large to back up.', 'The Locations could not be backed up.',
+      'The backup could not be written.',
+      'That file is larger than a backup this product writes.',
+      'That is an encrypted export from an earlier build, which this one does not read. Back up again from that computer.',
+      'That file is not a backup this product wrote.',
+      'That backup was written by a different version of QSO Graph Desktop.',
+      'That file\'s Locations are not the shape a backup has.',
+      'This computer already has callsigns. Remove them first, then restore.',
       // Fetching reference data, all fixed sentences carrying no URL.
       'Reference data is fetched over HTTPS only.',
       'The reference source could not be reached.',

@@ -176,23 +176,23 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     if (command.type === 'export-callsigns') {
       const chosen = window
         ? await dialog.showSaveDialog(window, {
-            title: 'Export callsigns',
-            defaultPath: 'qso-graph-callsigns.qgp',
-            filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
+            title: 'Back up callsigns and Locations',
+            defaultPath: 'qso-graph-backup.json',
+            filters: [{ name: 'QSO Graph backup', extensions: ['json'] }]
           })
-        : await dialog.showSaveDialog({ defaultPath: 'qso-graph-callsigns.qgp' });
-      if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Export cancelled.' };
+        : await dialog.showSaveDialog({ defaultPath: 'qso-graph-backup.json' });
+      if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Backup cancelled.' };
 
-      // The Locations go in the same sealed file (KI7MT, 2026-10-23); no
-      // login does, and the core reads none for an export.
+      // The Locations go in the same file (KI7MT, 2026-10-23); no login does,
+      // and the core reads none for a backup. Everything in it is public, so
+      // it is plain JSON, with no passphrase to lose.
       const backup = stations ? await stations.backup() : { stations: [], defaults: {}, active: null };
       if (typeof backup === 'string') return { ok: false, error: backup };
-      // Sealed first, written second: a cancelled or failed seal must not
-      // leave a file behind, and a passphrase the core refuses is refused
-      // before anything is created.
-      const sealed = await ask({ type: 'export-callsigns', passphrase: command.passphrase, locations: JSON.stringify(backup) });
-      if (!sealed.ok) return sealed;
-      const bytes = (sealed.data as SealedExport | null)?.bytes;
+      // Made first, written second: a backup that cannot be made must not
+      // leave a file behind.
+      const made = await ask({ type: 'export-callsigns', locations: JSON.stringify(backup) });
+      if (!made.ok) return made;
+      const bytes = (made.data as SealedExport | null)?.bytes;
       if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
         return { ok: false, error: 'The export could not be written.' };
       }
@@ -215,12 +215,12 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     if (!path) {
       const chosen = window
         ? await dialog.showOpenDialog(window, {
-            title: 'Import callsigns',
+            title: 'Restore callsigns and Locations',
             properties: ['openFile'],
-            filters: [{ name: 'QSO Graph export', extensions: ['qgp'] }]
+            filters: [{ name: 'QSO Graph backup', extensions: ['json'] }]
           })
         : await dialog.showOpenDialog({ properties: ['openFile'] });
-      if (chosen.canceled || chosen.filePaths.length !== 1) return { ok: false, error: 'Import cancelled.' };
+      if (chosen.canceled || chosen.filePaths.length !== 1) return { ok: false, error: 'Restore cancelled.' };
       path = chosen.filePaths[0];
     }
     let file: Buffer;
@@ -236,7 +236,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     }
     // Looked at first, whether to show or to restore: what the file holds is
     // checked whole before anything here changes.
-    const looked = await ask({ type: 'import-callsigns', passphrase: command.passphrase, apply: false, replace: false, file });
+    const looked = await ask({ type: 'import-callsigns', apply: false, replace: false, file });
     if (!looked.ok) { inspected = undefined; return looked; }
     const core = looked.data as CoreImportPreview;
     let backup: StationsBackup = { stations: [], defaults: {}, active: null };
@@ -252,7 +252,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       // succeeded. Forgotten the moment it is used, refused, or cancelled.
       inspected = path;
       const preview: ImportPreview = {
-        created: core.created, callsigns: core.callsigns, arriving: core.arriving, logins: core.logins, here: core.here,
+        created: core.created, callsigns: core.callsigns, arriving: core.arriving, here: core.here,
         locations: backup.stations.map(entry => entry.name), locationsHere
       };
       return { ok: true, data: preview };
@@ -264,7 +264,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       return { ok: false, error: 'This computer already has callsigns or Locations. Choose to remove them first, then restore.' };
     }
     if (!stations) return { ok: false, error: 'The Locations cannot be restored just now. Try again in a moment.' };
-    const applied = await ask({ type: 'import-callsigns', passphrase: command.passphrase, apply: true, replace: command.replace, file });
+    const applied = await ask({ type: 'import-callsigns', apply: true, replace: command.replace, file });
     if (!applied.ok) return applied;
     const restored = await stations.restore(backup, command.replace);
     if (typeof restored === 'string') return { ok: false, error: `The callsigns were restored; the Locations were not: ${restored}` };

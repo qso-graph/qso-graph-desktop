@@ -32,9 +32,9 @@
   const platform = (globalThis as { callsigns?: { platform?: string } }).callsigns?.platform ?? 'darwin';
 
   interface Props {
-    onExportCallsigns: (passphrase: string) => Promise<ExportResult | string>;
-    onInspectImport: (passphrase: string) => Promise<ImportPreview | string>;
-    onApplyImport: (passphrase: string, replace: boolean) => Promise<ImportResult | string>;
+    onExportCallsigns: () => Promise<ExportResult | string>;
+    onInspectImport: () => Promise<ImportPreview | string>;
+    onApplyImport: (replace: boolean) => Promise<ImportResult | string>;
   }
   const { onExportCallsigns, onInspectImport, onApplyImport }: Props = $props();
 </script>
