@@ -9,8 +9,8 @@ const AT = '2026-10-11T18:00:00Z';
 const SECTIONS = [{ shape: 'alert', level: 'info', text: 'Quiet' }] as const;
 const STATE = {
   available: [
-    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: true, area: 'air/conditions', tab: 'Conditions' },
-    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false, area: 'air/astro', tab: 'Astro' }
+    { key: 'air/conditions', name: 'Conditions', description: 'Solar.', extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: true, area: 'air/conditions', tab: 'Conditions', hue: 'general' },
+    { key: 'air/astro', name: 'Astro', description: 'Sun and moon.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false, area: 'air/astro', tab: 'Astro', hue: 'general' }
   ],
   pins: ['air/conditions', 'gone/page'], pages: [], notice: null, reached: null
 };
@@ -116,7 +116,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
 
 describe('an area of pages, reached from one pin (KI7MT, 2026-10-23)', () => {
   const page = (key: string, name: string, area: string, tab: string, rail = false) =>
-    ({ key, name, description: 'd', extensionName: 'On the Air', icon: 'tree', rail, inputs: [], network: false, area, tab });
+    ({ key, name, description: 'd', extensionName: 'On the Air', icon: 'tree', rail, inputs: [], network: false, area, tab, hue: 'general' });
   const STATE_AREA = {
     available: [
       page('air/parks', 'Parks On the Air', 'air/parks', 'Spotted now', true),
@@ -153,7 +153,7 @@ describe('an area of pages, reached from one pin (KI7MT, 2026-10-23)', () => {
 
 describe('the rail in the pins\' order (KI7MT, 2026-10-23)', () => {
   const page = (key: string, rail = true) =>
-    ({ key, name: key, description: 'd', extensionName: 'e', icon: 'tree', rail, inputs: [], network: false, area: key, tab: key });
+    ({ key, name: key, description: 'd', extensionName: 'e', icon: 'tree', rail, inputs: [], network: false, area: key, tab: key, hue: 'general' });
   const make = async (pins: string[]) => {
     const state = { available: [page('a-a/one'), page('b-b/two'), page('c-c/three'), page('d-d/four', false)], pins, pages: [], notice: null, reached: null };
     const store = createHomeStore({ request: async () => ({ ok: true, state }), onPage: () => () => {} });

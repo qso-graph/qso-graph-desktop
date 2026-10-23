@@ -27,7 +27,8 @@
         "icon": "tree",
         "rail": true,
         "network": true,
-        "tab": "Spots"
+        "tab": "Spots",
+        "hue": "green"
       },
       {
         "id": "wanted",

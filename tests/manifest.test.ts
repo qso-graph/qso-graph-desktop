@@ -149,6 +149,13 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     }
   });
 
+  it('takes a destination\'s colour from the core\'s own, by name (KI7MT, 2026-10-23)', () => {
+    expect(validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, hue: 'green' }] } }, known).contributes.pages[0]).toEqual({ ...PAGE, hue: 'green' });
+    for (const hue of ['#00ff00', 'red', 'locations', 3]) {
+      expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, hue }] } }, known), String(hue)).toThrowError(/colour/);
+    }
+  });
+
   it('keeps an icon name and a rail item when given, and leaves them out when not', () => {
     const manifest = validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, icon: 'sun', rail: true }] } }, known);
     expect(manifest.contributes.pages[0]).toEqual({ ...PAGE, icon: 'sun', rail: true });

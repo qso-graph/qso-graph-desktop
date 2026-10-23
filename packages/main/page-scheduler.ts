@@ -35,6 +35,8 @@ export interface CataloguePage {
   // its tab's name (manifest.ts under and tab).
   readonly area?: string;
   readonly tab?: string;
+  // The theme token of its colour on the rail (manifest.ts PAGE_HUES).
+  readonly hue?: string;
 }
 
 export type { PageView } from './home-contract.js';

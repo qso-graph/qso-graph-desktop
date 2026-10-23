@@ -140,7 +140,7 @@
   const railPages = $derived.by(() => {
     const core = visiblePages();
     const extensions = homeModel.railPages.map(page => ({
-      id: `ext:${page.key}`, label: page.name, icon: page.icon, hue: 'general', description: page.description, placement: 'top' as const
+      id: `ext:${page.key}`, label: page.name, icon: page.icon, hue: page.hue, description: page.description, placement: 'top' as const
     }));
     return [...core.filter(page => page.placement !== 'bottom'), ...extensions, ...core.filter(page => page.placement === 'bottom')];
   });

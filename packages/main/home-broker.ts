@@ -14,7 +14,7 @@ import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
 import { isExtensionIcon } from '../ui/icons.js';
 import { inputValues } from '../extension-api/inputs.js';
-import { pageNeedsNetwork } from '../extension-api/manifest.js';
+import { PAGE_HUES, pageNeedsNetwork } from '../extension-api/manifest.js';
 
 export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
@@ -42,7 +42,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
       inputs: page.inputs ?? [],
       // The page's own word, or else its extension's grants (manifest.ts).
       network: pageNeedsNetwork(extension.manifest, page),
-      area: `${extension.manifest.id}/${page.under ?? page.id}`, tab: page.tab ?? page.name
+      area: `${extension.manifest.id}/${page.under ?? page.id}`, tab: page.tab ?? page.name,
+      hue: PAGE_HUES[page.hue ?? 'blue']
     })));
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
@@ -96,8 +97,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   };
 
   const state = (): HomeState => ({
-    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network, area, tab }) =>
-      ({ key, name, description, extensionName, icon, rail, inputs, network, area: area ?? key, tab: tab ?? name })),
+    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network, area, tab, hue }) =>
+      ({ key, name, description, extensionName, icon, rail, inputs, network, area: area ?? key, tab: tab ?? name, hue: hue ?? 'general' })),
     pins: load().pins,
     pages: scheduler.views(),
     notice: notice(),

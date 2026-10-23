@@ -67,7 +67,15 @@ export interface PageContribution {
   // railed on its own. `tab` is the short name on its tab; absent, its name.
   readonly under?: string;
   readonly tab?: string;
+  // Its destination's colour on the rail, one of the core's own by name
+  // (KI7MT, 2026-10-23): never a colour of the extension's own, so every
+  // theme draws it. Absent, blue.
+  readonly hue?: PageHue;
 }
+
+// The core's colours a destination may take, and the theme token each is.
+export const PAGE_HUES = { blue: 'general', amber: 'callsigns', green: 'locations', slate: 'settings' } as const;
+export type PageHue = keyof typeof PAGE_HUES;
 
 export interface ExtensionManifest {
   readonly manifestVersion: number;
@@ -136,7 +144,7 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs', 'network', 'under', 'tab'];
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'rail', 'inputs', 'network', 'under', 'tab', 'hue'];
 export const TAB_MAX = 24;
 const INPUT_FIELDS = ['id', 'label', 'kind', 'max', 'hint'];
 const MAX_PAGES = 16;
@@ -187,7 +195,7 @@ export function pageNeedsNetwork(manifest: Pick<ExtensionManifest, 'grants'>, pa
 function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
   onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
-  const { id: page, name, description, refreshSeconds, icon, rail, inputs, network, under, tab } = value;
+  const { id: page, name, description, refreshSeconds, icon, rail, inputs, network, under, tab, hue } = value;
   if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
   if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
   seen.add(page);
@@ -225,13 +233,17 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (tab !== undefined && (typeof tab !== 'string' || tab.trim() === '' || tab.length > TAB_MAX || /[<>]/.test(tab))) {
     throw new ManifestError(`The page "${page}" in "${id}" has a tab name that is not plain text of at most ${TAB_MAX} characters.`, page);
   }
+  if (hue !== undefined && (typeof hue !== 'string' || !Object.hasOwn(PAGE_HUES, hue))) {
+    throw new ManifestError(`The page "${page}" in "${id}" names a colour that is not one of ${Object.keys(PAGE_HUES).join(', ')}.`, page);
+  }
   const fields = validInputs(inputs, page, id);
   return {
     id: page, name, description, refreshSeconds: refreshSeconds as number,
     ...(icon !== undefined ? { icon: icon as string } : {}), ...(rail === true ? { rail: true } : {}),
     ...(fields.length > 0 ? { inputs: fields } : {}),
     ...(network !== undefined ? { network: network as boolean } : {}),
-    ...(under !== undefined ? { under: under as string } : {}), ...(tab !== undefined ? { tab: tab as string } : {})
+    ...(under !== undefined ? { under: under as string } : {}), ...(tab !== undefined ? { tab: tab as string } : {}),
+    ...(hue !== undefined ? { hue: hue as PageHue } : {})
   };
 }
 

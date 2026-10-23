@@ -43,6 +43,9 @@ export interface AvailablePage {
   // none; and the name on its tab (KI7MT, 2026-10-23).
   readonly area: string;
   readonly tab: string;
+  // Its colour on the rail, as a theme token: general, callsigns, locations
+  // or settings (manifest.ts PAGE_HUES).
+  readonly hue: string;
 }
 
 export type PageView =
@@ -142,7 +145,8 @@ function isInput(value: unknown): boolean {
 }
 
 function isAvailable(value: unknown): value is AvailablePage {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab'])
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab', 'hue'])
+    && typeof value.hue === 'string' && ['general', 'callsigns', 'locations', 'settings'].includes(value.hue)
     && typeof value.area === 'string' && KEY.test(value.area) && plainText(value.tab, 40)
     && typeof value.network === 'boolean'
     && typeof value.key === 'string' && KEY.test(value.key)
