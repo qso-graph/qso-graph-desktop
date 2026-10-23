@@ -68,6 +68,6 @@ export function activate(context: ExtensionContext): void {
     if (found.kind !== 'pota.activations') return { ok: false, reason: 'POTA activations could not be read just now.' };
     const station = await context.request({ kind: 'station.active' }, { signal });
     const places = await placesFor(context, found.parks.flatMap(park => park.locations.split(',').map(value => value.trim())), signal);
-    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null, found.locations, places);
+    return activatePage(found.parks, found.fetchedAt, station.ok && station.kind === 'station.active' ? station.station : null, found.locations, places, found.home);
   }));
 }

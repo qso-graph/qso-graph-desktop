@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { areaChoices, areaDefault, areaLocations, placesOf } from '../packages/storage/area.js';
+import { areaChoices, areaDefault, areaLocations, homeLocation, placesOf } from '../packages/storage/area.js';
 import { areaKind } from '../packages/storage/area-entry.js';
 import { potaLocation, potaPark, potaProgram, referenceSchema } from '../packages/storage/reference-schema.js';
 import { openStore } from '../packages/storage/sqlite.js';
@@ -59,20 +59,30 @@ describe('My Area', () => {
     } finally { store.close(); }
   });
 
-  it('starts from the Location\'s own, most precise first, and guesses nothing', async () => {
+  it('defaults to the Location\'s whole entity, so the parks over the nearest borders are on hand (KI7MT, 2026-10-23)', async () => {
     const store = await reference();
     try {
-      // Idaho: the location for its state.
-      expect(await areaDefault(store, '291', 'ID')).toBe('US-ID');
-      // Rome: ADIF's subdivision is the province, POTA's location the region,
-      // so the entity; and the entity with no state at all.
-      expect(await areaDefault(store, '248', 'RM')).toBe('248');
-      expect(await areaDefault(store, '291', undefined)).toBe('291');
+      // Idaho: CONUS, not US-ID; Alaska its own entity.
+      expect(await areaDefault(store, '291')).toBe('291');
+      expect(await areaDefault(store, '6')).toBe('6');
+      // Italy is its program's one entity, so its program, as the tree shows it.
+      expect(await areaDefault(store, '248')).toBe('IT');
+      expect(await areaDefault(store, undefined)).toBeUndefined();
+      expect(await areaDefault(store, '0')).toBeUndefined();
+      expect(await areaDefault(store, '777')).toBeUndefined();
+    } finally { store.close(); }
+  });
+
+  it('finds the POTA location a Location is in, where Near me starts, and guesses nothing', async () => {
+    const store = await reference();
+    try {
+      expect(await homeLocation(store, '291', 'ID')).toBe('US-ID');
+      // Rome: ADIF's province, POTA's region; no match is no location.
+      expect(await homeLocation(store, '248', 'RM')).toBeUndefined();
       // A state that is another entity's does not count.
-      expect(await areaDefault(store, '6', 'ID')).toBe('6');
-      expect(await areaDefault(store, undefined, 'ID')).toBeUndefined();
-      expect(await areaDefault(store, '0', undefined)).toBeUndefined();
-      expect(await areaDefault(store, '777', undefined)).toBeUndefined();
+      expect(await homeLocation(store, '6', 'ID')).toBeUndefined();
+      expect(await homeLocation(store, '291', undefined)).toBeUndefined();
+      expect(await homeLocation(store, undefined, 'ID')).toBeUndefined();
     } finally { store.close(); }
   });
 

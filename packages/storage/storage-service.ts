@@ -12,7 +12,7 @@
 // (QGD-SEC-0020). Every failure is reduced before it is logged or sent
 // (QGD-ENG-0016).
 import { adifBands, searchAdif } from './adif-search.js';
-import { areaChoices, areaDefault, areaLocations, placesOf } from './area.js';
+import { areaChoices, areaDefault, areaLocations, homeLocation, placesOf } from './area.js';
 import { parksToActivate } from './activations.js';
 import { readFile } from 'node:fs/promises';
 import { statSync } from 'node:fs';
@@ -257,7 +257,14 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       const fetched = held.flatMap(([, set]) => (set.state === 'loaded' ? [set.fetchedAt] : [])).sort()[0];
       // An entity or a program stands for its locations (area.ts).
       const locations = await areaLocations(reader, area);
-      return { ok: true, status: status(), toActivate: { parks: await parksToActivate(reader, locations), fetchedAt: fetched ?? new Date(0).toISOString(), locations } };
+      // Where the active Location is, by POTA's three levels: where Near me
+      // starts its Program, Entity and Location (KI7MT, 2026-10-23).
+      const active = stations?.list.find(entry => entry.id === stations?.active);
+      const here = await homeLocation(reader, active?.place.MY_DXCC, active?.place.MY_STATE);
+      const home = here ? (await placesOf(reader, [here]))[0] : undefined;
+      return { ok: true, status: status(), toActivate: {
+        parks: await parksToActivate(reader, locations), fetchedAt: fetched ?? new Date(0).toISOString(), locations, ...(home ? { home } : {})
+      } };
     }
     case 'pota-places': {
       const reader = reference?.reader();
@@ -306,12 +313,13 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
 
 const publish = () => process.parentPort.postMessage({ status: status() });
 
-// The active Location's own POTA location, or none: My Area's default.
+// My Area when none is chosen: the active Location's entity, or its program
+// (area.ts areaDefault), or none.
 async function ownArea(): Promise<string[]> {
   const reader = reference?.reader();
   if (!reader || referenceStatus?.pota.parks.state !== 'loaded') return [];
   const active = stations?.list.find(entry => entry.id === stations?.active);
-  const own = await areaDefault(reader, active?.place.MY_DXCC, active?.place.MY_STATE);
+  const own = await areaDefault(reader, active?.place.MY_DXCC);
   return own ? [own] : [];
 }
 

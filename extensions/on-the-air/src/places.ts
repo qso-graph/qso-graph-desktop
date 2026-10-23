@@ -38,7 +38,9 @@ export const placesBy = (places: readonly PotaPlace[]) => new Map(places.map(pla
 // the two filters over them, which come first. Without both filters to offer,
 // or with `atLeast` and fewer choices than that in each, the rows stay as
 // they were: a column the core does not draw is only there for its filter.
-export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], atLeast = 1):
+// `start`, where each filter starts when it offers that choice: Near me's
+// opens on where the active Location is (KI7MT, 2026-10-23).
+export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], atLeast = 1, start: Partial<Placed> = {}):
   { rows: string[][]; columns: string[]; hidden?: number; filters: TableFilter[] } {
   const plain = { rows: rows.map(row => [...row]), columns: [], filters: [] };
   if (rows.length === 0 || cells.length !== rows.length) return plain;
@@ -46,5 +48,7 @@ export function withPlaces(rows: readonly (readonly string[])[], cells: readonly
   const placed = rows.map((row, index) => [...row, cells[index]!.program, cells[index]!.entity]);
   const filters = placeFilters(placed, at);
   if (filters.length !== 2 || filters.every(filter => (filter.options?.length ?? 0) < atLeast)) return plain;
-  return { rows: placed, columns: ['Program', 'Entity'], hidden: 2, filters };
+  const startAt = (filter: TableFilter, value: string | undefined): TableFilter =>
+    value !== undefined && filter.options?.includes(value) ? { ...filter, start: value } : filter;
+  return { rows: placed, columns: ['Program', 'Entity'], hidden: 2, filters: [startAt(filters[0]!, start.program), startAt(filters[1]!, start.entity)] };
 }

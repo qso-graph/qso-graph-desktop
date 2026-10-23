@@ -140,7 +140,8 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'area.get'; readonly locations: readonly string[] }
   // `locations` are the POTA locations My Area covers.
   | { readonly ok: true; readonly kind: 'pota.places'; readonly places: readonly PotaPlace[] }
-  | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string; readonly locations: readonly string[] }
+  // `home`: where the active Location is, as POTA names it, when known.
+  | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string; readonly locations: readonly string[]; readonly home?: PotaPlace }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
   // A refusal says which capability was refused, so the core can tell the

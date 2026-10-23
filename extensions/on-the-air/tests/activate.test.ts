@@ -49,7 +49,7 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
   });
 
   it('starts on the never activated, with fewer than 5 and 10 one choice away', () => {
-    const filter = table(activatePage(parks, FETCHED, BOISE)).filters![0]!;
+    const filter = table(activatePage(parks, FETCHED, BOISE)).filters!.find(entry => entry.label === 'Activations')!;
     expect(filter.start).toBe('Never activated');
     expect(filter.named!.map(choice => choice.label)).toEqual(['Never activated', 'Fewer than 5', 'Fewer than 10']);
     expect(filter.named![0]!.values).toEqual(['none', '0']);
@@ -66,7 +66,7 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     expect(within('Within 25 km')).toEqual(['US-0001']);
     expect(within('Within 50 km')).toEqual(['US-0001', 'US-0002']);
     expect(within('Within 200 km')).toEqual(['US-0001', 'US-0002', 'US-0003', 'US-0004']);
-    expect(table(activatePage(parks, FETCHED, { name: 'Somewhere' })).filters!.map(filter => filter.label)).toEqual(['Activations', 'Location']);
+    expect(table(activatePage(parks, FETCHED, { name: 'Somewhere' })).filters!.map(filter => filter.label)).toEqual(['Location', 'Activations']);
   });
 
   it('counts the never activated, a null with a zero', () => {
@@ -81,7 +81,7 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     const shown = table(answer);
     expect(shown.columns).toEqual(['Park', 'Name', 'Activations', 'Location']);
     expect(shown.rows.map(row => row[0])).toEqual(['US-0001', 'US-0002', 'US-0004', 'US-0003']);
-    expect(shown.filters![0]!.column).toBe(2);
+    expect(shown.filters!.find(filter => filter.label === 'Activations')!.column).toBe(2);
     if (answer.ok) expect(answer.data.sections.some(section => section.shape === 'alert' && section.text.includes('no position'))).toBe(true);
     expect(() => validatePageAnswer(answer)).not.toThrow();
   });
@@ -98,6 +98,27 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     const filter = (area: string[]) => table(activatePage(parks, FETCHED, BOISE, area)).filters!.find(entry => entry.label === 'Location')!.options;
     expect(filter([])).toEqual(['US-ID', 'US-OR']);
     expect(filter(['US-ID'])).toEqual(['US-ID']);
+  });
+
+  it('leads with Program, Entity and Location, each starting where the active Location is (KI7MT, 2026-10-23)', () => {
+    const places = [
+      { location: 'US-ID', program: 'United States of America', entity: 'United States of America' },
+      { location: 'US-OR', program: 'United States of America', entity: 'United States of America' }
+    ];
+    const home = places[0]!;
+    const shown = table(activatePage(parks, FETCHED, BOISE, ['US-ID', 'US-OR'], places, home));
+    expect(shown.filters!.map(filter => [filter.label, filter.start])).toEqual([
+      ['Program', 'United States of America'], ['Entity', 'United States of America'], ['Location', 'US-ID'],
+      ['Activations', 'Never activated'], ['Distance', undefined]
+    ]);
+    expect(shown.hidden).toBe(2);
+    // One program and one entity are still offered: they say where the page is.
+    expect(shown.filters![0]!.options).toEqual(['United States of America']);
+    // Over the border is one choice away: Location's options hold Oregon.
+    expect(shown.filters![2]!.options).toEqual(['US-ID', 'US-OR']);
+    // A home the parks do not hold starts nothing.
+    const away = table(activatePage(parks, FETCHED, BOISE, [], places, { location: 'US-MT', program: 'United States of America', entity: 'United States of America' }));
+    expect(away.filters!.find(filter => filter.label === 'Location')!.start).toBeUndefined();
   });
 
   it('says so when My Area has no active park', () => {

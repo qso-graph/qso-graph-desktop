@@ -34,8 +34,14 @@ describe('Program and Entity', () => {
   it('adds nothing without places, or where none has a choice to offer', () => {
     expect(withPlaces([['A']], [])).toEqual({ rows: [['A']], columns: [], filters: [] });
     expect(withPlaces([['A']], [placeCells(['ZZ-QQ'], places)])).toEqual({ rows: [['A']], columns: [], filters: [] });
-    // Near me asks for two: an area all in Idaho has nothing to choose.
+    // Asked for at least two choices, one place alone adds nothing.
     expect(withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['US-OR'], places)], 2).columns).toEqual([]);
     expect(withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['IT-LZ'], places)], 2).columns).toEqual(['Program', 'Entity']);
+  });
+
+  it('starts each filter on a given choice it offers, and on All otherwise', () => {
+    const added = withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['US-AK'], places)], 1,
+      { program: 'United States of America', entity: 'Hawaii' });
+    expect(added.filters.map(filter => filter.start)).toEqual(['United States of America', undefined]);
   });
 });

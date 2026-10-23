@@ -49,11 +49,13 @@ const fewerThan = (n: number) => [NONE, ...Array.from({ length: n }, (_, at) => 
 // `area` is the POTA locations My Area covers: the Location filter offers
 // those alone, so a trail through sixteen states does not offer all sixteen
 // to an operator whose area is Idaho (KI7MT, 2026-10-23).
-// `places` names each location's program and entity (pota.places): Program
-// and Entity lead the filters, as POTA's own do, where My Area spans more
-// than one of either.
+// `places` names each location's program and entity (pota.places): Program,
+// Entity and Location lead the filters, as POTA's own do, each starting on
+// `home`, where the active Location is, so a park over the nearest border is
+// one choice away (KI7MT, 2026-10-23: "I may be in eastern Idaho … then
+// venture into Montana or Wyoming").
 export function activatePage(parks: readonly ActivationPark[], fetchedAt: string, station: StationBrief | null, area: readonly string[] = [],
-  places: readonly PotaPlace[] = []): PageAnswer {
+  places: readonly PotaPlace[] = [], home?: PotaPlace): PageAnswer {
   const observedAt = fetchedAt;
   if (parks.length === 0) {
     return { ok: true, data: { version: 6, observedAt, sections: [
@@ -74,11 +76,10 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
     countText(park),
     park.locations.split(',').map(value => value.trim()).filter(Boolean).join(', ')
   ]);
-  // Program and Entity, not drawn, for their filters alone, and only where
-  // My Area spans more than one of either (places.ts).
+  // Program and Entity, not drawn, for their filters alone (places.ts).
   const byPlace = placesBy(places);
   const located = withPlaces(drawn, byPlace.size === 0 ? [] : shown.map(({ park }) =>
-    placeCells(park.locations.split(',').map(value => value.trim()).filter(Boolean), byPlace)), 2);
+    placeCells(park.locations.split(',').map(value => value.trim()).filter(Boolean), byPlace)), 1, home ?? {});
   const rows = located.rows;
   const columns = ['Park', 'Name', ...(here ? ['km', 'Bearing °'] : []), 'Activations', 'Location', ...located.columns];
   const activations = here ? 4 : 2;
@@ -101,8 +102,10 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
       ...(here ? { sortedBy: { column: 2, direction: 'ascending' as const } } : {}),
       ...(located.hidden ? { hidden: located.hidden } : {}),
       filters: [
-        // Program and Entity first, as POTA's own park list starts.
+        // Program, Entity and Location first, as POTA's own park list starts.
         ...located.filters,
+        { column: location, label: 'Location', options: locationOptions, multiple: true,
+          ...(home && locationOptions.includes(home.location) ? { start: home.location } : {}) },
         // Starts on the never activated: the target list (KI7MT, 2026-10-23).
         { column: activations, label: 'Activations', options: fewerThan(10),
           named: [
@@ -112,8 +115,7 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
           ],
           start: 'Never activated' },
         // How far, in km (KI7MT, 2026-10-23): only with a position to measure from.
-        ...(here ? [{ column: 2, label: 'Distance', upTo: WITHIN.map(km => ({ label: `Within ${km} km`, value: km })) }] : []),
-        { column: location, label: 'Location', options: locationOptions, multiple: true }
+        ...(here ? [{ column: 2, label: 'Distance', upTo: WITHIN.map(km => ({ label: `Within ${km} km`, value: km })) }] : [])
       ] }
   ];
   if (measured.length > shown.length) {

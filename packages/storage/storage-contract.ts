@@ -130,7 +130,9 @@ export type StorageReply =
 
 // The parks to activate, and when the oldest of their lists was fetched.
 // `locations` are the POTA locations the area covers, for the page's filter.
-export interface ToActivate { parks: ActivationPark[]; fetchedAt: string; locations: string[] }
+// `home` is where the active Location is, as POTA names it, when its state
+// is one of POTA's locations.
+export interface ToActivate { parks: ActivationPark[]; fetchedAt: string; locations: string[]; home?: AreaPlace }
 
 const DATASETS = ['adif', 'parks', 'programs', 'locations', 'summits'] as const;
 
@@ -227,10 +229,17 @@ function isAreaChoices(value: unknown): value is AreaProgram[] {
         && typeof location.code === 'string' && AREA_LOCATION.test(location.code) && areaText(location.name))));
 }
 
+// A location's program and entity by name (area.ts placesOf).
+function isPlace(place: unknown): place is AreaPlace {
+  return record(place) && only(place, ['location', 'program', 'entity']) && typeof place.location === 'string' && AREA_LOCATION.test(place.location)
+    && areaText(place.program) && areaText(place.entity);
+}
+
 // The parks to activate (activations.ts), bounded as the store bounds them.
 const activationText = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= ACTIVATION_TEXT;
 function isToActivate(value: unknown): value is ToActivate {
-  return record(value) && only(value, ['parks', 'fetchedAt', 'locations']) && isLocationCodes(value.locations)
+  return record(value) && only(value, ['parks', 'fetchedAt', 'locations', 'home']) && isLocationCodes(value.locations)
+    && (value.home === undefined || isPlace(value.home))
     && typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))
     && Array.isArray(value.parks) && value.parks.length <= ACTIVATION_PARKS && value.parks.every(park => record(park)
       && only(park, ['reference', 'name', 'latitude', 'longitude', 'locations', 'activations'])
@@ -249,9 +258,7 @@ export function isStorageReply(value: unknown): value is StorageReply {
     // QG Storage answered was refused as malformed; each layer's own tests
     // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
     return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places']) && isStorageStatus(value.status)
-      && (value.places === undefined || (Array.isArray(value.places) && value.places.length <= AREA_LOCATIONS && value.places.every(place => record(place)
-        && only(place, ['location', 'program', 'entity']) && typeof place.location === 'string' && AREA_LOCATION.test(place.location)
-        && areaText(place.program) && areaText(place.entity))))
+      && (value.places === undefined || (Array.isArray(value.places) && value.places.length <= AREA_LOCATIONS && value.places.every(isPlace)))
       && (value.areaLocations === undefined || isLocationCodes(value.areaLocations))
       && (value.toActivate === undefined || isToActivate(value.toActivate))
       && (value.areaChoices === undefined || isAreaChoices(value.areaChoices))
