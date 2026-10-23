@@ -35,6 +35,10 @@
   // otherwise what the kind wants. A value it refuses says why in the same
   // place.
   const HINT = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: '' } as const;
+  // A text field's own line, where its manifest gives none: how long it may
+  // be (QGD-HOM-0002; Codex review, 2026-10-23).
+  const hintOf = (input: { kind: keyof typeof HINT; hint?: string; max?: number }) =>
+    input.hint ?? (input.kind === 'text' ? `Up to ${input.max ?? 64} characters.` : HINT[input.kind]);
   // What is being typed, per field, until it is asked with.
   let typed = $state<Record<string, string>>({});
   let lastKey = '';
@@ -84,9 +88,9 @@
             <input id="page-input-{input.id}" class="page-input-{input.kind}" bind:value={typed[input.id]} autocomplete="off"
               maxlength={input.kind === 'text' ? (input.max ?? 64) : 32}
               aria-invalid={problems[input.id] ? 'true' : undefined}
-              aria-describedby={problems[input.id] ? `page-input-${input.id}-problem` : (input.hint ?? HINT[input.kind]) ? `page-input-${input.id}-hint` : undefined} />
+              aria-describedby={problems[input.id] ? `page-input-${input.id}-problem` : `page-input-${input.id}-hint`} />
             {#if problems[input.id]}<span class="field-error page-input-note" id="page-input-{input.id}-problem">{problems[input.id]}</span>
-            {:else if input.hint ?? HINT[input.kind]}<span class="page-input-hint page-input-note" id="page-input-{input.id}-hint">{input.hint ?? HINT[input.kind]}</span>{/if}
+            {:else}<span class="page-input-hint page-input-note" id="page-input-{input.id}-hint">{hintOf(input)}</span>{/if}
           </label>
         {/each}
       </div>
