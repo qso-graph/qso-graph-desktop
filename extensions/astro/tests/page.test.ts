@@ -63,7 +63,12 @@ describe('Astro\'s page', () => {
     const grey = found.find(section => section.heading?.startsWith('Grey line with MM40'));
     if (!grey || grey.shape !== 'table') throw new Error('no grey line');
     expect(grey.rows.map(row => row[0])).toEqual(expect.arrayContaining(['D and E layers (−10.1°)', 'F2 layer (−17.2°)']));
-    expect(grey.rows.some(row => /UTC|\d\d:\d\d/.test(row[1]))).toBe(true);
+    expect(grey.columns).toEqual(['Both ends within', 'Date (UTC)', 'Start', 'End']);
+    // A window: its date, then its start and end in UTC, each on its own.
+    const window = grey.rows.find(row => row.length === 4)!;
+    expect(window[1]).toMatch(/^\d{1,2} [A-Z][a-z]{2}$/);
+    expect(window[2]).toMatch(/^\d\d:\d\d$/);
+    expect(window[3]).toMatch(/^(\d{1,2} [A-Z][a-z]{2} )?\d\d:\d\d$/);
     // Under the map, just below the field it answers.
     expect(found[2]).toEqual({ shape: 'fields', heading: 'Grey line DX check' });
     expect(found[3]).toBe(grey);

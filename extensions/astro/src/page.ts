@@ -108,18 +108,26 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
   if (inputs.dx && dx) {
     const heading = `Grey line with ${inputs.dx}, the next 24 hours`.slice(0, 60);
     const found = greyLine(now, position, dx);
-    const rows: [string, string][] = [];
+    // The depth, the date, and the start and end in UTC, each its own
+    // column (KI7MT, 2026-10-23). An end on the next day carries its date;
+    // a depth with no window says so once, across the columns.
+    const rows: string[][] = [];
+    const dateOf = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]}`;
+    const timeOf = (at: Date) => `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`;
     for (const { depth, windows } of found) {
       const name = depth === D_LAYER ? 'D and E layers (−10.1°)' : 'F2 layer (−17.2°)';
       if (windows.length === 0) rows.push([name, 'No window']);
-      for (const window of windows) rows.push([name, `${utcText(window.start)} to ${utcText(window.end).split(' ').pop()}`]);
+      for (const window of windows) {
+        const end = dateOf(window.end) === dateOf(window.start) ? timeOf(window.end) : `${dateOf(window.end)} ${timeOf(window.end)}`;
+        rows.push([name, dateOf(window.start), timeOf(window.start), end]);
+      }
     }
     // Neither depth shared: said once, in words, rather than as a table of
     // two empty rows that reads as if nothing happened.
     greyLineSection.push(found.every(({ windows }) => windows.length === 0)
       ? { shape: 'alert', level: 'info', heading, contents: false,
           text: `${station!.name.slice(0, 40)} and ${inputs.dx} are not in twilight at the same time in the next 24 hours.` }
-      : { shape: 'table', heading, contents: false, columns: ['Depth both ends are within', 'UTC'], rows });
+      : { shape: 'table', heading, contents: false, columns: ['Both ends within', 'Date (UTC)', 'Start', 'End'], rows });
   }
 
   // The grey line on the map (KI7MT, 2026-10-22): the night greyed out, the
