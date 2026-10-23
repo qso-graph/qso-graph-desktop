@@ -177,7 +177,7 @@ testing develop, not for running the station.
 |---|---|
 | Windows installer | itself: downloads in the background, installs on restart |
 | Linux AppImage | itself: the new AppImage replaces the old |
-| macOS | itself **once the app is signed** (Apple's updater refuses an unsigned app); until then, a notice with the download link |
+| macOS | itself: the signed zip, checked against the feed and then by `codesign` to be signed by the same team, replaces the application where it is. Run from the disk image, or from a folder it cannot write to, a notice with the download link |
 | Linux deb and rpm | through a package repository later, with the rest of the system; until then, a notice with the download link |
 | A portable zip | a notice with the download link, by design: it lives where the operator put it |
 
@@ -190,8 +190,10 @@ testing develop, not for running the station.
   2026-10-23): electron-updater installs only what it downloaded, over
   Electron's own networking, and handing it the core's file would need a local
   server, which this product does not have. What it does at the end is small:
-  the Windows installer is run silently, an AppImage is replaced in place, and
-  both happen as the application quits, after its stores have closed.
+  the Windows installer is run silently, an AppImage is replaced in place, the
+  signed macOS zip is unpacked beside the application, checked to be signed by
+  the same team as the running one, and swapped in, and all of it happens as
+  the application quits, after its stores have closed.
 - **Checked:** every download against the SHA-256 the feed gives for it, as it
   arrives; a file that does not match is deleted, never installed. Until the
   builds are signed that catches a broken download or a mirror sending
@@ -218,7 +220,8 @@ never to say what they are: the feed says that.
   "stable": { "version": "0.1.0", "files": {
     "win-x64":      { "name": "qso-graph-desktop-0.1.0-win-x64.exe",           "url": "https://github.com/…/v0.1.0/…", "sha256": "…" },
     "linux-x86_64": { "name": "qso-graph-desktop-0.1.0-linux-x86_64.AppImage", "url": "…", "sha256": "…" },
-    "linux-arm64":  { "name": "qso-graph-desktop-0.1.0-linux-arm64.AppImage",  "url": "…", "sha256": "…" }
+    "linux-arm64":  { "name": "qso-graph-desktop-0.1.0-linux-arm64.AppImage",  "url": "…", "sha256": "…" },
+    "mac-arm64":    { "name": "qso-graph-desktop-0.1.0-mac-arm64.zip",         "url": "…", "sha256": "…" }
   } },
   "early": { "version": "0.2.0", "files": { … } }
 }

@@ -33,8 +33,9 @@ export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-err
 export interface SealedExport { bytes: Uint8Array }
 // A reference source's answer, on its way back from the credential core.
 // An update's file, as a release names it: the version and the platform, and
-// only the two kinds that install themselves (QGD-FRM-0019).
-export const UPDATE_FILE_NAME = /^qso-graph-desktop-[0-9A-Za-z.+_-]{1,80}\.(exe|AppImage)$/;
+// only the kinds that install themselves (QGD-FRM-0019): the Windows
+// installer, an AppImage, and the signed macOS zip.
+export const UPDATE_FILE_NAME = /^qso-graph-desktop-[0-9A-Za-z.+_-]{1,80}(\.exe|\.AppImage|-mac-arm64\.zip)$/;
 export interface UpdateFeed { feed: Uint8Array }
 export interface UpdateFile { path: string }
 

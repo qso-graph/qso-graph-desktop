@@ -11,7 +11,7 @@ export const UPDATES_STATE_CHANNEL = 'updates:state';
 
 // The builds that install an update themselves, by the feed's key for them.
 // Everything else is told a newer version exists and where to get it.
-export const SELF_UPDATING = ['win-x64', 'linux-x86_64', 'linux-arm64'] as const;
+export const SELF_UPDATING = ['win-x64', 'linux-x86_64', 'linux-arm64', 'mac-arm64'] as const;
 export type UpdatePlatform = typeof SELF_UPDATING[number];
 
 export interface FeedFile { name: string; url: string; sha256: string }

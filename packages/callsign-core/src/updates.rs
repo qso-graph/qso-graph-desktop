@@ -61,7 +61,7 @@ fn allowed_url(url: &reqwest::Url, patterns: &[String]) -> bool {
 pub(crate) fn valid_name(name: &str) -> bool {
     let Some(rest) = name.strip_prefix("qso-graph-desktop-") else { return false };
     name.len() <= 120
-        && (rest.ends_with(".exe") || rest.ends_with(".AppImage"))
+        && (rest.ends_with(".exe") || rest.ends_with(".AppImage") || rest.ends_with("-mac-arm64.zip"))
         && rest.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
         && !rest.contains("..")
 }
@@ -187,6 +187,7 @@ mod tests {
     fn names_and_sums_are_checked_before_anything_is_fetched() {
         assert!(valid_name("qso-graph-desktop-0.1.1-win-x64.exe"));
         assert!(valid_name("qso-graph-desktop-0.1.1-linux-x86_64.AppImage"));
+        assert!(valid_name("qso-graph-desktop-0.1.1-mac-arm64.zip"));
         for name in ["../qso-graph-desktop-0.1.1-win-x64.exe", "qso-graph-desktop-../../x.exe",
                      "qso-graph-desktop-0.1.1-linux-x64.zip", "other-0.1.1.exe", "qso-graph-desktop-0.1.1/x.exe"] {
             assert!(!valid_name(name), "{name} should be refused");

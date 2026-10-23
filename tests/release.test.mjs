@@ -49,10 +49,12 @@ describe('release text', () => {
   });
 
   it('writes a feed entry the application reads, from the release\'s own sums', () => {
-    const sums = ['win-x64.exe', 'linux-x86_64.AppImage', 'linux-arm64.AppImage', 'linux-x64.zip']
+    const sums = ['win-x64.exe', 'linux-x86_64.AppImage', 'linux-arm64.AppImage', 'linux-x64.zip', 'mac-arm64.zip', 'mac-arm64.dmg']
       .map((tail, at) => `${String(at).repeat(64)}  qso-graph-desktop-0.1.1-${tail}`).join('\n');
     const feed = withEntry(withEntry(undefined, 'stable', feedEntry('0.1.1', sums)), 'early', null);
     expect(feed.stable.files['linux-arm64'].sha256).toBe('2'.repeat(64));
+    expect(feed.stable.files['mac-arm64'].name).toBe('qso-graph-desktop-0.1.1-mac-arm64.zip');
+    expect(Object.keys(feed.stable.files)).not.toContain('linux-x64');
     expect(feed.stable.files['win-x64'].url).toBe('https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.1.1/qso-graph-desktop-0.1.1-win-x64.exe');
     const read = readFeed(new TextEncoder().encode(JSON.stringify(feed)));
     expect(choose(read, 'stable', '0.1.0').files['linux-x86_64'].sha256).toBe('1'.repeat(64));

@@ -51,6 +51,9 @@ describe('the update feed', () => {
     expect(feed({ version: '0.1.1', files: { 'win-x64': login } }, null)?.stable?.files).toEqual({});
     const zip = file('0.1.1', 'win-x64.zip');
     expect(feed({ version: '0.1.1', files: { 'win-x64': zip } }, null)?.stable?.files).toEqual({});
+    // The macOS zip is the one zip that installs itself.
+    const mac = file('0.1.1', 'mac-arm64.zip');
+    expect(feed({ version: '0.1.1', files: { 'mac-arm64': mac } }, null)?.stable?.files['mac-arm64']?.name).toBe(mac.name);
   });
 });
 

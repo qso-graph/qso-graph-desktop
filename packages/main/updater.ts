@@ -4,13 +4,15 @@
 // core, and applied only when the operator restarts or quits. Never forced.
 //
 // No electron-updater (KI7MT, 2026-10-23): it installs only what it downloaded
-// itself, over Electron's networking, and handing it a file the core fetched
-// would need a local server, which this product does not have. What it does
-// at the end is small and done here: the Windows installer is run silently,
-// and an AppImage is replaced, as electron-updater itself does both.
+// itself, over Electron's networking (Squirrel.Mac, on macOS, its own), and
+// handing it a file the core fetched would need a local server, which this
+// product does not have. What it does at the end is small and done here: the
+// Windows installer is run silently, an AppImage is replaced, and on macOS
+// the signed zip is unpacked beside the application, checked to be signed by
+// the same team, and put in its place.
 import { app, ipcMain, type BrowserWindow } from 'electron';
-import { spawn } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, renameSync, rmSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { accessSync, chmodSync, constants, copyFileSync, existsSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { allowsSender, UPDATE_FILE_NAME } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
@@ -67,7 +69,68 @@ export function updatePlatform(): UpdatePlatform | null {
     if (process.arch === 'x64') return 'linux-x86_64';
     if (process.arch === 'arm64') return 'linux-arm64';
   }
+  // A Mac build replaces its own bundle, so it must be one it can replace:
+  // not run from the disk image, not moved aside by Gatekeeper's App
+  // Translocation, and in a folder this user can write to. Otherwise it is
+  // told a newer version exists.
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
+    const bundle = macBundle();
+    if (!bundle || bundle.startsWith('/Volumes/') || bundle.includes('/AppTranslocation/')) return null;
+    try { accessSync(dirname(bundle), constants.W_OK); } catch { return null; }
+    return 'mac-arm64';
+  }
   return null;
+}
+
+// The .app this process runs from: <bundle>/Contents/MacOS/<name>.
+function macBundle(): string | null {
+  const bundle = resolve(process.execPath, '..', '..', '..');
+  return bundle.endsWith('.app') ? bundle : null;
+}
+
+// Who signed a bundle, by Apple's own tool at its fixed path. Null when it is
+// not validly signed at all. `verify` checks every file in it first, which is
+// what a new bundle needs; the running one only needs its team read.
+function macTeam(bundle: string, verify: boolean): string | null {
+  if (verify) {
+    const checked = spawnSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle], { shell: false, timeout: 120_000 });
+    if (checked.status !== 0) return null;
+  }
+  const shown = spawnSync('/usr/bin/codesign', ['-dv', bundle], { shell: false, encoding: 'utf8', timeout: 30_000 });
+  const team = /^TeamIdentifier=([A-Z0-9]{10})$/m.exec(`${shown.stderr ?? ''}`)?.[1];
+  return team ?? null;
+}
+
+// The new bundle unpacked beside the old one, so the swap is two renames on
+// one volume; checked to be signed by the team that signed the running one,
+// then put in its place. The old bundle is put back if anything fails.
+function replaceMacBundle(zip: string): string {
+  const bundle = macBundle();
+  if (!bundle) throw new Error('not a bundle');
+  const team = macTeam(bundle, false);
+  if (!team) throw new Error('the running application is not signed');
+  const staging = join(dirname(bundle), `.qso-graph-desktop-update-${process.pid}`);
+  rmSync(staging, { recursive: true, force: true });
+  try {
+    const unpacked = spawnSync('/usr/bin/ditto', ['-x', '-k', zip, staging], { shell: false, timeout: 300_000 });
+    if (unpacked.status !== 0) throw new Error('the update could not be unpacked');
+    const apps = readdirSync(staging).filter(name => name.endsWith('.app'));
+    if (apps.length !== 1) throw new Error('the update holds no single application');
+    const fresh = join(staging, apps[0]);
+    if (macTeam(fresh, true) !== team) throw new Error('the update is not signed by the same team');
+    const aside = `${bundle}.old-${process.pid}`;
+    renameSync(bundle, aside);
+    try {
+      renameSync(fresh, bundle);
+    } catch (error) {
+      renameSync(aside, bundle);
+      throw error;
+    }
+    rmSync(aside, { recursive: true, force: true });
+    return bundle;
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
 }
 
 export function startUpdater(options: UpdaterOptions): Updater {
@@ -145,6 +208,11 @@ export function startUpdater(options: UpdaterOptions): Updater {
         const child = spawn(readyFile, relaunch ? ['--updated', '/S', '--force-run'] : ['--updated', '/S'],
           { detached: true, stdio: 'ignore', shell: false, windowsHide: true });
         child.unref();
+      } else if (options.platform === 'mac-arm64') {
+        replaceMacBundle(readyFile);
+        rmSync(options.updatesDirectory, { recursive: true, force: true });
+        // The same path, now the new bundle.
+        if (relaunch) app.relaunch();
       } else if (options.platform && process.env.APPIMAGE) {
         const target = process.env.APPIMAGE;
         const staged = `${target}.update`;

@@ -77,7 +77,10 @@ export function next(version, part) {
 // and its SHA-256, read from the release's own SHA256SUMS.txt.
 export const FEED_FORMAT = 'qso-graph-desktop-updates';
 export const RELEASE_DOWNLOADS = 'https://github.com/qso-graph/qso-graph-desktop/releases/download';
-const SELF_UPDATING = { 'win-x64': 'win-x64.exe', 'linux-x86_64': 'linux-x86_64.AppImage', 'linux-arm64': 'linux-arm64.AppImage' };
+const SELF_UPDATING = {
+  'win-x64': 'win-x64.exe', 'linux-x86_64': 'linux-x86_64.AppImage', 'linux-arm64': 'linux-arm64.AppImage',
+  'mac-arm64': 'mac-arm64.zip'
+};
 
 export function feedEntry(version, sums) {
   if (!isRelease(version)) throw new Error(`${version} is not a release version (MAJOR.MINOR.PATCH).`);
