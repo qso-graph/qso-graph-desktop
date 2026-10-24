@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Settings → About names the licence as GPL-3.0-only**, as the project is licensed; it said
+  "or later".
+
 ## [0.1.2] - 2026-10-24
 
 ### Changed

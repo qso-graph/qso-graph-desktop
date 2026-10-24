@@ -2,6 +2,13 @@
   <img src="docs/images/qso-graph-desktop-banner.svg" alt="QSO Graph Desktop" width="720">
 </p>
 
+<p align="center">
+  <a href="https://github.com/qso-graph/qso-graph-desktop/actions/workflows/ci.yml?query=branch%3Adevelop"><img src="https://img.shields.io/github/actions/workflow/status/qso-graph/qso-graph-desktop/ci.yml?branch=develop&label=CI" alt="CI on develop"></a>
+  <a href="https://github.com/qso-graph/qso-graph-desktop/releases"><img src="https://img.shields.io/github/v/release/qso-graph/qso-graph-desktop?include_prereleases&sort=semver&label=Release&color=blue" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0--only-blue" alt="License: GPL-3.0-only"></a>
+  <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="Platforms: Windows, Linux, macOS">
+</p>
+
 # QSO Graph Desktop
 
 **A desktop home for your station.** Your callsigns, your logins for the services hams use, and
