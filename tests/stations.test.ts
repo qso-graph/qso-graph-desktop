@@ -18,7 +18,7 @@ import {
   MAX_STATIONS, REMOVED_FIELDS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsBackup, isStationsView, type StationDraft
 } from '../packages/storage/station-contract.js';
 import {
-  adifLocation, backupStations, checkStation, deleteStation, restoreStations, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
+  adifLocation, backupStations, checkBackup, checkStation, deleteStation, restoreStations, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
   setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
 } from '../packages/storage/stations.js';
 
@@ -732,16 +732,59 @@ describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-1
       };
       expect(isStationsBackup(backup)).toBe(true);
       // Not merged: refused while Locations are here and not said to go.
-      expect(await restoreStations(state, backup, false)).toBe('not empty');
+      expect(await restoreStations(state, backup, false, ruleset)).toBe('not empty');
       expect((await viewStations(state, false)).list.map(entry => entry.name)).toEqual(['Old shack']);
       // Said to remove them first: they go, and the file's arrive whole.
-      expect(await restoreStations(state, backup, true)).toBe(2);
+      expect(await restoreStations(state, backup, true, ruleset)).toBe(2);
       const view = await viewStations(state, false);
       expect(view.list.map(entry => [entry.id, entry.name])).toEqual([
         ['22222222-2222-4222-8222-222222222222', 'Camp'], ['11111111-1111-4111-8111-111111111111', 'Home']]);
       expect(view.list.find(entry => entry.name === 'Home')).toMatchObject({ place: { MY_GRIDSQUARE: 'DN13' }, notes: 'Gate code' });
       expect(view.defaults).toEqual({ [CALLSIGN]: '22222222-2222-4222-8222-222222222222' });
       expect(view.active).toBe('11111111-1111-4111-8111-111111111111');
+    } finally { state.close(); }
+  });
+
+  it('refuses a Location a hand-made one could not be, changing nothing (#57)', async () => {
+    const state = await open();
+    try {
+      const old = await saveStation(state, draft({}, { name: 'Old shack' }), ruleset);
+      if (!old.ok) throw new Error('not saved');
+      const backup = { stations: [{ id: '11111111-1111-4111-8111-111111111111', name: 'No grid', place: {} }], defaults: {}, active: null };
+      expect(isStationsBackup(backup)).toBe(true);
+      expect(checkBackup(backup, ruleset)).toBe('No grid: A location needs a grid.');
+      expect(await restoreStations(state, backup, true, ruleset)).toEqual({ problem: 'No grid: A location needs a grid.' });
+      expect((await viewStations(state, false)).list.map(entry => entry.name)).toEqual(['Old shack']);
+    } finally { state.close(); }
+  });
+
+  it('restores all of a backup or none of it: a failure part way leaves the Locations as they were (#57)', async () => {
+    const state = await open();
+    try {
+      const old = await saveStation(state, draft({}, { name: 'Old shack' }), ruleset);
+      if (!old.ok) throw new Error('not saved');
+      const backup = {
+        stations: [
+          { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13' } },
+          { id: '22222222-2222-4222-8222-222222222222', name: 'Camp', place: { MY_GRIDSQUARE: 'DN24' } }
+        ],
+        defaults: {}, active: null
+      };
+      // The second Location's write fails, as a full disk or a killed
+      // process would make it.
+      let inserts = 0;
+      const failing = {
+        ...state, connection: state.connection,
+        unit: <T>(work: (db: Parameters<Parameters<typeof state.unit>[0]>[0]) => Promise<T> | T) => state.unit(db => work(new Proxy(db, {
+          get(target, key, receiver) {
+            if (key === 'insert' && ++inserts === 2) return () => { throw new Error('the disk is full'); };
+            const value = Reflect.get(target, key, receiver) as unknown;
+            return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+          }
+        })))
+      } as typeof state;
+      await expect(restoreStations(failing, backup, true, ruleset)).rejects.toThrow();
+      expect((await viewStations(state, false)).list.map(entry => entry.name)).toEqual(['Old shack']);
     } finally { state.close(); }
   });
 
@@ -753,5 +796,7 @@ describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-1
     expect(isStationsBackup({ stations: [one], defaults: {}, active: null, extra: 1 })).toBe(false);
     expect(validateStorageCommand({ type: 'stations-restore', backup: { stations: [one], defaults: {}, active: null }, replace: true })).toBe(true);
     expect(validateStorageCommand({ type: 'stations-restore', backup: { stations: [one], defaults: {}, active: null } })).toBe(false);
+    expect(validateStorageCommand({ type: 'stations-check', backup: { stations: [one], defaults: {}, active: null } })).toBe(true);
+    expect(validateStorageCommand({ type: 'stations-check', backup: { stations: [one], defaults: {}, active: null }, replace: true })).toBe(false);
   });
 });

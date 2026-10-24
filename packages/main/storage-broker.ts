@@ -60,6 +60,8 @@ export interface StorageBroker {
   // (KI7MT, 2026-10-23); how many are here now.
   backupStations: () => Promise<StationsBackup | string>;
   restoreStations: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
+  // A restore's Locations checked, changing nothing: a reason, or undefined.
+  checkStations: (backup: StationsBackup) => Promise<string | undefined>;
   stationCount: () => number;
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
@@ -271,6 +273,10 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       const reply = await ask({ type: 'stations-restore', backup, replace });
       if (!reply.ok) return reply.error;
       return reply.restored ?? 'The Locations could not be restored.';
+    },
+    async checkStations(backup) {
+      const reply = await ask({ type: 'stations-check', backup });
+      return reply.ok ? undefined : reply.error;
     },
     stationCount: () => last.stations?.list.length ?? 0,
     async adifList(name) {

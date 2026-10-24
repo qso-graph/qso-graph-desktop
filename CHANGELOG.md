@@ -9,6 +9,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Restoring a backup is all or nothing.** A backup is checked whole (every callsign and every
+  Location, by the same rules as one entered by hand) before anything on the computer changes;
+  the Locations are written in one transaction; and what is restored is exactly the file that was
+  previewed. Before, a bad file could remove what was there and then refuse itself.
+- **Updates follow the settings as they are**: turning checking off, or moving from Early to
+  Stable, while a check is under way no longer downloads an update; and a platform is only ever
+  offered its own file.
 - **Settings → About names the licence as GPL-3.0-only**, as the project is licensed; it said
   "or later".
 

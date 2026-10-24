@@ -30,6 +30,8 @@ export interface CallsignBrief { id: string; call: string; description: string }
 export interface StationsHooks {
   backup: () => Promise<StationsBackup | string>;
   restore: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
+  // A restore's Locations checked, changing nothing: a reason, or undefined.
+  check: (backup: StationsBackup) => Promise<string | undefined>;
   count: () => number;
 }
 
@@ -119,7 +121,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
   // register is not a reason to lose the callsigns too.
   // The file the operator chose to look at, between looking and importing.
   // The path, never the contents, and never more than one.
-  let inspected: string | undefined;
+  let inspected: Buffer | undefined;
   let services: ReadonlySet<string> = new Set();
   void readServices(registerFile)
     .then(register => { services = serviceIds(register); })
@@ -213,13 +215,12 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     }
 
     // Looking and importing are two commands, and the operator chose the file
-    // for the first of them. Asking again for the second would be asking the
-    // same question twice, so the path is kept — the path only, never the
-    // bytes — and the file is read again when the import is confirmed. A file
-    // that changed in between fails its tag at that point, like any other
-    // altered file.
-    let path: string | undefined = command.apply ? inspected : undefined;
-    if (!path) {
+    // for the first of them. What is restored is exactly what was previewed:
+    // the bytes are kept from the look, never read again from the file, which
+    // could have changed in between (#57: a backup is plain JSON now, with no
+    // tag to fail). A backup is a few KB and holds nothing secret.
+    let file: Buffer | undefined = command.apply ? inspected : undefined;
+    if (!file) {
       const chosen = window
         ? await dialog.showOpenDialog(window, {
             title: 'Restore callsigns and Locations',
@@ -228,14 +229,12 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
           })
         : await dialog.showOpenDialog({ properties: ['openFile'] });
       if (chosen.canceled || chosen.filePaths.length !== 1) return { ok: false, error: 'Restore cancelled.' };
-      path = chosen.filePaths[0];
-    }
-    let file: Buffer;
-    try {
-      file = await readFile(path);
-    } catch {
-      inspected = undefined;
-      return { ok: false, error: 'That file could not be read.' };
+      try {
+        file = await readFile(chosen.filePaths[0]);
+      } catch {
+        inspected = undefined;
+        return { ok: false, error: 'That file could not be read.' };
+      }
     }
     if (file.length === 0 || file.length > 4_194_304) {
       inspected = undefined;
@@ -257,7 +256,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     if (!command.apply) {
       // Remembered only while there is something to confirm: a look that
       // succeeded. Forgotten the moment it is used, refused, or cancelled.
-      inspected = path;
+      inspected = file;
       const preview: ImportPreview = {
         created: core.created, callsigns: core.callsigns, arriving: core.arriving, here: core.here,
         locations: backup.stations.map(entry => entry.name), locationsHere
@@ -271,6 +270,11 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       return { ok: false, error: 'This computer already has callsigns or Locations. Choose to remove them first, then restore.' };
     }
     if (!stations) return { ok: false, error: 'The Locations cannot be restored just now. Try again in a moment.' };
+    // The Locations checked by QG Storage before the callsigns are touched,
+    // so a backup storage would refuse, or storage not answering, stops the
+    // restore while nothing here has changed (#57).
+    const unfit = await stations.check(backup);
+    if (unfit !== undefined) return { ok: false, error: unfit };
     const applied = await ask({ type: 'import-callsigns', apply: true, replace: command.replace, file });
     if (!applied.ok) return applied;
     const restored = await stations.restore(backup, command.replace);

@@ -144,6 +144,8 @@ export function startUpdater(options: UpdaterOptions): Updater {
   let newer: string | null = null;
   let running: Promise<void> | null = null;
   let relaunchAfter = false;
+  // Asked again while a check ran: run once more when it finishes.
+  let again = false;
 
   const publish = (next: UpdateState): void => {
     state = next;
@@ -159,9 +161,8 @@ export function startUpdater(options: UpdaterOptions): Updater {
   };
 
   async function run(): Promise<void> {
-    const settings = options.settings();
     if (!options.asks) { publish(notAsking()); return; }
-    if (!settings.updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
+    if (!options.settings().updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     // Nothing is tried offline (QGD-FRM-0019); asked again when it is due.
     if (!options.online()) return;
     lastAsked = now();
@@ -170,6 +171,11 @@ export function startUpdater(options: UpdaterOptions): Updater {
     if (typeof bytes === 'string') { publish({ kind: 'failed', reason: bytes, checkedAt: now() }); return; }
     const feed = readFeed(bytes);
     if (!feed) { publish({ kind: 'failed', reason: 'The update feed could not be read.', checkedAt: now() }); return; }
+    // The switch and the track as they are now, not as they were when the
+    // feed was asked for (#57: turning checking off while the feed was on its
+    // way still downloaded the update).
+    const settings = options.settings();
+    if (!settings.updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     const offer = choose(feed, settings.updateTrack, options.version);
     if (!offer) { newer = null; publish({ kind: 'current', checkedAt: now() }); return; }
     newer = offer.version;
@@ -185,19 +191,32 @@ export function startUpdater(options: UpdaterOptions): Updater {
       publish({ kind: 'failed', reason: typeof downloaded === 'string' ? downloaded : 'The update could not be saved.', checkedAt: now() });
       return;
     }
+    // And once more after the download, which can take minutes.
+    const after = options.settings();
+    if (!after.updateCheck || after.updateTrack !== settings.updateTrack) {
+      readyFile = null;
+      rmSync(options.updatesDirectory, { recursive: true, force: true });
+      publish(after.updateCheck ? { kind: 'idle' } : { kind: 'off', why: 'switch' });
+      if (after.updateCheck) again = true;
+      return;
+    }
     readyFile = downloaded.path;
     log.info({ version: offer.version }, 'an update is ready');
     publish({ kind: 'ready', version: offer.version });
   }
 
   const check = (why: 'scheduled' | 'asked'): Promise<void> => {
-    // One at a time; a second ask waits on the first.
-    if (running) return running;
+    // One at a time; a second ask while one runs is run again after it, so a
+    // change of switch or track made meanwhile is acted on (#57).
+    if (running) { if (why === 'asked') again = true; return running; }
     if (why === 'scheduled' && lastAsked && now() - lastAsked < CHECK_EVERY_MS) return Promise.resolve();
     // A ready update stays ready: nothing to ask until it is applied.
     if (state.kind === 'ready' && why === 'scheduled') return Promise.resolve();
     running = run().catch(() => publish({ kind: 'failed', reason: 'The update check could not be completed.', checkedAt: now() }))
-      .finally(() => { running = null; });
+      .finally(() => {
+        running = null;
+        if (again) { again = false; void check('asked'); }
+      });
     return running;
   };
 

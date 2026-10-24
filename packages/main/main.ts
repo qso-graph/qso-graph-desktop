@@ -188,6 +188,7 @@ if (!app.requestSingleInstanceLock()) {
     callsigns.connectStations({
       backup: () => storageBroker.backupStations(),
       restore: (backup, replace) => storageBroker.restoreStations(backup, replace),
+      check: backup => storageBroker.checkStations(backup),
       count: () => storageBroker.stationCount()
     });
         callsigns.onCallsignActivated(id => storageBroker.callsignActivated(id));
