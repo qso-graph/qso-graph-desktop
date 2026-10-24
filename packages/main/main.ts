@@ -130,9 +130,14 @@ function createWindow(): void {
   window.webContents.on('will-attach-webview', event => event.preventDefault());
   // `show: false` above only avoids the white frame at startup; this is what
   // decides whether the window is ever seen.
+  // Maximized again only when it is shown: on macOS maximize() shows the
+  // window, so a suite's hidden window was put on screen (the 0.1.3 release
+  // run, where a CI Mac's small screen made the default size count as
+  // maximized when it closed).
   window.once('ready-to-show', () => {
+    if (!visibility.reveal) return;
     if (placed?.maximized) window.maximize();
-    if (visibility.reveal) window.show();
+    window.show();
   });
   // Remembered as it closes: the size it has when not maximized, and whether
   // it is, so a maximized window comes back maximized over the right size.
