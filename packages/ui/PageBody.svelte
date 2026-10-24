@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
-  import { filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { answerMark, filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
   import { recall, remember } from './page-memory.js';
 
@@ -80,9 +80,10 @@
   // then Refreshed for a few seconds, since the core asks at most once in ten
   // (page-scheduler.ts) and a button that seems to do nothing when pressed
   // again invites pressing it again. An answer that never comes (the core
-  // declined, or the extension is slow) lets the button go after a while.
+  // declined, having asked under ten seconds before, or the extension is
+  // slow) lets the button go after twenty.
   let phase = $state<'idle' | 'refreshing' | 'refreshed'>('idle');
-  let asked: PageShown | undefined;
+  let asked = '';
   let timer: ReturnType<typeof setTimeout> | undefined;
   // Back to Refresh after a while, from either.
   const idleAfter = (ms: number) => {
@@ -91,13 +92,13 @@
   };
   function refresh(): void {
     if (phase !== 'idle' || !onRefresh) return;
-    asked = shown;
+    asked = answerMark(shown);
     phase = 'refreshing';
     onRefresh();
-    idleAfter(30_000);
+    idleAfter(20_000);
   }
   $effect(() => {
-    if (phase === 'refreshing' && shown !== asked) {
+    if (phase === 'refreshing' && answerMark(shown) !== asked) {
       phase = 'refreshed';
       idleAfter(10_000);
     }
