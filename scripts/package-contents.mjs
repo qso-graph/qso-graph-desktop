@@ -80,7 +80,8 @@ if (!Array.isArray(files) || files.length === 0) {
     .filter(entry => !entry.startsWith('!'))
     .map(entry => entry.split('/')[0]))].sort();
   // NOTICE ships beside LICENSE: it is the attributions (QGD-REP-0005).
-  const EXPECTED_ROOTS = ['LICENSE', 'NOTICE', 'data', 'dist', 'drizzle', 'package.json'];
+  // CHANGELOG.md is What's new (QGD-FRM-0016).
+  const EXPECTED_ROOTS = ['CHANGELOG.md', 'LICENSE', 'NOTICE', 'data', 'dist', 'drizzle', 'package.json'];
   if (JSON.stringify(roots) !== JSON.stringify(EXPECTED_ROOTS)) {
     failures.push(`build.files admits ${roots.join(', ')}; this suite expects ${EXPECTED_ROOTS.join(', ')}. `
       + 'If the change is wanted, change it here too and say why in the commit.');

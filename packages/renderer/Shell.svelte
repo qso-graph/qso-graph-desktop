@@ -21,7 +21,7 @@
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
-  import WelcomeWindow from './pages/WelcomeWindow.svelte';
+  import WhatsNewPanel from './pages/WhatsNewPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { HomeModel, HomeStore } from './home-store.js';
@@ -47,7 +47,10 @@
     onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
     onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
-    onCloseWelcome: (hideForThisRelease: boolean) => void;
+    // What's new (QGD-FRM-0016): Home's line after an update, and the notes.
+    onCloseUpdate: () => void;
+    onOpenWhatsNew: () => void;
+    onCloseWhatsNew: () => void;
     onStationFromSummit: (reference: string) => Promise<ParkDraft | string>;
     // My Area (KI7MT, 2026-10-23).
     onAreaChoices: () => Promise<readonly AreaProgram[] | string>;
@@ -79,7 +82,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseWelcome, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
+    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseUpdate, onOpenWhatsNew, onCloseWhatsNew, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
     onExportCallsigns, onInspectImport, onApplyImport, version,
     onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease
@@ -197,7 +200,9 @@
             requestAnimationFrame(() => document.getElementById('extensions-title')?.scrollIntoView({ block: 'start' }));
           } else store.set({ page: place, extensionPage: null });
         }}
-        onWhatsNew={() => store.set({ welcome: true })}
+        onWhatsNew={onOpenWhatsNew}
+        updatedTo={shell.updatedFrom !== null ? version : undefined}
+        onCloseUpdate={onCloseUpdate}
         onDownloads={() => onOpenPage({ type: 'document', name: 'downloads' })}
         onContributing={() => onOpenPage({ type: 'document', name: 'contributing' })}
         onSite={name => onOpenPage({ type: 'site', name })}
@@ -293,6 +298,6 @@
                         logs={shell.logs} {onSetLevel} {onExport}
                         onClose={() => store.set({ troubleshooting: false })} />
 {/if}
-{#if shell.welcome}
-  <WelcomeWindow {version} onClose={onCloseWelcome} />
+{#if shell.whatsNew}
+  <WhatsNewPanel notes={shell.whatsNew.notes} onClose={onCloseWhatsNew} />
 {/if}

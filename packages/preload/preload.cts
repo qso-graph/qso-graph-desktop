@@ -53,7 +53,7 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
 }));
 // The Help menu's Troubleshooting (KI7MT, 2026-10-22): main says it was
 // chosen and the window opens the panel. No payload: the signal is all.
-const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins', 'settings', 'export-callsigns', 'import-callsigns', 'area'];
+const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins', 'settings', 'export-callsigns', 'import-callsigns', 'area', 'whats-new'];
 contextBridge.exposeInMainWorld('menu', Object.freeze({
   onTroubleshooting: (listener: () => void) => {
     if (typeof listener !== 'function') return () => undefined;
@@ -95,6 +95,10 @@ contextBridge.exposeInMainWorld('updates', Object.freeze({
     ipcRenderer.on('updates:state', handler);
     return () => { ipcRenderer.removeListener('updates:state', handler); };
   }
+}));
+// What's new (QGD-FRM-0016): this version's notes, or those since the one last seen.
+contextBridge.exposeInMainWorld('whatsNew', Object.freeze({
+  notes: (since: unknown) => ipcRenderer.invoke('whatsnew:request', { type: 'notes', since })
 }));
 contextBridge.exposeInMainWorld('logs', Object.freeze({
   request: (command: unknown) => ipcRenderer.invoke('logs:request', command)

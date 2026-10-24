@@ -19,6 +19,7 @@ import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
 import { startUpdater, updatePlatform } from './updater.js';
+import { startWhatsNewBroker } from './whats-new.js';
 import { isReleaseVersion } from './update-contract.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
@@ -172,9 +173,9 @@ if (!app.requestSingleInstanceLock()) {
       distDirectory,
       join(app.getAppPath(), 'data', 'service-profiles.json'));
     const stopCallsignBroker = callsigns.stop;
-    const stopSettingsBroker = startSettingsBroker({
-      welcomeOff: !app.isPackaged && process.env.QG_DESKTOP_NO_WELCOME === '1', version: app.getVersion()
-    });
+    const stopSettingsBroker = startSettingsBroker();
+    // What's new (QGD-FRM-0016): the notes are the changelog that ships.
+    const stopWhatsNew = startWhatsNewBroker(join(app.getAppPath(), 'CHANGELOG.md'), app.getVersion());
     const stopAppearanceBroker = startAppearanceBroker();
     const links = startLinksBroker(join(app.getAppPath(), 'data', 'links.json'));
     const stopLogsBroker = startLogsBroker();
@@ -388,7 +389,7 @@ if (!app.requestSingleInstanceLock()) {
       homeBroker?.stop();
       extensionBroker?.stop();
       updater.stop();
-      stopCallsignBroker(); stopSettingsBroker(); stopAppearanceBroker(); links.stop(); stopLogsBroker();
+      stopCallsignBroker(); stopSettingsBroker(); stopWhatsNew(); stopAppearanceBroker(); links.stop(); stopLogsBroker();
       if (quitting) return;
       quitting = true;
       event.preventDefault();
@@ -440,6 +441,9 @@ if (!app.requestSingleInstanceLock()) {
       // repository, which is the one place each is kept (QGD-FRM-0015,
       // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
+        // The notes for this version, from the changelog (QGD-FRM-0016).
+        setupItem('whats-new', 'What\'s New'),
+        { type: 'separator' },
         ...HELP_DOCUMENTS.map(([name, label]) => ({
           id: name, label, click: () => links.open({ type: 'document', name })
         })),

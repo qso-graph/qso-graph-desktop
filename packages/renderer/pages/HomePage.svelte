@@ -15,6 +15,8 @@
   is read to draw it (QGD-CRD-0009), and it waits on nothing (QGD-FRM-0011).
 -->
 <script lang="ts">
+  import UpdateStrip from '../../ui/UpdateStrip.svelte';
+  import { isPreview, releaseOf } from '../../main/whats-new-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import PinTile from '../../ui/PinTile.svelte';
   import PinPicker from '../../ui/PinPicker.svelte';
@@ -39,6 +41,10 @@
     steps?: readonly WelcomeStep[];
     onGo?: (place: 'callsigns' | 'stations' | 'settings' | 'extensions') => void;
     onWhatsNew?: () => void;
+    // After an update, the version now running: one line at the top, until
+    // closed (QGD-FRM-0016).
+    updatedTo?: string;
+    onCloseUpdate?: () => void;
     onDownloads?: () => void;
     onContributing?: () => void;
     onSite?: (name: 'adif' | 'pota' | 'sota' | 'iota') => void;
@@ -49,7 +55,7 @@
   }
   const {
     home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {},
-    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {},
+    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, updatedTo, onCloseUpdate = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {},
     picking = false, onPicking = () => {}
   }: Props = $props();
 
@@ -77,6 +83,11 @@
 </script>
 
 <PageLayout title="Home" width="full" titleShown={false}>
+  {#if updatedTo}
+    <!-- A preview's version is long; it is named by the release it leads to. -->
+    <UpdateStrip version={isPreview(updatedTo) ? `a new preview of ${releaseOf(updatedTo) ?? updatedTo}` : updatedTo}
+      onSee={onWhatsNew} onClose={onCloseUpdate} />
+  {/if}
   <HomeWelcome {platform} {steps} {onGo} onCustomize={() => onPicking(true)} {onWhatsNew} {onDownloads} {onContributing} {onSite} />
 
   <div class="home-pinned-head">

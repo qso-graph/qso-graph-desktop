@@ -5,6 +5,7 @@ import {
 } from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import { isUpdateState, type UpdateCommand } from '../main/update-contract.js';
+import { isWhatsNewNotes } from '../main/whats-new-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
 import type { AreaProgram } from '../storage/area-entry.js';
@@ -39,6 +40,8 @@ declare global {
     };
     appearance?: Appearance;
     menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void };
+    // What's new (QGD-FRM-0016): the notes, from the changelog that ships.
+    whatsNew?: { notes(since: string | null): Promise<unknown> };
     // A page in the browser, built by main from its register (QGD-SEC-0009).
     links?: { open(command: LinkCommand): Promise<boolean> };
     // Updates (QGD-FRM-0019): asked for once, then pushed when it changes.
@@ -75,7 +78,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseWelcome: closeWelcome, onStationFromSummit: stationFromSummit, onOpenPage: openPage, onAreaChoices: areaChoices, onAreaDefault: areaDefault, onSaveArea: saveArea,
+    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseUpdate: closeUpdate, onOpenWhatsNew: openWhatsNew, onCloseWhatsNew: closeWhatsNew, onStationFromSummit: stationFromSummit, onOpenPage: openPage, onAreaChoices: areaChoices, onAreaDefault: areaDefault, onSaveArea: saveArea,
     onSetLevel: setLogLevel, onExport: exportDiagnostics,
     onExportCallsigns: exportCallsigns, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreateCallsign: createCallsign, onSaveCredential: saveSetupCredential,
@@ -504,8 +507,11 @@ async function loadTheme(): Promise<void> {
   const reply = await window.settings.request({ type: 'read' });
   // A settings channel that cannot answer must not leave the window unthemed.
   if (reply.ok) themeChoice = reply.data.theme;
-  // The welcome, unless the operator hid it for this release (QGD-FRM-0016).
-  if (reply.ok && reply.data.welcomeHidden !== __QG_VERSION__) shell.set({ welcome: true });
+  // What's new (QGD-FRM-0016): a different version from the one last seen
+  // was an update, and Home says so in one line. A new install records its
+  // version and says nothing.
+  if (reply.ok && reply.data.seenVersion === '') void window.settings.request({ type: 'write', key: 'seenVersion', value: __QG_VERSION__ });
+  else if (reply.ok && reply.data.seenVersion !== __QG_VERSION__) shell.set({ updatedFrom: reply.data.seenVersion });
   if (reply.ok) shell.set({ area: reply.data.area, updateCheck: reply.data.updateCheck, updateTrack: reply.data.updateTrack });
   shell.set({ themeChoice });
   startTheme();
@@ -792,11 +798,25 @@ export async function lookUpParks(references: string): Promise<NamedReferences |
   return reply.ok ? reply.named : undefined;
 }
 
-// The welcome closed, by the operator or its own timer. Hidden for this
-// release only when they ticked the box (QGD-FRM-0016).
-export function closeWelcome(hideForThisRelease: boolean): void {
-  shell.set({ welcome: false });
-  if (hideForThisRelease) void window.settings.request({ type: 'write', key: 'welcomeHidden', value: __QG_VERSION__ });
+// What's new (QGD-FRM-0016). Home's line, closed, stays closed until the next
+// update; the notes are this version's, or every version's since the one
+// last seen when they are opened from that line.
+export function closeUpdate(): void {
+  shell.set({ updatedFrom: null });
+  void window.settings.request({ type: 'write', key: 'seenVersion', value: __QG_VERSION__ });
+}
+export function openWhatsNew(): void {
+  const since = shell.get().updatedFrom;
+  shell.set({ whatsNew: {} });
+  void window.whatsNew?.notes(since).then(notes => {
+    if (shell.get().whatsNew) shell.set({ whatsNew: isWhatsNewNotes(notes) ? { notes } : { notes: { version: __QG_VERSION__, sections: [] } } });
+  });
+}
+export function closeWhatsNew(): void {
+  const updated = shell.get().updatedFrom !== null;
+  shell.set({ whatsNew: null });
+  // Read from Home's line, the notes count as seen.
+  if (updated) closeUpdate();
 }
 
 // Help → Troubleshooting… opens the same panel as the status bar's button.
@@ -804,6 +824,7 @@ window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
 // The Setup menu (KI7MT, 2026-10-22): the places, the reference data, and
 // the pins. A reference download starts, and Settings shows it going.
 window.menu?.onSetup?.(action => {
+  if (action === 'whats-new') { openWhatsNew(); return; }
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   // My Area is the last card on Locations (KI7MT, 2026-10-23).

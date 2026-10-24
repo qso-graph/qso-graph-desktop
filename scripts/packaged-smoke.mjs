@@ -69,14 +69,12 @@ async function launch() {
 }
 try {
   await launch();
-  // QGD-FRM-0016: a new install shows the welcome, as WSJT-X does. Ticked
-  // and closed, it stays hidden for this release, which the relaunches below
-  // check. The packaged application ignores the suites' switch for it, so
-  // this is the operator's path.
-  await expect(page.locator('#welcome')).toBeVisible({ timeout: 30_000 });
-  await page.locator('#welcome-hide').check();
-  await page.locator('#close-welcome').click();
-  await expect(page.locator('#welcome')).toHaveCount(0);
+  // QGD-FRM-0016: a new install opens on Home with nothing over it and no
+  // line about an update: it records its version, which the relaunch below
+  // then finds changed.
+  await expect(page.locator('#home-pinned-title')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#whats-new')).toHaveCount(0);
+  await expect(page.locator('#update-strip')).toHaveCount(0);
   // The application opens on Home now (QGD-FRM-0011).
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
@@ -132,10 +130,24 @@ try {
   await page.getByLabel('Preferred credential', { exact: true }).selectOption('password');
   await expect(page.locator('#credential-effective')).toContainText('Selected for use: password');
   await expect(page.locator('#message')).toHaveText('Preferred credential saved.');
+  await stop();
+  // As if it had been updated from an earlier version (QGD-FRM-0016): Home
+  // says so in one line, the notes open from it, and once read the line is
+  // gone and stays gone across a restart.
+  const settingsFile = join(userData, 'settings.json');
+  const recorded = JSON.parse(await readFile(settingsFile, 'utf8'));
+  expect(recorded.seenVersion, 'a new install records the version it is').toMatch(/^\d+\.\d+\.\d+/);
+  await writeFile(settingsFile, JSON.stringify({ ...recorded, seenVersion: '0.0.1' }));
+  await launch();
+  await expect(page.locator('#update-strip')).toContainText('Updated to', { timeout: 30_000 });
+  await page.locator('#update-strip-notes').click();
+  await expect(page.locator('#whats-new')).toBeVisible();
+  await page.locator('#close-whats-new').click();
+  await expect(page.locator('#whats-new')).toHaveCount(0);
+  await expect(page.locator('#update-strip')).toHaveCount(0);
   await stop(); await launch();
-  // Hidden for this release: not shown again (QGD-FRM-0016).
-  await page.waitForTimeout(1500);
-  await expect(page.locator('#welcome')).toHaveCount(0);
+  await expect(page.locator('#home-pinned-title')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#update-strip')).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');

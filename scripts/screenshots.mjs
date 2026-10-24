@@ -314,7 +314,7 @@ try {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: join(directory, 'profile'),
+      QG_DESKTOP_PROFILE_DIR: join(directory, 'profile'),
       QG_DESKTOP_USER_DATA_DIR: join(directory, 'chromium'),
       QG_DESKTOP_LOG_DIR: logs,
       // Recorded NOAA responses, so Conditions draws the same every run and

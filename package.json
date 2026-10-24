@@ -58,6 +58,7 @@
       "package.json",
       "LICENSE",
       "NOTICE",
+      "CHANGELOG.md",
       "data/links.json",
       "data/reference-sources.json",
       "data/service-profiles.json",

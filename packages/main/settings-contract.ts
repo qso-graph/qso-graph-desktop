@@ -33,10 +33,10 @@ export interface Settings {
   // Locations and Settings alone, and the operator adds what they use (KI7MT,
   // 2026-10-23). An extension a later release brings arrives off too.
   extensionsOn: readonly string[];
-  // The release the operator ticked "Don't show this again" on the welcome
-  // for (QGD-FRM-0016), or empty. A new release does not match it, so the
-  // welcome shows once more, as WSJT-X's versioned setting does.
-  welcomeHidden: string;
+  // The version whose notes the operator has seen or closed (QGD-FRM-0016),
+  // or empty on a new install. A different version running means it was
+  // updated, and Home says so in one line until it is closed.
+  seenVersion: string;
   // My Area (KI7MT, 2026-10-23): the parts of POTA the operator works in, at
   // POTA's own three levels, a program (IT), an entity (291) or a location
   // (US-ID), at most MAX_AREA. Chosen before anything is fetched for them,
@@ -85,11 +85,11 @@ export const DAY_ONE_PINS: readonly string[] = [];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [],
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [],
   updateCheck: true, updateTrack: 'stable' };
 
-// A release name, as package.json writes one, or empty.
-export function isWelcomeHidden(value: unknown): value is string {
+// A version, as package.json writes one, or empty.
+export function isSeenVersion(value: unknown): value is string {
   return typeof value === 'string' && value.length <= 40 && /^[0-9A-Za-z.+-]*$/.test(value);
 }
 
@@ -178,7 +178,7 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean {
 const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Settings[K] } = {
   theme: isThemeChoice,
   grants: isGrantMap,
-  welcomeHidden: isWelcomeHidden,
+  seenVersion: isSeenVersion,
   area: isArea,
   updateCheck: isBoolean,
   updateTrack: isUpdateTrack
@@ -234,7 +234,7 @@ export function readSettings(stored: unknown): Settings {
   if (Object.hasOwn(source, 'grants')) settings.grants = readGrants(source.grants);
   read('pins', isPins);
   read('extensionsOn', isExtensionIds);
-  read('welcomeHidden', isWelcomeHidden);
+  read('seenVersion', isSeenVersion);
   read('area', isArea);
   read('updateCheck', isBoolean);
   read('updateTrack', isUpdateTrack);

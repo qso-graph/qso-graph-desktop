@@ -11,7 +11,7 @@ describe('the shell store', () => {
       // shell because what it shows is fetched while it is open: the logs
       // (QGD-LOG-0013, QGD-FRM-0012).
       troubleshooting: false,
-      welcome: false, customizing: false,
+      updatedFrom: null, whatsNew: null, customizing: false,
       // Not setup: that is decided once the callsigns have been read, so a
       // machine with callsigns never sees a frame of the setup screen
       // (QGD-PSN-0004).

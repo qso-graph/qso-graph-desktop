@@ -47,7 +47,7 @@ const secretReads = async () => {
     .filter(entry => entry?.msg === 'credential secret read').length;
 };
 
-const launch = () => electron.launch({ args: ['.'], cwd: process.cwd(), env: { ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }, timeout: 30_000 });
+const launch = () => electron.launch({ args: ['.'], cwd: process.cwd(), env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }, timeout: 30_000 });
 try {
   application = await launch();
   let page = await application.firstWindow();
@@ -77,7 +77,7 @@ try {
     const electronBinary = createElectronRequire(import.meta.url)('electron');
     const second = spawn(electronBinary, ['.'], {
       cwd: process.cwd(), stdio: 'ignore',
-      env: { ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }
+      env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs }
     });
     const exited = await Promise.race([
       once(second, 'exit').then(([code]) => code),

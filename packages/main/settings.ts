@@ -51,7 +51,7 @@ export function save(settings: Settings, directory = app.getPath('userData')): b
 // and would otherwise find the welcome over every page (QGD-FRM-0016). It is
 // honoured only by an unpackaged run, as the recorded NOAA responses are: a
 // packaged application always shows the welcome as the operator set it.
-export function startSettingsBroker(options: { welcomeOff?: boolean; version?: string } = {}): () => void {
+export function startSettingsBroker(): () => void {
   ipcMain.handle('settings:request', (event, command: unknown): SettingsReply => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) ||
         !validateSettingsCommand(command)) {
@@ -59,8 +59,7 @@ export function startSettingsBroker(options: { welcomeOff?: boolean; version?: s
       return { ok: false, error: 'Invalid settings request.' };
     }
     if (command.type === 'read') {
-      const settings = load();
-      return { ok: true, data: options.welcomeOff && options.version ? { ...settings, welcomeHidden: options.version } : settings };
+      return { ok: true, data: load() };
     }
 
     const settings = { ...load(), [command.key]: command.value } as Settings;

@@ -52,7 +52,7 @@ const settingsFile = join(userData, 'settings.json');
 const launch = async () => {
   const application = await electron.launch({
     args: ['.'], cwd: process.cwd(), timeout: 30_000,
-    env: { ...process.env, QG_DESKTOP_NO_WELCOME: '1', QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs, QG_DESKTOP_SOURCE_FIXTURES: FIXTURES }
+    env: { ...process.env, QG_DESKTOP_PROFILE_DIR: profile, QG_DESKTOP_USER_DATA_DIR: userData, QG_DESKTOP_LOG_DIR: logs, QG_DESKTOP_SOURCE_FIXTURES: FIXTURES }
   });
   const page = await application.firstWindow();
   await assertNoVisibleWindow(application, page, 'home-pages');
@@ -316,6 +316,16 @@ try {
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(item => item.label)))
     .toEqual(process.platform === 'darwin' ? ['QSO Graph Desktop', 'Edit', 'Setup', 'Tools', 'Help'] : ['File', 'Edit', 'Setup', 'Tools', 'Help']);
   console.log('Tools menu: Back Up and Restore land in Settings at their buttons; the menu bar has no Window menu: PASS');
+
+  // Help → What's New (QGD-FRM-0016): the notes, opened only when asked for,
+  // from the changelog that ships; a new profile shows no update line.
+  await expect(page.locator('#update-strip')).toHaveCount(0);
+  await setup('setup-whats-new');
+  await expect(page.locator('#whats-new')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('#whats-new section').first()).toBeVisible();
+  await page.locator('#close-whats-new').click();
+  await expect(page.locator('#whats-new')).toHaveCount(0);
+  console.log('Help -> What\'s New opens the changelog\'s notes; nothing opens by itself: PASS');
   console.log('P8-built-in: Conditions is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
   console.error('P8 Home pins suite failed.');

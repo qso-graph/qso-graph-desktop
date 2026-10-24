@@ -127,17 +127,17 @@ describe('QGD-SEC-0006 the settings channel rejects rather than coerces', () => 
 
 describe('QGD-ENG-0003 reading a settings file that is not what we wrote', () => {
   it('reads what is valid and defaults the rest, key by key', () => {
-    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [], updateCheck: true, updateTrack: 'stable' });
+    expect(readSettings({ theme: 'dark' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [], updateCheck: true, updateTrack: 'stable' });
     // A hand-edited or older file must not take the whole thing down.
-    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [], updateCheck: true, updateTrack: 'stable' });
-    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [], updateCheck: true, updateTrack: 'stable' });
-    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [], updateCheck: true, updateTrack: 'stable' });
-    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [], updateCheck: true, updateTrack: 'stable' });
+    expect(readSettings({ theme: 'sepia' })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [], updateCheck: true, updateTrack: 'stable' });
+    expect(readSettings({ unknown: true })).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [], updateCheck: true, updateTrack: 'stable' });
+    expect(readSettings(null)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [], updateCheck: true, updateTrack: 'stable' });
+    expect(readSettings('not an object')).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [], updateCheck: true, updateTrack: 'stable' });
   });
 
   it('ignores an inherited property rather than reading it as a setting', () => {
     const hostile = Object.create({ theme: 'dark' }) as Record<string, unknown>;
-    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], welcomeHidden: '', area: [], updateCheck: true, updateTrack: 'stable' });
+    expect(readSettings(hostile)).toEqual({ theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [], updateCheck: true, updateTrack: 'stable' });
   });
 });
 
@@ -321,17 +321,19 @@ describe('a withdrawal is never lost to a long grants map', () => {
   });
 });
 
-describe('QGD-FRM-0016: the welcome remembers the release it was hidden for', () => {
-  it('starts empty, so a new install shows it', () => {
-    expect(readSettings({}).welcomeHidden).toBe('');
+describe('QGD-FRM-0016: the version whose notes were seen', () => {
+  it('starts empty, so a new install is not taken for an update', () => {
+    expect(readSettings({}).seenVersion).toBe('');
+    // The retired welcome's setting is not read as one.
+    expect(readSettings({ welcomeHidden: '0.1.0' }).seenVersion).toBe('');
   });
 
-  it('keeps a release name, and nothing else', () => {
-    expect(readSettings({ welcomeHidden: '0.0.0-preview.1' }).welcomeHidden).toBe('0.0.0-preview.1');
-    expect(readSettings({ welcomeHidden: '<script>' }).welcomeHidden).toBe('');
-    expect(readSettings({ welcomeHidden: 7 }).welcomeHidden).toBe('');
-    expect(validateSettingsCommand({ type: 'write', key: 'welcomeHidden', value: '0.1.0' })).toBe(true);
-    expect(validateSettingsCommand({ type: 'write', key: 'welcomeHidden', value: 'x'.repeat(41) })).toBe(false);
+  it('keeps a version, and nothing else', () => {
+    expect(readSettings({ seenVersion: '0.1.0-202610232327-c3d4418fe54' }).seenVersion).toBe('0.1.0-202610232327-c3d4418fe54');
+    expect(readSettings({ seenVersion: '<script>' }).seenVersion).toBe('');
+    expect(readSettings({ seenVersion: 7 }).seenVersion).toBe('');
+    expect(validateSettingsCommand({ type: 'write', key: 'seenVersion', value: '0.1.0' })).toBe(true);
+    expect(validateSettingsCommand({ type: 'write', key: 'seenVersion', value: 'x'.repeat(41) })).toBe(false);
   });
 });
 
