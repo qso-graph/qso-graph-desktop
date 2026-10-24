@@ -39,9 +39,11 @@
     <ul id="callsign-list" class="extension-list station-list"></ul>
     <p class="hint">Your own call, a club call, or a special-event call. Each has its own logins.</p>
   </section>
+  <!-- The callsign being edited, or Add a callsign, over its two cards. -->
+  <h2 id="page-title" class="editing-title">Add a callsign</h2>
   <p id="message" role="status" aria-live="polite"></p>
   <section class="card" aria-labelledby="identity-title">
-    <h2 id="identity-title"><span id="page-title">Add a callsign</span></h2>
+    <h2 id="identity-title">Callsign details</h2>
     <form id="callsign-form">
       <div class="fields"><label>Description<input id="callsign-description" name="name" maxlength="64" placeholder="Optional: Home, Portable" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off" use:caseAsTyped={'upper'}></label></div>
       <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label><span>End date <span class="optional">optional</span></span><input id="end-date" type="date" name="end"></label></div>

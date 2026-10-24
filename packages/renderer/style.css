@@ -212,6 +212,7 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 .rail-icon { width: 19px; height: 19px; display: block; }
 .rail-label { display: block; }
 h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.editing-title { font-size: 20px; margin: 22px 0 10px; }
 /* The callsign being edited, among the rows (#70). */
 .callsign-row.selected .extension-name { color: var(--hue-callsigns); }
 .callsign-row .extension-name { font-weight: 600; }
