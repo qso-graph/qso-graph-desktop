@@ -43,6 +43,7 @@
   held (QGD-HOM-0007). Grants are not shown here (QGD-APP-0012.1).
 -->
 <script lang="ts">
+  import { versionName } from '../../ui/release.js';
   import { FONT_AWESOME_CREDIT } from '../../main/attribution.js';
   import MoveCallsignsPage from './MoveCallsignsPage.svelte';
   import UpdatesCard from './UpdatesCard.svelte';
@@ -90,6 +91,8 @@
     onCheckUpdates?: () => void;
     onRestartToUpdate?: () => void;
     onOpenRelease?: () => void;
+    // What's New, from About (KI7MT, 2026-10-24).
+    onOpenWhatsNew?: () => void;
   }
   const {
     version = '', themeChoice, onChooseTheme, extensions, refusedExtensions = [], onSetExtension = () => Promise.resolve(false),
@@ -99,7 +102,8 @@
     onInspectBackup = () => Promise.resolve('Restoring is not available here.'),
     onRestore = () => Promise.resolve('Restoring is not available here.'),
     update, updateCheck = true, updateTrack = 'stable',
-    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease
+    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease,
+    onOpenWhatsNew = () => {}
   }: Props = $props();
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
@@ -185,6 +189,9 @@
         <button type="button" class="secondary" id={`open-${name}`} onclick={() => onOpenDocument(name)}>{label}</button>
       {/each}
     </div>
+    <!-- The notes for this version, above the icons' credit (KI7MT,
+         2026-10-24), as Help → What's New opens them. -->
+    <p class="about-whats-new"><button type="button" class="link-button" id="about-whats-new" onclick={onOpenWhatsNew}>What's New in {versionName(version)}</button></p>
     <p class="hint about-credit" id="about-credit">QSO Graph contributors. GPL-3.0-or-later.<br>{#each FONT_AWESOME_CREDIT.split('\n') as line, i (i)}{line}<br>{/each}</p>
   </section>
 

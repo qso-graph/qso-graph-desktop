@@ -285,7 +285,7 @@
       <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
         onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport}
         update={shell.update} updateCheck={shell.updateCheck} updateTrack={shell.updateTrack}
-        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onRestartToUpdate} {onOpenRelease} />
+        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onRestartToUpdate} {onOpenRelease} {onOpenWhatsNew} />
     </div>
   </main>
 </div>

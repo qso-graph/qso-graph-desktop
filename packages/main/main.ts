@@ -427,7 +427,12 @@ if (!app.requestSingleInstanceLock()) {
       // repository, which is the one place each is kept (QGD-FRM-0015,
       // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
-        // The notes for this version, from the changelog (QGD-FRM-0016).
+        // About and What's New first, in a section of their own (KI7MT,
+        // 2026-10-24): About is Settings' About card, on every platform, and
+        // in macOS's application menu as well, where Apple puts it; What's
+        // New is the notes for this version, from the changelog
+        // (QGD-FRM-0016).
+        setupItem('about', 'About QSO Graph Desktop'),
         setupItem('whats-new', 'What\'s New'),
         { type: 'separator' },
         ...HELP_DOCUMENTS.map(([name, label]) => ({
@@ -442,13 +447,7 @@ if (!app.requestSingleInstanceLock()) {
             const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
             if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
           }
-        },
-        // About, where Windows and Linux keep it; macOS has it in the
-        // application's own menu.
-        // On every platform, as Help → About; macOS has it in the application
-        // menu as well, where Apple puts it.
-        { type: 'separator' as const },
-        setupItem('about', 'About QSO Graph Desktop')
+        }
       ] }
     ]));
     createWindow();

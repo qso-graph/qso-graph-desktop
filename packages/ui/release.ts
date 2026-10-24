@@ -8,8 +8,12 @@ export const HIGHLIGHT = 'Parks On the Air near you, even offline; the sun, the 
 // Desktop v0.1.0", or for a preview, whose version names its commit and is
 // too long for a title bar, the release it leads to: "v0.1.1 preview".
 export function windowTitle(version: string): string {
+  const name = versionName(version);
+  return name ? `QSO Graph Desktop ${name}` : 'QSO Graph Desktop';
+}
+
+// A version as the screens name it: "v0.1.0", or "v0.1.1 preview".
+export function versionName(version: string): string {
   const [release, ...rest] = version.split('-');
-  return /^\d+\.\d+\.\d+$/.test(release)
-    ? `QSO Graph Desktop v${release}${rest.length > 0 ? ' preview' : ''}`
-    : 'QSO Graph Desktop';
+  return /^\d+\.\d+\.\d+$/.test(release) ? `v${release}${rest.length > 0 ? ' preview' : ''}` : '';
 }
