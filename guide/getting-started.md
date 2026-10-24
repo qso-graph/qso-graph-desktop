@@ -30,8 +30,8 @@ to follow.
 **Locations → Add a location**: the place you operate from. Enter its grid square, DXCC entity,
 CQ and ITU zones and state; **Fill the county** fills the county, and the ARRL section with it,
 the way LoTW wants them. Add POTA, SOTA, WWFF or IOTA references if it has them, or start the whole
-Location from a park or a summit with **A location from a POTA park** or **A location from a SOTA
-summit**, which fill in its grid and state for you to check.
+Location from a park or a summit with **Add location from a POTA park** or **Add location from a
+SOTA summit**, which fill in its grid and state for you to check.
 
 **Make active** chooses the Location you are at; the status bar shows it beside the callsign.
 
