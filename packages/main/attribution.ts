@@ -3,7 +3,7 @@
 //
 // Attribution for third-party material that ships inside the application.
 // Font Awesome Free icons are CC BY 4.0, which requires it. NOTICE is the
-// written record; the About panel is the one a user can reach, and this is
+// written record; Settings' About is the one a user can reach, and this is
 // what it says. tests/icons.test.mjs holds the two to each other.
 export const FONT_AWESOME_VERSION = '7.3.1';
 

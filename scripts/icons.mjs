@@ -9,7 +9,7 @@
 // test that holds the copy to the package.
 //
 // Font Awesome Free icons are CC BY 4.0, which requires attribution. That is
-// what NOTICE and the About panel are for, and a test keeps them honest.
+// what NOTICE and Settings' About are for, and a test keeps them honest.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
@@ -61,7 +61,7 @@ export function extract({ name, style }) {
   return { viewBox: viewBox[1], path: paths[0] };
 }
 
-// The credit the About panel shows, and the version it names. A separate
+// The credit Settings' About shows, and the version it names. A separate
 // module from the icon geometry because the main process needs it and must
 // never import from packages/renderer: Vite empties dist/renderer on every build,
 // so a main-process import of a file in that tree resolves at compile time and
@@ -73,7 +73,7 @@ export function renderAttribution() {
 //
 // Attribution for third-party material that ships inside the application.
 // Font Awesome Free icons are CC BY 4.0, which requires it. NOTICE is the
-// written record; the About panel is the one a user can reach, and this is
+// written record; Settings' About is the one a user can reach, and this is
 // what it says. tests/icons.test.mjs holds the two to each other.
 export const FONT_AWESOME_VERSION = '${version}';
 
@@ -101,7 +101,7 @@ export function render() {
 // a hand-edited copy fails tests/icons.test.mjs, which re-reads the package.
 //
 // Font Awesome Free ${version} — icon geometry under CC BY 4.0.
-// https://fontawesome.com · attribution in NOTICE and in the About panel.
+// https://fontawesome.com · attribution in NOTICE and in Settings' About.
 //
 // Vendored rather than loaded: QGD-SEC-0008 allows the renderer no font and no
 // image, and inline SVG markup is neither.

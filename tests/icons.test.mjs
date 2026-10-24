@@ -57,10 +57,13 @@ describe('QGD-REP-0005: third-party material carries its attribution', () => {
 
   it('puts it in a surface the user can reach', async () => {
     // QGD-REP-0005: NOTICE is the record, and a file in the repository is not
-    // somewhere a user can be expected to look. The About panel is.
+    // somewhere a user can be expected to look. Settings' About is, and Help →
+    // About opens it (KI7MT, 2026-10-24).
+    const settings = await readFile('packages/renderer/pages/SettingsPage.svelte', 'utf8');
+    expect(settings).toContain('FONT_AWESOME_CREDIT');
+    expect(settings).toContain('id="about-credit"');
     const main = await readFile('packages/main/main.ts', 'utf8');
-    expect(main).toContain('setAboutPanelOptions');
-    expect(main).toContain('FONT_AWESOME_CREDIT');
+    expect(main).toContain("setupItem('about', 'About QSO Graph Desktop')");
     const attribution = await readFile('packages/main/attribution.ts', 'utf8');
     expect(attribution).toContain('Fonticons, Inc.');
     expect(attribution).toContain('CC BY 4.0');

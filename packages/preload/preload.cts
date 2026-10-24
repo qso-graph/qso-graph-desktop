@@ -53,7 +53,7 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
 }));
 // The Help menu's Troubleshooting (KI7MT, 2026-10-22): main says it was
 // chosen and the window opens the panel. No payload: the signal is all.
-const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins', 'settings', 'export-callsigns', 'import-callsigns', 'area', 'whats-new'];
+const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins', 'settings', 'export-callsigns', 'import-callsigns', 'area', 'whats-new', 'about'];
 contextBridge.exposeInMainWorld('menu', Object.freeze({
   onTroubleshooting: (listener: () => void) => {
     if (typeof listener !== 'function') return () => undefined;

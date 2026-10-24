@@ -3,7 +3,7 @@
 // a hand-edited copy fails tests/icons.test.mjs, which re-reads the package.
 //
 // Font Awesome Free 7.3.1 — icon geometry under CC BY 4.0.
-// https://fontawesome.com · attribution in NOTICE and in the About panel.
+// https://fontawesome.com · attribution in NOTICE and in Settings' About.
 //
 // Vendored rather than loaded: QGD-SEC-0008 allows the renderer no font and no
 // image, and inline SVG markup is neither.

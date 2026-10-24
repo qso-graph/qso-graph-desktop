@@ -43,6 +43,7 @@
   held (QGD-HOM-0007). Grants are not shown here (QGD-APP-0012.1).
 -->
 <script lang="ts">
+  import { FONT_AWESOME_CREDIT } from '../../main/attribution.js';
   import MoveCallsignsPage from './MoveCallsignsPage.svelte';
   import UpdatesCard from './UpdatesCard.svelte';
   import type { UpdateTrack } from '../../main/settings-contract.js';
@@ -164,8 +165,9 @@
        2026-10-22: moved from Home, and at the top of Settings): the version,
        and what the application sends anywhere, said precisely, because it
        reaches out on its own for reference data and pinned cards
-       (QGD-REF-0001, QGD-REF-0009). The menu's own About panel keeps the
-       third-party attribution. -->
+       (QGD-REF-0001, QGD-REF-0009). Help → About and the macOS application
+       menu's About open this card (KI7MT, 2026-10-24), so it carries the
+       attribution CC BY 4.0 requires for the icons (QGD-REP-0005). -->
   <section class="card" aria-labelledby="about-title">
     <h2 id="about-title">About QSO Graph Desktop</h2>
     <dl class="facts">
@@ -183,6 +185,7 @@
         <button type="button" class="secondary" id={`open-${name}`} onclick={() => onOpenDocument(name)}>{label}</button>
       {/each}
     </div>
+    <p class="hint about-credit" id="about-credit">QSO Graph contributors. GPL-3.0-or-later.<br>{#each FONT_AWESOME_CREDIT.split('\n') as line, i (i)}{line}<br>{/each}</p>
   </section>
 
   <UpdatesCard {update} check={updateCheck} track={updateTrack}

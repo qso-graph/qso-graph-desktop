@@ -316,7 +316,7 @@ export const NETWORK_EXCEPTIONS = {};
 //
 // It is deliberately not applied to the whole product, where a URL is
 // ordinarily attribution — the Font Awesome and Creative Commons links the
-// licence requires the About panel to show — or an entry in the
+// licence requires Settings' About to show — or an entry in the
 // shell.openExternal allowlist, which QGD-SEC-0009 governs instead.
 export function hardCodedHosts(source, file = 'the fetching module') {
   const found = [];

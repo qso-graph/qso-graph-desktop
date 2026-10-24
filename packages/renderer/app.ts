@@ -861,6 +861,12 @@ window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
 // the pins. A reference download starts, and Settings shows it going.
 window.menu?.onSetup?.(action => {
   if (action === 'whats-new') { openWhatsNew(); return; }
+  // About (KI7MT, 2026-10-24): Settings' About card.
+  if (action === 'about') {
+    shell.set({ page: 'settings', extensionPage: null });
+    requestAnimationFrame(() => document.getElementById('about-title')?.scrollIntoView({ block: 'start' }));
+    return;
+  }
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   // My Area is the last card on Locations (KI7MT, 2026-10-23).

@@ -11,6 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Settings → Updates takes two lines**: the switch, then Stable or Early, what the last check
   found, and Check now.
+- **Help → About QSO Graph Desktop** (and, on macOS, the application menu's About) opens Settings →
+  About: the version, what the application sends anywhere, the project's documents, and the icons'
+  credit.
 
 ### Fixed
 
