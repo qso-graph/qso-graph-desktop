@@ -10,6 +10,13 @@ on:
     branches: [develop, main]
   pull_request:
     branches: [develop, main]
+  # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
+  # time, so they are paid once a night and on releases, never on an
+  # ordinary push. GitHub runs a schedule from the default branch, main, so
+  # this starts once this file is on main; until then a signed Preview is
+  # Run workflow by hand.
+  schedule:
+    - cron: '0 7 * * *'
   workflow_dispatch:
     inputs:
       mac_only:
@@ -32,9 +39,56 @@ env:
   SUITES: keychain-roundtrip,credential-editing,callsign-export,electron-smoke,home-pages,stations,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
 
 jobs:
+  # What this run is for, decided once:
+  #   ref       what to build: develop at night, else what was pushed
+  #   sign      sign and notarize the Mac build: nightly, by hand, and main
+  #   preview   publish the Preview: nightly, or a full run by hand on develop
+  #   run       false when a night finds develop already published
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ref: ${{ steps.plan.outputs.ref }}
+      sha: ${{ steps.plan.outputs.sha }}
+      sign: ${{ steps.plan.outputs.sign }}
+      preview: ${{ steps.plan.outputs.preview }}
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - id: plan
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          MAC_ONLY: ${{ inputs.mac_only }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ref=""; sha="$SHA"; sign=false; preview=false; run=true
+          case "$EVENT" in
+            schedule)
+              ref=develop
+              sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/develop | cut -f1)
+              published=$(git ls-remote "https://github.com/${REPO}.git" refs/tags/preview | cut -f1)
+              sign=true; preview=true
+              if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "develop is already the Preview ($sha)."; fi
+              ;;
+            workflow_dispatch)
+              if [ "$REF" = refs/heads/develop ] || [ "$REF" = refs/heads/main ]; then sign=true; fi
+              if [ "$REF" = refs/heads/develop ] && [ "$MAC_ONLY" != true ]; then preview=true; fi
+              ;;
+            push)
+              if [ "$REF" = refs/heads/main ]; then sign=true; fi
+              ;;
+          esac
+          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "preview=$preview"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT ref=${ref:-$REF} sign=$sign preview=$preview run=$run"
+
   check:
     name: check (${{ matrix.os }})
-    if: ${{ !inputs.mac_only }}
+    needs: [plan]
+    if: ${{ needs.plan.outputs.run == 'true' && !inputs.mac_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +101,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The night's build is of develop, wherever the schedule runs from.
+          ref: ${{ needs.plan.outputs.ref }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -107,7 +163,8 @@ jobs:
 
   window:
     name: window (${{ matrix.os }})
-    if: ${{ !inputs.mac_only }}
+    needs: [plan]
+    if: ${{ needs.plan.outputs.run == 'true' && !inputs.mac_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -120,6 +177,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The night's build is of develop, wherever the schedule runs from.
+          ref: ${{ needs.plan.outputs.ref }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -203,12 +262,14 @@ jobs:
   # certificate.
   package:
     name: package (${{ matrix.os }})
-    needs: [check, window]
+    needs: [plan, check, window]
     # After both test jobs pass; or alone, for a macOS-only run by hand.
-    if: ${{ !cancelled() && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
-    environment: ${{ (matrix.os == 'macos-latest' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')) && 'macos-signing' || '' }}
+    if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
+    # The signing secrets reach only a run plan says signs, and the
+    # Environment itself releases them only on develop and main.
+    environment: ${{ (matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true') && 'macos-signing' || '' }}
     env:
-      SIGN_MAC: ${{ matrix.os == 'macos-latest' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
+      SIGN_MAC: ${{ matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -223,6 +284,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The night's build is of develop, wherever the schedule runs from.
+          ref: ${{ needs.plan.outputs.ref }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -269,11 +332,12 @@ jobs:
       # date and time and the commit (docs/RELEASES.md), here, never in a
       # commit. The commit's time, so all four platforms carry one version.
       - name: Preview version
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/develop' || needs.plan.outputs.ref == 'develop'
         shell: bash
         run: |
           stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
-          npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${GITHUB_SHA::11}"
+          commit=$(git rev-parse HEAD)
+          npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${commit::11}"
           node -p "require('./package.json').version"
       - name: Installers
         if: env.SIGN_MAC != 'true'
@@ -375,8 +439,8 @@ jobs:
   # token, so no other credential is held here.
   preview:
     name: preview release
-    needs: [package]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [plan, package]
+    if: ${{ !cancelled() && needs.plan.outputs.preview == 'true' && needs.package.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -391,7 +455,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ needs.plan.outputs.sha }}
         run: |
           cd preview
           sha256sum -- * > SHA256SUMS.txt
@@ -400,7 +464,7 @@ jobs:
           {
             echo "Built from develop at ${SHA}: version ${version}."
             echo
-            echo "A preview to test, not a release (docs/RELEASES.md). Each green build of develop replaces it."
+            echo "A preview to test, not a release (docs/RELEASES.md). Rebuilt each night develop has changed."
             echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
             echo
             echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
@@ -418,7 +482,7 @@ jobs:
   # trigger. Promoting it to a full release is .github/workflows/promote.yml.
   release:
     name: pre-release
-    needs: [package]
+    needs: [plan, package]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30

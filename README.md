@@ -20,8 +20,8 @@ radio extensions build on.** One app for your station, with the tools you choose
 - **macOS:** a disk image. Drag it to Applications. Apple silicon.
 
 **Where:** the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). Until the
-first release, the **Preview** there is the newest build of `develop`, replaced each time one passes
-its tests: every installer is its own download, each `.zip` is a portable build you unpack and run,
+first release, the **Preview** there is the newest build of `develop`, rebuilt each night `develop`
+has changed and passed its tests: every installer is its own download, each `.zip` is a portable build you unpack and run,
 and `SHA256SUMS.txt` lets you check a download. It is a preview to test, not a release. The macOS
 build is signed and notarized by Apple, so it opens like any other app; Windows is unsigned for now,
 so SmartScreen warns the first time it runs. How versions and releases are
@@ -35,8 +35,8 @@ extension API anyone can build on, and you choose which ones run. Today the appl
 own official extensions; extensions by other authors arrive once the sandbox they run in is
 finished. Want to write one? See [CONTRIBUTING.md](CONTRIBUTING.md#writing-an-extension).
 
-> **Preview:** until Release 1, the download is the **Preview** on the Releases page, rebuilt from
-> each build of `develop` that passes its tests.
+> **Preview:** until Release 1, the download is the **Preview** on the Releases page, rebuilt each
+> night from `develop` when it has changed and passed its tests.
 
 The core gives every extension, for free:
 

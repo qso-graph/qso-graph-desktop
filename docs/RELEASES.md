@@ -31,11 +31,23 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 
 | Kind | Built from | Version and tag | Published | For |
 |---|---|---|---|---|
-| **Preview** | each green build of develop | the next version, the UTC date and time of the commit, and the commit: `0.2.0-202610230124-34d3a62a1b0` | **one** pre-release named **Preview** on this repository's Releases page, tag `preview`, replaced by each green build | testing what is on develop, every day |
+| **Preview** | develop, each night it has changed and passed its tests | the next version, the UTC date and time of the commit, and the commit: `0.2.0-202610230124-34d3a62a1b0` | **one** pre-release named **Preview** on this repository's Releases page, tag `preview`, replaced each night | testing what is on develop, every day |
 | **Pre-release** | main, after a release PR from develop | the version itself, no suffix: `v0.2.0`, then `v0.2.1`, `v0.2.2` for fixes | a **pre-release** on this repository's Releases page | testing a release before it is called final |
 | **Release** | the same build as the pre-release it was | unchanged: `v0.2.1` | the pre-release **promoted** to a full release, marked **Latest** | everyone |
 
 ### Previews
+
+- **Built each night, not on each push** (KI7MT, 2026-10-24). Signing and
+  notarizing the Mac build cost minutes every time, Apple's queue included,
+  so they are paid once a night and on releases. A push to develop is tested
+  and packaged, unsigned, and publishes nothing. The night's run builds
+  develop, signs and notarizes it, and replaces the Preview, and does nothing
+  at all when develop is what the Preview already is. GitHub runs a schedule
+  from main, so the nightly starts once this workflow is on main; until then,
+  and whenever one is wanted sooner, **Actions → CI → Run workflow** on
+  develop makes the same signed Preview. Ticking **mac_only** builds, signs,
+  notarizes and launches only the Mac package and publishes nothing, for
+  work on signing itself.
 
 - A preview's version is `<next version>-<YYYYMMDDHHMM>-<commit>`: the version
   develop is heading for, the **commit's** UTC date and time to the minute, and
@@ -46,7 +58,7 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
   is added by the build and never committed.
 - **There is one preview at a time**, on this repository's Releases page: a
   pre-release named Preview, tag `preview`, with every installer as its own
-  download. Each green build of develop replaces it, files, tag and all. Old
+  download. Each night's build replaces it, files, tag and all. Old
   previews are not kept (KI7MT, 2026-10-23: "we dont have hundreds of
   contributors"). Podman Desktop keeps a history of its previews in a
   repository of their own; that needs a credential for another repository in
