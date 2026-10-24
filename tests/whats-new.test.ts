@@ -55,3 +55,12 @@ describe('which notes', () => {
     expect(validateWhatsNewCommand({ type: 'notes', since: null, file: 'x' })).toBe(false);
   });
 });
+
+describe('the window title names the version', () => {
+  it('a release by its version, a preview by the release it leads to', async () => {
+    const { windowTitle } = await import('../packages/ui/release.js');
+    expect(windowTitle('0.1.0')).toBe('QSO Graph Desktop v0.1.0');
+    expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 preview');
+    expect(windowTitle('nonsense')).toBe('QSO Graph Desktop');
+  });
+});

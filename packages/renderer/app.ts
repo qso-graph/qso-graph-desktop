@@ -15,6 +15,7 @@ import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } fro
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
 import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
+import { windowTitle } from '../ui/release.js';
 import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
@@ -66,6 +67,8 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
+// The version in the window's title bar (KI7MT, 2026-10-24).
+document.title = windowTitle(__QG_VERSION__);
 // Home's pins and the open page: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
 home.start();
