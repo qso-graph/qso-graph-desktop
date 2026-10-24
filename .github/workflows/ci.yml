@@ -357,18 +357,21 @@ jobs:
         if: env.SIGN_MAC != 'true' && env.SIGN_WIN != 'true'
         run: npm run installer
       # Windows, signed in KI7MT's name (#81). Azure is signed in to with
-      # GitHub's token for this Environment: there is no secret to hold,
-      # and the three IDs are the Environment's variables, not the repo's.
+      # GitHub's token for this Environment, so no credential is held. The
+      # three IDs only say which Azure app, directory and subscription;
+      # they are kept as the Environment's secrets so they stay masked and
+      # out of the public repository and its logs.
       - name: Azure sign-in for signing (Windows)
         if: env.SIGN_WIN == 'true'
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      # electron-builder signs each executable, the native core and the
-      # installer with Microsoft's TrustedSigning module, which uses the
-      # sign-in above. The account, profile and endpoint are names, not
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # electron-builder signs each executable, the native core (signExts in
+      # package.json: a list, which -c on the command line cannot give; #84,
+      # found by Turing) and the installer with Microsoft's TrustedSigning
+      # module, which uses the sign-in above. The account, profile and endpoint are names, not
       # secrets; the publisher is the certificate's, as Windows shows it.
       - name: Installers, signed (Windows)
         if: env.SIGN_WIN == 'true'
@@ -379,7 +382,6 @@ jobs:
           -c.win.azureSignOptions.endpoint=https://wus2.codesigning.azure.net
           -c.win.azureSignOptions.codeSigningAccountName=qsographsigning
           -c.win.azureSignOptions.certificateProfileName=qso-graph
-          -c.win.signExts=.node
       # What Windows will say: every executable, the native core and the
       # installer validly signed, by Gregory Beam and nobody else.
       - name: Signatures (Windows)
