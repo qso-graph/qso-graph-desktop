@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Windows builds are signed** in the developer's name, Gregory Beam (KI7MT), as the macOS builds
   are: Windows shows who published the installer instead of an unknown publisher.
+- **A Windows update is installed only when it is signed by the same publisher** as the copy that
+  is running, as on macOS. One that isn't is removed, and Settings → Updates says why.
 
 ## [0.1.3] - 2026-10-24
 

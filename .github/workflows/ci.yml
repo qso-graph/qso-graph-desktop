@@ -70,7 +70,8 @@ jobs:
             schedule)
               ref=develop
               sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/develop | cut -f1)
-              published=$(git ls-remote "https://github.com/${REPO}.git" refs/tags/preview | cut -f1)
+              # The Preview's tag is v<next>-preview (the preview job).
+              published=$(git ls-remote "https://github.com/${REPO}.git" 'refs/tags/v*-preview' | head -n1 | cut -f1)
               sign=true; preview=true
               if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "develop is already the Preview ($sha)."; fi
               ;;
@@ -517,18 +518,31 @@ jobs:
           sha256sum -- * > SHA256SUMS.txt
           ls -la
           version=$(ls qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's/^qso-graph-desktop-(.*)-linux-x86_64\.AppImage$/\1/')
+          # The release it previews: 0.2.0 from 0.2.0-202610242217-5b9f1d97905.
+          next=${version%%-*}
+          # Tagged v<next>-preview, so GitHub's Releases page, which sorts by
+          # version and puts a tag that is not one last, shows it at the top,
+          # above every released version and below <next> once that is out
+          # (KI7MT, 2026-10-24: "they are not visible on my screen").
+          tag="v${next}-preview"
           {
-            echo "Built from develop at ${SHA}: version ${version}."
+            echo "**A preview of ${next}**, built from develop at ${SHA} (version ${version})."
             echo
-            echo "A preview to test, not a release (docs/RELEASES.md). Rebuilt each night develop has changed."
-            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
+            echo "For testing what is coming, not for running your station (docs/RELEASES.md). Rebuilt each night develop has changed."
             echo
-            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
+            echo "- **Windows:** signed by Gregory Beam (KI7MT). The signature is new, so Edge may say the file isn't commonly downloaded (**Keep**), and Windows may say it protected your PC: **More info** shows the publisher, then **Run anyway**."
+            echo "- **macOS:** signed and notarized by Apple."
+            echo "- A **.zip** is the portable build: unpack it anywhere and run it."
+            echo
             echo "Check a download against **SHA256SUMS.txt**."
           } > ../notes.md
-          gh release delete preview --repo "$REPO" --cleanup-tag --yes || true
-          gh release create preview --repo "$REPO" --prerelease --target "$SHA" \
-            --title "Preview ${version}" --notes-file ../notes.md -- *
+          # One Preview at a time: the one before, under its old tag or the
+          # plain `preview` it used to have, goes first, tag and all.
+          gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' \
+            | grep -E '^(preview|v[0-9]+\.[0-9]+\.[0-9]+-preview)$' \
+            | while read -r old; do gh release delete "$old" --repo "$REPO" --cleanup-tag --yes; done
+          gh release create "$tag" --repo "$REPO" --prerelease --target "$SHA" \
+            --title "Preview of ${next}" --notes-file ../notes.md -- *
 
   # A merged release PR (docs/RELEASES.md): main's build published as a
   # pre-release with its final version, v<version>, every installer its own
