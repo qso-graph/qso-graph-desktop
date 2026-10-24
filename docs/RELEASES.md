@@ -31,7 +31,7 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 
 | Kind | Built from | Version and tag | Published | For |
 |---|---|---|---|---|
-| **Preview** | develop, each night it has changed and passed its tests | the next version, the UTC date and time of the commit, and the commit: `0.2.0-202610230124-34d3a62a1b0` | **one** pre-release named **Preview** on this repository's Releases page, tag `preview`, replaced each night | testing what is on develop, every day |
+| **Preview** | develop, each night it has changed and passed its tests | the next version, the UTC date and time of the commit, and the commit: `0.2.0-202610230124-34d3a62a1b0` | **one** pre-release, **Preview of 0.2.0**, tag `v0.2.0-preview`, at the top of this repository's Releases page, replaced each night | testing what is on develop, every day |
 | **Pre-release** | main, after a release PR from develop | the version itself, no suffix: `v0.2.0`, then `v0.2.1`, `v0.2.2` for fixes | a **pre-release** on this repository's Releases page | testing a release before it is called final |
 | **Release** | the same build as the pre-release it was | unchanged: `v0.2.1` | the pre-release **promoted** to a full release, marked **Latest** | everyone |
 
@@ -57,8 +57,12 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
   at its own moment, and every file of one preview must carry one version. It
   is added by the build and never committed.
 - **There is one preview at a time**, on this repository's Releases page: a
-  pre-release named Preview, tag `preview`, with every installer as its own
-  download. Each night's build replaces it, files, tag and all. Old
+  pre-release named **Preview of** the next version, tagged `v<next>-preview`
+  (`v0.2.0-preview`), with every installer as its own download. The tag is
+  shaped like a version so that GitHub, which sorts its Releases page by
+  version and puts anything else last, shows it at the top (KI7MT,
+  2026-10-24: under the plain tag `preview` it was the last entry, and
+  nobody found it). Each night's build replaces it, files, tag and all. Old
   previews are not kept (KI7MT, 2026-10-23: "we dont have hundreds of
   contributors"). Podman Desktop keeps a history of its previews in a
   repository of their own; that needs a credential for another repository in
