@@ -867,6 +867,20 @@ window.menu?.onSetup?.(action => {
     requestAnimationFrame(() => document.getElementById('about-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
+  // Check for Updates… (KI7MT, 2026-10-24): main has started the check;
+  // Settings' Updates card shows it.
+  if (action === 'updates') {
+    shell.set({ page: 'settings', extensionPage: null });
+    requestAnimationFrame(() => document.getElementById('updates-title')?.scrollIntoView({ block: 'start' }));
+    return;
+  }
+  // Save Diagnostics for Support… (KI7MT, 2026-10-24): Troubleshooting's
+  // export, the same save dialog and the same redacted archive.
+  if (action === 'diagnostics') {
+    shell.set({ troubleshooting: true });
+    requestAnimationFrame(() => document.getElementById('export-diagnostics')?.click());
+    return;
+  }
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   // My Area is the last card on Locations (KI7MT, 2026-10-23).

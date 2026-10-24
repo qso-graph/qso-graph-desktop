@@ -11,6 +11,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **The window opens where you left it**: the same place and size, and maximized if it was, unless
   that place is no longer on a screen.
+- **A View menu**: Zoom In, Zoom Out and Actual Size (Ctrl or ⌘ with +, − and 0, or with the mouse
+  wheel), from 80% to 150%, and Full Screen.
+- **Menus where each platform keeps them**: on macOS, Settings… (⌘,) and Check for Updates… are in
+  the QSO Graph Desktop menu; on Windows and Linux, Settings… (Ctrl+,) is in Setup and Check for
+  Updates… in Help.
+- **My POTA Focus Area…** is in the Setup menu only while Parks On the Air is turned on.
+- **Help → Save Diagnostics for Support…** saves the redacted diagnostics archive for you to attach to
+  a report yourself. Nothing is sent for you.
+- **The status bar's callsign and Location** each open their page, to change them, and the empty
+  slot beside them is gone.
 
 ### Fixed
 

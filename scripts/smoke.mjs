@@ -449,11 +449,16 @@ try {
   }
 
   // ---- P4-screens and P4-shell-starts-without-it -------------------------
-  // QGD-FRM-0012: storage has no indicator of its own. The status bar holds
-  // the data-context slot instead, empty until an application holds data.
+  // QGD-FRM-0012: storage has no indicator of its own, and there is no
+  // empty data slot until an application holds data (KI7MT, 2026-10-24).
+  // The callsign and the Location are each a way to its page.
   await expect(page.locator('#engine-indicator'), 'the database indicator is gone').toHaveCount(0);
-  await expect(page.locator('#data-context')).toHaveAttribute('data-empty', 'true');
-  await expect(page.locator('#data-context')).toHaveText('');
+  await expect(page.locator('#data-context'), 'no empty data slot').toHaveCount(0);
+  const sections = page.getByRole('navigation', { name: 'Sections' });
+  await page.locator('#active-station').click();
+  await expect(sections.getByRole('button', { name: 'Locations', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.locator('#active-callsign').click();
+  await expect(sections.getByRole('button', { name: 'Callsigns', exact: true })).toHaveAttribute('aria-current', 'page');
   // QGD-ENG-0003: nothing above waited for storage, and the shell was usable
   // throughout. Its detail is behind Troubleshooting (QGD-LOG-0013).
   await page.locator('#open-troubleshooting').click();
@@ -649,7 +654,7 @@ try {
   console.log(`No secret read without asking: ${notesSecrets}: PASS`);
   console.log(`Every Test button explains itself and none looks busy: ${notesServices}: PASS`);
   console.log('Single instance: a second launch exited and raised the window already open: PASS');
-  console.log(`Storage: no indicator, an empty data-context slot, the shell usable while storage opens; Troubleshooting reports "${notesStorage}": PASS`);
+  console.log(`Storage: no indicator, no empty data slot, callsign and Location go to their pages, the shell usable while storage opens; Troubleshooting reports "${notesStorage}": PASS`);
   console.log('Logs page: the level switch writes the file the loggers follow, and Export diagnostics writes a redacted archive: PASS');
   console.log(`Shell: rail navigation, keyboard, status bar on every page, and both themes measured (light ${light.luminance.toFixed(2)}, dark ${dark.luminance.toFixed(2)}): PASS`);
 } catch (error) {

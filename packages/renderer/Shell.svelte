@@ -291,6 +291,8 @@
 </div>
 <StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}
+           onOpenCallsigns={() => store.set({ page: 'callsigns', extensionPage: null })}
+           onOpenLocations={() => store.set({ page: 'stations', extensionPage: null })}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })}
            update={updateNote} onWhatsNew={onOpenRelease} {onRestartToUpdate} />
 {#if shell.troubleshooting}
