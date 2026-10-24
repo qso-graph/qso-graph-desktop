@@ -538,7 +538,7 @@ try {
     dialog.showSaveDialog = () => Promise.resolve({ canceled: false, filePath });
   }, archive);
   await page.getByRole('button', { name: 'Export diagnostics', exact: true }).click();
-  await expect(page.locator('#export-result')).toContainText('Passwords and keys were removed.', { timeout: 30_000 });
+  await expect(page.locator('#export-result')).toContainText(/^Saved \d+ log files? \(/, { timeout: 30_000 });
   const writtenArchive = await readFile(archive);
   expect(writtenArchive.subarray(0, 2).toString('latin1')).toBe('PK');
   // Read, not searched. zip() deflates a log whenever that helps, so the

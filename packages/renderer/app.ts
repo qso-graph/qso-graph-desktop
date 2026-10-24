@@ -622,7 +622,9 @@ export async function exportDiagnostics(): Promise<string> {
   const megabytes = reply.bytes / (1024 * 1024);
   const size = megabytes >= 0.1 ? `${megabytes.toFixed(1)} MB` : `${Math.max(1, Math.round(reply.bytes / 1024))} KB`;
   const files = reply.files === 1 ? '1 log file' : `${reply.files} log files`;
-  return `Saved ${files} (${size}). Passwords and keys were removed.`;
+  // Not "passwords and keys were removed": the logs never hold any, so
+  // there were none to remove (KI7MT, 2026-10-24).
+  return `Saved ${files} (${size}).`;
 }
 
 // Moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011).

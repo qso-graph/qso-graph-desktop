@@ -103,6 +103,9 @@
   // the documented way to bring outside state in.
   $effect(() => store.subscribe(next => { shell = next; }));
   // The status bar's quiet line: only a newer version is worth a word there.
+  // My POTA Focus Area is POTA's alone: shown only while Parks On the Air is
+  // on (KI7MT, 2026-10-24), as its Setup menu item is.
+  const potaOn = $derived(shell.extensions?.some(entry => entry.id === 'pota' && entry.enabled) ?? false);
   const updateNote = $derived(shell.update?.kind === 'ready' || shell.update?.kind === 'available'
     ? { kind: shell.update.kind, version: shell.update.version } : undefined);
 
@@ -267,9 +270,9 @@
         summitsLoaded={shell.storage?.reference?.summits.state === 'loaded'}
         onFromSummit={onStationFromSummit}
         area={shell.area}
-        {onAreaChoices}
-        {onAreaDefault}
-        {onSaveArea}
+        onAreaChoices={potaOn ? onAreaChoices : undefined}
+        onAreaDefault={potaOn ? onAreaDefault : undefined}
+        onSaveArea={potaOn ? onSaveArea : undefined}
         onDownloadParks={() => { store.set({ page: 'settings', extensionPage: null }); void onUpdateReference('pota'); }}
         onSave={onSaveStation}
         onDelete={onDeleteStation}

@@ -16,7 +16,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Menus where each platform keeps them**: on macOS, Settings… (⌘,) and Check for Updates… are in
   the QSO Graph Desktop menu; on Windows and Linux, Settings… (Ctrl+,) is in Setup and Check for
   Updates… in Help.
-- **My POTA Focus Area…** is in the Setup menu only while Parks On the Air is turned on.
+- **My POTA Focus Area** is shown only while Parks On the Air is turned on: in the Setup menu and on
+  Locations.
+- **About QSO Graph Desktop** is in the QSO Graph Desktop menu on macOS, and in Help on Windows and
+  Linux.
 - **Help → Save Diagnostics for Support…** saves the redacted diagnostics archive for you to attach to
   a report yourself. Nothing is sent for you.
 - **The status bar's callsign and Location** each open their page, to change them, and the empty
@@ -45,6 +48,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   radio depths' today and tomorrow are your clock's days, not the Location's solar day.
 - **Conditions dates NOAA's scales**, and the page's time includes them.
 - **My POTA Focus Area shows its choices the first time**, when it is still your Location's own.
+- **Refresh says Refreshing… until the page has its new answer**, then Refreshed; it said
+  Refreshed the moment it was pressed.
+- **Diagnostics no longer say passwords and keys were removed**: the logs never hold any.
 - **Updates switched back on while offline** no longer go on saying checking is off.
 - **What's New after updating from a preview** shows that release's notes, not develop's.
 

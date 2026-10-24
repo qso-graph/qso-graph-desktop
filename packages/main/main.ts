@@ -483,11 +483,10 @@ if (!app.requestSingleInstanceLock()) {
       // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
         // About and What's New first, in a section of their own (KI7MT,
-        // 2026-10-24): About is Settings' About card, on every platform, and
-        // in macOS's application menu as well, where Apple puts it; What's
-        // New is the notes for this version, from the changelog
-        // (QGD-FRM-0016).
-        setupItem('about', 'About QSO Graph Desktop'),
+        // 2026-10-24): About is Settings' About card; on macOS it is in the
+        // application menu alone, where Apple puts it. What's New is the
+        // notes for this version, from the changelog (QGD-FRM-0016).
+        ...(mac ? [] : [setupItem('about', 'About QSO Graph Desktop')]),
         setupItem('whats-new', 'What\'s New'),
         ...(mac ? [] : [checkForUpdates]),
         { type: 'separator' },

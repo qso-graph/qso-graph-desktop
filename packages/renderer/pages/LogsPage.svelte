@@ -77,8 +77,9 @@
       <p id="export-result" role="status">{exportResult}</p>
     </div>
     <p class="hint">
-      Writes one archive where you choose, with passwords and keys removed.
-      Nothing is sent anywhere — you decide who gets it.
+      Writes one archive of the logs where you choose. The logs never record a
+      password or key, and the archive is checked for them again as it is
+      written. Nothing is sent anywhere — you decide who gets it.
     </p>
     <p class="hint">Logs are kept in <span id="log-directory">{status.directory}</span></p>
   {:else}
