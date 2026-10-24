@@ -81,28 +81,32 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 
 The text steps are `scripts/release.mjs`; the builds are CI's.
 
-1. **On develop:** `node scripts/release.mjs prepare`. CHANGELOG.md's
+1. **Release checks, on a lab machine** (the M3, the 9975 or the Pi 5; KI7MT,
+   2026-10-24): `make screenshots` against the approved baselines, and the
+   gallery (`make suite SUITE=storybook`). They are release checks, not run
+   on every push; anything they find is fixed on develop first.
+2. **On develop:** `node scripts/release.mjs prepare`. CHANGELOG.md's
    `[Unreleased]` becomes `[0.2.0] - <today>`, under a new empty
    `[Unreleased]`. Commit it.
-2. **The release PR**, develop to main, when KI7MT says so. Merging it is the
+3. **The release PR**, develop to main, when KI7MT says so. Merging it is the
    release.
-3. **main's build checks first:** the version is a plain `MAJOR.MINOR.PATCH`,
+4. **main's build checks first:** the version is a plain `MAJOR.MINOR.PATCH`,
    CHANGELOG.md has its section, and the tag is not taken. Any one missing
    stops the build in minutes, before hours of packaging.
-4. **main's build publishes the pre-release** `v0.2.0`: every installer, each
+5. **main's build publishes the pre-release** `v0.2.0`: every installer, each
    file checked to carry that version, `SHA256SUMS.txt`, and that version's
    CHANGELOG section as the notes. Creating the release creates the tag, on
    the commit that was built; a version already released is refused.
-5. **The feed's Early entry** (below): `release.mjs feed early` from the
+6. **The feed's Early entry** (below): `release.mjs feed early` from the
    pre-release's `SHA256SUMS.txt`, committed to the updates repository. Early
    installs are offered it from then.
-6. **On develop:** `node scripts/release.mjs next minor` (or `patch`, or
+7. **On develop:** `node scripts/release.mjs next minor` (or `patch`, or
    `major`) moves `package.json` and its lock to the next version. Commit it.
-7. **Promote**, when the pre-release has proved itself and KI7MT says so:
+8. **Promote**, when the pre-release has proved itself and KI7MT says so:
    Actions → **Promote** → Run workflow, with the version. It checks the
    release is a pre-release this repository built from main, then marks it a
    full release and Latest. Nothing is rebuilt.
-8. **The feed's Stable entry**, the same way: everyone on Stable is offered it
+9. **The feed's Stable entry**, the same way: everyone on Stable is offered it
    from then.
 
 ## File names

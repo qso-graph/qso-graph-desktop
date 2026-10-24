@@ -460,6 +460,8 @@ dialog.pins h2 { margin: 0 0 6px; }
 /* Settings: one switch per extension (QGD-HOM-0007). */
 .extension-list { list-style: none; margin: 0; padding: 0; }
 .extension-row + .extension-row { border-top: 1px solid var(--border); }
+/* An extension's own settings, on its area's Settings tab (KI7MT, 2026-10-24). */
+.extension-setting h3 { margin: 0 0 6px; font-size: 15px; }
 .extension-switch { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 10px 0; font-size: 13px; font-weight: 400; cursor: pointer; }
 .extension-text { display: flex; flex-direction: column; min-width: 0; }
 .extension-name { font-weight: 600; }

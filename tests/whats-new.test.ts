@@ -40,7 +40,12 @@ describe('which notes', () => {
   it('a release: its own, or every one since the version last seen', () => {
     expect(notesFor(sections, '0.3.0', null).sections.map(s => s.version)).toEqual(['0.3.0']);
     expect(notesFor(sections, '0.3.0', '0.1.0').sections.map(s => s.version)).toEqual(['0.3.0', '0.2.0']);
-    expect(notesFor(sections, '0.3.0', '0.2.0-202611010100-abc').sections.map(s => s.version)).toEqual(['0.3.0']);
+  });
+
+  it('a release after a preview of it: that release\'s notes, and those after the preview (#57, Turing)', () => {
+    // A preview of 0.3.0 comes before 0.3.0, so 0.3.0's notes are new.
+    expect(notesFor(sections, '0.3.0', '0.3.0-202611150100-abc').sections.map(s => s.version)).toEqual(['0.3.0']);
+    expect(notesFor(sections, '0.3.0', '0.2.0-202611010100-abc').sections.map(s => s.version)).toEqual(['0.3.0', '0.2.0']);
   });
 
   it('a preview, or a version not released yet: what develop has gathered', () => {

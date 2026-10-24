@@ -30,7 +30,7 @@
     onOpenPage: () => {},
     onCountiesAt: () => Promise.resolve({ counties: [], sections: {} }),
     onSetLevel: () => Promise.resolve(true),
-    onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
+    onExport: () => Promise.resolve('Saved 3 log files (0.4 MB).'),
     onCreateCallsign: () => Promise.resolve(undefined),
     onSaveCredential: () => Promise.resolve(undefined),
     onFinishSetup: () => {},
@@ -53,7 +53,7 @@
   name="Settings"
   args={{
     store: createShellStore({
-      page: 'settings', extensionPage: null,
+      page: 'settings', extensionPage: null, extensionSettings: false,
       activeCallsign: 'W1AW',
       activeCallsignId: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
       activeCallsignLabel: 'W1AW · Home station',

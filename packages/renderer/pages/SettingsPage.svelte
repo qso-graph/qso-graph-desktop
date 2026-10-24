@@ -192,7 +192,7 @@
     <!-- The notes for this version, above the icons' credit (KI7MT,
          2026-10-24), as Help → What's New opens them. -->
     <p class="about-whats-new"><button type="button" class="link-button" id="about-whats-new" onclick={onOpenWhatsNew}>What's New in {versionName(version)}</button></p>
-    <p class="hint about-credit" id="about-credit">QSO Graph contributors. GPL-3.0-or-later.<br>{#each FONT_AWESOME_CREDIT.split('\n') as line, i (i)}{line}<br>{/each}</p>
+    <p class="hint about-credit" id="about-credit">QSO Graph contributors. GPL-3.0-only.<br>{#each FONT_AWESOME_CREDIT.split('\n') as line, i (i)}{line}<br>{/each}</p>
   </section>
 
   <UpdatesCard {update} check={updateCheck} track={updateTrack}

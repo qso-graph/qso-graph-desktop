@@ -52,6 +52,12 @@ describe('the counties a grid square reaches', () => {
     // DN13sm straddles the line between Ada and Canyon.
     expect(counties.inGrid(43.5, -116.5, 43.541667, -116.416667)).toEqual(['ID,Ada', 'ID,Canyon']);
   });
+
+  it('a county reaching a subsquare only in a sliver is found (#57, Turing)', () => {
+    // CM87us: Oakland, and across the Bay a strip of San Francisco's water
+    // the 9 by 9 lattice stepped over.
+    expect(counties.inGrid(37.75, -122.333333, 37.791667, -122.25)).toEqual(['CA,Alameda', 'CA,San Francisco']);
+  });
 });
 
 describe('the counties of a state', () => {

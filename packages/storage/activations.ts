@@ -3,7 +3,7 @@
 // (QGD-REF-0019), for an activator looking for one nobody has worked from.
 // Read-only, from reference.sqlite, so it answers with no network at all.
 import { and, between, eq, exists, inArray } from 'drizzle-orm';
-import { ACTIVATION_PARKS, NEAR_KM, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
+import { NEAR_KM, NEAR_PARKS, type ActivationPark, type NearPark } from './activation-entry.js';
 import { potaActivation, potaPark, potaParkLocation, type referenceSchema } from './reference-schema.js';
 import type { Store } from './sqlite.js';
 export type { ActivationPark, NearPark } from './activation-entry.js';
@@ -29,8 +29,10 @@ export async function parksToActivate(reference: Store<typeof referenceSchema>, 
       exists(db.select({ one: potaParkLocation.reference }).from(potaParkLocation).where(and(
         eq(potaParkLocation.reference, potaPark.reference), inArray(potaParkLocation.locationDesc, [...locations]))))
     ))
-    .orderBy(potaPark.reference)
-    .limit(ACTIVATION_PARKS)
+    // Every matching park, ranked below: a limit here cut by reference
+    // before the ranking (#57, found by Turing: the nearest park, last of
+    // 20,001 by reference, was never seen). Ten of POTA's largest locations
+    // are some 20,000 parks, which the ranking handles in milliseconds.
     .all());
   const parks = rows.flatMap((row) => row.latitude === null || row.longitude === null ? []
     : [{ ...row, latitude: row.latitude, longitude: row.longitude }]);
@@ -57,10 +59,18 @@ function nearest<T extends { reference: string; latitude: number; longitude: num
 // is asked only for the box around that circle, so the exact measure runs
 // over hundreds of parks rather than all 97,000 (a Raspberry Pi, #63).
 export async function parksNear(reference: Store<typeof referenceSchema>, latitude: number, longitude: number, km: number = NEAR_KM): Promise<NearPark[]> {
-  const latitudeSpan = km / 111.2;
-  const cos = Math.cos(latitude * Math.PI / 180);
-  // Near a pole, or across the date line, the box is every longitude.
-  const longitudeSpan = cos < 0.05 ? 180 : km / (111.2 * cos);
+  // The box around the circle on the sphere (#57, found by Turing: a flat
+  // degree of 111.2 km, and a longitude span of km / cos, both fell short,
+  // so parks just inside 300 km were left out, more so toward the poles).
+  // The radius as an angle, a hair larger so a park on the edge is measured.
+  const degrees = 180 / Math.PI;
+  const radius = (km / 6371) * 1.000001;
+  const latitudeSpan = radius * degrees;
+  // A circle that reaches a pole takes in every longitude, as does one the
+  // sphere cannot hold; across the date line, likewise.
+  const reachesPole = Math.abs(latitude) + latitudeSpan >= 90;
+  const spread = Math.sin(radius) / Math.cos(latitude / degrees);
+  const longitudeSpan = reachesPole || spread >= 1 ? 180 : Math.asin(spread) * degrees;
   const across = longitude - longitudeSpan < -180 || longitude + longitudeSpan > 180 || longitudeSpan >= 180;
   const rows = await reference.unit((db) => db.select({
     reference: potaPark.reference, name: potaPark.name, latitude: potaPark.latitude, longitude: potaPark.longitude, locations: potaPark.locationDesc

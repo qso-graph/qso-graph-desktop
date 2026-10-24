@@ -65,7 +65,7 @@ export function shownOf(view: PageView): PageShown {
   if (view.state === 'waiting') return { state: 'waiting' };
   if (view.state === 'failed') return { state: 'failed', reason: view.reason };
   if (!view.answer.ok) return { state: 'failed', reason: view.answer.reason };
-  return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections };
+  return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections, fetchedAt: view.fetchedAt };
 }
 
 function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, online: boolean, reached: boolean | null, error?: string): HomeModel {

@@ -202,10 +202,20 @@ export function tableGroups(section: Extract<Section, { shape: 'table' }>): read
 
 export type PageShown =
   | { readonly state: 'waiting' }
-  | { readonly state: 'ready'; readonly observedAt: string; readonly sections: readonly Section[] }
+  // fetchedAt: when the core had this answer, which changes with every new
+  // answer though what it observed may not.
+  | { readonly state: 'ready'; readonly observedAt: string; readonly sections: readonly Section[]; readonly fetchedAt?: string }
   // The extension answered that it has nothing to show, or the core could not
   // reach it: either way, words, on this page alone (QGD-HOM-0006).
   | { readonly state: 'failed'; readonly reason: string };
+
+// Which answer a page shows, as a value: the same answer drawn again is the
+// same mark, a new one is not. Refresh waits for a new one (#57: the page
+// is drawn anew on every change to Home, so the object itself says nothing).
+export function answerMark(shown: PageShown): string {
+  if (shown.state === 'ready') return `ready ${shown.fetchedAt ?? shown.observedAt}`;
+  return shown.state === 'failed' ? `failed ${shown.reason}` : 'waiting';
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 

@@ -507,12 +507,30 @@ impl Store {
     // before rather than after. Named as the operator knows it: the call and
     // the description.
     fn preview(&self, bundle: &backup::Backup) -> CoreResult<Vec<String>> {
-        let mut arriving = Vec::new();
+        // The same checks a restore makes, so a file that would be refused is
+        // refused when it is chosen, not after the operator agrees (#57).
+        Self::check_bundle(bundle)?;
+        Ok(bundle.callsigns.iter().map(label).collect())
+    }
+
+    // Every callsign in a backup checked as if it had been typed here, its ids
+    // unique, and the active one, if named, among them: all before anything
+    // on this computer is touched (#57: a restore removed what was here and
+    // then refused the file).
+    fn check_bundle(bundle: &backup::Backup) -> CoreResult<()> {
+        let mut seen = std::collections::BTreeSet::new();
         for callsign in &bundle.callsigns {
-            callsign_id(&callsign.id)?;
-            arriving.push(label(callsign));
+            let id = callsign_id(&callsign.id)?;
+            call_letters(&callsign.call)?;
+            description_text(&callsign.description)?;
+            Self::parse_dates(&callsign.start, &callsign.end)?;
+            if !seen.insert(id) { return Err("That file is not a backup this product wrote."); }
         }
-        Ok(arriving)
+        if let Some(active) = bundle.active.as_deref() {
+            let id = callsign_id(active)?;
+            if !seen.contains(&id) { return Err("That file is not a backup this product wrote."); }
+        }
+        Ok(())
     }
 
     // All of it or none of it. The index is written once, at the end, so a
@@ -528,6 +546,7 @@ impl Store {
     // secret is written: a file from before this release that holds some has
     // them left unread, and the operator enters each login again.
     fn absorb(&self, bundle: &backup::Backup, replace: bool) -> CoreResult<usize> {
+        Self::check_bundle(bundle)?;
         let here: Vec<String> = self.load()?.callsigns.keys().cloned().collect();
         if !here.is_empty() {
             if !replace { return Err("This computer already has callsigns. Remove them first, then restore."); }
@@ -558,12 +577,10 @@ impl Store {
         }
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
-        // The callsign that was active, when the backup names one it holds.
+        // The callsign that was active (check_bundle has made sure it is one
+        // the backup holds).
         if let Some(active) = bundle.active.as_deref() {
-            let id = callsign_id(active)?;
-            if index.callsigns.contains_key(&id) {
-                atomic_write(&self.directory.join("current.txt"), id.as_bytes())?;
-            }
+            atomic_write(&self.directory.join("current.txt"), callsign_id(active)?.as_bytes())?;
         }
         Ok(bundle.callsigns.len())
     }
@@ -1176,13 +1193,32 @@ mod tests {
         assert_eq!(restored.active_id().unwrap().as_deref(), Some(current.as_str()));
         assert!(restored.lookup(&old).is_ok());
 
-        // A backup naming a callsign it does not hold leaves none active.
+        // A backup naming a callsign it does not hold is refused whole.
         let mut stray = bundle;
         stray.active = Some("00000000-0000-4000-8000-000000000000".into());
         let other = tempfile::tempdir().unwrap();
         let elsewhere = Store::new(other.path().into()).unwrap();
-        elsewhere.absorb(&stray, false).unwrap();
-        assert!(elsewhere.active_id().unwrap().is_none());
+        assert!(elsewhere.absorb(&stray, false).is_err());
+    }
+
+    #[test]
+    fn a_restore_refuses_a_bad_file_before_it_removes_anything() {
+        // #57: a file whose second callsign is not a call removed everything
+        // here and then refused itself.
+        let here = tempfile::tempdir().unwrap();
+        let store = Store::new(here.path().into()).unwrap();
+        let kept = store.create("KI7MT", "Current", Some("2015-01-01".into()), None).unwrap().id;
+        let mut bad = store.gather_without_secrets(serde_json::Value::Null).unwrap();
+        let mut second = bad.callsigns[0].clone();
+        second.id = "11111111-1111-4111-8111-111111111111".into();
+        second.call = "W1 AW".into();
+        bad.callsigns.push(second);
+        assert!(store.preview(&bad).is_err(), "the preview refuses it");
+        // Refused for what the file holds, before any removal is tried: had
+        // removal come first, the error would be the credential store's (and
+        // on a machine with one, what was here would be gone).
+        assert_eq!(store.absorb(&bad, true).err(), Some("Enter a callsign: letters, digits and /."));
+        assert!(store.lookup(&kept).is_ok(), "and what was here is still here");
     }
 
     #[test]

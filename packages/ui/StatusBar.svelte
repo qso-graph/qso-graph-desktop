@@ -3,12 +3,14 @@
   The status bar. P3-status-bar requires the active callsign to be visible on
   every page, which is why it sits outside the pages rather than in one.
 
+  The callsign and the Location are each a way to its page, to change it
+  (KI7MT, 2026-10-24). The slot for the data an application works in is gone
+  until an application holds data (P8): empty, it was in the layout for
+  nothing. Storage has no indicator of its own: there is no engine to start
+  or stop.
+
   It also carries, as of 2026-10-10 (`QGD-FRM-0012`, `QGD-LOG-0013`):
 
-    - the data the operator is working in, named the way VS Code's status bar
-      names the repository and branch. It names the active application's data,
-      and it is empty until an application holds data (P8). Storage has no
-      indicator of its own: there is no engine to start or stop.
     - Troubleshooting, which is where the stores, the logs, the level switch
       and the support bundle live. Podman Desktop puts Troubleshooting on its
       status bar the same way, with a Logs tab and a "collect logs as .zip".
@@ -26,9 +28,9 @@
     // (QGD-STN-0005). Named beside the callsign, as TQSL pairs a certificate
     // with a location.
     activeStation?: string;
-    // The data the operator is working in, named by the caller. Undefined
-    // until an application holds data, and the slot is then empty.
-    dataContext?: string;
+    // Each opens its page: Callsigns, and Locations.
+    onOpenCallsigns?: () => void;
+    onOpenLocations?: () => void;
     // Opens the Troubleshooting panel.
     onOpenTroubleshooting?: () => void;
     // A newer version (QGD-FRM-0019): ready to install on restart, or, for a
@@ -41,7 +43,8 @@
   const {
     activeCallsign,
     activeStation = '',
-    dataContext,
+    onOpenCallsigns,
+    onOpenLocations,
     onOpenTroubleshooting,
     update,
     onWhatsNew,
@@ -54,9 +57,12 @@
 
 <footer>
   <!-- Each slot in its place's hue, the word always beside it (style.css). -->
-  <span id="active-callsign" class="status-slot" data-hue="callsigns">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</span>
-  <span id="active-station" class="status-slot" data-hue="locations">{activeStation ? `Location: ${activeStation}` : 'No active location'}</span>
-  <span id="data-context" data-empty={dataContext === undefined ? 'true' : 'false'}>{dataContext ?? ''}</span>
+  <span class="status-pair">
+    <button type="button" id="active-callsign" class="status-slot bar-slot" data-hue="callsigns" onclick={onOpenCallsigns}
+      title="Callsigns: change the active callsign">{activeCallsign ? `Callsign: ${activeCallsign}` : 'No active callsign'}</button>
+    <button type="button" id="active-station" class="status-slot bar-slot" data-hue="locations" onclick={onOpenLocations}
+      title="Locations: change the active location">{activeStation ? `Location: ${activeStation}` : 'No active location'}</button>
+  </span>
   {#if update}
     <span id="update-note" class="update-note">
       {update.kind === 'ready' ? `Version ${update.version} is ready.` : `Version ${update.version} is available.`}
@@ -83,6 +89,17 @@
     cursor: pointer;
   }
   .bar-button:hover { border-color: var(--border-strong); }
+  .status-pair { display: flex; gap: 24px; align-items: center; }
+  /* Reads as the line it was, and says it is a way somewhere on hover. */
+  .bar-slot {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .bar-slot:hover { color: var(--ink); text-decoration: underline; }
   .bar-link {
     background: none;
     border: 0;

@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
-  import { filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { answerMark, filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
   import { recall, remember } from './page-memory.js';
 
@@ -75,16 +75,35 @@
     target.focus({ preventScroll: true });
   }
 
-  // Refresh rests for a few seconds after a press: the core asks at most
-  // once in ten (page-scheduler.ts), and a button that seems to do nothing
-  // when pressed again invites pressing it again.
-  let resting = $state(false);
+  // Refresh says what it is doing (KI7MT, 2026-10-24: it said Refreshed the
+  // moment it was pressed): Refreshing… until the page's new answer arrives,
+  // then Refreshed for a few seconds, since the core asks at most once in ten
+  // (page-scheduler.ts) and a button that seems to do nothing when pressed
+  // again invites pressing it again. An answer that never comes (the core
+  // declined, having asked under ten seconds before, or the extension is
+  // slow) lets the button go after twenty.
+  let phase = $state<'idle' | 'refreshing' | 'refreshed'>('idle');
+  let asked = '';
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // Back to Refresh after a while, from either.
+  const idleAfter = (ms: number) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { phase = 'idle'; }, ms);
+  };
   function refresh(): void {
-    if (resting || !onRefresh) return;
+    if (phase !== 'idle' || !onRefresh) return;
+    asked = answerMark(shown);
+    phase = 'refreshing';
     onRefresh();
-    resting = true;
-    setTimeout(() => { resting = false; }, 10_000);
+    idleAfter(20_000);
   }
+  $effect(() => {
+    if (phase === 'refreshing' && answerMark(shown) !== asked) {
+      phase = 'refreshed';
+      idleAfter(10_000);
+    }
+  });
+  $effect(() => () => clearTimeout(timer));
 </script>
 
 <!-- A reference as a link to its page, opened by the core in the browser. -->
@@ -96,7 +115,7 @@
 <section class="card page-body" aria-busy={shown.state === 'waiting'}>
   {#if shown.state === 'ready'}
     <p class="page-time" id="page-observed">{#if offline}<span class="page-offline">Offline.</span> Last updated{:else}Updated{/if} {utc(shown.observedAt)}
-      {#if onRefresh}<button type="button" class="secondary" id="page-refresh" onclick={refresh} disabled={resting}>{resting ? 'Refreshed' : 'Refresh'}</button>{/if}
+      {#if onRefresh}<button type="button" class="secondary" id="page-refresh" onclick={refresh} disabled={phase !== 'idle'}>{phase === 'refreshing' ? 'Refreshing…' : phase === 'refreshed' ? 'Refreshed' : 'Refresh'}</button>{/if}
     </p>
   {/if}
   {#if shown.state === 'ready'}

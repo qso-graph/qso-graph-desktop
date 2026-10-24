@@ -5,11 +5,16 @@
   extension answers with; no extension code or markup runs in the window.
   Back to Home is the rail's Home.
 
+  An area whose extension has settings of its own carries a Settings tab,
+  last, drawn by the core (KI7MT, 2026-10-24): what governs that extension
+  alone is there, and Settings is the application's.
+
   A page that asks for fields (a DX grid, a search) has them drawn here, by
   the core. What is typed is checked by its kind as it is typed, and again by
   the broker before the extension is asked with it (inputs.ts).
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import PageLayout from '../../ui/PageLayout.svelte';
   import PageBody from '../../ui/PageBody.svelte';
   import { inputValue } from '../../extension-api/inputs.js';
@@ -29,8 +34,15 @@
     onTab?: (key: string) => void;
     // A park's or summit's page in the browser, from a linked column (#59).
     onOpenReference?: (kind: 'pota' | 'sota', reference: string) => void;
+    // The extension's own settings, as the area's last tab, and whether it
+    // is the tab showing.
+    settings?: Snippet;
+    showingSettings?: boolean;
+    onSettings?: () => void;
   }
-  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {}, onOpenReference }: Props = $props();
+  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {}, onOpenReference,
+    settings, showingSettings = false, onSettings = () => {} }: Props = $props();
+  const onSettingsTab = $derived(settings !== undefined && showingSettings);
 
   // Why a field's value is refused, by its kind, said as it is typed.
   const REASON = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
@@ -108,14 +120,21 @@
     hue={page.hue === 'callsigns' || page.hue === 'locations' || page.hue === 'settings' ? page.hue : 'general'}>
     <!-- An area's pages, as tabs (KI7MT, 2026-10-23): each its own page,
          asked for only while it is the one shown (QGD-HOM-0005). -->
-    {#if page.tabs.length > 1}
+    {#if page.tabs.length > 1 || settings}
       <nav class="page-tabs" aria-label="{page.areaName} pages">
         {#each page.tabs as tab (tab.key)}
-          <button type="button" class="page-tab" id="page-tab-{tab.key.replace('/', '-')}" aria-current={tab.key === page.key ? 'page' : undefined}
-            onclick={() => { if (tab.key !== page.key) onTab(tab.key); }}>{tab.label}</button>
+          <button type="button" class="page-tab" id="page-tab-{tab.key.replace('/', '-')}" aria-current={!onSettingsTab && tab.key === page.key ? 'page' : undefined}
+            onclick={() => { if (tab.key !== page.key || onSettingsTab) onTab(tab.key); }}>{tab.label}</button>
         {/each}
+        {#if settings}
+          <button type="button" class="page-tab" id="page-tab-settings" aria-current={onSettingsTab ? 'page' : undefined}
+            onclick={onSettings}>Settings</button>
+        {/if}
       </nav>
     {/if}
+    {#if onSettingsTab && settings}
+      <section class="card extension-settings" id="extension-settings">{@render settings()}</section>
+    {:else}
     {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->
@@ -123,5 +142,6 @@
     <!-- Placed by the page, and the page between answers: kept below what
          it says rather than jumping to the top and back. -->
     {#if placed && page.shown.state !== 'ready'}{@render fieldsForm()}{/if}
+    {/if}
   </PageLayout>
 {/if}

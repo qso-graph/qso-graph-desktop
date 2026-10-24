@@ -2,7 +2,9 @@
 // First, before anything opens a store or a log: portable mode decides
 // where they are (portable.ts).
 import './portable-start.js';
-import { app, BrowserWindow, Menu, nativeTheme, protocol, session } from 'electron';
+import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, session } from 'electron';
+import { MIN_HEIGHT, MIN_WIDTH, placeWindow } from './window-place.js';
+import { nextZoom } from './window-zoom.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +38,12 @@ function setupItem(action: string, label: string): Electron.MenuItemConstructorO
       if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:setup', action); }
     }
   };
+}
+
+// View → Zoom (window-zoom.ts): the focused window, one step.
+function zoomWindow(direction: -1 | 0 | 1, window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]): void {
+  if (!window || window.isDestroyed()) return;
+  window.webContents.setZoomFactor(nextZoom(window.webContents.getZoomFactor(), direction));
 }
 
 // Help's documents, in the menu's order.
@@ -74,11 +82,15 @@ app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,
 function createWindow(): void {
   // A suite run never puts a window on screen (KI7MT, 2026-10-10).
   const visibility = windowVisibility();
+  // Where it was when it last closed, if that is still on a screen
+  // (window-place.ts); else the default size, centred.
+  const placed = placeWindow(load().windowBounds, screen.getAllDisplays().map(display => display.workArea));
   const window = new BrowserWindow({
-    width: 1100,
-    height: 740,
-    minWidth: 640,
-    minHeight: 420,
+    width: placed?.width ?? 1100,
+    height: placed?.height ?? 740,
+    ...(placed ? { x: placed.x, y: placed.y } : {}),
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     title: 'QSO Graph Desktop',
     // Read here rather than fixed: the renderer themes itself a moment later,
     // and this is the frame before that (QGD-FRM-0001).
@@ -112,11 +124,22 @@ function createWindow(): void {
       { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }
     ]).popup({ window });
   });
+  // Ctrl or ⌘ with the mouse wheel: the same steps as View → Zoom.
+  window.webContents.on('zoom-changed', (_event, direction) => zoomWindow(direction === 'in' ? 1 : -1, window));
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.on('will-attach-webview', event => event.preventDefault());
   // `show: false` above only avoids the white frame at startup; this is what
   // decides whether the window is ever seen.
-  window.once('ready-to-show', () => { if (visibility.reveal) window.show(); });
+  window.once('ready-to-show', () => {
+    if (placed?.maximized) window.maximize();
+    if (visibility.reveal) window.show();
+  });
+  // Remembered as it closes: the size it has when not maximized, and whether
+  // it is, so a maximized window comes back maximized over the right size.
+  window.on('close', () => {
+    const { x, y, width, height } = window.getNormalBounds();
+    save({ ...load(), windowBounds: { x, y, width, height, maximized: window.isMaximized() } });
+  });
   void window.loadURL('qg://desktop/index.html').catch(() => {
     // Deliberately exclude exception payloads and paths from diagnostics.
     log.error({}, 'the bundled page could not be loaded');
@@ -188,6 +211,7 @@ if (!app.requestSingleInstanceLock()) {
     callsigns.connectStations({
       backup: () => storageBroker.backupStations(),
       restore: (backup, replace) => storageBroker.restoreStations(backup, replace),
+      check: backup => storageBroker.checkStations(backup),
       count: () => storageBroker.stationCount()
     });
         callsigns.onCallsignActivated(id => storageBroker.callsignActivated(id));
@@ -390,13 +414,44 @@ if (!app.requestSingleInstanceLock()) {
     // which Apple requires, and File with Exit elsewhere, where Hide, Hide
     // Others and Show All do nothing; no Window menu, whose Minimize and Close
     // the title bar already has; Tools for what the operator does with their
-    // data, such as moving callsigns to another computer.
+    // data, such as moving callsigns to another computer. Where each platform
+    // keeps a thing, it is kept there (KI7MT, 2026-10-24): on macOS, Settings
+    // (⌘,) and Check for Updates are in the application menu; elsewhere,
+    // Settings is in Setup and Check for Updates in Help.
     const mac = process.platform === 'darwin';
-    Menu.setApplicationMenu(Menu.buildFromTemplate([
+    // Check for Updates…: Settings' Updates card, checking now. A build that
+    // does not check says why there.
+    const checkForUpdates: Electron.MenuItemConstructorOptions = {
+      ...setupItem('updates', 'Check for Updates…'),
+      click: () => {
+        void updater.check('asked');
+        const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+        if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:setup', 'updates'); }
+      }
+    };
+    const settingsItem: Electron.MenuItemConstructorOptions = { ...setupItem('settings', 'Settings…'), accelerator: 'CmdOrCtrl+,' };
+    // Built again when an extension is turned on or off, so POTA Focus
+    // Area… is there only while Parks On the Air is on (KI7MT, 2026-10-24).
+    const applicationMenu = (): Menu => Menu.buildFromTemplate([
       mac
-        ? { label: 'QSO Graph Desktop', submenu: [setupItem('about', 'About QSO Graph Desktop'), { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }
+        ? { label: 'QSO Graph Desktop', submenu: [
+          setupItem('about', 'About QSO Graph Desktop'), checkForUpdates, { type: 'separator' },
+          settingsItem, { type: 'separator' },
+          { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }
+        ] }
         : { label: 'File', submenu: [{ role: 'quit', label: 'Exit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+      // View (KI7MT, 2026-10-24): larger or smaller, within limits
+      // (window-zoom.ts), and full screen. Ctrl or ⌘ with = or + zooms in;
+      // the + of a US keyboard needs Shift, which the hidden item catches.
+      { label: 'View', submenu: [
+        { id: 'zoom-in', label: 'Zoom In', accelerator: 'CmdOrCtrl+=', click: () => zoomWindow(1) },
+        { id: 'zoom-in-plus', label: 'Zoom In', accelerator: 'CmdOrCtrl+Plus', visible: false, acceleratorWorksWhenHidden: true, click: () => zoomWindow(1) },
+        { id: 'zoom-out', label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: () => zoomWindow(-1) },
+        { id: 'zoom-reset', label: 'Actual Size', accelerator: 'CmdOrCtrl+0', click: () => zoomWindow(0) },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ] },
       // Setup (KI7MT, 2026-10-22): everything Home's welcome offers, from the
       // menu as well. The window does each; this only says which, by a name
       // from a fixed list (preload.cts, SETUP_ACTIONS). IOTA is shown and
@@ -404,7 +459,7 @@ if (!app.requestSingleInstanceLock()) {
       { label: 'Setup', submenu: [
         setupItem('callsigns', 'Callsigns…'),
         setupItem('locations', 'Locations…'),
-        setupItem('area', 'My POTA Focus Area…'),
+        ...(extensionBroker?.enablement.isOn('pota') ? [setupItem('area', 'POTA Focus Area…')] : []),
         { type: 'separator' },
         { label: 'Reference Data', submenu: [
           setupItem('adif', 'ADIF Definitions'),
@@ -414,7 +469,7 @@ if (!app.requestSingleInstanceLock()) {
         ] },
         { type: 'separator' },
         setupItem('pins', 'Customize Your Pins…'),
-        setupItem('settings', 'Settings…')
+        ...(mac ? [] : [settingsItem])
       ] },
       { label: 'Tools', submenu: [
         setupItem('export-callsigns', 'Back Up Callsigns and Locations…'),
@@ -428,12 +483,12 @@ if (!app.requestSingleInstanceLock()) {
       // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
         // About and What's New first, in a section of their own (KI7MT,
-        // 2026-10-24): About is Settings' About card, on every platform, and
-        // in macOS's application menu as well, where Apple puts it; What's
-        // New is the notes for this version, from the changelog
-        // (QGD-FRM-0016).
-        setupItem('about', 'About QSO Graph Desktop'),
+        // 2026-10-24): About is Settings' About card; on macOS it is in the
+        // application menu alone, where Apple puts it. What's New is the
+        // notes for this version, from the changelog (QGD-FRM-0016).
+        ...(mac ? [] : [setupItem('about', 'About QSO Graph Desktop')]),
         setupItem('whats-new', 'What\'s New'),
+        ...(mac ? [] : [checkForUpdates]),
         { type: 'separator' },
         ...HELP_DOCUMENTS.map(([name, label]) => ({
           id: name, label, click: () => links.open({ type: 'document', name })
@@ -447,9 +502,15 @@ if (!app.requestSingleInstanceLock()) {
             const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
             if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
           }
-        }
+        },
+        // The redacted diagnostics archive, saved where the operator
+        // chooses, to post themselves (KI7MT, 2026-10-24: nothing is sent
+        // for them, which would invite abuse). Troubleshooting's own export.
+        setupItem('diagnostics', 'Save Diagnostics for Support…')
       ] }
-    ]));
+    ]);
+    Menu.setApplicationMenu(applicationMenu());
+    extensionBroker?.enablement.onChange(() => Menu.setApplicationMenu(applicationMenu()));
     createWindow();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

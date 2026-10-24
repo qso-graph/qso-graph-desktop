@@ -52,7 +52,8 @@ with nothing of it running.
 
 ## 6. Your POTA focus area
 
-If you use Parks On the Air: **Setup → My POTA Focus Area…** sets the programs, entities and
+If you use Parks On the Air: its **Focus Area**, on the **Settings** tab of Parks On the Air (or
+**Setup → POTA Focus Area…**), sets the programs, entities and
 locations you work (*US-ID*, a whole entity, or a whole program). Most Wanted asks POTA for those
 and nothing else. Left empty, it uses your active Location's.
 

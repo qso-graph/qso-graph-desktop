@@ -13,6 +13,15 @@ export const UPDATES_STATE_CHANNEL = 'updates:state';
 // Everything else is told a newer version exists and where to get it.
 export const SELF_UPDATING = ['win-x64', 'linux-x86_64', 'linux-arm64', 'mac-arm64'] as const;
 export type UpdatePlatform = typeof SELF_UPDATING[number];
+// The file each platform installs, as a release names it: the feed's entry
+// for a platform must be that platform's own file (#57: a Linux entry naming
+// a Windows installer was accepted, and would have replaced the AppImage).
+const PLATFORM_FILE: Record<UpdatePlatform, string> = {
+  'win-x64': '-win-x64.exe',
+  'linux-x86_64': '-linux-x86_64.AppImage',
+  'linux-arm64': '-linux-arm64.AppImage',
+  'mac-arm64': '-mac-arm64.zip'
+};
 
 export interface FeedFile { name: string; url: string; sha256: string }
 export interface FeedEntry { version: string; files: Partial<Record<UpdatePlatform, FeedFile>> }
@@ -41,10 +50,10 @@ function only(value: Record<string, unknown>, allowed: readonly string[]): boole
   return Object.keys(value).every(key => allowed.includes(key));
 }
 
-function readFile(value: unknown, version: string): FeedFile | undefined {
+function readFile(value: unknown, version: string, platform: UpdatePlatform): FeedFile | undefined {
   if (!record(value) || !only(value, ['name', 'url', 'sha256'])) return undefined;
   const { name, url, sha256 } = value;
-  if (typeof name !== 'string' || !UPDATE_FILE_NAME.test(name) || !name.startsWith(`qso-graph-desktop-${version}-`)) return undefined;
+  if (typeof name !== 'string' || !UPDATE_FILE_NAME.test(name) || name !== `qso-graph-desktop-${version}${PLATFORM_FILE[platform]}`) return undefined;
   if (typeof url !== 'string' || url.length > 2048 || !url.startsWith('https://')) return undefined;
   try {
     const parsed = new URL(url);
@@ -59,7 +68,7 @@ function readEntry(value: unknown): FeedEntry | null {
   const files: Partial<Record<UpdatePlatform, FeedFile>> = {};
   for (const platform of SELF_UPDATING) {
     if (!Object.hasOwn(value.files, platform)) continue;
-    const file = readFile(value.files[platform], value.version);
+    const file = readFile(value.files[platform], value.version, platform);
     if (file) files[platform] = file;
   }
   return { version: value.version, files };

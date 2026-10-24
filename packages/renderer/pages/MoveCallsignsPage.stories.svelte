@@ -2,6 +2,9 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import MoveCallsignsPage from './MoveCallsignsPage.svelte';
+  // A real backup's preview when showcase.local.json is in the checkout
+  // (KI7MT, 2026-10-24; git ignores it); the sample otherwise.
+  import { showcasePreview } from '../../../storybook/showcase.js';
 
   // The states worth looking at are the ones an operator meets when something
   // is wrong, so most of these are refusals. A refusal here is a sentence the
@@ -11,7 +14,7 @@
     component: MoveCallsignsPage,
     args: {
       onExport: () => Promise.resolve({ written: 'qso-graph-backup.json', bytes: 1195 }),
-      onInspect: () => Promise.resolve({
+      onInspect: () => Promise.resolve(showcasePreview() ?? {
         created: '2026-10-09T06:13:30Z', callsigns: 2,
         arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: [], locations: ['Home', 'Camp'], locationsHere: 0
       }),

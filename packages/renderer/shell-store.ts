@@ -75,6 +75,9 @@ export interface ShellState {
   // The extension page on screen ("extension/page"), when page is
   // 'extension' (KI7MT, 2026-10-22); null otherwise.
   extensionPage: string | null;
+  // The area's own Settings tab is showing, rather than the page (KI7MT,
+  // 2026-10-24: an extension's settings are in its area).
+  extensionSettings: boolean;
   // The active callsign's call alone, which is all the status bar names: the
   // description is the operator's own label and read as a second callsign
   // there (KI7MT, 2026-10-22). Empty when there is none.
@@ -150,6 +153,7 @@ export const INITIAL_SHELL: ShellState = {
   // half of why it is the right place to open (QGD-CRD-0009).
   page: 'home',
   extensionPage: null,
+  extensionSettings: false,
   activeCallsign: '',
   activeCallsignId: '',
   activeCallsignLabel: '',

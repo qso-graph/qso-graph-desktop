@@ -26,7 +26,7 @@ import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
 import { isCallsignId, type StationsView } from './station-contract.js';
 import {
-  backupStations, deleteStation, draftFromPark, restoreStations, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
+  backupStations, checkBackup, deleteStation, draftFromPark, restoreStations, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -240,10 +240,19 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       if (!state) return { ok: false, error: 'Storage is not open yet.' };
       return { ok: true, status: status(), backup: await backupStations(state) };
     }
+    // A restore's Locations checked, changing nothing: asked before the
+    // callsigns are touched, so a file storage would refuse is refused whole
+    // (#57).
+    case 'stations-check': {
+      if (!state) return { ok: false, error: 'Storage is not open yet.' };
+      const problem = checkBackup(command.backup, await currentDefinitions(), await usCounties());
+      return problem ? { ok: false, error: `A Location in that backup cannot be restored. ${problem}` } : { ok: true, status: status() };
+    }
     case 'stations-restore': {
       if (!state) return { ok: false, error: 'Storage is not open yet.' };
-      const restored = await restoreStations(state, command.backup, command.replace);
+      const restored = await restoreStations(state, command.backup, command.replace, await currentDefinitions(), await usCounties());
       if (restored === 'not empty') return { ok: false, error: 'This computer already has Locations. Remove them first, then restore.' };
+      if (typeof restored === 'object') return { ok: false, error: `A Location in that backup cannot be restored. ${restored.problem}` };
       await reloadStations();
       publish();
       return { ok: true, status: status(), restored };
@@ -275,7 +284,7 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       const reader = reference?.reader();
       if (!reader || held.length === 0) {
         return { ok: false, error: area.length === 0
-          ? 'No POTA focus area is set, and the active Location does not say where it is. Choose My POTA Focus Area on the Locations page.'
+          ? 'No POTA focus area is set, and the active Location does not say where it is. Choose your Focus Area on the Settings tab of Parks On the Air.'
           : 'POTA\'s activation counts could not be fetched just now. Try again with Refresh.' };
       }
       // When the oldest of them was fetched, so the page can say how old it is.

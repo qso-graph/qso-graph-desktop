@@ -18,7 +18,7 @@ is ready, and **Troubleshooting**.
 
 **Menus:**
 
-- **Setup**: your callsigns, Locations and focus area, the reference data, your pins, Settings.
+- **Setup**: your callsigns, Locations and POTA Focus Area, the reference data, your pins, Settings.
 - **Tools**: back up and restore.
 - **Help**: what's new, this guide, the project's documents, Troubleshooting.
 

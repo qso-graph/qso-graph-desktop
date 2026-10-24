@@ -4,6 +4,7 @@
 // QGD-HOM-0006, QGD-SEC-0006).
 import { describe, expect, it } from 'vitest';
 import { createHomeStore, shownOf, type HomeApi } from '../packages/renderer/home-store.js';
+import { answerMark } from '../packages/ui/page-shapes.js';
 
 const AT = '2026-10-11T18:00:00Z';
 const SECTIONS = [{ shape: 'alert', level: 'info', text: 'Quiet' }] as const;
@@ -29,10 +30,20 @@ const flush = () => new Promise(settle => setTimeout(settle, 0));
 describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
   it('shows a ready answer, an answer with nothing to show, a failure and waiting', () => {
     expect(shownOf({ key: 'a-a/b-b', state: 'ready', fetchedAt: AT, answer: { ok: true, data: { version: 1, observedAt: AT, sections: [...SECTIONS] } } }))
-      .toEqual({ state: 'ready', observedAt: AT, sections: SECTIONS });
+      .toEqual({ state: 'ready', observedAt: AT, sections: SECTIONS, fetchedAt: AT });
     expect(shownOf({ key: 'a-a/b-b', state: 'ready', fetchedAt: AT, answer: { ok: false, reason: 'Nothing yet.' } })).toEqual({ state: 'failed', reason: 'Nothing yet.' });
     expect(shownOf({ key: 'a-a/b-b', state: 'failed', reason: 'Down.' })).toEqual({ state: 'failed', reason: 'Down.' });
     expect(shownOf({ key: 'a-a/b-b', state: 'waiting' })).toEqual({ state: 'waiting' });
+  });
+
+  it('marks an answer by when the core had it, so Refresh waits for a new one (#57)', () => {
+    const view = { key: 'a-a/b-b', state: 'ready' as const, fetchedAt: AT, answer: { ok: true as const, data: { version: 1, observedAt: AT, sections: [...SECTIONS] } } };
+    // Drawn again, as every change to Home draws it: the same answer.
+    expect(shownOf(view)).not.toBe(shownOf(view));
+    expect(answerMark(shownOf(view))).toBe(answerMark(shownOf(view)));
+    // Asked again, with nothing new observed: still a new answer.
+    expect(answerMark(shownOf({ ...view, fetchedAt: '2026-10-24T16:00:00.000Z' }))).not.toBe(answerMark(shownOf(view)));
+    expect(answerMark({ state: 'waiting' })).toBe('waiting');
   });
 
   it('draws the pins as tiles in pin order from the manifests alone, skipping a pin no extension offers', async () => {

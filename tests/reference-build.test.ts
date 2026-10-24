@@ -775,6 +775,19 @@ describe('POTA activations, a list for each location of My Area (QGD-REF-0019)',
     } finally { done(); }
   });
 
+  it('a park in two locations takes its count from the list fetched later (#57, Turing)', async () => {
+    // US-OR fetched first, US-ID an hour later and newer: US-ID's count
+    // stands, though US-OR sorts after it.
+    const lists = { ...LISTS, [urlOf('US-ID')]: JSON.stringify([park('US-0009', 6, 'US-ID,US-OR')]) };
+    const { ref, done } = await reference({ fetchText: pota(lists), fetchArchive: offline });
+    try {
+      await ref.refresh({ only: 'activations', force: true, area: ['US-OR'] });
+      clock += 3_600_000;
+      await ref.refresh({ only: 'activations', force: true, area: ['US-ID', 'US-OR'] });
+      expect((await held(ref)).find(([reference]) => reference === 'US-0009')).toEqual(['US-0009', 6]);
+    } finally { done(); }
+  });
+
   it('lets go of a location taken out of My Area', async () => {
     const { ref, paths, done } = await reference({ fetchText: pota(LISTS), fetchArchive: offline });
     try {
@@ -900,6 +913,39 @@ describe('the parks to activate, read from reference.sqlite (QGD-REF-0019, QGD-H
       // Within a day's drive only: 50 km leaves out Idaho's park 89 km off.
       expect((await parksNear(store, 44.5, -116.2, 50)).map(park => park.reference)).toEqual(['US-0010', 'US-0009']);
       expect(await parksNear(store, 10, 10)).toEqual([]);
+    } finally { store.close(); }
+  });
+
+  // Parks anywhere, for the two below.
+  const placed = (reference: string, latitude: number, longitude: number) =>
+    `"${reference}","Park ${reference}","1","291","US-ID","${latitude}","${longitude}","DN13"`;
+
+  it('finds a park just inside the circle at the equator, far north and near a pole (#57, Turing)', async () => {
+    const target = join(root, 'reference.sqlite');
+    const body = [header, placed('US-0001', 2.6979, 0), placed('US-0002', 60.1, 5.397), placed('US-0003', 88.5, 60)].join('\n') + '\n';
+    await buildReference(target, DDL, { register, pota: { parks: input('parks', body) } });
+    const store = openStore(target, { schema: referenceSchema.referenceSchema, readOnly: true });
+    try {
+      const { parksNear } = await import('../packages/storage/activations.js');
+      // 299.99, 299.73 and 288.86 km: all within the 300 km asked for.
+      expect((await parksNear(store, 0, 0)).map(park => park.reference)).toEqual(['US-0001']);
+      expect((await parksNear(store, 60, 0)).map(park => park.reference)).toEqual(['US-0002']);
+      expect((await parksNear(store, 87, 0)).map(park => park.reference)).toEqual(['US-0003']);
+    } finally { store.close(); }
+  });
+
+  it('ranks every park of the area, not the first 20,000 by reference (#57, Turing)', async () => {
+    const target = join(root, 'reference.sqlite');
+    // 20,001 parks, the last by reference the nearest and the one never activated.
+    const many = Array.from({ length: 20_001 }, (_, at) => `US-${String(at).padStart(5, '0')}`);
+    const body = [header, ...many.map((reference, at) => placed(reference, at === 20_000 ? 44.5 : 30, -116.2))].join('\n') + '\n';
+    const tally = JSON.stringify(many.map((reference, at) => ({ reference, activations: at === 20_000 ? 0 : 5 })));
+    await buildReference(target, DDL, { register, pota: { parks: input('parks', body) }, activations: { 'US-ID': input('US-ID', tally) } });
+    const store = openStore(target, { schema: referenceSchema.referenceSchema, readOnly: true });
+    try {
+      const { parksToActivate } = await import('../packages/storage/activations.js');
+      expect((await parksToActivate(store, ['US-ID'], { latitude: 44.5, longitude: -116.2 }))[0]?.reference).toBe('US-20000');
+      expect((await parksToActivate(store, ['US-ID']))[0]?.reference).toBe('US-20000');
     } finally { store.close(); }
   });
 });

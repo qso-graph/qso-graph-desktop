@@ -49,6 +49,9 @@ describe('the update feed', () => {
     expect(feed({ version: '0.1.1', files }, null)?.stable?.files).toEqual({});
     const login = { ...file('0.1.1', 'win-x64.exe'), url: 'https://user:pw@github.com/qso-graph-desktop-0.1.1-win-x64.exe' };
     expect(feed({ version: '0.1.1', files: { 'win-x64': login } }, null)?.stable?.files).toEqual({});
+    // Each platform's entry must be that platform's own file (#57).
+    const crossed = file('0.1.1', 'win-x64.exe');
+    expect(feed({ version: '0.1.1', files: { 'linux-arm64': crossed } }, null)?.stable?.files).toEqual({});
     const zip = file('0.1.1', 'win-x64.zip');
     expect(feed({ version: '0.1.1', files: { 'win-x64': zip } }, null)?.stable?.files).toEqual({});
     // The macOS zip is the one zip that installs itself.

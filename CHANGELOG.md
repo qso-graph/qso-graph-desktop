@@ -7,6 +7,60 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-24
+
+### Changed
+
+- **The window opens where you left it**: the same place and size, and maximized if it was, unless
+  that place is no longer on a screen.
+- **A View menu**: Zoom In, Zoom Out and Actual Size (Ctrl or ⌘ with +, − and 0, or with the mouse
+  wheel), from 80% to 150%, and Full Screen.
+- **Menus where each platform keeps them**: on macOS, Settings… (⌘,) and Check for Updates… are in
+  the QSO Graph Desktop menu; on Windows and Linux, Settings… (Ctrl+,) is in Setup and Check for
+  Updates… in Help.
+- **Parks On the Air has a Settings tab**, and its Focus Area (was My POTA Focus Area, on
+  Locations) is there: an extension's own settings live in its area, and Settings is the
+  application's. **Setup → POTA Focus Area…** opens it, and is there only while POTA is on.
+- **About QSO Graph Desktop** is in the QSO Graph Desktop menu on macOS, and in Help on Windows and
+  Linux.
+- **Help → Save Diagnostics for Support…** saves the redacted diagnostics archive for you to attach to
+  a report yourself. Nothing is sent for you.
+- **The status bar's callsign and Location** each open their page, to change them, and the empty
+  slot beside them is gone.
+
+### Fixed
+
+- **Restoring a backup is all or nothing.** A backup is checked whole (every callsign and every
+  Location, by the same rules as one entered by hand) before anything on the computer changes;
+  the Locations are written in one transaction; and what is restored is exactly the file that was
+  previewed. Before, a bad file could remove what was there and then refuse itself.
+- **Updates follow the settings as they are**: turning checking off, or moving from Early to
+  Stable, while a check is under way no longer downloads an update; and a platform is only ever
+  offered its own file.
+- **Settings → About names the licence as GPL-3.0-only**, as the project is licensed; it said
+  "or later".
+- **County fill finds every county a grid square reaches**, however thin the sliver: CM87us now
+  offers San Francisco as well as Alameda, instead of filling Alameda alone.
+- **Most Wanted** ranks every park in your focus area (it ranked only the first 20,000 by
+  reference), and a park in two locations takes its count from the list fetched more recently.
+- **Near Me finds parks just inside 300 km**, at the equator and toward the poles, that it left out.
+- **The Distance filter is exact**: distances show to a tenth of a km, so a park 25.4 km away no
+  longer passes "Within 25 km".
+- **Spots counts activators**, not spots: one activator at two parks is one.
+- **Astro's days follow your computer's clock on the days summer time starts and ends**, and the
+  radio depths' today and tomorrow are your clock's days, not the Location's solar day.
+- **Conditions dates NOAA's scales**, and the page's time includes them.
+- **My POTA Focus Area shows its choices the first time**, when it is still your Location's own.
+- **Refresh says Refreshing… until the page has its new answer**, then Refreshed; it said
+  Refreshed the moment it was pressed.
+- **Diagnostics no longer say passwords and keys were removed**: the logs never hold any.
+- **Updates switched back on while offline** no longer go on saying checking is off.
+- **What's New after updating from a preview** shows that release's notes, not develop's.
+
+Twenty of these were found by Turing (OpenAI Codex), one of the AI agents QSO Graph Desktop is
+built with, in a security review and a correctness review: eight and twelve findings, every one
+confirmed against the code and fixed with a test that failed first.
+
 ## [0.1.2] - 2026-10-24
 
 ### Changed

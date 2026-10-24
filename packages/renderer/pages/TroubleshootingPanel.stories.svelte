@@ -31,7 +31,7 @@
       },
       logs,
       onSetLevel: () => Promise.resolve(true),
-      onExport: () => Promise.resolve('Saved 3 log files (0.4 MB). Passwords and keys were removed.'),
+      onExport: () => Promise.resolve('Saved 3 log files (0.4 MB).'),
       onClose: () => {}
     }
   });

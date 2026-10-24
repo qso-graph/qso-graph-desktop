@@ -5,8 +5,8 @@
 - **Storage**: the application's data, and whether the reference data is loaded.
 - **Logs**: what the application has been doing, and the **detail level**. Raise it to *debug*
   before repeating a problem; it goes back to normal on its own after an hour, or at the next start.
-- **Export diagnostics**: one archive of the logs, with passwords and keys removed, saved where
-  you choose and sent nowhere.
+- **Export diagnostics**: one archive of the logs, saved where you choose and sent nowhere. The
+  logs never record a password or key. **Help → Save Diagnostics for Support…** does the same.
 
 ## Reporting a problem
 

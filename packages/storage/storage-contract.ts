@@ -102,6 +102,8 @@ export type StorageCommand =
   | { type: 'stations-backup' }
   // A restore onto a clean slate: replace says the Locations here go first.
   | { type: 'stations-restore'; backup: StationsBackup; replace: boolean }
+  // The same backup checked, changing nothing (#57).
+  | { type: 'stations-check'; backup: StationsBackup }
   // A whole enumeration by its name (adif-search.ts adifList, #58).
   | { type: 'adif-list'; name: string }
   // ADIF's bands with their edges (adif-search.ts), for an extension that
@@ -350,6 +352,7 @@ export function validateStorageCommand(value: unknown): value is StorageCommand 
     case 'adif-list': return exactly(['type', 'name']) && plainQuery(value.name);
     case 'stations-backup': return exactly(['type']);
     case 'stations-restore': return exactly(['type', 'backup', 'replace']) && isStationsBackup(value.backup) && typeof value.replace === 'boolean';
+    case 'stations-check': return exactly(['type', 'backup']) && isStationsBackup(value.backup);
     case 'adif-bands': return exactly(['type']);
     case 'area-choices': return exactly(['type']);
     case 'area-default': return exactly(['type']);

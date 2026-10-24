@@ -622,7 +622,9 @@ export async function exportDiagnostics(): Promise<string> {
   const megabytes = reply.bytes / (1024 * 1024);
   const size = megabytes >= 0.1 ? `${megabytes.toFixed(1)} MB` : `${Math.max(1, Math.round(reply.bytes / 1024))} KB`;
   const files = reply.files === 1 ? '1 log file' : `${reply.files} log files`;
-  return `Saved ${files} (${size}). Passwords and keys were removed.`;
+  // Not "passwords and keys were removed": the logs never hold any, so
+  // there were none to remove (KI7MT, 2026-10-24).
+  return `Saved ${files} (${size}).`;
 }
 
 // Moving callsigns between machines (QGD-PSN-0007 to QGD-PSN-0011).
@@ -867,13 +869,25 @@ window.menu?.onSetup?.(action => {
     requestAnimationFrame(() => document.getElementById('about-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
+  // Check for Updates… (KI7MT, 2026-10-24): main has started the check;
+  // Settings' Updates card shows it.
+  if (action === 'updates') {
+    shell.set({ page: 'settings', extensionPage: null });
+    requestAnimationFrame(() => document.getElementById('updates-title')?.scrollIntoView({ block: 'start' }));
+    return;
+  }
+  // Save Diagnostics for Support… (KI7MT, 2026-10-24): Troubleshooting's
+  // export, the same save dialog and the same redacted archive.
+  if (action === 'diagnostics') {
+    shell.set({ troubleshooting: true });
+    requestAnimationFrame(() => document.getElementById('export-diagnostics')?.click());
+    return;
+  }
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
-  // My Area is the last card on Locations (KI7MT, 2026-10-23).
-  else if (action === 'area') {
-    shell.set({ page: 'stations', extensionPage: null });
-    requestAnimationFrame(() => document.getElementById('my-area')?.scrollIntoView({ block: 'start' }));
-  }
+  // The Focus Area is Parks On the Air's own setting, on its area's
+  // Settings tab (KI7MT, 2026-10-24).
+  else if (action === 'area') shell.set({ page: 'extension', extensionPage: 'pota/parks', extensionSettings: true });
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
   // Tools (KI7MT, 2026-10-23): Settings' Back up and restore, at the button

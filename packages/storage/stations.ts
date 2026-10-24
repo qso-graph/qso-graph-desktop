@@ -456,25 +456,49 @@ export async function backupStations(state: StateStore): Promise<StationsBackup>
 // operator says so, and refused otherwise, so nothing is merged. All of it in
 // one unit of work, so a failure leaves the Locations as they were. Each
 // Location keeps its id, so a callsign's default still names it.
-export async function restoreStations(state: StateStore, backup: StationsBackup, replace: boolean, now = new Date()): Promise<number | 'not empty'> {
+// The first thing wrong with a backup's Locations, by the checks a Location
+// saved by hand passes (#57: a restore stored a Location with no grid), or
+// nothing. Asked before a restore changes anything, here or in the callsigns.
+export function checkBackup(backup: StationsBackup, definitions: Definitions, counties?: Counties): string | undefined {
+  for (const entry of backup.stations) {
+    const { problems } = checkStation({ name: entry.name, kind: entry.kind, place: entry.place, lotwPark: entry.lotwPark, notes: entry.notes }, definitions, counties);
+    if (problems.length > 0) return `${entry.name}: ${problems[0].reason}`;
+  }
+  return undefined;
+}
+
+// All of it or none of it, in one transaction (#57: a failure part way
+// through left the Locations here removed and the backup's half written).
+export async function restoreStations(
+  state: StateStore, backup: StationsBackup, replace: boolean, definitions: Definitions, counties?: Counties, now = new Date()
+): Promise<number | 'not empty' | { problem: string }> {
+  const problem = checkBackup(backup, definitions, counties);
+  if (problem) return { problem };
   return state.unit(async (db) => {
     const here = await db.select({ id: station.id }).from(station).all();
     if (here.length > 0 && !replace) return 'not empty';
-    // Defaults and the active one go with them, by the foreign keys.
-    await db.delete(station).run();
-    await db.delete(stationDefault).run();
-    const at = now.toISOString();
-    for (const entry of backup.stations) {
-      await db.insert(station).values({
-        id: entry.id, name: entry.name, kind: entry.kind ?? null, place: entry.place,
-        lotwPark: entry.lotwPark ?? null, notes: entry.notes ?? null, createdAt: at, updatedAt: at
-      }).run();
+    state.connection.exec('BEGIN IMMEDIATE');
+    try {
+      // Defaults and the active one go with them, by the foreign keys.
+      await db.delete(station).run();
+      await db.delete(stationDefault).run();
+      const at = now.toISOString();
+      for (const entry of backup.stations) {
+        await db.insert(station).values({
+          id: entry.id, name: entry.name, kind: entry.kind ?? null, place: entry.place,
+          lotwPark: entry.lotwPark ?? null, notes: entry.notes ?? null, createdAt: at, updatedAt: at
+        }).run();
+      }
+      for (const [callsign, stationId] of Object.entries(backup.defaults)) {
+        await db.insert(stationDefault).values({ callsign, stationId }).run();
+      }
+      await db.insert(activeStation).values({ id: ACTIVE_STATION_ID, stationId: backup.active })
+        .onConflictDoUpdate({ target: activeStation.id, set: { stationId: backup.active } }).run();
+      state.connection.exec('COMMIT');
+    } catch (error) {
+      state.connection.exec('ROLLBACK');
+      throw error;
     }
-    for (const [callsign, stationId] of Object.entries(backup.defaults)) {
-      await db.insert(stationDefault).values({ callsign, stationId }).run();
-    }
-    await db.insert(activeStation).values({ id: ACTIVE_STATION_ID, stationId: backup.active })
-      .onConflictDoUpdate({ target: activeStation.id, set: { stationId: backup.active } }).run();
     return backup.stations.length;
   });
 }
