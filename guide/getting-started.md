@@ -55,3 +55,23 @@ with nothing of it running.
 If you use Parks On the Air: **Setup → My POTA Focus Area…** sets the programs, entities and
 locations you work (*US-ID*, a whole entity, or a whole program). Most Wanted asks POTA for those
 and nothing else. Left empty, it uses your active Location's.
+
+## Operating away from home
+
+The **active callsign and active Location** are what the application uses for everything you do
+with them: what a page shows for where you are, and, as logging arrives, what each QSO records and
+what is signed for LoTW. The status bar always shows both. Check it before you start.
+
+**Each callsign can have a default Location** (in Locations). Making a callsign active makes its
+default Location active too. Making a Location active changes only the Location.
+
+- **A park next week, as yourself:** add the park as a Location (**Add location from a POTA
+  park**) and **Make active**. Your callsign stays as it is. When you are home, make your home
+  Location active again yourself: nothing switches it back, because nothing knows the activation is
+  over.
+- **A special-event call:** add the call, and give it the park or event site as its default.
+  **Make active** the special-event call, and its Location comes with it. Afterwards, make your
+  own callsign active again, and if your home Location is its default, home comes back with it.
+
+Once a special-event call's end date has passed it is marked **Expired** and cannot be made active
+by mistake. Its Locations stay, for the next time.
