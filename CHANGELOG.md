@@ -17,9 +17,10 @@ stays on your computer.
 - **Callsigns.** Keep each callsign you hold, with a description and the dates it is valid, and
   choose which one is active. The status bar always shows it.
 - **Logins for QRZ.com, QRZ Logbook, Logbook of The World, eQSL, HamQTH and Club Log**, kept with
-  each callsign in your computer's own credential store: Credential Manager on Windows, the keyring on Linux, Keychain on macOS.
-  Passwords and keys are never shown again once saved, never written to the application's files,
-  and never leave the computer. Test a login with one click.
+  each callsign in your computer's own credential store: Credential Manager on Windows, the keyring
+  on Linux, Keychain on macOS. Passwords and keys are never shown again once saved, never written
+  to the application's files, and never leave the computer. Test the QRZ.com and QRZ Logbook logins
+  with one click; testing the others is to follow.
 - **Locations**, the places you operate from: grid square, DXCC entity, CQ and ITU zones, state,
   county and ARRL section (filled in from where you are, the way LoTW wants them), and POTA, SOTA,
   WWFF and IOTA references. Make one from a POTA park or a SOTA summit in a click, and choose which
@@ -60,8 +61,8 @@ stays on your computer.
 
 ### Security
 
-- **Every connection goes through one place**: the application's own core, over HTTPS, with
-  FIPS-validated cryptography. The windows and the extensions open none of their own, and nothing
+- **Every connection goes through one place**: the application's own core, over HTTPS, using
+  AWS-LC's FIPS-validated cryptographic module on Windows and Linux. The windows and the extensions open none of their own, and nothing
   in the application listens for connections.
 - **Nothing about you is collected.** No analytics, no tracking, no account and no server of ours.
 - **The macOS build is signed and notarized by Apple**, so it opens like any other app.

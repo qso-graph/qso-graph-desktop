@@ -36,6 +36,40 @@ make start     # build and run
 make verify    # the full gate; must be green before anything is committed
 ```
 
+## Building and testing
+
+`make help` lists every target.
+
+- `make package` produces the unpacked application under `out/`; `make installer` the platform's
+  installers. Releases are built and published by CI (`docs/RELEASES.md`), never by hand.
+- `make update` pulls this branch's latest, its dependencies and a build, to try a change someone
+  has pushed; then `make start`.
+- `make suite SUITE=<name>` runs one suite as CI does. `make screenshots` captures the screens and
+  compares them with the approved baselines; `make approve-screenshots BY=<name>` records them as
+  approved, by the person approving.
+- `make verify` builds and packages the application, runs every suite, and checks that the
+  hardened native bundle launches and stops. It writes `report/report.md` and
+  `report/summary.json`; gates that need another platform or a clean machine stay explicit there.
+
+`make setup` fetches the pinned ADIF release, verified by SHA-256 before it is unpacked, and POTA's
+lists. There is no database server: storage is SQLite, through the `node:sqlite` Electron carries
+(`QGD-ENG-0002`).
+
+**How the application is put together, in brief.** The renderer has no Node integration,
+networking or permissions; a narrow preload API sends validated commands through the main process.
+Credentials and every outbound connection belong to the Rust credential core, in a utility process
+of its own: it exposes whether a credential is saved, never its value, and connects only over
+HTTPS, on AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on macOS): TLS 1.3
+only for anything that carries a credential, TLS 1.3 or 1.2 with FIPS-approved suites for public
+reference data. Its entries in the operating system's store are the `io.qso-graph.desktop`
+service with `<id>:<service>` accounts, the id being each callsign's own random id; the index of
+callsigns is `callsigns.json` in a `callsigns` folder beside the application's SQLite stores
+(`QGD-CRD-0003`, `QGD-ENG-0001`). It never reads or writes the qso-graph MCP servers' data
+(`QGD-CRD-0004`). Only bundled HTML, CSS and JavaScript load, and the packaged build uses ASAR and
+hardened Electron fuses. [AGENTS.md](AGENTS.md) has the layers in full.
+
+No credentials or real station data belong in this repository.
+
 ## Making a change
 
 1. **Find the requirement IDs** your change touches. If a change needs a requirement that doesn't

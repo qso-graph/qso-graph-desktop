@@ -19,7 +19,8 @@ eQSL, HamQTH or Club Log), enter your username and password or API key, and save
 They are saved in your computer's own credential store, the same place your browser keeps
 passwords: Credential Manager on Windows, the keyring on Linux, Keychain on macOS. They are never
 shown again, never written to the application's own files, and never leave the computer.
-**Test credential** checks that a service accepts them.
+**Test credential** checks that QRZ.com or QRZ Logbook accepts them; testing the other services is
+to follow.
 
 ## 3. Add a Location
 

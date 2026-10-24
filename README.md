@@ -4,99 +4,79 @@
 
 # QSO Graph Desktop
 
-**QSO Graph Desktop is an extensible desktop platform for amateur radio: a secure core that ham
-radio extensions build on.** One app for your station, with the tools you choose.
+**A desktop home for your station.** Your callsigns, your logins for the services hams use, and
+the places you operate from, kept safely in one place, with Parks On the Air, the sun and the moon,
+band conditions and ADIF's definitions a click away. Free software, on Windows, Linux and macOS,
+and everything you enter stays on your computer.
+
+## What you can do
+
+- **Keep your callsigns and their logins** for QRZ.com, QRZ Logbook, Logbook of The World, eQSL,
+  HamQTH and Club Log, in your computer's own credential store: Credential Manager on Windows, the
+  keyring on Linux, Keychain on macOS. Passwords are never shown again and never leave the computer.
+- **Keep your Locations**: grid, DXCC, zones, county and ARRL section the way LoTW wants them, and
+  your POTA, SOTA, WWFF and IOTA references. Start one from a park or a summit in a click.
+- **Parks On the Air**: the parks near you, even with no internet; who is on the air from a park
+  right now; and the parks in your area that have been activated least.
+- **Astro**: sunrise, sunset, twilight, the moon, and the grey line on a world map.
+- **Conditions**: solar flux, the K and A indices, NOAA's space weather and a band-by-band outlook.
+- **ADIF Lookup**: every ADIF field and list value, in ADIF's own words.
+- **Back up and restore** your callsigns and Locations, and run it **portable** from a USB stick.
+
+The [User Guide](guide/README.md) walks through each, and [CHANGELOG.md](CHANGELOG.md) says what is
+new in each release.
 
 ## Get it
 
-**One app, every desk, nothing to wrestle with.**
+From the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). No account is
+needed to download.
 
-- **Windows:** a standard installer.
-- **Linux: a single AppImage.** Download it, mark it executable, run it. No installer, no root,
-  nothing scattered across your system. It runs from your shack PC or off a USB stick in the field,
-  on x64 and on arm64, down to a Raspberry Pi 5. Rather install it? There's a `.deb` and an `.rpm`
-  as well. (A few newer distributions leave out the FUSE 2 library AppImages use: install `libfuse2`,
-  or use the `.deb` or `.rpm`.)
-- **macOS:** a disk image. Drag it to Applications. Apple silicon.
+- **Windows:** the installer (`…-win-x64.exe`). It is not signed yet, so the first time it runs,
+  SmartScreen asks: choose **More info**, then **Run anyway**.
+- **Linux:** the **AppImage**, one file for almost any distribution, on a PC or a Raspberry Pi 5.
+  Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE for it
+  (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too.
+- **macOS** (Apple silicon): the disk image (`.dmg`). Drag the app to Applications. It is signed and
+  notarized by Apple.
 
-**Where:** the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). Until the
-first release, the **Preview** there is the newest build of `develop`, rebuilt each night `develop`
-has changed and passed its tests: every installer is its own download, each `.zip` is a portable build you unpack and run,
-and `SHA256SUMS.txt` lets you check a download. It is a preview to test, not a release. The macOS
-build is signed and notarized by Apple, so it opens like any other app; Windows is unsigned for now,
-so SmartScreen warns the first time it runs. How versions and releases are
-named: [docs/RELEASES.md](docs/RELEASES.md).
+Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
+application checks for updates once a day (Stable or Early, or off, in Settings) and never
+restarts without asking. The [install page](guide/install.md) has the details.
 
-Your callsigns, logins and logs stay on your computer. There's no account to make and no server of
-ours to talk to.
+**The Preview** on the Releases page is the newest build of `develop`, rebuilt each night it has
+changed: for testing what is coming, not for running your station.
+[docs/RELEASES.md](docs/RELEASES.md) explains versions, previews and releases.
 
-**No vendor or developer lock-in.** Everything past the core frame is an extension, built on the same
-extension API anyone can build on, and you choose which ones run. Today the application loads its
-own official extensions; extensions by other authors arrive once the sandbox they run in is
-finished. Want to write one? See [CONTRIBUTING.md](CONTRIBUTING.md#writing-an-extension).
+## Yours, and only yours
 
-> **Preview:** until Release 1, the download is the **Preview** on the Releases page, rebuilt each
-> night from `develop` when it has changed and passed its tests.
+There is no account to make and no server of ours. Your callsigns, Locations, settings and logs stay
+on your computer, and your logins stay in its credential store. The application goes online only
+for what you ask of it, such as reference data, a page of outside data, or the daily update check,
+and sends nothing about you. [PRIVACY.md](PRIVACY.md) says exactly what it does.
 
-The core gives every extension, for free:
+Every connection goes through the application's own core, over HTTPS, using AWS-LC's
+FIPS-validated cryptographic module on Windows and Linux. The windows and the extensions open no
+connection of their own, and nothing listens for one. [SECURITY.md](SECURITY.md) says how to report
+a security problem.
 
-- **your identities and credentials**, kept safely, with no extension ever seeing a password
-- **reference data** (ADIF's definitions, POTA's parks), fetched, verified and kept current
-- **storage**: each extension's own database, with nothing to set up
-- **one look and one way of working** across every extension
+## Extensions, and no lock-in
 
-An extension author writes only the ham part. Our own code, built from the ground up on proven
-open-source practice.
+Everything past callsigns and Locations is an **extension**, built on the same extension API anyone
+can build on, and you choose which ones run: each starts off until you turn it on. The core gives
+every extension your identities without ever showing it a password, verified reference data, its
+own storage, and one look and way of working, so an extension author writes only the ham part.
 
-**Status:** a preview. macOS on Apple silicon is the primary platform, and every change is also
-built and tested on Windows and on Linux, x64 and arm64 (a Raspberry Pi 5 is the floor,
-`QGD-SCP-0009`). The Preview carries an installer for each to try: a Windows installer, an AppImage,
-`.deb` and `.rpm`, and a signed, notarized DMG. Create or edit callsigns, select the active callsign, and save
-or remove service credentials in the system's own store: Keychain on macOS, Credential Manager on
-Windows, the keyring on Linux. Saved passwords and API keys are never displayed.
-Remove password and API key independently, choose which to prefer, or remove a
-callsign together with its credentials. Saving one secret keeps the other saved
-secret; use the explicit removal controls to delete it.
+Today the application loads its own official extensions; extensions by other authors arrive once
+the sandbox they run in is finished. Want to write one? See
+[CONTRIBUTING.md](CONTRIBUTING.md#writing-an-extension).
 
-The credential core owns its own entry names in that store: the `io.qso-graph.desktop` service
-with `<id>:<service>` accounts, where the id is each callsign's own random id, a `callsigns.json`
-index and a `current.txt` active marker
-(`QGD-CRD-0003`). Those live in a `callsigns` directory inside the one the operating system
-gives the application — `~/Library/Application Support/QSO Graph Desktop` on macOS — beside the
-application's own SQLite stores and the reference cache (`QGD-ENG-0001`).
-It never reads or writes the qso-graph MCP servers' data (`QGD-CRD-0004`).
-Test credential checks QRZ lookup login or QRZ logbook STATUS, through the Rust
-core's TLS 1.3 client. Other services explicitly report that testing is pending.
-The rest of the desktop shell is still pending.
+## Building from source
 
-On AWS-LC's FIPS module (FIPS mode on Windows and Linux; not a FIPS build on macOS):
-TLS 1.3 only for anything that carries a credential, and TLS 1.3 or 1.2 with FIPS-approved
-suites for public reference data, whose sources do not all offer 1.3.
+You need the Node version in `.node-version`, Rust, CMake and Go. Then `make setup` and
+`make start`. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest: building, testing, the specification
+and how changes are made.
 
-To build, use the Node version in `.node-version`, Rust, CMake and Go (AWS-LC's FIPS module
-builds with Go); run `make setup`, then `make start`. Windows has no `make`: the npm commands it
-runs are spelled out in `.github/workflows/ci.yml`.
-`make setup` installs the npm dependencies and fetches the pinned ADIF release, verified by
-SHA-256 before it is unpacked, and POTA's lists. There is no database server: storage is SQLite,
-through the `node:sqlite` that Electron already carries (`QGD-ENG-0002`).
-`make package` produces the unpacked application under `out/`, and `make installer` the
-platform's installers. Signing and publication are deferred (`QGD-SCP-0003`).
+## Licence
 
-`make help` lists every target. To try a change someone has pushed, `make update` (this
-branch's latest, its dependencies and a build), then `make start`. `make suite SUITE=<name>`
-runs one suite as CI does, `make screenshots` captures the screens and compares them with the
-approved baselines, and `make approve-screenshots BY=<name>` records them as approved, by the
-person approving.
-
-`make verify` builds and packages the application, runs the unit and Electron smoke suites,
-and checks that the hardened native bundle launches and stops. It
-writes `report/report.md` and `report/summary.json`. Pending release,
-cross-platform and clean-machine gates remain explicit in the report.
-
-The renderer has no Node integration, networking or permissions. A narrow preload
-API sends validated callsign commands through the main process to a utility
-process that owns the Rust addon. It exposes credential presence, never saved
-secret values. Only bundled HTML, CSS and JavaScript can load. The packaged build
-uses ASAR and hardened Electron fuses.
-
-GPL-3.0-only. No credentials or real station data belong in this repository.
+[GPL-3.0-only](LICENSE). Third-party material and its licences are in [NOTICE](NOTICE). Thanks to
+everyone in [CONTRIBUTORS.md](CONTRIBUTORS.md).
