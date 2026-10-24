@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-24
+
 ### Changed
 
 - **Callsigns are listed as Locations are**: a row for each, the active one first with its
