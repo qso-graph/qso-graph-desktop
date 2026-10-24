@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-24
+
 ### Changed
 
 - **The window opens where you left it**: the same place and size, and maximized if it was, unless
