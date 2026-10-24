@@ -19,4 +19,5 @@
 <Story name="Up to date" />
 <Story name="Ready" args={{ update: { kind: 'ready', version: '0.1.1' } }} />
 <Story name="Available" args={{ update: { kind: 'available', version: '0.1.1', checkedAt: Date.UTC(2026, 9, 23, 14, 5) } }} />
-<Story name="Off" args={{ check: false, update: { kind: 'off' } }} />
+<Story name="Off" args={{ check: false, update: { kind: 'off', why: 'switch' } }} />
+<Story name="Development build" args={{ update: { kind: 'off', why: 'development' } }} />

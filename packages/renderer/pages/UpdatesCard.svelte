@@ -38,13 +38,16 @@
   function words(state: UpdateState | undefined): string {
     if (state === undefined) return 'Reading…';
     switch (state.kind) {
-      case 'off': return check ? 'This build does not check for updates.' : 'Not checking for updates.';
+      case 'off':
+        if (state.why === 'development') return 'This is a development build, which does not check for updates.';
+        if (state.why === 'preview') return 'Previews do not check for updates. Install a release to get them.';
+        return 'Not checking for updates.';
       case 'idle': return 'Will check shortly.';
       case 'checking': return 'Checking…';
       case 'current': return `Up to date. Checked at ${at(state.checkedAt)}.`;
-      case 'available': return `Version ${state.version} is available. This build cannot install it itself, so download it from its page.`;
+      case 'available': return `Version ${state.version} is available: What's new has its page.`;
       case 'downloading': return `Downloading version ${state.version}…`;
-      case 'ready': return `Version ${state.version} is ready. It installs when you restart, or the next time you quit.`;
+      case 'ready': return `Version ${state.version} is ready. It installs on restart, or when you quit.`;
       case 'failed': return `The last check did not finish: ${state.reason}`;
     }
   }
@@ -57,36 +60,36 @@
     }
   }
 
-  async function choose(next: UpdateTrack, control: HTMLInputElement): Promise<void> {
+  async function choose(control: HTMLSelectElement): Promise<void> {
     failure = '';
+    const next: UpdateTrack = control.value === 'early' ? 'early' : 'stable';
     if (!(await onSetTrack(next))) {
-      control.checked = false;
+      control.value = track;
       failure = 'The setting could not be saved.';
     }
   }
 </script>
 
+<!-- Two lines (KI7MT, 2026-10-24: it was bigger than Reference data for
+     what it does): the switch, then the track, what the last check found and
+     what can be done about it. The detail is in the guide. -->
 <section class="card" aria-labelledby="updates-title">
   <h2 id="updates-title">Updates</h2>
-  <label class="extension-switch">
-    <span class="extension-text">
-      <span class="extension-name">Check for updates</span>
-      <span class="hint">Once a day, while online. It asks whether there is a newer version and sends nothing about you.</span>
-    </span>
+  <label class="extension-switch update-row">
+    <span class="extension-name" title="Once a day, while online. It asks whether there is a newer version and sends nothing about you.">Check for updates</span>
     <input type="checkbox" role="switch" id="update-check" checked={check}
       onchange={event => { void flip(event.currentTarget); }} />
   </label>
-  <fieldset class="update-track" disabled={!check}>
-    <legend class="extension-name">Which versions</legend>
-    <label><input type="radio" name="update-track" id="update-track-stable" checked={track === 'stable'}
-      onchange={event => { void choose('stable', event.currentTarget); }} />
-      Stable <span class="hint">full releases only</span></label>
-    <label><input type="radio" name="update-track" id="update-track-early" checked={track === 'early'}
-      onchange={event => { void choose('early', event.currentTarget); }} />
-      Early <span class="hint">pre-releases too, the newest the day it is out</span></label>
-  </fieldset>
-  <p class="hint" id="update-state" role="status">{words(update)}</p>
-  <div class="about-links">
+  <div class="update-row">
+    <label class="update-track">Versions
+      <select id="update-track" disabled={!check} value={track}
+        title="Stable: full releases only. Early: pre-releases too, the newest the day it is out."
+        onchange={event => { void choose(event.currentTarget); }}>
+        <option value="stable">Stable</option>
+        <option value="early">Early</option>
+      </select>
+    </label>
+    <span class="hint update-state" id="update-state" role="status">{words(update)}</span>
     {#if update?.kind === 'ready'}
       <button type="button" id="update-restart" onclick={onRestart}>Restart to update</button>
     {/if}
@@ -100,6 +103,8 @@
 </section>
 
 <style>
-  .update-track { border: 0; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
-  .update-track label { display: flex; gap: 8px; align-items: baseline; }
+  .update-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .update-track { display: flex; align-items: center; gap: 8px; margin: 0; }
+  .update-track select { width: auto; }
+  .update-state { flex: 1; min-width: 12em; }
 </style>

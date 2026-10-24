@@ -91,7 +91,7 @@ try {
   }
   check(sentinelsIn(file.toString('latin1')).length === 0, 'A backup holds no credential sentinel');
   const parsed = JSON.parse(file.toString('utf8'));
-  check(parsed.format === 'qso-graph-desktop-backup' && parsed.version === 1, 'A backup names itself and its version');
+  check(parsed.format === 'qso-graph-desktop-backup' && parsed.version === 2, 'A backup names itself and its version');
   check(parsed.callsigns.some(entry => entry.call === 'W1AW' && entry.description === description), 'A backup holds the callsigns, readably');
   check(parsed.locations.stations[0].name === 'Home', 'A backup holds the Locations it was handed');
   notes.push(`a ${file.length}-byte plain file holding the callsigns and Locations, and none of the three private values that went into the profile`);
@@ -134,7 +134,7 @@ try {
     const before = JSON.stringify(to.list());
     for (const [bad, name] of [
       [Buffer.from('hello'), 'A file that is not a backup'],
-      [Buffer.from(file.toString('utf8').replace('"version": 1', '"version": 9')), 'A backup of another version'],
+      [Buffer.from(file.toString('utf8').replace('"version": 2', '"version": 9')), 'A backup of another version'],
       [Buffer.from(file.toString('utf8').replace('{', '{"credentials":{},')), 'A backup carrying a field it does not have'],
       [Buffer.from('QGD-CALLSIGN-EXPORT\n{}'), 'An encrypted export from an earlier build']
     ]) {

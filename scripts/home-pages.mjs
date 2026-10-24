@@ -162,7 +162,9 @@ try {
   await expect(body(page)).toContainText('Astro needs a Location', { timeout: 30_000 });
   await expect(page.locator('#page-input-dx')).toBeVisible();
   // An empty field says what it wants, under the box (KI7MT, 2026-10-23).
-  await expect(page.locator('#page-input-dx-hint')).toHaveText('A DX station\'s grid, as IO91. Shows when you\'re both in the grey line.');
+  // Under the section's own heading, Grey line DX check, so it does not say
+  // the grey line again (KI7MT, 2026-10-24).
+  await expect(page.locator('#page-input-dx-hint')).toHaveText('The station you want to work, as IO91.');
   // A grid its kind refuses is said so as it is typed, and not asked with.
   await page.locator('#page-input-dx').fill('ZZ99');
   await expect(page.locator('#page-ask')).toBeDisabled();

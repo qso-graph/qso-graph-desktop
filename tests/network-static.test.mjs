@@ -130,7 +130,7 @@ describe('QGD-SEC-0020 no outbound client in the product\u2019s TypeScript', () 
     // destination nobody registered.
     for (const file of await productSources()) {
       const found = hardCodedHosts(await readFile(file, 'utf8'), file)
-        // Attribution the licence requires the About panel to show, and the
+        // Attribution the licence requires Settings' About to show, and the
         // shell.openExternal allowlist, which QGD-SEC-0009 governs.
         .filter(() => !/attribution\.ts$|icons\.ts$/.test(file));
       expect(found, file).toEqual([]);

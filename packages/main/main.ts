@@ -24,7 +24,6 @@ import { isReleaseVersion } from './update-contract.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
-import { FONT_AWESOME_CREDIT } from './attribution.js';
 import { startLinksBroker } from './links-broker.js';
 import type { DocumentName } from './links-contract.js';
 
@@ -54,25 +53,11 @@ const rendererDirectory = join(distDirectory, 'renderer');
 const log = createLogger('main');
 
 app.setName('QSO Graph Desktop');
-// The About panel carries the attribution CC BY 4.0 requires for the rail's
-// icons. NOTICE is the written record; this is the one a user can actually
-// reach, which is the point of the obligation.
-//
-// Each platform shows different fields (KI7MT, 2026-10-22: on Linux it said
-// the name alone, under a broken icon). macOS and Windows show the credits;
-// Linux does not, so there the attribution goes in the copyright, which it
-// does show. Linux and Windows draw the icon only from a file path: the
-// packaged icon is beside the archive (extraResources), not inside it.
-app.setAboutPanelOptions({
-  applicationName: 'QSO Graph Desktop',
-  applicationVersion: app.getVersion(),
-  copyright: process.platform === 'linux'
-    ? `QSO Graph contributors. GPL-3.0-or-later.\n${FONT_AWESOME_CREDIT}`
-    : 'QSO Graph contributors. GPL-3.0-or-later.',
-  credits: FONT_AWESOME_CREDIT,
-  authors: ['QSO Graph contributors'],
-  iconPath: app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'build', 'icon.png')
-});
+// About is Settings' About card (KI7MT, 2026-10-24), from Help on every
+// platform and from the application menu on macOS. It carries the version,
+// the privacy summary, the project's documents and the attribution CC BY 4.0
+// requires for the rail's icons (QGD-REP-0005), so Electron's own About panel
+// is not used.
 if (process.env.QG_DESKTOP_USER_DATA_DIR) app.setPath('userData', process.env.QG_DESKTOP_USER_DATA_DIR);
 // An in-process resource scheme: no socket, server or external request.
 protocol.registerSchemesAsPrivileged([
@@ -369,6 +354,7 @@ if (!app.requestSingleInstanceLock()) {
       version: app.getVersion(),
       platform: updatePlatform(),
       asks: app.isPackaged && isReleaseVersion(app.getVersion()),
+      build: !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,
@@ -408,7 +394,7 @@ if (!app.requestSingleInstanceLock()) {
     const mac = process.platform === 'darwin';
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       mac
-        ? { label: 'QSO Graph Desktop', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }
+        ? { label: 'QSO Graph Desktop', submenu: [setupItem('about', 'About QSO Graph Desktop'), { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }
         : { label: 'File', submenu: [{ role: 'quit', label: 'Exit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
       // Setup (KI7MT, 2026-10-22): everything Home's welcome offers, from the
@@ -441,7 +427,12 @@ if (!app.requestSingleInstanceLock()) {
       // repository, which is the one place each is kept (QGD-FRM-0015,
       // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
-        // The notes for this version, from the changelog (QGD-FRM-0016).
+        // About and What's New first, in a section of their own (KI7MT,
+        // 2026-10-24): About is Settings' About card, on every platform, and
+        // in macOS's application menu as well, where Apple puts it; What's
+        // New is the notes for this version, from the changelog
+        // (QGD-FRM-0016).
+        setupItem('about', 'About QSO Graph Desktop'),
         setupItem('whats-new', 'What\'s New'),
         { type: 'separator' },
         ...HELP_DOCUMENTS.map(([name, label]) => ({
@@ -456,10 +447,7 @@ if (!app.requestSingleInstanceLock()) {
             const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
             if (window && !window.isDestroyed()) { window.show(); window.webContents.send('menu:troubleshooting'); }
           }
-        },
-        // About, where Windows and Linux keep it; macOS has it in the
-        // application's own menu.
-        ...(mac ? [] : [{ type: 'separator' as const }, { role: 'about' as const, label: 'About QSO Graph Desktop' }])
+        }
       ] }
     ]));
     createWindow();

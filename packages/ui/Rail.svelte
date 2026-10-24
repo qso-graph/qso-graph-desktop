@@ -10,7 +10,7 @@
   aloud and what is seen the same thing.
 
   Icons are inline SVG from Font Awesome Free (CC BY 4.0, credited in NOTICE
-  and in the About panel). Inline because QGD-SEC-0008 allows the renderer no
+  and in Settings' About). Inline because QGD-SEC-0008 allows the renderer no
   font and no image, and markup is neither.
 -->
 <script lang="ts">

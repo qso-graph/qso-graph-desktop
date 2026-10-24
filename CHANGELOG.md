@@ -7,6 +7,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-24
+
+### Changed
+
+- **Settings → Updates takes two lines**: the switch, then Stable or Early, what the last check
+  found, and Check now.
+- **Conditions** keeps its figures together instead of spread across the page, and says under them
+  what NOAA's R, S and G scales are.
+- **Astro's grey-line map** is no wider than 720 pixels, so it no longer fills a full-screen
+  window.
+- **Astro's grey-line DX check** asks for a **DX grid**, without saying the grey line twice.
+- **Help** starts with **About QSO Graph Desktop** and **What's New**. About (and, on macOS, the
+  application menu's About) opens Settings → About: the version, what the application sends
+  anywhere, the project's documents, a link to What's New for this version, and the icons' credit.
+- **Settings → Updates** says why a build does not check: the switch is off, or it is a development
+  build or a preview.
+
+### Fixed
+
+- **A backup now carries which callsign is active**, and restoring it makes that callsign active
+  again. Backups made before this are still read. A copy of 0.1.0 or 0.1.1 says a new backup is
+  from a different version instead of reading it.
+
 ## [0.1.1] - 2026-10-24
 
 ### Changed
