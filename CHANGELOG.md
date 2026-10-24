@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-24
+
 ### Changed
 
 - **Settings → Updates takes two lines**: the switch, then Stable or Early, what the last check
