@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Callsigns are listed as Locations are**: a row for each, the active one first with its
+  **Active** badge, then those in use, then those whose end date has passed, each in order by call.
+  **Make active** and **Edit** are on each row. They were listed in no particular order, so the
+  active callsign could end up at the bottom.
+
 ## [0.1.0] - 2026-10-24
 
 The first release of QSO Graph Desktop: a home for your callsigns, your logins and your operating

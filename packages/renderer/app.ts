@@ -15,6 +15,7 @@ import { applyTheme, followSystem, isPinned, resolveTheme, type Appearance } fro
 import { mount } from 'svelte';
 import Shell from './Shell.svelte';
 import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
+import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
@@ -217,18 +218,46 @@ async function request(command: CallsignCommand) {
   return reply.data;
 }
 function current(): Callsign | undefined { return snapshot.callsigns.find(entry => entry.id === selected); }
+// The list as Locations draws its own (#70, KI7MT 2026-10-24): a row for
+// each, active first, then those in use, then those whose end date has
+// passed; the call, its description and dates, an Active badge, and Make
+// active and Edit. The row being edited is marked.
 function list() {
   const container = element('callsign-list'); container.replaceChildren();
-  for (const callsign of snapshot.callsigns) {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'callsign-item';
-    button.classList.toggle('selected', callsign.id === selected);
-    button.setAttribute('aria-pressed', String(callsign.id === selected));
-    const call = document.createElement('strong'); call.textContent = callsign.call;
-    const description = document.createElement('span');
-    description.textContent = [callsign.description, callsign.id === snapshot.active ? 'Active' : ''].filter(Boolean).join(' · ');
-    button.append(call, description); button.addEventListener('click', () => select(callsign.id)); container.append(button);
+  const today = new Date().toISOString().slice(0, 10);
+  const span = (className: string, text: string): HTMLSpanElement => {
+    const node = document.createElement('span'); node.className = className; node.textContent = text; return node;
+  };
+  const action = (label: string, aria: string, onClick: () => void): HTMLButtonElement => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary';
+    button.textContent = label; button.setAttribute('aria-label', aria); button.addEventListener('click', onClick);
+    return button;
+  };
+  for (const callsign of orderCallsigns(snapshot.callsigns, snapshot.active, today)) {
+    const row = document.createElement('li');
+    row.className = 'extension-row station-row callsign-row';
+    row.dataset.callsign = callsign.call;
+    row.classList.toggle('selected', callsign.id === selected);
+    const text = span('extension-text', '');
+    const name = span('extension-name', callsign.call);
+    if (callsign.description) name.append(span('station-kind', callsign.description));
+    if (callsign.id === snapshot.active) name.append(span('badge', 'Active'));
+    else if (isExpired(callsign, today)) name.append(span('station-kind', 'Expired'));
+    text.append(name);
+    const dates = callsignDates(callsign.start, callsign.end);
+    if (dates) text.append(span('hint', dates));
+    const actions = span('station-actions', '');
+    if (callsign.id !== snapshot.active) {
+      actions.append(action('Make active', `Make ${callsign.call} active`, () => void makeActive(callsign.id)));
+    }
+    const edit = action('Edit', `Edit ${callsign.call}`, () => select(callsign.id));
+    edit.classList.add('callsign-edit');
+    edit.setAttribute('aria-pressed', String(callsign.id === selected));
+    actions.append(edit);
+    row.append(text, actions);
+    container.append(row);
   }
-  if (!snapshot.callsigns.length) { const empty = document.createElement('p'); empty.className = 'sidebar-note'; empty.textContent = 'No callsigns yet. Start with your own.'; container.append(empty); }
+  if (!snapshot.callsigns.length) { const empty = document.createElement('li'); empty.className = 'hint'; empty.textContent = 'No callsigns yet. Start with your own.'; container.append(empty); }
   const active = snapshot.callsigns.find(entry => entry.id === snapshot.active);
   // Both read from the callsigns every time they are drawn, so the offer of
   // guided setup goes away the moment there is a callsign rather than staying
@@ -310,7 +339,6 @@ function select(id: string | null) {
   input('start-date').value = callsign?.start ?? new Date().toISOString().slice(0, 10);
   input('end-date').value = callsign?.end ?? '';
   element('save-callsign').textContent = callsign ? 'Save callsign details' : 'Add callsign';
-  element('use-callsign').hidden = !callsign || callsign.id === snapshot.active;
   element('remove-callsign').hidden = !callsign;
   element('credential-card').hidden = !callsign;
   input('username').value = callsign?.call ?? '';
@@ -351,11 +379,14 @@ element('callsign-form').addEventListener('submit', event => {
     message('Callsign saved.');
   });
 });
-element('use-callsign').addEventListener('click', () => void busy('use-callsign', async () => {
-  if (!selected) return;
-  snapshot = await request({ type: 'set-active', id: selected }) as Snapshot;
-  select(selected); message('Active callsign selected.');
-}));
+// Make active, from a row: that callsign is the active one, and the one
+// being edited stays as it was.
+async function makeActive(id: string): Promise<void> {
+  try {
+    snapshot = await request({ type: 'set-active', id }) as Snapshot;
+    select(selected ?? id); message('Active callsign selected.');
+  } catch (error) { message((error as Error).message, true); }
+}
 element('remove-callsign').addEventListener('click', () => void busy('remove-callsign', async () => {
   if (!selected || !window.confirm(forStore('Remove this callsign and ALL its saved service credentials from Keychain? This cannot be undone.', PLATFORM))) return;
   const id = selected;

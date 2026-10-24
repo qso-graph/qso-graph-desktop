@@ -29,16 +29,19 @@
   const platform = (globalThis as { callsigns?: { platform?: string } }).callsigns?.platform ?? 'darwin';
 </script>
 
-<aside aria-label="Callsigns">
-  <div class="sidebar-title"><h2>Callsigns</h2><button id="new-callsign" type="button">+ New</button></div>
-  <div id="callsign-list"></div>
-  <p class="sidebar-note">Your own call, a club call, or a special-event call. Each has its own logins.</p>
-</aside>
 <div class="page-main">
-  <div class="page-title"><div><p class="eyebrow" data-hue="callsigns">YOUR CALLSIGNS</p><h1 id="page-title">Add a callsign</h1></div><button id="use-callsign" class="secondary" type="button" hidden>Use this callsign</button></div>
+  <div class="page-title"><div><p class="eyebrow" data-hue="callsigns">YOUR CALLSIGNS</p><h1>Callsigns</h1></div></div>
+  <!-- The list, as Locations has it (#70, KI7MT 2026-10-24): a row each, the
+       active one first with its badge, Make active and Edit on each row.
+       app.ts draws the rows. -->
+  <section class="card" aria-labelledby="callsigns-title">
+    <div class="section-title"><h2 id="callsigns-title">Your callsigns</h2><button id="new-callsign" type="button">+ New</button></div>
+    <ul id="callsign-list" class="extension-list station-list"></ul>
+    <p class="hint">Your own call, a club call, or a special-event call. Each has its own logins.</p>
+  </section>
   <p id="message" role="status" aria-live="polite"></p>
   <section class="card" aria-labelledby="identity-title">
-    <h2 id="identity-title">Callsign details</h2>
+    <h2 id="identity-title"><span id="page-title">Add a callsign</span></h2>
     <form id="callsign-form">
       <div class="fields"><label>Description<input id="callsign-description" name="name" maxlength="64" placeholder="Optional: Home, Portable" autocomplete="off"></label><label>Callsign<input id="callsign" name="callsign" required maxlength="64" placeholder="Your callsign" autocomplete="off" use:caseAsTyped={'upper'}></label></div>
       <div class="fields"><label>Start date<input id="start-date" type="date" name="start" required></label><label><span>End date <span class="optional">optional</span></span><input id="end-date" type="date" name="end"></label></div>

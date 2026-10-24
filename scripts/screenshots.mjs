@@ -364,7 +364,7 @@ try {
   // default and it is not enough on a machine that is busy — this assertion
   // failed twice that way while the application was behaving correctly.
   await expect(page.getByRole('heading', { name: FIXTURE.call, exact: true })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
+  await page.getByRole('button', { name: `Make ${FIXTURE.call} active`, exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText(`Callsign: ${FIXTURE.call}`);
   // The status line is a line of text in the baseline, and it was the last
   // thing moving between runs. app.ts retries its first callsign list for up to
@@ -375,7 +375,7 @@ try {
   // Converged on deliberately rather than raced: selecting the callsign clears
   // the line, and so does the late startup list, so both orderings end in the
   // same state and the baseline shows a page at rest.
-  await page.locator('.callsign-item').first().click();
+  await page.locator('#callsign-list .callsign-edit').first().click();
   await expect(page.locator('#message')).toHaveText('');
 
   const rail = name => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true });

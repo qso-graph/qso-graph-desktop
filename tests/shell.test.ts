@@ -160,7 +160,7 @@ describe('P3-personas-intact: the P1 screen moved without changing', () => {
                          'Service', 'Preferred credential', 'Start date', 'End date']) {
       expect(page, `${label} must still label a field`).toContain(label);
     }
-    for (const name of ['Add callsign', 'Use this callsign', 'Save in Keychain', 'Test credential',
+    for (const name of ['Add callsign', '+ New', 'Save in Keychain', 'Test credential',
                         'Remove callsign', 'Remove password', 'Remove API key', 'Remove saved credential']) {
       expect(page, `${name} must still name a button`).toContain(name);
     }

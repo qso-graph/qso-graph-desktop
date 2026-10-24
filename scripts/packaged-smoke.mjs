@@ -84,7 +84,7 @@ try {
   await page.getByLabel('Callsign', { exact: true }).fill('w1aw');
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
+  await page.getByRole('button', { name: 'Make W1AW active', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';

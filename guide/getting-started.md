@@ -5,10 +5,12 @@ Home's welcome lists these steps and ticks each one as you do it. Each is also i
 ## 1. Add your callsign
 
 **Callsigns → + New**. Enter the callsign, a description you will recognise (*Home station*, *Club
-call*) and, if you like, the dates it is valid. Choose **Use this callsign** to make it the active
-one: the status bar at the bottom always shows which is active.
+call*) and, if you like, the dates it is valid, and **Add callsign**.
 
-Add each callsign you hold, and switch between them the same way.
+Each callsign is a row in **Your callsigns**, as each Location is: the active one first, with its
+**Active** badge, then those in use, then those whose end date has passed. **Make active** on a
+row makes it the active one, and the status bar at the bottom always shows which is. **Edit**
+opens a callsign's details and logins.
 
 ## 2. Add its logins
 
