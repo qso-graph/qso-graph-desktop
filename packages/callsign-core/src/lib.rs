@@ -492,7 +492,8 @@ impl Store {
             }
             callsign
         }).collect();
-        Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(), callsigns, preferences, locations })
+        let active = self.active_id()?;
+        Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(), callsigns, preferences, locations, active })
     }
 
     // The callsigns on this computer, as the operator knows them, which a
@@ -557,7 +558,24 @@ impl Store {
         }
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
+        // The callsign that was active, when the backup names one it holds.
+        if let Some(active) = bundle.active.as_deref() {
+            let id = callsign_id(active)?;
+            if index.callsigns.contains_key(&id) {
+                atomic_write(&self.directory.join("current.txt"), id.as_bytes())?;
+            }
+        }
         Ok(bundle.callsigns.len())
+    }
+
+    // The active callsign's id, or none. A file naming one that is gone reads
+    // as none.
+    fn active_id(&self) -> CoreResult<Option<String>> {
+        match fs::read_to_string(self.directory.join("current.txt")) {
+            Ok(id) => Ok(self.lookup(id.trim()).ok().map(|c| c.id)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(_) => Err("The active callsign could not be read."),
+        }
     }
     fn delete_credentials(&self, id: &str, provider: &str) -> CoreResult<bool> {
         self.lookup(id)?;
@@ -914,12 +932,7 @@ mod addon {
         // reads as none.
         #[napi]
         pub fn active(&self) -> Result<Option<String>> {
-            let path = self.store.directory.join("current.txt");
-            match fs::read_to_string(path) {
-                Ok(id) => Ok(self.store.lookup(id.trim()).ok().map(|c| c.id)),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-                Err(_) => Err(error("The active callsign could not be read.")),
-            }
+            self.store.active_id().map_err(error)
         }
         #[napi]
         pub fn save_credentials(&self, id: String, provider: String, credentials: CredentialInput) -> Result<()> {
@@ -1147,6 +1160,31 @@ mod tests {
     // QGD-INV-0004 (KI7MT, 2026-10-23): no username in the profile file. One
     // an earlier build wrote there is read as "a username is saved" and the
     // file is written again at once without it.
+    #[test]
+    fn a_backup_carries_which_callsign_is_active_and_a_restore_brings_it_back() {
+        let from = tempfile::tempdir().unwrap();
+        let store = Store::new(from.path().into()).unwrap();
+        let old = store.create("KE1HA", "Previous", Some("1995-01-01".into()), Some("2001-01-01".into())).unwrap().id;
+        let current = store.create("KI7MT", "Current", Some("2015-01-01".into()), None).unwrap().id;
+        atomic_write(&from.path().join("current.txt"), current.as_bytes()).unwrap();
+        let bundle = store.gather_without_secrets(serde_json::Value::Null).unwrap();
+        assert_eq!(bundle.active.as_deref(), Some(current.as_str()));
+
+        let to = tempfile::tempdir().unwrap();
+        let restored = Store::new(to.path().into()).unwrap();
+        assert_eq!(restored.absorb(&bundle, false).unwrap(), 2);
+        assert_eq!(restored.active_id().unwrap().as_deref(), Some(current.as_str()));
+        assert!(restored.lookup(&old).is_ok());
+
+        // A backup naming a callsign it does not hold leaves none active.
+        let mut stray = bundle;
+        stray.active = Some("00000000-0000-4000-8000-000000000000".into());
+        let other = tempfile::tempdir().unwrap();
+        let elsewhere = Store::new(other.path().into()).unwrap();
+        elsewhere.absorb(&stray, false).unwrap();
+        assert!(elsewhere.active_id().unwrap().is_none());
+    }
+
     #[test]
     fn a_username_an_earlier_build_kept_is_taken_out_of_the_file() {
         let temp = tempfile::tempdir().unwrap();

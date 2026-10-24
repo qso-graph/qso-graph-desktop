@@ -19,7 +19,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub const FORMAT: &str = "qso-graph-desktop-backup";
-pub const VERSION: u32 = 1;
+// 2 adds which callsign is active (KI7MT, 2026-10-24: it did not come over).
+// A version 1 file is still read; a build that knows only 1 says a version 2
+// file is from a different version rather than calling it broken.
+pub const VERSION: u32 = 2;
+const READS: [u32; 2] = [1, 2];
 
 // What a file may be, to be read at all: a few hundred callsigns and five
 // hundred Locations are well inside it.
@@ -39,6 +43,9 @@ pub struct Backup {
     // The Locations, as QG Storage handed them over and will take them back.
     #[serde(default)]
     pub locations: serde_json::Value,
+    // The active callsign's id, if one is (version 2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active: Option<String>,
 }
 
 pub fn write(backup: &Backup) -> Result<String, &'static str> {
@@ -54,7 +61,7 @@ pub fn read(text: &str) -> Result<Backup, &'static str> {
     }
     let backup: Backup = serde_json::from_str(text).map_err(|_| "That file is not a backup this product wrote.")?;
     if backup.format != FORMAT { return Err("That file is not a backup this product wrote."); }
-    if backup.version != VERSION { return Err("That backup was written by a different version of QSO Graph Desktop."); }
+    if !READS.contains(&backup.version) { return Err("That backup was written by a different version of QSO Graph Desktop."); }
     if !(backup.locations.is_null() || backup.locations.is_object()) { return Err("That file's Locations are not the shape a backup has."); }
     Ok(backup)
 }
@@ -74,6 +81,7 @@ mod tests {
             }],
             preferences: Default::default(),
             locations: serde_json::json!({ "stations": [{ "name": "Camp", "place": { "MY_GRIDSQUARE": "DN13" } }], "defaults": {}, "active": null }),
+            active: Some(ID.into()),
         }
     }
 
@@ -84,13 +92,24 @@ mod tests {
         let read = read(&text).unwrap();
         assert_eq!(read.callsigns[0].call, "W1AW");
         assert_eq!(read.locations["stations"][0]["name"], "Camp");
+        assert_eq!(read.active.as_deref(), Some(ID), "which callsign is active comes back");
+    }
+
+    #[test]
+    fn a_version_1_backup_is_still_read_with_no_active_callsign() {
+        let mut first = backup();
+        first.version = 1;
+        first.active = None;
+        let read = read(&write(&first).unwrap()).unwrap();
+        assert_eq!(read.version, 1);
+        assert!(read.active.is_none());
     }
 
     #[test]
     fn refuses_what_it_did_not_write() {
         assert!(read("hello").is_err());
         assert!(read(&write(&backup()).unwrap().replace(FORMAT, "something-else")).is_err());
-        assert!(read(&write(&backup()).unwrap().replace("\"version\": 1", "\"version\": 2")).err().unwrap().contains("different version"));
+        assert!(read(&write(&backup()).unwrap().replace("\"version\": 2", "\"version\": 3")).err().unwrap().contains("different version"));
         // A field it does not know: a secret could not ride in on one.
         assert!(read(&write(&backup()).unwrap().replacen("{", "{\"credentials\":{},", 1)).is_err());
         assert!(read("QGD-CALLSIGN-EXPORT\n{}").err().unwrap().contains("earlier build"));

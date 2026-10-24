@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A backup now carries which callsign is active**, and restoring it makes that callsign active
+  again. Backups made before this are still read. A copy of 0.1.0 or 0.1.1 says a new backup is
+  from a different version instead of reading it.
+
 ## [0.1.1] - 2026-10-24
 
 ### Changed

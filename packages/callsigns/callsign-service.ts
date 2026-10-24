@@ -187,6 +187,7 @@ const MESSAGES = [
   'That backup was written by a different version of QSO Graph Desktop.',
   'That file\'s Locations are not the shape a backup has.',
   'This computer already has callsigns. Remove them first, then restore.',
+  'The active callsign could not be read.',
   // Fetching reference data, all fixed sentences carrying no URL.
   'Reference data is fetched over HTTPS only.',
   'The reference source could not be reached.',
