@@ -386,7 +386,9 @@ try {
   await rail('Settings').click();
   await expect.poll(() => page.locator('.reference-state').allInnerTexts(),
     { message: 'Settings must say what reference data is downloaded before anything is captured', timeout: 60_000 })
-    .toEqual(['Not downloaded', 'Not downloaded']);
+    // One row per resource the register lists, read from it: SOTA's
+    // summits made it three, and a count written here went stale.
+    .toEqual(JSON.parse(await readFile('data/reference-sources.json', 'utf8')).resources.map(() => 'Not downloaded'));
 
   for (const theme of THEMES) {
     await rail('Settings').click();
@@ -496,7 +498,7 @@ try {
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(theme);
 
     await rail('Locations').click();
-    await expect(page.locator('li.station-row')).toHaveCount(3, { timeout: 30_000 });
+    await expect(page.locator('li.station-row[data-station]')).toHaveCount(3, { timeout: 30_000 });
     await blur();
     await record(page, `stations-list-${theme}.png`, theme);
 
