@@ -10,9 +10,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **Callsigns are listed as Locations are**: a row for each, the active one first with its
-  **Active** badge, then those in use, then those whose end date has passed, each in order by call.
-  **Make active** and **Edit** are on each row. They were listed in no particular order, so the
-  active callsign could end up at the bottom.
+  **Active** badge, then the rest by start date, newest first. **Make active** and **Edit** are on
+  each row; a callsign whose end date has passed is marked **Expired** and has Edit only. They were
+  listed in no particular order, so the active callsign could end up at the bottom.
 
 ## [0.1.0] - 2026-10-24
 

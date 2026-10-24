@@ -219,9 +219,9 @@ async function request(command: CallsignCommand) {
 }
 function current(): Callsign | undefined { return snapshot.callsigns.find(entry => entry.id === selected); }
 // The list as Locations draws its own (#70, KI7MT 2026-10-24): a row for
-// each, active first, then those in use, then those whose end date has
-// passed; the call, its description and dates, an Active badge, and Make
-// active and Edit. The row being edited is marked.
+// each, active first, then by start date, newest first; the call, its
+// description and dates, an Active or Expired mark, and Make active (not on
+// an expired one) and Edit. The row being edited is marked.
 function list() {
   const container = element('callsign-list'); container.replaceChildren();
   const today = new Date().toISOString().slice(0, 10);
@@ -233,7 +233,7 @@ function list() {
     button.textContent = label; button.setAttribute('aria-label', aria); button.addEventListener('click', onClick);
     return button;
   };
-  for (const callsign of orderCallsigns(snapshot.callsigns, snapshot.active, today)) {
+  for (const callsign of orderCallsigns(snapshot.callsigns, snapshot.active)) {
     const row = document.createElement('li');
     row.className = 'extension-row station-row callsign-row';
     row.dataset.callsign = callsign.call;
@@ -247,7 +247,9 @@ function list() {
     const dates = callsignDates(callsign.start, callsign.end);
     if (dates) text.append(span('hint', dates));
     const actions = span('station-actions', '');
-    if (callsign.id !== snapshot.active) {
+    // An expired callsign can be edited and not made active (KI7MT,
+    // 2026-10-24): it is no longer one to operate under.
+    if (callsign.id !== snapshot.active && !isExpired(callsign, today)) {
       actions.append(action('Make active', `Make ${callsign.call} active`, () => void makeActive(callsign.id)));
     }
     const edit = action('Edit', `Edit ${callsign.call}`, () => select(callsign.id));
