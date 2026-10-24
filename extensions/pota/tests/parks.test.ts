@@ -45,6 +45,14 @@ describe('Parks On the Air', () => {
     expect(answer.data.sections[0]).toEqual({ shape: 'figures', figures: [{ label: 'Activators', value: '3' }, { label: 'Parks', value: '3' }] });
   });
 
+  it('counts activators, not spots: one activator at two parks is one (#57, Turing)', () => {
+    const at = new Date('2026-10-11T18:50:00Z');
+    const spots = [{ activator: 'W1AW', reference: 'US-0001', kHz: 14062, at }, { activator: 'W1AW', reference: 'US-0002', kHz: 14062, at }];
+    const answer = validatePageAnswer(parksPage(spots, NOW, BANDS));
+    if (!answer.ok) throw new Error('not ok');
+    expect(answer.data.sections[0]).toEqual({ shape: 'figures', figures: [{ label: 'Activators', value: '1' }, { label: 'Parks', value: '2' }] });
+  });
+
   it('offers the bands on the air in ADIF\'s order, and the modes on the air alphabetically', () => {
     const answer = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS));
     const table = answer.ok ? answer.data.sections.find(section => section.shape === 'table') : undefined;

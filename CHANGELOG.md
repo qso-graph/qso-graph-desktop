@@ -23,6 +23,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   offered its own file.
 - **Settings → About names the licence as GPL-3.0-only**, as the project is licensed; it said
   "or later".
+- **County fill finds every county a grid square reaches**, however thin the sliver: CM87us now
+  offers San Francisco as well as Alameda, instead of filling Alameda alone.
+- **Most Wanted** ranks every park in your focus area (it ranked only the first 20,000 by
+  reference), and a park in two locations takes its count from the list fetched more recently.
+- **Near Me finds parks just inside 300 km**, at the equator and toward the poles, that it left out.
+- **The Distance filter is exact**: distances show to a tenth of a km, so a park 25.4 km away no
+  longer passes "Within 25 km".
+- **Spots counts activators**, not spots: one activator at two parks is one.
+- **Astro's days follow your computer's clock on the days summer time starts and ends**, and the
+  radio depths' today and tomorrow are your clock's days, not the Location's solar day.
+- **Conditions dates NOAA's scales**, and the page's time includes them.
+- **My POTA Focus Area shows its choices the first time**, when it is still your Location's own.
+- **Updates switched back on while offline** no longer go on saying checking is off.
+- **What's New after updating from a preview** shows that release's notes, not develop's.
+
+Twenty of these were found by Turing (OpenAI Codex), one of the AI agents QSO Graph Desktop is
+built with, in a security review and a correctness review: eight and twelve findings, every one
+confirmed against the code and fixed with a test that failed first.
 
 ## [0.1.2] - 2026-10-24
 

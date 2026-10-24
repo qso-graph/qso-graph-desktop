@@ -23,6 +23,13 @@ export function distanceKm(from: { latitude: number; longitude: number }, to: { 
   return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+// A distance as a table cell: to a tenth of a km, rounded up, so the
+// Distance filter, which compares the cell, never keeps a park beyond its
+// bound (#57, found by Turing: 25.4 km drew as 25 and passed Within 25 km).
+export function kmText(km: number): string {
+  return (Math.ceil(km * 10 - 1e-9) / 10).toFixed(1);
+}
+
 export function bearingDegrees(from: { latitude: number; longitude: number }, to: { latitude: number; longitude: number }): number {
   const dLon = radians(to.longitude - from.longitude);
   const y = Math.sin(dLon) * Math.cos(radians(to.latitude));
@@ -72,7 +79,7 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
   const drawn = shown.map(({ park, km, bearing }) => [
     park.reference,
     park.name,
-    ...(here ? [String(Math.round(km)), String(Math.round(bearing) % 360)] : []),
+    ...(here ? [kmText(km), String(Math.round(bearing) % 360)] : []),
     countText(park),
     park.locations.split(',').map(value => value.trim()).filter(Boolean).join(', ')
   ]);

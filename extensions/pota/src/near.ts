@@ -6,7 +6,7 @@
 // station and returns the page.
 import type { NearPark, PotaPlace, StationBrief } from '../../../packages/extension-api/api-contract.js';
 import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';
-import { WITHIN, bearingDegrees, distanceKm } from './activate.js';
+import { WITHIN, bearingDegrees, distanceKm, kmText } from './activate.js';
 import { placeCells, placesBy, withPlaces } from './places.js';
 
 export function nearPage(parks: readonly NearPark[], observedAt: string, station: StationBrief | null,
@@ -23,7 +23,7 @@ export function nearPage(parks: readonly NearPark[], observedAt: string, station
     .sort((a, b) => a.km - b.km || a.park.reference.localeCompare(b.park.reference));
   const locationsOf = (park: NearPark) => park.locations.split(',').map(value => value.trim()).filter(Boolean);
   const drawn = measured.map(({ park, km, bearing }) => [
-    park.reference, park.name, String(Math.round(km)), String(Math.round(bearing) % 360), locationsOf(park).join(', ')
+    park.reference, park.name, kmText(km), String(Math.round(bearing) % 360), locationsOf(park).join(', ')
   ]);
   // Program and Entity, not drawn, for their filters alone, starting where
   // the active Location is (places.ts).

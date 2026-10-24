@@ -271,12 +271,15 @@ export async function buildReference(
 
 // Each location's activations read and checked, then joined: a park in two
 // locations of My Area is one row. Both lists are POTA's, so where they were
-// fetched minutes apart and disagree, the later location's count stands.
+// fetched at different times and disagree, the count fetched later stands
+// (#57, found by Turing: it was the location later in the alphabet).
 interface ReadActivations { rows: Activation[]; byLocation: Map<string, number> }
 function readAllActivations(inputs: BuildInputs['activations']): ReadActivations {
   const parks = new Map<string, Activation>();
   const byLocation = new Map<string, number>();
-  for (const [location, input] of Object.entries(inputs ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+  const byTime = Object.entries(inputs ?? {})
+    .sort(([a, x], [b, y]) => x.record.fetchedAt.localeCompare(y.record.fetchedAt) || a.localeCompare(b));
+  for (const [location, input] of byTime) {
     const rows = readActivations(input.body);
     byLocation.set(location, rows.length);
     for (const row of rows) parks.set(row.reference, row);

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
 import { pageContents } from '../../../packages/ui/page-shapes.js';
-import { astroPage, clockNote, moonWeek, subsolar, sunWeek, twilightWeek, type Clock } from '../src/page.js';
+import { astroPage, clockDays, clockNote, moonWeek, subsolar, sunWeek, twilightWeek, type Clock } from '../src/page.js';
 import { sublunar } from '../src/moon.js';
 import { julian } from '../src/sun.js';
 
@@ -85,6 +85,14 @@ describe('Astro\'s page', () => {
     expect(table.columns).toEqual(['Event', 'Date', 'Time']);
     const dawn = table.rows.find(row => row[0]!.startsWith('Dawn: the absorbing'));
     expect(dawn).toEqual([expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/)]);
+  });
+
+  it('gives today\'s and tomorrow\'s radio depths on this computer\'s days, not the Location\'s solar days (#57, Turing)', () => {
+    // On a UTC clock at 18:00 on the 22nd, Boise's evening dusks fall after
+    // 00:00 UTC: today's are the 22nd's, tomorrow's the 23rd's.
+    const rows = today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).rows;
+    expect(rows.slice(0, 4).map(row => row[1])).toEqual(Array(4).fill('22 Oct 2026'));
+    expect(rows.slice(4).map(row => row[1])).toEqual(Array(4).fill('23 Oct 2026'));
   });
 
 
@@ -221,5 +229,28 @@ describe('Astro\'s page', () => {
   it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {
     const text = JSON.stringify(astroPage(BOISE, NOW, { dx: 'FN31' }, UTC_CLOCK));
     expect(text).not.toMatch(/\b(good|poor|fair|excellent|forecast|score|rating)\b/i);
+  });
+});
+
+// Denver's clock, its offset as the rules have it for 2026: summer time from
+// 8 March 09:00 UTC to 1 November 08:00 UTC.
+const DENVER: Clock = {
+  ...MOUNTAIN,
+  offset: at => (at.getTime() >= Date.UTC(2026, 2, 8, 9) && at.getTime() < Date.UTC(2026, 10, 1, 8) ? -360 : -420)
+};
+
+describe('the days on this computer\'s clock (#57, Turing)', () => {
+  const starts = (from: string) => clockDays(new Date(from), DENVER, 3).map(day => [new Date(day.start).toISOString(), day.minutes]);
+
+  it('the spring change: the day of it starts at its own midnight and is 23 hours long', () => {
+    expect(starts('2026-03-07T18:00:00Z')).toEqual([
+      ['2026-03-07T07:00:00.000Z', 1440], ['2026-03-08T07:00:00.000Z', 1380], ['2026-03-09T06:00:00.000Z', 1440]
+    ]);
+  });
+
+  it('the autumn change: the day of it starts at its own midnight and is 25 hours long', () => {
+    expect(starts('2026-10-31T18:00:00Z')).toEqual([
+      ['2026-10-31T06:00:00.000Z', 1440], ['2026-11-01T06:00:00.000Z', 1500], ['2026-11-02T07:00:00.000Z', 1440]
+    ]);
   });
 });

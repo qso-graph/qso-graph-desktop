@@ -35,6 +35,8 @@ export interface Conditions {
   // both would make one of them look a day old or a day new.
   readonly sfiAt?: string;
   readonly kpAt?: string;
+  // The scales' own time, from NOAA's DateStamp and TimeStamp (#57).
+  readonly scalesAt?: string;
   readonly bands?: Readonly<Record<string, string>>;
 }
 
@@ -101,12 +103,17 @@ function level(raw: unknown, letter: 'R' | 'S' | 'G'): string {
   return raw.length === 2 && raw[0] === letter && /^\d$/.test(raw[1]) ? raw : 'unknown';
 }
 
-function parseScales(data: unknown): Pick<Conditions, 'scales' | 'scaleText'> {
+function parseScales(data: unknown): Pick<Conditions, 'scales' | 'scaleText' | 'scalesAt'> {
   const current = (typeof data === 'object' && data !== null ? (data as Record<string, unknown>)['0'] : undefined) as
     Record<string, { Scale?: unknown; Text?: unknown } | undefined> | undefined;
+  // When NOAA observed them, as each other reading is dated (#57, found by
+  // Turing: the scales had no time, and the page's took no account of them).
+  const stamp = current as Record<string, unknown> | undefined;
+  const scalesAt = typeof stamp?.DateStamp === 'string' && typeof stamp.TimeStamp === 'string'
+    ? isoUtc(`${stamp.DateStamp}T${stamp.TimeStamp}`) : undefined;
   const read = (letter: 'R' | 'S' | 'G') => level(current?.[letter]?.Scale, letter);
   const text = (letter: 'R' | 'S' | 'G') => (typeof current?.[letter]?.Text === 'string' ? current[letter]!.Text as string : '');
-  return { scales: { R: read('R'), S: read('S'), G: read('G') }, scaleText: { R: text('R'), S: text('S'), G: text('G') } };
+  return { scales: { R: read('R'), S: read('S'), G: read('G') }, scaleText: { R: text('R'), S: text('S'), G: text('G') }, ...(scalesAt ? { scalesAt } : {}) };
 }
 
 // solar-mcp's _band_outlook, word for word.
@@ -168,14 +175,15 @@ export function parseConditions(bodies: NoaaBodies): Conditions | undefined {
   if (!sfi && !k) return undefined;
   // Each reading carries its own time, so the page's is the newest: a stale
   // K index still says how old it is, on its own figure.
-  const times = [sfi?.at, k?.at].filter((at): at is string => at !== undefined).sort();
+  const scales = parseScales(parse(bodies.scales));
+  const times = [sfi?.at, k?.at, scales.scalesAt].filter((at): at is string => at !== undefined).sort();
   const observedAt = times.at(-1);
   if (!observedAt) return undefined;
   return {
     ...(sfi ? { sfi: sfi.sfi, sfiAt: sfi.at } : {}),
     ...(k ? { kp: k.kp, kpAt: k.at } : {}),
     ...(k?.a !== undefined ? { a: k.a } : {}),
-    ...parseScales(parse(bodies.scales)),
+    ...scales,
     observedAt,
     ...(sfi && k ? { bands: bandOutlook(sfi.sfi, k.kp) } : {})
   };
@@ -208,7 +216,7 @@ export function conditionsPage(conditions: Conditions): PageAnswer {
     conditions.kp !== undefined ? { label: 'K index', value: String(conditions.kp), ...at(conditions.kpAt) } : { label: 'K index', value: 'not read' },
     // The A index is from the K index's row, so it has the K index's time.
     conditions.a !== undefined ? { label: 'A index', value: String(conditions.a), ...at(conditions.kpAt) } : { label: 'A index', value: 'not read' },
-    { label: 'NOAA scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
+    { label: 'NOAA scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}`, ...at(conditions.scalesAt) }
   ] });
   // What the three letters are, said once under the figures (KI7MT,
   // 2026-10-24: "I'm not sure what R0 S0 G0 is").

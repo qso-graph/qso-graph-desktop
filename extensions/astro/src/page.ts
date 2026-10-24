@@ -66,11 +66,18 @@ const DAY = 86_400_000;
 export interface ClockDay { readonly start: number; readonly minutes: number; readonly noon: Date }
 export function clockDays(now: Date, clock: Clock, count = SUN_DAYS): ClockDay[] {
   const midnight = (at: number) => {
+    // The offset in force at that midnight decides it, not the one now nor
+    // the one at midday (#57, found by Turing: on the day summer time began
+    // or ended, the day started an hour out). Taken again at each candidate
+    // midnight until it holds; twice is enough, a third pass is a guard.
     let offset = clock.offset(new Date(at)) * 60_000;
     let start = Math.floor((at + offset) / DAY) * DAY - offset;
-    // The offset in force at that midnight decides it, not the one now.
-    offset = clock.offset(new Date(start + DAY / 2)) * 60_000;
-    start = Math.floor((at + offset) / DAY) * DAY - offset;
+    for (let pass = 0; pass < 3; pass += 1) {
+      const there = clock.offset(new Date(start)) * 60_000;
+      if (there === offset) break;
+      offset = there;
+      start = Math.floor((at + offset) / DAY) * DAY - offset;
+    }
     return start;
   };
   const days: ClockDay[] = [];
@@ -268,13 +275,14 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
     // What each depth means for radio, said beside it (QGD-AST-0022). Last:
     // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
     // Today and tomorrow, as it was laid out (KI7MT, 2026-10-23): the date in
-    // each time tells the two days apart.
-    [0, 1].flatMap(day => {
-      const at = new Date(now.getTime() + day * 86_400_000);
+    // each time tells the two days apart. Days on this computer's clock, as
+    // the tables above are, not the Location's solar days (#57, found by
+    // Turing: on a UTC clock "today" held tomorrow's dusk).
+    clockDays(now, clock, 2).flatMap(({ start, minutes }, day) => {
       const when = day === 0 ? 'today' : 'tomorrow';
       return [
-        ...pair(sunCrossings(at, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`),
-        ...pair(sunCrossings(at, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`)
+        ...pair(sunCrossingsOver(start, minutes, latitude, longitude, D_LAYER), 'Dawn: the absorbing D and E layers sunlit again (−10.1°)', 'Dusk: the absorbing D and E layers dark (−10.1°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`),
+        ...pair(sunCrossingsOver(start, minutes, latitude, longitude, F2_LAYER), 'Dawn: the reflecting F2 layer sunlit again (−17.2°)', 'Dusk: the reflecting F2 layer dark (−17.2°)', `Not ${when}: the sun stays lower`, `Not ${when}: the sun stays higher`)
       ];
     }), clock) }
   ];

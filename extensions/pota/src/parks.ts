@@ -117,6 +117,10 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   }
   const shown = newest.slice(0, SHOWN);
   const parks = new Set(newest.map(spot => spot.reference)).size;
+  // Each call once, however many parks it is spotted at (#57, found by
+  // Turing: a two-park activation counted two activators). A call is as
+  // spotted: KI7MT and KI7MT/M are counted apart, as they are listed.
+  const activators = new Set(newest.map(spot => spot.activator)).size;
   const byPlace = placesBy(places);
   const drawn = shown.map(spot => [
     spot.activator,
@@ -147,7 +151,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
     .sort((a, b) => a.localeCompare(b)).slice(0, 100);
   const sections: Section[] = [
     { shape: 'figures', figures: [
-      { label: 'Activators', value: String(newest.length) },
+      { label: 'Activators', value: String(activators) },
       { label: 'Parks', value: String(parks) }
     ] },
     // Sortable by any column; the band sorts in ADIF's order (the filter's).

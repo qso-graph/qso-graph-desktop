@@ -28,7 +28,10 @@
   let own = $state<string | undefined>(undefined);
   let chosen = $state<readonly string[]>([]);
   let saved = $state('');
-  let loadedFor = '';
+  // Unset until the first load: '' is the saved area when it is the
+  // Location's own, and starting from '' skipped that first load (#57, found
+  // by Turing: the picker showed no choices).
+  let loadedFor: string | undefined;
 
   $effect(() => {
     if (!parksLoaded) return;

@@ -166,13 +166,16 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     // The recorded flux is the 20:00 daily reading; the K index's last row is 18:00.
     expect(got.sfiAt).toBe('2026-10-11T20:00:00Z');
     expect(got.kpAt).toBe('2026-10-11T18:00:00Z');
-    expect(got.observedAt).toBe('2026-10-11T20:00:00Z');
+    // The scales carry their own time, 22:03, the newest, so the page's
+    // (#57, found by Turing: they had none, and the page said 20:00).
+    expect(got.scalesAt).toBe('2026-10-11T22:03:00Z');
+    expect(got.observedAt).toBe('2026-10-11T22:03:00Z');
     const page = validatePageAnswer(conditionsPage(got));
     if (!page.ok) throw new Error('expected a page');
     const figures = page.data.sections.find(section => section.shape === 'figures');
     if (!figures || figures.shape !== 'figures') throw new Error('no figures');
-    expect(figures.figures.slice(0, 3).map(figure => [figure.label, figure.observedAt])).toEqual([
-      ['Solar flux', got.sfiAt], ['K index', got.kpAt], ['A index', got.kpAt]
+    expect(figures.figures.slice(0, 4).map(figure => [figure.label, figure.observedAt])).toEqual([
+      ['Solar flux', got.sfiAt], ['K index', got.kpAt], ['A index', got.kpAt], ['NOAA scales', got.scalesAt]
     ]);
     // The flux is the number alone (KI7MT, 2026-10-22).
     expect(figures.figures[0].unit).toBeUndefined();
@@ -194,7 +197,8 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     const got = parseConditions({ ...bodies('quiet'), kp: JSON.stringify(kp) })!;
     expect(got.kp).toBeUndefined();
     expect(got.bands).toBeUndefined();
-    expect(got.observedAt).toBe('2026-10-11T20:00:00Z');
+    // The newest reading that is dated: the scales' 22:03, not the bad 21:00.
+    expect(got.observedAt).toBe('2026-10-11T22:03:00Z');
   });
 
   it('refuses a scale filed under the wrong letter', () => {

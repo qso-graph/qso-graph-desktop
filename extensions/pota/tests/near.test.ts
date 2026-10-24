@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { NearPark } from '../../../packages/extension-api/api-contract.js';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
 import { nearPage } from '../src/near.js';
+import { filteredGroups } from '../../../packages/ui/page-shapes.js';
 
 const AT = '2026-10-23T12:00:00Z';
 // Eastern Idaho, near the Montana and Wyoming lines.
@@ -59,5 +60,13 @@ describe('Near Me (QGD-HOM-0013)', () => {
     expect(nearPage(parks, AT, { name: 'Somewhere' })).toMatchObject({ ok: false, reason: expect.stringMatching(/no position/) });
     expect(nearPage(parks, AT, null)).toMatchObject({ ok: false });
     expect(nearPage([], AT, HERE)).toMatchObject({ ok: true, data: { sections: [{ shape: 'alert' }] } });
+  });
+
+  it('Within 25 km leaves out a park 25.4 km off, which rounding to 25 kept (#57, Turing)', () => {
+    const off = park('US-0025', 44.4 + 25.4 / 111.195, -111.4, 'US-ID');
+    const shown = table(nearPage([off], AT, HERE));
+    expect(filteredGroups(shown, { 2: 'Within 25 km' })).toEqual([]);
+    expect(shown.rows[0]![2]).toBe('25.4');
+    expect(filteredGroups(shown, { 2: 'Within 50 km' })[0]!.rows).toHaveLength(1);
   });
 });

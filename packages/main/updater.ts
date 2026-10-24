@@ -164,7 +164,9 @@ export function startUpdater(options: UpdaterOptions): Updater {
     if (!options.asks) { publish(notAsking()); return; }
     if (!options.settings().updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     // Nothing is tried offline (QGD-FRM-0019); asked again when it is due.
-    if (!options.online()) return;
+    // Switched back on while offline, it is no longer off (#57, found by
+    // Turing: the card went on saying checking was off).
+    if (!options.online()) { if (state.kind === 'off') publish({ kind: 'idle' }); return; }
     lastAsked = now();
     publish({ kind: 'checking' });
     const bytes = await options.feed();

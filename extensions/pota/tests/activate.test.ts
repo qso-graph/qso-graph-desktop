@@ -40,7 +40,7 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     const shown = table(answer);
     expect(shown.columns).toEqual(['Park', 'Name', 'km', 'Bearing °', 'Activations', 'Location']);
     expect(shown.rows.map(row => [row[0], row[4]])).toEqual([['US-0001', 'none'], ['US-0002', '0'], ['US-0003', '12'], ['US-0004', '3']]);
-    expect(shown.rows[0]![2]).toBe('9');
+    expect(shown.rows[0]![2]).toBe('9.5');
     expect(shown.rows[0]![3]).toBe('1');
     expect(shown.rows[3]![5]).toBe('US-ID, US-OR');
     expect(shown.sortedBy).toEqual({ column: 2, direction: 'ascending' });

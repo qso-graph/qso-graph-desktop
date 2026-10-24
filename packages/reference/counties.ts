@@ -74,6 +74,38 @@ function contains(rings: Float64Array[], x: number, y: number): boolean {
   return inside;
 }
 
+// Whether a segment reaches into a rectangle, by clipping it to the
+// rectangle (Liang-Barsky). A point on the rectangle's edge counts as in.
+function segmentMeets(ax: number, ay: number, bx: number, by: number, x0: number, y0: number, x1: number, y1: number): boolean {
+  let low = 0, high = 1;
+  const dx = bx - ax, dy = by - ay;
+  const sides: [number, number][] = [[-dx, ax - x0], [dx, x1 - ax], [-dy, ay - y0], [dy, y1 - ay]];
+  for (const [p, q] of sides) {
+    if (p === 0) {
+      if (q < 0) return false;
+    } else {
+      const t = q / p;
+      if (p < 0) { if (t > high) return false; if (t > low) low = t; }
+      else { if (t < low) return false; if (t < high) high = t; }
+    }
+  }
+  return true;
+}
+
+// Whether a county's area and a rectangle's overlap: an edge of the county
+// reaches into the rectangle, or the rectangle lies wholly inside the county
+// (its centre is, with no edge crossing it). A rectangle wholly in a hole is
+// outside, as its centre is.
+function overlaps(rings: Float64Array[], x0: number, y0: number, x1: number, y1: number): boolean {
+  for (const ring of rings) {
+    const n = ring.length;
+    for (let i = 0, j = n - 2; i < n; j = i, i += 2) {
+      if (segmentMeets(ring[j], ring[j + 1], ring[i], ring[i + 1], x0, y0, x1, y1)) return true;
+    }
+  }
+  return contains(rings, (x0 + x1) / 2, (y0 + y1) / 2);
+}
+
 export function countiesFrom(parsed: unknown): Counties {
   if (!isData(parsed)) throw new Error('The county data is not the shape this version reads.');
   const quantum = parsed.quantum;
@@ -98,18 +130,16 @@ export function countiesFrom(parsed: unknown): Counties {
   return {
     at,
     inGrid(south, west, north, east) {
-      // Sampled on a 9 by 9 lattice, edges included. A county that reaches a
-      // grid square only in a sliver narrower than a ninth of it can be
-      // missed, which is why the answer is a set of choices for the operator
-      // and not a value filled in for them.
+      // Exact: every county whose area overlaps the square's, however thin
+      // the sliver (#57, found by Turing; a 9 by 9 lattice missed slivers).
+      // A county that only touches the square along its edge is included,
+      // which is why the answer is a set of choices for the operator and not
+      // a value filled in for them.
       const found = new Set<string>();
-      for (let row = 0; row <= 8; row++) {
-        for (let column = 0; column <= 8; column++) {
-          const latitude = south + ((north - south) * row) / 8;
-          const longitude = west + ((east - west) * column) / 8;
-          const county = at(latitude, longitude);
-          if (county) found.add(county);
-        }
+      for (const shape of shapes) {
+        const [x0, y0, x1, y1] = shape.box;
+        if (east < x0 || west > x1 || north < y0 || south > y1) continue;
+        if (overlaps(shape.rings, west, south, east, north)) found.add(shape.cnty);
       }
       return [...found].sort((a, b) => a.localeCompare(b));
     },

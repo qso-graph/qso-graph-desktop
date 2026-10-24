@@ -101,9 +101,13 @@ export function notesFor(sections: NotesSection[], version: string, since: strin
     return { version, sections: sections.filter(entry => entry.version === 'Unreleased') };
   }
   const from = since ? releaseOf(since) : undefined;
+  // A preview comes before its release, so the release it was a preview of
+  // is still new (#57, found by Turing: 0.1.1 after its preview showed
+  // Unreleased).
+  const after = since !== null && isPreview(since) ? 0 : 1;
   const chosen = sections.filter(entry => RELEASE.test(entry.version)
     && compare(entry.version, release) <= 0
-    && (from ? compare(entry.version, from) > 0 : entry.version === release));
+    && (from ? compare(entry.version, from) >= after : entry.version === release));
   // A version the changelog has no section for yet is develop's, built
   // before its release: what develop has gathered.
   return { version, sections: chosen.length ? chosen : sections.filter(entry => entry.version === 'Unreleased') };
