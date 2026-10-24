@@ -421,7 +421,10 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .page-head h2 { margin: 0; }
 .page-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
-.page-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin: 0 0 12px; }
+/* Each figure as wide as it reads, packed to the left, never stretched
+   across a wide page (KI7MT, 2026-10-24: Conditions' four were spread
+   the width of the card). */
+.page-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 160px)); justify-content: start; gap: 12px 24px; margin: 0 0 12px; }
 .page-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
 .page-figures dd { margin: 2px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .page-figures .unit { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
@@ -547,7 +550,9 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-sort:hover { color: var(--ink); text-decoration: underline; }
 .page-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
 /* The world map fills the page's width at its own 2:1 shape. */
-.world-map { margin: 4px 0 14px; }
+/* No wider than reads well (KI7MT, 2026-10-24: at full screen it spanned
+   the window); narrower windows shrink it. */
+.world-map { margin: 4px 0 14px; max-width: 720px; }
 .world-map svg { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
 .map-credit { margin: 4px 0 0; font-size: 11px; color: var(--ink-muted); }
 .map-sea { fill: var(--map-sea); }
@@ -578,9 +583,9 @@ dialog.pins h2 { margin: 0 0 6px; }
    flux, K, A and scales) sit evenly: four in a row when the card has room,
    otherwise two by two, never three and one left alone on a line (KI7MT,
    2026-10-22). */
-.page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 160px)); }
 @container (min-width: 460px) {
-  .page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 160px)); }
 }
 /* A button straight after a field and its message, with room between. */
 .after-field { margin-top: 16px; }

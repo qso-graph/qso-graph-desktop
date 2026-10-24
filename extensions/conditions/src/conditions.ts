@@ -208,13 +208,16 @@ export function conditionsPage(conditions: Conditions): PageAnswer {
     conditions.kp !== undefined ? { label: 'K index', value: String(conditions.kp), ...at(conditions.kpAt) } : { label: 'K index', value: 'not read' },
     // The A index is from the K index's row, so it has the K index's time.
     conditions.a !== undefined ? { label: 'A index', value: String(conditions.a), ...at(conditions.kpAt) } : { label: 'A index', value: 'not read' },
-    { label: 'Scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
+    { label: 'NOAA scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}` }
   ] });
+  // What the three letters are, said once under the figures (KI7MT,
+  // 2026-10-24: "I'm not sure what R0 S0 G0 is").
+  sections.push({ shape: 'text', text: 'NOAA scales, 0 (none) to 5 (extreme): R radio blackouts, fading HF by day; S solar radiation storms, absorbing HF at the poles; G geomagnetic storms, disturbing HF and bringing aurora.' });
   // Band | Status | Comment, the status on the scale in BAND-OUTLOOK.md
   // (KI7MT, 2026-10-22). A table, so page data version 2.
   if (conditions.bands) {
     sections.push({ shape: 'table', columns: ['Band', 'Status', 'Comment'],
       rows: outlookRows(conditions.bands).map(row => [row.band, row.status, row.comment]) });
   }
-  return { ok: true, data: { version: 3, observedAt: conditions.observedAt, sections } };
+  return { ok: true, data: { version: 6, observedAt: conditions.observedAt, sections } };
 }

@@ -49,7 +49,7 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     const page = validatePageAnswer(conditionsPage(parseConditions(bodies('quiet'))!));
     expect(page.ok).toBe(true);
     if (!page.ok) return;
-    expect(page.data.sections.map(section => section.shape)).toEqual(['figures', 'table']);
+    expect(page.data.sections.map(section => section.shape)).toEqual(['figures', 'text', 'table']);
     expect(page.data.observedAt).toMatch(/^2026-10-1\dT\d{2}:\d{2}:\d{2}Z$/);
   });
 
@@ -203,7 +203,8 @@ describe('P8-conditions: the same answers as solar-mcp (QGD-HOM-0008)', () => {
     const got = parseConditions({ ...bodies('quiet'), scales: JSON.stringify(scales) })!;
     expect(got.scales.R).toBe('unknown');
     const page = conditionsPage(got);
-    expect(JSON.stringify(page)).not.toContain('radio blackout');
+    // No alert is raised for it (the key under the figures names every scale).
+    expect(JSON.stringify(page)).not.toContain('"shape":"alert"');
   });
 
   it('keeps solar-mcp\'s band table at its boundaries', () => {
