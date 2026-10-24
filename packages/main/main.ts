@@ -2,7 +2,8 @@
 // First, before anything opens a store or a log: portable mode decides
 // where they are (portable.ts).
 import './portable-start.js';
-import { app, BrowserWindow, Menu, nativeTheme, protocol, session } from 'electron';
+import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, session } from 'electron';
+import { MIN_HEIGHT, MIN_WIDTH, placeWindow } from './window-place.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,11 +75,15 @@ app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,
 function createWindow(): void {
   // A suite run never puts a window on screen (KI7MT, 2026-10-10).
   const visibility = windowVisibility();
+  // Where it was when it last closed, if that is still on a screen
+  // (window-place.ts); else the default size, centred.
+  const placed = placeWindow(load().windowBounds, screen.getAllDisplays().map(display => display.workArea));
   const window = new BrowserWindow({
-    width: 1100,
-    height: 740,
-    minWidth: 640,
-    minHeight: 420,
+    width: placed?.width ?? 1100,
+    height: placed?.height ?? 740,
+    ...(placed ? { x: placed.x, y: placed.y } : {}),
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     title: 'QSO Graph Desktop',
     // Read here rather than fixed: the renderer themes itself a moment later,
     // and this is the frame before that (QGD-FRM-0001).
@@ -116,7 +121,16 @@ function createWindow(): void {
   window.webContents.on('will-attach-webview', event => event.preventDefault());
   // `show: false` above only avoids the white frame at startup; this is what
   // decides whether the window is ever seen.
-  window.once('ready-to-show', () => { if (visibility.reveal) window.show(); });
+  window.once('ready-to-show', () => {
+    if (placed?.maximized) window.maximize();
+    if (visibility.reveal) window.show();
+  });
+  // Remembered as it closes: the size it has when not maximized, and whether
+  // it is, so a maximized window comes back maximized over the right size.
+  window.on('close', () => {
+    const { x, y, width, height } = window.getNormalBounds();
+    save({ ...load(), windowBounds: { x, y, width, height, maximized: window.isMaximized() } });
+  });
   void window.loadURL('qg://desktop/index.html').catch(() => {
     // Deliberately exclude exception payloads and paths from diagnostics.
     log.error({}, 'the bundled page could not be loaded');

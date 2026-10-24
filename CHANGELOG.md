@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The window opens where you left it**: the same place and size, and maximized if it was, unless
+  that place is no longer on a screen.
+
 ### Fixed
 
 - **Restoring a backup is all or nothing.** A backup is checked whole (every callsign and every

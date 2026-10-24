@@ -8,6 +8,7 @@
 // The three values are the theme control's own (QGD-REP-0004); this contract
 // says what a *stored* theme may be, which is the same set.
 import { isAreaEntry } from '../storage/area-entry.js';
+import { isWindowBounds, type WindowBounds } from './window-place.js';
 import { THEME_CHOICES, isThemeChoice, type ThemeChoice } from '../ui/theme-choice.js';
 export { THEME_CHOICES, isThemeChoice, type ThemeChoice };
 
@@ -48,6 +49,10 @@ export interface Settings {
   // offers pre-releases as well.
   updateCheck: boolean;
   updateTrack: UpdateTrack;
+  // Where the window was when the application last closed (KI7MT,
+  // 2026-10-24), or null. Main's alone: written as the window closes, never
+  // through the settings channel.
+  windowBounds: WindowBounds | null;
 }
 
 export const UPDATE_TRACKS = ['stable', 'early'] as const;
@@ -86,7 +91,7 @@ export const DAY_ONE_PINS: readonly string[] = [];
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
 export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [],
-  updateCheck: true, updateTrack: 'stable' };
+  updateCheck: true, updateTrack: 'stable', windowBounds: null };
 
 // A version, as package.json writes one, or empty.
 export function isSeenVersion(value: unknown): value is string {
@@ -155,7 +160,7 @@ export function isGrantMap(value: unknown): value is Readonly<Record<string, rea
 // flight (QGD-HOM-0005); a write that bypassed it would leave that running.
 // Nor is which extensions are on: that changes only through the extensions
 // channel, which stops the extension as it records it (QGD-HOM-0007).
-export type WritableSetting = Exclude<keyof Settings, 'pins' | 'extensionsOn'>;
+export type WritableSetting = Exclude<keyof Settings, 'pins' | 'extensionsOn' | 'windowBounds'>;
 
 export type SettingsCommand =
   | { type: 'read' }
@@ -238,5 +243,6 @@ export function readSettings(stored: unknown): Settings {
   read('area', isArea);
   read('updateCheck', isBoolean);
   read('updateTrack', isUpdateTrack);
+  read('windowBounds', isWindowBounds);
   return settings;
 }
