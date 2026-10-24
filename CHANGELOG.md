@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Settings → Updates takes two lines**: the switch, then Stable or Early, what the last check
+  found, and Check now.
+
 ### Fixed
 
 - **A backup now carries which callsign is active**, and restoring it makes that callsign active
