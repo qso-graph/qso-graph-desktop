@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-24
+
 The first release of QSO Graph Desktop: a home for your callsigns, your logins and your operating
 locations, with Parks On the Air, the sun and the moon, band conditions and ADIF's definitions to
 start. It runs on Windows, Linux (including a Raspberry Pi 5) and macOS, and everything you enter
