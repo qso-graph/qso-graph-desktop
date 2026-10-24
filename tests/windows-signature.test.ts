@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseSigner, samePublisher, windowsSigner } from '../packages/main/windows-signature.js';
+import { parseSigner, samePublisher, signatureEnvironment, windowsSigner } from '../packages/main/windows-signature.js';
 
 const ME = { status: 'Valid', subject: 'CN=Gregory Beam, O=Gregory Beam, L=Boise, S=Idaho, C=US' };
 
@@ -34,6 +34,13 @@ describe('the publisher an update must have (#81)', () => {
     expect(parseSigner('Get-AuthenticodeSignature : not found')).toBeNull();
     expect(parseSigner('[{"status":"Valid","subject":"x"}]')).toBeNull();
     expect(parseSigner('{"status":0,"subject":"x"}')).toBeNull();
+    // What CI's Windows runner answered when the wrong module loaded (#85).
+    expect(parseSigner('{"status":"","subject":""}')).toBeNull();
+  });
+
+  it('starts Windows PowerShell without PowerShell 7\'s module path, whatever its case (#85)', () => {
+    const env = signatureEnvironment('C:\\x.exe', { PATH: 'p', PSModulePath: 'C:\\pwsh7', psmodulepath: 'y' });
+    expect(env).toEqual({ PATH: 'p', QG_SIGNED_FILE: 'C:\\x.exe' });
   });
 });
 

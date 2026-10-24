@@ -19,6 +19,8 @@ export interface WindowsSigner {
 // is named by an environment variable, never inside the command, so a path
 // cannot become PowerShell.
 const SCRIPT = [
+  // Any error stops it, so a failure is no answer rather than an empty one.
+  "$ErrorActionPreference = 'Stop'",
   '$s = Get-AuthenticodeSignature -LiteralPath $env:QG_SIGNED_FILE',
   '[pscustomobject]@{ status = [string]$s.Status; subject = [string]$s.SignerCertificate.Subject } | ConvertTo-Json -Compress'
 ].join('; ');
@@ -29,7 +31,8 @@ export function parseSigner(output: string): WindowsSigner | null {
   try { value = JSON.parse(output.trim()); } catch { return null; }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const { status, subject } = value as Record<string, unknown>;
-  if (typeof status !== 'string' || typeof subject !== 'string') return null;
+  // An empty status is no answer: Windows always names one.
+  if (typeof status !== 'string' || status === '' || typeof subject !== 'string') return null;
   return { status, subject };
 }
 
@@ -46,10 +49,22 @@ function powershell(): string {
   return join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 }
 
+// Windows PowerShell's environment: this process's, without PSModulePath.
+// Started from PowerShell 7 (a CI runner, or a ham who has it), that
+// variable lists PowerShell 7's modules first, Windows PowerShell loads
+// the wrong Microsoft.PowerShell.Security, and Get-AuthenticodeSignature
+// answers nothing (#85, CI's Windows runner). Without it, Windows
+// PowerShell finds its own.
+export function signatureEnvironment(file: string, from: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...from, QG_SIGNED_FILE: file };
+  for (const key of Object.keys(env)) if (key.toLowerCase() === 'psmodulepath') delete env[key];
+  return env;
+}
+
 export function windowsSigner(file: string): WindowsSigner | null {
   const read = spawnSync(powershell(), ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', SCRIPT], {
     shell: false, windowsHide: true, encoding: 'utf8', timeout: 60_000,
-    env: { ...process.env, QG_SIGNED_FILE: file }
+    env: signatureEnvironment(file)
   });
   if (read.status !== 0 || typeof read.stdout !== 'string') return null;
   return parseSigner(read.stdout);
