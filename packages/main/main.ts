@@ -354,6 +354,7 @@ if (!app.requestSingleInstanceLock()) {
       version: app.getVersion(),
       platform: updatePlatform(),
       asks: app.isPackaged && isReleaseVersion(app.getVersion()),
+      build: !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,

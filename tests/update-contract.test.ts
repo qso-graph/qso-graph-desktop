@@ -94,6 +94,11 @@ describe('what the window may ask and be told', () => {
     expect(isUpdateState({ kind: 'ready', version: '0.1.1' })).toBe(true);
     expect(isUpdateState({ kind: 'ready', version: '<b>0.1.1</b>' })).toBe(false);
     expect(isUpdateState({ kind: 'installing' })).toBe(false);
+    // Not checking says why: the switch, a development build, or a preview.
+    expect(isUpdateState({ kind: 'off', why: 'development' })).toBe(true);
+    expect(isUpdateState({ kind: 'off', why: 'preview' })).toBe(true);
+    expect(isUpdateState({ kind: 'off' })).toBe(false);
+    expect(isUpdateState({ kind: 'off', why: 'bored' })).toBe(false);
   });
 
   it('the switch is on and the track Stable by default, and both are written only as what they are', () => {

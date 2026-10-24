@@ -36,8 +36,10 @@ export interface UpdaterOptions {
   // The feed's key for this build when it installs updates itself, or null:
   // told only that a newer version exists.
   platform: UpdatePlatform | null;
-  // Whether this build asks at all: a preview or a development run does not.
+  // Whether this build asks at all: a preview or a development run does not,
+  // and which it is, so the window can say.
   asks: boolean;
+  build?: 'release' | 'development' | 'preview';
   settings: () => { updateCheck: boolean; updateTrack: UpdateTrack };
   online: () => boolean;
   feed: () => Promise<Uint8Array | string>;
@@ -135,7 +137,8 @@ function replaceMacBundle(zip: string): string {
 
 export function startUpdater(options: UpdaterOptions): Updater {
   const now = options.now ?? Date.now;
-  let state: UpdateState = options.asks ? { kind: 'idle' } : { kind: 'off' };
+  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' ? 'preview' : options.build === 'development' ? 'development' : 'switch' });
+  let state: UpdateState = options.asks ? { kind: 'idle' } : notAsking();
   let lastAsked = 0;
   let readyFile: string | null = null;
   let newer: string | null = null;
@@ -157,7 +160,8 @@ export function startUpdater(options: UpdaterOptions): Updater {
 
   async function run(): Promise<void> {
     const settings = options.settings();
-    if (!options.asks || !settings.updateCheck) { publish({ kind: 'off' }); return; }
+    if (!options.asks) { publish(notAsking()); return; }
+    if (!settings.updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     // Nothing is tried offline (QGD-FRM-0019); asked again when it is due.
     if (!options.online()) return;
     lastAsked = now();

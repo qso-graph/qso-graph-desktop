@@ -38,7 +38,10 @@
   function words(state: UpdateState | undefined): string {
     if (state === undefined) return 'Reading…';
     switch (state.kind) {
-      case 'off': return check ? 'This build does not check for updates.' : 'Not checking for updates.';
+      case 'off':
+        if (state.why === 'development') return 'This is a development build, which does not check for updates.';
+        if (state.why === 'preview') return 'Previews do not check for updates. Install a release to get them.';
+        return 'Not checking for updates.';
       case 'idle': return 'Will check shortly.';
       case 'checking': return 'Checking…';
       case 'current': return `Up to date. Checked at ${at(state.checkedAt)}.`;

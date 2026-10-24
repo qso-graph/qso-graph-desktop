@@ -85,7 +85,9 @@ export function choose(feed: Feed, track: UpdateTrack, running: string): FeedEnt
 }
 
 export type UpdateState =
-  | { kind: 'off' }                               // the switch is off, or this build never updates
+  // Not checking, and why: the switch is off, or this is a development
+  // build or a preview, which never check (KI7MT, 2026-10-24: say which).
+  | { kind: 'off'; why: 'switch' | 'development' | 'preview' }
   | { kind: 'idle' }                              // not asked yet this session
   | { kind: 'checking' }
   | { kind: 'current'; checkedAt: number }        // nothing newer
@@ -111,5 +113,6 @@ export function isUpdateState(value: unknown): value is UpdateState {
   if ('version' in value && !isReleaseVersion(value.version)) return false;
   if ('reason' in value && (typeof value.reason !== 'string' || value.reason.length > 200)) return false;
   if ('checkedAt' in value && typeof value.checkedAt !== 'number') return false;
+  if (value.kind === 'off' && !['switch', 'development', 'preview'].includes(value.why as string)) return false;
   return true;
 }
