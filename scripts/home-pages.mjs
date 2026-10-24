@@ -316,8 +316,32 @@ try {
   await expect(page.locator('#backup-import')).toBeFocused({ timeout: 10_000 });
   // No Window menu: the title bar has Minimize and Close (KI7MT, 2026-10-23).
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(item => item.label)))
-    .toEqual(process.platform === 'darwin' ? ['QSO Graph Desktop', 'Edit', 'Setup', 'Tools', 'Help'] : ['File', 'Edit', 'Setup', 'Tools', 'Help']);
+    .toEqual(process.platform === 'darwin' ? ['QSO Graph Desktop', 'Edit', 'View', 'Setup', 'Tools', 'Help'] : ['File', 'Edit', 'View', 'Setup', 'Tools', 'Help']);
   console.log('Tools menu: Back Up and Restore land in Settings at their buttons; the menu bar has no Window menu: PASS');
+
+  // Where each platform keeps a thing (KI7MT, 2026-10-24): Settings and
+  // Check for Updates in macOS's application menu, else in Setup and Help;
+  // About in Help on Windows and Linux alone; Save Diagnostics in Help.
+  const mac = process.platform === 'darwin';
+  const holds = (menu, id) => application.evaluate(({ Menu }, [label, item]) =>
+    Menu.getApplicationMenu()?.items.find(entry => entry.label === label)?.submenu?.items.some(entry => entry.id === item) ?? false, [menu, id]);
+  expect(await holds(mac ? 'QSO Graph Desktop' : 'Setup', 'setup-settings'), 'Settings… where the platform keeps it').toBe(true);
+  expect(await holds(mac ? 'QSO Graph Desktop' : 'Help', 'setup-updates'), 'Check for Updates… where the platform keeps it').toBe(true);
+  expect(await holds('Help', 'setup-about'), 'About in Help on Windows and Linux, not on macOS').toBe(!mac);
+  expect(await holds('Help', 'setup-diagnostics'), 'Help → Save Diagnostics for Support…').toBe(true);
+  // POTA is on here, so its Focus Area is in Setup.
+  expect(await holds('Setup', 'setup-area'), 'POTA Focus Area… while Parks On the Air is on').toBe(true);
+  // View → Zoom: in steps, and no further than 150% or 80%.
+  const zoom = () => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getZoomFactor());
+  await setup('zoom-in');
+  await expect.poll(zoom).toBeCloseTo(1.1, 5);
+  for (let step = 0; step < 8; step += 1) await setup('zoom-in');
+  await expect.poll(zoom).toBeCloseTo(1.5, 5);
+  for (let step = 0; step < 10; step += 1) await setup('zoom-out');
+  await expect.poll(zoom).toBeCloseTo(0.8, 5);
+  await setup('zoom-reset');
+  await expect.poll(zoom).toBeCloseTo(1, 5);
+  console.log('Menus: Settings and Check for Updates where the platform keeps them, About, Save Diagnostics, POTA Focus Area; View zooms 80% to 150% and back: PASS');
 
   // Help → What's New (QGD-FRM-0016): the notes, opened only when asked for,
   // from the changelog that ships; a new profile shows no update line.
