@@ -4,4 +4,24 @@ out/
 report/
 .cache/
 .DS_Store
-native/**/target/
+packages/**/target/
+storybook-static/
+
+# Written and removed by scripts/svelte-check.mjs while it proves its own coverage.
+.svelte-check-control/
+
+# Captured every run for comparison against baselines/.
+report/screenshots/
+report/screenshot-logs/
+
+# Written into a verification checkout when a run is prepared. Not
+# ignoring it made `git status` dirty in every verification checkout, so the
+# report stamped itself <sha>-dirty on a pristine tree — and -dirty is supposed
+# to mean the report covers code no commit holds.
+verify-env.sh
+
+# The pinned ADIF release and POTA's lists, fetched by make setup (QGD-REF-0003).
+vendor/
+
+# The world map's coastlines, written by scripts/build-map.mjs from vendor/.
+packages/ui/generated/

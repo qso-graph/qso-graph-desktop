@@ -1,0 +1,8 @@
+{
+  "name": "@qso-graph/adif-lookup",
+  "private": true,
+  "version": "1.0.0",
+  "description": "QSO Graph Desktop's built-in ADIF Lookup extension: ADIF's own definitions, searched.",
+  "license": "GPL-3.0-only",
+  "type": "module"
+}

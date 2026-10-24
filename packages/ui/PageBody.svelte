@@ -1,0 +1,195 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!--
+  An extension's page, drawn by the core from data (KI7MT, 2026-10-22;
+  QGD-HOM-0002): the page a pin or a rail item opens.
+
+  Text only: every string here is an expression in the template, which Svelte
+  escapes, and nothing is inserted as raw HTML. An extension decides what its
+  page says, never what it looks like, so every page reads like the rest of
+  the application, and no extension code runs in the window.
+-->
+<script lang="ts">
+  import { untrack, type Snippet } from 'svelte';
+  import { filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import WorldMap from './WorldMap.svelte';
+  import { recall, remember } from './page-memory.js';
+
+  interface Props {
+    shown: PageShown;
+    // Ask the page again now; absent, no Refresh is drawn.
+    onRefresh?: (() => void) | undefined;
+    // The page's fields, drawn where a fields section places them.
+    fields?: Snippet | undefined;
+    // The page needs the internet and the computer has none: what it shows
+    // is from before, and it says so.
+    offline?: boolean;
+    // The page's key, under which its filters and sorts are remembered for
+    // the session (page-memory.ts).
+    rememberAs?: string | undefined;
+    // Open a park's or summit's page in the browser, for a column the page
+    // links (#59). The core builds the URL from its register.
+    onOpenReference?: ((kind: 'pota' | 'sota', reference: string) => void) | undefined;
+  }
+  const { shown, onRefresh, fields, offline = false, rememberAs, onOpenReference }: Props = $props();
+
+  // What each table's filters are set to, by section and column; '' is All.
+  // Kept across a refresh, so a band chosen stays chosen as spots update,
+  // and across visits, by the page's key. A table not yet touched starts
+  // where its filters say (My area, for Parks On the Air).
+  // Read once: the page is drawn afresh for each page key ({#key} in
+  // ExtensionPage), so the key a body starts with is the one it keeps.
+  const before = untrack(() => recall(rememberAs));
+  let chosen = $state<Record<number, Record<number, string>>>(before?.chosen ?? {});
+  const choose = (section: number, column: number, value: string) => {
+    chosen = { ...chosen, [section]: { ...choicesOf(section), [column]: value } };
+  };
+  const choicesOf = (at: number): Record<number, string> => {
+    if (chosen[at]) return chosen[at];
+    const section = shown.state === 'ready' ? shown.sections[at] : undefined;
+    return section?.shape === 'table' ? startingChoices(section) : {};
+  };
+  $effect(() => { remember(rememberAs, { chosen, sorts }); });
+  const anyChosen = (section: number) => Object.values(choicesOf(section)).some(value => value !== '');
+  // Every filter of a table back to All (KI7MT, 2026-10-23).
+  const clearFilters = (section: number) => { chosen = { ...chosen, [section]: {} }; };
+
+  // How each sortable table is sorted, by section: none until a heading is
+  // clicked, then ascending, then each click turns it round. Kept across a
+  // refresh, like the filters.
+  let sorts = $state<Record<number, TableSort>>(before?.sorts ?? {});
+  // The sort a table is in: the operator's, or else the order the extension
+  // says it sent.
+  const sortOf = (section: number, sent: TableSort | undefined) => sorts[section] ?? sent;
+  function sortBy(section: number, column: number, sent: TableSort | undefined): void {
+    const now = sortOf(section, sent);
+    const direction = now?.column === column && now.direction === 'ascending' ? 'descending' : 'ascending';
+    sorts = { ...sorts, [section]: { column, direction } };
+  }
+
+  // A contents link goes to its part of the page without changing the
+  // window's address: scrolled to, and focused for a keyboard or a reader.
+  function go(id: string): void {
+    const target = document.getElementById(id);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.focus({ preventScroll: true });
+  }
+
+  // Refresh rests for a few seconds after a press: the core asks at most
+  // once in ten (page-scheduler.ts), and a button that seems to do nothing
+  // when pressed again invites pressing it again.
+  let resting = $state(false);
+  function refresh(): void {
+    if (resting || !onRefresh) return;
+    onRefresh();
+    resting = true;
+    setTimeout(() => { resting = false; }, 10_000);
+  }
+</script>
+
+<!-- A reference as a link to its page, opened by the core in the browser. -->
+{#snippet reference(kind: 'pota' | 'sota', cell: string)}
+  <button type="button" class="link-button page-reference" title="Open {cell} on {kind === 'pota' ? 'pota.app' : 'SOTA'}"
+    onclick={() => onOpenReference?.(kind, cell)}>{cell}</button>
+{/snippet}
+
+<section class="card page-body" aria-busy={shown.state === 'waiting'}>
+  {#if shown.state === 'ready'}
+    <p class="page-time" id="page-observed">{#if offline}<span class="page-offline">Offline.</span> Last updated{:else}Updated{/if} {utc(shown.observedAt)}
+      {#if onRefresh}<button type="button" class="secondary" id="page-refresh" onclick={refresh} disabled={resting}>{resting ? 'Refreshed' : 'Refresh'}</button>{/if}
+    </p>
+  {/if}
+  {#if shown.state === 'ready'}
+    {@const contents = pageContents(shown.sections)}
+    {#if contents.length > 0}
+      <nav class="page-contents" aria-label="On this page">
+        {#each contents as entry, i (entry.id)}{#if i > 0}<span class="page-contents-gap" aria-hidden="true">|</span>{/if}<button type="button" class="link-button" onclick={() => go(entry.id)}>{entry.label}</button>{/each}
+      </nav>
+    {/if}
+  {/if}
+  {#if shown.state === 'waiting'}
+    <p class="hint">Getting the latest…</p>
+  {:else if shown.state === 'failed'}
+    <p class="page-failed" role="status">{shown.reason}</p>
+  {:else}
+    {#each shown.sections as section, at (at)}
+      {#if section.heading}<h2 class="page-section-heading" id="page-part-{at}" tabindex="-1">{section.heading}</h2>{/if}
+      {#if section.shape === 'alert'}
+        <p class="page-alert {section.level}" role={section.level === 'info' ? 'status' : 'alert'}>{section.text}</p>
+      {:else if section.shape === 'figures'}
+        <dl class="page-figures">
+          {#each section.figures as figure, i (i)}
+            <div>
+              <dt>{figure.label}</dt>
+              <dd>{figure.value}{#if figure.unit}<span class="unit"> {figure.unit}</span>{/if}</dd>
+              {#if figure.observedAt}<dd class="figure-time">{utc(figure.observedAt)}</dd>{/if}
+            </div>
+          {/each}
+        </dl>
+      {:else if section.shape === 'table'}
+        {#if section.filters}
+          <!-- Drawn by the core, applied here at once: no new question is
+               asked when a choice changes (page data version 6). -->
+          <div class="page-filters">
+            {#each section.filters as filter (filter.column)}
+              <label>{filter.label}
+                <select class="page-filter" value={choicesOf(at)[filter.column] ?? ''}
+                  onchange={event => choose(at, filter.column, event.currentTarget.value)}>
+                  {#each filter.named ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
+                  {#each filter.upTo ?? [] as choice (choice.label)}<option value={choice.label}>{choice.label}</option>{/each}
+                  <option value="">All</option>
+                  {#each offeredOptions(section, filter, choicesOf(at)) as option (option)}<option value={option}>{option}</option>{/each}
+                </select>
+              </label>
+            {/each}
+            {#if anyChosen(at)}<button type="button" class="link-button page-filters-clear" onclick={() => clearFilters(at)}>Clear filters</button>{/if}
+          </div>
+        {/if}
+        {@const sort = sortOf(at, section.sortedBy)}
+        {@const groups = sortedGroups(section, filteredGroups(section, choicesOf(at)), sort)}
+        {#if groups.length === 0}<p class="hint page-filter-empty">Nothing matches what is chosen.</p>{/if}
+        <!-- The last `hidden` columns are a filter's alone and are not drawn. -->
+        {@const drawn = section.columns.length - (section.hidden ?? 0)}
+        <!-- The columns that hold lists: a long one is drawn short (shortList). -->
+        {@const lists = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column))}
+        <!-- The columns of references the core links to their pages (#59). -->
+        {@const linked = new Map((section.links ?? []).map(link => [link.column, link.kind]))}
+        <!-- A table wider than the page scrolls in its own box (#58). -->
+        <div class="page-table-box" hidden={groups.length === 0}>
+        <table class="page-table">
+          <thead><tr>{#each section.columns.slice(0, drawn) as column, c (c)}
+            {#if section.sortable}
+              <th scope="col" aria-sort={sort?.column === c ? sort.direction : undefined}>
+                <button type="button" class="page-sort" onclick={() => sortBy(at, c, section.sortedBy)}>{column}<span class="page-sort-mark" aria-hidden="true">{sort?.column === c ? (sort.direction === 'ascending' ? ' ▲' : ' ▼') : ''}</span></button>
+              </th>
+            {:else}<th scope="col">{column}</th>{/if}
+          {/each}</tr></thead>
+          <!-- One table, its groups as row groups, so every group's columns line
+               up with every other's. A two-cell row in a wider table gives
+               its one value across the columns after the first (version 5). -->
+          {#each groups as group, g (g)}
+            <tbody>
+              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={drawn}>{group.heading}</th></tr>{/if}
+              {#each group.rows as row, r (r)}
+                <tr>{#each row.slice(0, drawn) as cell, c (c)}{@const kind = row.length === section.columns.length && onOpenReference ? linked.get(c) : undefined}{#if c === 0}<th scope="row">{#if kind}{@render reference(kind, cell)}{:else}{cell}{/if}</th>{:else}{@const short = lists.has(c) && row.length === section.columns.length ? shortList(cell) : undefined}<td class:wrap={short === undefined && cell.length > 48} title={short === undefined ? undefined : cell} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{#if kind}{@render reference(kind, cell)}{:else}{short ?? cell}{/if}</td>{/if}{/each}</tr>
+              {/each}
+            </tbody>
+          {/each}
+        </table>
+        </div>
+      {:else if section.shape === 'text'}
+        <p class="page-text">{section.text}</p>
+      {:else if section.shape === 'fields'}
+        {@render fields?.()}
+      {:else if section.shape === 'map'}
+        <WorldMap sun={section.sun} moon={section.moon} twilight={section.twilight} marks={section.marks} />
+      {:else}
+        <ul class="page-items">
+          {#each section.items as item, i (i)}
+            <li><span class="item-title">{item.title}</span>{#if item.detail}<span class="item-detail">{item.detail}</span>{/if}</li>
+          {/each}
+        </ul>
+      {/if}
+    {/each}
+  {/if}
+</section>

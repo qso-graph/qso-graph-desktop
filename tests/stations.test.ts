@@ -1,0 +1,757 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// P9 (docs/P9.md): stations in state.sqlite, checked against ADIF's own
+// definitions. P9-record, P9-adif, P9-optional, P9-kind, P9-active, P9-pota,
+// P9-tqsl and P9-contract, as far as the storage package reaches them.
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { definitionsOf } from '../packages/reference/adif.js';
+import { countiesFrom } from '../packages/reference/counties.js';
+import { rulesetOf, type Ruleset } from '../packages/reference/validate.js';
+import { layout, openState } from '../packages/storage/layout.js';
+import { potaPark, referenceSchema, sotaSummit } from '../packages/storage/reference-schema.js';
+import { validateStorageCommand } from '../packages/storage/storage-contract.js';
+import { openStore } from '../packages/storage/sqlite.js';
+import { station } from '../packages/storage/schema.js';
+import {
+  MAX_STATIONS, REMOVED_FIELDS, STATION_FIELDS, typedLocation, STATION_KINDS, isLotwPark, isStationDraft, isStationsBackup, isStationsView, type StationDraft
+} from '../packages/storage/station-contract.js';
+import {
+  adifLocation, backupStations, checkStation, deleteStation, restoreStations, draftFromPark, draftFromSummit, callsignActivated, callsignRemoved, saveStation, setActiveStation,
+  setDefaultStation, stationChoices, viewStations, lookUpParks, parksIn
+} from '../packages/storage/stations.js';
+
+// Each test opens state.sqlite and commits to it, and Windows' runners commit
+// slowly: four saves took 11.5 s there against vitest's 5 s default
+// (2026-10-22). A bound, still, so a hang fails rather than waits.
+vi.setConfig({ testTimeout: 30_000 });
+
+const MIGRATIONS = resolve('drizzle/state');
+const register = JSON.parse(readFileSync('data/reference-sources.json', 'utf8'));
+// From `make setup` (CI runs scripts/fetch-adif.mjs before the checks). Not
+// skipped when missing: a station check that never met ADIF's definitions
+// proves nothing.
+const ruleset: Ruleset = rulesetOf(definitionsOf(JSON.parse(readFileSync(
+  `vendor/adif/${register.adif.version}/${register.adif.source.definitions}`, 'utf8'))));
+
+let root: string;
+beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'qg-stations-')); });
+afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+
+const open = () => openState(layout(root), MIGRATIONS, '0.0.0-test');
+// Every station has a grid (QGD-STN-0003); a test about other fields gets
+// one unless it gives its own. A test of a station with no grid says so with
+// MY_GRIDSQUARE: undefined.
+const draft = (place: StationDraft['place'], extra: Partial<StationDraft> = {}): StationDraft => {
+  const withGrid = 'MY_GRIDSQUARE' in place || 'MY_VUCC_GRIDS' in place ? { ...place } : { MY_GRIDSQUARE: 'DN13', ...place };
+  for (const key of Object.keys(withGrid) as (keyof typeof withGrid)[]) if (withGrid[key] === undefined) delete withGrid[key];
+  return { name: 'Home', place: withGrid, ...extra };
+};
+
+describe('P9-adif: values are ADIF\'s, checked against its definitions (QGD-STN-0002)', () => {
+  it('takes a valid value in every field, at the bounds', () => {
+    const place = {
+      MY_GRIDSQUARE: 'DN13sm46', MY_VUCC_GRIDS: 'DN13,DN14', MY_ALTITUDE: '824', MY_DXCC: '291', MY_CQ_ZONE: '3', MY_ITU_ZONE: '6',
+      MY_STATE: 'ID', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID', MY_POTA_REF: 'US-0001', MY_SOTA_REF: 'W7I/SI-001',
+      MY_WWFF_REF: 'KFF-0001', MY_IOTA: 'NA-001'
+    };
+    expect(Object.keys(place).sort()).toEqual([...STATION_FIELDS].sort());
+    expect(checkStation(draft(place), ruleset).problems).toEqual([]);
+    expect(checkStation(draft({ MY_GRIDSQUARE: 'DN', MY_CQ_ZONE: '1', MY_ITU_ZONE: '1' }), ruleset).problems).toEqual([]);
+    expect(checkStation(draft({ MY_CQ_ZONE: '40', MY_ITU_ZONE: '90' }), ruleset).problems).toEqual([]);
+  });
+
+  it('refuses a zone that is not the state\'s own where ADIF lists the state\'s zones', () => {
+    const problems = checkStation(draft({ MY_DXCC: '291', MY_STATE: 'ID', MY_CQ_ZONE: '40', MY_ITU_ZONE: '90' }), ruleset).problems;
+    expect(problems).toEqual([
+      { field: 'MY_CQ_ZONE', reason: "Idaho is in CQ zone 3 in ADIF's list" },
+      { field: 'MY_ITU_ZONE', reason: "Idaho is in ITU zone 6 in ADIF's list" }
+    ]);
+    // Québec spans two: either is right.
+    expect(checkStation(draft({ MY_DXCC: '1', MY_STATE: 'QC', MY_CQ_ZONE: '2' }), ruleset).problems).toEqual([]);
+    expect(checkStation(draft({ MY_DXCC: '1', MY_STATE: 'QC', MY_CQ_ZONE: '5' }), ruleset).problems).toEqual([]);
+  });
+
+  it.each([
+    ['MY_GRIDSQUARE', 'DN1'], ['MY_GRIDSQUARE', 'ZZ13'], ['MY_CQ_ZONE', '41'], ['MY_CQ_ZONE', '0'],
+    ['MY_ITU_ZONE', '0'], ['MY_ITU_ZONE', '91'],
+    ['MY_POTA_REF', 'K0001'], ['MY_SOTA_REF', 'nope'], ['MY_IOTA', 'XX-1']
+  ])('refuses %s %j with ADIF\'s reason', (field, value) => {
+    const problems = checkStation(draft({ [field]: value }), ruleset).problems;
+    expect(problems.map(problem => problem.field)).toEqual([field]);
+    expect(problems[0].reason.length).toBeGreaterThan(0);
+  });
+
+  it('checks a state against the station\'s own DXCC entity', () => {
+    expect(checkStation(draft({ MY_DXCC: '291', MY_STATE: 'ID' }), ruleset).problems).toEqual([]);
+    expect(checkStation(draft({ MY_DXCC: '1', MY_STATE: 'ID' }), ruleset).problems.map(p => p.field)).toEqual(['MY_STATE']);
+  });
+
+  it('never alters a refused value to fit', async () => {
+    const state = await open();
+    try {
+      const outcome = await saveStation(state, draft({ MY_GRIDSQUARE: 'dn13x' }), ruleset);
+      expect(outcome.ok).toBe(false);
+      expect((await viewStations(state, true)).list).toEqual([]);
+    } finally { state.close(); }
+  });
+
+  it('saves by name when the definitions are not downloaded, and says so', async () => {
+    expect(checkStation(draft({ MY_GRIDSQUARE: 'not a grid' }), 'not loaded')).toEqual({ problems: [], checked: false });
+  });
+});
+
+describe('P9-tqsl: every TQSL station location field has its ADIF home (QGD-STN-0009)', () => {
+  // One fixture per entity TQSL has a page for, with the ADIF field TQSL
+  // checks each against when it signs (tqslconvert.cpp).
+  it.each([
+    ['US', { MY_DXCC: '291', MY_STATE: 'ID', MY_CNTY: 'ID,Ada' }],
+    ['Canada', { MY_DXCC: '1', MY_STATE: 'ON' }],
+    ['European Russia', { MY_DXCC: '54', MY_STATE: 'MA' }],
+    ['China', { MY_DXCC: '318', MY_STATE: 'BJ' }],
+    ['Australia', { MY_DXCC: '150', MY_STATE: 'NSW' }],
+    ['Japan', { MY_DXCC: '339', MY_STATE: '01' }],
+    ['Finland', { MY_DXCC: '224', MY_STATE: '224' }]
+  ])('%s: state and county round-trip', async (_entity, place) => {
+    expect(checkStation(draft(place), ruleset).problems).toEqual([]);
+    const state = await open();
+    try {
+      const saved = await saveStation(state, draft(place), ruleset);
+      expect(saved.ok).toBe(true);
+      expect((await viewStations(state, true)).list[0].place).toMatchObject(place);
+    } finally { state.close(); }
+  });
+
+  it('holds a grid line as MY_VUCC_GRIDS and TQSL\'s park as its own field', async () => {
+    expect(isLotwPark('NP33,WR01')).toBe(true);
+    expect(isLotwPark('np33')).toBe(false);
+    expect(isLotwPark('NP333')).toBe(false);
+    const state = await open();
+    try {
+      const saved = await saveStation(state, draft({ MY_VUCC_GRIDS: 'DN13,DN14' }, { lotwPark: 'NP33' }), ruleset);
+      expect(saved.ok).toBe(true);
+      const [one] = (await viewStations(state, true)).list;
+      expect(one.place.MY_VUCC_GRIDS).toBe('DN13,DN14');
+      expect(one.lotwPark).toBe('NP33');
+    } finally { state.close(); }
+  });
+});
+
+describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
+  it('makes, reads, edits and deletes a station, and keeps it across a restart', async () => {
+    let state = await open();
+    const made = await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }), ruleset);
+    if (!made.ok) throw new Error('not saved');
+    state.close();
+    state = await open();
+    try {
+      expect((await viewStations(state, true)).list).toEqual([{ id: made.id, name: 'Home', place: { MY_GRIDSQUARE: 'DN13' } }]);
+      expect((await saveStation(state, draft({ MY_GRIDSQUARE: 'DN14' }, { id: made.id, name: 'Shack' }), ruleset)).ok).toBe(true);
+      expect((await viewStations(state, true)).list[0]).toMatchObject({ name: 'Shack', place: { MY_GRIDSQUARE: 'DN14' } });
+      expect(await deleteStation(state, made.id)).toBe(true);
+      expect(await deleteStation(state, made.id)).toBe(false);
+      expect((await viewStations(state, true)).list).toEqual([]);
+    } finally { state.close(); }
+  });
+
+  it('saves with a name and a grid and nothing else', async () => {
+    const state = await open();
+    try {
+      expect((await saveStation(state, draft({}, { name: 'Just a name' }), ruleset)).ok).toBe(true);
+      expect((await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }, { name: 'Grid' }), ruleset)).ok).toBe(true);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001' }, { name: 'Park' }), ruleset)).ok).toBe(true);
+      expect((await viewStations(state, true)).list).toHaveLength(3);
+    } finally { state.close(); }
+  });
+
+  it('holds nothing that is not public or past a grid square: no address, latitude, longitude or grid extension (KI7MT, 2026-10-23)', async () => {
+    expect(REMOVED_FIELDS).toEqual(['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON', 'MY_GRIDSQUARE_EXT']);
+    for (const field of REMOVED_FIELDS) {
+      expect((STATION_FIELDS as readonly string[]).includes(field), field).toBe(false);
+      expect(isStationDraft({ name: 'Home', place: { MY_GRIDSQUARE: 'DN13', [field]: 'x' } }), field).toBe(false);
+    }
+    // What an earlier build kept is taken out of every Location (state
+    // migration 0005), and the rest of it kept as it was.
+    const state = await open();
+    try {
+      await state.unit(db => db.insert(station).values({
+        id: '11111111-1111-4111-8111-111111111111', name: 'Old', kind: null, lotwPark: null, notes: null,
+        place: { MY_GRIDSQUARE: 'DN13', MY_STREET: '1 Main', MY_CITY: 'Boise', MY_POSTAL_CODE: '83702', MY_LAT: 'N043 37.500', MY_LON: 'W116 12.500', MY_GRIDSQUARE_EXT: 'ab', MY_STATE: 'ID' },
+        createdAt: '2026-10-22T00:00:00Z', updatedAt: '2026-10-22T00:00:00Z'
+      }).run());
+      state.connection.exec(readFileSync('drizzle/state/0005_public_places.sql', 'utf8'));
+      expect((await viewStations(state, true)).list[0]?.place).toEqual({ MY_GRIDSQUARE: 'DN13', MY_STATE: 'ID' });
+    } finally { state.close(); }
+  });
+
+  it('keeps the operator\'s notes, over several lines, and refuses notes off their shape', async () => {
+    const state = await open();
+    try {
+      const notes = 'Park at the north lot.\nPicnic table 4, shade after 2 pm.';
+      const made = await saveStation(state, draft({}, { notes }), ruleset);
+      if (!made.ok) throw new Error('not saved');
+      expect((await viewStations(state, true)).list[0].notes).toBe(notes);
+    } finally { state.close(); }
+    for (const bad of ['<script>', 'tab\there', 'x'.repeat(2001), '']) {
+      expect(isStationDraft({ name: 'x', place: { MY_GRIDSQUARE: 'DN13' }, notes: bad }), JSON.stringify(bad)).toBe(false);
+    }
+  });
+
+  it('refuses a station with no grid, and takes the grids of a line or corner as its grid', () => {
+    expect(checkStation(draft({ MY_GRIDSQUARE: undefined, MY_POTA_REF: 'US-0001' }), ruleset).problems)
+      .toEqual([{ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' }]);
+    expect(checkStation(draft({ MY_GRIDSQUARE: '  ' }), 'not loaded').problems.map(p => p.field)).toEqual(['MY_GRIDSQUARE']);
+    expect(checkStation(draft({ MY_VUCC_GRIDS: 'DN13,DN14' }), ruleset).problems).toEqual([]);
+  });
+
+  it('refuses a station with no name, or one of only spaces, made or edited', async () => {
+    expect(isStationDraft({ name: '', place: {} })).toBe(false);
+    expect(isStationDraft({ name: '   ', place: {} })).toBe(false);
+    expect(checkStation(draft({}, { name: '  ' }), ruleset).problems.map(p => p.field)).toEqual(['name']);
+    const state = await open();
+    try {
+      const made = await saveStation(state, draft({}), ruleset);
+      if (!made.ok) throw new Error('not saved');
+      expect((await saveStation(state, draft({}, { id: made.id, name: ' ' }), ruleset)).ok).toBe(false);
+    } finally { state.close(); }
+  });
+
+  it('refuses a second station with the same name, whatever its case', async () => {
+    const state = await open();
+    try {
+      expect((await saveStation(state, draft({}), ruleset)).ok).toBe(true);
+      const second = await saveStation(state, draft({}, { name: 'HOME' }), ruleset);
+      expect(second).toEqual({ ok: false, problems: [{ field: 'name', reason: 'Another location already has this name.' }] });
+    } finally { state.close(); }
+  });
+});
+
+describe('P9-kind: a label and nothing more (QGD-STN-0004)', () => {
+  it('is one of four, and changes nothing else', async () => {
+    expect(isStationDraft({ name: 'x', kind: 'Boat', place: {} })).toBe(false);
+    const state = await open();
+    try {
+      for (const kind of STATION_KINDS) {
+        const place = { MY_GRIDSQUARE: 'DN13' };
+        expect(checkStation(draft(place, { kind }), ruleset)).toEqual(checkStation(draft(place), ruleset));
+        expect((await saveStation(state, draft(place, { name: kind, kind }), ruleset)).ok).toBe(true);
+      }
+      const list = (await viewStations(state, true)).list;
+      expect(new Set(list.map(one => JSON.stringify(one.place)))).toEqual(new Set([JSON.stringify({ MY_GRIDSQUARE: 'DN13' })]));
+    } finally { state.close(); }
+  });
+});
+
+describe('P9-active: defaults and the active station (QGD-STN-0005, QGD-STN-0001)', () => {
+  // Callsigns by their ids, as the credential core writes them.
+  const KI7MT = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
+  const CLUB = '4a3c9d2f-6e5b-4f70-8b8c-2d3e4f5a6b7c';
+  const NOBODY = '5b4d0e3a-7f6c-4081-9c9d-3e4f5a6b7c8d';
+
+  it('makes a callsign\'s default active with it; two callsigns share one station', async () => {
+    const state = await open();
+    try {
+      const home = await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }), ruleset);
+      const park = await saveStation(state, draft({ MY_POTA_REF: 'US-0001' }, { name: 'Park' }), ruleset);
+      if (!home.ok || !park.ok) throw new Error('not saved');
+      expect(await setDefaultStation(state, KI7MT, home.id)).toBe(true);
+      expect(await setDefaultStation(state, CLUB, home.id)).toBe(true);
+      expect(await setActiveStation(state, park.id)).toBe(true);
+      expect(await callsignActivated(state, CLUB)).toBe(true);
+      let view = await viewStations(state, true);
+      expect(view.active).toBe(home.id);
+      expect(view.defaults).toEqual({ [KI7MT]: home.id, [CLUB]: home.id });
+      expect(view.list.filter(one => one.id === home.id)).toHaveLength(1);
+      // The station never carries a callsign: it is the active callsign's.
+      expect(Object.keys(view.list[0])).not.toContain('callsign');
+      // A callsign with no default leaves the active station as it was.
+      expect(await callsignActivated(state, NOBODY)).toBe(false);
+      expect((await viewStations(state, true)).active).toBe(home.id);
+      // Deleting the active station leaves none active, and no default naming it.
+      await deleteStation(state, home.id);
+      view = await viewStations(state, true);
+      expect(view.active).toBeNull();
+      expect(view.defaults).toEqual({});
+      expect(isStationsView(view)).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('applies a callsign activation and a station choice in the order they were asked', async () => {
+    const state = await open();
+    try {
+      const a = await saveStation(state, draft({}, { name: 'A' }), ruleset);
+      const b = await saveStation(state, draft({}, { name: 'B' }), ruleset);
+      if (!a.ok || !b.ok) throw new Error('not saved');
+      await setDefaultStation(state, KI7MT, a.id);
+      // Not awaited one by one: each is one unit of work, so neither can land
+      // between the other's check and its write.
+      await Promise.all([callsignActivated(state, KI7MT), setActiveStation(state, b.id)]);
+      expect((await viewStations(state, true)).active).toBe(b.id);
+      await Promise.all([setActiveStation(state, b.id), callsignActivated(state, KI7MT)]);
+      expect((await viewStations(state, true)).active).toBe(a.id);
+      await Promise.all([setDefaultStation(state, KI7MT, b.id), callsignActivated(state, KI7MT)]);
+      expect((await viewStations(state, true)).active).toBe(b.id);
+    } finally { state.close(); }
+  });
+
+  it('removes a callsign\'s default with the callsign, and leaves the station and the others (KI7MT, 2026-10-22)', async () => {
+    const state = await open();
+    try {
+      const home = await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }), ruleset);
+      if (!home.ok) throw new Error('not saved');
+      await setDefaultStation(state, KI7MT, home.id);
+      await setDefaultStation(state, CLUB, home.id);
+      expect(await callsignRemoved(state, CLUB)).toBe(true);
+      const view = await viewStations(state, true);
+      expect(view.defaults).toEqual({ [KI7MT]: home.id });
+      expect(view.list.map(one => one.id)).toEqual([home.id]);
+      // Removing one that has no default changes nothing.
+      expect(await callsignRemoved(state, NOBODY)).toBe(false);
+    } finally { state.close(); }
+  });
+
+  it('keys a default by the callsign\'s id and refuses anything else at the boundary', () => {
+    expect(validateStorageCommand({ type: 'set-default-station', callsign: KI7MT, id: null })).toBe(true);
+    for (const callsign of ['ki7mt', 'KI7MT', '', KI7MT.toUpperCase()]) {
+      expect(validateStorageCommand({ type: 'set-default-station', callsign, id: null }), callsign).toBe(false);
+    }
+  });
+
+  // Five hundred saves, each its own write to disk: a hosted Windows runner
+  // took over five seconds, vitest's default (CI, 2026-10-20).
+  it('stops at the most stations a status can carry, and edits still save', { timeout: 60_000 }, async () => {
+    const state = await open();
+    try {
+      let first = '';
+      for (let at = 0; at < MAX_STATIONS; at += 1) {
+        const made = await saveStation(state, draft({}, { name: `S${at}` }), 'not loaded');
+        if (!made.ok) throw new Error(`station ${at} not saved`);
+        first ||= made.id;
+      }
+      const over = await saveStation(state, draft({}, { name: 'One too many' }), 'not loaded');
+      expect(over.ok).toBe(false);
+      expect((await saveStation(state, draft({}, { id: first, name: 'Renamed' }), 'not loaded')).ok).toBe(true);
+      expect(isStationsView(await viewStations(state, false))).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('refuses a station that does not exist', async () => {
+    const state = await open();
+    try {
+      const missing = '00000000-0000-4000-8000-000000000000';
+      expect(await setActiveStation(state, missing)).toBe(false);
+      expect(await setDefaultStation(state, 'ki7mt', missing)).toBe(false);
+    } finally { state.close(); }
+  });
+});
+
+describe('P9-pota: a portable station from a POTA park (QGD-STN-0006)', () => {
+  const reference = () => {
+    const store = openStore(join(root, 'reference.sqlite'), { schema: referenceSchema });
+    const ddl = readFileSync('drizzle/reference/0000_reference.sql', 'utf8');
+    for (const statement of ddl.split('--> statement-breakpoint')) store.connection.exec(statement);
+    return store;
+  };
+  const park = {
+    name: 'Example Park', active: true, entityId: 291, adifEntity: 291, locationDesc: 'US-ID',
+    latitude: 43.625, longitude: -116.2083, grid: 'DN13sp', coordinatesUsable: true, coordinatesNote: null
+  };
+
+  it('takes the park\'s grid, coordinates and state, and its reference', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(potaPark).values({ reference: 'US-0001', ...park }).run());
+      const made = await draftFromPark(store, 'US-0001', ruleset);
+      if (made === 'not found') throw new Error('no park');
+      expect(made.draft).toEqual({
+        name: 'US-0001 Example Park', kind: 'Portable',
+        place: { MY_POTA_REF: 'US-0001', MY_DXCC: '291', MY_GRIDSQUARE: 'DN13sp', MY_STATE: 'ID' }
+      });
+      expect(made.note).toBeUndefined();
+      expect(checkStation(made.draft, ruleset).problems).toEqual([]);
+    } finally { store.close(); }
+  });
+
+  it('fills nothing from coordinates POTA publishes as unusable, and says so', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(potaPark).values({
+        reference: 'US-0002', ...park, coordinatesUsable: false, coordinatesNote: 'impossible'
+      }).run());
+      const made = await draftFromPark(store, 'US-0002', ruleset);
+      if (made === 'not found') throw new Error('no park');
+      expect(made.draft.place).toEqual({ MY_POTA_REF: 'US-0002', MY_DXCC: '291', MY_STATE: 'ID' });
+      expect(made.note).toMatch(/unusable/);
+    } finally { store.close(); }
+  });
+
+  it('leaves out a state ADIF does not hold for the park\'s entity, and answers for a park it does not have', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(potaPark).values({ reference: 'US-0003', ...park, locationDesc: 'US-ZZ' }).run());
+      const made = await draftFromPark(store, 'US-0003', ruleset);
+      if (made === 'not found') throw new Error('no park');
+      expect(made.draft.place.MY_STATE).toBeUndefined();
+      expect(await draftFromPark(store, 'US-9999', ruleset)).toBe('not found');
+    } finally { store.close(); }
+  });
+
+  it('identifies a station by its name: two may name the same park, and a two-fer is one station', async () => {
+    const state = await open();
+    try {
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sp' }, { name: 'Trailhead' }), ruleset)).ok).toBe(true);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001', MY_GRIDSQUARE: 'DN13sq' }, { name: 'Lake shore' }), ruleset)).ok).toBe(true);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001,US-0002' }, { name: 'Two-fer' }), ruleset)).ok).toBe(true);
+      expect((await viewStations(state, true)).list).toHaveLength(3);
+    } finally { state.close(); }
+  });
+
+  it('writes ADIF\'s Location form', () => {
+    expect(adifLocation(43.625, 'lat')).toBe('N043 37.500');
+    expect(adifLocation(-33.8688, 'lat')).toBe('S033 52.128');
+    expect(adifLocation(-0.0001, 'lon')).toBe('W000 00.006');
+    expect(adifLocation(179.99999999, 'lon')).toBe('E180 00.000');
+    expect(adifLocation(91, 'lat')).toBeUndefined();
+  });
+});
+
+describe('a portable location from a SOTA summit (QGD-REF-0018)', () => {
+  const reference = () => {
+    const store = openStore(join(root, 'reference.sqlite'), { schema: referenceSchema });
+    const ddl = readFileSync('drizzle/reference/0000_reference.sql', 'utf8');
+    for (const statement of ddl.split('--> statement-breakpoint')) store.connection.exec(statement);
+    return store;
+  };
+  // Made up, as the reader's tests are: no row of SOTA's list is copied here.
+  const summit = {
+    association: 'Example', region: 'Example Region', name: 'Example Peak', altitudeM: 2842,
+    latitude: 43.625, longitude: -116.2083, validFrom: '2010-01-01', validTo: '2099-12-31'
+  };
+  const now = new Date('2026-10-22T12:00:00Z');
+
+  it('takes the summit\'s reference, grid, position and height', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(sotaSummit).values({ code: 'W7I/SI-001', ...summit }).run());
+      const made = await draftFromSummit(store, 'W7I/SI-001', ruleset, now);
+      if (made === 'not found') throw new Error('no summit');
+      expect(made.draft).toEqual({
+        name: 'W7I/SI-001 Example Peak', kind: 'Portable',
+        place: { MY_SOTA_REF: 'W7I/SI-001', MY_GRIDSQUARE: 'DN13vp', MY_ALTITUDE: '2842' }
+      });
+      expect(made.note).toBeUndefined();
+      expect(checkStation(made.draft, ruleset).problems).toEqual([]);
+    } finally { store.close(); }
+  });
+
+  it('drafts a retired summit and says so, and answers for one it does not have', async () => {
+    const store = reference();
+    try {
+      await store.unit(db => db.insert(sotaSummit).values({ code: 'W7I/SI-002', ...summit, validTo: '2020-06-30' }).run());
+      const made = await draftFromSummit(store, 'W7I/SI-002', ruleset, now);
+      if (made === 'not found') throw new Error('no summit');
+      expect(made.note).toBe('SOTA retired W7I/SI-002 on 2020-06-30.');
+      expect(await draftFromSummit(store, 'W7I/SI-999', ruleset, now)).toBe('not found');
+    } finally { store.close(); }
+  });
+
+  it('refuses a summit SOTA does not list, or not today, and takes one it does', async () => {
+    const lists = {
+      summit: async (code: string) => code === 'W7I/SI-001' ? { validFrom: '2010-01-01', validTo: '2099-12-31' }
+        : code === 'W7I/SI-002' ? { validFrom: '2010-01-01', validTo: '2020-06-30' } : undefined
+    };
+    const state = await open();
+    try {
+      expect(await saveStation(state, draft({ MY_SOTA_REF: 'W7I/SI-999' }), ruleset, now, lists))
+        .toEqual({ ok: false, problems: [{ field: 'MY_SOTA_REF', reason: 'SOTA\'s summit list has no summit W7I/SI-999.' }] });
+      expect(await saveStation(state, draft({ MY_SOTA_REF: 'W7I/SI-002' }), ruleset, now, lists))
+        .toEqual({ ok: false, problems: [{ field: 'MY_SOTA_REF', reason: 'SOTA lists W7I/SI-002 as a summit from 2010-01-01 to 2020-06-30, not today.' }] });
+      expect((await saveStation(state, draft({ MY_SOTA_REF: 'W7I/SI-001' }), ruleset, now, lists)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('takes a summit reference at the boundary only in SOTA\'s form', () => {
+    expect(validateStorageCommand({ type: 'station-from-summit', reference: 'W7I/SI-001' })).toBe(true);
+    for (const bad of ['w7i/si-001', 'W7I/SI-1', 'W7ISI-001', 'W7I/SI-001; x', 'ABCDEFGH/SI-001']) {
+      expect(validateStorageCommand({ type: 'station-from-summit', reference: bad })).toBe(false);
+    }
+    expect(validateStorageCommand({ type: 'station-from-summit', reference: 'W7I/SI-001', extra: 1 })).toBe(false);
+  });
+});
+
+describe('P9-contract: off-shape stations are refused at the boundary (QGD-SEC-0006)', () => {
+  it.each([
+    [{ name: 'x', place: {}, callsign: 'W1AW' }],
+    [{ name: 'x', place: { MY_GPS: 'here' } }],
+    [{ name: 'x', place: { MY_GRIDSQUARE: 13 } }],
+    [{ name: '<b>x</b>', place: {} }],
+    [{ name: 'x'.repeat(65), place: {} }],
+    [{ name: 'x', place: { MY_STREET: 'y'.repeat(101) } }],
+    [{ name: 'x', place: { MY_GRIDSQUARE: '' } }],
+    [{ id: 'not-an-id', name: 'x', place: {} }],
+    [{ name: 'x', place: {}, lotwPark: 'NP33,' }]
+  ])('refuses %j', (value) => {
+    expect(isStationDraft(value)).toBe(false);
+  });
+});
+
+describe('the editor\'s pick lists are ADIF\'s own (QGD-STN-0002, KI7MT 2026-10-20)', () => {
+  it('lists the DXCC entities ADIF has not deleted, without "no entity"', () => {
+    const { entities } = stationChoices(ruleset, null);
+    expect(entities.length).toBeGreaterThan(300);
+    expect(entities.find(entry => entry.code === '291')?.name).toMatch(/UNITED STATES/);
+    expect(entities.some(entry => entry.code === '0')).toBe(false);
+  });
+
+  it('follows the entity for states, sections and counties', () => {
+    const us = stationChoices(ruleset, '291');
+    expect(us.states.find(entry => entry.code === 'ID')?.name).toBe('Idaho');
+    expect(us.states.some(entry => entry.code === 'ON')).toBe(false);
+    expect(us.sections.some(entry => entry.code === 'ID')).toBe(true);
+    // ADIF lists counties only for Alaska; the US's are not ADIF's to give.
+    expect(us.counties).toEqual([]);
+    expect(stationChoices(ruleset, '6').counties.length).toBeGreaterThan(20);
+    expect(stationChoices(ruleset, '1').states.some(entry => entry.code === 'ON')).toBe(true);
+  });
+
+  it('narrows the zones to the state\'s own, and otherwise offers ADIF\'s whole range', () => {
+    const idaho = stationChoices(ruleset, '291', 'ID');
+    expect(idaho.cqZones).toEqual([{ code: '3', name: '3' }]);
+    expect(idaho.ituZones).toEqual([{ code: '6', name: '6' }]);
+    const quebec = stationChoices(ruleset, '1', 'QC');
+    expect(quebec.cqZones.map(zone => zone.code)).toEqual(['2', '5']);
+    const anywhere = stationChoices(ruleset, null);
+    expect(anywhere.cqZones.map(zone => zone.code)).toEqual(Array.from({ length: 40 }, (_, at) => String(at + 1)));
+    expect(anywhere.ituZones).toHaveLength(90);
+  });
+
+  it('offers nothing to pick from without the definitions', () => {
+    expect(stationChoices('not loaded', '291', 'ID')).toEqual({ entities: [], states: [], sections: [], counties: [], cqZones: [], ituZones: [] });
+  });
+
+  it('takes the command with exactly an entity and a state, each well formed or none', () => {
+    expect(validateStorageCommand({ type: 'station-choices', entity: '291', state: 'ID' })).toBe(true);
+    expect(validateStorageCommand({ type: 'station-choices', entity: null, state: null })).toBe(true);
+    for (const bad of [{ type: 'station-choices', entity: '291' }, { type: 'station-choices', entity: 'US', state: null },
+      { type: 'station-choices', entity: '291', state: 'I D;' }, { type: 'station-choices', entity: null, state: null, more: 1 }]) {
+      expect(validateStorageCommand(bad)).toBe(false);
+    }
+  });
+});
+
+describe('references are checked against their lists where the list is here (KI7MT 2026-10-20)', () => {
+  const lists = {
+    parks: async (wanted: string[]) => wanted.filter(code => code === 'US-0001').map(code => ({ code, name: 'Example Park' })),
+    locations: async (park: string) => (park === 'US-0001' ? ['US-ID', 'US-WY'] : [])
+  };
+
+  it('refuses a location after "@" that POTA does not list for the park', async () => {
+    const state = await open();
+    try {
+      const wrong = await saveStation(state, draft({ MY_POTA_REF: 'US-0001@US-CA' }), ruleset, new Date(), lists);
+      expect(wrong).toEqual({ ok: false, problems: [{ field: 'MY_POTA_REF', reason: 'POTA lists US-0001 in US-ID and US-WY, not US-CA.' }] });
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001@US-WY' }), ruleset, new Date(), lists)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('refuses a well-formed park POTA\'s list does not have, naming it, and takes one it has', async () => {
+    const state = await open();
+    try {
+      const missing = await saveStation(state, draft({ MY_POTA_REF: 'US-0001,US-9999' }), ruleset, new Date(), lists);
+      expect(missing).toEqual({ ok: false, problems: [{ field: 'MY_POTA_REF', reason: 'POTA\'s park list has no park US-9999.' }] });
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-0001@US-ID' }), ruleset, new Date(), lists)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('gives a malformed park ADIF\'s reason, not the list\'s, and checks the form only without the list', async () => {
+    const state = await open();
+    try {
+      const malformed = await saveStation(state, draft({ MY_POTA_REF: 'K0001' }), ruleset, new Date(), lists);
+      expect(malformed.ok).toBe(false);
+      if (!malformed.ok) expect(malformed.problems[0].reason).not.toMatch(/park list/);
+      expect((await saveStation(state, draft({ MY_POTA_REF: 'US-9999' }, { name: 'No list' }), ruleset)).ok).toBe(true);
+    } finally { state.close(); }
+  });
+
+  it('reads a park field as its parks, without the location within one', () => {
+    expect(parksIn('us-0001@US-ID, US-0002')).toEqual(['US-0001', 'US-0002']);
+    expect(parksIn(undefined)).toEqual([]);
+  });
+
+  it('looks parks up in POTA\'s list with their names', async () => {
+    const store = openStore(join(root, 'reference.sqlite'), { schema: referenceSchema });
+    try {
+      for (const statement of readFileSync('drizzle/reference/0000_reference.sql', 'utf8').split('--> statement-breakpoint')) store.connection.exec(statement);
+      await store.unit(db => db.insert(potaPark).values({ reference: 'US-0001', name: 'Example Park', active: true, entityId: 291,
+        adifEntity: 291, locationDesc: 'US-ID', latitude: 43.6, longitude: -116.2, grid: 'DN13sp', coordinatesUsable: true, coordinatesNote: null }).run());
+      expect(await lookUpParks(store, ['US-0001', 'US-9999'])).toEqual([{ code: 'US-0001', name: 'Example Park' }]);
+    } finally { store.close(); }
+  });
+
+  it('takes the look-up command with a plain reference text only', () => {
+    expect(validateStorageCommand({ type: 'look-up-parks', references: 'US-0001@US-ID,US-0002' })).toBe(true);
+    for (const bad of ['', 'US-0001<b>', 'x'.repeat(101)]) {
+      expect(validateStorageCommand({ type: 'look-up-parks', references: bad })).toBe(false);
+    }
+  });
+});
+
+describe('latitude and longitude in degrees, kept in ADIF\'s form', () => {
+  it.each([
+    ['43.625', 'lat', 'N043 37.500'], ['-116.2083', 'lon', 'W116 12.498'], ['-33.8688', 'lat', 'S033 52.128'],
+    ['0', 'lon', 'E000 00.000'], ['n043 37.500', 'lat', 'N043 37.500']
+  ] as const)('%s as a %s is %s', (typed, axis, adif) => {
+    expect(typedLocation(typed, axis)).toBe(adif);
+  });
+
+  it.each([['91', 'lat'], ['181', 'lon'], ['43,6', 'lat'], ['W116 12.500', 'lat'], ['north', 'lat']] as const)('refuses %s as a %s', (typed, axis) => {
+    expect(typedLocation(typed, axis)).toBeUndefined();
+  });
+});
+
+describe('US counties: LoTW\'s list, filled and checked (QGD-STN-0010)', () => {
+  const counties = countiesFrom(JSON.parse(readFileSync('dist/reference/us-counties.json', 'utf8')));
+  const idaho = { MY_GRIDSQUARE: 'DN13', MY_DXCC: '291', MY_STATE: 'ID' };
+
+  it('offers a US state\'s counties as LoTW names them, in MY_CNTY form', () => {
+    const choices = stationChoices(ruleset, '291', 'ID', counties);
+    expect(choices.counties).toHaveLength(44);
+    expect(choices.counties).toContainEqual({ code: 'ID,Ada', name: 'Ada' });
+    expect(stationChoices(ruleset, '291', 'CT', counties).counties.map(choice => choice.name))
+      .toEqual(['Fairfield', 'Hartford', 'Litchfield', 'Middlesex', 'New Haven', 'New London', 'Tolland', 'Windham']);
+  });
+
+  it('offers Alaska\'s from ADIF\'s own list', () => {
+    expect(stationChoices(ruleset, '6', 'AK', counties).counties).toContainEqual({ code: 'AK,Kusilvak', name: 'Kusilvak' });
+  });
+
+  it('takes a county LoTW has', () => {
+    expect(checkStation(draft({ ...idaho, MY_CNTY: 'ID,Ada' }), ruleset, counties).problems).toEqual([]);
+  });
+
+  it('refuses one it does not, naming it, and alters nothing', () => {
+    const { problems } = checkStation(draft({ ...idaho, MY_CNTY: 'ID,Atlantis' }), ruleset, counties);
+    expect(problems).toEqual([{ field: 'MY_CNTY', reason: 'LoTW\'s county list has no ID,Atlantis. Pick it from the list.' }]);
+  });
+
+  it('refuses a county of another state', () => {
+    const { problems } = checkStation(draft({ ...idaho, MY_CNTY: 'OR,Malheur' }), ruleset, counties);
+    expect(problems).toEqual([{ field: 'MY_CNTY', reason: 'A county is written with its state first: ID,<county>.' }]);
+  });
+
+  it('gives one reason for an Alaska county, not ADIF\'s and the list\'s both', () => {
+    const { problems } = checkStation(draft({ MY_GRIDSQUARE: 'BP51', MY_DXCC: '6', MY_STATE: 'AK', MY_CNTY: 'AK,Wade Hampton' }), ruleset, counties);
+    expect(problems.filter(problem => problem.field === 'MY_CNTY')).toHaveLength(1);
+  });
+
+  it('checks a county without ADIF\'s definitions, because the list ships with the application', () => {
+    const { problems, checked } = checkStation(draft({ ...idaho, MY_CNTY: 'ID,Atlantis' }), 'not loaded', counties);
+    expect(checked).toBe(false);
+    expect(problems.map(problem => problem.field)).toEqual(['MY_CNTY']);
+  });
+
+  it('leaves another country\'s county to ADIF', () => {
+    const { problems } = checkStation(draft({ MY_GRIDSQUARE: 'FN03', MY_DXCC: '1', MY_STATE: 'ON', MY_CNTY: 'ON,Somewhere' }), ruleset, counties);
+    expect(problems.some(problem => problem.reason.includes('LoTW'))).toBe(false);
+  });
+
+  it('saves a county through storage, and refuses an unknown one there too', async () => {
+    const state = await open();
+    try {
+      expect((await saveStation(state, draft({ ...idaho, MY_CNTY: 'ID,Ada' }), ruleset, new Date(), { counties })).ok).toBe(true);
+      const refused = await saveStation(state, draft({ ...idaho, MY_CNTY: 'ID,Atlantis' }, { name: 'Elsewhere' }), ruleset, new Date(), { counties });
+      expect(refused.ok).toBe(false);
+    } finally { state.close(); }
+  });
+
+  it('offers a US state\'s own ARRL sections, and takes the right one', () => {
+    expect(stationChoices(ruleset, '291', 'ID', counties).sections.map(choice => choice.code)).toEqual(['ID']);
+    expect(stationChoices(ruleset, '291', 'PA', counties).sections.map(choice => choice.code)).toEqual(['EPA', 'WPA']);
+    expect(checkStation(draft({ ...idaho, MY_ARRL_SECT: 'ID' }), ruleset, counties).problems).toEqual([]);
+  });
+
+  it('refuses a section of another state', () => {
+    expect(checkStation(draft({ ...idaho, MY_ARRL_SECT: 'OR' }), ruleset, counties).problems)
+      .toEqual([{ field: 'MY_ARRL_SECT', reason: 'ID is in ARRL\'s ID section.' }]);
+  });
+
+  it('holds a split state\'s section to its county', () => {
+    const pennsylvania = { MY_GRIDSQUARE: 'FN20', MY_DXCC: '291', MY_STATE: 'PA' };
+    expect(checkStation(draft({ ...pennsylvania, MY_CNTY: 'PA,Adams', MY_ARRL_SECT: 'EPA' }), ruleset, counties).problems).toEqual([]);
+    expect(checkStation(draft({ ...pennsylvania, MY_CNTY: 'PA,Adams', MY_ARRL_SECT: 'WPA' }), ruleset, counties).problems)
+      .toEqual([{ field: 'MY_ARRL_SECT', reason: 'PA,Adams is in ARRL\'s EPA section.' }]);
+    // With no county, either of the state's.
+    expect(checkStation(draft({ ...pennsylvania, MY_ARRL_SECT: 'WPA' }), ruleset, counties).problems).toEqual([]);
+    expect(checkStation(draft({ ...pennsylvania, MY_ARRL_SECT: 'NTX' }), ruleset, counties).problems)
+      .toEqual([{ field: 'MY_ARRL_SECT', reason: 'PA is in ARRL\'s EPA or WPA sections.' }]);
+  });
+
+  it('asks for counties at a point or over a grid square, and nothing larger', () => {
+    expect(validateStorageCommand({ type: 'counties-at', south: 43.6, west: -116.2, north: 43.6, east: -116.2 })).toBe(true);
+    expect(validateStorageCommand({ type: 'counties-at', south: 43, west: -118, north: 44, east: -116 })).toBe(true);
+    expect(validateStorageCommand({ type: 'counties-at', south: 40, west: -120, north: 50, east: -100 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: 44, west: -116, north: 43, east: -116 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: '43', west: -116, north: 43, east: -116 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: Number.NaN, west: -116, north: 43, east: -116 })).toBe(false);
+    expect(validateStorageCommand({ type: 'counties-at', south: 43, west: -116, north: 43, east: -116, extra: 1 })).toBe(false);
+  });
+});
+
+describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-10-23)', () => {
+  const CALLSIGN = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
+  it('carries every Location with its id, each callsign\'s default and the active one', async () => {
+    const from = await open();
+    try {
+      const home = await saveStation(from, draft({}, { notes: 'Gate code 1234' }), ruleset);
+      const camp = await saveStation(from, draft({}, { name: 'Camp', kind: 'Portable' }), ruleset);
+      if (!home.ok || !camp.ok) throw new Error('not saved');
+      await setDefaultStation(from, CALLSIGN, camp.id);
+      await setActiveStation(from, home.id);
+      const backup = await backupStations(from);
+      expect(isStationsBackup(backup)).toBe(true);
+      expect(backup.stations.map(entry => entry.name)).toEqual(['Camp', 'Home']);
+      // The notes stay on this computer.
+      expect(JSON.stringify(backup)).not.toMatch(/Gate code/);
+      expect(backup).toMatchObject({ defaults: { [CALLSIGN]: camp.id }, active: home.id });
+
+    } finally { from.close(); }
+  });
+
+  it('restores onto an empty computer, and onto one with Locations only when told to remove them first', async () => {
+    const state = await open();
+    try {
+      const old = await saveStation(state, draft({}, { name: 'Old shack' }), ruleset);
+      if (!old.ok) throw new Error('not saved');
+      const backup = {
+        stations: [
+          { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13' }, notes: 'Gate code' },
+          { id: '22222222-2222-4222-8222-222222222222', name: 'Camp', kind: 'Portable' as const, place: { MY_GRIDSQUARE: 'DN24' } }
+        ],
+        defaults: { [CALLSIGN]: '22222222-2222-4222-8222-222222222222' }, active: '11111111-1111-4111-8111-111111111111'
+      };
+      expect(isStationsBackup(backup)).toBe(true);
+      // Not merged: refused while Locations are here and not said to go.
+      expect(await restoreStations(state, backup, false)).toBe('not empty');
+      expect((await viewStations(state, false)).list.map(entry => entry.name)).toEqual(['Old shack']);
+      // Said to remove them first: they go, and the file's arrive whole.
+      expect(await restoreStations(state, backup, true)).toBe(2);
+      const view = await viewStations(state, false);
+      expect(view.list.map(entry => [entry.id, entry.name])).toEqual([
+        ['22222222-2222-4222-8222-222222222222', 'Camp'], ['11111111-1111-4111-8111-111111111111', 'Home']]);
+      expect(view.list.find(entry => entry.name === 'Home')).toMatchObject({ place: { MY_GRIDSQUARE: 'DN13' }, notes: 'Gate code' });
+      expect(view.defaults).toEqual({ [CALLSIGN]: '22222222-2222-4222-8222-222222222222' });
+      expect(view.active).toBe('11111111-1111-4111-8111-111111111111');
+    } finally { state.close(); }
+  });
+
+  it('refuses a backup whose defaults or active one name a Location it does not hold, or that repeats a name', () => {
+    const one = { id: '11111111-1111-4111-8111-111111111111', name: 'Home', place: { MY_GRIDSQUARE: 'DN13' } };
+    expect(isStationsBackup({ stations: [one], defaults: {}, active: '22222222-2222-4222-8222-222222222222' })).toBe(false);
+    expect(isStationsBackup({ stations: [one], defaults: { [CALLSIGN]: '22222222-2222-4222-8222-222222222222' }, active: null })).toBe(false);
+    expect(isStationsBackup({ stations: [one, { ...one, id: '22222222-2222-4222-8222-222222222222', name: 'home' }], defaults: {}, active: null })).toBe(false);
+    expect(isStationsBackup({ stations: [one], defaults: {}, active: null, extra: 1 })).toBe(false);
+    expect(validateStorageCommand({ type: 'stations-restore', backup: { stations: [one], defaults: {}, active: null }, replace: true })).toBe(true);
+    expect(validateStorageCommand({ type: 'stations-restore', backup: { stations: [one], defaults: {}, active: null } })).toBe(false);
+  });
+});

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": ".cache/extensions-build",
+    "sourceMap": false
+  },
+  "include": ["extensions/*/src/**/*.ts"],
+  "exclude": []
+}

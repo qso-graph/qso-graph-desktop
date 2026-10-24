@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "astro",
+  "name": "Astro",
+  "tier": "official",
+  "version": "1.0.0",
+  "engines": { "qgd": "^1.0.0" },
+  "grants": ["station:active"],
+  "main": "main.js",
+  "contributes": {
+    "pages": [
+      {
+        "id": "astro",
+        "name": "Astro",
+        "description": "The sun, the moon and the grey line at your location, worked out on this computer.",
+        "refreshSeconds": 60,
+        "icon": "moon",
+        "inputs": [{ "id": "dx", "label": "Grey line with", "kind": "grid", "hint": "A DX station's grid, as IO91. Shows when you're both in the grey line." }]
+      }
+    ]
+  }
+}

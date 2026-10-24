@@ -1,0 +1,339 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// QG Storage's channel, and the process that owns the stores (QGD-ENG-0006).
+//
+// Nothing here is on the path to a window appearing: the storage process is
+// started in the background, and the shell draws whether or not it ever comes
+// up (QGD-ENG-0003). Its status reaches the screen two ways: once when the
+// screen asks, and pushed whenever it changes (an exit, a restart, a finished
+// reference build). So nothing polls and nothing goes stale.
+import type { AdifBand, AdifEntry, AdifList } from '../storage/adif-entry.js';
+import type { StationsBackup } from '../storage/station-contract.js';
+import type { AreaPlace } from '../storage/area-entry.js';
+import type { StationBrief } from '../extension-api/api-contract.js';
+import { activeStationBrief } from './station-brief.js';
+import { app, BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
+import { join } from 'node:path';
+import { allowsSender, type FetchedReference } from '../callsigns/callsign-contract.js';
+import { CALLSIGNS_STARTING } from './callsign-broker.js';
+import { createLogger, writeForwarded } from '../logging/logger.js';
+import {
+  STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus, type ToActivate, type Near,
+  isStorageReply, isStorageStatus, validateStorageCommand
+} from '../storage/storage-contract.js';
+
+const log = createLogger('storage-broker');
+
+// Closing the stores is quick: a WAL checkpoint and a close. This is the
+// backstop for a process that does not answer.
+export const SHUTDOWN_MS = 5_000;
+
+export interface StorageBrokerOptions {
+  distDirectory: string;
+  root: string;               // the application's own directory (userData)
+  stateMigrations: string;    // drizzle/state
+  referenceDdl: string;       // drizzle/reference
+  registerFile: string;       // data/reference-sources.json
+  referenceCache: string;     // where verified sources are kept
+  appVersion: string;
+  // How QG Storage reaches a reference source: by asking, never by
+  // connecting. The credential core is the one process that opens an
+  // outbound connection (QGD-SEC-0020).
+  fetchReference: (url: string, etag?: string, lastModified?: string) => Promise<FetchedReference | string>;
+  // My Area as the operator chose it (settings.json), which QG Storage does
+  // not read: added to an activations Update, so only its locations are
+  // fetched (QGD-STN-0012, QGD-REF-0019).
+  area?: () => readonly string[];
+}
+
+export interface StorageBroker {
+  stop: () => Promise<void>;
+  // The active station as an extension may see it (station-brief.ts), and a
+  // listener told when that changes, so Home asks its cards again
+  // (QGD-STN-0005, QGD-HOM-0005).
+  activeStation: () => StationBrief | null;
+  // ADIF's definitions searched, for an extension holding reference:read
+  // (ADIF Lookup); a sentence when they cannot be.
+  adifSearch: (query: string) => Promise<AdifEntry[] | string>;
+  // A whole enumeration by name, null when ADIF has none of that name (#58).
+  adifList: (name: string) => Promise<AdifList | null | string>;
+  // The Locations, for a backup, and a restore onto a clean slate
+  // (KI7MT, 2026-10-23); how many are here now.
+  backupStations: () => Promise<StationsBackup | string>;
+  restoreStations: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
+  stationCount: () => number;
+  adifBands: () => Promise<AdifBand[] | string>;
+  // My Area's parks with their activations, or why there are none.
+  parksToActivate: () => Promise<ToActivate | string>;
+  // The parks nearest a place, from POTA's park list alone, or why not.
+  parksNear: (latitude: number, longitude: number) => Promise<Near | string>;
+  // Each location's program and entity by name, or why not.
+  potaPlaces: (locations: readonly string[]) => Promise<AreaPlace[] | string>;
+  // The POTA locations My Area covers: its entities' and programs' too.
+  areaLocations: () => Promise<readonly string[]>;
+  // The POTA location the active Location is in, or none (area.ts).
+  areaDefault: () => Promise<string | undefined>;
+  onActiveStationChanged: (listener: () => void) => void;
+  // The callsign made active, whose default station QG Storage makes active
+  // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
+  callsignActivated: (id: string) => void;
+  // A callsign removed, whose default goes with it (KI7MT, 2026-10-22).
+  callsignRemoved: (id: string) => void;
+}
+
+export function startStorageBroker(options: StorageBrokerOptions): StorageBroker {
+  let worker: UtilityProcess | undefined;
+  let stopped = false;
+  let nextId = 0;
+  let failures = 0;
+  let last: StorageStatus = { state: 'starting' };
+  let heldActivation: string | undefined;
+  const heldRemovals = new Set<string>();
+  let activeStation: StationBrief | null = null;
+  // What extensions were last told, as JSON: none, until storage says.
+  let activeSaid = 'null';
+  const stationListeners = new Set<() => void>();
+  const pending = new Map<number, { settle: (reply: StorageReply) => void; timer: NodeJS.Timeout }>();
+  let closed: (() => void) | undefined;
+
+  // Pushed to every window. A window that is not listening ignores it.
+  function push(status: StorageStatus) {
+    last = status;
+    // The active station, as extensions see it, from the last status that
+    // carried the stations: a restart of QG Storage says nothing about where
+    // the operator is, so it does not take the station away from Home.
+    if (status.stations) {
+      const brief = activeStationBrief(status.stations);
+      const said = JSON.stringify(brief);
+      // Every change is told, the first included: Home may already have asked
+      // while storage was still opening and been answered with no station
+      // (found by Turing in review).
+      if (said !== activeSaid) {
+        activeStation = brief;
+        activeSaid = said;
+        for (const listener of stationListeners) listener();
+      }
+    }
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send(STORAGE_STATUS_CHANNEL, status);
+    }
+  }
+
+  function failPending(reason: string) {
+    for (const item of pending.values()) {
+      clearTimeout(item.timer);
+      item.settle({ ok: true, status: { ...last, state: 'unavailable', reason } });
+    }
+    pending.clear();
+  }
+
+  function spawn() {
+    if (stopped) return;
+    worker = utilityProcess.fork(join(options.distDirectory, 'storage', 'storage-service.js'), [
+      options.root, options.stateMigrations, options.referenceDdl, options.registerFile,
+      options.referenceCache, options.appVersion
+    ], { serviceName: 'QG Storage', stdio: 'ignore' });
+    // Logged so the connection-capture suite can name this process, and so a
+    // support bundle can tell which pid was storage (QGD-ENG-0017). After the
+    // spawn event: until then Electron does not know the pid.
+    const spawned = worker;
+    spawned.once('spawn', () => { log.info({ storagePid: spawned.pid }, 'storage service started'); });
+    // An activation made while there was no process, handed to this one. QG
+    // Storage holds it until its stores are open.
+    for (const id of heldRemovals) spawned.postMessage({ callsignRemoved: id });
+    heldRemovals.clear();
+    if (heldActivation) { spawned.postMessage({ callsignActive: heldActivation }); heldActivation = undefined; }
+
+    // This process, and no later one. An answer to something it asked for is
+    // delivered to it only while it is still the current process: a fetch that
+    // outlives it is dropped, never handed to its replacement, whose request
+    // ids start again from one.
+    const self = worker;
+    worker.on('message', (message: unknown) => {
+      if (message === null || typeof message !== 'object') return;
+      const payload = message as { ready?: unknown; log?: unknown; id?: unknown; reply?: unknown;
+        reference?: unknown; status?: unknown; closed?: unknown };
+      if (typeof payload.log === 'string') { writeForwarded(payload.log); return; }
+      if (payload.closed === true) { closed?.(); return; }
+      // A reference source, asked for by QG Storage. Checked here before it is
+      // passed on: it is a message from another process, even one of ours
+      // (QGD-SEC-0006).
+      if (payload.reference !== null && typeof payload.reference === 'object') {
+        const request = payload.reference as { id?: unknown; url?: unknown; etag?: unknown; lastModified?: unknown };
+        const id = request.id;
+        if (!Number.isSafeInteger(id)) return;
+        const answer = (result: unknown) => { if (worker === self) self.postMessage({ referenceAnswer: { id, result } }); };
+        if (typeof request.url !== 'string' || !request.url.startsWith('https://') || request.url.length > 2048) {
+          answer('Reference data is fetched over HTTPS only.');
+          return;
+        }
+        void options.fetchReference(
+          request.url,
+          typeof request.etag === 'string' ? request.etag : undefined,
+          typeof request.lastModified === 'string' ? request.lastModified : undefined
+        ).then(
+          // Not ready yet means nothing was asked of any server: said as such,
+          // so QG Storage may try again soon without spending a request against
+          // a source's daily limit (QGD-REF-0010).
+          result => answer(result === CALLSIGNS_STARTING ? { notReady: true } : result),
+          () => answer('The reference source could not be reached.'));
+        return;
+      }
+      if (payload.status !== undefined) {
+        if (isStorageStatus(payload.status)) {
+          if (payload.status.state === 'ready') failures = 0;
+          push(payload.status);
+        }
+        return;
+      }
+      if (payload.ready === true) return;
+      if (!Number.isSafeInteger(payload.id)) return;
+      const reply = payload.reply;
+      if (!isStorageReply(reply)) return;
+      const item = pending.get(payload.id as number);
+      if (item) { clearTimeout(item.timer); pending.delete(payload.id as number); item.settle(reply); }
+    });
+
+    worker.once('exit', () => {
+      worker = undefined;
+      failPending('The storage service stopped.');
+      if (stopped) return;
+      // The same back-off as the callsign broker: a process that cannot start
+      // must not become a restart loop writing a log file a minute.
+      const wait = Math.min(500 * 2 ** failures++, 30_000);
+      push({ state: 'unavailable', reason: 'The storage service stopped and is being restarted.' });
+      log.warn({ waitMs: wait, failures }, 'storage service exited; restarting');
+      setTimeout(spawn, wait);
+    });
+  }
+
+  function ask(command: StorageCommand = { type: 'status' }, timeoutMs = 10_000): Promise<StorageReply> {
+    if (worker === undefined) {
+      return Promise.resolve({ ok: true, status: { ...last, state: 'unavailable', reason: 'The storage service is not running.' } });
+    }
+    const id = nextId++;
+    return new Promise<StorageReply>((settle) => {
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        settle({ ok: true, status: { ...last, state: 'unavailable', reason: 'The storage service did not answer in time.' } });
+      }, timeoutMs);
+      timer.unref?.();
+      pending.set(id, { settle, timer });
+      worker?.postMessage({ id, command });
+    });
+  }
+
+  ipcMain.handle(STORAGE_CHANNEL, async (event, command: unknown): Promise<StorageReply> => {
+    if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) ||
+        !validateStorageCommand(command)) {
+      log.warn({ accepted: false }, 'storage request refused');
+      return { ok: false, error: 'Invalid storage request.' };
+    }
+    if (command.type === 'update-reference') {
+      log.info({}, 'reference update asked for');
+      // The area is the settings', never the renderer's.
+      const asked = { type: command.type, resource: command.resource };
+      if (command.resource === 'activations') return ask({ ...asked, area: [...(options.area?.() ?? [])] });
+      return ask(asked);
+    }
+    return ask(command);
+  });
+
+  spawn();
+
+  // Awaited at quit: the stores are closed cleanly, or the process is killed
+  // after SHUTDOWN_MS. SQLite recovers either way; a clean close leaves no
+  // WAL for the next start to replay.
+  const stop = async () => {
+    stopped = true;
+    ipcMain.removeHandler(STORAGE_CHANNEL);
+    failPending('The application is closing.');
+    if (worker) {
+      const done = new Promise<'closed'>((settle) => { closed = () => settle('closed'); });
+      worker.postMessage({ close: true });
+      const outcome = await Promise.race([done, new Promise<'timeout'>((settle) => setTimeout(() => settle('timeout'), SHUTDOWN_MS))]);
+      // Said either way, so a shutdown that timed out and was killed can never
+      // look like one that closed (the smoke suite reads these).
+      if (outcome === 'closed') log.info({}, 'storage closed');
+      else log.warn({ waitedMs: SHUTDOWN_MS }, 'storage did not close in time; killed');
+    }
+    worker?.kill();
+    worker = undefined;
+  };
+  return {
+    stop,
+    activeStation: () => activeStation,
+    async backupStations() {
+      const reply = await ask({ type: 'stations-backup' });
+      if (!reply.ok) return reply.error;
+      return reply.backup ?? 'The Locations could not be read just now.';
+    },
+    async restoreStations(backup, replace) {
+      const reply = await ask({ type: 'stations-restore', backup, replace });
+      if (!reply.ok) return reply.error;
+      return reply.restored ?? 'The Locations could not be restored.';
+    },
+    stationCount: () => last.stations?.list.length ?? 0,
+    async adifList(name) {
+      const reply = await ask({ type: 'adif-list', name });
+      if (!reply.ok) return reply.error;
+      return reply.adifList ?? null;
+    },
+    async adifSearch(query) {
+      const reply = await ask({ type: 'adif-search', query });
+      if (!reply.ok) return reply.error;
+      return reply.adif ?? 'ADIF\'s definitions could not be searched just now.';
+    },
+    async areaDefault() {
+      const reply = await ask({ type: 'area-default' });
+      return reply.ok && reply.areaDefault ? reply.areaDefault : undefined;
+    },
+    // My Area's parks with their activations (QGD-REF-0019), for the area
+    // as settings hold it; QG Storage falls back to the Location's own.
+    async parksToActivate() {
+      // Nearest the active Location when it has a position. Given as long as
+      // a source fetch: QG Storage may fetch from POTA first (Most Wanted).
+      const at = activeStation;
+      const position = at?.latitude !== undefined && at.longitude !== undefined ? { latitude: at.latitude, longitude: at.longitude } : {};
+      const reply = await ask({ type: 'parks-to-activate', locations: [...(options.area?.() ?? [])], ...position }, 130_000);
+      if (!reply.ok) return reply.error;
+      return reply.toActivate ?? 'POTA activations could not be read just now.';
+    },
+    async parksNear(latitude, longitude) {
+      const reply = await ask({ type: 'parks-near', latitude, longitude });
+      if (!reply.ok) return reply.error;
+      return reply.near ?? 'POTA\'s parks could not be read just now.';
+    },
+    async potaPlaces(locations) {
+      const reply = await ask({ type: 'pota-places', locations: [...locations] });
+      if (!reply.ok) return reply.error;
+      return reply.places ?? 'POTA\'s programs and entities could not be read just now.';
+    },
+    async areaLocations() {
+      const reply = await ask({ type: 'area-locations', entries: [...(options.area?.() ?? [])] });
+      return reply.ok ? reply.areaLocations ?? [] : [];
+    },
+    async adifBands() {
+      const reply = await ask({ type: 'adif-bands' });
+      if (!reply.ok) return reply.error;
+      return reply.bands ?? 'ADIF\'s bands could not be read just now.';
+    },
+    onActiveStationChanged: (listener) => { stationListeners.add(listener); },
+    // A callsign's id only, never anything about it. Kept until a process
+    // has it, so an activation or a removal made while QG Storage was
+    // restarting is applied when it is back rather than lost.
+    callsignActivated: (id) => {
+      if (worker) worker.postMessage({ callsignActive: id });
+      else heldActivation = id;
+    },
+    callsignRemoved: (id) => {
+      if (worker) worker.postMessage({ callsignRemoved: id });
+      else heldRemovals.add(id);
+    }
+  };
+}
+
+// The application's own directory, and where verified sources are kept in it.
+export function storageRoot(): { root: string; referenceCache: string } {
+  const root = app.getPath('userData');
+  return { root, referenceCache: join(root, 'reference') };
+}

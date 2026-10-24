@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "adif-lookup",
+  "name": "ADIF Lookup",
+  "tier": "official",
+  "version": "1.0.0",
+  "engines": { "qgd": "^1.0.0" },
+  "grants": ["reference:read"],
+  "main": "main.js",
+  "contributes": {
+    "pages": [
+      {
+        "id": "lookup",
+        "name": "ADIF Lookup",
+        "description": "ADIF's own definitions, searched: every field, and every value of every enumeration.",
+        "refreshSeconds": 86400,
+        "icon": "book",
+        "inputs": [{ "id": "search", "label": "Search", "kind": "text", "max": 64, "hint": "A field or value, as FT8; a list's name, as Band, shows the whole list." }]
+      }
+    ]
+  }
+}

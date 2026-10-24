@@ -1,0 +1,92 @@
+name: Feature
+description: Approved functionality not yet built.
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use for work the spec already requires.
+        The spec is `spec/QGD-SPEC-001.md`. Cite requirement IDs; do not restate them.
+        After filing, add the matching `component:*` label and put the issue in its Part's milestone.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      description: Which Part in the build order (QGD-SPEC-001 §2.1) this belongs to.
+      options:
+        - P0 — Rust callsign core
+        - P1 — Window showing a callsign
+        - P2 — Process map and logging
+        - P3 — Shell
+        - P4 — Engine
+        - P5 — Reference data
+        - P6 — QG Callsigns
+        - P7 — App runtime and grants
+        - P8 — QG ADIF
+        - P9 — QG Club
+        - P10 — QG Editor
+        - P11 — Updates and onboarding
+        - After Release 1
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - frame
+        - callsign-core
+        - callsigns
+        - database
+        - integrations
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Spec IDs
+      description: The requirements this issue serves.
+      placeholder: QGD-PRT-0100, QGD-CRD-0004
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is missing, in a sentence or two.
+    validations:
+      required: true
+  - type: textarea
+    id: work
+    attributes:
+      label: Remaining work
+      description: A checklist of what is left to do.
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+      description: How we know it is done. Each item is checkable.
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this issue does not add.
+      value: |
+        macOS on arm64 only. No signing, CI or cross-platform work is added by this issue (QGD-SCP-0003, QGD-SCP-0004).
+    validations:
+      required: true
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Credentials
+      options:
+        - label: No credential value, token, or live service response body appears in this issue or its evidence.
+          required: true

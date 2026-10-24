@@ -1,0 +1,12 @@
+{
+  "register": "Reusable patterns that must have a story",
+  "note": "QGD-FRM-0010. These exist so that a later application — Club's member list, Editor's forms — copies the pattern that is already here instead of inventing a second one, which is how a shell and the applications on it drift apart. scripts/storybook.mjs reports which are present on every run, so the state is visible while P3 is built rather than discovered at its exit gate.",
+  "decidedBy": "KI7MT, 2026-10-08",
+  "patterns": [
+    { "id": "page-layout", "what": "The rail and a page, including a Settings page" },
+    { "id": "form-validation", "what": "A form showing its validation errors" },
+    { "id": "list-states", "what": "A list or table in each of its empty, loading, error and populated states" },
+    { "id": "confirm-dialog", "what": "A confirmation dialog" },
+    { "id": "credential-test", "what": "The credential test flow and the credential-status display" }
+  ]
+}

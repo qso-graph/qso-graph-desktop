@@ -1,0 +1,85 @@
+# Third-party notices — QSO Graph Desktop
+
+QSO Graph Desktop is GPL-3.0-only. See LICENSE.
+
+This file is the application's attributions (Help → Attributions). It records
+the third-party material that is redistributed inside the application, with the
+terms it carries, and every source of data the application downloads or ships,
+with who it is from. It is not a list of build dependencies.
+
+--------------------------------------------------------------------------------
+
+## SQLite
+
+Storage is SQLite (`QGD-ENG-0001`), through the `node:sqlite` module of the
+Node.js that Electron carries. Nothing of SQLite is vendored by this product;
+it ships inside Electron and under Electron's notices. Recorded here so the
+list of what the application relies on is complete.
+
+SQLite is in the public domain: https://sqlite.org/copyright.html
+
+--------------------------------------------------------------------------------
+
+## Font Awesome Free 7.3.1
+
+Icons by Fonticons, Inc. — https://fontawesome.com
+
+Icon artwork is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Full Font Awesome Free license: https://fontawesome.com/license/free
+
+The navigation rail's icons are Font Awesome Free icons. Their geometry is
+vendored into `packages/ui/icons.ts`, generated from the installed package
+by `scripts/gen-icons.mjs` — the application does not load a Font Awesome
+webfont, stylesheet or sprite at runtime, because its content policy
+(`QGD-SEC-0008`) allows the renderer no font and no image. Inline SVG markup is
+neither, so the icons are drawn as paths.
+
+No icon has been modified. Attribution appears here and in the application's
+About panel, as CC BY 4.0 requires.
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+## Data sources
+
+Each source of data the application downloads or ships, who it is from, and on
+what terms. Data marked "downloaded when you ask" is fetched from its owner by
+your copy of the application and is never redistributed by this project.
+
+<!-- credit: reference/adif -->
+- **ADIF Development Group**: ADIF definitions, the fields, modes, bands and
+  entities logs are checked against. Downloaded when you ask. Published for use
+  by logging programs.
+<!-- credit: reference/pota -->
+- **Parks on the Air**: POTA parks, programs and locations, downloaded when you
+  ask; the activators spotted now; and how many times each park in My Area
+  has been activated, for Most Wanted. Public data, fetched from POTA and never
+  redistributed.
+<!-- credit: reference/sota -->
+- **Summits on the Air**: SOTA summits, each summit's reference, name, height
+  and position. Downloaded when you ask. Public data, fetched from SOTA and
+  never redistributed.
+<!-- credit: noaa -->
+- **NOAA Space Weather Prediction Center**: solar flux, the K and A indices and
+  the space weather scales, for Conditions. A work of the US Government, public
+  domain.
+<!-- credit: county/boundaries -->
+- **US Census Bureau**: US county boundaries, to find the county a location is
+  in. Ships with the application. A work of the US Government, public domain.
+<!-- credit: county/names -->
+- **ARRL's TQSL**: US county names as LoTW accepts them, from TQSL's
+  configuration. Names only; TQSL's file is not included.
+<!-- credit: county/sections -->
+- **ARRL Section Boundaries**: ARRL sections and the counties each holds.
+  Section assignments only; ARRL's page is not included.
+<!-- credit: map/land -->
+- **Natural Earth**: the world map's coastlines, at 1:110m, version 5.1.2, for
+  Astro's grey line, simplified to a tenth of a degree. Ships with the
+  application. Public domain; made with Natural Earth.
+<!-- credit: icons -->
+- **Font Awesome Free, by Fonticons, Inc.**: the navigation icons. CC BY 4.0,
+  as recorded above.

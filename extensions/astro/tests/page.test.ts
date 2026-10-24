@@ -1,0 +1,225 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Astro's page (QGD-AST-*), as the core's page shapes, checked by the core's
+// own validator.
+import { describe, expect, it } from 'vitest';
+import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
+import { pageContents } from '../../../packages/ui/page-shapes.js';
+import { astroPage, clockNote, moonWeek, subsolar, sunWeek, twilightWeek, type Clock } from '../src/page.js';
+import { sublunar } from '../src/moon.js';
+import { julian } from '../src/sun.js';
+
+const BOISE = { name: 'Home', grid: 'DN13sm', latitude: 43.625, longitude: -116.2083 };
+const NOW = new Date('2026-10-22T18:00:00Z');
+const two = (n: number) => String(n).padStart(2, '0');
+const UTC_CLOCK: Clock = {
+  offset: () => 0, text: () => 'never shown', zone: () => ({ name: 'Etc/UTC', short: 'UTC' }),
+  time: at => `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}`, date: at => `${at.getUTCDate()} Oct ${at.getUTCFullYear()}`
+};
+// Six hours behind UTC, as Idaho is in summer time.
+const MOUNTAIN: Clock = {
+  offset: () => -360, text: at => `local ${at.getUTCHours()}`, zone: () => ({ name: 'America/Denver', short: 'MDT' }),
+  time: at => { const local = new Date(at.getTime() - 6 * 3_600_000); return `${two(local.getUTCHours())}:${two(local.getUTCMinutes())}`; },
+  date: at => { const local = new Date(at.getTime() - 6 * 3_600_000); return `${local.getUTCDate()} Oct ${local.getUTCFullYear()}`; }
+};
+const sections = (answer: ReturnType<typeof astroPage>) => {
+  const valid = validatePageAnswer(answer);
+  if (!valid.ok) throw new Error('not ok');
+  return valid.data.sections;
+};
+// The radio depths' table.
+const today = (answer: ReturnType<typeof astroPage>) => {
+  const table = sections(answer).find(section => section.heading === 'Radio depths');
+  if (!table || table.shape !== 'table' || !('rows' in table)) throw new Error('no radio depths');
+  return table;
+};
+
+describe('Astro\'s page', () => {
+  it('passes the core\'s own check, Radio depths a table under its own heading, as Sun, Twilight and Moon are', () => {
+    const found = sections(astroPage(BOISE, NOW, {}, UTC_CLOCK));
+    expect(found.filter(section => section.shape === 'table' && 'groups' in section)).toEqual([]);
+    expect(found.filter(section => section.shape === 'table').map(section => section.heading)).toEqual(['Sun', 'Twilight', 'Moon', 'Radio depths']);
+  });
+
+  it('gives twilight and the moon for the same five days on this computer\'s clock (KI7MT, 2026-10-23)', () => {
+    const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
+    const twilight = found.find(section => section.heading === 'Twilight');
+    const moon = found.find(section => section.heading === 'Moon');
+    if (!twilight || twilight.shape !== 'table' || !('rows' in twilight) || !moon || moon.shape !== 'table' || !('rows' in moon)) throw new Error('missing');
+    expect(twilight.columns).toEqual(['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk']);
+    expect(twilight.rows).toHaveLength(5);
+    // Each dawn earlier the deeper it is, each dusk later.
+    const [, civilDawn, civilDusk, , , astroDawn, astroDusk] = twilight.rows[0]!;
+    expect(astroDawn! < civilDawn!).toBe(true);
+    expect(astroDusk! > civilDusk!).toBe(true);
+    expect(moon.columns).toEqual(['Date', 'Phase', 'Moonrise', 'Moonset', 'Lit', 'Declination', 'Distance']);
+    expect(moon.rows.map(row => row[0])).toEqual(['22 Oct 2026', '23 Oct 2026', '24 Oct 2026', '25 Oct 2026', '26 Oct 2026']);
+    // Waxing to the 26 October full moon, which falls between the 25th's
+    // noon and the 26th's: lit rises to 100%, then begins to fall.
+    const lit = moon.rows.map(row => parseInt(row[4]!, 10));
+    expect(Math.max(...lit)).toBe(100);
+    expect(lit[0]!).toBeLessThan(lit[2]!);
+    expect(moon.rows.every(row => /^(\d\d:\d\d|—)$/.test(row[2]!) && /^(\d\d:\d\d|—)$/.test(row[3]!))).toBe(true);
+  });
+
+  it('gives the sun for today and the next four days, every time on this computer\'s clock (KI7MT, 2026-10-23)', () => {
+    const sun = sections(astroPage(BOISE, NOW, {}, MOUNTAIN)).find(section => section.heading === 'Sun');
+    if (!sun || sun.shape !== 'table' || !('rows' in sun)) throw new Error('no sun');
+    expect(sun.columns).toEqual(['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day']);
+    expect(sun.rows.map(row => row[0])).toEqual(['22 Oct 2026', '23 Oct 2026', '24 Oct 2026', '25 Oct 2026', '26 Oct 2026']);
+    // Boise in late October, on Mountain summer time: sunrise a little after
+    // eight, sunset a little before seven, the days drawing in.
+    expect(sun.rows[0]![1]).toMatch(/^08:\d\d$/);
+    expect(sun.rows[0]![3]).toMatch(/^18:\d\d$/);
+    const minutes = (text: string) => { const [h, m] = text.split(' h ').map(part => parseInt(part, 10)); return h! * 60 + m!; };
+    expect(minutes(sun.rows[4]![4]!)).toBeLessThan(minutes(sun.rows[0]![4]!));
+  });
+
+  it('gives the radio depths for today and tomorrow, as they were laid out', () => {
+    const rows = today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).rows;
+    expect(rows).toHaveLength(8);
+    expect(rows[0]![1]).not.toEqual(rows[4]![1]);
+  });
+
+  it('gives the radio depths on this computer\'s clock alone: they are the Location\'s (KI7MT, 2026-10-23)', () => {
+    const table = today(astroPage(BOISE, NOW, {}, MOUNTAIN));
+    expect(table.columns).toEqual(['Event', 'Date', 'Time']);
+    const dawn = table.rows.find(row => row[0]!.startsWith('Dawn: the absorbing'));
+    expect(dawn).toEqual([expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/)]);
+  });
+
+
+  it('says what it needs, and names the Location, rather than guessing (QGD-AST-0008)', () => {
+    const none = sections(astroPage(null, NOW, {}, UTC_CLOCK));
+    expect(none).toEqual([{ shape: 'alert', level: 'info', text: expect.stringMatching(/needs a Location/) }]);
+    const bare = sections(astroPage({ name: 'Car' }, NOW, {}, UTC_CLOCK));
+    expect(bare[0]).toMatchObject({ shape: 'alert', text: expect.stringMatching(/^Car has no grid or coordinates/) });
+  });
+
+  it('names an absent event and why, never a blank (QGD-AST-0007)', () => {
+    const svalbard = { name: 'Longyearbyen', latitude: 78.2232, longitude: 15.6267 };
+    const sun = sections(astroPage(svalbard, new Date('2026-06-21T12:00:00Z'), {}, UTC_CLOCK)).find(section => section.heading === 'Sun');
+    if (!sun || sun.shape !== 'table' || !('rows' in sun)) throw new Error('no sun');
+    expect(sun.rows[0]![1]).toBe('—');
+    expect(sun.rows[0]![4]).toBe('24 h: the sun does not set');
+    expect(sun.rows.every(row => row.every(cell => cell !== ''))).toBe(true);
+  });
+
+  it('answers the DX question with the depths it used, in the next 24 hours (QGD-AST-0041)', () => {
+    const found = sections(astroPage(BOISE, new Date('2026-10-22T00:00:00Z'), { dx: 'MM40' }, UTC_CLOCK));
+    const grey = found.find(section => section.heading?.startsWith('Grey line with MM40'));
+    if (!grey || grey.shape !== 'table') throw new Error('no grey line');
+    expect(grey.rows.map(row => row[0])).toEqual(expect.arrayContaining(['D and E layers (−10.1°)', 'F2 layer (−17.2°)']));
+    expect(grey.columns).toEqual(['Both ends within', 'Date (UTC)', 'Start', 'End']);
+    // A window: its date, then its start and end in UTC, each on its own.
+    const window = grey.rows.find(row => row.length === 4)!;
+    expect(window[1]).toMatch(/^\d{1,2} [A-Z][a-z]{2}$/);
+    expect(window[2]).toMatch(/^\d\d:\d\d$/);
+    expect(window[3]).toMatch(/^(\d{1,2} [A-Z][a-z]{2} )?\d\d:\d\d$/);
+    // Under the map, just below the field it answers.
+    expect(found[2]).toEqual({ shape: 'fields', heading: 'Grey line DX check' });
+    expect(found[3]).toBe(grey);
+  });
+
+  it('says in words when the two ends share no twilight, rather than two empty rows', () => {
+    const found = sections(astroPage(BOISE, new Date('2026-10-22T00:00:00Z'), { dx: 'IO91' }, UTC_CLOCK));
+    expect(found[3]).toEqual({
+      shape: 'alert', level: 'info', heading: 'Grey line with IO91, the next 24 hours', contents: false,
+      text: 'Home and IO91 are not in twilight at the same time in the next 24 hours.'
+    });
+  });
+
+  it('signs the sun\'s height: + above the horizon, − below it', () => {
+    const height = (now: Date) => {
+      const figures = sections(astroPage(BOISE, now, {}, UTC_CLOCK)).find(section => section.shape === 'figures');
+      return figures?.shape === 'figures' ? figures.figures.find(figure => figure.label === 'Sun now')?.value : undefined;
+    };
+    expect(height(new Date('2026-10-22T19:00:00Z'))).toMatch(/^\+\d+\.\d°$/);
+    expect(height(new Date('2026-10-22T08:00:00Z'))).toMatch(/^−\d+\.\d°$/);
+  });
+
+  it('draws the grey line on the map, with the Location and the DX grid marked', () => {
+    const found = sections(astroPage(BOISE, NOW, { dx: 'IO91' }, UTC_CLOCK));
+    expect(found[1]).toMatchObject({ shape: 'map', heading: 'Grey line now', twilight: -10.1, moon: expect.any(Object), marks: [
+      { label: 'Home', latitude: 43.625, longitude: -116.2083 },
+      { label: 'IO91', latitude: expect.closeTo(51.5, 1), longitude: expect.closeTo(-1, 1) }
+    ] });
+    expect(sections(astroPage(BOISE, NOW, {}, UTC_CLOCK))[1]).toMatchObject({ shape: 'map', marks: [{ label: 'Home' }] });
+  });
+
+  it('puts the sun overhead where it is: over the equator near the meridian at noon UTC on an equinox', () => {
+    const march = subsolar(new Date('2026-03-20T12:00:00Z'));
+    expect(Math.abs(march.latitude)).toBeLessThan(0.5);
+    expect(Math.abs(march.longitude)).toBeLessThan(2.5);
+    // June solstice, 18:00 UTC: the Tropic of Cancer, a quarter turn west.
+    const june = subsolar(new Date('2026-06-21T18:00:00Z'));
+    expect(june.latitude).toBeCloseTo(23.4, 0);
+    expect(june.longitude).toBeCloseTo(-90, 0);
+  });
+
+  it('puts the moon opposite the sun at full moon, and beside it at new moon', () => {
+    const apart = (at: Date) => {
+      const sun = subsolar(at);
+      const moon = sublunar(julian(at.getTime()));
+      const r = Math.PI / 180;
+      return Math.acos(Math.sin(sun.latitude * r) * Math.sin(moon.latitude * r)
+        + Math.cos(sun.latitude * r) * Math.cos(moon.latitude * r) * Math.cos((sun.longitude - moon.longitude) * r)) / r;
+    };
+    expect(apart(new Date('2026-10-26T04:12:00Z'))).toBeGreaterThan(172);
+    expect(apart(new Date('2026-11-09T07:02:00Z'))).toBeLessThan(8);
+  });
+
+  it('lists the DX check and the day\'s parts at the top, and not the map or the answer (KI7MT, 2026-10-23)', () => {
+    const found = sections(astroPage(BOISE, NOW, { dx: 'IO91' }, UTC_CLOCK));
+    expect(pageContents(found).map(entry => entry.label)).toEqual(['Grey line DX check', 'Sun', 'Twilight', 'Moon', 'Radio depths']);
+  });
+
+  it('sets the day\'s times apart under a heading of their own', () => {
+    const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
+    const at = found.findIndex(section => section.heading === 'Almanac for Home');
+    expect(found[at]).toMatchObject({ shape: 'text', contents: false, text: 'Active Location almanac times are based on system clock setting: America/Denver (MDT, UTC−6).' });
+    expect(found[at + 1]).toMatchObject({ shape: 'table' });
+  });
+
+  it('gives the times on this computer\'s clock as they are, and never second-guesses its time zone', () => {
+    // The operator sets the clock where they need it (KI7MT, 2026-10-23):
+    // UTC in the shack, local on the laptop. Astro does not warn about it.
+    const found = sections(astroPage({ name: 'London park', latitude: 51.5, longitude: -0.1 }, NOW, {}, MOUNTAIN));
+    expect(found.some(section => section.shape === 'alert' && section.level === 'warning')).toBe(false);
+  });
+
+  it('names the zone the system clock is set to, so a time that looks off answers itself', () => {
+    expect(clockNote(MOUNTAIN, NOW)).toBe('Active Location almanac times are based on system clock setting: America/Denver (MDT, UTC−6).');
+    expect(clockNote(UTC_CLOCK, NOW)).toBe('Active Location almanac times are based on system clock setting: UTC.');
+    // A zone with no common short name gives the offset once; half hours too.
+    const kolkata: Clock = { ...MOUNTAIN, offset: () => 330, zone: () => ({ name: 'Asia/Kolkata', short: 'GMT+5:30' }) };
+    expect(clockNote(kolkata, NOW)).toBe('Active Location almanac times are based on system clock setting: Asia/Kolkata (UTC+5:30).');
+  });
+
+  it('puts every event on the row of its own date on this clock, and starts at this clock\'s today (Codex review, 2026-10-23)', () => {
+    // A clock whose times carry their dates, so each cell can be checked
+    // against its row.
+    const dated = (offsetHours: number): Clock => {
+      const local = (at: Date) => new Date(at.getTime() + offsetHours * 3_600_000);
+      const date = (at: Date) => `${local(at).getUTCDate()} Oct ${local(at).getUTCFullYear()}`;
+      return { offset: () => offsetHours * 60, text: () => '', zone: () => ({ name: 'Test', short: 'T' }), date,
+        time: at => `${date(at)} ${two(local(at).getUTCHours())}:${two(local(at).getUTCMinutes())}` };
+    };
+    for (const offset of [0, -6, 9]) {
+      const clock = dated(offset);
+      for (const rows of [sunWeek(NOW, 43.625, -116.2083, clock), twilightWeek(NOW, 43.625, -116.2083, clock), moonWeek(NOW, 43.625, -116.2083, clock).map(row => [row[0]!, row[2]!, row[3]!])]) {
+        for (const row of rows) {
+          const cells = (rows[0]!.length === 5 ? row.slice(1, 4) : row.slice(1)).filter(cell => cell !== '—');
+          for (const cell of cells) expect(cell.startsWith(`${row[0]} `), `${offset}: ${row[0]} holds ${cell}`).toBe(true);
+        }
+      }
+    }
+    // Half past midnight on the 23rd on a Mountain clock, while the Location's
+    // solar day is still the 22nd: the table starts on the clock's today.
+    expect(sunWeek(new Date('2026-10-23T06:30:00Z'), 43.625, -116.2083, MOUNTAIN)[0]![0]).toBe('23 Oct 2026');
+  });
+
+  it('rates nothing and forecasts nothing (QGD-AST-0050)', () => {
+    const text = JSON.stringify(astroPage(BOISE, NOW, { dx: 'FN31' }, UTC_CLOCK));
+    expect(text).not.toMatch(/\b(good|poor|fair|excellent|forecast|score|rating)\b/i);
+  });
+});

@@ -1,0 +1,12 @@
+{
+  "register": "Where the world map Astro's grey line is drawn on comes from",
+  "note": "QGD-HOM-0002, page data version 6; QGD-AST-0042. The file is in this repository, at data/map/ne_110m_land.geojson: public domain, credited, and plain text anyone can read and diff (KI7MT, 2026-10-23). scripts/build-map.mjs checks it against the SHA-256 below before it builds the window's outline from it, keeping the coastlines as one outline, to a tenth of a degree, and nothing else.",
+  "decidedBy": "KI7MT, 2026-10-22: a flat map with the terminator and the night greyed out, ours rather than a published image; Natural Earth's coastlines ship with the application, which its public-domain terms allow. In the repository rather than downloaded at setup (KI7MT, 2026-10-23): it is truly public domain, credited, and text, not a prebuilt binary.",
+  "land": {
+    "what": "Natural Earth 1:110m land polygons. Public domain: \"No permission is needed to use Natural Earth. Crediting the authors is unnecessary\"; credited all the same.",
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson",
+    "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9",
+    "edition": "5.1.2",
+    "file": "data/map/ne_110m_land.geojson"
+  }
+}

@@ -1,0 +1,46 @@
+[package]
+name = "qg-callsign-core"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["addon"]
+addon = ["dep:napi", "dep:napi-derive"]
+
+[dependencies]
+keyring = "=4.2.0"
+# The same aws-lc-rs rustls already pulls in, with the same FIPS feature, so
+# one module is linked and not two. Pinned exactly: it is on the credential
+# path (QGD-SEC-0012), and the module it builds is the one crypto-evidence
+# reads the version out of.
+aws-lc-rs = { version = "=1.18.1", default-features = false, features = ["fips"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+zeroize = { version = "1", features = ["derive"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "json", "registry"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-manual-roots-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "fips"] }
+webpki-roots = "1"
+roxmltree = "0.21"
+napi = { version = "=3.14.0", default-features = false, features = ["napi8"], optional = true }
+napi-derive = { version = "3", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "=3.7.0"
+
+# The silent existence check (entry_exists): the same secret-service keyring's
+# Linux store is built on, so no second D-Bus stack is linked.
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+secret-service = { version = "=5.2.0", features = ["crypto-rust"] }
+
+[build-dependencies]
+napi-build = "2"
+
+[dev-dependencies]
+tempfile = "3"

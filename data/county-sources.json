@@ -1,0 +1,56 @@
+{
+  "register": "Where the US county data a Location is checked and filled from comes from",
+  "note": "QGD-STN-0010. Built into the application by scripts/build-counties.mjs from the files below, fetched into vendor/ by scripts/fetch-counties.mjs and checked against these SHA-256 sums. None of them is in this repository: the build keeps the county names and simplified boundaries it needs and nothing else.",
+  "decidedBy": "KI7MT, 2026-10-22: LoTW first. A Location's MY_CNTY is the county-equivalent the operator is in, spelled as TQSL's US_COUNTY list spells it; Alaska follows ADIF's own Secondary_Administrative_Subdivision list, because ADIF is the core and TQSL still uses names Alaska has retired. CQ USA-CA's 3,077 is derived for awards, not stored (qso-graph-desktop#45).",
+  "boundaries": {
+    "what": "US Census Bureau cartographic boundary file, counties and equivalents, 1:500,000. A work of the US Government, in the public domain.",
+    "url": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_500k.zip",
+    "sha256": "aa976c00b181939755d0da757f4c7c2dc0103c3b3b4530fb2a91c2bb62fc777c",
+    "edition": "2025",
+    "file": "cb_2025_us_county_500k"
+  },
+  "connecticut": {
+    "what": "The same file's 2021 edition, for Connecticut only: the last with its 8 counties. From 2022 Census uses 9 planning regions there; TQSL and LoTW still use the 8 counties.",
+    "url": "https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_county_500k.zip",
+    "sha256": "0262e163a6b2effa8e73863912814d499f6bdd07a05726960e0f4135ca62df1e",
+    "edition": "2021",
+    "file": "cb_2021_us_county_500k"
+  },
+  "names": {
+    "what": "TQSL's configuration file, whose US_COUNTY list is the county names LoTW accepts. Pinned to a revision of the TrustedQSL repository.",
+    "url": "https://sourceforge.net/p/trustedqsl/tqsl/ci/57ef23e6f6ec49a5269fc904609d46e57d3984ed/tree/src/config.xml?format=raw",
+    "sha256": "5a0747d35f5788f8b14757be2fc2f1ce7d0857bd0c0c4def0a30aef72d2f3538",
+    "configVersion": "11.35"
+  },
+  "rules": {
+    "territories": "Puerto Rico, American Samoa, Guam, the Northern Mariana Islands and the US Virgin Islands are separate DXCC entities and are left out. So is the District of Columbia, which TQSL gives no county.",
+    "alaskaRenamed": {
+      "Copper River": "Valdez-Cordova",
+      "Chugach": "Valdez-Cordova"
+    },
+    "simplifiedTo": "0.0003 degrees, about 30 m",
+    "quantum": "0.0001 degrees, about 11 m",
+    "sectionCorrections": {
+      "note": "Where ARRL's page names a county differently from Census and LoTW, or runs two together. Each is a spelling, not a change of section.",
+      "PA": {
+        "Northhampton": "Northampton"
+      },
+      "FL": {
+        "Dade": "Miami-Dade"
+      },
+      "NJ": {
+        "Mercer Ocean": [
+          "Mercer",
+          "Ocean"
+        ]
+      }
+    }
+  },
+  "sections": {
+    "what": "ARRL's Section Boundaries page: which sections each state has, and in states with more than one, which counties each section holds. ARRL's page varies from one request to the next, so the copy pinned is the Internet Archive's of 2026-06-15, which is served byte for byte. scripts/arrl-sections.mjs compares it with ARRL's live page.",
+    "url": "https://web.archive.org/web/20260615180350id_/https://www.arrl.org/section-boundaries",
+    "live": "https://www.arrl.org/section-boundaries",
+    "sha256": "e4c3ba436436e2c9f198de3c9df259eb67cccabc82877de273a91d830d0f84b9",
+    "archived": "2026-06-15"
+  }
+}

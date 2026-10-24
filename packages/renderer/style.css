@@ -1,0 +1,596 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+
+/* QGD-FRM-0001 to QGD-FRM-0003. Three states, which is what a theme that
+   follows the system AND can be overridden actually needs:
+     :root                                   the light palette
+     prefers-color-scheme: dark, un-overridden   the system's choice, before any
+                                                 script runs, so there is no
+                                                 flash of light at startup
+     [data-theme="dark" | "light"]           the user's choice, which wins
+   QGD-FRM-0003 asks for dark that is properly dark rather than grey: the page
+   is near-black for a screen beside a radio at two in the morning, and light
+   keeps strong contrast for a picnic table in sunlight. */
+:root {
+  /* Both, declared once and never narrowed in a theme block below. A page that
+     declares support for one scheme is reported by prefers-color-scheme as
+     using that scheme, so narrowing it here would silently answer the media
+     query this stylesheet asks two rules down. applyTheme pins the used scheme
+     inline, and only when the user has chosen one. */
+  color-scheme: light dark;
+  --page: #f4f6f8;
+  --surface: #ffffff;
+  --surface-sunken: #ecf0f4;
+  --surface-inset: #f1f4f7;
+  --surface-readonly: #f3f5f7;
+  --ink: #203046;
+  --ink-muted: #57667a;
+  --border: #dce2e9;
+  --border-strong: #bdcbd8;
+  --accent: #17394f;
+  --accent-ink: #ffffff;
+  --focus: #1f6f9e;
+  --ok: #1f5c3f;
+  --ok-surface: #f2f8f5;
+  --ok-border: #cfddd8;
+  --danger: #a53232;
+  --danger-border: #d4b6b6;
+  --warn: #7a4f00;
+  --warn-surface: #fbf4e6;
+  --warn-border: #e3cfa3;
+  /* A hue per destination (KI7MT and Watson, 2026-10-22): each place in the
+     rail has one, and it is used wherever that place appears. Tokens of their
+     own, so --ok still means success and --warn a warning: one meaning per
+     token. Hue never carries the meaning alone; a word or an icon is beside it. */
+  --hue-callsigns: #8a5a00;
+  --hue-locations: #1f6b45;
+  --hue-general: #1f6f9e;
+  --hue-settings: #57667a;
+  --accent-surface: #eaf2f8;
+  /* The clock's instrument green, on its own black: not a status colour, and
+     kept apart from them so neither moves the other (Watson, 2026-10-22). */
+  --clock-ink: #39ff6a;
+  --clock-ground: #000000;
+  --clock-label: #5fa86f;
+  /* The Internet lamp: on and off, on the clock's black. */
+  --lamp-on: #39ff6a;
+  --lamp-off: #ff4d4d;
+  --lamp-trouble: #ffc940;
+  /* The world map (page data version 6): sea, land, the night over both, the
+     terminator, the sun and the places marked. */
+  --map-sea: #e4edf4;
+  --map-land: #c8d3c6;
+  --map-night: rgba(20, 30, 45, 0.42);
+  --map-twilight: rgba(20, 30, 45, 0.2);
+  --map-deep: rgba(20, 30, 45, 0.3);
+  --map-moon: #57667a;
+  --map-terminator: #203046;
+  --map-sun: #c98a00;
+  --map-mark: #a53232;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0a0e13;
+    --surface: #121922;
+    --surface-sunken: #0e141b;
+    --surface-inset: #161e28;
+    --surface-readonly: #0e141b;
+    --ink: #e8eef6;
+    --ink-muted: #a3b2c4;
+    --border: #233040;
+    --border-strong: #35475c;
+    --accent: #6fb3dd;
+    --accent-ink: #06121c;
+    --focus: #8cc6ef;
+    --ok: #6fd6a0;
+    --ok-surface: #0f2119;
+    --ok-border: #1f4a35;
+    --danger: #ff9b9b;
+    --danger-border: #5c2d2d;
+    --warn: #f0c674;
+    --warn-surface: #241c0c;
+    --warn-border: #4d3d1a;
+    --hue-callsigns: #f0c674;
+    --hue-locations: #6fd6a0;
+    --hue-general: #6fb3dd;
+    --hue-settings: #a3b2c4;
+    --accent-surface: #0f1d27;
+    /* The clock's instrument green, on its own black: not a status colour, and
+       kept apart from them so neither moves the other (Watson, 2026-10-22). */
+    --clock-ink: #39ff6a;
+    --clock-ground: #000000;
+    --clock-label: #5fa86f;
+    --lamp-on: #39ff6a;
+    --lamp-off: #ff4d4d;
+    --lamp-trouble: #ffc940;
+    --map-sea: #0f1a24;
+    --map-land: #2b3a44;
+    --map-night: rgba(0, 0, 0, 0.55);
+  --map-twilight: rgba(0, 0, 0, 0.3);
+  --map-deep: rgba(0, 0, 0, 0.38);
+  --map-moon: #d8dee6;
+    --map-twilight: rgba(0, 0, 0, 0.3);
+    --map-deep: rgba(0, 0, 0, 0.38);
+    --map-moon: #d8dee6;
+    --map-terminator: #a3b2c4;
+    --map-sun: #f0c674;
+    --map-mark: #f08a8a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page: #0a0e13;
+  --surface: #121922;
+  --surface-sunken: #0e141b;
+  --surface-inset: #161e28;
+  --surface-readonly: #0e141b;
+  --ink: #e8eef6;
+  --ink-muted: #a3b2c4;
+  --border: #233040;
+  --border-strong: #35475c;
+  --accent: #6fb3dd;
+  --accent-ink: #06121c;
+  --focus: #8cc6ef;
+  --ok: #6fd6a0;
+  --ok-surface: #0f2119;
+  --ok-border: #1f4a35;
+  --danger: #ff9b9b;
+  --danger-border: #5c2d2d;
+  --warn: #f0c674;
+  --warn-surface: #241c0c;
+  --warn-border: #4d3d1a;
+  --hue-callsigns: #f0c674;
+  --hue-locations: #6fd6a0;
+  --hue-general: #6fb3dd;
+  --hue-settings: #a3b2c4;
+  --accent-surface: #0f1d27;
+  /* The clock's instrument green, on its own black: not a status colour, and
+     kept apart from them so neither moves the other (Watson, 2026-10-22). */
+  --clock-ink: #39ff6a;
+  --clock-ground: #000000;
+  --clock-label: #5fa86f;
+  /* The Internet lamp: on and off, on the clock's black. */
+  --lamp-on: #39ff6a;
+  --lamp-off: #ff4d4d;
+  --lamp-trouble: #ffc940;
+  --map-sea: #0f1a24;
+  --map-land: #2b3a44;
+  --map-night: rgba(0, 0, 0, 0.55);
+  --map-twilight: rgba(0, 0, 0, 0.3);
+  --map-deep: rgba(0, 0, 0, 0.38);
+  --map-moon: #d8dee6;
+  --map-terminator: #a3b2c4;
+  --map-sun: #f0c674;
+  --map-mark: #f08a8a;
+}
+
+:root { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--page); }
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--page); color: var(--ink); }
+[hidden] { display: none !important; }
+header { height: 56px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+/* The heads-up bar's boxes: the clock, and later a rig's readout (#43). */
+.header-chips { display: flex; gap: 10px; align-items: center; min-width: 0; }
+/* The clock, first on the heads-up bar: green on black, like a radio's
+   display (KI7MT, 2026-10-22: yellow, like WSJT-X's, was tried first; green
+   is "more radio-ish and tech-ish"). The same in both themes, because it is
+   read as a display rather than as part of the page, and a rig readout beside
+   it later takes the same colours (#43). Green on black is about 15:1. */
+.header-clock { display: flex; gap: 18px; font-size: 13px; padding: 6px 14px; border-radius: 6px;
+  background: var(--clock-ground); border: 1px solid var(--border); }
+.clock-label { color: var(--clock-label); font-size: 11px; font-weight: 600; margin-right: 4px; }
+/* The Internet lamp on the clock's panel (KI7MT, 2026-10-23). */
+.net-light { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: 0; background: var(--lamp-off); box-shadow: 0 0 6px var(--lamp-off); }
+.net-lamp[data-lamp="on"] .net-light { background: var(--lamp-on); box-shadow: 0 0 6px var(--lamp-on); }
+.net-lamp[data-lamp="trouble"] .net-light { background: var(--lamp-trouble); box-shadow: 0 0 6px var(--lamp-trouble); }
+.clock-time { color: var(--clock-ink); font-weight: 650; font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
+.hint, .sidebar-note, .optional { color: var(--ink-muted); }
+.workspace { display: flex; flex: 1; min-height: 0; }
+/* The rail, then the callsign list, then the page. Three columns that have to
+   read as three, so the rail is the sunken one and the list sits on the page
+   ground rather than matching it. */
+.rail { width: 92px; flex-shrink: 0; padding: 12px 8px; border-right: 1px solid var(--border); background: var(--surface-sunken); display: flex; flex-direction: column; }
+.rail-group { display: flex; flex-direction: column; gap: 4px; }
+/* Settings sits at the bottom of the rail, pushed there rather than placed. */
+.rail-end { margin-top: auto; }
+/* More destinations than the window is tall: the upper group scrolls and
+   Settings stays at the foot (KI7MT, 2026-10-23: "what happens when we have
+   more than 8 extensions"). */
+.rail { min-height: 0; }
+.rail-group:not(.rail-end) { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.rail-end { flex-shrink: 0; }
+.rail-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; padding: 10px 4px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-muted); font-size: 11px; font-weight: 600; line-height: 1.2; }
+.rail-item.current { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
+/* The current place in its own hue: the icon, and a bar at the left edge. */
+.rail-item.current .rail-icon { color: var(--rail-hue, var(--hue-general)); }
+.rail-item.current { box-shadow: inset 3px 0 0 var(--rail-hue, var(--hue-general)); }
+.rail-item[data-hue="callsigns"] { --rail-hue: var(--hue-callsigns); }
+.rail-item[data-hue="locations"] { --rail-hue: var(--hue-locations); }
+.rail-item[data-hue="settings"] { --rail-hue: var(--hue-settings); }
+.rail-item:hover:not(.current) { color: var(--ink); }
+.rail-icon { width: 19px; height: 19px; display: block; }
+.rail-label { display: block; }
+aside { width: 240px; padding: 28px 18px; border-right: 1px solid var(--border); background: var(--page); overflow-y: auto; flex-shrink: 0; }
+.sidebar-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.sidebar-title button { font-size: 12px; padding: 6px 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--border-strong); }
+.callsign-item { display: block; width: 100%; text-align: left; margin-bottom: 8px; border: 1px solid transparent; padding: 12px; border-radius: 8px; background: transparent; color: var(--ink); }
+.callsign-item.selected { background: var(--surface); border-color: var(--border-strong); }
+.callsign-item strong, .callsign-item span { display: block; }
+.callsign-item strong { font-size: 15px; margin-bottom: 4px; }
+.callsign-item span { font-size: 12px; color: var(--ink-muted); }
+.sidebar-note { font-size: 12px; line-height: 1.6; margin-top: 25px; }
+main { flex: 1; min-height: 0; display: flex; }
+.page { flex: 1; display: flex; min-height: 0; }
+/* A page that stacks something above the page's own columns — the setup offer
+   over the callsign list and form. .page is a row, so without this the thing
+   above becomes another column and squeezes what it was meant to introduce. */
+.page-stack { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.page-stack > .offer { margin: 24px 36px 0; flex-shrink: 0; }
+.page-row { flex: 1; display: flex; min-height: 0; }
+.page-main { flex: 1; padding: 30px 36px 40px; overflow-y: auto; }
+/* The page's own width, which is what a layout inside it should answer to:
+   the rail and the callsign list take some of the window, so a query on the
+   window switches too early (Watson, 2026-10-22). Named, so a card's own
+   container queries still bind to the card. */
+.page-main { container: page / inline-size; }
+.page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.eyebrow { font-size: 10px; font-weight: 650; letter-spacing: 1.4px; margin: 0 0 6px; color: var(--ink-muted); }
+/* A page's eyebrow in its destination's hue, as on the rail: Callsigns,
+   Locations and Settings, and an extension's in the colour its manifest
+   names (KI7MT, 2026-10-23: the eyebrow matches the rail). */
+.eyebrow[data-hue="general"] { color: var(--hue-general); }
+.eyebrow[data-hue="callsigns"] { color: var(--hue-callsigns); }
+.eyebrow[data-hue="locations"] { color: var(--hue-locations); }
+.eyebrow[data-hue="settings"] { color: var(--hue-settings); }
+h1 { font-size: 26px; letter-spacing: -.5px; margin: 0; font-weight: 650; }
+#message { min-height: 20px; margin: 0 0 12px; color: var(--ok); font-size: 13px; }
+#message.error { color: var(--danger); }
+.card { max-width: 760px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 22px; margin-bottom: 20px; }
+.card h2 { margin-bottom: 20px; }
+.section-title { display: flex; align-items: baseline; justify-content: space-between; }
+.badge { font-size: 11px; padding: 4px 8px; border: 1px solid var(--ok-border); background: var(--ok-surface); color: var(--ok); border-radius: 20px; }
+label { display: flex; flex-direction: column; gap: 7px; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
+.optional { font-weight: 400; display: inline; }
+input, select { width: 100%; font: inherit; color: var(--ink); border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); padding: 9px 10px; min-height: 37px; }
+input:read-only { background: var(--surface-readonly); }
+/* A select holding a handful of short options does not need the width of
+   the card; a text field does. */
+select, input[readonly].narrow { max-width: 320px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.form-footer { display: flex; justify-content: flex-end; align-items: center; gap: 18px; }
+.form-footer .hint { margin-right: auto; }
+.hint { font-size: 11px; line-height: 1.6; font-weight: 400; }
+button { border: 1px solid transparent; border-radius: 6px; padding: 9px 15px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 550; cursor: pointer; }
+button.secondary { background: var(--surface); color: var(--ink); border-color: var(--border-strong); }
+button.danger { margin-right: auto; background: var(--surface); color: var(--danger); border-color: var(--danger-border); }
+/* not-allowed, never wait: a disabled control is not a working one, and
+   the busy cursor said it was. A control that is genuinely working says so
+   with .working. */
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.working { cursor: progress; }
+button:hover:not(:disabled) { filter: brightness(1.08); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.credential-status { padding: 10px 12px; border-radius: 6px; background: var(--surface-inset); font-size: 12px; margin: 0 0 18px; }
+.saved-indicator { color: var(--ok); font-size: 11px; margin: -8px 0 16px; }
+.field-error { color: var(--danger); font-size: 11px; margin: 8px 0 0; }
+.field-remove { font-size: 11px; padding: 5px 9px; margin-bottom: 18px; }
+.credential-test { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
+#credential-test-result { font-size: 12px; color: var(--ink-muted); }
+#credential-test-result.success { color: var(--ok); }
+#credential-test-result.error { color: var(--danger); }
+/* Home: the facts, and the ways in. */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; margin: 0 0 18px; font-size: 13px; }
+.facts dt { color: var(--ink-muted); font-weight: 600; }
+.facts dd { margin: 0; }
+.about-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.fact-note { display: block; color: var(--danger); font-size: 12px; margin-top: 3px; }
+.destinations { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.destination { display: flex; align-items: flex-start; gap: 13px; width: 100%; text-align: left; padding: 14px 15px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font-weight: 550; }
+.destination:hover { border-color: var(--accent); }
+.destination-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+.destination strong { display: block; margin-bottom: 3px; }
+.destination .hint { display: block; font-weight: 400; }
+
+/* StateList: the three states that are not a list of things. */
+.state-list ul { list-style: none; margin: 0; padding: 0; }
+.state-list li { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--surface); }
+.state-list li strong, .state-list li span { display: block; }
+.state-list li span { font-size: 12px; color: var(--ink-muted); }
+.state-message { font-size: 12px; color: var(--ink-muted); margin: 0 0 10px; }
+.state-error { color: var(--danger); }
+
+/* ConfirmDialog: a native dialog, so the backdrop and the focus trap are the
+   platform's. Only the look is ours. */
+.confirm { max-width: 420px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 22px; }
+.confirm::backdrop { background: rgb(0 0 0 / .45); }
+.confirm h2 { margin: 0 0 10px; }
+.confirm p { margin: 0 0 20px; font-size: 13px; line-height: 1.6; color: var(--ink-muted); }
+.danger-solid { background: var(--danger); color: var(--surface); border-color: transparent; }
+
+.credential-test-result { font-size: 12px; color: var(--ink-muted); margin: 0; }
+.credential-test-result.success { color: var(--ok); }
+.credential-test-result.error { color: var(--danger); }
+
+footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 8px 24px; font-size: 11px; color: var(--ink-muted); }
+/* The status bar's slots in their places' hues, a dot before the words. */
+.status-slot::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+.status-slot[data-hue="callsigns"]::before { background: var(--hue-callsigns); }
+.status-slot[data-hue="locations"]::before { background: var(--hue-locations); }
+@media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
+
+/* Home's cards (QGD-HOM-0002): drawn by the core from data. */
+/* A page that fills the window: cards are not held to the reading width. */
+.page-full .card { max-width: none; }
+/* Home, laid out as a GitHub profile is (KI7MT, 2026-10-22): our welcome at
+   the top, then the operator's pins under a "Pinned" heading. The welcome is
+   reserved and draws nothing while it is empty. */
+.home-welcome { max-width: 1088px; margin: 0 0 28px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.home-welcome h2 { margin: 0 0 6px; font-size: 22px; }
+.welcome-tagline { margin: 0 0 14px; color: var(--ink-muted); max-width: 70ch; line-height: 1.5; }
+.welcome-points { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.welcome-point {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font: inherit; font-size: 13px;
+  color: var(--ink); background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+}
+.welcome-point:hover { border-color: var(--border-strong); }
+.welcome-point svg { width: 14px; height: 14px; color: var(--hue-general); }
+.welcome-point[data-hue="callsigns"] svg { color: var(--hue-callsigns); }
+.welcome-point[data-hue="locations"] svg { color: var(--hue-locations); }
+.welcome-steps { margin: 0 0 14px; }
+.welcome-steps h3 { margin: 0 0 6px; font-size: 13px; }
+.welcome-steps ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
+/* A step done shows its tick, and nothing more (KI7MT, 2026-10-22: no
+   strike-through). */
+.welcome-box { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border: 1px solid var(--border-strong); border-radius: 3px; font-size: 11px; line-height: 13px; text-align: center; vertical-align: -2px; }
+/* Waiting: amber, the colour that asks for attention. Done: green, with the
+   tick (KI7MT, 2026-10-22). Not the places' hues: a waiting Locations step in
+   its green read as done. */
+.welcome-steps li .link-button { color: var(--warn); }
+.welcome-steps li .welcome-box { border-color: var(--warn-border); background: var(--warn-surface); }
+.welcome-steps li.done .link-button { color: var(--ok); }
+.welcome-steps li.done .welcome-box { border-color: var(--ok); color: var(--ok); background: var(--ok-surface); }
+/* The selling points: a heading, then its message (KI7MT, 2026-10-22), two
+   to a row where the page has room and one where it has not. */
+.welcome-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 28px; margin: 4px 0 16px; }
+@container page (min-width: 760px) { .welcome-features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.welcome-feature h3 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
+.welcome-feature p { margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 1.5; }
+.welcome-feature .link-button { font-size: 13px; }
+.welcome-feature p > .link-button:last-child { margin-left: 4px; }
+/* The release line as its own strip, apart from the selling points. */
+.welcome-new { margin: 0; font-size: 13px; color: var(--ink-muted); padding: 8px 12px; background: var(--accent-surface); border-left: 3px solid var(--hue-general); border-radius: 4px; }
+.welcome-new strong { color: var(--ink); }
+.welcome-new .link-button { margin-left: 8px; font-size: 13px; }
+.home-pinned-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; max-width: 1088px; margin: 0 0 12px; }
+.home-pinned-head h2 { margin: 0; font-size: 16px; }
+/* The pins: tiles of one size, in rows, at most four to a row so eight read
+   as two rows of four. A tile is comfortable at 260 px, so four of them and
+   three gaps, 1088 px, is the most Home is ever as wide; on a larger monitor
+   the rest is a margin on the right, left-aligned as every other page is.
+   Four on a 14-15" laptop's full screen, the target (KI7MT, 2026-10-22);
+   three, two and one as the page narrows. The breakpoints are the page's
+   width, not the window's: the rail and the callsign list take some of it. */
+.home-pins { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1088px; }
+@container page (min-width: 536px) { .home-pins { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 812px) { .home-pins { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container page (min-width: 1088px) { .home-pins { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.home-pins li { display: flex; min-width: 0; }
+.home-pins li.dragging { opacity: 0.5; }
+.pin-tile {
+  display: flex; flex-direction: column; gap: 6px; width: 100%; min-height: 96px; padding: 14px 16px;
+  text-align: left; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+}
+.pin-tile:hover { border-color: var(--border-strong); }
+.pin-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pin-tile-icon { width: 16px; height: 16px; flex: none; color: var(--ink-muted); }
+.pin-tile-name { font-weight: 650; color: var(--focus); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin-tile-description {
+  font-size: 12px; color: var(--ink-muted); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* A section's heading on a page (page data version 4). */
+.page-section-heading { margin: 18px 0 8px; font-size: 15px; }
+.page-body > .page-section-heading:first-of-type { margin-top: 4px; }
+/* A page's fields, drawn by the core (inputs.ts), above its data. */
+/* An area's pages as tabs (KI7MT, 2026-10-23): a pin opens the area, and its
+   pages are one click apart. Underlined, as a page's own sections are, not
+   buttons in a row. */
+.page-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 16px; flex-wrap: wrap; }
+.page-tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin-bottom: -1px;
+  padding: 8px 12px; font: inherit; font-size: 14px; color: var(--ink-muted); cursor: pointer; }
+.page-tab:hover { color: var(--ink); }
+.page-tab[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.page-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.page-inputs { max-width: 1088px; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+/* Show beside the box, level with it: below the label's line and its gap. */
+.page-inputs > button { margin-top: 22px; }
+/* Placed inside the page by its data, the fields are part of that card, not
+   a card of their own within it. */
+.page-body .page-inputs { border: 0; padding: 0; margin: 4px 0 8px; background: none; box-shadow: none; }
+/* A field as wide as what it takes, with Show beside it rather than across
+   the page (KI7MT, 2026-10-23): a grid is at most eight characters. */
+.page-inputs .fields { flex: 0 1 auto; display: flex; flex-wrap: wrap; gap: 16px; }
+.page-inputs .page-input-grid { width: 10ch; }
+.page-inputs .page-input-callsign { width: 12ch; }
+.page-inputs .page-input-text { width: 24ch; }
+/* The line under a field: what it wants, or why what is typed is refused.
+   It runs past the field rather than widening it, so Show stays beside the
+   box. */
+.page-input-note { width: 0; overflow: visible; white-space: nowrap; margin: 0; font-size: 11px; }
+.page-input-hint { color: var(--ink-muted); font-weight: 400; }
+/* An extension's page: its data in one card at the page's width. */
+.page-body { max-width: 1088px; }
+.page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.page-head h2 { margin: 0; }
+.page-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.page-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin: 0 0 12px; }
+.page-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.page-figures dd { margin: 2px 0 0; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.page-figures .unit { font-size: 12px; font-weight: 400; color: var(--ink-muted); }
+.page-figures dd.figure-time { font-size: 11px; font-weight: 400; color: var(--ink-muted); }
+.page-items { list-style: none; margin: 0 0 12px; padding: 0; font-size: 13px; }
+.page-items li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); }
+.page-items li:first-child { border-top: 0; }
+.page-items .item-detail { color: var(--ink-muted); text-align: right; }
+.page-alert { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border); background: var(--surface-inset); }
+.page-alert.warning { color: var(--warn); background: var(--warn-surface); border-color: var(--warn-border); }
+.page-alert.severe { color: var(--danger); border-color: var(--danger-border); }
+.page-failed { margin: 0; font-size: 13px; color: var(--ink-muted); }
+
+/* Customize your pins (QGD-HOM-0003). */
+/* The look of ConfirmDialog: without it the dialog had the browser's own
+   thick border and background, white in the dark theme. */
+dialog.pins { width: min(560px, 92vw); border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 22px; }
+dialog.pins::backdrop { background: rgb(0 0 0 / .45); }
+dialog.pins h2 { margin: 0 0 6px; }
+.pins-list { list-style: none; margin: 0 0 16px; padding: 0; }
+.pins-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.pins-list li:first-child { border-top: 0; }
+.pins-list label { flex: 1; display: flex; flex-direction: row; gap: 10px; align-items: flex-start; margin: 0; font-size: 13px; font-weight: 400; }
+/* The global input rule is for text fields: full width, 37px tall. */
+.pins-list input[type="checkbox"] { flex: none; width: 16px; height: 16px; min-height: 0; margin: 2px 0 0; padding: 0; }
+.pins-list .pin-name { font-weight: 600; }
+.pins-list .pin-description { display: block; font-size: 11px; color: var(--ink-muted); }
+.pins-order { display: flex; gap: 4px; }
+.pins-order button { padding: 2px 8px; }
+/* Read by a screen reader, not drawn. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Settings: one switch per extension (QGD-HOM-0007). */
+.extension-list { list-style: none; margin: 0; padding: 0; }
+.extension-row + .extension-row { border-top: 1px solid var(--border); }
+.extension-switch { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 10px 0; font-size: 13px; font-weight: 400; cursor: pointer; }
+.extension-text { display: flex; flex-direction: column; min-width: 0; }
+.extension-name { font-weight: 600; }
+.extension-switch input[role="switch"] {
+  appearance: none; flex: none; width: 34px; height: 20px; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 10px;
+  background: var(--border-strong); position: relative; cursor: pointer; transition: background 120ms;
+}
+.extension-switch input[role="switch"]::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface); transition: transform 120ms;
+}
+.extension-switch input[role="switch"]:checked { background: var(--accent); }
+.extension-switch input[role="switch"]:checked::after { transform: translateX(14px); }
+.extension-switch input[role="switch"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.extension-switch input[role="switch"]:disabled { opacity: 0.6; cursor: progress; }
+.extension-error { color: var(--danger); margin: 8px 0 0; }
+/* What did not load, said in the warning's amber with the core's words why. */
+.extension-refused-title { margin: 16px 0 6px; font-size: 13px; color: var(--warn); }
+.extension-refused { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.extension-refused .hint { display: block; }
+.inline-action { margin-left: 10px; padding: 2px 10px; min-height: 0; font-size: 12px; }
+.reference-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
+
+/* The extension host's notice on Home (QGD-APP-0022). */
+.home-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: min(1088px, 100%); margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--warn-border); border-radius: 8px; background: var(--warn-surface); color: var(--warn); font-size: 13px; }
+.home-notice p { margin: 0; }
+
+/* Stations (QGD-STN-*). */
+.station-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; font-size: 13px; }
+.station-row .extension-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.station-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: none; }
+/* A park's or summit's page, opened in the browser (QGD-STN-0011): a link,
+   so it reads as leaving the application, which it does. */
+.station-pages { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.link-button {
+  background: none; border: none; padding: 0; font: inherit; font-size: 12px;
+  color: var(--focus); text-decoration: underline; cursor: pointer;
+}
+.station-kind { font-size: 11px; font-weight: 500; padding: 2px 8px; border: 1px solid var(--border-strong); border-radius: 20px; color: var(--ink-muted); }
+.inline-form { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.inline-form input { max-width: 220px; }
+.inline-form button { flex: none; }
+.checkbox-row { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; font-size: 13px; margin: 6px 0 18px; }
+.checkbox-row input { flex: none; width: 16px; height: 16px; min-height: 0; margin: 0; padding: 0; }
+.station-editor h3 { margin: 22px 0 6px; font-size: 13px; }
+.station-editor .fields { margin-top: 10px; }
+.fill-from-grid { grid-column: 1 / -1; margin: -4px 0 4px; display: flex; flex-wrap: wrap; gap: 10px; }
+.fill-from-grid > .hint { flex-basis: 100%; margin: 0; }
+.county-choices { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+.page-table { width: auto; max-width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 12px; }
+/* A table wider than the page, as ADIF's widest list, scrolls sideways in
+   its own box rather than widening the page (#58). */
+.page-table-box { max-width: 100%; overflow-x: auto; }
+.page-table-box > .page-table { max-width: none; }
+/* As wide as what it holds, with a steady gap between columns, rather than
+   stretched to the page and its columns pushed apart (KI7MT, 2026-10-23). */
+.page-table th, .page-table td { text-align: left; padding: 6px 28px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.page-table th:last-child, .page-table td:last-child { padding-right: 0; }
+.page-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+.page-table tbody th { font-weight: 600; white-space: nowrap; }
+.page-table td:last-child { color: var(--ink-muted); }
+/* A group's name reads as a section heading inside the one table, and a
+   value given across the columns reads as the row's own, not a side note. */
+.page-table .page-table-group th { padding-top: 18px; font-size: 15px; font-weight: 600; border-top: 0; }
+.page-table tbody:first-of-type .page-table-group th { padding-top: 6px; }
+/* A group's rows sit in under its name, so the name reads as the heading
+   of what follows (KI7MT, 2026-10-23). */
+.page-table tbody:has(.page-table-group) th[scope="row"] { padding-left: 16px; }
+.page-table td[colspan] { color: inherit; white-space: normal; }
+/* A long cell wraps within a readable width rather than widening the table:
+   a park's whole name, a park in ten locations (KI7MT, 2026-10-23). */
+.page-table td.wrap, .page-table td.wrap:not(:last-child) { white-space: normal; min-width: 14em; max-width: 30em; }
+.page-offline { color: var(--warn); font-weight: 600; }
+.page-text { margin: 0 0 12px; color: var(--ink-muted); font-size: 13px; }
+/* The contents line at the top of a long page: text links, one per part. */
+.page-contents { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 14px; font-size: 13px; }
+.page-contents .link-button { font-size: 13px; }
+.page-contents-gap { color: var(--ink-muted); }
+.page-section-heading:focus, .page-table-group:focus { outline: none; }
+/* A table's filters, above it, in a row that wraps on a narrow page. */
+.page-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 10px; }
+.page-filters label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.page-filter-empty { margin: 0 0 12px; }
+.page-filters-clear { font-size: 13px; }
+#page-refresh { margin-left: 8px; padding: 2px 10px; font-size: 12px; }
+/* A sortable heading is a button that reads as the heading it is. */
+.page-sort { all: unset; cursor: pointer; font: inherit; color: inherit; }
+.page-sort:hover { color: var(--ink); text-decoration: underline; }
+.page-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+/* The world map fills the page's width at its own 2:1 shape. */
+.world-map { margin: 4px 0 14px; }
+.world-map svg { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+.map-credit { margin: 4px 0 0; font-size: 11px; color: var(--ink-muted); }
+.map-sea { fill: var(--map-sea); }
+.map-land { fill: var(--map-land); }
+.map-night { fill: var(--map-night); }
+.map-twilight { fill: var(--map-twilight); }
+.map-deep { fill: var(--map-deep); }
+.map-moon { fill: var(--map-moon); stroke: var(--surface); stroke-width: 0.6; }
+.map-terminator { fill: none; stroke: var(--map-terminator); stroke-width: 0.6; }
+.map-sun { fill: var(--map-sun); }
+.map-mark { fill: var(--map-mark); }
+.map-label { fill: var(--ink); font-size: 6px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 1.5px; }
+/* The table follows its card's own width, not the window's (KI7MT,
+   2026-10-20): a card can be about 300 px wide, and three columns there wrap
+   the comment one word to a line. When the card is narrow, each row keeps its
+   band and status on one line and the comment drops to its own line beneath. */
+.page-body { container-type: inline-size; }
+.page-table th, .page-table td:not(:last-child) { white-space: nowrap; }
+@container (max-width: 340px) {
+  .page-table, .page-table tbody { display: block; }
+  .page-table thead { display: none; }
+  .page-table tbody tr { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
+  .page-table tbody th, .page-table tbody td { border-top: 0; padding: 0; }
+  .page-table tbody td:last-child { grid-column: 1 / -1; font-size: 12px; }
+  .page-table .page-table-group th { grid-column: 1 / -1; padding-top: 12px; }
+}
+/* Four figures (Your station's UTC, local, sunrise and sunset; Conditions'
+   flux, K, A and scales) sit evenly: four in a row when the card has room,
+   otherwise two by two, never three and one left alone on a line (KI7MT,
+   2026-10-22). */
+.page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container (min-width: 460px) {
+  .page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* A button straight after a field and its message, with room between. */
+.after-field { margin-top: 16px; }
+textarea { width: 100%; font: inherit; color: var(--ink); border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); padding: 9px 10px; resize: vertical; }
+.add-park { margin-top: 8px; }
+/* A callsign's id, selected whole with one click, to search the credential
+   store for (QGD-CRD-0003). */
+.keychain-id code { user-select: all; font-size: 12px; }

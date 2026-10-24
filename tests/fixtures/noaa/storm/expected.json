@@ -1,0 +1,21 @@
+{
+  "producedBy": "solar-mcp 0.3.0, SolarClient.conditions() over these files",
+  "sfi": 168,
+  "kp": 5.67,
+  "a_index": 6.0,
+  "noaa_r_scale": "R0",
+  "noaa_s_scale": "S0",
+  "noaa_g_scale": "G2",
+  "bands": {
+    "160m": "Poor \u2014 storm absorption",
+    "80m": "Poor \u2014 D-layer absorption and noise",
+    "40m": "Fair \u2014 reduced DX",
+    "30m": "Good \u2014 transition band, usually open",
+    "20m": "Excellent \u2014 degraded by geomagnetic storm",
+    "17m": "Good \u2014 degraded by geomagnetic storm",
+    "15m": "Excellent \u2014 degraded by geomagnetic storm",
+    "12m": "Good \u2014 degraded by geomagnetic storm",
+    "10m": "Excellent \u2014 degraded by geomagnetic storm",
+    "6m": "Sporadic \u2014 watch for Es openings"
+  }
+}

@@ -1,0 +1,538 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# On all three platforms: the development pass (make check), then the suites
+# that open a window or use the credential store.
+# GitHub-hosted runners only: this repository is public, and a self-hosted
+# runner on a public repository runs code from any fork's pull request.
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
+  # time, so they are paid once a night and on releases, never on an
+  # ordinary push. GitHub runs a schedule from the default branch, main, so
+  # this starts once this file is on main; until then a signed Preview is
+  # Run workflow by hand.
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      mac_only:
+        description: 'Only the macOS package: sign, notarize and launch it, without the test suites (about 20 minutes). Publishes nothing.'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # By event too, so a macOS-only run by hand never cancels a push's run.
+  group: ci-${{ github.ref }}-${{ github.event_name }}
+  # Never on main: a release half published is worse than one that waits.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # The newest glibc the Linux credential core may need (scripts/build-native.mjs).
+  QG_GLIBC_MAX: '2.28'
+  SUITES: keychain-roundtrip,credential-editing,callsign-export,electron-smoke,home-pages,stations,setup-walk,process-recovery,reference-load,adif-validation,pota-load,axe
+
+jobs:
+  # What this run is for, decided once:
+  #   ref       what to build: develop at night, else what was pushed
+  #   sign      sign and notarize the Mac build: nightly, by hand, and main
+  #   preview   publish the Preview: nightly, or a full run by hand on develop
+  #   run       false when a night finds develop already published
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ref: ${{ steps.plan.outputs.ref }}
+      sha: ${{ steps.plan.outputs.sha }}
+      sign: ${{ steps.plan.outputs.sign }}
+      preview: ${{ steps.plan.outputs.preview }}
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - id: plan
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          MAC_ONLY: ${{ inputs.mac_only }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ref=""; sha="$SHA"; sign=false; preview=false; run=true
+          case "$EVENT" in
+            schedule)
+              ref=develop
+              sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/develop | cut -f1)
+              published=$(git ls-remote "https://github.com/${REPO}.git" refs/tags/preview | cut -f1)
+              sign=true; preview=true
+              if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "develop is already the Preview ($sha)."; fi
+              ;;
+            workflow_dispatch)
+              if [ "$REF" = refs/heads/develop ] || [ "$REF" = refs/heads/main ]; then sign=true; fi
+              if [ "$REF" = refs/heads/develop ] && [ "$MAC_ONLY" != true ]; then preview=true; fi
+              ;;
+            push)
+              if [ "$REF" = refs/heads/main ]; then sign=true; fi
+              ;;
+          esac
+          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "preview=$preview"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT ref=${ref:-$REF} sign=$sign preview=$preview run=$run"
+
+  check:
+    name: check (${{ matrix.os }})
+    needs: [plan]
+    if: ${{ needs.plan.outputs.run == 'true' && !inputs.mac_only }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-24.04-arm: Linux arm64, the Raspberry Pi 5 the core and its
+        # built-in extensions must always run on.
+        os: [macos-latest, ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The night's build is of develop, wherever the schedule runs from.
+          ref: ${{ needs.plan.outputs.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      # main builds a release (docs/RELEASES.md), so before hours of building:
+      # the version is a plain release, CHANGELOG.md has its section, and the
+      # tag is not taken. Once, on one platform; a failure here stops packaging.
+      - name: Ready to release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          node scripts/release.mjs check
+          version=$(node -p "require('./package.json').version")
+          if git ls-remote --exit-code --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/v${version}" >/dev/null; then
+            echo "v${version} is already tagged: a release PR carries a new version." >&2
+            exit 1
+          fi
+      # AWS-LC's FIPS module builds with Go and CMake.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      # The arm64 image may not carry Rust; the others do.
+      - name: Rust, where the image has none
+        if: runner.os == 'Linux'
+        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
+      - name: Windows build tools for the FIPS module
+        if: runner.os == 'Windows'
+        run: choco install -y --no-progress nasm ninja
+      # make setup, spelled out: Windows runners have no make.
+      # The Linux credential core, built against glibc 2.28 in a manylinux_2_28
+      # container, so the packages load on Pi OS, Debian 10+, Ubuntu 20.04+ and
+      # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
+      - name: Credential core against glibc 2.28
+        if: runner.os == 'Linux'
+        run: |
+          case "$(uname -m)" in
+            x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
+            aarch64) image=quay.io/pypa/manylinux_2_28_aarch64@sha256:abd1230aa9e4058a74b89d27cd14ba18c0db036d7bfe6e6f219a29ea63c24eb6 ;;
+          esac
+          mkdir -p .cache
+          docker run --rm -v "$PWD":/w -w /w "$image" bash scripts/core-manylinux.sh .cache/libqg_callsign_core.so
+          echo "QG_CALLSIGN_CORE_LIB=$PWD/.cache/libqg_callsign_core.so" >> "$GITHUB_ENV"
+      - run: npm ci
+      # ADIF's archive and the US county sources, kept between runs rather than
+      # fetched each time. Each is pinned by SHA-256, so a cached copy is
+      # checked exactly as a fresh one is (QGD-REF-0003). Before the build,
+      # which turns the county sources into the data that ships (QGD-STN-0010).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/.cache
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
+      - run: node scripts/fetch-adif.mjs
+      - run: node scripts/fetch-counties.mjs
+      - run: npm run build
+      - run: node scripts/fetch-pota.mjs
+      - run: npm run check
+
+  window:
+    name: window (${{ matrix.os }})
+    needs: [plan]
+    if: ${{ needs.plan.outputs.run == 'true' && !inputs.mac_only }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-24.04-arm: Linux arm64, the Raspberry Pi 5 the core and its
+        # built-in extensions must always run on.
+        os: [macos-latest, ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The night's build is of develop, wherever the schedule runs from.
+          ref: ${{ needs.plan.outputs.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      # The arm64 image may not carry Rust; the others do.
+      - name: Rust, where the image has none
+        if: runner.os == 'Linux'
+        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
+      - name: Windows build tools for the FIPS module
+        if: runner.os == 'Windows'
+        run: choco install -y --no-progress nasm ninja
+      # A display, a Secret Service, and user namespaces for Chromium's
+      # sandbox, which Ubuntu 24.04 restricts by default. The sandbox stays on.
+      - name: Linux display and keyring
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb gnome-keyring dbus-x11 libsecret-tools lsof openbox
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # The Linux credential core, built against glibc 2.28 in a manylinux_2_28
+      # container, so the packages load on Pi OS, Debian 10+, Ubuntu 20.04+ and
+      # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
+      - name: Credential core against glibc 2.28
+        if: runner.os == 'Linux'
+        run: |
+          case "$(uname -m)" in
+            x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
+            aarch64) image=quay.io/pypa/manylinux_2_28_aarch64@sha256:abd1230aa9e4058a74b89d27cd14ba18c0db036d7bfe6e6f219a29ea63c24eb6 ;;
+          esac
+          mkdir -p .cache
+          docker run --rm -v "$PWD":/w -w /w "$image" bash scripts/core-manylinux.sh .cache/libqg_callsign_core.so
+          echo "QG_CALLSIGN_CORE_LIB=$PWD/.cache/libqg_callsign_core.so" >> "$GITHUB_ENV"
+      - run: npm ci
+      # ADIF's archive and the US county sources, kept between runs rather than
+      # fetched each time. Each is pinned by SHA-256, so a cached copy is
+      # checked exactly as a fresh one is (QGD-REF-0003). Before the build,
+      # which turns the county sources into the data that ships (QGD-STN-0010).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/.cache
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
+      - run: node scripts/fetch-adif.mjs
+      - run: node scripts/fetch-counties.mjs
+      - run: npm run build
+      - run: node scripts/fetch-pota.mjs
+      - name: Window suites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # A window manager too: without one nothing minimises or raises a
+          # window, and electron-smoke checks that a second launch raises it.
+          dbus-run-session -- bash -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null; xvfb-run -a bash -c "openbox & sleep 1; npm run verify -- --suites \"\$SUITES\""'
+      - name: Window suites (macOS, Windows)
+        if: runner.os != 'Linux'
+        run: npm run verify -- --suites ${{ env.SUITES }}
+      # A failed window suite's screenshots and logs (report/), so a failure
+      # can be seen rather than guessed at. Credentials in them are the
+      # suites' own fakes, and logs are redacted before they are written.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: window-report-${{ runner.os }}-${{ runner.arch }}
+          path: report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The installers each platform ships (electron-builder, as Podman Desktop
+  # and Bitwarden use, laid out as Oracle's WebLogic Remote Console is): a DMG
+  # and a zip on macOS, an NSIS installer and a zip on Windows, an AppImage,
+  # deb, rpm and zip on Linux. A zip is the portable build: unpack it and run
+  # it. Kept for a week.
+  #
+  # macOS builds of develop and main are signed with the project's Developer
+  # ID and notarized by Apple (KI7MT, 2026-10-23; QGD-SCP-0005). The secrets
+  # are in the macos-signing Environment, which releases them only to jobs on
+  # develop and main: never to a pull request, never to a fork. Everything
+  # else is unsigned, as before, and Windows stays unsigned until it has a
+  # certificate.
+  package:
+    name: package (${{ matrix.os }})
+    needs: [plan, check, window]
+    # After both test jobs pass; or alone, for a macOS-only run by hand.
+    if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
+    # The signing secrets reach only a run plan says signs, and the
+    # Environment itself releases them only on develop and main.
+    environment: ${{ (matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true') && 'macos-signing' || '' }}
+    env:
+      SIGN_MAC: ${{ matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-24.04-arm: Linux arm64, the Raspberry Pi 5 the core and its
+        # built-in extensions must always run on.
+        os: ${{ fromJSON(inputs.mac_only && '["macos-latest"]' || '["macos-latest", "ubuntu-latest", "ubuntu-24.04-arm", "windows-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    # Two hours for a signed Mac build: Apple's notarization queue decides,
+    # and a team's first submissions can take an hour. Others finish in minutes.
+    timeout-minutes: ${{ fromJSON(matrix.os == 'macos-latest' && '120' || '45') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The night's build is of develop, wherever the schedule runs from.
+          ref: ${{ needs.plan.outputs.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      # The arm64 image may not carry Rust; the others do.
+      - name: Rust, where the image has none
+        if: runner.os == 'Linux'
+        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
+      - name: Windows build tools for the FIPS module
+        if: runner.os == 'Windows'
+        run: choco install -y --no-progress nasm ninja
+      - name: Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q rpm
+      # The Linux credential core, built against glibc 2.28 in a manylinux_2_28
+      # container, so the packages load on Pi OS, Debian 10+, Ubuntu 20.04+ and
+      # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
+      - name: Credential core against glibc 2.28
+        if: runner.os == 'Linux'
+        run: |
+          case "$(uname -m)" in
+            x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
+            aarch64) image=quay.io/pypa/manylinux_2_28_aarch64@sha256:abd1230aa9e4058a74b89d27cd14ba18c0db036d7bfe6e6f219a29ea63c24eb6 ;;
+          esac
+          mkdir -p .cache
+          docker run --rm -v "$PWD":/w -w /w "$image" bash scripts/core-manylinux.sh .cache/libqg_callsign_core.so
+          echo "QG_CALLSIGN_CORE_LIB=$PWD/.cache/libqg_callsign_core.so" >> "$GITHUB_ENV"
+      - run: npm ci
+      # The county data ships in the package, so its sources come first
+      # (QGD-STN-0010).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/.cache
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
+      - run: node scripts/fetch-adif.mjs
+      - run: node scripts/fetch-counties.mjs
+      # A build of develop is a preview: its version gains the commit's UTC
+      # date and time and the commit (docs/RELEASES.md), here, never in a
+      # commit. The commit's time, so all four platforms carry one version.
+      - name: Preview version
+        if: github.ref == 'refs/heads/develop' || needs.plan.outputs.ref == 'develop'
+        shell: bash
+        run: |
+          stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
+          commit=$(git rev-parse HEAD)
+          npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${commit::11}"
+          node -p "require('./package.json').version"
+      - name: Installers
+        if: env.SIGN_MAC != 'true'
+        run: npm run installer
+      # Signed and notarized. The secrets reach this step and no other. The
+      # notarization key is written to the runner's temporary folder, which
+      # is removed with the runner, because electron-builder takes a path.
+      - name: Installers, signed and notarized (macOS)
+        if: env.SIGN_MAC == 'true'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID; do
+            [ -n "${!name}" ] || { echo "The macos-signing Environment has no $name." >&2; exit 1; }
+          done
+          # Each secret's shape, said plainly, never its value: a key pasted
+          # into the wrong secret otherwise fails later as a broken path.
+          [[ "$APPLE_API_KEY_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "APPLE_API_KEY_ID should be the 10-character Key ID (the part after AuthKey_ in the .p8's name)." >&2; exit 1; }
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "APPLE_TEAM_ID should be the 10-character Team ID." >&2; exit 1; }
+          [[ "$APPLE_API_ISSUER" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || { echo "APPLE_API_ISSUER should be the Issuer ID, a UUID." >&2; exit 1; }
+          [[ "$APPLE_API_KEY_P8" == *"-----BEGIN PRIVATE KEY-----"*"-----END PRIVATE KEY-----"* ]] || { echo "APPLE_API_KEY_P8 should be the whole .p8 file, BEGIN and END lines included." >&2; exit 1; }
+          # The signing keychain, made here rather than by electron-builder:
+          # 26.15.3 passes the certificate's password where the keychain's
+          # belongs (set-key-partition-list -k), and the unlock fails. Its
+          # password is random, masked, and dies with the runner. Apple's
+          # Developer ID G2 intermediate goes in beside the certificate, so
+          # the identity is valid; codesign still checks the chain to
+          # Apple's root, so the intermediate cannot vouch for anything else.
+          keychain="$RUNNER_TEMP/qgd-signing.keychain-db"
+          keychain_password=$(openssl rand -base64 32)
+          echo "::add-mask::$keychain_password"
+          p12="$RUNNER_TEMP/qgd-signing.p12"
+          printf '%s' "$CSC_LINK" | tr -d ' \r\n' | base64 --decode > "$p12"
+          unset CSC_LINK
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain"
+          security import "$p12" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+          unset CSC_KEY_PASSWORD
+          rm -f "$p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$keychain"
+          key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$key"
+          chmod 600 "$key"
+          unset APPLE_API_KEY_P8
+          # Said as it happens: each file signed, then the notarization's
+          # submission and Apple's answer, which electron-builder otherwise
+          # waits on in silence.
+          DEBUG='electron-osx-sign*,electron-notarize*,@electron/osx-sign*,@electron/notarize*' \
+            APPLE_API_KEY="$key" npm run installer -- -c.mac.identity="Greg Beam (${APPLE_TEAM_ID})"
+          rm -f "$key"
+      # What Gatekeeper will say: signed by the project, notarized, and the
+      # ticket stapled, so it opens offline on first launch too.
+      - name: Signature and notarization (macOS)
+        if: env.SIGN_MAC == 'true'
+        run: |
+          set -euo pipefail
+          app=$(ls -d out/mac-arm64/*.app)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv --verbose=2 "$app" 2>&1 | grep -E '^(Authority|TeamIdentifier|Runtime)'
+          spctl --assess --type execute --verbose=2 "$app"
+          xcrun stapler validate "$app"
+      # And that it runs: the signed bundle under the hardened runtime, the
+      # credential core loaded and a credential saved in the Keychain. A
+      # signature that is valid on an app that will not start is no release.
+      - name: The signed build launches (macOS)
+        if: env.SIGN_MAC == 'true'
+        run: npm run verify -- --suites packaged-launch
+      # What shipped: the built-in extensions and the host are in it, and no
+      # development material is (QGD-APP-0017).
+      - run: npm run verify -- --suites package-contents
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: qso-graph-desktop-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            out/*.dmg
+            out/*.exe
+            out/*.AppImage
+            out/*.deb
+            out/*.rpm
+            out/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # The Preview pre-release (docs/RELEASES.md): each green build of develop,
+  # every installer its own download on the Releases page, replacing the one
+  # before, files, tag and all (KI7MT, 2026-10-23: an artifact is zipped by
+  # GitHub and buried in a run, where nobody finds it). This repository's own
+  # token, so no other credential is held here.
+  preview:
+    name: preview release
+    needs: [plan, package]
+    if: ${{ !cancelled() && needs.plan.outputs.preview == 'true' && needs.package.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: qso-graph-desktop-*
+          path: preview
+          merge-multiple: true
+      - name: Replace the Preview pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          cd preview
+          sha256sum -- * > SHA256SUMS.txt
+          ls -la
+          version=$(ls qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's/^qso-graph-desktop-(.*)-linux-x86_64\.AppImage$/\1/')
+          {
+            echo "Built from develop at ${SHA}: version ${version}."
+            echo
+            echo "A preview to test, not a release (docs/RELEASES.md). Rebuilt each night develop has changed."
+            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
+            echo
+            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
+            echo "Check a download against **SHA256SUMS.txt**."
+          } > ../notes.md
+          gh release delete preview --repo "$REPO" --cleanup-tag --yes || true
+          gh release create preview --repo "$REPO" --prerelease --target "$SHA" \
+            --title "Preview ${version}" --notes-file ../notes.md -- *
+
+  # A merged release PR (docs/RELEASES.md): main's build published as a
+  # pre-release with its final version, v<version>, every installer its own
+  # download, SHA256SUMS.txt beside them, and that version's CHANGELOG.md
+  # section as its notes. Creating the release creates the tag, on the commit
+  # that was built, so the tag is an output of the build and never its
+  # trigger. Promoting it to a full release is .github/workflows/promote.yml.
+  release:
+    name: pre-release
+    needs: [plan, package]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: qso-graph-desktop-*
+          path: release
+          merge-multiple: true
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          node scripts/release.mjs check
+          # Every file carries this version: nothing from another build rides along.
+          cd release
+          for file in *; do
+            case "$file" in
+              "qso-graph-desktop-${version}-"*) ;;
+              *) echo "$file is not a ${version} file" >&2; exit 1 ;;
+            esac
+          done
+          sha256sum -- * > SHA256SUMS.txt
+          ls -la
+          cd ..
+          {
+            node scripts/release.mjs notes "$version"
+            echo
+            echo "---"
+            echo
+            echo "A pre-release: the final ${version}, out for testing before it is marked Latest."
+            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
+            echo
+            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
+            echo "Check a download against **SHA256SUMS.txt**."
+          } > notes.md
+          # Refuses if the tag exists, so a release is never published twice.
+          (cd release && gh release create "v${version}" --repo "$REPO" --prerelease --target "$SHA" \
+            --title "QSO Graph Desktop ${version}" --notes-file ../notes.md -- *)
+          gh release view "v${version}" --repo "$REPO" --json tagName,isPrerelease,assets \
+            -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'

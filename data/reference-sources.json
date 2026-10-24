@@ -1,0 +1,291 @@
+{
+  "register": "Where the reference data comes from, and who owns what is in it",
+  "note": "QGD-REF-0002, QGD-REF-0003 and QGD-REF-0009. Two different facts about every list: who issues it, and where this copy came from. ADIF issues almost none of what it reproduces — the award sponsor does, or the national society, or the ITU — and POTA issues its own. Some sources are pinned by checksum because they are releases; POTA's park list is not, because it changes daily (QGD-REF-0010). \"supplied\" says whether the copy named above actually ships the list, and \"derived\" whether this product builds it out of columns on another one — both machine-readable, because the loader has to act on them and reading a prefix off an English sentence is not a fact.",
+  "decidedBy": "KI7MT, 2026-10-08",
+  "resources": [
+    {
+      "id": "adif",
+      "name": "ADIF definitions",
+      "what": "ADIF's fields, data types and enumerations, which QSO records are checked against",
+      "owner": "the ADIF Development Group",
+      "size": "about 2 MB"
+    },
+    {
+      "id": "pota",
+      "name": "POTA parks",
+      "what": "Every Parks on the Air park, program and location, for park references and lookups",
+      "owner": "Parks on the Air",
+      "size": "about 10 MB"
+    },
+    {
+      "id": "sota",
+      "name": "SOTA summits",
+      "what": "Every Summits on the Air summit, for summit references and a location's position and height",
+      "owner": "Summits on the Air",
+      "size": "about 25 MB"
+    }
+  ],
+  "resourcesNote": "What the operator loads and updates, one control each (KI7MT, 2026-10-11): nothing is fetched at start, and someone who never uses a resource never downloads it. A resource names the data a person cares about, not a URL; ADIF's archive is one resource, and POTA's three lists are one. Adding one (EME, meteor scatter) is a row here and its loader, not a new screen.",
+  "adif": {
+    "version": "3.1.7",
+    "source": {
+      "what": "ADIF's published resources archive: the specification exported as JSON, CSV, TSV and XML, together with ADIF's own test QSOs.",
+      "url": "https://adif.org.uk/317/ADIF_317_resources_2026_03_22.zip",
+      "sha256": "1a70caf3a152c67c23ce9c4681f24b8e5f814862d8153d9a72e741375358e6d9",
+      "published": "2026-03-22",
+      "definitions": "317/exports/json/all.json",
+      "testQsos": "317/tests/ADIF_317_test_QSOs_2026_03_22.adi"
+    }
+  },
+  "lists": [
+    {
+      "id": "fields",
+      "what": "The 186 fields a QSO record may carry, with the data type and enumeration of each",
+      "authority": "ADIF Development Group",
+      "copy": "the same — this is ADIF's own, not a reproduction",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Fields"
+    },
+    {
+      "id": "datatypes",
+      "what": "The data types a field may have, and what each admits",
+      "authority": "ADIF Development Group",
+      "copy": "the same",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "DataTypes"
+    },
+    {
+      "id": "modes",
+      "what": "Mode and Submode",
+      "authority": "ADIF Development Group",
+      "copy": "the same",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Mode"
+    },
+    {
+      "id": "bands",
+      "what": "Band names and their frequency ranges",
+      "authority": "ADIF Development Group, over allocations made by the ITU and national regulators",
+      "copy": "the same, but the allocations underneath it are not ADIF's",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Band"
+    },
+    {
+      "id": "dxcc-entities",
+      "what": "The 403 DXCC entity codes",
+      "authority": "ARRL — DXCC is ARRL's award and ARRL adjudicates it",
+      "copy": "reproduced by ADIF",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "DXCC_Entity_Code"
+    },
+    {
+      "id": "arrl-sections",
+      "what": "ARRL and RAC sections",
+      "authority": "ARRL",
+      "copy": "reproduced by ADIF",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "ARRL_Section"
+    },
+    {
+      "id": "primary-administrative-subdivisions",
+      "what": "1,965 subdivisions — states, provinces, oblasts — each with its DXCC entity, CQ zone and ITU zone",
+      "authority": "the national authority of each entity, collected by ADIF",
+      "copy": "reproduced by ADIF",
+      "source": "adif",
+      "supplied": true,
+      "derived": false,
+      "holds": "Primary_Administrative_Subdivision"
+    },
+    {
+      "id": "cq-zones",
+      "what": "The CQ zones that appear in ADIF's subdivision columns — 11 of CQ's 40. The list of 40 is CQ Magazine's and ADIF does not carry it (QGD-REF-0015)",
+      "authority": "CQ Magazine — it defines the zones and adjudicates WAZ",
+      "copy": "NOT a list in ADIF. ADIF carries a CQ zone on 152 of its 1,965 administrative subdivisions, for five DXCC entities, so what is derived from those columns covers 11 zones and is not the zone list. A zone is reported as not checked against a list (QGD-REF-0006, QGD-REF-0015).",
+      "source": "adif",
+      "supplied": false,
+      "derived": true
+    },
+    {
+      "id": "itu-zones",
+      "what": "The ITU zones that appear in ADIF's subdivision columns — 22 of the ITU's 90. The list of 90 is the ITU's and ADIF does not carry it (QGD-REF-0015)",
+      "authority": "the International Telecommunication Union",
+      "copy": "NOT a list in ADIF, as with CQ zones: derived from the same 152 per-subdivision cells, covering 22 zones. Three of those cells are not zone numbers and are kept as published and flagged uninterpreted rather than guessed at (QGD-REF-0015).",
+      "source": "adif",
+      "supplied": false,
+      "derived": true
+    },
+    {
+      "id": "darc-dok",
+      "what": "DARC district location codes, and special DOKs",
+      "authority": "DARC — Deutscher Amateur-Radio-Club",
+      "copy": "NOT SUPPLIED. ADIF types DARC_DOK and MY_DARC_DOK as Enumeration and ships no enumeration for either; its own note is that DARC publishes two lists. A value for these fields is checked for format and reported as not checked against a list (QGD-REF-0006).",
+      "source": null,
+      "supplied": false,
+      "derived": false
+    },
+    {
+      "id": "pota-parks",
+      "what": "POTA park references, names, entity, locations and coordinates",
+      "authority": "Parks on the Air — POTA issues park references and adjudicates its own award",
+      "copy": "fetched from POTA at run time and never redistributed; not pinned, because the list changes daily (QGD-REF-0009, QGD-REF-0010)",
+      "source": "pota",
+      "supplied": true,
+      "derived": false,
+      "holds": "parks"
+    },
+    {
+      "id": "pota-programs",
+      "what": "POTA's national programs and their prefixes",
+      "authority": "Parks on the Air",
+      "copy": "fetched from POTA at run time; never redistributed",
+      "source": "pota",
+      "supplied": true,
+      "derived": false,
+      "holds": "programs"
+    },
+    {
+      "id": "pota-locations",
+      "what": "POTA's locations, each with POTA's own entity number",
+      "authority": "Parks on the Air",
+      "copy": "fetched from POTA at run time and never redistributed; its entity numbering is POTA's own and is not ADIF's DXCC code (QGD-REF-0012)",
+      "source": "pota",
+      "supplied": true,
+      "derived": false,
+      "holds": "locations"
+    },
+    {
+      "id": "sota-summits",
+      "what": "SOTA's summits: each summit's code, association, region, name, height, position and the dates it is valid between",
+      "authority": "Summits on the Air (SOTA)",
+      "copy": "Summits on the Air's own list, fetched at run time",
+      "source": "sota",
+      "supplied": true,
+      "derived": false,
+      "holds": "summits"
+    },
+    {
+      "id": "pota-activations",
+      "what": "How many times each park in the operator's My Area has been activated",
+      "authority": "Parks on the Air",
+      "copy": "fetched from POTA at run time, one location at a time, and never redistributed",
+      "source": "activations",
+      "supplied": true,
+      "derived": false,
+      "holds": "activations"
+    }
+  ],
+  "pota": {
+    "what": "POTA's own park, program and location lists, fetched at run time and never redistributed (QGD-REF-0009). Not pinned by checksum: the park list changes daily, so a checksum would make every load a refusal (QGD-REF-0010).",
+    "refreshAfterHours": 24,
+    "sources": {
+      "parks": {
+        "url": "https://pota.app/all_parks_ext.csv",
+        "what": "Every park reference with its name, whether it is active, POTA's entity number, its location or locations, and coordinates",
+        "format": "csv",
+        "columns": [
+          "reference",
+          "name",
+          "active",
+          "entityId",
+          "locationDesc",
+          "latitude",
+          "longitude",
+          "grid"
+        ],
+        "conditional": "etag and last-modified, both offered"
+      },
+      "programs": {
+        "url": "https://api.pota.app/programs",
+        "what": "POTA's national programs, their prefixes and what each calls its locations",
+        "format": "json",
+        "columns": [
+          "programId",
+          "programPrefix",
+          "programName",
+          "isActive",
+          "isocc",
+          "location_unit",
+          "isolang"
+        ],
+        "conditional": "neither etag nor last-modified is offered, so the daily limit is what prevents a refetch"
+      },
+      "locations": {
+        "url": "https://api.pota.app/locations",
+        "what": "POTA's locations, each with POTA's own entity number and the location's coordinates",
+        "format": "json",
+        "columns": [
+          "locationId",
+          "entityId",
+          "entityName",
+          "locationDesc",
+          "locationName",
+          "latitude",
+          "longitude",
+          "iso"
+        ],
+        "conditional": "neither etag nor last-modified is offered"
+      }
+    }
+  },
+  "sota": {
+    "what": "Summits on the Air's summits list, fetched at run time and never redistributed (QGD-REF-0018). Updated by SOTA daily; volunteer-run, so asked at most once a day and only when the operator asks, and conditionally.",
+    "refreshAfterHours": 24,
+    "sources": {
+      "summits": {
+        "url": "https://storage.sota.org.uk/summitslist.csv",
+        "what": "Every SOTA summit, retired ones included, one CSV after a title line",
+        "format": "csv",
+        "columns": [
+          "SummitCode",
+          "AssociationName",
+          "RegionName",
+          "SummitName",
+          "AltM",
+          "AltFt",
+          "GridRef1",
+          "GridRef2",
+          "Longitude",
+          "Latitude",
+          "Points",
+          "BonusPoints",
+          "ValidFrom",
+          "ValidTo",
+          "ActivationCount",
+          "ActivationDate",
+          "ActivationCall"
+        ],
+        "conditional": "etag offered"
+      }
+    }
+  },
+  "activations": {
+    "what": "POTA's own count of each park's activations, for My Area alone (QGD-STN-0012, QGD-REF-0019), at whichever of POTA's three levels each part of it was chosen: a program, an entity or a location, one request each. Not a resource in Settings: fetched when Most Wanted is opened online, the one place it is used, and at most once a day for each part (only POTA's API gives them, so that tab is online only). POTA states no request limit. Only the reference and the activation count are kept.",
+    "refreshAfterHours": 24,
+    "source": {
+      "urls": {
+        "location": "https://api.pota.app/location/parks/{code}",
+        "entity": "https://api.pota.app/entity/parks/{code}",
+        "program": "https://api.pota.app/program/parks/{code}"
+      },
+      "what": "Every park in one POTA location, entity or program with its attempts, activations and QSO counts; the activations alone are kept",
+      "format": "json",
+      "columns": [
+        "reference",
+        "activations"
+      ],
+      "conditional": "neither etag nor last-modified is offered, so the daily limit is what prevents a refetch"
+    }
+  }
+}

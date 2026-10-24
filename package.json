@@ -1,35 +1,81 @@
 {
   "name": "qg-desktop",
-  "productName": "QG Desktop",
-  "version": "0.0.0-preview.1",
+  "productName": "QSO Graph Desktop",
+  "version": "0.1.0",
   "private": true,
-  "description": "QSO Graph Desktop — local P0 preview",
+  "description": "QSO Graph Desktop \u2014 an extensible desktop platform for amateur radio",
   "license": "GPL-3.0-only",
-  "author": "QSO Graph contributors",
+  "author": {
+    "name": "QSO Graph contributors",
+    "email": "maintainers@qso-graph.io"
+  },
   "type": "module",
-  "main": "dist/main.js",
+  "main": "dist/main/main.js",
   "scripts": {
-    "build": "node scripts/build-native.mjs && tsc && node scripts/copy-renderer.mjs",
+    "build": "node scripts/clean-dist.mjs && node scripts/build-map.mjs && node scripts/build-native.mjs && tsc && node scripts/build-counties.mjs && tsc -p tsconfig.extensions.json && node scripts/build-extensions.mjs && tsc -p tsconfig.renderer.json && node scripts/svelte-check.mjs && vite build",
     "start": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir --publish never",
     "installer": "npm run build && electron-builder --publish never",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "check": "node scripts/verify.mjs --fast"
   },
   "devDependencies": {
+    "@doyensec/electronegativity": "1.10.3",
+    "@electron/asar": "3.4.1",
+    "@eslint/js": "10.0.1",
+    "@fortawesome/fontawesome-free": "7.3.1",
     "@playwright/test": "1.63.0",
+    "@storybook/addon-svelte-csf": "5.1.5",
+    "@storybook/addon-themes": "10.6.2",
+    "@storybook/svelte-vite": "10.6.2",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "26.6.4",
-    "electron": "44.6.0",
+    "axe-core": "4.14.0",
+    "drizzle-kit": "0.31.11",
+    "electron": "44.9.1",
     "electron-builder": "26.15.3",
-    "typescript": "7.0.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-security": "4.2.0",
+    "eslint-plugin-svelte": "3.23.0",
+    "storybook": "10.6.2",
+    "svelte": "5.57.2",
+    "svelte-check": "4.7.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.3",
     "vitest": "5.0.3"
   },
   "build": {
     "appId": "org.qso-graph.desktop",
-    "productName": "QG Desktop",
-    "directories": { "output": "out" },
-    "files": ["dist/**/*", "package.json", "LICENSE"],
+    "productName": "QSO Graph Desktop",
+    "artifactName": "qso-graph-desktop-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "out"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/renderer/*.map",
+      "package.json",
+      "LICENSE",
+      "NOTICE",
+      "CHANGELOG.md",
+      "data/links.json",
+      "data/reference-sources.json",
+      "data/service-profiles.json",
+      "data/extension-grants.json",
+      "data/extension-sources.json",
+      "data/extension-limits.json",
+      "drizzle/**/*"
+    ],
     "asar": true,
-    "asarUnpack": ["dist/native/*.node", "dist/native/*.dylib"],
+    "extraResources": [
+      { "from": "build/icon.png", "to": "icon.png" }
+    ],
+    "asarUnpack": [
+      "dist/native/*.node",
+      "dist/native/*.dylib",
+      "dist/native/*.dll"
+    ],
     "electronFuses": {
       "runAsNode": false,
       "enableCookieEncryption": true,
@@ -40,8 +86,83 @@
       "grantFileProtocolExtraPrivileges": false,
       "resetAdHocDarwinSignature": true
     },
-    "mac": { "target": [{ "target": "dmg", "arch": ["arm64"] }], "identity": null, "category": "public.app-category.utilities" },
-    "win": { "target": "nsis" },
-    "linux": { "target": "AppImage", "category": "Utility" }
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm",
+        "zip"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png",
+      "maintainer": "QSO Graph contributors <maintainers@qso-graph.io>"
+    },
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define",
+        "_build_id_links none"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": false
+    }
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "pino": "10.4.0"
+  },
+  "overrides": {
+    "@doyensec/electronegativity": {
+      "@mapbox/node-pre-gyp": "2.0.3",
+      "@typescript-eslint/typescript-estree": "8.71.1"
+    },
+    "js-yaml@3": {
+      "argparse": "2.0.1"
+    },
+    "@electron/get": {
+      "global-agent": "4.1.3"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
+  },
+  "homepage": "https://github.com/qso-graph/qso-graph-desktop",
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true,
+    "electron-winstaller@5.4.0": true,
+    "fsevents@2.3.3": true,
+    "es5-ext": false
   }
 }

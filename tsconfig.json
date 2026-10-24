@@ -3,12 +3,22 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "src",
+    "rootDir": "packages",
     "outDir": "dist",
     "strict": true,
     "noEmitOnError": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "sourceMap": true
   },
-  "include": ["src/**/*.ts", "src/**/*.cts"]
+  "include": [
+    "packages/**/*.ts",
+    "packages/**/*.cts"
+  ],
+  "exclude": [
+    "packages/renderer",
+    "packages/*/target"
+  ]
 }

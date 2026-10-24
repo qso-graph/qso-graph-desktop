@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [],
+    "rootDir": "."
+  },
+  "_comment": "tsc checks the TypeScript here; svelte-check checks inside the components, which tsc cannot parse. Both read this file, so the two agree on the compiler options and differ only in what they can open.",
+  "include": [
+    "packages/renderer/**/*.ts",
+    "packages/ui/**/*.ts",
+    "packages/extension-api/**/*.ts"
+  ],
+  "exclude": []
+}

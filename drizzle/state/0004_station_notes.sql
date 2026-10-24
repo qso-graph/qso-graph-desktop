@@ -1,0 +1,1 @@
+ALTER TABLE `station` ADD `notes` text;

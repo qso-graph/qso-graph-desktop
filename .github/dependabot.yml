@@ -1,0 +1,22 @@
+# Dependabot: SECURITY updates only.
+#
+# Routine version bumps are off (open-pull-requests-limit: 0). Pinned versions here
+# are deliberate decisions (for example TypeScript stays on 6.0.3 until
+# typescript-eslint supports 7), and before Release 1 work is reviewed and committed
+# to develop rather than arriving as pull requests. Security updates are not limited
+# by this setting: Dependabot still opens a pull request for a dependency with a
+# known vulnerability, and those are fixed, not parked.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    target-branch: "develop"
+  - package-ecosystem: "cargo"
+    directory: "/packages/callsign-core"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    target-branch: "develop"

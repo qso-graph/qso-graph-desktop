@@ -1,0 +1,8 @@
+{
+  "name": "@qso-graph/conditions",
+  "private": true,
+  "version": "1.0.0",
+  "description": "QSO Graph Desktop's built-in Conditions extension: solar flux, the K and A indices, NOAA's scales and the band outlook.",
+  "license": "GPL-3.0-only",
+  "type": "module"
+}

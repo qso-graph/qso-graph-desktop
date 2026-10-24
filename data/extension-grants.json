@@ -1,0 +1,72 @@
+{
+  "register": "The grants an application may ask for",
+  "note": "QGD-APP-0006. The set is closed: a manifest naming a grant that is not here is refused at load, with the grant named. A capability nobody has written down is not a capability, it is a hole — and an application that could ask for anything would be checked against nothing. Each entry says what the grant permits and, where it matters, what it deliberately does not.",
+  "grants": [
+    {
+      "id": "reference:read",
+      "what": "Read the reference data the frame loaded — ADIF's definitions, the zones, the DOKs, POTA's parks.",
+      "notWhat": "No path and no connection: the frame answers from reference.sqlite on the application's behalf (QGD-APP-0009).",
+      "needsOperator": false
+    },
+    {
+      "id": "storage:own",
+      "what": "Read and write the application's own data, which the frame keeps in the application's own folder and database.",
+      "notWhat": "No path and no connection, no other application's data, and not the frame's (QGD-APP-0009, QGD-ENG-0018).",
+      "needsOperator": true
+    },
+    {
+      "id": "callsign:list",
+      "what": "Which callsigns the operator has, each one's call and description, so an application can ask the operator which one to act as.",
+      "notWhat": "No credential, no secret, and no indication of what is stored for a service beyond whether one is (QGD-CRD-0010).",
+      "needsOperator": true
+    },
+    {
+      "id": "station:active",
+      "what": "Where the operator is operating from: the active station's name, grid and position, so an extension can work out the sunrise and sunset there or the distance to another station.",
+      "notWhat": "Never the station's street, city or postal code, which stay on this machine (QGD-STN-0003), and no other station than the active one.",
+      "needsOperator": true
+    },
+    {
+      "id": "service:qrz",
+      "what": "Ask the frame to act with the operator's QRZ credential and return the answer.",
+      "notWhat": "The secret itself never crosses the API (QGD-APP-0007).",
+      "needsOperator": true
+    },
+    {
+      "id": "source:solar",
+      "what": "Ask the frame to fetch from the registered space-weather source. The URL comes from the register, never from the application.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "source:noaa-flux",
+      "what": "Ask the core to fetch NOAA SWPC's 10.7 cm solar flux. The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "source:noaa-kp",
+      "what": "Ask the core to fetch NOAA SWPC's planetary K index. The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "source:noaa-scales",
+      "what": "Ask the core to fetch NOAA SWPC's space weather scales (R, S, G). The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, and no naming of a destination (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "source:pota-spots",
+      "what": "Ask the core to fetch POTA's list of activators spotted now. The URL comes from the register, never from the extension.",
+      "notWhat": "No connection of its own, no naming of a destination, and nothing sent to POTA about the operator (QGD-APP-0008, D-18, D-31).",
+      "needsOperator": false
+    },
+    {
+      "id": "files:chosen",
+      "what": "Read or write the one path the operator chose in a dialog, for that action.",
+      "notWhat": "No ambient filesystem: the path is not kept and nothing else is reachable (QGD-APP-0010).",
+      "needsOperator": true
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Promote a proven pre-release to a full release (docs/RELEASES.md): the same
+# release, its same files, marked a release and Latest. Nothing is rebuilt or
+# renamed, so what was tested is what ships. Run by hand, when KI7MT says so:
+# Actions → Promote → Run workflow, with the version.
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The pre-release to promote, such as 0.1.0'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote v${{ inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # Checked before it is used in anything: a release version, nothing else.
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Give a release version, such as 0.1.0." >&2
+            exit 1
+          fi
+          tag="v${VERSION}"
+          state=$(gh release view "$tag" --repo "$REPO" --json isPrerelease,assets \
+            -q '"\(.isPrerelease) \([.assets[].name] | index("SHA256SUMS.txt") != null)"')
+          case "$state" in
+            "true true") ;;
+            "false "*) echo "$tag is already a full release." >&2; exit 1 ;;
+            *) echo "$tag has no SHA256SUMS.txt: it is not a release this repository built." >&2; exit 1 ;;
+          esac
+          # The tag's commit is on main: only a release PR's build is promoted.
+          commit=$(gh api "repos/${REPO}/commits/${tag}" -q .sha)
+          gh api "repos/${REPO}/compare/main...${commit}" -q .status | grep -qx -e identical -e behind || {
+            echo "$tag is not a commit on main." >&2
+            exit 1
+          }
+          gh release edit "$tag" --repo "$REPO" --prerelease=false --latest
+          gh release view "$tag" --repo "$REPO" --json tagName,isPrerelease -q '"\(.tagName) pre-release=\(.isPrerelease)"'
