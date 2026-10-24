@@ -270,10 +270,18 @@ jobs:
     # After both test jobs pass; or alone, for a macOS-only run by hand.
     if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
     # The signing secrets reach only a run plan says signs, and the
-    # Environment itself releases them only on develop and main.
-    environment: ${{ (matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true') && 'macos-signing' || '' }}
+    # Environment itself releases them only on develop and main. Windows
+    # signs as KI7MT through Azure Artifact Signing (#81): no secret at all,
+    # GitHub's own token is trusted by Azure for the windows-signing
+    # Environment of this repository alone.
+    environment: ${{ needs.plan.outputs.sign == 'true' && (matrix.os == 'macos-latest' && 'macos-signing' || matrix.os == 'windows-latest' && 'windows-signing' || '') || '' }}
+    permissions:
+      contents: read
+      # GitHub's token for Azure, used only by the Windows signing step.
+      id-token: write
     env:
       SIGN_MAC: ${{ matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true' }}
+      SIGN_WIN: ${{ matrix.os == 'windows-latest' && needs.plan.outputs.sign == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -346,8 +354,48 @@ jobs:
           npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${commit::11}"
           node -p "require('./package.json').version"
       - name: Installers
-        if: env.SIGN_MAC != 'true'
+        if: env.SIGN_MAC != 'true' && env.SIGN_WIN != 'true'
         run: npm run installer
+      # Windows, signed in KI7MT's name (#81). Azure is signed in to with
+      # GitHub's token for this Environment: there is no secret to hold,
+      # and the three IDs are the Environment's variables, not the repo's.
+      - name: Azure sign-in for signing (Windows)
+        if: env.SIGN_WIN == 'true'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # electron-builder signs each executable, the native core and the
+      # installer with Microsoft's TrustedSigning module, which uses the
+      # sign-in above. The account, profile and endpoint are names, not
+      # secrets; the publisher is the certificate's, as Windows shows it.
+      - name: Installers, signed (Windows)
+        if: env.SIGN_WIN == 'true'
+        shell: bash
+        run: >-
+          npm run installer --
+          -c.win.azureSignOptions.publisherName="Gregory Beam"
+          -c.win.azureSignOptions.endpoint=https://wus2.codesigning.azure.net
+          -c.win.azureSignOptions.codeSigningAccountName=qsographsigning
+          -c.win.azureSignOptions.certificateProfileName=qso-graph
+          -c.win.signExts=.node
+      # What Windows will say: every executable, the native core and the
+      # installer validly signed, by Gregory Beam and nobody else.
+      - name: Signatures (Windows)
+        if: env.SIGN_WIN == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem out\*.exe) + @(Get-ChildItem out\win-unpacked\*.exe) + @(Get-ChildItem -Recurse out\win-unpacked -Filter *.node)
+          if ($files.Count -lt 3) { throw "Expected the installer, the application and the native core; found $($files.Count) file(s)." }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature $file.FullName
+            $subject = $signature.SignerCertificate.Subject
+            Write-Output "$($file.Name): $($signature.Status), $subject"
+            if ($signature.Status -ne 'Valid') { throw "$($file.Name) is not validly signed: $($signature.StatusMessage)" }
+            if ($subject -notmatch '(^|, )CN=Gregory Beam(,|$)') { throw "$($file.Name) is signed by someone else: $subject" }
+          }
       # Signed and notarized. The secrets reach this step and no other. The
       # notarization key is written to the runner's temporary folder, which
       # is removed with the runner, because electron-builder takes a path.

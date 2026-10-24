@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Windows builds are signed** in the developer's name, Gregory Beam (KI7MT), as the macOS builds
+  are: Windows shows who published the installer instead of an unknown publisher.
+
 ## [0.1.3] - 2026-10-24
 
 ### Changed
