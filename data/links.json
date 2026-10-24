@@ -8,15 +8,15 @@
       "attributions": "NOTICE",
       "contributors": "CONTRIBUTORS.md",
       "contributing": "CONTRIBUTING.md",
-      "license": "LICENSE",
-      "downloads": "README.md"
+      "license": "LICENSE"
     }
   },
   "sites": {
     "adif": "https://adif.org.uk/",
     "pota": "https://pota.app/",
     "sota": "https://www.sota.org.uk/",
-    "iota": "https://www.iota-world.org/"
+    "iota": "https://www.iota-world.org/",
+    "releases": "https://github.com/qso-graph/qso-graph-desktop/releases"
   },
   "release": "https://github.com/qso-graph/qso-graph-desktop/releases/tag/v{version}",
   "references": {

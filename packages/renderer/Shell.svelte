@@ -203,7 +203,7 @@
         onWhatsNew={onOpenWhatsNew}
         updatedTo={shell.updatedFrom !== null ? version : undefined}
         onCloseUpdate={onCloseUpdate}
-        onDownloads={() => onOpenPage({ type: 'document', name: 'downloads' })}
+        onDownloads={() => onOpenPage({ type: 'site', name: 'releases' })}
         onContributing={() => onOpenPage({ type: 'document', name: 'contributing' })}
         onSite={name => onOpenPage({ type: 'site', name })}
         picking={shell.customizing}

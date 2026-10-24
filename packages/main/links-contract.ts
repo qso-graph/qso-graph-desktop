@@ -7,15 +7,15 @@ import { isPotaReference, isSummitReference } from '../storage/station-contract.
 
 export const LINKS_CHANNEL = 'links:open';
 
-// `downloads` is where to get the application (KI7MT, 2026-10-22): the
-// README's first section until releases are published.
-export const DOCUMENTS = ['privacy', 'security', 'attributions', 'contributors', 'contributing', 'license', 'downloads'] as const;
+export const DOCUMENTS = ['privacy', 'security', 'attributions', 'contributors', 'contributing', 'license'] as const;
 export type DocumentName = typeof DOCUMENTS[number];
 export const REFERENCE_KINDS = ['pota', 'sota'] as const;
 export type ReferenceKind = typeof REFERENCE_KINDS[number];
 // The programs and standards this product speaks, each to its own home page
 // (KI7MT, 2026-10-22: Home's welcome names them).
-export const SITES = ['adif', 'pota', 'sota', 'iota'] as const;
+// `releases` is where to get the application (KI7MT, 2026-10-22): the
+// Releases page, now that the Preview and releases are published there.
+export const SITES = ['adif', 'pota', 'sota', 'iota', 'releases'] as const;
 export type SiteName = typeof SITES[number];
 
 export type LinkCommand =

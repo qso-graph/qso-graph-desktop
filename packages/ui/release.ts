@@ -2,4 +2,4 @@
 // The release in one line, for Home's welcome (KI7MT, 2026-10-22). Written
 // per release, in plain words for the operator; What's new has the rest,
 // from CHANGELOG.md (QGD-FRM-0016).
-export const HIGHLIGHT = 'SOTA summits for your locations, View on POTA and SOTA, and pages you pin to Home.';
+export const HIGHLIGHT = 'Parks On the Air near you, even offline; the sun, the moon and the grey line; and your logins kept in your computer\'s own store.';
