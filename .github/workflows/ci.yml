@@ -368,9 +368,10 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      # electron-builder signs each executable, the native core and the
-      # installer with Microsoft's TrustedSigning module, which uses the
-      # sign-in above. The account, profile and endpoint are names, not
+      # electron-builder signs each executable, the native core (signExts in
+      # package.json: a list, which -c on the command line cannot give; #84,
+      # found by Turing) and the installer with Microsoft's TrustedSigning
+      # module, which uses the sign-in above. The account, profile and endpoint are names, not
       # secrets; the publisher is the certificate's, as Windows shows it.
       - name: Installers, signed (Windows)
         if: env.SIGN_WIN == 'true'
@@ -381,7 +382,6 @@ jobs:
           -c.win.azureSignOptions.endpoint=https://wus2.codesigning.azure.net
           -c.win.azureSignOptions.codeSigningAccountName=qsographsigning
           -c.win.azureSignOptions.certificateProfileName=qso-graph
-          -c.win.signExts=.node
       # What Windows will say: every executable, the native core and the
       # installer validly signed, by Gregory Beam and nobody else.
       - name: Signatures (Windows)

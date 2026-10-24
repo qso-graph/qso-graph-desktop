@@ -110,7 +110,10 @@
         "nsis",
         "zip"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "signExts": [
+        ".node"
+      ]
     },
     "linux": {
       "target": [
