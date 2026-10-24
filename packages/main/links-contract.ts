@@ -7,7 +7,8 @@ import { isPotaReference, isSummitReference } from '../storage/station-contract.
 
 export const LINKS_CHANNEL = 'links:open';
 
-export const DOCUMENTS = ['privacy', 'security', 'attributions', 'contributors', 'contributing', 'license'] as const;
+// `guide` is the User Guide (#47), Markdown in the repository's guide/ folder.
+export const DOCUMENTS = ['guide', 'privacy', 'security', 'attributions', 'contributors', 'contributing', 'license'] as const;
 export type DocumentName = typeof DOCUMENTS[number];
 export const REFERENCE_KINDS = ['pota', 'sota'] as const;
 export type ReferenceKind = typeof REFERENCE_KINDS[number];
@@ -50,6 +51,13 @@ function https(value: unknown, what: string): string {
   return value;
 }
 
+function isDocumentPath(page: string): boolean {
+  const slash = page.indexOf('/');
+  const folder = slash < 0 ? '' : page.slice(0, slash);
+  const file = page.slice(slash + 1);
+  return (slash < 0 || /^[a-z][a-z-]{0,30}$/.test(folder)) && /^[A-Z][A-Za-z-]*(\.md)?$/.test(file);
+}
+
 export function validateLinkRegister(value: unknown): LinkRegister {
   if (!record(value) || !record(value.documents) || !record(value.documents.pages) || !record(value.references) || !record(value.sites)) {
     throw new LinkRegisterError('the link register is not shaped as expected');
@@ -59,7 +67,8 @@ export function validateLinkRegister(value: unknown): LinkRegister {
   const pages = {} as Record<DocumentName, string>;
   for (const name of DOCUMENTS) {
     const page = value.documents.pages[name];
-    if (typeof page !== 'string' || !/^[A-Z][A-Za-z-]*(\.md)?$/.test(page)) throw new LinkRegisterError(`documents.pages.${name} is not a file name`);
+    // A file name, or one in a single lowercase folder (guide/README.md).
+    if (typeof page !== 'string' || !isDocumentPath(page)) throw new LinkRegisterError(`documents.pages.${name} is not a file name`);
     pages[name] = page;
   }
   const references = {} as Record<ReferenceKind, string>;

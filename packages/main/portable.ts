@@ -8,7 +8,8 @@
 // settings.json, the callsigns folder, each extension's folder) and the logs.
 // What it does not: logins, which stay in each computer's own credential
 // store (QGD-CRD-0001), so nothing secret is carried on a stick that is easy
-// to lose; a callsign export carries them to another computer.
+// to lose. They are entered again on each computer; a backup carries the
+// callsigns and Locations, never a login (QGD-PSN-0007).
 //
 // Pure, so it is tested without Electron; portable-start.ts applies it.
 import { posix, win32 } from 'node:path';

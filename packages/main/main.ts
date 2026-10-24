@@ -41,7 +41,7 @@ function setupItem(action: string, label: string): Electron.MenuItemConstructorO
 
 // Help's documents, in the menu's order.
 const HELP_DOCUMENTS: readonly (readonly [DocumentName, string])[] = [
-  ['privacy', 'Privacy'], ['security', 'Security'], ['license', 'License'],
+  ['guide', 'User Guide'], ['privacy', 'Privacy'], ['security', 'Security'], ['license', 'License'],
   ['attributions', 'Attributions'], ['contributors', 'Contributors'], ['contributing', 'Contributing']
 ];
 

@@ -3,6 +3,7 @@
   "documents": {
     "base": "https://github.com/qso-graph/qso-graph-desktop/blob/develop/",
     "pages": {
+      "guide": "guide/README.md",
       "privacy": "PRIVACY.md",
       "security": "SECURITY.md",
       "attributions": "NOTICE",
