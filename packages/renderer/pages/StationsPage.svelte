@@ -522,7 +522,7 @@
 
   {#if !editing}
     <section class="card" aria-labelledby="from-park-title">
-      <h2 id="from-park-title">A location from a POTA park</h2>
+      <h2 id="from-park-title">Add location from a POTA park</h2>
       {#if parksLoaded}
         <label for="park-reference">Park reference</label>
         <div class="inline-form">
@@ -539,7 +539,7 @@
       {/if}
     </section>
     <section class="card" aria-labelledby="from-summit-title">
-      <h2 id="from-summit-title">A location from a SOTA summit</h2>
+      <h2 id="from-summit-title">Add location from a SOTA summit</h2>
       {#if summitsLoaded}
         <label for="summit-reference">Summit reference</label>
         <div class="inline-form">

@@ -4,7 +4,7 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, isRelease, next, notes, prepare, withEntry } from '../scripts/release.mjs';
+import { check, feedEntry, isRelease, next, notes, prepare, withEntry, withVersion } from '../scripts/release.mjs';
 import { choose, readFeed } from '../packages/main/update-contract.js';
 
 const changelog = [
@@ -39,6 +39,13 @@ describe('release text', () => {
     expect(isRelease('0.1.0')).toBe(true);
     expect(isRelease('v0.1.0')).toBe(false);
     expect(isRelease('01.0.0')).toBe(false);
+  });
+
+  it('changes the version lines and nothing else, not even a dependency at the same version', () => {
+    const lock = '{\n  "version": "0.1.0",\n  "packages": {\n    "": {\n      "version": "0.1.0"\n    },\n    "node_modules/x": {\n      "version": "0.1.0"\n    }\n  }\n}\n';
+    expect(withVersion(lock, '0.1.0', '0.1.1', 2)).toBe(lock.replace('"version": "0.1.0"', '"version": "0.1.1"').replace('"version": "0.1.0"', '"version": "0.1.1"'));
+    expect(withVersion(lock, '0.1.0', '0.1.1', 2)).toContain('"node_modules/x": {\n      "version": "0.1.0"');
+    expect(() => withVersion('{}', '0.1.0', '0.1.1', 1)).toThrow(/fewer than 1/);
   });
 
   it('moves to the next version', () => {

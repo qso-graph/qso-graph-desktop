@@ -185,7 +185,7 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 .net-lamp[data-lamp="trouble"] .net-light { background: var(--lamp-trouble); box-shadow: 0 0 6px var(--lamp-trouble); }
 .clock-time { color: var(--clock-ink); font-weight: 650; font-variant-numeric: tabular-nums;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.02em; }
-.hint, .sidebar-note, .optional { color: var(--ink-muted); }
+.hint, .optional { color: var(--ink-muted); }
 .workspace { display: flex; flex: 1; min-height: 0; }
 /* The rail, then the callsign list, then the page. Three columns that have to
    read as three, so the rail is the sunken one and the list sits on the page
@@ -211,16 +211,11 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 .rail-item:hover:not(.current) { color: var(--ink); }
 .rail-icon { width: 19px; height: 19px; display: block; }
 .rail-label { display: block; }
-aside { width: 240px; padding: 28px 18px; border-right: 1px solid var(--border); background: var(--page); overflow-y: auto; flex-shrink: 0; }
-.sidebar-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 h2 { margin: 0; font-size: 15px; font-weight: 650; }
-.sidebar-title button { font-size: 12px; padding: 6px 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--border-strong); }
-.callsign-item { display: block; width: 100%; text-align: left; margin-bottom: 8px; border: 1px solid transparent; padding: 12px; border-radius: 8px; background: transparent; color: var(--ink); }
-.callsign-item.selected { background: var(--surface); border-color: var(--border-strong); }
-.callsign-item strong, .callsign-item span { display: block; }
-.callsign-item strong { font-size: 15px; margin-bottom: 4px; }
-.callsign-item span { font-size: 12px; color: var(--ink-muted); }
-.sidebar-note { font-size: 12px; line-height: 1.6; margin-top: 25px; }
+.editing-title { font-size: 20px; margin: 22px 0 10px; }
+/* The callsign being edited, among the rows (#70). */
+.callsign-row.selected .extension-name { color: var(--hue-callsigns); }
+.callsign-row .extension-name { font-weight: 600; }
 main { flex: 1; min-height: 0; display: flex; }
 .page { flex: 1; display: flex; min-height: 0; }
 /* A page that stacks something above the page's own columns — the setup offer
@@ -318,7 +313,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .status-slot::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
 .status-slot[data-hue="callsigns"]::before { background: var(--hue-callsigns); }
 .status-slot[data-hue="locations"]::before { background: var(--hue-locations); }
-@media (max-width: 850px) { .rail { width: 76px; } aside { width: 190px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
+@media (max-width: 850px) { .rail { width: 76px; } .page-main { padding: 24px 20px; } .fields { gap: 12px; } }
 
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
 /* A page that fills the window: cards are not held to the reading width. */

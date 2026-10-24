@@ -141,14 +141,15 @@ try {
   const widths = await page.evaluate(() => {
     const shown = [...document.querySelectorAll('.page')].find(entry => !entry.hidden);
     return {
-      form: Math.round(shown.querySelector('.page-main').getBoundingClientRect().width),
-      sidebar: Math.round(shown.querySelector('aside').getBoundingClientRect().width)
+      form: Math.round(shown.querySelector('#callsign-form').getBoundingClientRect().width),
+      list: Math.round(shown.querySelector('#callsign-list').getBoundingClientRect().width)
     };
   });
+  // The list above the form, both the page's width (#70).
   expect(widths.form, `the callsign form was ${widths.form}px wide at the default window size`)
     .toBeGreaterThan(600);
-  expect(widths.sidebar).toBeGreaterThan(150);
-  notes.push(`at the window the product opens at, the form is ${widths.form}px and the list ${widths.sidebar}px`);
+  expect(widths.list).toBeGreaterThan(600);
+  notes.push(`at the window the product opens at, the form is ${widths.form}px and the list ${widths.list}px`);
 
   // And what is actually in the profile: one callsign, with no description
   // because none was given, and nothing stored for any service.

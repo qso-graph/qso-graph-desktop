@@ -112,7 +112,7 @@ try {
   await page.getByLabel('Start date', { exact: true }).fill('2026-01-01');
   await page.getByRole('button', { name: 'Add callsign', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this callsign', exact: true }).click();
+  await page.getByRole('button', { name: 'Make W1AW active', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   const editRoles = await application.evaluate(({ Menu }) => Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.map(item => item.role));
@@ -248,7 +248,7 @@ try {
       await railItem(name).click();
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
     }
-    await page.locator('.callsign-item').first().click();
+    await page.locator('#callsign-list .callsign-edit').first().click();
     await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
     for (const provider of ['eqsl', 'qrz_logbook']) {
       await page.getByLabel('Service', { exact: true }).selectOption(provider);

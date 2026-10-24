@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-24
+
+### Changed
+
+- **Callsigns are listed as Locations are**: a row for each, the active one first with its
+  **Active** badge, then the rest by start date, newest first. **Make active** and **Edit** are on
+  each row; a callsign whose end date has passed is marked **Expired** and has Edit only. They were
+  listed in no particular order, so the active callsign could end up at the bottom.
+- **The window's title shows the version**: *QSO Graph Desktop v0.1.1*, or for a preview, the
+  release it leads to.
+- **Locations**: the two cards that start a Location from a park or a summit are titled **Add
+  location from a POTA park** and **Add location from a SOTA summit**.
+- **The User Guide** explains operating away from home: what the active callsign and Location
+  decide, and how a callsign's default Location comes with it.
+
 ## [0.1.0] - 2026-10-24
 
 The first release of QSO Graph Desktop: a home for your callsigns, your logins and your operating

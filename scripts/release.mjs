@@ -105,6 +105,15 @@ export function withEntry(feed, track, entry) {
   return { ...base, [track]: entry };
 }
 
+// The first `count` "version": "<from>" lines become `to`: package.json has
+// one, its lock two (the lock's own, and the root package's).
+export function withVersion(text, from, to, count) {
+  let left = count;
+  const out = text.replace(new RegExp(`"version": "${escape(from)}"`, 'g'), found => (left-- > 0 ? `"version": "${to}"` : found));
+  if (left > 0) throw new Error(`Found fewer than ${count} version lines reading ${from}.`);
+  return out;
+}
+
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -137,13 +146,10 @@ function main([command, argument]) {
     }
     case 'next': {
       const to = next(version, argument);
-      const pkg = readJson('package.json');
-      pkg.version = to;
-      writeJson('package.json', pkg);
-      const lock = readJson('package-lock.json');
-      lock.version = to;
-      lock.packages[''].version = to;
-      writeJson('package-lock.json', lock);
+      // The version line alone, as written: the rest of each file is left
+      // exactly as it was, so the commit is the version and nothing else.
+      writeFileSync('package.json', withVersion(readFileSync('package.json', 'utf8'), version, to, 1));
+      writeFileSync('package-lock.json', withVersion(readFileSync('package-lock.json', 'utf8'), version, to, 2));
       console.log(`package.json: ${version} → ${to}.`);
       return 0;
     }
