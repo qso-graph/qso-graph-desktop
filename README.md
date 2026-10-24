@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/qso-graph/qso-graph-desktop/actions/workflows/ci.yml?query=branch%3Adevelop"><img src="https://img.shields.io/github/actions/workflow/status/qso-graph/qso-graph-desktop/ci.yml?branch=develop&label=CI" alt="CI on develop"></a>
   <a href="https://github.com/qso-graph/qso-graph-desktop/releases"><img src="https://img.shields.io/github/v/release/qso-graph/qso-graph-desktop?include_prereleases&sort=semver&label=Release&color=blue" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0--only-blue" alt="License: GPL-3.0-only"></a>
+  <a href="https://adif.org.uk/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fqso-graph%2Fqso-graph-desktop%2Fdevelop%2Fdata%2Freference-sources.json&query=%24.adif.version&label=ADIF&color=blue" alt="ADIF version"></a>
   <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="Platforms: Windows, Linux, macOS">
 </p>
 
