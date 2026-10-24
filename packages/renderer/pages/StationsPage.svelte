@@ -14,9 +14,6 @@
   Storage's pushed status; what it keeps is only the form being edited.
 -->
 <script lang="ts">
-  import AreaCard from './AreaCard.svelte';
-  import type { AreaProgram } from '../../storage/area-entry.js';
-  import { MAX_AREA } from '../../main/settings-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import { caseAsTyped, type CaseRule } from '../../ui/typed-case.js';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
@@ -51,16 +48,9 @@
     onCountiesAt?: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
     // A park's or summit's page, in the browser (QGD-STN-0011).
     onOpenPage?: (command: LinkCommand) => void;
-    // My Area, the last card here (AreaCard.svelte; KI7MT, 2026-10-23).
-    area?: readonly string[];
-    onAreaChoices?: () => Promise<readonly AreaProgram[] | string>;
-    onAreaDefault?: () => Promise<string | undefined>;
-    onSaveArea?: (area: readonly string[]) => Promise<boolean>;
-    onDownloadParks?: () => void;
   }
   const {
     stations, callsignId, callsignLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
-    area = [], onAreaChoices, onAreaDefault, onSaveArea, onDownloadParks,
     onChoices = () => Promise.resolve(undefined),
     onLookUpParks = () => Promise.resolve(undefined),
     onCountiesAt = () => Promise.resolve({ counties: [], sections: {} }),
@@ -678,10 +668,6 @@
         <button type="button" id="save-station" disabled={working} onclick={save}>{working ? 'Saving…' : 'Save location'}</button>
       </div>
     </section>
-  {/if}
-  {#if onAreaChoices && onAreaDefault && onSaveArea}
-    <AreaCard {area} most={MAX_AREA} parksLoaded={parksLoaded ?? false} loadChoices={onAreaChoices} loadDefault={onAreaDefault}
-      onSave={onSaveArea} {onDownloadParks} />
   {/if}
 </PageLayout>
 

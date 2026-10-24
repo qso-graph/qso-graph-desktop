@@ -21,6 +21,8 @@
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
+  import AreaCard from './pages/AreaCard.svelte';
+  import { MAX_AREA } from '../main/settings-contract.js';
   import WhatsNewPanel from './pages/WhatsNewPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
   import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
@@ -103,9 +105,6 @@
   // the documented way to bring outside state in.
   $effect(() => store.subscribe(next => { shell = next; }));
   // The status bar's quiet line: only a newer version is worth a word there.
-  // My POTA Focus Area is POTA's alone: shown only while Parks On the Air is
-  // on (KI7MT, 2026-10-24), as its Setup menu item is.
-  const potaOn = $derived(shell.extensions?.some(entry => entry.id === 'pota' && entry.enabled) ?? false);
   const updateNote = $derived(shell.update?.kind === 'ready' || shell.update?.kind === 'available'
     ? { kind: shell.update.kind, version: shell.update.version } : undefined);
 
@@ -146,11 +145,13 @@
     const last = Object.hasOwn(lastTab, page.area) ? lastTab[page.area] : undefined;
     const first = inArea[0]?.key ?? key;
     const to = page.key !== page.area ? key : last && inArea.some(entry => entry.key === last) ? last : first;
-    store.set({ page: 'extension', extensionPage: to });
+    store.set({ page: 'extension', extensionPage: to, extensionSettings: false });
   }
   function openTab(key: string): void {
-    if (homeModel.available.some(page => page.key === key)) store.set({ page: 'extension', extensionPage: key });
+    if (homeModel.available.some(page => page.key === key)) store.set({ page: 'extension', extensionPage: key, extensionSettings: false });
   }
+  // The extension whose area is open, for its Settings tab.
+  const openArea = $derived(homeModel.page?.area.split('/')[0]);
   // The rail: the core's pages, then the extension pages that ask for a rail
   // item, then Settings at the foot (KI7MT, 2026-10-22).
   const railPages = $derived.by(() => {
@@ -218,7 +219,9 @@
         onOpenReference={(kind, reference) => onOpenPage({ type: 'reference', kind, reference })}
         onAsk={values => { if (shell.extensionPage) home.openPage(shell.extensionPage, values); }}
         onRefresh={() => { if (shell.extensionPage) home.refreshPage(shell.extensionPage); }}
-        offline={!homeModel.online && homeModel.page?.network === true} />
+        offline={!homeModel.online && homeModel.page?.network === true}
+        settings={openArea === 'pota' ? potaSettings : undefined} showingSettings={shell.extensionSettings}
+        onSettings={() => store.set({ extensionSettings: true })} />
     </div>
     <div class="page" hidden={shell.page !== 'callsigns'}>
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page
@@ -269,11 +272,6 @@
         parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
         summitsLoaded={shell.storage?.reference?.summits.state === 'loaded'}
         onFromSummit={onStationFromSummit}
-        area={shell.area}
-        onAreaChoices={potaOn ? onAreaChoices : undefined}
-        onAreaDefault={potaOn ? onAreaDefault : undefined}
-        onSaveArea={potaOn ? onSaveArea : undefined}
-        onDownloadParks={() => { store.set({ page: 'settings', extensionPage: null }); void onUpdateReference('pota'); }}
         onSave={onSaveStation}
         onDelete={onDeleteStation}
         onSetActive={onSetActiveStation}
@@ -292,6 +290,14 @@
     </div>
   </main>
 </div>
+<!-- An extension's own settings, on its area's Settings tab (KI7MT,
+     2026-10-24: Settings is the application's; an extension's settings are
+     in its area). Parks On the Air's: its Focus Area. -->
+{#snippet potaSettings()}
+  <AreaCard area={shell.area} most={MAX_AREA} parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
+    loadChoices={onAreaChoices} loadDefault={onAreaDefault} onSave={onSaveArea}
+    onDownloadParks={() => { store.set({ page: 'settings', extensionPage: null }); void onUpdateReference('pota'); }} />
+{/snippet}
 <StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}
            onOpenCallsigns={() => store.set({ page: 'callsigns', extensionPage: null })}

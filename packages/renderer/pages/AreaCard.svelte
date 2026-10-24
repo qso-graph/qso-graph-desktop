@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  My Area, on the Locations page (KI7MT, 2026-10-23): the parts of POTA the
+  Focus Area, on Parks On the Air's Settings tab (KI7MT, 2026-10-24: POTA's
+  alone, so in POTA's area; it was a card on Locations): the parts of POTA the
   operator works in, chosen before anything is fetched for them, at POTA's
   own three levels: Program, Entity and Location. Built from POTA's lists
   already downloaded; starts from the active Location's own; at most ten
@@ -60,10 +61,10 @@
   }
 </script>
 
-<section class="card" aria-labelledby="area-title" id="my-area">
+<section class="extension-setting" aria-labelledby="area-title" id="my-area">
   <!-- Named for what it is for (KI7MT, 2026-10-23: "I had no idea what it
-       was for"). -->
-  <h2 id="area-title">My POTA Focus Area</h2>
+       was for"); "Focus Area" under Parks On the Air (KI7MT, 2026-10-24). -->
+  <h3 id="area-title">Focus Area</h3>
   <p class="hint">
     The part of POTA you activate and chase in: a whole program, an entity, or locations, as
     POTA's own park list narrows them. Parks On the Air's Most Wanted fetches activation counts

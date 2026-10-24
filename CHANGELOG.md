@@ -16,8 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Menus where each platform keeps them**: on macOS, Settings… (⌘,) and Check for Updates… are in
   the QSO Graph Desktop menu; on Windows and Linux, Settings… (Ctrl+,) is in Setup and Check for
   Updates… in Help.
-- **My POTA Focus Area** is shown only while Parks On the Air is turned on: in the Setup menu and on
-  Locations.
+- **Parks On the Air has a Settings tab**, and its Focus Area (was My POTA Focus Area, on
+  Locations) is there: an extension's own settings live in its area, and Settings is the
+  application's. **Setup → POTA Focus Area…** opens it, and is there only while POTA is on.
 - **About QSO Graph Desktop** is in the QSO Graph Desktop menu on macOS, and in Help on Windows and
   Linux.
 - **Help → Save Diagnostics for Support…** saves the redacted diagnostics archive for you to attach to

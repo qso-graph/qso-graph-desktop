@@ -885,11 +885,9 @@ window.menu?.onSetup?.(action => {
   }
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
-  // My Area is the last card on Locations (KI7MT, 2026-10-23).
-  else if (action === 'area') {
-    shell.set({ page: 'stations', extensionPage: null });
-    requestAnimationFrame(() => document.getElementById('my-area')?.scrollIntoView({ block: 'start' }));
-  }
+  // The Focus Area is Parks On the Air's own setting, on its area's
+  // Settings tab (KI7MT, 2026-10-24).
+  else if (action === 'area') shell.set({ page: 'extension', extensionPage: 'pota/parks', extensionSettings: true });
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
   // Tools (KI7MT, 2026-10-23): Settings' Back up and restore, at the button

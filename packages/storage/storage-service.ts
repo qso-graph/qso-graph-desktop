@@ -284,7 +284,7 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       const reader = reference?.reader();
       if (!reader || held.length === 0) {
         return { ok: false, error: area.length === 0
-          ? 'No POTA focus area is set, and the active Location does not say where it is. Choose My POTA Focus Area on the Locations page.'
+          ? 'No POTA focus area is set, and the active Location does not say where it is. Choose your Focus Area on the Settings tab of Parks On the Air.'
           : 'POTA\'s activation counts could not be fetched just now. Try again with Refresh.' };
       }
       // When the oldest of them was fetched, so the page can say how old it is.

@@ -430,7 +430,7 @@ if (!app.requestSingleInstanceLock()) {
       }
     };
     const settingsItem: Electron.MenuItemConstructorOptions = { ...setupItem('settings', 'Settings…'), accelerator: 'CmdOrCtrl+,' };
-    // Built again when an extension is turned on or off, so My POTA Focus
+    // Built again when an extension is turned on or off, so POTA Focus
     // Area… is there only while Parks On the Air is on (KI7MT, 2026-10-24).
     const applicationMenu = (): Menu => Menu.buildFromTemplate([
       mac
@@ -459,7 +459,7 @@ if (!app.requestSingleInstanceLock()) {
       { label: 'Setup', submenu: [
         setupItem('callsigns', 'Callsigns…'),
         setupItem('locations', 'Locations…'),
-        ...(extensionBroker?.enablement.isOn('pota') ? [setupItem('area', 'My POTA Focus Area…')] : []),
+        ...(extensionBroker?.enablement.isOn('pota') ? [setupItem('area', 'POTA Focus Area…')] : []),
         { type: 'separator' },
         { label: 'Reference Data', submenu: [
           setupItem('adif', 'ADIF Definitions'),
