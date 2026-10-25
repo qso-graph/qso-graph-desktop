@@ -4,7 +4,7 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, isRelease, next, notes, prepare, withEntry, withVersion } from '../scripts/release.mjs';
+import { check, feedEntry, isRelease, next, notes, prepare, tracks, withEntry, withVersion } from '../scripts/release.mjs';
 import { choose, readFeed } from '../packages/main/update-contract.js';
 
 const changelog = [
@@ -73,5 +73,28 @@ describe('release text', () => {
     const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
     expect(isRelease(version), version).toBe(true);
     expect(readFileSync('CHANGELOG.md', 'utf8')).toMatch(/^## \[Unreleased\]\s*$/m);
+  });
+});
+
+describe('which version each update track names (#94)', () => {
+  const release = (tagName, isPrerelease, isLatest = false, isDraft = false) => ({ tagName, isPrerelease, isLatest, isDraft });
+
+  it('Stable is the release marked Latest; Early the newest of either kind', () => {
+    expect(tracks([release('v0.2.1', true), release('v0.2.0', false, true), release('v0.1.3', false)]))
+      .toEqual({ stable: '0.2.0', early: '0.2.1' });
+  });
+
+  it('Early is Stable when nothing newer is out, and compares numbers, not text', () => {
+    expect(tracks([release('v0.10.0', false, true), release('v0.9.0', true)])).toEqual({ stable: '0.10.0', early: '0.10.0' });
+  });
+
+  it('a Preview, a draft and a pre-release are never Stable; nothing out is null', () => {
+    expect(tracks([release('v0.2.1-preview', true), release('v0.3.0', false, false, true), release('v0.2.0', true)]))
+      .toEqual({ stable: null, early: '0.2.0' });
+    expect(tracks([])).toEqual({ stable: null, early: null });
+  });
+
+  it('a tag that is not vMAJOR.MINOR.PATCH is not a release', () => {
+    expect(tracks([release('preview', true), release('v01.2.3', false, true), release('0.4.0', false)])).toEqual({ stable: null, early: null });
   });
 });

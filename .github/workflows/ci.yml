@@ -11,15 +11,15 @@ on:
   # a change needs: a documentation-only change runs the citation check alone,
   # in about a minute, and builds nothing (KI7MT, 2026-10-24: "I am not going
   # through this build process for docs and readme updates").
+  # main is the one working branch (docs/RELEASES.md, #94): a milestone's
+  # branch reaches it by a pull request, and merging builds, tests and signs
+  # but publishes nothing. Publishing is the Release workflow, release.yml.
   push:
-    branches: [develop, main]
+    branches: [main]
   pull_request:
-    branches: [develop, main]
-  # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
-  # time, so they are paid once a night and on releases, never on an
-  # ordinary push. GitHub runs a schedule from the default branch, main, so
-  # this starts once this file is on main; until then a signed Preview is
-  # Run workflow by hand.
+    branches: [main]
+  # Nightly (KI7MT, 2026-10-24): the Preview, a signed build of main, on a
+  # night main has changed. GitHub runs a schedule from the default branch.
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
@@ -45,10 +45,13 @@ env:
 
 jobs:
   # What this run is for, decided once:
-  #   ref       what to build: develop at night, else what was pushed
-  #   sign      sign and notarize the Mac build: nightly, by hand, and main
-  #   preview   publish the Preview: nightly, or a full run by hand on develop
-  #   run       false when a night finds develop already published
+  #   ref       what to build: main at night, a pull request's own branch,
+  #             else what was pushed
+  #   sign      sign the builds: main, nightly, by hand on main, and a
+  #             milestone's or a fix's pull request
+  #   preview   publish the Preview: nightly, or a full run by hand on main
+  #   run       false when a night finds main already the Preview or released
+  #   pr        the pull request a validation build is for (#92)
   plan:
     name: plan
     runs-on: ubuntu-latest
@@ -111,16 +114,20 @@ jobs:
           ref=""; sha="$SHA"; sign=false; preview=false; run=true; pr=""
           case "$EVENT" in
             schedule)
-              ref=develop
-              sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/develop | cut -f1)
+              ref=main
+              sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/main | cut -f1)
               # The Preview's tag is v<next>-preview (the preview job).
               published=$(git ls-remote "https://github.com/${REPO}.git" 'refs/tags/v*-preview' | head -n1 | cut -f1)
+              # A release's tag is vMAJOR.MINOR.PATCH, on the commit it built.
+              released=$(git ls-remote --tags "https://github.com/${REPO}.git" \
+                | awk -v sha="$sha" '$1 == sha && $2 ~ /^refs\/tags\/v[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$/ { print $2 }' | head -n1)
               sign=true; preview=true
-              if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "develop is already the Preview ($sha)."; fi
+              if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "main is already the Preview ($sha)."; fi
+              if [ -n "$released" ]; then run=false; echo "main is released as ${released#refs/tags/} ($sha)."; fi
               ;;
             workflow_dispatch)
-              if [ "$REF" = refs/heads/develop ] || [ "$REF" = refs/heads/main ]; then sign=true; fi
-              if [ "$REF" = refs/heads/develop ] && [ "$MAC_ONLY" != true ]; then preview=true; fi
+              if [ "$REF" = refs/heads/main ]; then sign=true; fi
+              if [ "$REF" = refs/heads/main ] && [ "$MAC_ONLY" != true ]; then preview=true; fi
               ;;
             push)
               if [ "$REF" = refs/heads/main ]; then sign=true; fi
@@ -171,27 +178,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The night's build is of develop, wherever the schedule runs from,
-          # at the one commit the plan recorded, so every job tests and
-          # packages the same code even if develop moves meanwhile (#57).
+          # The commit the plan recorded (the night's main, or a pull
+          # request's own branch), so every job tests and packages the same
+          # code even if the branch moves meanwhile (#57).
           ref: ${{ needs.plan.outputs.ref != '' && needs.plan.outputs.sha || '' }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: npm
-      # main builds a release (docs/RELEASES.md), so before hours of building:
-      # the version is a plain release, CHANGELOG.md has its section, and the
-      # tag is not taken. Once, on one platform; a failure here stops packaging.
-      - name: Ready to release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          node scripts/release.mjs check
-          version=$(node -p "require('./package.json').version")
-          if git ls-remote --exit-code --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/v${version}" >/dev/null; then
-            echo "v${version} is already tagged: a release PR carries a new version." >&2
-            exit 1
-          fi
       # AWS-LC's FIPS module builds with Go and CMake.
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -249,9 +243,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The night's build is of develop, wherever the schedule runs from,
-          # at the one commit the plan recorded, so every job tests and
-          # packages the same code even if develop moves meanwhile (#57).
+          # The commit the plan recorded (the night's main, or a pull
+          # request's own branch), so every job tests and packages the same
+          # code even if the branch moves meanwhile (#57).
           ref: ${{ needs.plan.outputs.ref != '' && needs.plan.outputs.sha || '' }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -330,7 +324,7 @@ jobs:
   #
   # Signed builds (QGD-SCP-0005), both in KI7MT's name: macOS with his Apple
   # Developer ID (Greg Beam) and notarized by Apple, Windows as Gregory Beam. Signed are main, the night's
-  # build, a run by hand on develop or main, and a validation build of a
+  # build, a run by hand on main, and a validation build of a
   # milestone's or a fix's pull request (#92). The secrets are in the
   # macos-signing and windows-signing Environments; a fork's run gets none of
   # them and no token Azure accepts, whatever this file says. Everything else
@@ -341,7 +335,8 @@ jobs:
     # After both test jobs pass; or alone, for a macOS-only run by hand.
     if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
     # The signing secrets reach only a run plan says signs, and the
-    # Environment itself releases them only on develop and main. Windows
+    # Environment itself releases them only to main and to pull requests
+    # (refs/pull/*/merge; a fork's run gets no secrets either way). Windows
     # signs as KI7MT through Azure Artifact Signing (#81): no secret at all,
     # GitHub's own token is trusted by Azure for the windows-signing
     # Environment of this repository alone.
@@ -372,9 +367,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The night's build is of develop, wherever the schedule runs from,
-          # at the one commit the plan recorded, so every job tests and
-          # packages the same code even if develop moves meanwhile (#57).
+          # The commit the plan recorded (the night's main, or a pull
+          # request's own branch), so every job tests and packages the same
+          # code even if the branch moves meanwhile (#57).
           ref: ${{ needs.plan.outputs.ref != '' && needs.plan.outputs.sha || '' }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -418,11 +413,12 @@ jobs:
           key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
       - run: node scripts/fetch-adif.mjs
       - run: node scripts/fetch-counties.mjs
-      # A build of develop is a preview: its version gains the commit's UTC
-      # date and time and the commit (docs/RELEASES.md), here, never in a
-      # commit. The commit's time, so all four platforms carry one version.
+      # The Preview's version gains the commit's UTC date and time and the
+      # commit (docs/RELEASES.md), here, never in a commit. The commit's time,
+      # so all four platforms carry one version. A push to main is not
+      # stamped: that build is the one the Release workflow publishes.
       - name: Preview version
-        if: needs.plan.outputs.pr == '' && (github.ref == 'refs/heads/develop' || needs.plan.outputs.ref == 'develop')
+        if: needs.plan.outputs.preview == 'true'
         shell: bash
         run: |
           stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
@@ -597,7 +593,9 @@ jobs:
             out/*.rpm
             out/*.zip
           if-no-files-found: error
-          retention-days: 7
+          # main's build is the one a release publishes, so it is kept long
+          # enough to wait for the Release button (#94).
+          retention-days: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 90 || 7 }}
 
   # The installers of a pull request's build (#92), each its own download,
   # not zipped, under its own file name, and one comment on the pull request
@@ -710,7 +708,7 @@ jobs:
             gh api "repos/${REPO}/issues/${PR}/comments" -F body=@comment.md --jq .html_url
           fi
 
-  # The Preview pre-release (docs/RELEASES.md): each green build of develop,
+  # The Preview pre-release (docs/RELEASES.md): the night's green build of main,
   # every installer its own download on the Releases page, replacing the one
   # before, files, tag and all (KI7MT, 2026-10-23: an artifact is zipped by
   # GitHub and buried in a run, where nobody finds it). This repository's own
@@ -747,9 +745,9 @@ jobs:
           # (KI7MT, 2026-10-24: "they are not visible on my screen").
           tag="v${next}-preview"
           {
-            echo "**A preview of ${next}**, built from develop at ${SHA} (version ${version})."
+            echo "**A preview of ${next}**, built from main at ${SHA} (version ${version})."
             echo
-            echo "For testing what is coming, not for running your station (docs/RELEASES.md). Rebuilt each night develop has changed."
+            echo "For testing what is coming, not for running your station (docs/RELEASES.md). Rebuilt each night main has changed."
             echo
             echo "- **Windows:** signed by Gregory Beam (KI7MT). The signature is new, so Edge may say the file isn't commonly downloaded (**Keep**), and Windows may say it protected your PC: **More info** shows the publisher, then **Run anyway**."
             echo "- **macOS:** signed by Greg Beam (KI7MT) with an Apple Developer ID, and notarized by Apple."
@@ -764,69 +762,6 @@ jobs:
             | while read -r old; do gh release delete "$old" --repo "$REPO" --cleanup-tag --yes; done
           gh release create "$tag" --repo "$REPO" --prerelease --target "$SHA" \
             --title "Preview of ${next}" --notes-file ../notes.md -- *
-
-  # A merged release PR (docs/RELEASES.md): main's build published as a
-  # pre-release with its final version, v<version>, every installer its own
-  # download, SHA256SUMS.txt beside them, and that version's CHANGELOG.md
-  # section as its notes. Creating the release creates the tag, on the commit
-  # that was built, so the tag is an output of the build and never its
-  # trigger. Promoting it to a full release is .github/workflows/promote.yml.
-  release:
-    name: pre-release
-    needs: [plan, package]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: qso-graph-desktop-*
-          path: release
-          merge-multiple: true
-      - name: Publish the pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          version=$(node -p "require('./package.json').version")
-          node scripts/release.mjs check
-          # Every file carries this version: nothing from another build rides along.
-          cd release
-          for file in *; do
-            case "$file" in
-              "qso-graph-desktop-${version}-"*) ;;
-              *) echo "$file is not a ${version} file" >&2; exit 1 ;;
-            esac
-          done
-          sha256sum -- * > SHA256SUMS.txt
-          ls -la
-          cd ..
-          {
-            node scripts/release.mjs notes "$version"
-            echo
-            echo "---"
-            echo
-            echo "A pre-release: the final ${version}, out for testing before it is marked Latest."
-            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
-            echo
-            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
-            echo "Check a download against **SHA256SUMS.txt**."
-          } > notes.md
-          # Refuses if the tag exists, so a release is never published twice.
-          (cd release && gh release create "v${version}" --repo "$REPO" --prerelease --target "$SHA" \
-            --title "QSO Graph Desktop ${version}" --notes-file ../notes.md -- *)
-          gh release view "v${version}" --repo "$REPO" --json tagName,isPrerelease,assets \
-            -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'
 
   # All green (#95): the one check the repository's rules require before a
   # merge. It always reports, documentation-only changes included: the plan

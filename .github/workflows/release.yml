@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Release (#94, docs/RELEASES.md): the only way anything is published. Run by
+# hand when KI7MT says so: Actions → Release → Run workflow, from main, with
+# the version. Merging into main builds, tests and signs; it publishes
+# nothing.
+#
+# Nothing is rebuilt here. The release is the signed build CI already made
+# of main's commit and passed as "all green", so what was tested is what
+# ships. Before anything is published it refuses unless every check holds:
+# run from main, main says this version, CHANGELOG.md has its section, its
+# tag is free, its milestone has no open issue, and CI is green on that
+# commit. Then the pre-release vx.y.z (tagging the commit built), the
+# milestone closed, and the Early update feed. Promoting it to Stable is
+# promote.yml.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to release, such as 0.2.1: main must already say it'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: ready to release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # CI's run of this commit, and the milestone's open issues.
+      actions: read
+      issues: read
+    outputs:
+      run: ${{ steps.ready.outputs.run }}
+      milestone: ${{ steps.ready.outputs.milestone }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          problems=0
+          fail() { echo "✗ $1" >&2; problems=$((problems + 1)); }
+          # Checked before it is used in anything: a release version, nothing else.
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "✗ Give a release version, such as 0.2.1." >&2; exit 1
+          fi
+          # Only main is released: Run workflow can be pointed at any branch.
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "✗ Releases are made from main; this run is on ${GITHUB_REF}." >&2; exit 1; }
+          echo "Releasing ${VERSION} from main at ${GITHUB_SHA}."
+          have=$(node -p "require('./package.json').version")
+          [ "$have" = "$VERSION" ] && echo "✓ main says ${VERSION}" || fail "main says ${have}, not ${VERSION}"
+          node scripts/release.mjs check && echo "✓ CHANGELOG.md has its ${VERSION} section" || fail "CHANGELOG.md is not ready (above)"
+          if git ls-remote --exit-code --tags "https://github.com/${REPO}.git" "refs/tags/v${VERSION}" >/dev/null; then
+            fail "v${VERSION} is already tagged"
+          else
+            echo "✓ v${VERSION} is free"
+          fi
+          milestone=$(gh api "repos/${REPO}/milestones?state=all&per_page=100" --jq ".[] | select(.title == \"${VERSION}\") | \"\(.number) \(.open_issues) \(.state)\"")
+          if [ -z "$milestone" ]; then
+            fail "there is no milestone ${VERSION}"
+          else
+            read -r number open state <<< "$milestone"
+            [ "$open" = 0 ] && echo "✓ milestone ${VERSION} has no open issue" || fail "milestone ${VERSION} has ${open} open issue(s)"
+            echo "milestone=${number}" >> "$GITHUB_OUTPUT"
+          fi
+          # CI's run of this very commit, on main, and its "all green".
+          run=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&event=push&branch=main&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success")][0].id // empty')
+          if [ -z "$run" ]; then
+            fail "CI has no successful run of ${GITHUB_SHA} on main"
+          else
+            green=$(gh api "repos/${REPO}/actions/runs/${run}/jobs?per_page=100" --jq '[.jobs[] | select(.name == "all green" and .conclusion == "success")] | length')
+            [ "$green" -ge 1 ] && echo "✓ CI is all green on ${GITHUB_SHA} (run ${run})" || fail "CI run ${run} is not all green"
+            echo "run=${run}" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$problems" -gt 0 ]; then echo "Not released: ${problems} check(s) failed." >&2; exit 1; fi
+
+  publish:
+    name: publish v${{ inputs.version }}
+    needs: [checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The release and its tag; the files of CI's run; closing the milestone.
+      contents: write
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      # The installers CI built and signed, from its own run of this commit.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          run-id: ${{ needs.checks.outputs.run }}
+          github-token: ${{ github.token }}
+          pattern: qso-graph-desktop-*
+          path: release
+          merge-multiple: true
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # Every file carries this version: nothing from another build rides along.
+          cd release
+          for file in *; do
+            case "$file" in
+              "qso-graph-desktop-${VERSION}-"*) ;;
+              *) echo "$file is not a ${VERSION} file" >&2; exit 1 ;;
+            esac
+          done
+          sha256sum -- * > SHA256SUMS.txt
+          ls -la
+          cd ..
+          {
+            node scripts/release.mjs notes "$VERSION"
+            echo
+            echo "---"
+            echo
+            echo "A pre-release: the final ${VERSION}, out for testing before it is marked Latest."
+            echo "Signed by KI7MT: Windows as **Gregory Beam**, macOS as **Greg Beam** (Apple Developer ID) and notarized by Apple."
+            echo
+            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
+            echo "Check a download against **SHA256SUMS.txt**."
+          } > notes.md
+          # Refuses if the tag exists, so a release is never published twice.
+          (cd release && gh release create "v${VERSION}" --repo "$REPO" --prerelease --target "$GITHUB_SHA" \
+            --title "QSO Graph Desktop ${VERSION}" --notes-file ../notes.md -- *)
+          gh release view "v${VERSION}" --repo "$REPO" --json tagName,isPrerelease,assets \
+            -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'
+      - name: Close the milestone
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MILESTONE: ${{ needs.checks.outputs.milestone }}
+        run: |
+          gh api -X PATCH "repos/${REPO}/milestones/${MILESTONE}" -f state=closed --jq '"milestone \(.title): \(.state)"'
+
+  feed:
+    name: update feed
+    needs: [publish]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/feed.yml

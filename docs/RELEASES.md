@@ -63,7 +63,12 @@ in bulk.
 4. **The issues are worked one at a time.** Each commit names its issue
    (`#91: …`). When an issue's fix is in, KI7MT installs that validation build
    and tries it. The issue records **"validated on x.y.z-pr<N>.<commit>"**
-   and is closed.
+   and is closed: KI7MT says it is validated, and the agent working the
+   milestone writes that comment and closes the issue. A change nobody can see
+   in the application (CI, a test, the documentation) is validated by the CI
+   run that proves it, which the comment names. GitHub's "Fixes #N" is not
+   used: it closes an issue at the merge, after validation should already
+   have happened.
 5. **When every issue is closed:** the release checks on a lab machine
    (screenshots and the gallery, as before), `node scripts/release.mjs prepare`
    (CHANGELOG.md's `[Unreleased]` becomes `[x.y.z] - <date>`), a final
@@ -116,23 +121,24 @@ in bulk.
 
 1. **The milestone's pull request is merged** (step 5 above), so `main` has
    the version, the CHANGELOG section and every validated fix.
-2. **Actions → Release → Run workflow**, version `x.y.z` *(not built yet)*.
-   It refuses, in minutes and before any packaging, unless:
-   - `main`'s `package.json` says `x.y.z`, and the tag `vx.y.z` is not taken;
-   - CHANGELOG.md has a `[x.y.z]` section;
-   - milestone `x.y.z` has **no open issues**.
-3. **It builds, tests, signs and publishes** the pre-release `vx.y.z`: every
-   installer (each checked to carry that version), `SHA256SUMS.txt`, and the
-   CHANGELOG section as its notes. The tag is created on the commit that was
-   built. The Microsoft Store package is kept with the run, for upload to
-   Partner Center.
-4. **It updates the Early feed** to `x.y.z` *(not built yet: the feed moves
-   into this repository so the workflow can publish it with this repository's
-   own permission)*, and **closes the milestone**.
+   Merging builds, tests and signs `main`'s commit, and publishes nothing.
+2. **Actions → Release → Run workflow**, from `main`, version `x.y.z`
+   (`.github/workflows/release.yml`). It refuses, in a minute and before
+   anything is published, unless every one of these holds, and it lists each:
+   - it was run from `main`, and `main`'s `package.json` says `x.y.z`;
+   - CHANGELOG.md has a `[x.y.z]` section, and the tag `vx.y.z` is not taken;
+   - milestone `x.y.z` exists and has **no open issues**;
+   - CI's run of that very commit on `main` is **all green**.
+3. **It publishes what CI built**, nothing rebuilt: the pre-release `vx.y.z`
+   with every installer from that run (each checked to carry that version),
+   `SHA256SUMS.txt`, and the CHANGELOG section as its notes. The tag is created
+   on the commit that was built. CI keeps `main`'s build 90 days. The
+   Microsoft Store package stays with CI's run, for upload to Partner Center.
+4. **It closes the milestone and updates the feed**, so Early offers `x.y.z`.
 5. **Promote**, when it has proved itself and KI7MT says so: Actions →
    **Promote** → Run workflow, with the version. It marks the same
-   pre-release a full release and Latest. Nothing is rebuilt. Then the Stable
-   feed.
+   pre-release a full release and Latest. Nothing is rebuilt. Then the feed
+   again, so Stable offers it.
 
 ## Fixing a released version
 
@@ -298,10 +304,11 @@ is updated by the Store and never updates itself.
 ### The feed
 
 One small file, `https://updates.qso-graph.io/desktop.json`, is all an
-installed copy asks. Today it lives in its own public repository,
-`qso-graph/qso-graph-desktop-updates`, served by GitHub Pages at that name
-through a CNAME in the qso-graph.io zone; it moves into this repository so
-the Release workflow can update it *(not built yet)*. The application knows only the
+installed copy asks. It is published by this repository's own GitHub Pages
+(`.github/workflows/feed.yml`, run by Release and Promote, and by hand to
+rebuild it), at that name through a CNAME in the qso-graph.io zone, so no
+other repository and no stored credential is involved. (It was a repository of
+its own, `qso-graph/qso-graph-desktop-updates`, until 0.2.1.) The application knows only the
 address, in `data/update-sources.json`, which the credential core builds in;
 where the address points can change by DNS, with no release. That register
 also names the hosts a download may come from: GitHub's release hosts, any
@@ -324,12 +331,17 @@ never to say what they are: the feed says that.
 ```
 
 Stable is offered `stable`; Early the newer of `stable` and `early`. A track
-the application cannot read offers nothing. Each change to the feed is a
-commit in its repository, so what was offered, and when, is on record, and
-reverting a commit withdraws a bad release.
+the application cannot read offers nothing.
 
-`node scripts/release.mjs feed <early|stable> <version> SHA256SUMS.txt desktop.json`
-writes a track's entry from the release's own `SHA256SUMS.txt`.
+**The feed is worked out from the Releases page every time**, never edited:
+`stable` is the release GitHub marks Latest, `early` the newest release of
+either kind, and each one's files and SHA-256 come from that release's own
+`SHA256SUMS.txt` (`node scripts/release.mjs tracks` and `feed`). So the feed
+cannot disagree with the Releases page, and **a bad release is withdrawn on
+the Releases page** (back to a draft, or Latest moved to the one before),
+then **Actions → Update feed → Run workflow**. Each publish is a deployment
+of the `github-pages` Environment, so what was offered, and when, is on
+record.
 - **Private:** checking for updates is going online, so **Check for updates**
   is a switch in Settings, **on** by default, and Privacy names it. It asks
   this repository's releases what is newest and sends nothing about the
@@ -337,16 +349,14 @@ writes a track's entry from the release's own `SHA256SUMS.txt`.
 
 ## Not built yet
 
-What this document describes but CI does not do yet, in the order it will be
-built (the first pass of milestone 0.3.0, released as 0.2.1):
+What this document describes but is not in place yet, in the order it will
+be done:
 
-1. **The Release workflow** (Actions → Release, with the version): its checks
-   (version, tag, CHANGELOG section, milestone closed), publishing the
-   pre-release, the Early feed, closing the milestone. Until it exists, a
-   release is published as before, by a pull request into `main`.
-2. **Merging into `main` stops publishing**, once the Release workflow does.
-3. **The update feed moves into this repository**, at the same address.
-4. **GitHub settings:** `main` becomes the default branch, and `develop` is
-   retired along with the "protect main and develop" ruleset's reference to
-   it.
-5. A package repository for deb and rpm.
+1. **GitHub settings, once 0.2.1's pull request is merged** (the workflows
+   are built; these are KI7MT's): `main` becomes the default branch;
+   `develop` is deleted and dropped from the "protect main and develop"
+   ruleset and from both signing Environments; GitHub Pages is turned on for
+   this repository with **GitHub Actions** as its source, its
+   `github-pages` Environment allows `main`, and the custom domain
+   `updates.qso-graph.io` moves here from `qso-graph-desktop-updates`.
+2. A package repository for deb and rpm.

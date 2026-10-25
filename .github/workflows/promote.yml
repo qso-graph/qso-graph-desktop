@@ -2,7 +2,8 @@
 # Promote a proven pre-release to a full release (docs/RELEASES.md): the same
 # release, its same files, marked a release and Latest. Nothing is rebuilt or
 # renamed, so what was tested is what ships. Run by hand, when KI7MT says so:
-# Actions → Promote → Run workflow, with the version.
+# Actions → Promote → Run workflow, with the version. Then the update feed
+# names it on the Stable track (feed.yml).
 name: Promote
 
 on:
@@ -56,3 +57,12 @@ jobs:
           }
           gh release edit "$tag" --repo "$REPO" --prerelease=false --latest
           gh release view "$tag" --repo "$REPO" --json tagName,isPrerelease -q '"\(.tagName) pre-release=\(.isPrerelease)"'
+
+  feed:
+    name: update feed
+    needs: [promote]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/feed.yml
