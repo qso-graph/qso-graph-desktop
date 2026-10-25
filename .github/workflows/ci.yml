@@ -6,38 +6,15 @@
 name: CI
 
 on:
-  # Documentation alone builds nothing (KI7MT, 2026-10-24: "I am not going
-  # through this build process for docs and readme updates"). AGENTS.md,
-  # CLAUDE.md and the pull request template are documentation too (#95:
-  # the release-flow rewrite built, and was cancelled, because AGENTS.md
-  # was missing). A change that
-  # touches only these files starts no run; one that touches anything else as
-  # well builds as normal. Not ignored, on purpose: the spec (CI checks the
-  # RVM generated from it) and CHANGELOG.md (it ships as What's New).
+  # Every change starts a run, documentation included, so the one required
+  # check ("all green", at the end) always reports (#95). The plan decides what
+  # a change needs: a documentation-only change runs the citation check alone,
+  # in about a minute, and builds nothing (KI7MT, 2026-10-24: "I am not going
+  # through this build process for docs and readme updates").
   push:
     branches: [develop, main]
-    paths-ignore:
-      - 'README.md'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
-      - 'PRIVACY.md'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
-      - '.github/pull_request_template.md'
-      - 'guide/**'
-      - 'docs/**'
   pull_request:
     branches: [develop, main]
-    paths-ignore:
-      - 'README.md'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
-      - 'PRIVACY.md'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
-      - '.github/pull_request_template.md'
-      - 'guide/**'
-      - 'docs/**'
   # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
   # time, so they are paid once a night and on releases, never on an
   # ordinary push. GitHub runs a schedule from the default branch, main, so
@@ -82,7 +59,43 @@ jobs:
       sign: ${{ steps.plan.outputs.sign }}
       preview: ${{ steps.plan.outputs.preview }}
       run: ${{ steps.plan.outputs.run }}
+      docs_only: ${{ steps.docs.outputs.docs_only }}
+    # Reading which files a pull request changed needs to read the pull request.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
+      # Documentation only: every changed file is one of these. Not on the list,
+      # on purpose: the spec (CI checks the RVM generated from it) and
+      # CHANGELOG.md (it ships as What's New). A push that opens a branch, a
+      # night's run and a run by hand are never documentation-only.
+      - id: docs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          files=""
+          case "$EVENT" in
+            pull_request) files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename') ;;
+            push) if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+                    files=$(gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" --jq '.files[].filename'); fi ;;
+          esac
+          docs_only=false
+          # A line that is not documentation means it isn't documentation-only.
+          # grep -v with output to /dev/null, not -q: -q with -v differs between
+          # grep implementations, and this must mean the same everywhere.
+          if [ -n "$files" ] && ! printf '%s\n' "$files" \
+              | grep -vE '^(README\.md|CONTRIBUTING\.md|SECURITY\.md|PRIVACY\.md|AGENTS\.md|CLAUDE\.md|\.github/pull_request_template\.md|guide/.+|docs/.+)$' >/dev/null; then
+            docs_only=true
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          printf 'Changed files:\n%s\ndocumentation only: %s\n' "${files:-(none read)}" "$docs_only"
       - id: plan
         shell: bash
         env:
@@ -114,10 +127,23 @@ jobs:
           { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "preview=$preview"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
           echo "event=$EVENT ref=${ref:-$REF} sign=$sign preview=$preview run=$run"
 
+  # Every requirement ID a Markdown file cites exists in the spec (#95). It
+  # runs on every change, documentation-only ones included, because those
+  # build nothing else.
+  citations:
+    name: citations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: node scripts/check-citations.mjs
+
   check:
     name: check (${{ matrix.os }})
     needs: [plan]
-    if: ${{ needs.plan.outputs.run == 'true' && !inputs.mac_only }}
+    if: ${{ needs.plan.outputs.run == 'true' && needs.plan.outputs.docs_only != 'true' && !inputs.mac_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -195,7 +221,7 @@ jobs:
   window:
     name: window (${{ matrix.os }})
     needs: [plan]
-    if: ${{ needs.plan.outputs.run == 'true' && !inputs.mac_only }}
+    if: ${{ needs.plan.outputs.run == 'true' && needs.plan.outputs.docs_only != 'true' && !inputs.mac_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -654,3 +680,29 @@ jobs:
             --title "QSO Graph Desktop ${version}" --notes-file ../notes.md -- *)
           gh release view "v${version}" --repo "$REPO" --json tagName,isPrerelease,assets \
             -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'
+
+  # All green (#95): the one check the repository's rules require before a
+  # merge. It always reports, documentation-only changes included: the plan
+  # and the citation check must pass, and so must every build job the plan
+  # asked for. A job the plan skipped (documentation only, a night with
+  # nothing new, a macOS-only run's other platforms) is not a failure; a job
+  # that failed or was cancelled is.
+  all-green:
+    name: all green
+    needs: [plan, citations, check, window, package]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - shell: bash
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(printf '%s' "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key')
+          for must in plan citations; do
+            [ "$(printf '%s' "$NEEDS" | jq -r --arg j "$must" '.[$j].result')" = success ] || bad="$bad $must"
+          done
+          if [ -n "${bad// /}" ]; then echo "Not green: $bad" >&2; exit 1; fi
+          echo "All green."

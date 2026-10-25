@@ -28,7 +28,11 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 5. **Only the Release workflow publishes.** KI7MT decides when; it is run on
    his word ("release 0.2.1"), by him or by an agent, and the run records who.
 6. **Nobody pushes to `main`.** Every change reaches it by a pull request that
-   KI7MT merges, with a merge commit. Work is authored by an agent and merged
+   KI7MT merges, with a merge commit, and **only once CI's "all green" check
+   has passed**: a required check, so a red pull request cannot be merged.
+   Documentation-only changes run just the citation check (every `QGD-…` ID a
+   Markdown file cites must exist in the spec), about a minute, and build
+   nothing else. Work is authored by an agent and merged
    by KI7MT, so each change is merged by someone other than its author, which
    is what OpenSSF Scorecard's code-review check asks. A change KI7MT authors
    and merges himself does not meet that check; that is accepted, and rare.
@@ -43,7 +47,7 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 | **`main`** | | | always |
 | **`feature/x.y.z`** | `main`, when milestone `x.y.z` starts | `main`, by one pull request, when every issue in the milestone is validated | the length of the milestone |
 | **`x.y.x`** (`0.2.x`) | the release's tag, `v0.2.0` | released from itself; never merged back | only when an already released version needs a fix: rare |
-| **`docs/<topic>`** | `main` | `main` | a documentation-only change: no build runs, merged at once |
+| **`docs/<topic>`** | `main` | `main` | a documentation-only change: only the citation check runs (a minute), then merged |
 
 The author deletes a branch once it is merged, everywhere it exists, by name, never
 in bulk.
@@ -165,7 +169,9 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 milestone's branch. **Every change starts from an issue** (KI7MT, 2026-10-25),
 so the history reads issue, commits naming it (`#91: …`), the build it was
 validated on, and **a CHANGELOG line that cites it** (`(#91)`). Changes a user
-can't see (CI, process, documentation) need an issue but no CHANGELOG line. `release.mjs prepare` renames that heading to the version
+can't see (CI, process, documentation) need an issue but no CHANGELOG line.
+
+`release.mjs prepare` renames that heading to the version
 and date, and the release's notes on GitHub are that section. The CHANGELOG
 also ships inside the application as What's New, which is why a change to it
 always builds.
@@ -338,5 +344,8 @@ built (the first pass of milestone 0.3.0, released as 0.2.1):
 3. **Merging into `main` stops publishing**, once the Release workflow does.
 4. **The update feed moves into this repository**, at the same address.
 5. **GitHub settings:** `main` becomes the default branch, `develop` is
-   retired, and the signing Environments allow `feature/*` and `x.y.x`.
+   retired along with the "protect main and develop" ruleset's reference to
+   it, the signing Environments allow `feature/*` and `x.y.x` (in their own
+   deployment branch rules), and **"all green" is a required check** on
+   `main`.
 6. A package repository for deb and rpm.
