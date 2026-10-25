@@ -33,7 +33,7 @@ you when a newer version is out.
 
 Download `…-mac-arm64.dmg` (Apple silicon), open it, and drag **QSO Graph Desktop** to
 **Applications**. Open it from Applications, not from the disk image: the first time, macOS asks
-whether to open an app downloaded from the internet. It is signed and notarized by Apple.
+whether to open an app downloaded from the internet. It is signed by Greg Beam (KI7MT) with an Apple Developer ID, and notarized by Apple.
 
 ## The portable build
 

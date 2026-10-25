@@ -328,8 +328,8 @@ jobs:
   # deb, rpm and zip on Linux. A zip is the portable build: unpack it and run
   # it. Kept for a week.
   #
-  # Signed builds (QGD-SCP-0005): macOS with the project's Developer ID and
-  # notarized by Apple, Windows in KI7MT's name. Signed are main, the night's
+  # Signed builds (QGD-SCP-0005), both in KI7MT's name: macOS with his Apple
+  # Developer ID (Greg Beam) and notarized by Apple, Windows as Gregory Beam. Signed are main, the night's
   # build, a run by hand on develop or main, and a validation build of a
   # milestone's or a fix's pull request (#92). The secrets are in the
   # macos-signing and windows-signing Environments; a fork's run gets none of
@@ -693,7 +693,7 @@ jobs:
             echo "- **Linux arm64:** $(link linux-arm64.AppImage) · $(link linux-arm64.deb) · $(link linux-aarch64.rpm)"
             echo
             if [ "$SIGNED" = true ]; then
-              echo "Windows is signed by Gregory Beam (KI7MT); macOS is signed and notarized by Apple."
+              echo "Signed by KI7MT: Windows as **Gregory Beam**, macOS as **Greg Beam** (Apple Developer ID) and notarized by Apple. Each certificate shows the name as Microsoft or Apple verified it."
             else
               echo "Not signed: only a milestone's or a fix's branch is."
             fi
@@ -752,7 +752,7 @@ jobs:
             echo "For testing what is coming, not for running your station (docs/RELEASES.md). Rebuilt each night develop has changed."
             echo
             echo "- **Windows:** signed by Gregory Beam (KI7MT). The signature is new, so Edge may say the file isn't commonly downloaded (**Keep**), and Windows may say it protected your PC: **More info** shows the publisher, then **Run anyway**."
-            echo "- **macOS:** signed and notarized by Apple."
+            echo "- **macOS:** signed by Greg Beam (KI7MT) with an Apple Developer ID, and notarized by Apple."
             echo "- A **.zip** is the portable build: unpack it anywhere and run it."
             echo
             echo "Check a download against **SHA256SUMS.txt**."
