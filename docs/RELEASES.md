@@ -28,7 +28,13 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 5. **Only the Release workflow publishes.** KI7MT decides when; it is run on
    his word ("release 0.2.1"), by him or by an agent, and the run records who.
 6. **Nobody pushes to `main`.** Every change reaches it by a pull request that
-   KI7MT merges, with a merge commit.
+   KI7MT merges, with a merge commit. Work is authored by an agent and merged
+   by KI7MT, so each change is merged by someone other than its author, which
+   is what OpenSSF Scorecard's code-review check asks. A change KI7MT authors
+   and merges himself does not meet that check; that is accepted, and rare.
+7. **This governs QSO Graph Desktop.** The qso-graph MCP repositories keep
+   their own release workflow for now, until this one is settled and they are
+   brought in line.
 
 ## Branches
 
@@ -125,10 +131,15 @@ in bulk.
 Rare: most fixes simply go into the next milestone. When an already released
 version must be fixed and the next milestone isn't close:
 
-1. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist.
-2. The fix, as its own pull request into `0.2.x`, validated on its build, and
+1. **Pick the version first.** A fix to a released version takes the **next
+   free patch number** (`0.2.1` after `0.2.0`). If the open milestone already
+   holds that number, the milestone moves up (to `0.2.2`, or the next minor)
+   before anything is built: two builds must never claim one version or one
+   tag.
+2. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist.
+3. The fix, as its own pull request into `0.2.x`, validated on its build, and
    the same fix made on `main` too, in the current milestone.
-3. **Release** from `0.2.x`, version `0.2.1`.
+4. **Release** from `0.2.x`, with the version chosen in step 1.
 
 ## Versions
 
@@ -178,8 +189,12 @@ Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
   checked.
 - The signing Environments release their secrets only to this repository's
   own branches (`main`, and `feature/*` and `x.y.x` for validation builds),
-  never to a fork's pull request. They are KI7MT's; no agent holds or sees
-  them.
+  never to a fork's pull request. **That is enforced by each Environment's own
+  deployment branch rules in the repository's settings,** not by a condition
+  in the workflow: a workflow condition can be edited in the same pull
+  request that would misuse it, and the Environment's rules cannot. A fork's
+  pull request cannot reach an Environment's secrets at all. The secrets are
+  KI7MT's; no agent holds or sees them.
 
 ## File names
 

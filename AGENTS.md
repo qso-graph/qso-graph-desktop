@@ -179,7 +179,8 @@ and no demonstration extension, which is why this repository now has none either
 
 ## How work is reviewed: three roles, different models
 
-Every change passes through three separate roles before it reaches `main`. Using **different
+Every change passes through three separate roles on its pull request, before KI7MT validates
+it on that pull request's own build and merges it into `main`. Using **different
 models** for them is deliberate: a model is poorest at catching its own blind spots.
 
 | Role | Who (typically) | Job |
