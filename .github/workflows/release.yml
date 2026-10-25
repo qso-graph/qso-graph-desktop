@@ -8,8 +8,9 @@
 # of main's commit and passed as "all green", so what was tested is what
 # ships. Before anything is published it refuses unless every check holds:
 # run from main, main says this version, CHANGELOG.md has its section, its
-# tag is free, its milestone has no open issue, and CI is green on that
-# commit. Then the pre-release vx.y.z (tagging the commit built), the
+# tag is free, its milestone has no open issue, and CI's newest all-green
+# build of main packaged every platform, with nothing but documentation
+# since. Then the pre-release vx.y.z (tagging the commit built), the
 # milestone closed, and the Early update feed. Promoting it to Stable is
 # promote.yml.
 name: Release
@@ -41,6 +42,7 @@ jobs:
       issues: read
     outputs:
       run: ${{ steps.ready.outputs.run }}
+      sha: ${{ steps.ready.outputs.sha }}
       milestone: ${{ steps.ready.outputs.milestone }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,16 +83,33 @@ jobs:
             [ "$open" = 0 ] && echo "✓ milestone ${VERSION} has no open issue" || fail "milestone ${VERSION} has ${open} open issue(s)"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
-          # CI's run of this very commit, on main, and its "all green".
-          run=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&event=push&branch=main&per_page=20" \
-            --jq '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success")][0].id // empty')
+          # The build to publish: CI's newest run on main that is all green
+          # and packaged all four platforms. A documentation-only merge since
+          # builds nothing (#95), so that run may be of an earlier commit; it
+          # is taken only if every change after it is documentation, which
+          # never touches package.json, CHANGELOG.md or the spec (found by
+          # Codex, #94). The release is tagged on the commit that was built.
+          built="" run=""
+          for candidate in $(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?event=push&branch=main&status=success&per_page=30" \
+              --jq '.workflow_runs[] | "\(.id):\(.head_sha)"'); do
+            jobs=$(gh api "repos/${REPO}/actions/runs/${candidate%%:*}/jobs?per_page=100" \
+              --jq '[.jobs[] | select(.conclusion == "success") | .name] | map(select(. == "all green" or startswith("package ("))) | length')
+            if [ "$jobs" = 5 ]; then run=${candidate%%:*}; built=${candidate#*:}; break; fi
+          done
           if [ -z "$run" ]; then
-            fail "CI has no successful run of ${GITHUB_SHA} on main"
+            fail "CI has no all-green run on main that packaged every platform"
+          elif [ "$built" = "$GITHUB_SHA" ]; then
+            echo "✓ CI is all green and packaged ${GITHUB_SHA} (run ${run})"
           else
-            green=$(gh api "repos/${REPO}/actions/runs/${run}/jobs?per_page=100" --jq '[.jobs[] | select(.name == "all green" and .conclusion == "success")] | length')
-            [ "$green" -ge 1 ] && echo "✓ CI is all green on ${GITHUB_SHA} (run ${run})" || fail "CI run ${run} is not all green"
-            echo "run=${run}" >> "$GITHUB_OUTPUT"
+            after=$(gh api "repos/${REPO}/compare/${built}...${GITHUB_SHA}" --jq '.files[] | .filename, (.previous_filename // empty)')
+            if [ "$(printf '%s\n' "$after" | node scripts/docs-only.mjs)" = true ]; then
+              echo "✓ CI is all green and packaged ${built} (run ${run}); since then, documentation only"
+            else
+              fail "CI's newest packaged build is ${built}, and main has changed since: wait for CI's run of ${GITHUB_SHA}"
+            fi
           fi
+          echo "run=${run}" >> "$GITHUB_OUTPUT"
+          echo "sha=${built}" >> "$GITHUB_OUTPUT"
           if [ "$problems" -gt 0 ]; then echo "Not released: ${problems} check(s) failed." >&2; exit 1; fi
 
   publish:
@@ -123,6 +142,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           VERSION: ${{ inputs.version }}
+          BUILT: ${{ needs.checks.outputs.sha }}
         run: |
           set -euo pipefail
           # Every file carries this version: nothing from another build rides along.
@@ -148,7 +168,7 @@ jobs:
             echo "Check a download against **SHA256SUMS.txt**."
           } > notes.md
           # Refuses if the tag exists, so a release is never published twice.
-          (cd release && gh release create "v${VERSION}" --repo "$REPO" --prerelease --target "$GITHUB_SHA" \
+          (cd release && gh release create "v${VERSION}" --repo "$REPO" --prerelease --target "$BUILT" \
             --title "QSO Graph Desktop ${VERSION}" --notes-file ../notes.md -- *)
           gh release view "v${VERSION}" --repo "$REPO" --json tagName,isPrerelease,assets \
             -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'
