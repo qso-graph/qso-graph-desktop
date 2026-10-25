@@ -626,6 +626,9 @@ jobs:
             if ($LASTEXITCODE -ne $case.Want) { throw "$($case.What): exit $LASTEXITCODE, wanted $($case.Want)" }
             Write-Output "OK: $($case.What)"
           }
+          # The last case's 11 is the answer wanted, but GitHub's PowerShell
+          # step ends with the last exit code it saw, so say so explicitly.
+          exit 0
       # Installed as an operator installs it, silently here, so the installer's
       # own steps run, then launched and driven: the credential core must
       # answer (#91; the Mac's signed build has the same suite).
