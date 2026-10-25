@@ -355,8 +355,10 @@ jobs:
     environment: ${{ needs.plan.outputs.sign == 'true' && (matrix.os == 'macos-latest' && 'macos-signing' || matrix.os == 'windows-latest' && 'windows-signing' || '') || '' }}
     permissions:
       contents: read
-      # GitHub's token for Azure, used only by the Windows signing step.
+      # GitHub's token: for Azure, by the Windows signing step, and for
+      # Sigstore, by the provenance step (#83).
       id-token: write
+      attestations: write
     env:
       SIGN_MAC: ${{ matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true' }}
       SIGN_WIN: ${{ matrix.os == 'windows-latest' && needs.plan.outputs.sign == 'true' }}
@@ -660,6 +662,24 @@ jobs:
           # main's build is the one a release publishes, so it is kept long
           # enough to wait for the Release button (#94).
           retention-days: ${{ github.event_name == 'push' && needs.plan.outputs.sign == 'true' && 90 || 7 }}
+      # Build provenance (#83): GitHub signs, in Sigstore's public transparency
+      # log, that each installer was built by this workflow in this repository
+      # from this commit. Nobody can make one for this repository, a fork
+      # included, so it is what tells an official download from any other
+      # (gh attestation verify <file> -R qso-graph/qso-graph-desktop). Only for
+      # the builds that may be published: main, the night's Preview, a fix
+      # branch; never a pull request's.
+      - name: Provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            out/*.dmg
+            out/*.exe
+            out/*.AppImage
+            out/*.deb
+            out/*.rpm
+            out/*.zip
 
   # The installers of a pull request's build (#92), each its own download,
   # not zipped, under its own file name, and one comment on the pull request
@@ -785,12 +805,24 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      attestations: read
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: qso-graph-desktop-*
           path: preview
           merge-multiple: true
+      # Every file has this repository's CI provenance before it is put up (#83).
+      - name: Provenance verifies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for file in preview/*; do
+            gh attestation verify "$file" -R "$REPO" --signer-workflow "${REPO}/.github/workflows/ci.yml" >/dev/null
+            echo "✓ $(basename "$file")"
+          done
       - name: Replace the Preview pre-release
         env:
           GH_TOKEN: ${{ github.token }}

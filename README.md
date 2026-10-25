@@ -9,6 +9,12 @@
   <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="Platforms: Windows, Linux, macOS">
 </p>
 
+<p align="center">
+  <a href="#verify-your-download"><img src="https://img.shields.io/badge/Windows-signed-2ea44f" alt="Windows: signed, how to check"></a>
+  <a href="#verify-your-download"><img src="https://img.shields.io/badge/macOS-notarized-2ea44f" alt="macOS: notarized, how to check"></a>
+  <a href="https://github.com/qso-graph/qso-graph-desktop/attestations"><img src="https://img.shields.io/badge/Provenance-attested-2ea44f" alt="Provenance: attested, the attestations"></a>
+</p>
+
 # QSO Graph Desktop
 
 **A desktop home for your station.** Your callsigns, your logins for the services hams use, and
@@ -31,6 +37,26 @@ file for your computer:
 Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
 application checks for updates once a day (Stable or Early, or off, in Settings) and never
 restarts without asking. The [install page](guide/install.md) has the details.
+
+### Verify your download
+
+Anyone can copy this project and publish a build of their own. An official download proves it is
+one, three ways. **If it doesn't verify, it isn't an official build.**
+
+- **Who published it.**
+  - **Windows:** right-click the `.exe` → **Properties** → **Digital Signatures**. It says
+    **Gregory Beam**.
+  - **Linux:** packages aren't signed yet; the next two checks cover them.
+  - **macOS:** in Terminal, `spctl -a -vv "/Applications/QSO Graph Desktop.app"` says *accepted*,
+    *Notarized Developer ID*, *Developer ID Application: Greg Beam*.
+- **That it wasn't changed.** Its SHA-256 matches the release's `SHA256SUMS.txt`: on Windows,
+  `certutil -hashfile <file> SHA256`; on Linux, `sha256sum -c SHA256SUMS.txt --ignore-missing`;
+  on macOS, `shasum -a 256 <file>`.
+- **Where it came from.** GitHub signs, in a public log, that each file was built by this
+  repository's CI from a named commit. Nobody can make that for this repository, a copy of it
+  included. With [GitHub's `gh`](https://cli.github.com/):
+  `gh attestation verify <file> -R qso-graph/qso-graph-desktop`. Every one is on the
+  [attestations page](https://github.com/qso-graph/qso-graph-desktop/attestations).
 
 **The Preview** (*Preview of 0.x.y*, at the top of the Releases page) is the newest build of
 `main`, rebuilt each night it has changed: for testing what is coming, not for running your

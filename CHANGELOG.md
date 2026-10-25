@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **You can check that a download is an official build**, and who published it: the README's
+  *Verify your download* shows how on Windows, Linux and macOS. Every published file now carries
+  GitHub's signed record that this project's own build made it. (#83)
+
 ### Fixed
 
 - **QSO Graph Desktop works on a freshly installed Windows 11.** It needs Microsoft's Visual C++

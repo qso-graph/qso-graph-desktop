@@ -212,6 +212,14 @@ Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
   and the Store signs its own package.
 - **Linux:** packages are unsigned; `SHA256SUMS.txt` lets a download be
   checked.
+- **Provenance, every platform (#83):** CI attests each installer of a build
+  that may be published (`main`, the Preview, a fix branch; never a pull
+  request's): GitHub signs, in Sigstore's public log, that this repository's
+  `ci.yml` built it from that commit. The Preview job and the Release workflow
+  verify every file before publishing it, and Release attests the
+  `SHA256SUMS.txt` it makes. Anyone checks one with `gh attestation verify
+  <file> -R qso-graph/qso-graph-desktop`; README's *Verify your download*
+  says how, for each platform.
 - The signing Environments release their secrets to `main` and, for
   validation builds, to pull requests: GitHub checks a pull request's run
   against `refs/pull/*/merge`, never against its branch's name, so that is the

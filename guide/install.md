@@ -2,7 +2,8 @@
 
 Everything is on the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). No
 account is needed to download. Each file's name says the version and what it is for, and
-`SHA256SUMS.txt` beside them lets you check a download.
+`SHA256SUMS.txt` beside them lets you check a download. To check that a download is an official
+build, and who published it, see [Verify your download](../README.md#verify-your-download).
 
 ## Windows
 
