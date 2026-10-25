@@ -353,6 +353,11 @@ jobs:
     env:
       SIGN_MAC: ${{ matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true' }}
       SIGN_WIN: ${{ matrix.os == 'windows-latest' && needs.plan.outputs.sign == 'true' }}
+      # electron-builder skips signing in any pull request's run unless told
+      # otherwise, a guard against a fork's code signing with the project's
+      # keys. A validation build (#92) is signed on purpose and only for our
+      # own branches; a fork's run gets no secrets and no Azure token at all.
+      CSC_FOR_PULL_REQUEST: ${{ needs.plan.outputs.pr != '' && needs.plan.outputs.sign == 'true' }}
     strategy:
       fail-fast: false
       matrix:
