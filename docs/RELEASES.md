@@ -162,7 +162,10 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 ## Release notes
 
 `CHANGELOG.md` collects changes under **Unreleased** as they land on a
-milestone's branch. `release.mjs prepare` renames that heading to the version
+milestone's branch. **Every change starts from an issue** (KI7MT, 2026-10-25),
+so the history reads issue, commits naming it (`#91: …`), the build it was
+validated on, and **a CHANGELOG line that cites it** (`(#91)`). Changes a user
+can't see (CI, process, documentation) need an issue but no CHANGELOG line. `release.mjs prepare` renames that heading to the version
 and date, and the release's notes on GitHub are that section. The CHANGELOG
 also ships inside the application as What's New, which is why a change to it
 always builds.

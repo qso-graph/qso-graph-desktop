@@ -7,7 +7,10 @@ name: CI
 
 on:
   # Documentation alone builds nothing (KI7MT, 2026-10-24: "I am not going
-  # through this build process for docs and readme updates"). A change that
+  # through this build process for docs and readme updates"). AGENTS.md,
+  # CLAUDE.md and the pull request template are documentation too (#95:
+  # the release-flow rewrite built, and was cancelled, because AGENTS.md
+  # was missing). A change that
   # touches only these files starts no run; one that touches anything else as
   # well builds as normal. Not ignored, on purpose: the spec (CI checks the
   # RVM generated from it) and CHANGELOG.md (it ships as What's New).
@@ -18,6 +21,9 @@ on:
       - 'CONTRIBUTING.md'
       - 'SECURITY.md'
       - 'PRIVACY.md'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.github/pull_request_template.md'
       - 'guide/**'
       - 'docs/**'
   pull_request:
@@ -27,6 +33,9 @@ on:
       - 'CONTRIBUTING.md'
       - 'SECURITY.md'
       - 'PRIVACY.md'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.github/pull_request_template.md'
       - 'guide/**'
       - 'docs/**'
   # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
