@@ -85,23 +85,45 @@ jobs:
           EVENT: ${{ github.event_name }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          ACTION: ${{ github.event.action }}
           BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          # The files one push changed, from the commit before it to its own.
+          compared() {
+            gh api "repos/${REPO}/compare/$1...$2" > "$RUNNER_TEMP/compare.json" || return 0
+            [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -lt 300 ] \
+              && jq -r '.files[] | .filename, (.previous_filename // empty)' "$RUNNER_TEMP/compare.json"
+            return 0
+          }
+          # Whether the commit before this push passed "all green": only then
+          # may a documentation-only push skip the build, so a red pull request
+          # cannot turn green on a change to a Markdown file (#101).
+          green() {
+            [ "$(gh api "repos/${REPO}/commits/$1/check-runs?check_name=all%20green&per_page=100" \
+              --jq '[.check_runs[] | select(.conclusion == "success")] | length' 2>/dev/null || echo 0)" -ge 1 ]
+          }
           # GitHub lists at most 3,000 files of a pull request and 300 of a
           # comparison; a list that may be partial is never documentation-only
           # (found by Codex, #94), so an empty one is passed on and builds all.
           files=""
           case "$EVENT" in
             pull_request)
-              listed=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
-              count=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename' | wc -l)
-              [ "$count" -eq "$(gh api "repos/${REPO}/pulls/${PR}" --jq .changed_files)" ] && files=$listed ;;
-            push) if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
-                    gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" > "$RUNNER_TEMP/compare.json"
-                    [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -lt 300 ] \
-                      && files=$(jq -r '.files[] | .filename, (.previous_filename // empty)' "$RUNNER_TEMP/compare.json"); fi ;;
+              # A push to an open pull request is judged by what that push
+              # changed (#101), not by the whole pull request: once it held
+              # any code, every later push built for an hour, even a one-line
+              # change to the docs. Opening or reopening it is judged whole.
+              if [ "$ACTION" = synchronize ] && [ -n "$BEFORE" ]; then
+                if green "$BEFORE"; then files=$(compared "$BEFORE" "$AFTER"); fi
+              else
+                listed=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+                count=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename' | wc -l)
+                [ "$count" -eq "$(gh api "repos/${REPO}/pulls/${PR}" --jq .changed_files)" ] && files=$listed
+              fi ;;
+            push) if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] && green "$BEFORE"; then
+                    files=$(compared "$BEFORE" "$SHA"); fi ;;
           esac
           docs_only=$(printf '%s\n' "$files" | node scripts/docs-only.mjs)
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
