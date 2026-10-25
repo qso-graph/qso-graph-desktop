@@ -57,9 +57,11 @@ in bulk.
 1. **KI7MT defines the milestone:** its version and its issues.
 2. **`feature/x.y.z` is created from `main`.** Its first commit sets the
    version in `package.json` (and its lock) to `x.y.z`.
-3. **Its pull request into `main` is opened at once, as a draft.** Every push
-   to the branch builds a **validation build** (below), and its installer links
-   are posted on the pull request.
+3. **Its pull request into `main` is opened with the first fix**, as a draft,
+   not before: a pull request with nothing in it builds for an hour and has
+   nothing to test (KI7MT, 2026-10-25). From then on every push to the branch
+   builds a **validation build** (below), and its installer links are posted
+   on the pull request.
 4. **The issues are worked one at a time.** Each commit names its issue
    (`#91: …`). When an issue's fix is in, KI7MT installs that validation build
    and tries it. The issue records **"validated on x.y.z-pr<N>.<commit>"**
