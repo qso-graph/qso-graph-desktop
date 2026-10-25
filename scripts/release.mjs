@@ -1,20 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The release steps that are text, not builds (docs/RELEASES.md).
 //
-//   node scripts/release.mjs prepare            develop, before the release PR:
-//                                               [Unreleased] becomes this version
-//                                               and today's date, under a new
-//                                               empty [Unreleased]
-//   node scripts/release.mjs check              CI on main: the version is a plain
-//                                               release and CHANGELOG has its section
+//   node scripts/release.mjs prepare            the milestone's branch, once its
+//                                               issues are closed: [Unreleased]
+//                                               becomes this version and today's
+//                                               date, under a new empty [Unreleased]
+//   node scripts/release.mjs check              the Release workflow: the version is
+//                                               a plain release and CHANGELOG has
+//                                               its section
 //   node scripts/release.mjs notes <version>    that section, the release's notes
 //   node scripts/release.mjs next <minor|patch|major>
-//                                               develop, after a release: the next
-//                                               version in package.json and its lock
+//                                               a new milestone's branch: its version
+//                                               in package.json and its lock
+//   node scripts/release.mjs tracks <releases.json>
+//                                               which version each update track
+//                                               names, from the published releases
+//                                               (gh release list --json), as
+//                                               stable=… and early=… lines
 //   node scripts/release.mjs feed <early|stable> <version> <SHA256SUMS.txt> <desktop.json>
 //                                               the update feed's entry for a track,
-//                                               from what the release published, in
-//                                               the updates repository's file
+//                                               from what the release published
 //
 // Offline, and it changes nothing but CHANGELOG.md, package.json and
 // package-lock.json. Whether the tag is already taken is the workflow's
@@ -57,7 +62,7 @@ export function prepare(changelog, version, date) {
 export function check(changelog, version) {
   if (!isRelease(version)) return `${version} is not a release version: main builds MAJOR.MINOR.PATCH only.`;
   const body = notes(changelog, version);
-  if (body === undefined) return `CHANGELOG.md has no "## [${version}] - YYYY-MM-DD" section: run "node scripts/release.mjs prepare" on develop first.`;
+  if (body === undefined) return `CHANGELOG.md has no "## [${version}] - YYYY-MM-DD" section: run "node scripts/release.mjs prepare" on the milestone's branch first.`;
   if (body === '') return `CHANGELOG.md's section for ${version} is empty.`;
   return undefined;
 }
@@ -105,6 +110,26 @@ export function withEntry(feed, track, entry) {
   return { ...base, [track]: entry };
 }
 
+// Which version each track names (#94), worked out from the published
+// releases each time, so the feed holds no state of its own and is never
+// edited by hand: Stable is the release GitHub marks Latest; Early is the
+// newest release of either kind, so it is Stable when nothing newer is out.
+// Drafts, Previews and anything not tagged vMAJOR.MINOR.PATCH are not
+// releases. A track with none is null.
+export function tracks(releases) {
+  const published = releases
+    .filter(release => !release.isDraft && /^v\d+\.\d+\.\d+$/.test(release.tagName) && isRelease(release.tagName.slice(1)))
+    .map(release => ({ ...release, version: release.tagName.slice(1) }));
+  const newer = (a, b) => {
+    const [x, y] = [a, b].map(v => v.version.split('.').map(Number));
+    for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] > y[i] ? a : b;
+    return a;
+  };
+  const latest = published.find(release => release.isLatest && !release.isPrerelease);
+  const early = published.reduce((best, release) => (best ? newer(best, release) : release), undefined);
+  return { stable: latest ? latest.version : null, early: early ? early.version : null };
+}
+
 // The first `count` "version": "<from>" lines become `to`: package.json has
 // one, its lock two (the lock's own, and the root package's).
 export function withVersion(text, from, to, count) {
@@ -123,6 +148,12 @@ function writeJson(path, value) {
 }
 
 function main([command, argument]) {
+  if (command === 'tracks') {
+    if (!argument) { console.error('Usage: node scripts/release.mjs tracks <releases.json>'); return 2; }
+    const { stable, early } = tracks(readJson(argument));
+    process.stdout.write(`stable=${stable ?? ''}\nearly=${early ?? ''}\n`);
+    return 0;
+  }
   const version = readJson('package.json').version;
   const changelog = readFileSync('CHANGELOG.md', 'utf8');
   switch (command) {
@@ -163,7 +194,7 @@ function main([command, argument]) {
       return 0;
     }
     default:
-      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch> | feed <track> <version> <sums> <feed>');
+      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed>');
       return 2;
   }
 }

@@ -348,7 +348,9 @@ try {
   await expect(page.locator('#update-strip')).toHaveCount(0);
   await setup('setup-whats-new');
   await expect(page.locator('#whats-new')).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('#whats-new section').first()).toBeVisible();
+  // Notes, or the plain line that there are none yet: at the start of a
+  // milestone the version is set before any notes are written for it (#97).
+  await expect(page.locator('#whats-new section, #whats-new-empty').first()).toBeVisible();
   await page.locator('#close-whats-new').click();
   await expect(page.locator('#whats-new')).toHaveCount(0);
   console.log('Help -> What\'s New opens the changelog\'s notes; nothing opens by itself: PASS');

@@ -9,6 +9,12 @@
   <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="Platforms: Windows, Linux, macOS">
 </p>
 
+<p align="center">
+  <a href="#verify-your-download"><img src="https://img.shields.io/badge/Windows-signed-2ea44f" alt="Windows: signed, how to check"></a>
+  <a href="#verify-your-download"><img src="https://img.shields.io/badge/macOS-notarized-2ea44f" alt="macOS: notarized, how to check"></a>
+  <a href="https://github.com/qso-graph/qso-graph-desktop/attestations"><img src="https://img.shields.io/badge/Provenance-attested-2ea44f" alt="Provenance: attested, the attestations"></a>
+</p>
+
 # QSO Graph Desktop
 
 **A desktop home for your station.** Your callsigns, your logins for the services hams use, and
@@ -24,13 +30,33 @@ file for your computer:
 
 | Computer | File | Then |
 |---|---|---|
-| **Windows** | `…-win-x64.exe` | Run it. From 0.2.0 the installer is signed by **Gregory Beam (KI7MT)**. The signature is new, so Edge may say the file *isn't commonly downloaded* (choose **Keep**), and Windows may say it *protected your PC*: **More info** shows *Publisher: Gregory Beam*, then **Run anyway**. Installers before 0.2.0 aren't signed. A Microsoft Store listing, without those warnings, is planned with 0.2.0. |
+| **Windows** | `…-win-x64.exe` | Run it. From 0.2.0 the installer is signed by **Gregory Beam (KI7MT)**. The signature is new, so Edge may say the file *isn't commonly downloaded* (choose **Keep**), and Windows may say it *protected your PC*: **More info** shows *Publisher: Gregory Beam*, then **Run anyway**. Installers before 0.2.0 aren't signed. A Microsoft Store listing, without those warnings, is planned. |
 | **Linux** | `…-linux-x86_64.AppImage` (PC) or `…-linux-arm64.AppImage` (Raspberry Pi 5) | Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too. |
-| **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed and notarized by Apple. |
+| **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed by **Greg Beam (KI7MT)** with an Apple Developer ID, and notarized by Apple. |
 
 Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
 application checks for updates once a day (Stable or Early, or off, in Settings) and never
 restarts without asking. The [install page](guide/install.md) has the details.
+
+### Verify your download
+
+Anyone can copy this project and publish a build of their own. An official download proves it is
+one, three ways. **If it doesn't verify, it isn't an official build.**
+
+- **Who published it.**
+  - **Windows:** right-click the `.exe` → **Properties** → **Digital Signatures**. It says
+    **Gregory Beam**.
+  - **Linux:** packages aren't signed yet; the next two checks cover them.
+  - **macOS:** in Terminal, `spctl -a -vv "/Applications/QSO Graph Desktop.app"` says *accepted*,
+    *Notarized Developer ID*, *Developer ID Application: Greg Beam*.
+- **That it wasn't changed.** Its SHA-256 matches the release's `SHA256SUMS.txt`: on Windows,
+  `certutil -hashfile <file> SHA256`; on Linux, `sha256sum -c SHA256SUMS.txt --ignore-missing`;
+  on macOS, `shasum -a 256 <file>`.
+- **Where it came from.** GitHub signs, in a public log, that each file was built by this
+  repository's CI from a named commit. Nobody can make that for this repository, a copy of it
+  included. With [GitHub's `gh`](https://cli.github.com/):
+  `gh attestation verify <file> -R qso-graph/qso-graph-desktop`. Every one is on the
+  [attestations page](https://github.com/qso-graph/qso-graph-desktop/attestations).
 
 **The Preview** (*Preview of 0.x.y*, at the top of the Releases page) is the newest build of
 `main`, rebuilt each night it has changed: for testing what is coming, not for running your

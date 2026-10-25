@@ -2,7 +2,8 @@
 # Promote a proven pre-release to a full release (docs/RELEASES.md): the same
 # release, its same files, marked a release and Latest. Nothing is rebuilt or
 # renamed, so what was tested is what ships. Run by hand, when KI7MT says so:
-# Actions → Promote → Run workflow, with the version.
+# Actions → Promote → Run workflow, with the version. Then the update feed
+# names it on the Stable track (feed.yml).
 name: Promote
 
 on:
@@ -48,11 +49,23 @@ jobs:
             "false "*) echo "$tag is already a full release." >&2; exit 1 ;;
             *) echo "$tag has no SHA256SUMS.txt: it is not a release this repository built." >&2; exit 1 ;;
           esac
-          # The tag's commit is on main: only a release PR's build is promoted.
+          # The tag's commit is on main, or on its own fix branch (0.2.x for
+          # 0.2.1): only what the Release workflow built is promoted.
           commit=$(gh api "repos/${REPO}/commits/${tag}" -q .sha)
-          gh api "repos/${REPO}/compare/main...${commit}" -q .status | grep -qx -e identical -e behind || {
-            echo "$tag is not a commit on main." >&2
+          fix="${VERSION%.*}.x"
+          on() { gh api "repos/${REPO}/compare/$1...${commit}" -q .status 2>/dev/null | grep -qx -e identical -e behind; }
+          on main || on "$fix" || {
+            echo "$tag is not a commit on main or ${fix}." >&2
             exit 1
           }
           gh release edit "$tag" --repo "$REPO" --prerelease=false --latest
           gh release view "$tag" --repo "$REPO" --json tagName,isPrerelease -q '"\(.tagName) pre-release=\(.isPrerelease)"'
+
+  feed:
+    name: update feed
+    needs: [promote]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/feed.yml

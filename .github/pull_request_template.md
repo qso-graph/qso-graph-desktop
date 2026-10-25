@@ -11,7 +11,8 @@ Closes #
 ## Verification
 
 - [ ] `make verify` on macOS (Apple silicon): PASS / FAIL (paste the summary line)
-- [ ] `codex review --base develop`: findings and how each was resolved
+- [ ] `codex review --base main`: findings and how each was resolved
+- [ ] Each issue in this pull request: validated on its build (`x.y.z-pr<N>.<commit>`), and that recorded on the issue
 
 ## Credentials
 

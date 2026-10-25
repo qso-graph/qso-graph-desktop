@@ -89,12 +89,15 @@ No credentials or real station data belong in this repository.
   ([docs/RELEASES.md](docs/RELEASES.md)).
 - **Maintainers work one milestone at a time,** on one branch named for its version
   (`feature/0.2.1`), with one pull request into `main`. Each fix is validated on that pull
-  request's own build before it is merged.
+  request's own build before it is merged: a comment on the pull request links that build's
+  installers, and its version (`0.2.1-pr96.c0b8250`) is the one the issue records.
 - **Outside contributions:** fork the repository and open a pull request into `main` from a
   branch of your own (`fix-…`, `feat-…`, `docs-…`). KI7MT decides when it is merged, usually
   as part of the current milestone.
-- **Documentation-only changes** (README, the guide, `docs/`) build nothing and can be merged
-  straight away.
+- **Documentation-only changes** (README, the guide, `docs/`, AGENTS.md) build nothing: CI only
+  checks that every requirement ID they cite exists in the spec, in about a minute.
+- **"All green" must pass before anything is merged.** It's CI's final check, and it reports on
+  every change.
 - **Commits:** one logical change each, with a message that explains why. Merge commits, not
   squash, so contributors' history and credit are kept.
 - **Outside contributions** are credited in [CHANGELOG.md](CHANGELOG.md).

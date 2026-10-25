@@ -28,7 +28,11 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 5. **Only the Release workflow publishes.** KI7MT decides when; it is run on
    his word ("release 0.2.1"), by him or by an agent, and the run records who.
 6. **Nobody pushes to `main`.** Every change reaches it by a pull request that
-   KI7MT merges, with a merge commit. Work is authored by an agent and merged
+   KI7MT merges, with a merge commit, and **only once CI's "all green" check
+   has passed**: a required check, so a red pull request cannot be merged.
+   Documentation-only changes run just the citation check (every `QGD-…` ID a
+   Markdown file cites must exist in the spec), about a minute, and build
+   nothing else. Work is authored by an agent and merged
    by KI7MT, so each change is merged by someone other than its author, which
    is what OpenSSF Scorecard's code-review check asks. A change KI7MT authors
    and merges himself does not meet that check; that is accepted, and rare.
@@ -43,7 +47,7 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 | **`main`** | | | always |
 | **`feature/x.y.z`** | `main`, when milestone `x.y.z` starts | `main`, by one pull request, when every issue in the milestone is validated | the length of the milestone |
 | **`x.y.x`** (`0.2.x`) | the release's tag, `v0.2.0` | released from itself; never merged back | only when an already released version needs a fix: rare |
-| **`docs/<topic>`** | `main` | `main` | a documentation-only change: no build runs, merged at once |
+| **`docs/<topic>`** | `main` | `main` | a documentation-only change: only the citation check runs (a minute), then merged |
 
 The author deletes a branch once it is merged, everywhere it exists, by name, never
 in bulk.
@@ -59,7 +63,12 @@ in bulk.
 4. **The issues are worked one at a time.** Each commit names its issue
    (`#91: …`). When an issue's fix is in, KI7MT installs that validation build
    and tries it. The issue records **"validated on x.y.z-pr<N>.<commit>"**
-   and is closed.
+   and is closed: KI7MT says it is validated, and the agent working the
+   milestone writes that comment and closes the issue. A change nobody can see
+   in the application (CI, a test, the documentation) is validated by the CI
+   run that proves it, which the comment names. GitHub's "Fixes #N" is not
+   used: it closes an issue at the merge, after validation should already
+   have happened.
 5. **When every issue is closed:** the release checks on a lab machine
    (screenshots and the gallery, as before), `node scripts/release.mjs prepare`
    (CHANGELOG.md's `[Unreleased]` becomes `[x.y.z] - <date>`), a final
@@ -72,22 +81,26 @@ in bulk.
 
 | Kind | Built from | Version | Where it goes | For |
 |---|---|---|---|---|
-| **Validation build** | each push to a milestone's pull request | `x.y.z-pr<N>.<commit>`: `0.2.1-pr92.a1b2c3d` | installers attached to that CI run, linked from the pull request | validating each issue's fix *(not built yet)* |
+| **Validation build** | each push to a pull request from this repository's own branch | `x.y.z-pr<N>.<commit>`: `0.2.1-pr96.c0b8250` | that CI run's files, one download each, linked from one comment on the pull request | validating each issue's fix |
 | **Preview** | `main`, each night it has changed | `<version>-<YYYYMMDDHHMM>-<commit>` | **one** pre-release, **Preview of x.y.z**, tag `vx.y.z-preview`, replaced each night | daily testing; never issue validation |
 | **Pre-release** | the **Release** workflow, from `main` | `x.y.z`, no suffix | a pre-release, tag `vx.y.z`, on the Early track | the release, before it is called final |
 | **Release** | the same pre-release, **promoted** | unchanged | marked a full release and Latest, on the Stable track | everyone |
 
-### Validation builds *(not built yet)*
+### Validation builds
 
-- Stamped `x.y.z-pr<N>.<commit>` (the pull request's number and the first 7
-  characters of the commit), so the installed application's title bar and
-  Settings → About say exactly what is being tested.
+- Built from the branch's own commit, not GitHub's merge of it into `main`,
+  and stamped `x.y.z-pr<N>.<commit>` (the pull request's number and the first
+  7 characters of that commit), so the installed application's title bar and
+  Settings → About say exactly what is being tested. A validation build never
+  updates itself.
 - **Signed** like a release (Windows: Gregory Beam; macOS: Developer ID,
-  notarized), for branches of this repository only, never a fork's: the
-  signing Environments allow `feature/*` and `x.y.x`.
-- When the build finishes, it posts one comment on the pull request with
-  links to that run's installers. GitHub keeps them 30 days, and downloading
-  them needs a GitHub sign-in.
+  notarized) when the branch is a milestone's (`feature/x.y.z`) or a fix's
+  (`x.y.x`). Other branches of this repository build unsigned; a fork's pull
+  request gets no validation build at all, only the checks.
+- When the build finishes, one comment on the pull request links each
+  installer, unzipped and under its own file name. Each new build edits that
+  comment, so it always shows the latest. GitHub keeps the files 14 days, and
+  downloading them needs a GitHub sign-in.
 
 ### Previews
 
@@ -108,23 +121,24 @@ in bulk.
 
 1. **The milestone's pull request is merged** (step 5 above), so `main` has
    the version, the CHANGELOG section and every validated fix.
-2. **Actions → Release → Run workflow**, version `x.y.z` *(not built yet)*.
-   It refuses, in minutes and before any packaging, unless:
-   - `main`'s `package.json` says `x.y.z`, and the tag `vx.y.z` is not taken;
-   - CHANGELOG.md has a `[x.y.z]` section;
-   - milestone `x.y.z` has **no open issues**.
-3. **It builds, tests, signs and publishes** the pre-release `vx.y.z`: every
-   installer (each checked to carry that version), `SHA256SUMS.txt`, and the
-   CHANGELOG section as its notes. The tag is created on the commit that was
-   built. The Microsoft Store package is kept with the run, for upload to
-   Partner Center.
-4. **It updates the Early feed** to `x.y.z` *(not built yet: the feed moves
-   into this repository so the workflow can publish it with this repository's
-   own permission)*, and **closes the milestone**.
+   Merging builds, tests and signs `main`'s commit, and publishes nothing.
+2. **Actions → Release → Run workflow**, from `main`, version `x.y.z`
+   (`.github/workflows/release.yml`). It refuses, in a minute and before
+   anything is published, unless every one of these holds, and it lists each:
+   - it was run from `main`, and `main`'s `package.json` says `x.y.z`;
+   - CHANGELOG.md has a `[x.y.z]` section, and the tag `vx.y.z` is not taken;
+   - milestone `x.y.z` exists and has **no open issues**;
+   - CI's run of that very commit on `main` is **all green**.
+3. **It publishes what CI built**, nothing rebuilt: the pre-release `vx.y.z`
+   with every installer from that run (each checked to carry that version),
+   `SHA256SUMS.txt`, and the CHANGELOG section as its notes. The tag is created
+   on the commit that was built. CI keeps `main`'s build 90 days. The
+   Microsoft Store package stays with CI's run, for upload to Partner Center.
+4. **It closes the milestone and updates the feed**, so Early offers `x.y.z`.
 5. **Promote**, when it has proved itself and KI7MT says so: Actions →
    **Promote** → Run workflow, with the version. It marks the same
-   pre-release a full release and Latest. Nothing is rebuilt. Then the Stable
-   feed.
+   pre-release a full release and Latest. Nothing is rebuilt. Then the feed
+   again, so Stable offers it.
 
 ## Fixing a released version
 
@@ -136,10 +150,16 @@ version must be fixed and the next milestone isn't close:
    holds that number, the milestone moves up (to `0.2.2`, or the next minor)
    before anything is built: two builds must never claim one version or one
    tag.
-2. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist.
-3. The fix, as its own pull request into `0.2.x`, validated on its build, and
-   the same fix made on `main` too, in the current milestone.
-4. **Release** from `0.2.x`, with the version chosen in step 1.
+2. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist,
+   and a milestone named for the version, holding the fix's issue. Its first
+   commit sets that version.
+3. The fix, as its own pull request into `0.2.x`, validated on its build
+   (signed, as a milestone's is), and the same fix made on `main` too, in the
+   current milestone.
+4. **Release** from `0.2.x`: Actions → Release → Run workflow, **Use workflow
+   from** `0.2.x`, with the version chosen in step 1. Its checks are the same,
+   against that branch and CI's build of it. **Promote** accepts a tag on
+   `0.2.x` as it does one on `main`.
 
 ## Versions
 
@@ -162,7 +182,12 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 ## Release notes
 
 `CHANGELOG.md` collects changes under **Unreleased** as they land on a
-milestone's branch. `release.mjs prepare` renames that heading to the version
+milestone's branch. **Every change starts from an issue** (KI7MT, 2026-10-25),
+so the history reads issue, commits naming it (`#91: …`), the build it was
+validated on, and **a CHANGELOG line that cites it** (`(#91)`). Changes a user
+can't see (CI, process, documentation) need an issue but no CHANGELOG line.
+
+`release.mjs prepare` renames that heading to the version
 and date, and the release's notes on GitHub are that section. The CHANGELOG
 also ships inside the application as What's New, which is why a change to it
 always builds.
@@ -187,14 +212,24 @@ Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
   and the Store signs its own package.
 - **Linux:** packages are unsigned; `SHA256SUMS.txt` lets a download be
   checked.
-- The signing Environments release their secrets only to this repository's
-  own branches (`main`, and `feature/*` and `x.y.x` for validation builds),
-  never to a fork's pull request. **That is enforced by each Environment's own
-  deployment branch rules in the repository's settings,** not by a condition
-  in the workflow: a workflow condition can be edited in the same pull
-  request that would misuse it, and the Environment's rules cannot. A fork's
-  pull request cannot reach an Environment's secrets at all. The secrets are
-  KI7MT's; no agent holds or sees them.
+- **Provenance, every platform (#83):** CI attests each installer of a build
+  that may be published (`main`, the Preview, a fix branch; never a pull
+  request's): GitHub signs, in Sigstore's public log, that this repository's
+  `ci.yml` built it from that commit. The Preview job and the Release workflow
+  verify every file before publishing it, and Release attests the
+  `SHA256SUMS.txt` it makes. Anyone checks one with `gh attestation verify
+  <file> -R qso-graph/qso-graph-desktop`; README's *Verify your download*
+  says how, for each platform.
+- The signing Environments release their secrets to `main` and, for
+  validation builds, to pull requests: GitHub checks a pull request's run
+  against `refs/pull/*/merge`, never against its branch's name, so that is the
+  rule each Environment carries. **A fork's pull request still never signs,**
+  and not because of a condition in the workflow, which the same pull request
+  could edit: GitHub gives a run from a fork no secrets and no token Azure
+  would accept, whatever its workflow asks for. The workflow's own check (this
+  repository's branch, `feature/x.y.z` or `x.y.x`) only keeps other branches
+  of ours from spending signing time. The secrets are KI7MT's; no agent holds
+  or sees them.
 
 ## File names
 
@@ -283,10 +318,11 @@ is updated by the Store and never updates itself.
 ### The feed
 
 One small file, `https://updates.qso-graph.io/desktop.json`, is all an
-installed copy asks. Today it lives in its own public repository,
-`qso-graph/qso-graph-desktop-updates`, served by GitHub Pages at that name
-through a CNAME in the qso-graph.io zone; it moves into this repository so
-the Release workflow can update it *(not built yet)*. The application knows only the
+installed copy asks. It is published by this repository's own GitHub Pages
+(`.github/workflows/feed.yml`, run by Release and Promote, and by hand to
+rebuild it), at that name through a CNAME in the qso-graph.io zone, so no
+other repository and no stored credential is involved. (It was a repository of
+its own, `qso-graph/qso-graph-desktop-updates`, until 0.2.1.) The application knows only the
 address, in `data/update-sources.json`, which the credential core builds in;
 where the address points can change by DNS, with no release. That register
 also names the hosts a download may come from: GitHub's release hosts, any
@@ -309,12 +345,17 @@ never to say what they are: the feed says that.
 ```
 
 Stable is offered `stable`; Early the newer of `stable` and `early`. A track
-the application cannot read offers nothing. Each change to the feed is a
-commit in its repository, so what was offered, and when, is on record, and
-reverting a commit withdraws a bad release.
+the application cannot read offers nothing.
 
-`node scripts/release.mjs feed <early|stable> <version> SHA256SUMS.txt desktop.json`
-writes a track's entry from the release's own `SHA256SUMS.txt`.
+**The feed is worked out from the Releases page every time**, never edited:
+`stable` is the release GitHub marks Latest, `early` the newest release of
+either kind, and each one's files and SHA-256 come from that release's own
+`SHA256SUMS.txt` (`node scripts/release.mjs tracks` and `feed`). So the feed
+cannot disagree with the Releases page, and **a bad release is withdrawn on
+the Releases page** (back to a draft, or Latest moved to the one before),
+then **Actions → Update feed → Run workflow**. Each publish is a deployment
+of the `github-pages` Environment, so what was offered, and when, is on
+record.
 - **Private:** checking for updates is going online, so **Check for updates**
   is a switch in Settings, **on** by default, and Privacy names it. It asks
   this repository's releases what is newest and sends nothing about the
@@ -322,18 +363,17 @@ writes a track's entry from the release's own `SHA256SUMS.txt`.
 
 ## Not built yet
 
-What this document describes but CI does not do yet, in the order it will be
-built (the first pass of milestone 0.3.0, released as 0.2.1):
+What this document describes but is not in place yet, in the order it will
+be done:
 
-1. **Validation builds:** a pull request's build stamped
-   `x.y.z-pr<N>.<commit>`, signed for this repository's own branches, with its
-   installer links posted on the pull request.
-2. **The Release workflow** (Actions → Release, with the version): its checks
-   (version, tag, CHANGELOG section, milestone closed), publishing the
-   pre-release, the Early feed, closing the milestone. Until it exists, a
-   release is published as before, by a pull request into `main`.
-3. **Merging into `main` stops publishing**, once the Release workflow does.
-4. **The update feed moves into this repository**, at the same address.
-5. **GitHub settings:** `main` becomes the default branch, `develop` is
-   retired, and the signing Environments allow `feature/*` and `x.y.x`.
-6. A package repository for deb and rpm.
+1. **GitHub settings, once 0.2.1's pull request is merged** (the workflows
+   are built; these are KI7MT's): `main` becomes the default branch;
+   `develop` is **frozen, not deleted**: it stays, locked against pushes,
+   because every copy up to 0.2.0 opens Help's documents from it (0.2.1 and
+   later read `main`), and is deleted once those copies have updated. It is
+   dropped from both signing Environments, which gain the fix branches
+   (`*.*.x`) instead; GitHub Pages is turned on for this repository with
+   **GitHub Actions** as its source, its `github-pages` Environment allows
+   `main` and `*.*.x`, and the custom domain `updates.qso-graph.io` moves here
+   from `qso-graph-desktop-updates`.
+2. A package repository for deb and rpm.

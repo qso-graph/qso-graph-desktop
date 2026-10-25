@@ -16,7 +16,9 @@ export type ReferenceKind = typeof REFERENCE_KINDS[number];
 // (KI7MT, 2026-10-22: Home's welcome names them).
 // `releases` is where to get the application (KI7MT, 2026-10-22): the
 // Releases page, now that the Preview and releases are published there.
-export const SITES = ['adif', 'pota', 'sota', 'iota', 'releases'] as const;
+// `vcruntime` is Microsoft's page for its Visual C++ runtime, for a Windows
+// PC that lacks it (#91).
+export const SITES = ['adif', 'pota', 'sota', 'iota', 'releases', 'vcruntime'] as const;
 export type SiteName = typeof SITES[number];
 
 export type LinkCommand =

@@ -2,15 +2,23 @@
 
 Everything is on the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). No
 account is needed to download. Each file's name says the version and what it is for, and
-`SHA256SUMS.txt` beside them lets you check a download.
+`SHA256SUMS.txt` beside them lets you check a download. To check that a download is an official
+build, and who published it, see [Verify your download](../README.md#verify-your-download).
 
 ## Windows
 
 Download `…-win-x64.exe` and run it. Choose where to install it and whether it is for you alone or
 everyone on the computer, and it adds itself to the Start menu.
 
-The Windows build is not signed yet, so the first time it runs SmartScreen says *Windows protected
-your PC*. Choose **More info**, then **Run anyway**. It does not ask again.
+It is signed by Gregory Beam (KI7MT). The signature is new, so Edge may say the file *isn't commonly
+downloaded* (choose **Keep**), and Windows may say it *protected your PC*: **More info** shows the
+publisher, then **Run anyway**. It does not ask again.
+
+QSO Graph Desktop needs Microsoft's **Visual C++ runtime**, which a brand-new Windows PC may not
+have yet. If yours doesn't, the installer downloads Microsoft's own installer from Microsoft, checks
+that Microsoft signed it, and runs it: Windows asks once for an administrator's permission. If that
+can't happen (no internet while installing, say), QSO Graph Desktop tells you when it starts, with a
+button to Microsoft's page.
 
 ## Linux
 
@@ -33,12 +41,13 @@ you when a newer version is out.
 
 Download `…-mac-arm64.dmg` (Apple silicon), open it, and drag **QSO Graph Desktop** to
 **Applications**. Open it from Applications, not from the disk image: the first time, macOS asks
-whether to open an app downloaded from the internet. It is signed and notarized by Apple.
+whether to open an app downloaded from the internet. It is signed by Greg Beam (KI7MT) with an Apple Developer ID, and notarized by Apple.
 
 ## The portable build
 
 Each platform also has a `.zip`. Unpack it anywhere, a USB stick included, and run it: nothing is
-installed. To keep its data beside it rather than in your user folder, make a folder named
+installed (on Windows it still needs Microsoft's Visual C++ runtime, above). To keep its data beside
+it rather than in your user folder, make a folder named
 `qso-graph-data` next to the application before the first start. Your logins are never put in that
 folder: each computer keeps its own, in its own credential store.
 

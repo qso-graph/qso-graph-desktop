@@ -27,7 +27,9 @@
   {#if notes === undefined}
     <p class="hint">Reading the notes…</p>
   {:else if notes.sections.length === 0}
-    <p class="hint">No notes for this version.</p>
+    <!-- Correct at the start of a milestone: the version is set before any
+         notes are written for it (#97). -->
+    <p class="hint" id="whats-new-empty">No notes for this version.</p>
   {:else}
     {#each notes.sections as section (section.version)}
       <section aria-label={title(section.version, section.date)}>

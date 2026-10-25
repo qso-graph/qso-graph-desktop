@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -17,7 +17,12 @@ import { enableTestKeychain } from './keychain-service.mjs';
 // credential, and are swept on exit (QGD-CRD-0003). Called before the core is
 // loaded, because the service name is read when an entry is made.
 enableTestKeychain();
-const binary = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/MacOS/QSO Graph Desktop');
+// The packaged application: the signed Mac bundle, or on Windows the copy the
+// installer put on the runner (QG_PACKAGED_APP, set by CI after a silent
+// install, #91), so the installer's own steps run before it is launched.
+const binary = process.env.QG_PACKAGED_APP
+  ? resolve(process.env.QG_PACKAGED_APP)
+  : resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/MacOS/QSO Graph Desktop');
 const directory = await mkdtemp(join(tmpdir(), 'qg-packaged-smoke-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');
@@ -44,7 +49,16 @@ let credentialSaved = false;
 async function stop() {
   await browser?.close().catch(() => {}); browser = undefined;
   if (child && child.exitCode === null && child.signalCode === null) {
-    const exited = once(child, 'exit'); child.kill('SIGTERM');
+    const exited = once(child, 'exit');
+    // On Windows a kill ends the main process only, and the application's
+    // storage process kept state.sqlite open after it, so the run's folder
+    // could not be deleted (#91's installed-build run). Its whole process
+    // tree, there; the fixed system path, with an argument list.
+    if (process.platform === 'win32') {
+      spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      child.kill('SIGTERM');
+    }
     await Promise.race([exited, setTimeout(5000)]);
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   }
@@ -239,6 +253,14 @@ try {
   console.error('Packaged callsign test failed.');
   console.error(redact(error.message).split('\n').slice(0, 15).join('\n'));
   process.exitCode = 1;
+  // What the window showed and what the application logged, kept in report/
+  // for CI to upload: the run's folder is deleted below, and a failure on one
+  // platform alone (the installed Windows build, #91) cannot be guessed at.
+  // The logs are the application's own, redacted as they were written, and
+  // the credential in this run is the suite's fake.
+  await mkdir('report', { recursive: true }).catch(() => {});
+  await page?.screenshot({ path: join('report', 'packaged-launch.png'), fullPage: true }).catch(() => {});
+  await cp(logs, join('report', 'packaged-launch-logs'), { recursive: true }).catch(() => {});
 } finally {
   if (credentialSaved && page) {
     for (const provider of ['qrz_logbook', 'eqsl']) {
@@ -249,5 +271,6 @@ try {
       }, { description, provider }).catch(() => {});
     }
   }
-  await stop(); await rm(directory, { recursive: true, force: true });
+  // Retried: a file a process held open a moment ago may still be closing.
+  await stop(); await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
 }
