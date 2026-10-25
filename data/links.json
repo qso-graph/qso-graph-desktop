@@ -1,7 +1,7 @@
 {
-  "what": "Every web page the application may open in the operator's browser (QGD-SEC-0009, QGD-FRM-0015, QGD-STN-0011). A page is opened only from here: Help's documents by name, and a park or summit by a reference checked against its form. Before Release 1 the documents are read from develop, which is where they are; Release 1 changes the branch to main.",
+  "what": "Every web page the application may open in the operator's browser (QGD-SEC-0009, QGD-FRM-0015, QGD-STN-0011). A page is opened only from here: Help's documents by name, and a park or summit by a reference checked against its form. The documents are read from main, the one branch (#94).",
   "documents": {
-    "base": "https://github.com/qso-graph/qso-graph-desktop/blob/develop/",
+    "base": "https://github.com/qso-graph/qso-graph-desktop/blob/main/",
     "pages": {
       "guide": "guide/README.md",
       "privacy": "PRIVACY.md",

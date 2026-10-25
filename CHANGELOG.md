@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Help's documents open from the main branch**, which is where they are kept now. (#94)
+
 ## [0.2.0] - 2026-10-25
 
 ### Changed

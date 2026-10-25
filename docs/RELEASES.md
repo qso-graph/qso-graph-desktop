@@ -360,8 +360,10 @@ be done:
 
 1. **GitHub settings, once 0.2.1's pull request is merged** (the workflows
    are built; these are KI7MT's): `main` becomes the default branch;
-   `develop` is deleted and dropped from the "protect main and develop"
-   ruleset and from both signing Environments, which gain the fix branches
+   `develop` is **frozen, not deleted**: it stays, locked against pushes,
+   because every copy up to 0.2.0 opens Help's documents from it (0.2.1 and
+   later read `main`), and is deleted once those copies have updated. It is
+   dropped from both signing Environments, which gain the fix branches
    (`*.*.x`) instead; GitHub Pages is turned on for this repository with
    **GitHub Actions** as its source, its `github-pages` Environment allows
    `main` and `*.*.x`, and the custom domain `updates.qso-graph.io` moves here
