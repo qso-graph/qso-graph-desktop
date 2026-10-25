@@ -6,10 +6,29 @@
 name: CI
 
 on:
+  # Documentation alone builds nothing (KI7MT, 2026-10-24: "I am not going
+  # through this build process for docs and readme updates"). A change that
+  # touches only these files starts no run; one that touches anything else as
+  # well builds as normal. Not ignored, on purpose: the spec (CI checks the
+  # RVM generated from it) and CHANGELOG.md (it ships as What's New).
   push:
     branches: [develop, main]
+    paths-ignore:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'PRIVACY.md'
+      - 'guide/**'
+      - 'docs/**'
   pull_request:
     branches: [develop, main]
+    paths-ignore:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'PRIVACY.md'
+      - 'guide/**'
+      - 'docs/**'
   # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
   # time, so they are paid once a night and on releases, never on an
   # ordinary push. GitHub runs a schedule from the default branch, main, so
@@ -70,7 +89,8 @@ jobs:
             schedule)
               ref=develop
               sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/develop | cut -f1)
-              published=$(git ls-remote "https://github.com/${REPO}.git" refs/tags/preview | cut -f1)
+              # The Preview's tag is v<next>-preview (the preview job).
+              published=$(git ls-remote "https://github.com/${REPO}.git" 'refs/tags/v*-preview' | head -n1 | cut -f1)
               sign=true; preview=true
               if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "develop is already the Preview ($sha)."; fi
               ;;
@@ -270,10 +290,18 @@ jobs:
     # After both test jobs pass; or alone, for a macOS-only run by hand.
     if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
     # The signing secrets reach only a run plan says signs, and the
-    # Environment itself releases them only on develop and main.
-    environment: ${{ (matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true') && 'macos-signing' || '' }}
+    # Environment itself releases them only on develop and main. Windows
+    # signs as KI7MT through Azure Artifact Signing (#81): no secret at all,
+    # GitHub's own token is trusted by Azure for the windows-signing
+    # Environment of this repository alone.
+    environment: ${{ needs.plan.outputs.sign == 'true' && (matrix.os == 'macos-latest' && 'macos-signing' || matrix.os == 'windows-latest' && 'windows-signing' || '') || '' }}
+    permissions:
+      contents: read
+      # GitHub's token for Azure, used only by the Windows signing step.
+      id-token: write
     env:
       SIGN_MAC: ${{ matrix.os == 'macos-latest' && needs.plan.outputs.sign == 'true' }}
+      SIGN_WIN: ${{ matrix.os == 'windows-latest' && needs.plan.outputs.sign == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -346,8 +374,50 @@ jobs:
           npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${commit::11}"
           node -p "require('./package.json').version"
       - name: Installers
-        if: env.SIGN_MAC != 'true'
+        if: env.SIGN_MAC != 'true' && env.SIGN_WIN != 'true'
         run: npm run installer
+      # Windows, signed in KI7MT's name (#81). Azure is signed in to with
+      # GitHub's token for this Environment, so no credential is held. The
+      # three IDs only say which Azure app, directory and subscription;
+      # they are kept as the Environment's secrets so they stay masked and
+      # out of the public repository and its logs.
+      - name: Azure sign-in for signing (Windows)
+        if: env.SIGN_WIN == 'true'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # electron-builder signs each executable, the native core (signExts in
+      # package.json: a list, which -c on the command line cannot give; #84,
+      # found by Turing) and the installer with Microsoft's TrustedSigning
+      # module, which uses the sign-in above. The account, profile and endpoint are names, not
+      # secrets; the publisher is the certificate's, as Windows shows it.
+      - name: Installers, signed (Windows)
+        if: env.SIGN_WIN == 'true'
+        shell: bash
+        run: >-
+          npm run installer --
+          -c.win.azureSignOptions.publisherName="Gregory Beam"
+          -c.win.azureSignOptions.endpoint=https://wus2.codesigning.azure.net
+          -c.win.azureSignOptions.codeSigningAccountName=qsographsigning
+          -c.win.azureSignOptions.certificateProfileName=qso-graph
+      # What Windows will say: every executable, the native core and the
+      # installer validly signed, by Gregory Beam and nobody else.
+      - name: Signatures (Windows)
+        if: env.SIGN_WIN == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem out\*.exe) + @(Get-ChildItem out\win-unpacked\*.exe) + @(Get-ChildItem -Recurse out\win-unpacked -Filter *.node)
+          if ($files.Count -lt 3) { throw "Expected the installer, the application and the native core; found $($files.Count) file(s)." }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature $file.FullName
+            $subject = $signature.SignerCertificate.Subject
+            Write-Output "$($file.Name): $($signature.Status), $subject"
+            if ($signature.Status -ne 'Valid') { throw "$($file.Name) is not validly signed: $($signature.StatusMessage)" }
+            if ($subject -notmatch '(^|, )CN=Gregory Beam(,|$)') { throw "$($file.Name) is signed by someone else: $subject" }
+          }
       # Signed and notarized. The secrets reach this step and no other. The
       # notarization key is written to the runner's temporary folder, which
       # is removed with the runner, because electron-builder takes a path.
@@ -422,6 +492,26 @@ jobs:
       - name: The signed build launches (macOS)
         if: env.SIGN_MAC == 'true'
         run: npm run verify -- --suites packaged-launch
+      # The Microsoft Store package (KI7MT, 2026-10-24): an MSIX made from the
+      # application just built, for KI7MT to upload to Partner Center. The
+      # Store hosts it and signs it itself, so it is not signed here and not
+      # offered as a download; it is its own artifact, kept out of the
+      # Preview's files. Its identity comes from Partner Center
+      # (package.json build.appx).
+      # Built on every Windows run, a PR's included, so a change that breaks
+      # it is caught before it merges.
+      - name: Microsoft Store package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: npx electron-builder --win appx --x64 --prepackaged out/win-unpacked --publish never
+      - name: Microsoft Store package, for upload (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: microsoft-store-package
+          path: out/*.appx
+          if-no-files-found: error
+          retention-days: 30
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
       - run: npm run verify -- --suites package-contents
@@ -467,18 +557,31 @@ jobs:
           sha256sum -- * > SHA256SUMS.txt
           ls -la
           version=$(ls qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's/^qso-graph-desktop-(.*)-linux-x86_64\.AppImage$/\1/')
+          # The release it previews: 0.2.0 from 0.2.0-202610242217-5b9f1d97905.
+          next=${version%%-*}
+          # Tagged v<next>-preview, so GitHub's Releases page, which sorts by
+          # version and puts a tag that is not one last, shows it at the top,
+          # above every released version and below <next> once that is out
+          # (KI7MT, 2026-10-24: "they are not visible on my screen").
+          tag="v${next}-preview"
           {
-            echo "Built from develop at ${SHA}: version ${version}."
+            echo "**A preview of ${next}**, built from develop at ${SHA} (version ${version})."
             echo
-            echo "A preview to test, not a release (docs/RELEASES.md). Rebuilt each night develop has changed."
-            echo "The macOS build is signed and notarized. Windows is unsigned for now, so SmartScreen warns the first time it runs."
+            echo "For testing what is coming, not for running your station (docs/RELEASES.md). Rebuilt each night develop has changed."
             echo
-            echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
+            echo "- **Windows:** signed by Gregory Beam (KI7MT). The signature is new, so Edge may say the file isn't commonly downloaded (**Keep**), and Windows may say it protected your PC: **More info** shows the publisher, then **Run anyway**."
+            echo "- **macOS:** signed and notarized by Apple."
+            echo "- A **.zip** is the portable build: unpack it anywhere and run it."
+            echo
             echo "Check a download against **SHA256SUMS.txt**."
           } > ../notes.md
-          gh release delete preview --repo "$REPO" --cleanup-tag --yes || true
-          gh release create preview --repo "$REPO" --prerelease --target "$SHA" \
-            --title "Preview ${version}" --notes-file ../notes.md -- *
+          # One Preview at a time: the one before, under its old tag or the
+          # plain `preview` it used to have, goes first, tag and all.
+          gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' \
+            | grep -E '^(preview|v[0-9]+\.[0-9]+\.[0-9]+-preview)$' \
+            | while read -r old; do gh release delete "$old" --repo "$REPO" --cleanup-tag --yes; done
+          gh release create "$tag" --repo "$REPO" --prerelease --target "$SHA" \
+            --title "Preview of ${next}" --notes-file ../notes.md -- *
 
   # A merged release PR (docs/RELEASES.md): main's build published as a
   # pre-release with its final version, v<version>, every installer its own

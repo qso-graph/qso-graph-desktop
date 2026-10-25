@@ -16,6 +16,7 @@ import { accessSync, chmodSync, constants, copyFileSync, existsSync, readdirSync
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { allowsSender, UPDATE_FILE_NAME } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
+import { signedLikeThisCopy } from './windows-signature.js';
 import type { UpdateTrack } from './settings-contract.js';
 import {
   UPDATES_CHANNEL, UPDATES_STATE_CHANNEL, choose, isReleaseVersion, readFeed, validateUpdateCommand,
@@ -39,7 +40,7 @@ export interface UpdaterOptions {
   // Whether this build asks at all: a preview or a development run does not,
   // and which it is, so the window can say.
   asks: boolean;
-  build?: 'release' | 'development' | 'preview';
+  build?: 'release' | 'development' | 'preview' | 'store';
   settings: () => { updateCheck: boolean; updateTrack: UpdateTrack };
   online: () => boolean;
   feed: () => Promise<Uint8Array | string>;
@@ -48,6 +49,10 @@ export interface UpdaterOptions {
   openRelease: (version: string) => void;
   window: () => BrowserWindow | null;
   now?: () => number;
+  // Whether a downloaded Windows installer is signed by the same publisher
+  // as this running copy (windows-signature.ts; #81). Given here so the
+  // updater is tested without Windows.
+  windowsTrusted?: (installer: string) => boolean;
 }
 
 export interface Updater {
@@ -137,7 +142,8 @@ function replaceMacBundle(zip: string): string {
 
 export function startUpdater(options: UpdaterOptions): Updater {
   const now = options.now ?? Date.now;
-  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' ? 'preview' : options.build === 'development' ? 'development' : 'switch' });
+  const windowsTrusted = options.windowsTrusted ?? signedLikeThisCopy;
+  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' || options.build === 'development' || options.build === 'store' ? options.build : 'switch' });
   let state: UpdateState = options.asks ? { kind: 'idle' } : notAsking();
   let lastAsked = 0;
   let readyFile: string | null = null;
@@ -193,6 +199,16 @@ export function startUpdater(options: UpdaterOptions): Updater {
       publish({ kind: 'failed', reason: typeof downloaded === 'string' ? downloaded : 'The update could not be saved.', checkedAt: now() });
       return;
     }
+    // A Windows installer is kept only when it is signed by the publisher
+    // that signed this copy (#81), as macOS requires the same team. One that
+    // is not is removed, and the operator told, never run.
+    if (options.platform === 'win-x64' && !windowsTrusted(downloaded.path)) {
+      readyFile = null;
+      rmSync(options.updatesDirectory, { recursive: true, force: true });
+      log.warn({ version: offer.version }, 'the downloaded installer is not signed by this copy\'s publisher');
+      publish({ kind: 'failed', reason: 'The update is not signed by the same publisher as this copy of QSO Graph Desktop, so it was not kept.', checkedAt: now() });
+      return;
+    }
     // And once more after the download, which can take minutes.
     const after = options.settings();
     if (!after.updateCheck || after.updateTrack !== settings.updateTrack) {
@@ -230,6 +246,12 @@ export function startUpdater(options: UpdaterOptions): Updater {
     if (!readyFile || !installable(readyFile)) return false;
     try {
       if (options.platform === 'win-x64') {
+        // Asked again just before it runs: the file sat in the profile
+        // folder since it was downloaded.
+        if (!windowsTrusted(readyFile)) {
+          log.warn({}, 'the installer is not signed by this copy\'s publisher; not run');
+          return false;
+        }
         const child = spawn(readyFile, relaunch ? ['--updated', '/S', '--force-run'] : ['--updated', '/S'],
           { detached: true, stdio: 'ignore', shell: false, windowsHide: true });
         child.unref();

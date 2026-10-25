@@ -378,12 +378,15 @@ if (!app.requestSingleInstanceLock()) {
 
     // Updates (QGD-FRM-0019): asked once a day through the credential core,
     // applied as the application quits. A preview or a development run never
-    // asks: its version is not a release.
+    // asks: its version is not a release. Nor does a copy from the Microsoft
+    // Store, which the Store updates, and whose rules forbid an app updating
+    // itself (KI7MT, 2026-10-24).
+    const fromStore = process.windowsStore === true;
     const updater = startUpdater({
       version: app.getVersion(),
-      platform: updatePlatform(),
-      asks: app.isPackaged && isReleaseVersion(app.getVersion()),
-      build: !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
+      platform: fromStore ? null : updatePlatform(),
+      asks: app.isPackaged && isReleaseVersion(app.getVersion()) && !fromStore,
+      build: fromStore ? 'store' : !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,

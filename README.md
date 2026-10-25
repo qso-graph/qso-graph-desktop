@@ -16,6 +16,26 @@ the places you operate from, kept safely in one place, with Parks On the Air, th
 band conditions and ADIF's definitions a click away. Free software, on Windows, Linux and macOS,
 and everything you enter stays on your computer.
 
+## Download
+
+**[Releases page →](https://github.com/qso-graph/qso-graph-desktop/releases)** No account is needed.
+Open the newest numbered release (*QSO Graph Desktop 0.x.y*), scroll to its **Assets**, and take the
+file for your computer:
+
+| Computer | File | Then |
+|---|---|---|
+| **Windows** | `…-win-x64.exe` | Run it. From 0.2.0 the installer is signed by **Gregory Beam (KI7MT)**. The signature is new, so Edge may say the file *isn't commonly downloaded* (choose **Keep**), and Windows may say it *protected your PC*: **More info** shows *Publisher: Gregory Beam*, then **Run anyway**. Installers before 0.2.0 aren't signed. A Microsoft Store listing, without those warnings, is planned with 0.2.0. |
+| **Linux** | `…-linux-x86_64.AppImage` (PC) or `…-linux-arm64.AppImage` (Raspberry Pi 5) | Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too. |
+| **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed and notarized by Apple. |
+
+Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
+application checks for updates once a day (Stable or Early, or off, in Settings) and never
+restarts without asking. The [install page](guide/install.md) has the details.
+
+**The Preview** (*Preview of 0.x.y*, at the top of the Releases page) is the newest build of
+`develop`, rebuilt each night it has changed: for testing what is coming, not for running your
+station. [docs/RELEASES.md](docs/RELEASES.md) explains versions, previews and releases.
+
 ## What you can do
 
 - **Keep your callsigns and their logins** for QRZ.com, QRZ Logbook, Logbook of The World, eQSL,
@@ -32,27 +52,6 @@ and everything you enter stays on your computer.
 
 The [User Guide](guide/README.md) walks through each, and [CHANGELOG.md](CHANGELOG.md) says what is
 new in each release.
-
-## Get it
-
-From the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases). No account is
-needed to download.
-
-- **Windows:** the installer (`…-win-x64.exe`). It is not signed yet, so the first time it runs,
-  SmartScreen asks: choose **More info**, then **Run anyway**.
-- **Linux:** the **AppImage**, one file for almost any distribution, on a PC or a Raspberry Pi 5.
-  Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE for it
-  (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too.
-- **macOS** (Apple silicon): the disk image (`.dmg`). Drag the app to Applications. It is signed and
-  notarized by Apple.
-
-Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
-application checks for updates once a day (Stable or Early, or off, in Settings) and never
-restarts without asking. The [install page](guide/install.md) has the details.
-
-**The Preview** on the Releases page is the newest build of `develop`, rebuilt each night it has
-changed: for testing what is coming, not for running your station.
-[docs/RELEASES.md](docs/RELEASES.md) explains versions, previews and releases.
 
 ## Yours, and only yours
 
