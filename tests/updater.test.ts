@@ -134,3 +134,21 @@ describe('a Windows update must be signed like this copy (#81)', () => {
     expect(existsSync(join(updates, name))).toBe(false);
   });
 });
+
+describe('a copy from the Microsoft Store never updates itself (KI7MT, 2026-10-24)', () => {
+  it('says the Store updates it, and asks nothing', async () => {
+    const feed = vi.fn(() => Promise.resolve(feedBytes));
+    const states: string[] = [];
+    const started = startUpdater({
+      version: '0.2.0', platform: null, asks: false, build: 'store',
+      settings: () => ({ updateCheck: true, updateTrack: 'early' }), online: () => true, feed,
+      download: () => Promise.resolve('no'), updatesDirectory: '/nonexistent/updates', openRelease: () => undefined,
+      window: () => ({ isDestroyed: () => false, webContents: { send: (_c: string, state: { kind: string; why?: string }) => states.push(`${state.kind}:${state.why ?? ''}`) } }) as never
+    });
+    stop = started.stop;
+    expect(started.state()).toEqual({ kind: 'off', why: 'store' });
+    await started.check('asked');
+    expect(feed).not.toHaveBeenCalled();
+    expect(states.at(-1)).toBe('off:store');
+  });
+});

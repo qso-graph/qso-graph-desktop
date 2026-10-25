@@ -100,6 +100,8 @@ describe('what the window may ask and be told', () => {
     // Not checking says why: the switch, a development build, or a preview.
     expect(isUpdateState({ kind: 'off', why: 'development' })).toBe(true);
     expect(isUpdateState({ kind: 'off', why: 'preview' })).toBe(true);
+    // A Microsoft Store copy: the Store updates it (KI7MT, 2026-10-24).
+    expect(isUpdateState({ kind: 'off', why: 'store' })).toBe(true);
     expect(isUpdateState({ kind: 'off' })).toBe(false);
     expect(isUpdateState({ kind: 'off', why: 'bored' })).toBe(false);
   });

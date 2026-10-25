@@ -473,6 +473,26 @@ jobs:
       - name: The signed build launches (macOS)
         if: env.SIGN_MAC == 'true'
         run: npm run verify -- --suites packaged-launch
+      # The Microsoft Store package (KI7MT, 2026-10-24): an MSIX made from the
+      # application just built, for KI7MT to upload to Partner Center. The
+      # Store hosts it and signs it itself, so it is not signed here and not
+      # offered as a download; it is its own artifact, kept out of the
+      # Preview's files. Its identity comes from Partner Center
+      # (package.json build.appx).
+      # Built on every Windows run, a PR's included, so a change that breaks
+      # it is caught before it merges.
+      - name: Microsoft Store package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: npx electron-builder --win appx --x64 --prepackaged out/win-unpacked --publish never
+      - name: Microsoft Store package, for upload (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: microsoft-store-package
+          path: out/*.appx
+          if-no-files-found: error
+          retention-days: 30
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
       - run: npm run verify -- --suites package-contents

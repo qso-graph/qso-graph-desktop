@@ -13,6 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are: Windows shows who published the installer instead of an unknown publisher.
 - **A Windows update is installed only when it is signed by the same publisher** as the copy that
   is running, as on macOS. One that isn't is removed, and Settings → Updates says why.
+- **QSO Graph Desktop in the Microsoft Store** for Windows: installed from the Store, without the
+  download warnings, and kept up to date by the Store. The Store copy says so in Settings → Updates,
+  and that uninstalling it also deletes your callsigns, Locations and settings, so back up first.
 
 ## [0.1.3] - 2026-10-24
 
