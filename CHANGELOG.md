@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-25
+
 ### Added
 
 - **You can check that a download is an official build**, and who published it: the README's
