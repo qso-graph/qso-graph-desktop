@@ -609,24 +609,30 @@ jobs:
       # The installer's runtime step (build/vc-runtime.ps1), each answer, with
       # the Windows PowerShell the installer uses: present here, so nothing
       # to do; Microsoft's download, checked as Microsoft's; and a file signed
-      # by anyone else refused. PowerShell 7's module path breaks Windows
-      # PowerShell's, so it is cleared first (#85).
+      # by anyone else refused. Each twice: as the installer runs it (the
+      # module path cleared), and with PowerShell 7's module path inherited,
+      # which broke Windows PowerShell's signature check once (#85), as it
+      # would for an installer started from PowerShell 7.
       - name: Visual C++ runtime step (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PSModulePath = $null
           $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
           $cases = @(
             @{ Args = @(); Want = 0; What = 'the runtime is present' },
             @{ Args = @('-VerifyOnly'); Want = 0; What = "Microsoft's download is signed by Microsoft" },
             @{ Args = @('-VerifyOnly', '-From', (Resolve-Path 'out/win-unpacked/QSO Graph Desktop.exe').Path); Want = 11; What = 'a file not signed by Microsoft is refused' }
           )
-          foreach ($case in $cases) {
-            $a = $case.Args
-            & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build/vc-runtime.ps1 @a
-            if ($LASTEXITCODE -ne $case.Want) { throw "$($case.What): exit $LASTEXITCODE, wanted $($case.Want)" }
-            Write-Output "OK: $($case.What)"
+          $inherited = $env:PSModulePath
+          foreach ($path in @($null, $inherited)) {
+            $env:PSModulePath = $path
+            $how = if ($path) { "PowerShell 7's module path inherited" } else { 'module path cleared' }
+            foreach ($case in $cases) {
+              $a = $case.Args
+              & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build/vc-runtime.ps1 @a
+              if ($LASTEXITCODE -ne $case.Want) { throw "$($case.What), $($how): exit $LASTEXITCODE, wanted $($case.Want)" }
+              Write-Output "OK: $($case.What), $how"
+            }
           }
           # The last case's 11 is the answer wanted, but GitHub's PowerShell
           # step ends with the last exit code it saw, so say so explicitly.
@@ -805,7 +811,9 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
-      attestations: read
+      # The installers' provenance, and attesting the SHA256SUMS.txt made here.
+      attestations: write
+      id-token: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -823,6 +831,12 @@ jobs:
             gh attestation verify "$file" -R "$REPO" --signer-workflow "${REPO}/.github/workflows/ci.yml" >/dev/null
             echo "✓ $(basename "$file")"
           done
+      - name: SHA256SUMS.txt
+        run: (cd preview && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+      # Made here, so its provenance is this job's (found by Codex, #83).
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: preview/SHA256SUMS.txt
       - name: Replace the Preview pre-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -830,7 +844,6 @@ jobs:
           SHA: ${{ needs.plan.outputs.sha }}
         run: |
           cd preview
-          sha256sum -- * > SHA256SUMS.txt
           ls -la
           version=$(ls qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's/^qso-graph-desktop-(.*)-linux-x86_64\.AppImage$/\1/')
           # The release it previews: 0.2.0 from 0.2.0-202610242217-5b9f1d97905.

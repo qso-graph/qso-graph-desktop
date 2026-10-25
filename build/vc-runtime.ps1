@@ -25,6 +25,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+# Get-AuthenticodeSignature from Windows PowerShell's own module, by its path:
+# a PowerShell 7 module path inherited from whoever started the installer
+# would otherwise load the wrong one, or none (#85; found by Codex, #91).
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1')
 
 # Where Windows's loader looks: the 64-bit system folder. From a 32-bit
 # process (the installer is one), that folder is reached as Sysnative.

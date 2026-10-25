@@ -10,6 +10,9 @@
 !macro customInstall
   File "/oname=$PLUGINSDIR\vc-runtime.ps1" "${BUILD_RESOURCES_DIR}\vc-runtime.ps1"
   DetailPrint "Checking for Microsoft's Visual C++ runtime..."
+  ; An installer started from PowerShell 7 hands Windows PowerShell 7's module
+  ; path, which breaks Windows PowerShell's own modules (#85; found by Codex).
+  System::Call 'kernel32::SetEnvironmentVariable(t "PSModulePath", p 0) i'
   nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\vc-runtime.ps1"'
   Pop $0
   ${if} $0 != "0"
