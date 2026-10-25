@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
@@ -49,7 +49,16 @@ let credentialSaved = false;
 async function stop() {
   await browser?.close().catch(() => {}); browser = undefined;
   if (child && child.exitCode === null && child.signalCode === null) {
-    const exited = once(child, 'exit'); child.kill('SIGTERM');
+    const exited = once(child, 'exit');
+    // On Windows a kill ends the main process only, and the application's
+    // storage process kept state.sqlite open after it, so the run's folder
+    // could not be deleted (#91's installed-build run). Its whole process
+    // tree, there; the fixed system path, with an argument list.
+    if (process.platform === 'win32') {
+      spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      child.kill('SIGTERM');
+    }
     await Promise.race([exited, setTimeout(5000)]);
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   }
@@ -262,5 +271,6 @@ try {
       }, { description, provider }).catch(() => {});
     }
   }
-  await stop(); await rm(directory, { recursive: true, force: true });
+  // Retried: a file a process held open a moment ago may still be closing.
+  await stop(); await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
 }
