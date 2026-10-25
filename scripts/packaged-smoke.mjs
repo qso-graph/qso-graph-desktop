@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -244,6 +244,14 @@ try {
   console.error('Packaged callsign test failed.');
   console.error(redact(error.message).split('\n').slice(0, 15).join('\n'));
   process.exitCode = 1;
+  // What the window showed and what the application logged, kept in report/
+  // for CI to upload: the run's folder is deleted below, and a failure on one
+  // platform alone (the installed Windows build, #91) cannot be guessed at.
+  // The logs are the application's own, redacted as they were written, and
+  // the credential in this run is the suite's fake.
+  await mkdir('report', { recursive: true }).catch(() => {});
+  await page?.screenshot({ path: join('report', 'packaged-launch.png'), fullPage: true }).catch(() => {});
+  await cp(logs, join('report', 'packaged-launch-logs'), { recursive: true }).catch(() => {});
 } finally {
   if (credentialSaved && page) {
     for (const provider of ['qrz_logbook', 'eqsl']) {

@@ -651,6 +651,15 @@ jobs:
           $env:QG_PACKAGED_APP = Join-Path $target 'QSO Graph Desktop.exe'
           if (-not (Test-Path -LiteralPath $env:QG_PACKAGED_APP)) { throw "The installer did not put the application in $target." }
           npm run verify -- --suites packaged-launch
+      # A failed launch's screenshot and the application's logs (report/), as
+      # the window jobs keep theirs.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure() && runner.os == 'Windows'
+        with:
+          name: packaged-launch-report-windows
+          path: report/
+          if-no-files-found: ignore
+          retention-days: 7
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
       - run: npm run verify -- --suites package-contents
