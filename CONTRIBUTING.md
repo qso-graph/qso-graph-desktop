@@ -84,11 +84,17 @@ No credentials or real station data belong in this repository.
 
 ## Reviews, commits and branches
 
-- **Before Release 1:** reviewed work is committed directly to `develop`, with no GitHub pull
-  requests. The review is a local, independent one (for example `codex review`) run before the
-  commit. This changes after Release 1.
-- **After Release 1:** work branches named `fix-…`, `feat-…` or `docs-…`, pull requests into
-  `develop`, and a release is a pull request from `develop` into `main`.
+- **One working branch, `main`,** and every change reaches it by a pull request, merged by
+  KI7MT. Merging never publishes: a release is made on purpose, by the Release workflow
+  ([docs/RELEASES.md](docs/RELEASES.md)).
+- **Maintainers work one milestone at a time,** on one branch named for its version
+  (`feature/0.2.1`), with one pull request into `main`. Each fix is validated on that pull
+  request's own build before it is merged.
+- **Outside contributions:** fork the repository and open a pull request into `main` from a
+  branch of your own (`fix-…`, `feat-…`, `docs-…`). KI7MT decides when it is merged, usually
+  as part of the current milestone.
+- **Documentation-only changes** (README, the guide, `docs/`) build nothing and can be merged
+  straight away.
 - **Commits:** one logical change each, with a message that explains why. Merge commits, not
   squash, so contributors' history and credit are kept.
 - **Outside contributions** are credited in [CHANGELOG.md](CHANGELOG.md).

@@ -1,12 +1,134 @@
-# Releases: how QSO Graph Desktop is versioned, named and published
+# Releases: how work becomes a release of QSO Graph Desktop
 
-Decided by KI7MT, 2026-10-23. It follows **Podman Desktop**, which is built the
-way this application is (Electron, electron-builder, published on GitHub), so
-there is a working example of every rule below.
+Decided by KI7MT, 2026-10-25, replacing the develop/release-branch flow of
+2026-10-23 and the GitFlow tried for one evening. It follows **Podman Desktop**,
+built the way this application is (Electron, electron-builder, published on
+GitHub), and the shape VS Code and Bitwarden use: one working branch, and
+releases started on purpose.
 
-Previews and pre-releases are published by CI (`.github/workflows/ci.yml`, the
-`preview` and `release` jobs); promoting a pre-release is
-`.github/workflows/promote.yml`. The last section lists what is still to build.
+**Why:** nothing reaches the street until it's ready, by design rather than by
+convention, with as few branches, pull requests and builds as that allows.
+Merging never publishes; only the Release workflow does, and it refuses while
+the milestone is unfinished.
+
+Items marked *(not built yet)* are listed at the end, with what builds them.
+
+## The rules
+
+1. **One working branch: `main`.** It holds the latest finished, validated
+   work. Merging into it builds and tests, and **never publishes**.
+2. **One milestone at a time, worked serially** (KI7MT: "parallel is what gets
+   us going sideways every time"). One milestone open, one `feature/x.y.z`
+   branch, one issue in hand, and nothing started until the one before is
+   finished.
+3. **A milestone is a version.** KI7MT names it (`0.2.1`) and lists its issues.
+   That list is the definition of "ready for the street".
+4. **Every fix is validated on a build of exactly that fix**, never on a
+   Preview. Previews are for daily testing only.
+5. **Only the Release workflow publishes.** KI7MT decides when; it is run on
+   his word ("release 0.2.1"), by him or by an agent, and the run records who.
+6. **Nobody pushes to `main`.** Every change reaches it by a pull request that
+   KI7MT merges, with a merge commit.
+
+## Branches
+
+| Branch | From | Into | Lives |
+|---|---|---|---|
+| **`main`** | | | always |
+| **`feature/x.y.z`** | `main`, when milestone `x.y.z` starts | `main`, by one pull request, when every issue in the milestone is validated | the length of the milestone |
+| **`x.y.x`** (`0.2.x`) | the release's tag, `v0.2.0` | released from itself; never merged back | only when an already released version needs a fix: rare |
+| **`docs/<topic>`** | `main` | `main` | a documentation-only change: no build runs, merged at once |
+
+The author deletes a branch once it is merged, everywhere it exists, by name, never
+in bulk.
+
+## A milestone, start to finish
+
+1. **KI7MT defines the milestone:** its version and its issues.
+2. **`feature/x.y.z` is created from `main`.** Its first commit sets the
+   version in `package.json` (and its lock) to `x.y.z`.
+3. **Its pull request into `main` is opened at once, as a draft.** Every push
+   to the branch builds a **validation build** (below), and its installer links
+   are posted on the pull request.
+4. **The issues are worked one at a time.** Each commit names its issue
+   (`#91: …`). When an issue's fix is in, KI7MT installs that validation build
+   and tries it. The issue records **"validated on x.y.z-pr<N>.<commit>"**
+   and is closed.
+5. **When every issue is closed:** the release checks on a lab machine
+   (screenshots and the gallery, as before), `node scripts/release.mjs prepare`
+   (CHANGELOG.md's `[Unreleased]` becomes `[x.y.z] - <date>`), a final
+   validation build, a review on the pull request, and **KI7MT merges it**.
+6. **Release** (below).
+7. **Promote** to Stable when the pre-release has proved itself.
+8. **The next milestone** starts from `main` again, at step 2.
+
+## The kinds of build
+
+| Kind | Built from | Version | Where it goes | For |
+|---|---|---|---|---|
+| **Validation build** | each push to a milestone's pull request | `x.y.z-pr<N>.<commit>`: `0.2.1-pr92.a1b2c3d` | installers attached to that CI run, linked from the pull request | validating each issue's fix *(not built yet)* |
+| **Preview** | `main`, each night it has changed | `<version>-<YYYYMMDDHHMM>-<commit>` | **one** pre-release, **Preview of x.y.z**, tag `vx.y.z-preview`, replaced each night | daily testing; never issue validation |
+| **Pre-release** | the **Release** workflow, from `main` | `x.y.z`, no suffix | a pre-release, tag `vx.y.z`, on the Early track | the release, before it is called final |
+| **Release** | the same pre-release, **promoted** | unchanged | marked a full release and Latest, on the Stable track | everyone |
+
+### Validation builds *(not built yet)*
+
+- Stamped `x.y.z-pr<N>.<commit>` (the pull request's number and the first 7
+  characters of the commit), so the installed application's title bar and
+  Settings → About say exactly what is being tested.
+- **Signed** like a release (Windows: Gregory Beam; macOS: Developer ID,
+  notarized), for branches of this repository only, never a fork's: the
+  signing Environments allow `feature/*` and `x.y.x`.
+- When the build finishes, it posts one comment on the pull request with
+  links to that run's installers. GitHub keeps them 30 days, and downloading
+  them needs a GitHub sign-in.
+
+### Previews
+
+- **Built each night, not on each push** (KI7MT, 2026-10-24): signing and
+  notarizing cost minutes each time, Apple's queue included. The night's run
+  builds `main`, signs it, and replaces the Preview, and does nothing when
+  `main` is what the Preview already is. **Actions → CI → Run workflow** on
+  `main` makes one sooner. Ticking **mac_only** builds, signs, notarizes and
+  launches only the Mac package and publishes nothing.
+- A Preview's version is `<version>-<YYYYMMDDHHMM>-<commit>`: `main`'s version,
+  the **commit's** UTC date and time to the minute, and the first 11
+  characters of the commit, so every platform's file carries one version.
+- **One Preview at a time**, named **Preview of** the version, tagged
+  `v<version>-preview`, so GitHub (which sorts by version and puts any other
+  tag last) shows it at the top. Each night's replaces the last.
+
+## Making a release
+
+1. **The milestone's pull request is merged** (step 5 above), so `main` has
+   the version, the CHANGELOG section and every validated fix.
+2. **Actions → Release → Run workflow**, version `x.y.z` *(not built yet)*.
+   It refuses, in minutes and before any packaging, unless:
+   - `main`'s `package.json` says `x.y.z`, and the tag `vx.y.z` is not taken;
+   - CHANGELOG.md has a `[x.y.z]` section;
+   - milestone `x.y.z` has **no open issues**.
+3. **It builds, tests, signs and publishes** the pre-release `vx.y.z`: every
+   installer (each checked to carry that version), `SHA256SUMS.txt`, and the
+   CHANGELOG section as its notes. The tag is created on the commit that was
+   built. The Microsoft Store package is kept with the run, for upload to
+   Partner Center.
+4. **It updates the Early feed** to `x.y.z` *(not built yet: the feed moves
+   into this repository so the workflow can publish it with this repository's
+   own permission)*, and **closes the milestone**.
+5. **Promote**, when it has proved itself and KI7MT says so: Actions →
+   **Promote** → Run workflow, with the version. It marks the same
+   pre-release a full release and Latest. Nothing is rebuilt. Then the Stable
+   feed.
+
+## Fixing a released version
+
+Rare: most fixes simply go into the next milestone. When an already released
+version must be fixed and the next milestone isn't close:
+
+1. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist.
+2. The fix, as its own pull request into `0.2.x`, validated on its build, and
+   the same fix made on `main` too, in the current milestone.
+3. **Release** from `0.2.x`, version `0.2.1`.
 
 ## Versions
 
@@ -16,102 +138,48 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 |---|---|---|
 | **MAJOR** | a change breaks what a user or an extension relied on | `1.0.0` to `2.0.0` |
 | **MINOR** | a release adds features | `0.1.0` to `0.2.0` |
-| **PATCH** | a release only fixes things | `0.1.0` to `0.1.1` |
+| **PATCH** | a release only fixes things: nits, tweaks and bug fixes (KI7MT, 2026-10-24) | `0.2.0` to `0.2.1` |
 
 - **0.x is before the first general release.** Anything may still change.
   **1.0.0** is the first release meant for every ham.
 - **The version lives in one place:** `version` in `package.json`. The
-  installers, the About box and the release all take it from there.
-- **A tag is the version with a `v`:** `v0.1.0`.
-- **develop always carries the next version.** Once `0.1.0` is out, develop's
-  `package.json` moves to `0.2.0`, so everything built from develop says which
-  release it is heading for.
+  installers, the About box and the release all take it from there. It is set
+  by the first commit of a milestone's branch, never by the release itself.
+- **A tag is the version with a `v`:** `v0.2.1`. Tags are made only by the
+  Release workflow.
 
-## The three kinds of build
+## Release notes
 
-| Kind | Built from | Version and tag | Published | For |
-|---|---|---|---|---|
-| **Preview** | develop, each night it has changed and passed its tests | the next version, the UTC date and time of the commit, and the commit: `0.2.0-202610230124-34d3a62a1b0` | **one** pre-release, **Preview of 0.2.0**, tag `v0.2.0-preview`, at the top of this repository's Releases page, replaced each night | testing what is on develop, every day |
-| **Pre-release** | main, after a release PR from develop | the version itself, no suffix: `v0.2.0`, then `v0.2.1`, `v0.2.2` for fixes | a **pre-release** on this repository's Releases page | testing a release before it is called final |
-| **Release** | the same build as the pre-release it was | unchanged: `v0.2.1` | the pre-release **promoted** to a full release, marked **Latest** | everyone |
+`CHANGELOG.md` collects changes under **Unreleased** as they land on a
+milestone's branch. `release.mjs prepare` renames that heading to the version
+and date, and the release's notes on GitHub are that section. The CHANGELOG
+also ships inside the application as What's New, which is why a change to it
+always builds.
 
-### Previews
+## Signing
 
-- **Built each night, not on each push** (KI7MT, 2026-10-24). Signing and
-  notarizing the Mac build cost minutes every time, Apple's queue included,
-  so they are paid once a night and on releases. A push to develop is tested
-  and packaged, unsigned, and publishes nothing. The night's run builds
-  develop, signs and notarizes it, and replaces the Preview, and does nothing
-  at all when develop is what the Preview already is. GitHub runs a schedule
-  from main, so the nightly starts once this workflow is on main; until then,
-  and whenever one is wanted sooner, **Actions → CI → Run workflow** on
-  develop makes the same signed Preview. Ticking **mac_only** builds, signs,
-  notarizes and launches only the Mac package and publishes nothing, for
-  work on signing itself.
+Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
 
-- A preview's version is `<next version>-<YYYYMMDDHHMM>-<commit>`: the version
-  develop is heading for, the **commit's** UTC date and time to the minute, and
-  the first 11 characters of the commit. `0.2.0-202610230124-34d3a62a1b0` sorts
-  by time and names exactly the code it was built from. The commit's time
-  rather than the build's, because each platform is built on its own machine
-  at its own moment, and every file of one preview must carry one version. It
-  is added by the build and never committed.
-- **There is one preview at a time**, on this repository's Releases page: a
-  pre-release named **Preview of** the next version, tagged `v<next>-preview`
-  (`v0.2.0-preview`), with every installer as its own download. The tag is
-  shaped like a version so that GitHub, which sorts its Releases page by
-  version and puts anything else last, shows it at the top (KI7MT,
-  2026-10-24: under the plain tag `preview` it was the last entry, and
-  nobody found it). Each night's build replaces it, files, tag and all. Old
-  previews are not kept (KI7MT, 2026-10-23: "we dont have hundreds of
-  contributors"). Podman Desktop keeps a history of its previews in a
-  repository of their own; that needs a credential for another repository in
-  this one's public CI, which one preview at a time does not.
-
-### Pre-releases and releases
-
-- **There are no release candidates by name.** A release goes out first as a
-  pre-release with its final version, `v0.2.0`. A fix is a new patch,
-  `v0.2.1`, also a pre-release. When one has proved itself it is **promoted**:
-  the same pre-release, its same files, marked a full release and Latest.
-  Nothing is rebuilt or renamed, so what was tested is what ships.
-- **main changes only by a release PR** from develop (or `security/*`), as this
-  repository's rules already require. A merged release PR builds the
-  pre-release; tagging it is part of that build.
-- **KI7MT decides** when a release PR is opened and when a pre-release is
-  promoted.
-
-### Making a release
-
-The text steps are `scripts/release.mjs`; the builds are CI's.
-
-1. **Release checks, on a lab machine** (the M3, the 9975 or the Pi 5; KI7MT,
-   2026-10-24): `make screenshots` against the approved baselines, and the
-   gallery (`make suite SUITE=storybook`). They are release checks, not run
-   on every push; anything they find is fixed on develop first.
-2. **On develop:** `node scripts/release.mjs prepare`. CHANGELOG.md's
-   `[Unreleased]` becomes `[0.2.0] - <today>`, under a new empty
-   `[Unreleased]`. Commit it.
-3. **The release PR**, develop to main, when KI7MT says so. Merging it is the
-   release.
-4. **main's build checks first:** the version is a plain `MAJOR.MINOR.PATCH`,
-   CHANGELOG.md has its section, and the tag is not taken. Any one missing
-   stops the build in minutes, before hours of packaging.
-5. **main's build publishes the pre-release** `v0.2.0`: every installer, each
-   file checked to carry that version, `SHA256SUMS.txt`, and that version's
-   CHANGELOG section as the notes. Creating the release creates the tag, on
-   the commit that was built; a version already released is refused.
-6. **The feed's Early entry** (below): `release.mjs feed early` from the
-   pre-release's `SHA256SUMS.txt`, committed to the updates repository. Early
-   installs are offered it from then.
-7. **On develop:** `node scripts/release.mjs next minor` (or `patch`, or
-   `major`) moves `package.json` and its lock to the next version. Commit it.
-8. **Promote**, when the pre-release has proved itself and KI7MT says so:
-   Actions → **Promote** → Run workflow, with the version. It checks the
-   release is a pre-release this repository built from main, then marks it a
-   full release and Latest. Nothing is rebuilt.
-9. **The feed's Stable entry**, the same way: everyone on Stable is offered it
-   from then.
+- **macOS:** signed with the Apple Developer ID "Developer ID Application:
+  Greg Beam (DP5KUCDR7L)", under the hardened runtime with one exception (JIT,
+  which V8 needs: `build/entitlements.mac.plist`), notarized by Apple, and the
+  ticket stapled. The certificate, its password and the notarization key are
+  secrets in the **macos-signing** Environment.
+- **Windows:** signed through Microsoft's Azure Artifact Signing with a
+  certificate issued to KI7MT's verified legal name, **Gregory Beam**: the
+  installer, the application and the native credential core. CI signs in to
+  Azure with GitHub's own token, trusted for the **windows-signing**
+  Environment of this repository alone, so no signing secret exists; the
+  Environment holds only three IDs. CI checks every signed file says
+  `CN=Gregory Beam`. A new signature has no download history yet, so Edge and
+  SmartScreen may still warn; the **Microsoft Store** copy shows no warning,
+  and the Store signs its own package.
+- **Linux:** packages are unsigned; `SHA256SUMS.txt` lets a download be
+  checked.
+- The signing Environments release their secrets only to this repository's
+  own branches (`main`, and `feature/*` and `x.y.x` for validation builds),
+  never to a fork's pull request. They are KI7MT's; no agent holds or sees
+  them.
 
 ## File names
 
@@ -139,32 +207,6 @@ and the full version is in every name, so a file on its own says what it is.
 - **Each release has a `SHA256SUMS.txt`** listing every file's SHA-256, so a
   download can be checked.
 
-## Release notes
-
-`CHANGELOG.md` collects changes under **Unreleased** as they land. A release
-renames that heading to its version and date, and the release's notes on
-GitHub are that section. A pull request never changes the version: a release
-does.
-
-## Signing
-
-**macOS builds are signed and notarized** (KI7MT, 2026-10-23). Every macOS
-build of develop and main is signed with the project's Apple Developer ID,
-"Developer ID Application: Greg Beam (DP5KUCDR7L)", under the hardened
-runtime with one exception (JIT, which V8 needs: `build/entitlements.mac.plist`),
-notarized by Apple, and the ticket stapled, so Gatekeeper opens it on first
-launch, offline too. CI checks all three before the files are kept.
-
-- The certificate, its password and the notarization key are secrets in the
-  repository's **macos-signing** Environment, released only to jobs on develop
-  and main: never to a pull request, never to a fork. Only the macOS packaging
-  step reads them. They are KI7MT's; no agent holds or sees them.
-- A pull request's macOS build, and any build made locally, is unsigned, as
-  before.
-- **Windows is unsigned** until it has a certificate, so SmartScreen warns the
-  first time it runs, and every release's notes say so. Linux packages are
-  unsigned too.
-
 ## Updates
 
 Decided by KI7MT, 2026-10-23: **an easy update is a must**, whichever kind of
@@ -179,7 +221,8 @@ working. Both get one click.
 | **Early** | full releases and pre-releases | hams who want the newest the day it is out |
 
 Chosen in Settings. Previews are never offered as an update: they are for
-testing develop, not for running the station.
+daily testing, not for running the station. A copy from the Microsoft Store
+is updated by the Store and never updates itself.
 
 ### How it asks
 
@@ -210,22 +253,25 @@ testing develop, not for running the station.
   2026-10-23): electron-updater installs only what it downloaded, over
   Electron's own networking, and handing it the core's file would need a local
   server, which this product does not have. What it does at the end is small:
-  the Windows installer is run silently, an AppImage is replaced in place, the
+  the Windows installer is run silently, only once Windows finds it signed by
+  the same publisher as the running copy, an AppImage is replaced in place, the
   signed macOS zip is unpacked beside the application, checked to be signed by
   the same team as the running one, and swapped in, and all of it happens as
   the application quits, after its stores have closed.
 - **Checked:** every download against the SHA-256 the feed gives for it, as it
-  arrives; a file that does not match is deleted, never installed. Until the
-  builds are signed that catches a broken download or a mirror sending
-  something else, not a tampered release, because the feed and the files are
-  published by the same hands; signing closes that, and is wanted before 1.0.
+  arrives; a file that does not match is deleted, never installed. That
+  catches a broken download or a mirror sending something else; the signature
+  checks above (same publisher on Windows, same team on macOS) catch a
+  tampered one. Linux AppImages have only the SHA-256 until Linux signing
+  exists.
 
 ### The feed
 
 One small file, `https://updates.qso-graph.io/desktop.json`, is all an
-installed copy asks. It lives in its own public repository,
+installed copy asks. Today it lives in its own public repository,
 `qso-graph/qso-graph-desktop-updates`, served by GitHub Pages at that name
-through a CNAME in the qso-graph.io zone. The application knows only the
+through a CNAME in the qso-graph.io zone; it moves into this repository so
+the Release workflow can update it *(not built yet)*. The application knows only the
 address, in `data/update-sources.json`, which the credential core builds in;
 where the address points can change by DNS, with no release. That register
 also names the hosts a download may come from: GitHub's release hosts, any
@@ -261,5 +307,18 @@ writes a track's entry from the release's own `SHA256SUMS.txt`.
 
 ## Not built yet
 
-1. The updates repository and its DNS name, before the first release.
-2. A package repository for deb and rpm.
+What this document describes but CI does not do yet, in the order it will be
+built (the first pass of milestone 0.3.0, released as 0.2.1):
+
+1. **Validation builds:** a pull request's build stamped
+   `x.y.z-pr<N>.<commit>`, signed for this repository's own branches, with its
+   installer links posted on the pull request.
+2. **The Release workflow** (Actions → Release, with the version): its checks
+   (version, tag, CHANGELOG section, milestone closed), publishing the
+   pre-release, the Early feed, closing the milestone. Until it exists, a
+   release is published as before, by a pull request into `main`.
+3. **Merging into `main` stops publishing**, once the Release workflow does.
+4. **The update feed moves into this repository**, at the same address.
+5. **GitHub settings:** `main` becomes the default branch, `develop` is
+   retired, and the signing Environments allow `feature/*` and `x.y.x`.
+6. A package repository for deb and rpm.

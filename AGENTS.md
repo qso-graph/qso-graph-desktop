@@ -179,7 +179,7 @@ and no demonstration extension, which is why this repository now has none either
 
 ## How work is reviewed: three roles, different models
 
-Every change passes through three separate roles before it reaches `develop`. Using **different
+Every change passes through three separate roles before it reaches `main`. Using **different
 models** for them is deliberate: a model is poorest at catching its own blind spots.
 
 | Role | Who (typically) | Job |
@@ -207,8 +207,11 @@ Versions change, so pick the current ones rather than the names here.
 - **Security rules:** `QGD-SEC-0001` onward, with `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*`.
   Cryptographic claims use the exact wording in spec §4.3.1, never paraphrased.
 - **Review before commit:** run a local `codex review` (or an equivalent independent review)
-  before committing. Before Release 1 there are no GitHub pull requests; reviewed work commits
-  to `develop`. This changes after a release.
+  before committing.
+- **How work flows:** one working branch, `main`; one milestone at a time, worked serially on
+  `feature/x.y.z` with one pull request into `main`; each fix validated on that pull request's
+  own build; a release only by the Release workflow. [docs/RELEASES.md](docs/RELEASES.md) is
+  the whole of it.
 - **Commits:** one logical change each, with a message that says why.
 
 ## Key libraries

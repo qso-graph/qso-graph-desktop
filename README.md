@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/qso-graph/qso-graph-desktop/actions/workflows/ci.yml?query=branch%3Adevelop+event%3Apush"><img src="https://img.shields.io/github/actions/workflow/status/qso-graph/qso-graph-desktop/ci.yml?branch=develop&event=push&label=CI" alt="CI on develop"></a>
+  <a href="https://github.com/qso-graph/qso-graph-desktop/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush"><img src="https://img.shields.io/github/actions/workflow/status/qso-graph/qso-graph-desktop/ci.yml?branch=main&event=push&label=CI" alt="CI on main"></a>
   <a href="https://github.com/qso-graph/qso-graph-desktop/releases"><img src="https://img.shields.io/github/v/release/qso-graph/qso-graph-desktop?include_prereleases&sort=semver&label=Release&color=blue" alt="Latest release"></a>
   <a href="https://adif.org.uk/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fqso-graph%2Fqso-graph-desktop%2Fdevelop%2Fdata%2Freference-sources.json&query=%24.adif.version&label=ADIF&color=blue" alt="ADIF version"></a>
   <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="Platforms: Windows, Linux, macOS">
@@ -33,7 +33,7 @@ application checks for updates once a day (Stable or Early, or off, in Settings)
 restarts without asking. The [install page](guide/install.md) has the details.
 
 **The Preview** (*Preview of 0.x.y*, at the top of the Releases page) is the newest build of
-`develop`, rebuilt each night it has changed: for testing what is coming, not for running your
+`main`, rebuilt each night it has changed: for testing what is coming, not for running your
 station. [docs/RELEASES.md](docs/RELEASES.md) explains versions, previews and releases.
 
 ## What you can do
