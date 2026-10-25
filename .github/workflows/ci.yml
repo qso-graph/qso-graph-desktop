@@ -913,7 +913,10 @@ jobs:
   all-green:
     name: all green
     needs: [plan, citations, check, window, package, pr-build]
-    if: ${{ always() }}
+    # Not for a macOS-only run by hand: it skips the test suites, so its
+    # "all green" would vouch for a commit nothing tested, and a later
+    # documentation-only push would trust it (found by Codex, #101).
+    if: ${{ always() && !inputs.mac_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
