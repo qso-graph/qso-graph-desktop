@@ -60,6 +60,7 @@ jobs:
       preview: ${{ steps.plan.outputs.preview }}
       run: ${{ steps.plan.outputs.run }}
       docs_only: ${{ steps.docs.outputs.docs_only }}
+      pr: ${{ steps.plan.outputs.pr }}
     # Reading which files a pull request changed needs to read the pull request.
     permissions:
       contents: read
@@ -104,9 +105,13 @@ jobs:
           SHA: ${{ github.sha }}
           MAC_ONLY: ${{ inputs.mac_only }}
           REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          ref=""; sha="$SHA"; sign=false; preview=false; run=true
+          ref=""; sha="$SHA"; sign=false; preview=false; run=true; pr=""
           case "$EVENT" in
             schedule)
               ref=develop
@@ -123,9 +128,22 @@ jobs:
             push)
               if [ "$REF" = refs/heads/main ]; then sign=true; fi
               ;;
+            # A pull request from one of our own branches is a validation
+            # build (#92): the branch's own commit, not GitHub's merge of it,
+            # so the version it carries names exactly the code being tested.
+            # A milestone's or a fix's branch is signed; a fork's never is.
+            # GitHub gives a fork's run no secrets and no token for Azure
+            # either, and the Environments admit pull requests only through
+            # refs/pull/*/merge, so this is the third lock, not the only one.
+            pull_request)
+              if [ "$HEAD_REPO" = "$REPO" ]; then
+                ref="$HEAD_REF"; sha="$HEAD_SHA"; pr="$PR"
+                if [[ "$HEAD_REF" =~ ^feature/[0-9]+\.[0-9]+\.[0-9]+$ || "$HEAD_REF" =~ ^[0-9]+\.[0-9]+\.x$ ]]; then sign=true; fi
+              fi
+              ;;
           esac
-          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "preview=$preview"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
-          echo "event=$EVENT ref=${ref:-$REF} sign=$sign preview=$preview run=$run"
+          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "preview=$preview"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT ref=${ref:-$REF} sign=$sign preview=$preview run=$run pr=${pr:-none}"
 
   # Every requirement ID a Markdown file cites exists in the spec (#95). It
   # runs on every change, documentation-only ones included, because those
@@ -313,12 +331,13 @@ jobs:
   # deb, rpm and zip on Linux. A zip is the portable build: unpack it and run
   # it. Kept for a week.
   #
-  # macOS builds of develop and main are signed with the project's Developer
-  # ID and notarized by Apple (KI7MT, 2026-10-23; QGD-SCP-0005). The secrets
-  # are in the macos-signing Environment, which releases them only to jobs on
-  # develop and main: never to a pull request, never to a fork. Everything
-  # else is unsigned, as before, and Windows stays unsigned until it has a
-  # certificate.
+  # Signed builds (QGD-SCP-0005): macOS with the project's Developer ID and
+  # notarized by Apple, Windows in KI7MT's name. Signed are main, the night's
+  # build, a run by hand on develop or main, and a validation build of a
+  # milestone's or a fix's pull request (#92). The secrets are in the
+  # macos-signing and windows-signing Environments; a fork's run gets none of
+  # them and no token Azure accepts, whatever this file says. Everything else
+  # is unsigned.
   package:
     name: package (${{ matrix.os }})
     needs: [plan, check, window]
@@ -401,12 +420,27 @@ jobs:
       # date and time and the commit (docs/RELEASES.md), here, never in a
       # commit. The commit's time, so all four platforms carry one version.
       - name: Preview version
-        if: github.ref == 'refs/heads/develop' || needs.plan.outputs.ref == 'develop'
+        if: needs.plan.outputs.pr == '' && (github.ref == 'refs/heads/develop' || needs.plan.outputs.ref == 'develop')
         shell: bash
         run: |
           stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
           commit=$(git rev-parse HEAD)
           npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${commit::11}"
+          node -p "require('./package.json').version"
+      # A pull request's build (#92) carries the pull request and its commit:
+      # 0.2.1-pr96.c0b8250, in the title bar and About, so the issue can say
+      # exactly which build it was validated on. A commit that is all digits
+      # gains a g, because a version's part may not be a number with a
+      # leading zero (git describe does the same).
+      - name: Pull request build version
+        if: needs.plan.outputs.pr != ''
+        shell: bash
+        env:
+          PR: ${{ needs.plan.outputs.pr }}
+        run: |
+          commit=$(git rev-parse --short=7 HEAD)
+          if [[ "$commit" =~ ^[0-9]+$ ]]; then commit="g${commit}"; fi
+          npm pkg set version="$(node -p "require('./package.json').version")-pr${PR}.${commit}"
           node -p "require('./package.json').version"
       - name: Installers
         if: env.SIGN_MAC != 'true' && env.SIGN_WIN != 'true'
@@ -562,6 +596,117 @@ jobs:
             out/*.zip
           if-no-files-found: error
           retention-days: 7
+
+  # The installers of a pull request's build (#92), each its own download,
+  # not zipped, under its own file name, and one comment on the pull request
+  # that links them, edited in place on every new build. The links need a
+  # GitHub sign-in, as every run's files do, and last 14 days.
+  pr-build:
+    name: pull request build
+    needs: [plan, package]
+    if: ${{ !cancelled() && needs.plan.outputs.pr != '' && needs.package.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: qso-graph-desktop-*
+          path: build
+          merge-multiple: true
+      - run: ls -la build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-win-x64.exe
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-mac-arm64.dmg
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-linux-x86_64.AppImage
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-linux-amd64.deb
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-linux-x86_64.rpm
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-linux-arm64.AppImage
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-linux-arm64.deb
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: build/qso-graph-desktop-*-linux-aarch64.rpm
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: The comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.run_id }}
+          PR: ${{ needs.plan.outputs.pr }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          SIGNED: ${{ needs.plan.outputs.sign }}
+        run: |
+          set -euo pipefail
+          version=$(ls build/qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's|^build/qso-graph-desktop-(.*)-linux-x86_64\.AppImage$|\1|')
+          link() {
+            gh api "repos/${REPO}/actions/runs/${RUN}/artifacts" --paginate \
+              --jq ".artifacts[] | select(.name == \"qso-graph-desktop-${version}-$1\") | \"[\(.name)](https://github.com/${REPO}/actions/runs/${RUN}/artifacts/\(.id))\""
+          }
+          marker='<!-- qgd-pull-request-build -->'
+          {
+            echo "$marker"
+            echo "**Build \`${version}\`**, of ${SHA}. About and the title bar show this version."
+            echo
+            echo "- **Windows:** $(link win-x64.exe)"
+            echo "- **macOS:** $(link mac-arm64.dmg)"
+            echo "- **Linux x86-64:** $(link linux-x86_64.AppImage) · $(link linux-amd64.deb) · $(link linux-x86_64.rpm)"
+            echo "- **Linux arm64:** $(link linux-arm64.AppImage) · $(link linux-arm64.deb) · $(link linux-aarch64.rpm)"
+            echo
+            if [ "$SIGNED" = true ]; then
+              echo "Windows is signed by Gregory Beam (KI7MT); macOS is signed and notarized by Apple."
+            else
+              echo "Not signed: only a milestone's or a fix's branch is."
+            fi
+            echo "The links need a GitHub sign-in and last 14 days. This build never updates itself."
+            echo
+            echo "An issue fixed here is validated on this build, and says so: **validated on \`${version}\`**."
+          } > comment.md
+          cat comment.md
+          id=$(gh api "repos/${REPO}/issues/${PR}/comments" --paginate \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"${marker}\"))) | .id" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${id}" -F body=@comment.md --jq .html_url
+          else
+            gh api "repos/${REPO}/issues/${PR}/comments" -F body=@comment.md --jq .html_url
+          fi
 
   # The Preview pre-release (docs/RELEASES.md): each green build of develop,
   # every installer its own download on the Releases page, replacing the one

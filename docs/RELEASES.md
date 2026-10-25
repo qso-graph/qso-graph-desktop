@@ -76,22 +76,26 @@ in bulk.
 
 | Kind | Built from | Version | Where it goes | For |
 |---|---|---|---|---|
-| **Validation build** | each push to a milestone's pull request | `x.y.z-pr<N>.<commit>`: `0.2.1-pr92.a1b2c3d` | installers attached to that CI run, linked from the pull request | validating each issue's fix *(not built yet)* |
+| **Validation build** | each push to a pull request from this repository's own branch | `x.y.z-pr<N>.<commit>`: `0.2.1-pr96.c0b8250` | that CI run's files, one download each, linked from one comment on the pull request | validating each issue's fix |
 | **Preview** | `main`, each night it has changed | `<version>-<YYYYMMDDHHMM>-<commit>` | **one** pre-release, **Preview of x.y.z**, tag `vx.y.z-preview`, replaced each night | daily testing; never issue validation |
 | **Pre-release** | the **Release** workflow, from `main` | `x.y.z`, no suffix | a pre-release, tag `vx.y.z`, on the Early track | the release, before it is called final |
 | **Release** | the same pre-release, **promoted** | unchanged | marked a full release and Latest, on the Stable track | everyone |
 
-### Validation builds *(not built yet)*
+### Validation builds
 
-- Stamped `x.y.z-pr<N>.<commit>` (the pull request's number and the first 7
-  characters of the commit), so the installed application's title bar and
-  Settings → About say exactly what is being tested.
+- Built from the branch's own commit, not GitHub's merge of it into `main`,
+  and stamped `x.y.z-pr<N>.<commit>` (the pull request's number and the first
+  7 characters of that commit), so the installed application's title bar and
+  Settings → About say exactly what is being tested. A validation build never
+  updates itself.
 - **Signed** like a release (Windows: Gregory Beam; macOS: Developer ID,
-  notarized), for branches of this repository only, never a fork's: the
-  signing Environments allow `feature/*` and `x.y.x`.
-- When the build finishes, it posts one comment on the pull request with
-  links to that run's installers. GitHub keeps them 30 days, and downloading
-  them needs a GitHub sign-in.
+  notarized) when the branch is a milestone's (`feature/x.y.z`) or a fix's
+  (`x.y.x`). Other branches of this repository build unsigned; a fork's pull
+  request gets no validation build at all, only the checks.
+- When the build finishes, one comment on the pull request links each
+  installer, unzipped and under its own file name. Each new build edits that
+  comment, so it always shows the latest. GitHub keeps the files 14 days, and
+  downloading them needs a GitHub sign-in.
 
 ### Previews
 
@@ -196,14 +200,16 @@ Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
   and the Store signs its own package.
 - **Linux:** packages are unsigned; `SHA256SUMS.txt` lets a download be
   checked.
-- The signing Environments release their secrets only to this repository's
-  own branches (`main`, and `feature/*` and `x.y.x` for validation builds),
-  never to a fork's pull request. **That is enforced by each Environment's own
-  deployment branch rules in the repository's settings,** not by a condition
-  in the workflow: a workflow condition can be edited in the same pull
-  request that would misuse it, and the Environment's rules cannot. A fork's
-  pull request cannot reach an Environment's secrets at all. The secrets are
-  KI7MT's; no agent holds or sees them.
+- The signing Environments release their secrets to `main` and, for
+  validation builds, to pull requests: GitHub checks a pull request's run
+  against `refs/pull/*/merge`, never against its branch's name, so that is the
+  rule each Environment carries. **A fork's pull request still never signs,**
+  and not because of a condition in the workflow, which the same pull request
+  could edit: GitHub gives a run from a fork no secrets and no token Azure
+  would accept, whatever its workflow asks for. The workflow's own check (this
+  repository's branch, `feature/x.y.z` or `x.y.x`) only keeps other branches
+  of ours from spending signing time. The secrets are KI7MT's; no agent holds
+  or sees them.
 
 ## File names
 
@@ -334,18 +340,13 @@ writes a track's entry from the release's own `SHA256SUMS.txt`.
 What this document describes but CI does not do yet, in the order it will be
 built (the first pass of milestone 0.3.0, released as 0.2.1):
 
-1. **Validation builds:** a pull request's build stamped
-   `x.y.z-pr<N>.<commit>`, signed for this repository's own branches, with its
-   installer links posted on the pull request.
-2. **The Release workflow** (Actions → Release, with the version): its checks
+1. **The Release workflow** (Actions → Release, with the version): its checks
    (version, tag, CHANGELOG section, milestone closed), publishing the
    pre-release, the Early feed, closing the milestone. Until it exists, a
    release is published as before, by a pull request into `main`.
-3. **Merging into `main` stops publishing**, once the Release workflow does.
-4. **The update feed moves into this repository**, at the same address.
-5. **GitHub settings:** `main` becomes the default branch, `develop` is
+2. **Merging into `main` stops publishing**, once the Release workflow does.
+3. **The update feed moves into this repository**, at the same address.
+4. **GitHub settings:** `main` becomes the default branch, and `develop` is
    retired along with the "protect main and develop" ruleset's reference to
-   it, the signing Environments allow `feature/*` and `x.y.x` (in their own
-   deployment branch rules), and **"all green" is a required check** on
-   `main`.
-6. A package repository for deb and rpm.
+   it.
+5. A package repository for deb and rpm.

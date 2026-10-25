@@ -89,7 +89,8 @@ No credentials or real station data belong in this repository.
   ([docs/RELEASES.md](docs/RELEASES.md)).
 - **Maintainers work one milestone at a time,** on one branch named for its version
   (`feature/0.2.1`), with one pull request into `main`. Each fix is validated on that pull
-  request's own build before it is merged.
+  request's own build before it is merged: a comment on the pull request links that build's
+  installers, and its version (`0.2.1-pr96.c0b8250`) is the one the issue records.
 - **Outside contributions:** fork the repository and open a pull request into `main` from a
   branch of your own (`fix-…`, `feat-…`, `docs-…`). KI7MT decides when it is merged, usually
   as part of the current milestone.
