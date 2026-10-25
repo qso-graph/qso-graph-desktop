@@ -14,10 +14,11 @@ on:
   # main is the one working branch (docs/RELEASES.md, #94): a milestone's
   # branch reaches it by a pull request, and merging builds, tests and signs
   # but publishes nothing. Publishing is the Release workflow, release.yml.
+  # A released version's fix branch, x.y.x (0.2.x), is built the same way.
   push:
-    branches: [main]
+    branches: [main, '[0-9]*.[0-9]*.x']
   pull_request:
-    branches: [main]
+    branches: [main, '[0-9]*.[0-9]*.x']
   # Nightly (KI7MT, 2026-10-24): the Preview, a signed build of main, on a
   # night main has changed. GitHub runs a schedule from the default branch.
   schedule:
@@ -88,11 +89,19 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          # GitHub lists at most 3,000 files of a pull request and 300 of a
+          # comparison; a list that may be partial is never documentation-only
+          # (found by Codex, #94), so an empty one is passed on and builds all.
           files=""
           case "$EVENT" in
-            pull_request) files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)') ;;
+            pull_request)
+              listed=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+              count=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename' | wc -l)
+              [ "$count" -eq "$(gh api "repos/${REPO}/pulls/${PR}" --jq .changed_files)" ] && files=$listed ;;
             push) if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
-                    files=$(gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" --jq '.files[] | .filename, (.previous_filename // empty)'); fi ;;
+                    gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" > "$RUNNER_TEMP/compare.json"
+                    [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -lt 300 ] \
+                      && files=$(jq -r '.files[] | .filename, (.previous_filename // empty)' "$RUNNER_TEMP/compare.json"); fi ;;
           esac
           docs_only=$(printf '%s\n' "$files" | node scripts/docs-only.mjs)
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
@@ -108,6 +117,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
@@ -129,8 +139,10 @@ jobs:
               if [ "$REF" = refs/heads/main ]; then sign=true; fi
               if [ "$REF" = refs/heads/main ] && [ "$MAC_ONLY" != true ]; then preview=true; fi
               ;;
+            # main, and a released version's fix branch: either may be what
+            # the Release workflow publishes.
             push)
-              if [ "$REF" = refs/heads/main ]; then sign=true; fi
+              if [ "$REF" = refs/heads/main ] || [[ "$REF" =~ ^refs/heads/[0-9]+\.[0-9]+\.x$ ]]; then sign=true; fi
               ;;
             # A pull request from one of our own branches is a validation
             # build (#92): the branch's own commit, not GitHub's merge of it,
@@ -142,7 +154,7 @@ jobs:
             pull_request)
               if [ "$HEAD_REPO" = "$REPO" ]; then
                 ref="$HEAD_REF"; sha="$HEAD_SHA"; pr="$PR"
-                if [[ "$HEAD_REF" =~ ^feature/[0-9]+\.[0-9]+\.[0-9]+$ || "$HEAD_REF" =~ ^[0-9]+\.[0-9]+\.x$ ]]; then sign=true; fi
+                if [[ "$HEAD_REF" =~ ^feature/[0-9]+\.[0-9]+\.[0-9]+$ || "$BASE_REF" =~ ^[0-9]+\.[0-9]+\.x$ ]]; then sign=true; fi
               fi
               ;;
           esac
@@ -595,7 +607,7 @@ jobs:
           if-no-files-found: error
           # main's build is the one a release publishes, so it is kept long
           # enough to wait for the Release button (#94).
-          retention-days: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 90 || 7 }}
+          retention-days: ${{ github.event_name == 'push' && needs.plan.outputs.sign == 'true' && 90 || 7 }}
 
   # The installers of a pull request's build (#92), each its own download,
   # not zipped, under its own file name, and one comment on the pull request

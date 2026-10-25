@@ -150,10 +150,16 @@ version must be fixed and the next milestone isn't close:
    holds that number, the milestone moves up (to `0.2.2`, or the next minor)
    before anything is built: two builds must never claim one version or one
    tag.
-2. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist.
-3. The fix, as its own pull request into `0.2.x`, validated on its build, and
-   the same fix made on `main` too, in the current milestone.
-4. **Release** from `0.2.x`, with the version chosen in step 1.
+2. `0.2.x` from the release's tag (`v0.2.0`), if it does not already exist,
+   and a milestone named for the version, holding the fix's issue. Its first
+   commit sets that version.
+3. The fix, as its own pull request into `0.2.x`, validated on its build
+   (signed, as a milestone's is), and the same fix made on `main` too, in the
+   current milestone.
+4. **Release** from `0.2.x`: Actions → Release → Run workflow, **Use workflow
+   from** `0.2.x`, with the version chosen in step 1. Its checks are the same,
+   against that branch and CI's build of it. **Promote** accepts a tag on
+   `0.2.x` as it does one on `main`.
 
 ## Versions
 
@@ -355,8 +361,9 @@ be done:
 1. **GitHub settings, once 0.2.1's pull request is merged** (the workflows
    are built; these are KI7MT's): `main` becomes the default branch;
    `develop` is deleted and dropped from the "protect main and develop"
-   ruleset and from both signing Environments; GitHub Pages is turned on for
-   this repository with **GitHub Actions** as its source, its
-   `github-pages` Environment allows `main`, and the custom domain
-   `updates.qso-graph.io` moves here from `qso-graph-desktop-updates`.
+   ruleset and from both signing Environments, which gain the fix branches
+   (`*.*.x`) instead; GitHub Pages is turned on for this repository with
+   **GitHub Actions** as its source, its `github-pages` Environment allows
+   `main` and `*.*.x`, and the custom domain `updates.qso-graph.io` moves here
+   from `qso-graph-desktop-updates`.
 2. A package repository for deb and rpm.

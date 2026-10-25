@@ -56,7 +56,9 @@ jobs:
           node scripts/release.mjs tracks "$work/releases.json" | tee "$work/tracks"
           stable=$(sed -n 's/^stable=//p' "$work/tracks")
           early=$(sed -n 's/^early=//p' "$work/tracks")
-          if [ -z "$early" ]; then echo "No release is published: there is no feed to write." >&2; exit 1; fi
+          # Nothing published, or every release withdrawn: a feed that offers
+          # nothing, so a withdrawn release stops being offered (Codex, #94).
+          [ -n "$early" ] || echo '{"format":"qso-graph-desktop-updates","version":1,"stable":null,"early":null}' > site/desktop.json
           for track in stable early; do
             version=${!track}
             [ -n "$version" ] || continue

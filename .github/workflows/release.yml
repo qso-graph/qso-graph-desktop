@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Release (#94, docs/RELEASES.md): the only way anything is published. Run by
-# hand when KI7MT says so: Actions → Release → Run workflow, from main, with
-# the version. Merging into main builds, tests and signs; it publishes
+# hand when KI7MT says so: Actions → Release → Run workflow, from main (or a
+# released version's fix branch, 0.2.x), with the version. Merging into main builds, tests and signs; it publishes
 # nothing.
 #
 # Nothing is rebuilt here. The release is the signed build CI already made
@@ -64,11 +64,15 @@ jobs:
           if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
             echo "✗ Give a release version, such as 0.2.1." >&2; exit 1
           fi
-          # Only main is released: Run workflow can be pointed at any branch.
-          [ "$GITHUB_REF" = refs/heads/main ] || { echo "✗ Releases are made from main; this run is on ${GITHUB_REF}." >&2; exit 1; }
-          echo "Releasing ${VERSION} from main at ${GITHUB_SHA}."
+          # Only main, or a released version's fix branch (x.y.x, docs/RELEASES.md),
+          # is released: Run workflow can be pointed at any branch.
+          branch=${GITHUB_REF#refs/heads/}
+          if [ "$GITHUB_REF" != refs/heads/main ] && ! [[ "$GITHUB_REF" =~ ^refs/heads/[0-9]+\.[0-9]+\.x$ ]]; then
+            echo "✗ Releases are made from main or a fix branch such as 0.2.x; this run is on ${GITHUB_REF}." >&2; exit 1
+          fi
+          echo "Releasing ${VERSION} from ${branch} at ${GITHUB_SHA}."
           have=$(node -p "require('./package.json').version")
-          [ "$have" = "$VERSION" ] && echo "✓ main says ${VERSION}" || fail "main says ${have}, not ${VERSION}"
+          [ "$have" = "$VERSION" ] && echo "✓ ${branch} says ${VERSION}" || fail "${branch} says ${have}, not ${VERSION}"
           node scripts/release.mjs check && echo "✓ CHANGELOG.md has its ${VERSION} section" || fail "CHANGELOG.md is not ready (above)"
           if git ls-remote --exit-code --tags "https://github.com/${REPO}.git" "refs/tags/v${VERSION}" >/dev/null; then
             fail "v${VERSION} is already tagged"
@@ -83,29 +87,34 @@ jobs:
             [ "$open" = 0 ] && echo "✓ milestone ${VERSION} has no open issue" || fail "milestone ${VERSION} has ${open} open issue(s)"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
-          # The build to publish: CI's newest run on main that is all green
+          # The build to publish: CI's newest run on this branch that is all green
           # and packaged all four platforms. A documentation-only merge since
           # builds nothing (#95), so that run may be of an earlier commit; it
           # is taken only if every change after it is documentation, which
           # never touches package.json, CHANGELOG.md or the spec (found by
           # Codex, #94). The release is tagged on the commit that was built.
           built="" run=""
-          for candidate in $(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?event=push&branch=main&status=success&per_page=30" \
+          for candidate in $(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?event=push&branch=${branch}&status=success&per_page=30" \
               --jq '.workflow_runs[] | "\(.id):\(.head_sha)"'); do
             jobs=$(gh api "repos/${REPO}/actions/runs/${candidate%%:*}/jobs?per_page=100" \
               --jq '[.jobs[] | select(.conclusion == "success") | .name] | map(select(. == "all green" or startswith("package ("))) | length')
             if [ "$jobs" = 5 ]; then run=${candidate%%:*}; built=${candidate#*:}; break; fi
           done
           if [ -z "$run" ]; then
-            fail "CI has no all-green run on main that packaged every platform"
+            fail "CI has no all-green run on ${branch} that packaged every platform"
           elif [ "$built" = "$GITHUB_SHA" ]; then
             echo "✓ CI is all green and packaged ${GITHUB_SHA} (run ${run})"
           else
-            after=$(gh api "repos/${REPO}/compare/${built}...${GITHUB_SHA}" --jq '.files[] | .filename, (.previous_filename // empty)')
+            # At most 300 files are listed; a list that may be partial is not
+            # documentation-only (Codex, #94).
+            gh api "repos/${REPO}/compare/${built}...${GITHUB_SHA}" > "$RUNNER_TEMP/compare.json"
+            after=""
+            [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -lt 300 ] \
+              && after=$(jq -r '.files[] | .filename, (.previous_filename // empty)' "$RUNNER_TEMP/compare.json")
             if [ "$(printf '%s\n' "$after" | node scripts/docs-only.mjs)" = true ]; then
               echo "✓ CI is all green and packaged ${built} (run ${run}); since then, documentation only"
             else
-              fail "CI's newest packaged build is ${built}, and main has changed since: wait for CI's run of ${GITHUB_SHA}"
+              fail "CI's newest packaged build is ${built}, and ${branch} has changed since: wait for CI's run of ${GITHUB_SHA}"
             fi
           fi
           echo "run=${run}" >> "$GITHUB_OUTPUT"

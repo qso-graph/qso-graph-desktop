@@ -49,10 +49,13 @@ jobs:
             "false "*) echo "$tag is already a full release." >&2; exit 1 ;;
             *) echo "$tag has no SHA256SUMS.txt: it is not a release this repository built." >&2; exit 1 ;;
           esac
-          # The tag's commit is on main: only a release PR's build is promoted.
+          # The tag's commit is on main, or on its own fix branch (0.2.x for
+          # 0.2.1): only what the Release workflow built is promoted.
           commit=$(gh api "repos/${REPO}/commits/${tag}" -q .sha)
-          gh api "repos/${REPO}/compare/main...${commit}" -q .status | grep -qx -e identical -e behind || {
-            echo "$tag is not a commit on main." >&2
+          fix="${VERSION%.*}.x"
+          on() { gh api "repos/${REPO}/compare/$1...${commit}" -q .status 2>/dev/null | grep -qx -e identical -e behind; }
+          on main || on "$fix" || {
+            echo "$tag is not a commit on main or ${fix}." >&2
             exit 1
           }
           gh release edit "$tag" --repo "$REPO" --prerelease=false --latest
