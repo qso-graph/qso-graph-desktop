@@ -79,7 +79,7 @@ jobs:
           else
             echo "✓ v${VERSION} is free"
           fi
-          milestone=$(gh api "repos/${REPO}/milestones?state=all&per_page=100" --jq ".[] | select(.title == \"${VERSION}\") | \"\(.number) \(.open_issues) \(.state)\"")
+          milestone=$(gh api --paginate "repos/${REPO}/milestones?state=all&per_page=100" --jq ".[] | select(.title == \"${VERSION}\") | \"\(.number) \(.open_issues) \(.state)\"")
           if [ -z "$milestone" ]; then
             fail "there is no milestone ${VERSION}"
           else
