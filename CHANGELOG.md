@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **QSO Graph Desktop works on a freshly installed Windows 11.** It needs Microsoft's Visual C++
+  runtime, which a new PC doesn't have, and without it nothing that goes online worked. The installer
+  now gets Microsoft's own installer from Microsoft, checks Microsoft signed it, and runs it (one
+  administrator prompt, once per PC); the Microsoft Store package asks the Store for it; and if it's
+  still missing, the application says so when it starts, with Microsoft's page. (#91)
 - **Help's documents open from the main branch**, which is where they are kept now. (#94)
 
 ## [0.2.0] - 2026-10-25

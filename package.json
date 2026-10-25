@@ -124,7 +124,8 @@
       "backgroundColor": "transparent",
       "languages": [
         "en-US"
-      ]
+      ],
+      "customManifestPath": "appxmanifest.xml"
     },
     "linux": {
       "target": [
@@ -146,7 +147,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "runAfterFinish": false
+      "runAfterFinish": false,
+      "include": "installer.nsh"
     }
   },
   "dependencies": {

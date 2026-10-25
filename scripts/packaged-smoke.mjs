@@ -17,7 +17,12 @@ import { enableTestKeychain } from './keychain-service.mjs';
 // credential, and are swept on exit (QGD-CRD-0003). Called before the core is
 // loaded, because the service name is read when an entry is made.
 enableTestKeychain();
-const binary = resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/MacOS/QSO Graph Desktop');
+// The packaged application: the signed Mac bundle, or on Windows the copy the
+// installer put on the runner (QG_PACKAGED_APP, set by CI after a silent
+// install, #91), so the installer's own steps run before it is launched.
+const binary = process.env.QG_PACKAGED_APP
+  ? resolve(process.env.QG_PACKAGED_APP)
+  : resolve('out/mac-arm64/QSO Graph Desktop.app/Contents/MacOS/QSO Graph Desktop');
 const directory = await mkdtemp(join(tmpdir(), 'qg-packaged-smoke-'));
 const profile = join(directory, 'profile');
 const userData = join(directory, 'chromium');

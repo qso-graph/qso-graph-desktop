@@ -27,6 +27,7 @@ import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
 import { startLinksBroker } from './links-broker.js';
+import { warnWindowsRuntime, windowsRuntimeMissing } from './windows-runtime.js';
 import type { DocumentName } from './links-contract.js';
 
 // A Setup menu item: the window is told which action, by name, and does it.
@@ -520,6 +521,12 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(applicationMenu());
     extensionBroker?.enablement.onChange(() => Menu.setApplicationMenu(applicationMenu()));
     createWindow();
+    // Without Microsoft's Visual C++ runtime the credential core cannot start
+    // on Windows (#91): said once, plainly, with Microsoft's page.
+    if (windowsRuntimeMissing(process.platform, process.env.SystemRoot)) {
+      log.warn({}, "Microsoft's Visual C++ runtime is missing; the credential core cannot start");
+      void warnWindowsRuntime(BrowserWindow.getAllWindows()[0], () => links.open({ type: 'site', name: 'vcruntime' }));
+    }
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

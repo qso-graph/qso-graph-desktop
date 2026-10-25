@@ -374,7 +374,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Two hours for a signed Mac build: Apple's notarization queue decides,
     # and a team's first submissions can take an hour. Others finish in minutes.
-    timeout-minutes: ${{ fromJSON(matrix.os == 'macos-latest' && '120' || '45') }}
+    timeout-minutes: ${{ fromJSON(matrix.os == 'macos-latest' && '120' || matrix.os == 'windows-latest' && '60' || '45') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -591,6 +591,55 @@ jobs:
           path: out/*.appx
           if-no-files-found: error
           retention-days: 30
+      # Microsoft's Visual C++ runtime (#91). GitHub's runners always have it
+      # and a fresh Windows 11 does not, which is how 0.2.0's credential core
+      # failed for new users while every test here passed. So: every DLL our
+      # native files import must be Windows's, the runtime's or shipped, and
+      # the check must fail with the runtime taken off its list.
+      - name: Windows imports (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          node scripts/windows-imports.mjs out/win-unpacked/resources/app.asar.unpacked
+          if node scripts/windows-imports.mjs out/win-unpacked/resources/app.asar.unpacked --without vcruntime140.dll; then
+            echo "The import check passed with the Visual C++ runtime off its list: it checks nothing." >&2; exit 1
+          fi
+      # The installer's runtime step (build/vc-runtime.ps1), each answer, with
+      # the Windows PowerShell the installer uses: present here, so nothing
+      # to do; Microsoft's download, checked as Microsoft's; and a file signed
+      # by anyone else refused. PowerShell 7's module path breaks Windows
+      # PowerShell's, so it is cleared first (#85).
+      - name: Visual C++ runtime step (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PSModulePath = $null
+          $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+          $cases = @(
+            @{ Args = @(); Want = 0; What = 'the runtime is present' },
+            @{ Args = @('-VerifyOnly'); Want = 0; What = "Microsoft's download is signed by Microsoft" },
+            @{ Args = @('-VerifyOnly', '-From', (Resolve-Path 'out/win-unpacked/QSO Graph Desktop.exe').Path); Want = 11; What = 'a file not signed by Microsoft is refused' }
+          )
+          foreach ($case in $cases) {
+            $a = $case.Args
+            & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build/vc-runtime.ps1 @a
+            if ($LASTEXITCODE -ne $case.Want) { throw "$($case.What): exit $LASTEXITCODE, wanted $($case.Want)" }
+            Write-Output "OK: $($case.What)"
+          }
+      # Installed as an operator installs it, silently here, so the installer's
+      # own steps run, then launched and driven: the credential core must
+      # answer (#91; the Mac's signed build has the same suite).
+      - name: The installed build launches (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem out -Filter 'qso-graph-desktop-*-win-x64.exe' | Select-Object -First 1
+          $target = Join-Path $env:RUNNER_TEMP 'qgd-installed'
+          $run = Start-Process -FilePath $installer.FullName -ArgumentList '/S', "/D=$target" -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "The installer exited $($run.ExitCode)." }
+          $env:QG_PACKAGED_APP = Join-Path $target 'QSO Graph Desktop.exe'
+          if (-not (Test-Path -LiteralPath $env:QG_PACKAGED_APP)) { throw "The installer did not put the application in $target." }
+          npm run verify -- --suites packaged-launch
       # What shipped: the built-in extensions and the host are in it, and no
       # development material is (QGD-APP-0017).
       - run: npm run verify -- --suites package-contents

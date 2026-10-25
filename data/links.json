@@ -17,7 +17,8 @@
     "pota": "https://pota.app/",
     "sota": "https://www.sota.org.uk/",
     "iota": "https://www.iota-world.org/",
-    "releases": "https://github.com/qso-graph/qso-graph-desktop/releases"
+    "releases": "https://github.com/qso-graph/qso-graph-desktop/releases",
+    "vcruntime": "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist"
   },
   "release": "https://github.com/qso-graph/qso-graph-desktop/releases/tag/v{version}",
   "references": {
