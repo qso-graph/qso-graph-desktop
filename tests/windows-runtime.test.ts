@@ -12,22 +12,26 @@ describe("Microsoft's Visual C++ runtime (#91)", () => {
   const dll = join(root, 'System32', 'vcruntime140.dll');
 
   it('is missing on Windows when the system folder has no vcruntime140.dll', () => {
-    expect(windowsRuntimeMissing('win32', root, () => false)).toBe(true);
+    expect(windowsRuntimeMissing('win32', root, false, () => false)).toBe(true);
   });
 
   it('is there when the system folder has it, and is looked for there alone', () => {
     const asked: string[] = [];
-    expect(windowsRuntimeMissing('win32', root, path => { asked.push(path); return path === dll; })).toBe(false);
+    expect(windowsRuntimeMissing('win32', root, false, path => { asked.push(path); return path === dll; })).toBe(false);
     expect(asked).toEqual([dll]);
   });
 
   it('is never asked about on macOS or Linux', () => {
-    expect(windowsRuntimeMissing('darwin', undefined, () => false)).toBe(false);
-    expect(windowsRuntimeMissing('linux', undefined, () => false)).toBe(false);
+    expect(windowsRuntimeMissing('darwin', undefined, false, () => false)).toBe(false);
+    expect(windowsRuntimeMissing('linux', undefined, false, () => false)).toBe(false);
+  });
+
+  it("is never asked about in the Store copy, which Microsoft's package supplies", () => {
+    expect(windowsRuntimeMissing('win32', root, true, () => false)).toBe(false);
   });
 
   it('counts as missing when Windows does not say where it is', () => {
-    expect(windowsRuntimeMissing('win32', undefined, () => true)).toBe(true);
+    expect(windowsRuntimeMissing('win32', undefined, false, () => true)).toBe(true);
   });
 
   it("names the file to choose, and Microsoft's page is in the link register", () => {

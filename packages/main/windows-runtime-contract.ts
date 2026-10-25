@@ -11,9 +11,11 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Where Windows's loader finds it: the system folder. The application is a
-// 64-bit process, so this is the 64-bit System32, never SysWOW64.
-export function windowsRuntimeMissing(platform: string, systemRoot: string | undefined, exists: (path: string) => boolean = existsSync): boolean {
-  if (platform !== 'win32') return false;
+// 64-bit process, so this is the 64-bit System32, never SysWOW64. A Store
+// copy is never asked: Microsoft's package brings it there, inside the
+// package's own dependencies rather than System32 (found by Codex, #91).
+export function windowsRuntimeMissing(platform: string, systemRoot: string | undefined, fromStore: boolean, exists: (path: string) => boolean = existsSync): boolean {
+  if (platform !== 'win32' || fromStore) return false;
   if (!systemRoot) return true;
   return !exists(join(systemRoot, 'System32', 'vcruntime140.dll'));
 }

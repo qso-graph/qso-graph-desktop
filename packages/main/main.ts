@@ -523,7 +523,7 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
     // Without Microsoft's Visual C++ runtime the credential core cannot start
     // on Windows (#91): said once, plainly, with Microsoft's page.
-    if (windowsRuntimeMissing(process.platform, process.env.SystemRoot)) {
+    if (windowsRuntimeMissing(process.platform, process.env.SystemRoot, fromStore)) {
       log.warn({}, "Microsoft's Visual C++ runtime is missing; the credential core cannot start");
       void warnWindowsRuntime(BrowserWindow.getAllWindows()[0], () => links.open({ type: 'site', name: 'vcruntime' }));
     }
