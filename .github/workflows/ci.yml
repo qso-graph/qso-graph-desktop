@@ -6,10 +6,29 @@
 name: CI
 
 on:
+  # Documentation alone builds nothing (KI7MT, 2026-10-24: "I am not going
+  # through this build process for docs and readme updates"). A change that
+  # touches only these files starts no run; one that touches anything else as
+  # well builds as normal. Not ignored, on purpose: the spec (CI checks the
+  # RVM generated from it) and CHANGELOG.md (it ships as What's New).
   push:
     branches: [develop, main]
+    paths-ignore:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'PRIVACY.md'
+      - 'guide/**'
+      - 'docs/**'
   pull_request:
     branches: [develop, main]
+    paths-ignore:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'PRIVACY.md'
+      - 'guide/**'
+      - 'docs/**'
   # Nightly (KI7MT, 2026-10-24): signing and notarizing cost minutes every
   # time, so they are paid once a night and on releases, never on an
   # ordinary push. GitHub runs a schedule from the default branch, main, so
