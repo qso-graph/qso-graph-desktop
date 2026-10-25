@@ -41,6 +41,9 @@
       case 'off':
         if (state.why === 'development') return 'This is a development build, which does not check for updates.';
         if (state.why === 'preview') return 'Previews do not check for updates. Install a release to get them.';
+        // A Store copy keeps its data in the Store's private place, which
+        // Windows deletes on uninstall (Microsoft's MSIX rules).
+        if (state.why === 'store') return 'Updates come from the Microsoft Store. Uninstalling this copy also deletes your callsigns, Locations and settings, so back them up first (Back up and restore, below).';
         return 'Not checking for updates.';
       case 'idle': return 'Will check shortly.';
       case 'checking': return 'Checking…';

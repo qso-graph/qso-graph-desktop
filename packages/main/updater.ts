@@ -40,7 +40,7 @@ export interface UpdaterOptions {
   // Whether this build asks at all: a preview or a development run does not,
   // and which it is, so the window can say.
   asks: boolean;
-  build?: 'release' | 'development' | 'preview';
+  build?: 'release' | 'development' | 'preview' | 'store';
   settings: () => { updateCheck: boolean; updateTrack: UpdateTrack };
   online: () => boolean;
   feed: () => Promise<Uint8Array | string>;
@@ -143,7 +143,7 @@ function replaceMacBundle(zip: string): string {
 export function startUpdater(options: UpdaterOptions): Updater {
   const now = options.now ?? Date.now;
   const windowsTrusted = options.windowsTrusted ?? signedLikeThisCopy;
-  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' ? 'preview' : options.build === 'development' ? 'development' : 'switch' });
+  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' || options.build === 'development' || options.build === 'store' ? options.build : 'switch' });
   let state: UpdateState = options.asks ? { kind: 'idle' } : notAsking();
   let lastAsked = 0;
   let readyFile: string | null = null;
