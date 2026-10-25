@@ -506,8 +506,12 @@ async function initialize() {
       // stays where it is: the list is drawn, the form is not reset under
       // them. On the installed Windows build the core answered after the
       // callsign was typed, and selecting wiped it (#91's packaged run).
-      if (input('callsign').value || input('callsign-description').value) list();
-      else select(snapshot.active ?? snapshot.callsigns[0]?.id ?? null);
+      // The start date is the one default select() would have filled, and it
+      // is required: kept empty, Add callsign refused (the next packaged run).
+      if (input('callsign').value || input('callsign-description').value) {
+        list();
+        if (!input('start-date').value) input('start-date').value = new Date().toISOString().slice(0, 10);
+      } else select(snapshot.active ?? snapshot.callsigns[0]?.id ?? null);
       // The register, for the setup screen to draw itself from. Whether to
       // offer setup at all is decided by the callsign list every time it is
       // drawn, above.
