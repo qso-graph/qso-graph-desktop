@@ -66,10 +66,14 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      # Documentation only: every changed file is one of these. Not on the list,
-      # on purpose: the spec (CI checks the RVM generated from it) and
-      # CHANGELOG.md (it ships as What's New). A push that opens a branch, a
-      # night's run and a run by hand are never documentation-only.
+      # Documentation only (scripts/docs-only.mjs, which says what counts).
+      # A push that opens a branch, a night's run and a run by hand are never
+      # documentation-only.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/docs-only.mjs
+          sparse-checkout-cone-mode: false
       - id: docs
         shell: bash
         env:
@@ -83,18 +87,11 @@ jobs:
           set -euo pipefail
           files=""
           case "$EVENT" in
-            pull_request) files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename') ;;
+            pull_request) files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)') ;;
             push) if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
-                    files=$(gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" --jq '.files[].filename'); fi ;;
+                    files=$(gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" --jq '.files[] | .filename, (.previous_filename // empty)'); fi ;;
           esac
-          docs_only=false
-          # A line that is not documentation means it isn't documentation-only.
-          # grep -v with output to /dev/null, not -q: -q with -v differs between
-          # grep implementations, and this must mean the same everywhere.
-          if [ -n "$files" ] && ! printf '%s\n' "$files" \
-              | grep -vE '^(README\.md|CONTRIBUTING\.md|SECURITY\.md|PRIVACY\.md|AGENTS\.md|CLAUDE\.md|\.github/pull_request_template\.md|guide/.+|docs/.+)$' >/dev/null; then
-            docs_only=true
-          fi
+          docs_only=$(printf '%s\n' "$files" | node scripts/docs-only.mjs)
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
           printf 'Changed files:\n%s\ndocumentation only: %s\n' "${files:-(none read)}" "$docs_only"
       - id: plan
@@ -829,12 +826,13 @@ jobs:
   # All green (#95): the one check the repository's rules require before a
   # merge. It always reports, documentation-only changes included: the plan
   # and the citation check must pass, and so must every build job the plan
-  # asked for. A job the plan skipped (documentation only, a night with
-  # nothing new, a macOS-only run's other platforms) is not a failure; a job
+  # asked for, the validation build's links included (#92). A job the plan
+  # skipped (documentation only, a night with nothing new, a macOS-only run's
+  # other platforms, a fork's pull request's links) is not a failure; a job
   # that failed or was cancelled is.
   all-green:
     name: all green
-    needs: [plan, citations, check, window, package]
+    needs: [plan, citations, check, window, package, pr-build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

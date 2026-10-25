@@ -66,6 +66,9 @@ describe('the window title names the version', () => {
     const { windowTitle } = await import('../packages/ui/release.js');
     expect(windowTitle('0.1.0')).toBe('QSO Graph Desktop v0.1.0');
     expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 preview');
+    // A validation build by its whole version, so it names the build (#92).
+    expect(windowTitle('0.2.1-pr96.c0b8250')).toBe('QSO Graph Desktop v0.2.1-pr96.c0b8250');
+    expect(windowTitle('0.2.1-pr96.g0123456')).toBe('QSO Graph Desktop v0.2.1-pr96.g0123456');
     expect(windowTitle('nonsense')).toBe('QSO Graph Desktop');
   });
 });
