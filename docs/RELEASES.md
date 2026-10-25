@@ -128,7 +128,10 @@ in bulk.
    - it was run from `main`, and `main`'s `package.json` says `x.y.z`;
    - CHANGELOG.md has a `[x.y.z]` section, and the tag `vx.y.z` is not taken;
    - milestone `x.y.z` exists and has **no open issues**;
-   - CI's run of that very commit on `main` is **all green**.
+   - CI's run of that very commit on `main` is **all green**;
+   - this repository's **GitHub Pages is on**, built from Actions, at
+     `updates.qso-graph.io`, so the feed can be published (#99: 0.2.1 was
+     published, then its feed failed because Pages was off).
 3. **It publishes what CI built**, nothing rebuilt: the pre-release `vx.y.z`
    with every installer from that run (each checked to carry that version),
    `SHA256SUMS.txt`, and the CHANGELOG section as its notes. The tag is created

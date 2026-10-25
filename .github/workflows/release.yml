@@ -37,9 +37,10 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      # CI's run of this commit, and the milestone's open issues.
+      # CI's run of this commit, the milestone's open issues, and Pages (#99).
       actions: read
       issues: read
+      pages: read
     outputs:
       run: ${{ steps.ready.outputs.run }}
       sha: ${{ steps.ready.outputs.sha }}
@@ -119,6 +120,16 @@ jobs:
           fi
           echo "run=${run}" >> "$GITHUB_OUTPUT"
           echo "sha=${built}" >> "$GITHUB_OUTPUT"
+          # The feed can be published (#99): releasing 0.2.1 published every
+          # file, then failed at the feed because Pages was off, so installed
+          # copies were still offered 0.2.0. Pages must be on, built by
+          # Actions, and serving the feed's own address, before anything goes.
+          pages=$(gh api "repos/${REPO}/pages" --jq '"\(.build_type) \(.cname // "")"' 2>/dev/null) || pages=""
+          if [ "$pages" = "workflow updates.qso-graph.io" ]; then
+            echo "✓ the update feed can be published (Pages, from Actions, at updates.qso-graph.io)"
+          else
+            fail "the update feed cannot be published: this repository's Pages must be on, built from GitHub Actions, at updates.qso-graph.io (it is: ${pages:-off})"
+          fi
           if [ "$problems" -gt 0 ]; then echo "Not released: ${problems} check(s) failed." >&2; exit 1; fi
 
   publish:
