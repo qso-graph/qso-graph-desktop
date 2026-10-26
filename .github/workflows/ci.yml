@@ -837,8 +837,10 @@ jobs:
   # token, so no other credential is held here.
   preview:
     name: preview release
-    needs: [plan, package]
-    if: ${{ !cancelled() && needs.plan.outputs.preview == 'true' && needs.package.result == 'success' }}
+    # Not past a failed dependency audit (#102; found by Codex): the Preview is
+    # published, so it waits for the audit as Release waits for ci-all-green.
+    needs: [plan, package, audit]
+    if: ${{ !cancelled() && needs.plan.outputs.preview == 'true' && needs.package.result == 'success' && needs.audit.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
