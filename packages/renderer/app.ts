@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
   callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
-  type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
+  type BackupPart, type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
 } from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import { isUpdateState, isVersionChoices, type UpdateCommand } from '../main/update-contract.js';
@@ -653,8 +653,8 @@ export async function exportDiagnostics(): Promise<string> {
 // written by the main process. A refusal is returned as its sentence
 // rather than thrown, because every one of them is something the operator can
 // act on.
-export async function exportCallsigns(): Promise<ExportResult | string> {
-  const reply = await window.callsigns.request({ type: 'export-callsigns' });
+export async function exportCallsigns(parts: BackupPart[]): Promise<ExportResult | string> {
+  const reply = await window.callsigns.request({ type: 'export-callsigns', parts });
   if (!reply.ok) return reply.error;
   const data = reply.data as ExportResult | null;
   return data && typeof data.written === 'string' ? data : 'The export could not be written.';
@@ -664,12 +664,12 @@ export async function inspectImport(): Promise<ImportPreview | string> {
   const reply = await window.callsigns.request({ type: 'import-callsigns', apply: false, replace: false });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportPreview | null;
-  return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
+  return data && Array.isArray(data.arriving) && Array.isArray(data.parts) ? data : 'That file could not be read.';
 }
 
 // `replace`: what is on this computer is removed first (a clean slate).
-export async function applyImport(replace: boolean): Promise<ImportResult | string> {
-  const reply = await window.callsigns.request({ type: 'import-callsigns', apply: true, replace });
+export async function applyImport(replace: boolean, parts: BackupPart[]): Promise<ImportResult | string> {
+  const reply = await window.callsigns.request({ type: 'import-callsigns', apply: true, replace, parts });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportResult | null;
   if (!data || typeof data.callsigns !== 'number') return 'The import did not finish.';

@@ -351,3 +351,35 @@ describe('My Area (KI7MT, 2026-10-23)', () => {
     expect(validateSettingsCommand({ type: 'write', key: 'area', value: ['nope'] })).toBe(false);
   });
 });
+
+// The settings a backup carries (#64): what is written is what is read back,
+// whole; the window's place and the notes seen stay with the computer.
+describe('settings in a backup (#64)', async () => {
+  const { DEFAULT_SETTINGS, isBackupSettings, readSettings, settingsForBackup, withBackupSettings } = await import('../packages/main/settings-contract.js');
+  const mine = readSettings({ ...DEFAULT_SETTINGS, theme: 'light', pins: ['pota/spots'], extensionsOn: ['pota'], area: ['US-ID'], updateTrack: 'early',
+    seenVersion: '0.2.1', windowBounds: { x: 10, y: 20, width: 1200, height: 800, maximized: false } });
+
+  it('carries the operator\'s choices, and not this computer\'s', () => {
+    const carried = settingsForBackup(mine);
+    expect(Object.keys(carried).sort()).toEqual(['area', 'extensionsOn', 'grants', 'pins', 'theme', 'updateCheck', 'updateTrack']);
+    // What a backup writes passes the check a restore makes, through JSON as it travels.
+    expect(isBackupSettings(JSON.parse(JSON.stringify(carried)))).toBe(true);
+  });
+
+  it('is refused whole when it is not exactly what a backup carries', () => {
+    const carried = JSON.parse(JSON.stringify(settingsForBackup(mine))) as Record<string, unknown>;
+    expect(isBackupSettings({ ...carried, windowBounds: null })).toBe(false);
+    expect(isBackupSettings({ ...carried, theme: 'purple' })).toBe(false);
+    const { pins: _pins, ...missing } = carried;
+    expect(isBackupSettings(missing)).toBe(false);
+    expect(isBackupSettings(JSON.parse('{"__proto__":{"theme":"dark"}}'))).toBe(false);
+    expect(isBackupSettings([])).toBe(false);
+  });
+
+  it('restored, replaces this computer\'s choices and keeps where its window is', () => {
+    const here = readSettings({ ...DEFAULT_SETTINGS, seenVersion: '0.3.0', windowBounds: { x: 0, y: 0, width: 1100, height: 760, maximized: true } });
+    const restored = withBackupSettings(here, settingsForBackup(mine));
+    expect(restored).toMatchObject({ theme: 'light', extensionsOn: ['pota'], updateTrack: 'early', seenVersion: '0.3.0' });
+    expect(restored.windowBounds).toEqual({ x: 0, y: 0, width: 1100, height: 760, maximized: true });
+  });
+});

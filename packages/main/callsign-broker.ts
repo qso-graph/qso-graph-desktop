@@ -5,8 +5,10 @@ import { basename, join } from 'node:path';
 import {
   allowsSender, isReply, validateCommand,
   type FetchedReference, type CallsignCommand, type CallsignReply, type SealedExport, type ServiceCommand,
-  type CoreImportPreview, type CoreImportResult, type ImportPreview, type ImportResult
+  type BackupPart, type CoreImportPreview, type CoreImportResult, type ImportPreview, type ImportResult
 } from '../callsigns/callsign-contract.js';
+import { isBackupSettings, settingsForBackup, withBackupSettings, type BackupSettings } from './settings-contract.js';
+import { load as loadSettings, save as saveSettings } from './settings.js';
 import { isStationsBackup, type StationsBackup } from '../storage/station-contract.js';
 import { readServices, serviceIds } from '../callsigns/services.js';
 import { deadlineFor } from '../callsigns/deadlines.js';
@@ -185,21 +187,27 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     if (command.type === 'export-callsigns') {
       const chosen = window
         ? await dialog.showSaveDialog(window, {
-            title: 'Back up callsigns and Locations',
+            title: 'Back up',
             defaultPath: 'qso-graph-backup.json',
             filters: [{ name: 'QSO Graph backup', extensions: ['json'] }]
           })
         : await dialog.showSaveDialog({ defaultPath: 'qso-graph-backup.json' });
       if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Backup cancelled.' };
 
-      // The Locations go in the same file (KI7MT, 2026-10-23); no login does,
-      // and the core reads none for a backup. Everything in it is public, so
-      // it is plain JSON, with no passphrase to lose.
-      const backup = stations ? await stations.backup() : { stations: [], defaults: {}, active: null };
-      if (typeof backup === 'string') return { ok: false, error: backup };
+      // The parts ticked (#64). The Locations go in the same file as the
+      // callsigns (KI7MT, 2026-10-23); no login does, and the core reads none
+      // for a backup. Everything in it is public, so it is plain JSON, with no
+      // passphrase to lose.
+      let locations: string | undefined;
+      if (command.parts.includes('callsigns')) {
+        const backup = stations ? await stations.backup() : { stations: [], defaults: {}, active: null };
+        if (typeof backup === 'string') return { ok: false, error: backup };
+        locations = JSON.stringify(backup);
+      }
+      const settings = command.parts.includes('settings') ? JSON.stringify(settingsForBackup(loadSettings())) : undefined;
       // Made first, written second: a backup that cannot be made must not
       // leave a file behind.
-      const made = await ask({ type: 'export-callsigns', locations: JSON.stringify(backup) });
+      const made = await ask({ type: 'export-callsigns', locations, settings });
       if (!made.ok) return made;
       const bytes = (made.data as SealedExport | null)?.bytes;
       if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
@@ -210,7 +218,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       } catch {
         return { ok: false, error: 'That file could not be written. Choose another place.' };
       }
-      log.info({ bytes: bytes.length }, 'callsigns exported');
+      log.info({ bytes: bytes.length, parts: command.parts.join(',') }, 'backed up');
       return { ok: true, data: { written: basename(chosen.filePath), bytes: bytes.length } };
     }
 
@@ -223,7 +231,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     if (!file) {
       const chosen = window
         ? await dialog.showOpenDialog(window, {
-            title: 'Restore callsigns and Locations',
+            title: 'Restore',
             properties: ['openFile'],
             filters: [{ name: 'QSO Graph backup', extensions: ['json'] }]
           })
@@ -245,6 +253,15 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     const looked = await ask({ type: 'import-callsigns', apply: false, replace: false, file });
     if (!looked.ok) { inspected = undefined; return looked; }
     const core = looked.data as CoreImportPreview;
+    const held = core.parts.filter((part): part is BackupPart => part === 'callsigns' || part === 'settings');
+    // The settings checked whole, as the Locations are below (QGD-PSN-0008).
+    let settings: BackupSettings | undefined;
+    if (held.includes('settings')) {
+      let parsed: unknown;
+      try { parsed = JSON.parse(core.settings); } catch { parsed = undefined; }
+      if (!isBackupSettings(parsed)) { inspected = undefined; return { ok: false, error: 'The settings in that file could not be read.' }; }
+      settings = parsed;
+    }
     let backup: StationsBackup = { stations: [], defaults: {}, active: null };
     if (core.locations !== '') {
       let parsed: unknown;
@@ -258,30 +275,60 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       // succeeded. Forgotten the moment it is used, refused, or cancelled.
       inspected = file;
       const preview: ImportPreview = {
-        created: core.created, callsigns: core.callsigns, arriving: core.arriving, here: core.here,
+        parts: held, created: core.created, callsigns: core.callsigns, arriving: core.arriving, here: core.here,
         locations: backup.stations.map(entry => entry.name), locationsHere
       };
       return { ok: true, data: preview };
     }
     inspected = undefined;
+    // The parts chosen, of those the file holds (#64); all of them unless
+    // the operator unticked some.
+    const chosenParts = command.parts ?? held;
+    if (chosenParts.length === 0 || !chosenParts.every(part => held.includes(part))) {
+      return { ok: false, error: 'That backup does not hold what was chosen.' };
+    }
+    let result: ImportResult = { callsigns: 0, locations: 0, settings: false };
+    if (chosenParts.includes('callsigns')) {
+      const restored = await restoreCallsigns(command.replace, file, core, backup, locationsHere);
+      if (typeof restored === 'string') return { ok: false, error: restored };
+      result = { ...result, ...restored };
+    }
+    // Each part onto a clean slate (KI7MT, 2026-10-23): the settings replace
+    // this computer's, all but where the window is and which notes were seen.
+    if (chosenParts.includes('settings') && settings) {
+      if (!saveSettings(withBackupSettings(loadSettings(), settings))) {
+        return { ok: false, error: result.callsigns > 0 || result.locations > 0
+          ? 'The callsigns and Locations were restored; the settings could not be saved.'
+          : 'The settings could not be saved.' };
+      }
+      result = { ...result, settings: true };
+      // Taken up by a restart, which the operator was told restoring the
+      // settings does; after this reply has reached the window.
+      setTimeout(() => { app.relaunch(); app.quit(); }, 1500);
+    }
+    log.info({ callsigns: result.callsigns, locations: result.locations, settings: result.settings }, 'restored');
+    return { ok: true, data: result };
+  }
+
+  // The callsigns and their Locations, onto a clean slate.
+  async function restoreCallsigns(replace: boolean, file: Buffer, core: CoreImportPreview, backup: StationsBackup, locationsHere: number):
+    Promise<{ callsigns: number; locations: number } | string> {
     // A clean slate, never a merge (KI7MT, 2026-10-23): with anything here,
     // the operator must have said to remove it first.
-    if (!command.replace && (core.here.length > 0 || locationsHere > 0)) {
-      return { ok: false, error: 'This computer already has callsigns or Locations. Choose to remove them first, then restore.' };
+    if (!replace && (core.here.length > 0 || locationsHere > 0)) {
+      return 'This computer already has callsigns or Locations. Choose to remove them first, then restore.';
     }
-    if (!stations) return { ok: false, error: 'The Locations cannot be restored just now. Try again in a moment.' };
+    if (!stations) return 'The Locations cannot be restored just now. Try again in a moment.';
     // The Locations checked by QG Storage before the callsigns are touched,
     // so a backup storage would refuse, or storage not answering, stops the
     // restore while nothing here has changed (#57).
     const unfit = await stations.check(backup);
-    if (unfit !== undefined) return { ok: false, error: unfit };
-    const applied = await ask({ type: 'import-callsigns', apply: true, replace: command.replace, file });
-    if (!applied.ok) return applied;
-    const restored = await stations.restore(backup, command.replace);
-    if (typeof restored === 'string') return { ok: false, error: `The callsigns were restored; the Locations were not: ${restored}` };
-    const result: ImportResult = { callsigns: (applied.data as CoreImportResult).callsigns, locations: restored };
-    log.info({ callsigns: result.callsigns, locations: result.locations }, 'callsigns and locations restored');
-    return { ok: true, data: result };
+    if (unfit !== undefined) return unfit;
+    const applied = await ask({ type: 'import-callsigns', apply: true, replace, file });
+    if (!applied.ok) return applied.error;
+    const restored = await stations.restore(backup, replace);
+    if (typeof restored === 'string') return `The callsigns were restored; the Locations were not: ${restored}`;
+    return { callsigns: (applied.data as CoreImportResult).callsigns, locations: restored };
   }
 
   ipcMain.handle('callsigns:request', (event, command: unknown): Promise<CallsignReply> | CallsignReply => {

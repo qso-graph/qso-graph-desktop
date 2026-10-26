@@ -63,6 +63,9 @@ export interface NativeImportPreview {
   here: string[];
   // The Locations, as QG Storage handed them to the export.
   locations: string;
+  // What the file holds (#64), and its settings as main handed them over, or empty.
+  parts: string[];
+  settings: string;
 }
 
 // What came back from a reference source. `fresh` false is a 304: the body is
@@ -122,7 +125,7 @@ export declare class CallsignCore {
   downloadUpdate(url: string, sum: string, name: string): Promise<string>;
   serviceLookup(id: string, provider: string, operation: string, callsign: string): NativeLookupResult;
   // A plain backup, and a restore from one (backup.rs): no login in either.
-  exportBackup(locations: string): Buffer;
+  exportBackup(locations?: string | null, settings?: string | null): Buffer;
   inspectBackup(file: Buffer): NativeImportPreview;
   applyBackup(file: Buffer, replace: boolean): NativeImportSummary;
   // Trusted-core only. The broker never exposes this to a renderer.

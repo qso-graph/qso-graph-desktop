@@ -31,7 +31,7 @@
   import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
   import type { VersionChoice } from '../main/update-contract.js';
   import type { Level } from '../logging/logging.js';
-  import type { ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
+  import type { BackupPart, ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
   import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
 
   interface Props {
@@ -72,9 +72,9 @@
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
-    onExportCallsigns: () => Promise<ExportResult | string>;
+    onExportCallsigns: (parts: BackupPart[]) => Promise<ExportResult | string>;
     onInspectImport: () => Promise<ImportPreview | string>;
-    onApplyImport: (replace: boolean) => Promise<ImportResult | string>;
+    onApplyImport: (replace: boolean, parts: BackupPart[]) => Promise<ImportResult | string>;
     // Updates (QGD-FRM-0019): Settings' switch and track, and the actions.
     onSetUpdateCheck?: (on: boolean) => Promise<boolean>;
     onSetUpdateTrack?: (track: UpdateTrack) => Promise<boolean>;

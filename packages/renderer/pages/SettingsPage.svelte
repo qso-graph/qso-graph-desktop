@@ -49,7 +49,7 @@
   import UpdatesCard from './UpdatesCard.svelte';
   import type { UpdateTrack } from '../../main/settings-contract.js';
   import type { UpdateState, VersionChoice } from '../../main/update-contract.js';
-  import type { ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
+  import type { BackupPart, ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import ThemeChoice from '../../ui/ThemeChoice.svelte';
   import type { ThemeChoice as Choice } from '../../main/settings-contract.js';
@@ -79,9 +79,9 @@
     onOpenDocument?: (name: DocumentName) => void;
     // Back up and restore (KI7MT, 2026-10-23: a housekeeping action, in
     // Settings and Tools, not a destination of its own).
-    onBackup?: () => Promise<ExportResult | string>;
+    onBackup?: (parts: BackupPart[]) => Promise<ExportResult | string>;
     onInspectBackup?: () => Promise<ImportPreview | string>;
-    onRestore?: (replace: boolean) => Promise<ImportResult | string>;
+    onRestore?: (replace: boolean, parts: BackupPart[]) => Promise<ImportResult | string>;
     // Updates (QGD-FRM-0019).
     update?: UpdateState;
     updateCheck?: boolean;

@@ -499,8 +499,8 @@ if (!app.requestSingleInstanceLock()) {
         ...(mac ? [] : [settingsItem])
       ] },
       { label: 'Tools', submenu: [
-        setupItem('export-callsigns', 'Back Up Callsigns and Locations…'),
-        setupItem('import-callsigns', 'Restore Callsigns and Locations…')
+        setupItem('export-callsigns', 'Back Up…'),
+        setupItem('import-callsigns', 'Restore…')
       ] },
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button

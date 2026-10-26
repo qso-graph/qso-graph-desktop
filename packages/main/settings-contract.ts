@@ -247,3 +247,36 @@ export function readSettings(stored: unknown): Settings {
   read('windowBounds', isWindowBounds);
   return settings;
 }
+
+// The settings a backup carries (#64): the operator's choices, which travel to
+// another computer. Not where this window was, nor which release's notes were
+// seen, which belong to this computer.
+export const BACKUP_SETTINGS = ['theme', 'grants', 'pins', 'extensionsOn', 'area', 'updateCheck', 'updateTrack'] as const;
+export type BackupSettings = Pick<Settings, typeof BACKUP_SETTINGS[number]>;
+const BACKUP_VALIDATORS: { [K in typeof BACKUP_SETTINGS[number]]: (value: unknown) => boolean } = {
+  theme: isThemeChoice, grants: isGrantMap, pins: isPins, extensionsOn: isExtensionIds,
+  area: isArea, updateCheck: isBoolean, updateTrack: isUpdateTrack
+};
+
+export function settingsForBackup(settings: Settings): BackupSettings {
+  const { theme, grants, pins, extensionsOn, area, updateCheck, updateTrack } = settings;
+  return { theme, grants, pins, extensionsOn, area, updateCheck, updateTrack };
+}
+
+// A backup's settings, read whole or refused (QGD-PSN-0008): every key one a
+// backup carries, each value one it may have. Not read key by key with
+// defaults, as settings.json is: a file that does not say what it should is
+// not restored at all.
+export function isBackupSettings(value: unknown): value is BackupSettings {
+  if (!record(value)) return false;
+  const present = Object.keys(value);
+  if (present.length !== BACKUP_SETTINGS.length) return false;
+  return present.every(key => Object.hasOwn(BACKUP_VALIDATORS, key)
+    && BACKUP_VALIDATORS[key as typeof BACKUP_SETTINGS[number]](value[key]));
+}
+
+// Restored over this computer's own: where the window is and which notes were
+// seen stay as they are.
+export function withBackupSettings(here: Settings, restored: BackupSettings): Settings {
+  return { ...here, ...restored };
+}

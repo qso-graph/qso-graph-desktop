@@ -23,6 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   release puts back the copy from when you left it, and says first what is lost. Your logins are
   never touched. A third choice, **Previews**, offers last night's build; Early and Previews carry no
   guarantee. While a newer Stable release is out, the window's title says so. (#77)
+- **One backup, with ticks.** *Tools → Back Up…* saves your **Callsigns and Locations** and your
+  **Settings** (theme, pins, which extensions are on, your POTA Focus Area, the updates choice), both
+  ticked; untick either. *Restore…* shows what a backup holds, ticked; each part you restore replaces
+  this computer's, and restoring the settings restarts the application, which it says first.
+  Backups from earlier versions still restore. Still no login, username or Location notes. (#64)
 
 ### Security
 

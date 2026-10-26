@@ -40,7 +40,7 @@ export function showcaseStations() {
 export function showcasePreview() {
   if (!showcase) return undefined;
   return {
-    created: showcase.created,
+    parts: ['callsigns'], created: showcase.created,
     callsigns: showcase.callsigns.length,
     arriving: showcase.callsigns.map(entry => (entry.description ? `${entry.call} · ${entry.description}` : entry.call)),
     here: [],

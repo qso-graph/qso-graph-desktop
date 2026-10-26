@@ -36,9 +36,9 @@
     onFinishSetup: () => {},
     onExportCallsigns: () => Promise.resolve({ written: 'qso-graph-backup.json', bytes: 1195 }),
     onInspectImport: () => Promise.resolve({
-      created: '2026-10-09T06:13:30Z', callsigns: 1, arriving: ['W1AW · Home'], here: [], locations: ['Home'], locationsHere: 0
+      parts: ['callsigns' as const], created: '2026-10-09T06:13:30Z', callsigns: 1, arriving: ['W1AW · Home'], here: [], locations: ['Home'], locationsHere: 0
     }),
-    onApplyImport: () => Promise.resolve({ callsigns: 1, locations: 1 })
+    onApplyImport: () => Promise.resolve({ callsigns: 1, locations: 1, settings: false })
   };
 
   const { Story } = defineMeta({

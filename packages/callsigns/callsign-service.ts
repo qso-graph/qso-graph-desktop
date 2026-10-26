@@ -149,7 +149,7 @@ function execute(command: ServiceCommand): CallsignReply | Promise<CallsignReply
       case 'update-download':
         return core.downloadUpdate(command.url, command.sum, command.name)
           .then((path): CallsignReply => ({ ok: true, data: { path } }), (error: unknown) => refuse(command, error));
-      case 'export-callsigns': return { ok: true, data: { bytes: core.exportBackup(command.locations) } };
+      case 'export-callsigns': return { ok: true, data: { bytes: core.exportBackup(command.locations, command.settings) } };
       case 'import-callsigns': {
         const file = Buffer.from(command.file);
         if (!command.apply) {
@@ -187,6 +187,7 @@ const MESSAGES = [
   'That file is not a backup this product wrote.',
   'That backup was written by a different version of QSO Graph Desktop.',
   'That file\'s Locations are not the shape a backup has.',
+  'Choose something to back up.', 'The settings could not be backed up.', 'That backup holds no callsigns.',
   'This computer already has callsigns. Remove them first, then restore.',
   'The active callsign could not be read.',
   // Fetching reference data, all fixed sentences carrying no URL.
