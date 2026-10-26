@@ -186,11 +186,12 @@ function isVersion(value: unknown): boolean {
 }
 
 function isResource(value: unknown): value is ResourceSummary {
-  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updatable', 'version', 'available', 'updating', 'problem'])) return false;
+  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updatable', 'nextCheckAt', 'version', 'available', 'updating', 'problem'])) return false;
   return typeof value.id === 'string' && RESOURCE_ID.test(value.id)
     && words(value.name, 64) && words(value.what, 200) && words(value.owner, 64) && words(value.size, 32)
     && (value.state === 'loaded' || value.state === 'not loaded')
     && (value.fetchedAt === undefined || (typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))))
+    && (value.nextCheckAt === undefined || (typeof value.nextCheckAt === 'string' && value.nextCheckAt.length <= 40 && !Number.isNaN(Date.parse(value.nextCheckAt))))
     && typeof value.due === 'boolean' && typeof value.updatable === 'boolean' && typeof value.updating === 'boolean'
     && (value.version === undefined || isVersion(value.version))
     && (value.available === undefined || isVersion(value.available))

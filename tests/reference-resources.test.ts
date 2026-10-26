@@ -179,3 +179,27 @@ describe('POTA activations, fetched for Most Wanted (QGD-REF-0019)', () => {
     expect(problemOf('activations', unreachable)).toMatch(/Could not be reached/);
   });
 });
+
+// What summarize() builds must pass the contract main and the window check it
+// against. #79 added nextCheckAt to a current list's row and not to the
+// contract, so every storage reply was refused while POTA was current: the
+// window lost its Locations and a restore's reply (KI7MT, 0.3.0-pr107). The
+// test above only built rows that were not loaded or had failed.
+describe('a summary passes the storage contract in every state (#79)', () => {
+  const statusOf = (resources: unknown[]) => ({
+    state: 'ready',
+    reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'not loaded' }, refreshing: false, resources }
+  });
+  it('current, out of date, failed and updating', () => {
+    for (const [potaFetched, problems, updating] of [
+      [NOW - 1000, new Map<string, string>(), undefined],
+      [NOW - 2 * DAY, new Map<string, string>(), undefined],
+      [NOW - 1000, new Map([['pota', 'Could not be reached.']]), 'pota']
+    ] as const) {
+      const rows = summarize({ register, held: held(potaFetched), checks: {}, problems, updating, now: NOW });
+      for (const row of rows) expect(isStorageStatus(statusOf([row])), `${row.id} at ${NOW - potaFetched} ms`).toBe(true);
+    }
+    const current = summarize({ register, held: held(NOW - 1000), checks: {}, problems: new Map(), updating: undefined, now: NOW });
+    expect(current.find(row => row.id === 'pota')?.nextCheckAt, 'the case that broke is covered').toBeDefined();
+  });
+});
