@@ -28,7 +28,7 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 5. **Only the Release workflow publishes.** KI7MT decides when; it is run on
    his word ("release 0.2.1"), by him or by an agent, and the run records who.
 6. **Nobody pushes to `main`.** Every change reaches it by a pull request that
-   KI7MT merges, with a merge commit, and **only once CI's "all green" check
+   KI7MT merges, with a merge commit, and **only once CI's `ci-all-green` check
    has passed**: a required check, so a red pull request cannot be merged.
    Documentation-only changes run just the citation check (every `QGD-…` ID a
    Markdown file cites must exist in the spec), about a minute, and build
@@ -130,7 +130,7 @@ in bulk.
    - it was run from `main`, and `main`'s `package.json` says `x.y.z`;
    - CHANGELOG.md has a `[x.y.z]` section, and the tag `vx.y.z` is not taken;
    - milestone `x.y.z` exists and has **no open issues**;
-   - CI's run of that very commit on `main` is **all green**;
+   - CI's run of that very commit on `main` passed **`ci-all-green`**;
    - this repository's **GitHub Pages is on**, built from Actions, at
      `updates.qso-graph.io`, so the feed can be published (#99: 0.2.1 was
      published, then its feed failed because Pages was off).

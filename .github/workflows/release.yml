@@ -5,7 +5,7 @@
 # nothing.
 #
 # Nothing is rebuilt here. The release is the signed build CI already made
-# of main's commit and passed as "all green", so what was tested is what
+# of main's commit and passed as ci-all-green, so what was tested is what
 # ships. Before anything is published it refuses unless every check holds:
 # run from main, main says this version, CHANGELOG.md has its section, its
 # tag is free, its milestone has no open issue, and CI's newest all-green
@@ -88,7 +88,7 @@ jobs:
             [ "$open" = 0 ] && echo "✓ milestone ${VERSION} has no open issue" || fail "milestone ${VERSION} has ${open} open issue(s)"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
-          # The build to publish: CI's newest run on this branch that is all green
+          # The build to publish: CI's newest run on this branch that passed ci-all-green
           # and packaged all four platforms. A documentation-only merge since
           # builds nothing (#95), so that run may be of an earlier commit; it
           # is taken only if every change after it is documentation, which
@@ -100,7 +100,7 @@ jobs:
             # Every attempt, the latest result per job: after "re-run failed
             # jobs" the default list holds only the re-run (found by Codex).
             jobs=$(gh api "repos/${REPO}/actions/runs/${candidate%%:*}/jobs?filter=all&per_page=100" --paginate \
-              --jq '.jobs[]' | jq -s '[group_by(.name)[] | max_by(.run_attempt) | select(.conclusion == "success") | .name] | map(select(. == "all green" or startswith("package ("))) | length')
+              --jq '.jobs[]' | jq -s '[group_by(.name)[] | max_by(.run_attempt) | select(.conclusion == "success") | .name] | map(select(. == "ci-all-green" or startswith("package ("))) | length')
             if [ "$jobs" = 5 ]; then run=${candidate%%:*}; built=${candidate#*:}; break; fi
           done
           if [ -z "$run" ]; then

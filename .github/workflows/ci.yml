@@ -7,7 +7,8 @@ name: CI
 
 on:
   # Every change starts a run, documentation included, so the one required
-  # check ("all green", at the end) always reports (#95). The plan decides what
+  # check ("ci-all-green", at the end, the name every qso-graph repo uses;
+  # #102) always reports (#95). The plan decides what
   # a change needs: a documentation-only change runs the citation check alone,
   # in about a minute, and builds nothing (KI7MT, 2026-10-24: "I am not going
   # through this build process for docs and readme updates").
@@ -98,11 +99,11 @@ jobs:
               && jq -r '.files[] | .filename, (.previous_filename // empty)' "$RUNNER_TEMP/compare.json"
             return 0
           }
-          # Whether the commit before this push passed "all green": only then
+          # Whether the commit before this push passed ci-all-green: only then
           # may a documentation-only push skip the build, so a red pull request
           # cannot turn green on a change to a Markdown file (#101).
           green() {
-            [ "$(gh api "repos/${REPO}/commits/$1/check-runs?check_name=all%20green&per_page=100" \
+            [ "$(gh api "repos/${REPO}/commits/$1/check-runs?check_name=ci-all-green&per_page=100" \
               --jq '[.check_runs[] | select(.conclusion == "success")] | length' 2>/dev/null || echo 0)" -ge 1 ]
           }
           # GitHub lists at most 3,000 files of a pull request and 300 of a
@@ -903,6 +904,32 @@ jobs:
           gh release create "$tag" --repo "$REPO" --prerelease --target "$SHA" \
             --title "Preview of ${next}" --notes-file ../notes.md -- *
 
+  # The dependencies' own security (#102): npm's advisories at high and above,
+  # and RustSec's for the credential core, against the locked versions. On every
+  # build, and every night even when main has not changed (the plan skips the
+  # rest then), because a new advisory arrives from outside the repository.
+  # Reads the lockfiles only, so it installs nothing and takes a minute or two.
+  audit:
+    name: dependency audit
+    needs: [plan]
+    if: ${{ needs.plan.outputs.docs_only != 'true' && !inputs.mac_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.plan.outputs.ref != '' && needs.plan.outputs.sha || '' }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: npm audit
+        run: npm audit --audit-level=high
+      - name: cargo audit
+        run: |
+          cargo install cargo-audit --locked --quiet
+          cargo audit --file packages/callsign-core/Cargo.lock
+
   # All green (#95): the one check the repository's rules require before a
   # merge. It always reports, documentation-only changes included: the plan
   # and the citation check must pass, and so must every build job the plan
@@ -911,10 +938,12 @@ jobs:
   # other platforms, a fork's pull request's links) is not a failure; a job
   # that failed or was cancelled is.
   all-green:
-    name: all green
-    needs: [plan, citations, check, window, package, pr-build]
+    # The org-wide name for the one required check (#102): every qso-graph
+    # repo rolls its jobs up into a check called exactly ci-all-green.
+    name: ci-all-green
+    needs: [plan, citations, check, window, package, pr-build, audit]
     # Not for a macOS-only run by hand: it skips the test suites, so its
-    # "all green" would vouch for a commit nothing tested, and a later
+    # ci-all-green would vouch for a commit nothing tested, and a later
     # documentation-only push would trust it (found by Codex, #101).
     if: ${{ always() && !inputs.mac_only }}
     runs-on: ubuntu-latest
