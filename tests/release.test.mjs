@@ -4,8 +4,8 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, isRelease, next, notes, prepare, tracks, withEntry, withVersion } from '../scripts/release.mjs';
-import { choose, readFeed } from '../packages/main/update-contract.js';
+import { check, feedEntry, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
+import { choose, compareVersions, isVersionChoices, readFeed, versionChoices } from '../packages/main/update-contract.js';
 
 const changelog = [
   '# Changelog', '',
@@ -96,5 +96,61 @@ describe('which version each update track names (#94)', () => {
 
   it('a tag that is not vMAJOR.MINOR.PATCH is not a release', () => {
     expect(tracks([release('preview', true), release('v01.2.3', false, true), release('0.4.0', false)])).toEqual({ stable: null, early: null });
+  });
+});
+
+// Choose a version… (#77): the list the feed carries, from the published
+// releases, read back by the application as it is written.
+describe('the feed\'s list of versions (#77)', () => {
+  const sumsFor = version => ['win-x64.exe', 'linux-x86_64.AppImage', 'linux-arm64.AppImage', 'mac-arm64.zip']
+    .map(tail => `${'b'.repeat(64)}  qso-graph-desktop-${version}-${tail}`).join('\n');
+  const at = (tagName, isPrerelease, publishedAt = '2026-10-25T00:00:00Z') => ({ tagName, isPrerelease, isDraft: false, isLatest: false, publishedAt });
+
+  it('lists the last Stable releases, the newest Early and the Preview, while each leads somewhere', () => {
+    const releases = [at('v0.2.1', false), at('v0.2.0', true), at('v0.1.3', true), at('v0.3.0-preview', true), at('v0.2.0-preview', true)];
+    expect(listed(releases).map(entry => `${entry.track} ${entry.tag}`)).toEqual(['stable v0.2.1', 'preview v0.3.0-preview']);
+    const many = Array.from({ length: 14 }, (_, n) => at(`v0.1.${n}`, false));
+    expect(listed(many).length).toBe(LISTED_STABLE);
+    expect(listed(many)[0].tag).toBe('v0.1.13');
+    expect(listed([...many, at('v0.2.0', true)]).at(-1)).toMatchObject({ track: 'early', tag: 'v0.2.0' });
+  });
+
+  it('writes a list the application reads, a Preview under its own tag', () => {
+    const preview = '0.3.0-202610260100-0123456789a';
+    let feed = withListed(undefined, listEntry('stable', 'v0.2.1', '2026-10-25T22:31:47Z', sumsFor('0.2.1')));
+    feed = withListed(feed, listEntry('preview', 'v0.3.0-preview', '2026-10-26T01:00:00Z', sumsFor(preview)));
+    feed = withListed(feed, listEntry('stable', 'v0.2.2', '2026-10-26T00:00:00Z', sumsFor('0.2.2')));
+    expect(feed.releases.map(entry => entry.version)).toEqual([preview, '0.2.2', '0.2.1']);
+    expect(feed.releases[0].files['win-x64'].url).toBe(`https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0-preview/qso-graph-desktop-${preview}-win-x64.exe`);
+    const read = readFeed(new TextEncoder().encode(JSON.stringify(feed)));
+    expect(read.releases.map(entry => entry.version)).toEqual([preview, '0.2.2', '0.2.1']);
+    const choices = versionChoices(read, 'preview', '0.2.2', ['0.2.1']);
+    expect(choices.map(choice => `${choice.version}:${choice.way}:${choice.snapshot}`)).toEqual([`${preview}:forward:false`, '0.2.2:running:false', '0.2.1:back:true']);
+    expect(isVersionChoices(choices)).toBe(true);
+    expect(choose(read, 'preview', '0.2.2').version).toBe(preview);
+    expect(choose(read, 'stable', '0.2.2')).toBe(null);
+  });
+
+  it('a feed an older copy reads is unchanged by the list', () => {
+    const feed = withListed(withEntry(undefined, 'stable', feedEntry('0.2.1', sumsFor('0.2.1'))), listEntry('stable', 'v0.2.1', '2026-10-25T22:31:47Z', sumsFor('0.2.1')));
+    expect(Object.keys(feed)).toEqual(['format', 'version', 'stable', 'early', 'releases']);
+    expect(feed.version).toBe(1);
+  });
+
+  it('refuses what is not what it says it is', () => {
+    expect(() => listEntry('preview', 'v0.3.0-preview', '2026-10-26', sumsFor('0.3.0'))).toThrow(/no Preview/);
+    expect(() => listEntry('stable', 'v0.2.2', 'yesterday', sumsFor('0.2.2'))).toThrow(/not a date/);
+    expect(() => listEntry('nightly', 'v0.2.2', '2026-10-26', sumsFor('0.2.2'))).toThrow(/which track/);
+    const bad = { format: 'qso-graph-desktop-updates', version: 1, stable: null, early: null, releases: [
+      { ...listEntry('stable', 'v0.2.1', '2026-10-25', sumsFor('0.2.1')), track: 'preview' },
+      { ...listEntry('stable', 'v0.2.1', '2026-10-25', sumsFor('0.2.1')), extra: 1 }
+    ] };
+    expect(readFeed(new TextEncoder().encode(JSON.stringify(bad))).releases).toEqual([]);
+  });
+
+  it('a Preview comes before the release it leads to, and after an older Preview of it', () => {
+    expect(compareVersions('0.3.0-202610260100-0123456789a', '0.3.0')).toBeLessThan(0);
+    expect(compareVersions('0.3.0-202610260100-0123456789a', '0.2.1')).toBeGreaterThan(0);
+    expect(compareVersions('0.3.0-202610260100-0123456789a', '0.3.0-202610270100-0123456789b')).toBeLessThan(0);
   });
 });

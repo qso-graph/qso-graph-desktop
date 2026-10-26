@@ -269,16 +269,42 @@ Decided by KI7MT, 2026-10-23: **an easy update is a must**, whichever kind of
 ham is updating. Some always want the newest; some want it to just keep
 working. Both get one click.
 
-### Two tracks
+### Three tracks
 
 | Track | Offered | For |
 |---|---|---|
 | **Stable** (the default) | full releases only | hams who want it to just work |
 | **Early** | full releases and pre-releases | hams who want the newest the day it is out |
+| **Previews** | the above, and the current Preview | testing what is coming |
 
-Chosen in Settings. Previews are never offered as an update: they are for
-daily testing, not for running the station. A copy from the Microsoft Store
-is updated by the Store and never updates itself.
+Chosen in Settings. **Early and Previews carry no guarantee** (KI7MT,
+2026-10-26): running one is the operator's choice. A Preview checks for
+updates as a release does, so it can be left for one. A copy from the
+Microsoft Store is updated by the Store and never updates itself.
+
+### Choosing a version, and going back (#77)
+
+**Choose a version…** lists what the feed lists: forward, what the track
+allows; **back, Stable releases only** (KI7MT, 2026-10-26: "a definitive
+target to hit"). Installing one is the same download, check and install as an
+update (`QGD-FRM-0020`).
+
+- **A snapshot before every install.** As the application quits, after the
+  stores close, `snapshots/<version left>/` in the profile gets
+  `settings.json`, `state.sqlite`, `extensions/` and the callsign files (not
+  `callsigns/updates/`). Not `reference.sqlite`, which is public data rebuilt
+  when its schema is not the running version's, and never a login. A link is
+  never copied. The last three Stable versions left are kept, and the newest
+  of anything else (`packages/main/snapshots.ts`).
+- **Going back puts the snapshot back** before the older version opens
+  anything. An older version opens a newer `state.sqlite` without refusing
+  it, so this is not optional. If the install then fails, the running
+  version's own snapshot is put back. Where no snapshot of that version is
+  kept, the operator is told the older version will open today's data and may
+  not read all of it, before choosing.
+- **Nothing installs if the snapshot cannot be taken.**
+- **The window's title** says *Update available: vX* while a Stable release
+  newer than the one running is out, whatever the track (`QGD-FRM-0021`).
 
 ### How it asks
 
@@ -327,8 +353,8 @@ is updated by the Store and never updates itself.
 
 One small file, `https://updates.qso-graph.io/desktop.json`, is all an
 installed copy asks. It is published by this repository's own GitHub Pages
-(`.github/workflows/feed.yml`, run by Release and Promote, and by hand to
-rebuild it), at that name through a CNAME in the qso-graph.io zone, so no
+(`.github/workflows/feed.yml`, run by Release, Promote and the Preview, and
+by hand to rebuild it), at that name through a CNAME in the qso-graph.io zone, so no
 other repository and no stored credential is involved. (It was a repository of
 its own, `qso-graph/qso-graph-desktop-updates`, until 0.2.1.) The application knows only the
 address, in `data/update-sources.json`, which the credential core builds in;
@@ -348,12 +374,25 @@ never to say what they are: the feed says that.
     "linux-arm64":  { "name": "qso-graph-desktop-0.1.0-linux-arm64.AppImage",  "url": "…", "sha256": "…" },
     "mac-arm64":    { "name": "qso-graph-desktop-0.1.0-mac-arm64.zip",         "url": "…", "sha256": "…" }
   } },
-  "early": { "version": "0.2.0", "files": { … } }
+  "early": { "version": "0.2.0", "files": { … } },
+  "releases": [
+    { "version": "0.3.0-202610260100-0123456789a", "track": "preview", "date": "2026-10-26T01:00:00.000Z", "files": { … } },
+    { "version": "0.2.1", "track": "stable", "date": "2026-10-25T22:31:47.000Z", "files": { … } }
+  ]
 }
 ```
 
-Stable is offered `stable`; Early the newer of `stable` and `early`. A track
-the application cannot read offers nothing.
+Stable is offered `stable`; Early the newer of `stable` and `early`; Previews
+the newest of those and the Preview in `releases`. A track the application
+cannot read offers nothing.
+
+**`releases` is what Choose a version… lists** (#77): the last ten Stable
+releases, the newest Early when it is newer than Stable, and the Preview while
+the release it leads to is not out, newest first (`node scripts/release.mjs
+listed` and `list`). A Preview's files are under its own tag,
+`vx.y.z-preview`. Copies older than 0.3.0 read only `stable` and `early` and
+ignore the rest, so the format stays version 1. An entry the application
+cannot read is left out.
 
 **The feed is worked out from the Releases page every time**, never edited:
 `stable` is the release GitHub marks Latest, `early` the newest release of

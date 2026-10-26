@@ -22,7 +22,8 @@ import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
 import { startUpdater, updatePlatform } from './updater.js';
 import { startWhatsNewBroker } from './whats-new.js';
-import { isReleaseVersion } from './update-contract.js';
+import { isOfferedVersion, isReleaseVersion } from './update-contract.js';
+import { snapshots } from './snapshots.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
@@ -392,21 +393,24 @@ if (!app.requestSingleInstanceLock()) {
     if (homeBroker) onReached = homeBroker.reached;
 
     // Updates (QGD-FRM-0019): asked once a day through the credential core,
-    // applied as the application quits. A preview or a development run never
-    // asks: its version is not a release. Nor does a copy from the Microsoft
+    // applied as the application quits. A development run or a pull
+    // request's build never asks: its version is neither a release nor a
+    // Preview. Nor does a copy from the Microsoft
     // Store, which the Store updates, and whose rules forbid an app updating
     // itself (KI7MT, 2026-10-24).
     const fromStore = process.windowsStore === true;
     const updater = startUpdater({
       version: app.getVersion(),
       platform: fromStore ? null : updatePlatform(),
-      asks: app.isPackaged && isReleaseVersion(app.getVersion()) && !fromStore,
+      // A Preview asks as a release does (#77), so it can be left for one.
+      asks: app.isPackaged && isOfferedVersion(app.getVersion()) && !fromStore,
       build: fromStore ? 'store' : !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,
       download: callsigns.downloadUpdate,
       updatesDirectory: callsigns.updatesDirectory,
+      snapshots: snapshots({ root: app.getPath('userData'), callsigns: dirname(callsigns.updatesDirectory) }),
       openRelease: version => links.open({ type: 'release', version }),
       window: () => BrowserWindow.getAllWindows()[0] ?? null
     });

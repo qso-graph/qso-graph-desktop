@@ -66,6 +66,10 @@ describe('the window title names the version', () => {
     const { windowTitle } = await import('../packages/ui/release.js');
     expect(windowTitle('0.1.0')).toBe('QSO Graph Desktop v0.1.0');
     expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 preview');
+    // A newer Stable release in the title (QGD-FRM-0021, #77), and only a Stable one.
+    expect(windowTitle('0.1.2', '0.2.1')).toBe('QSO Graph Desktop v0.1.2 — Update available: v0.2.1');
+    expect(windowTitle('0.1.2', '0.3.0-202610260100-0123456789a')).toBe('QSO Graph Desktop v0.1.2');
+    expect(windowTitle('0.1.2', undefined)).toBe('QSO Graph Desktop v0.1.2');
     // A validation build by its whole version, so it names the build (#92).
     expect(windowTitle('0.2.1-pr96.c0b8250')).toBe('QSO Graph Desktop v0.2.1-pr96.c0b8250');
     expect(windowTitle('0.2.1-pr96.g0123456')).toBe('QSO Graph Desktop v0.2.1-pr96.g0123456');

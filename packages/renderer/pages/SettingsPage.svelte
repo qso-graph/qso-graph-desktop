@@ -48,7 +48,7 @@
   import MoveCallsignsPage from './MoveCallsignsPage.svelte';
   import UpdatesCard from './UpdatesCard.svelte';
   import type { UpdateTrack } from '../../main/settings-contract.js';
-  import type { UpdateState } from '../../main/update-contract.js';
+  import type { UpdateState, VersionChoice } from '../../main/update-contract.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../../callsigns/callsign-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import ThemeChoice from '../../ui/ThemeChoice.svelte';
@@ -92,6 +92,8 @@
     onInstallUpdate?: () => void;
     onRestartToUpdate?: () => void;
     onOpenRelease?: () => void;
+    onListVersions?: () => Promise<VersionChoice[]>;
+    onInstallVersion?: (version: string) => void;
     // What's New, from About (KI7MT, 2026-10-24).
     onOpenWhatsNew?: () => void;
   }
@@ -104,6 +106,7 @@
     onRestore = () => Promise.resolve('Restoring is not available here.'),
     update, updateCheck = true, updateTrack = 'stable',
     onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onInstallUpdate, onRestartToUpdate, onOpenRelease,
+    onListVersions, onInstallVersion,
     onOpenWhatsNew = () => {}
   }: Props = $props();
 
@@ -208,7 +211,7 @@
 
   <UpdatesCard {update} check={updateCheck} track={updateTrack}
     onSetCheck={onSetUpdateCheck} onSetTrack={onSetUpdateTrack} onCheckNow={onCheckUpdates}
-    onInstall={onInstallUpdate} onRestart={onRestartToUpdate} {onOpenRelease} />
+    onInstall={onInstallUpdate} onRestart={onRestartToUpdate} {onOpenRelease} {onListVersions} {onInstallVersion} />
 
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>

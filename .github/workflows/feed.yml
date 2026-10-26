@@ -8,7 +8,7 @@
 # each names its files and their SHA-256 from that release's own
 # SHA256SUMS.txt (scripts/release.mjs tracks and feed). Nothing is kept
 # between runs and nothing is edited by hand, so the feed can never disagree
-# with the Releases page. Called by Release and Promote; run by hand to
+# with the Releases page. Called by Release, Promote and the Preview; run by hand to
 # rebuild it.
 name: Update feed
 
@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/feed"
           mkdir -p "$work" site
-          gh release list --repo "$REPO" --limit 200 --json tagName,isPrerelease,isLatest,isDraft > "$work/releases.json"
+          gh release list --repo "$REPO" --limit 200 --json tagName,isPrerelease,isLatest,isDraft,publishedAt > "$work/releases.json"
           node scripts/release.mjs tracks "$work/releases.json" | tee "$work/tracks"
           stable=$(sed -n 's/^stable=//p' "$work/tracks")
           early=$(sed -n 's/^early=//p' "$work/tracks")
@@ -66,6 +66,15 @@ jobs:
             [ -f "$work/$version/SHA256SUMS.txt" ] || gh release download "v${version}" --repo "$REPO" --pattern SHA256SUMS.txt --dir "$work/$version"
             node scripts/release.mjs feed "$track" "$version" "$work/$version/SHA256SUMS.txt" site/desktop.json
           done
+          # The list Choose a version… offers (#77): the last Stable releases,
+          # the newest Early and the Preview, each with its date and files.
+          # Read by 0.3.0 and later; an older copy reads only the tracks.
+          node scripts/release.mjs listed "$work/releases.json" | tee "$work/listed"
+          while read -r track tag date; do
+            mkdir -p "$work/$tag"
+            [ -f "$work/$tag/SHA256SUMS.txt" ] || gh release download "$tag" --repo "$REPO" --pattern SHA256SUMS.txt --dir "$work/$tag"
+            node scripts/release.mjs list "$track" "$tag" "$date" "$work/$tag/SHA256SUMS.txt" site/desktop.json
+          done < "$work/listed"
           touch site/.nojekyll
           cat site/desktop.json
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

@@ -29,6 +29,7 @@
   import type { HomeModel, HomeStore } from './home-store.js';
   import type { LinkCommand } from '../main/links-contract.js';
   import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
+  import type { VersionChoice } from '../main/update-contract.js';
   import type { Level } from '../logging/logging.js';
   import type { ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
   import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
@@ -81,6 +82,8 @@
     onInstallUpdate?: () => void;
     onRestartToUpdate?: () => void;
     onOpenRelease?: () => void;
+    onListVersions?: () => Promise<VersionChoice[]>;
+    onInstallVersion?: (version: string) => void;
     version: string;
   }
   const {
@@ -88,7 +91,8 @@
     onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseUpdate, onOpenWhatsNew, onCloseWhatsNew, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
     onExportCallsigns, onInspectImport, onApplyImport, version,
-    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onInstallUpdate, onRestartToUpdate, onOpenRelease
+    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onInstallUpdate, onRestartToUpdate, onOpenRelease,
+    onListVersions, onInstallVersion
   }: Props = $props();
 
   // Named `shell`, not `state`: `$state` is both Svelte's rune and the
@@ -287,7 +291,8 @@
       <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
         onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport}
         update={shell.update} updateCheck={shell.updateCheck} updateTrack={shell.updateTrack}
-        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onInstallUpdate} {onRestartToUpdate} {onOpenRelease} {onOpenWhatsNew} />
+        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onInstallUpdate} {onRestartToUpdate} {onOpenRelease} {onOpenWhatsNew}
+        {onListVersions} {onInstallVersion} />
     </div>
   </main>
 </div>

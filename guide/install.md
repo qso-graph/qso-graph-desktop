@@ -54,15 +54,30 @@ folder: each computer keeps its own, in its own credential store.
 ## Keeping it up to date
 
 Once a day, while you are online, the application asks whether a newer version is out. It sends
-nothing about you. When one is downloaded, a line at the bottom of the window says so: choose
-**Restart to update**, or carry on, and it updates the next time you quit. It never restarts
-without asking.
+nothing about you. When one is out, a line at the bottom of the window says so, with **Download
+and install**; nothing is downloaded until you choose. Once it has downloaded, choose **Restart to
+update**, or carry on, and it updates the next time you quit. It never restarts without asking.
+While a newer Stable release is out, the window's title says so too.
 
 In **Settings → Updates** you choose:
 
 - **Stable**, the default: full releases only.
 - **Early**: pre-releases too, the newest the day it is out.
+- **Previews**: last night's build too.
 - Or turn **Check for updates** off.
+
+Early releases and Previews are for those who want to try what is coming. They carry no guarantee.
+
+### Going back
+
+**Choose a version…** lists the versions you can install: newer ones, as your choice above allows,
+and the Stable releases before the one you run. Going back is only ever to a Stable release.
+
+Before any update installs, the application keeps a copy of your callsigns, Locations, settings and
+your extensions' data, as they are. Going back to a version puts back the copy kept when you left
+it, so the older version opens the data it knew; anything you changed since is lost, and you are
+told so before anything happens. The copies of the last three Stable versions you left are kept.
+Your logins are in your computer's own credential store and are never touched.
 
 The Windows installer, the AppImage and the Mac app update themselves. The `.deb`, the `.rpm` and
 the portable `.zip` tell you a newer version is out, and its page opens from there.

@@ -46,7 +46,8 @@ export interface Settings {
   // Updates (QGD-FRM-0019): whether to ask, once a day, if there is a newer
   // release, and which track. Asking is going online, so it is a switch, on
   // by default, and Privacy names it. Stable offers full releases; Early
-  // offers pre-releases as well.
+  // offers pre-releases as well; Previews the current Preview too (#77). An
+  // older version reads 'preview' as not a track it knows, so as Stable.
   updateCheck: boolean;
   updateTrack: UpdateTrack;
   // Where the window was when the application last closed (KI7MT,
@@ -55,7 +56,7 @@ export interface Settings {
   windowBounds: WindowBounds | null;
 }
 
-export const UPDATE_TRACKS = ['stable', 'early'] as const;
+export const UPDATE_TRACKS = ['stable', 'early', 'preview'] as const;
 export type UpdateTrack = typeof UPDATE_TRACKS[number];
 export function isUpdateTrack(value: unknown): value is UpdateTrack {
   return (UPDATE_TRACKS as readonly unknown[]).includes(value);

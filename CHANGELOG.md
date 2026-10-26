@@ -17,6 +17,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   page's Refresh or Settings' Update asks. A list that is current says when its next check is,
   instead of offering Update. A service that says it is busy is left alone for as long as it asks.
   (#79)
+- **Choose a version, and go back.** *Choose a version…* in Settings → Updates lists the versions you
+  can install: newer ones, and the Stable releases before yours. Before any update installs, your
+  callsigns, Locations, settings and extensions' data are copied as they are; going back to a Stable
+  release puts back the copy from when you left it, and says first what is lost. Your logins are
+  never touched. A third choice, **Previews**, offers last night's build; Early and Previews carry no
+  guarantee. While a newer Stable release is out, the window's title says so. (#77)
 
 ### Security
 
