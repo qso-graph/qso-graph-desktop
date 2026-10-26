@@ -141,9 +141,10 @@ in bulk.
    Microsoft Store package stays with CI's run, for upload to Partner Center.
 4. **It closes the milestone and updates the feed**, so Early offers `x.y.z`.
 5. **Promote**, when it has proved itself and KI7MT says so: Actions →
-   **Promote** → Run workflow, with the version. It marks the same
-   pre-release a full release and Latest. Nothing is rebuilt. Then the feed
-   again, so Stable offers it.
+   **Promote** → Run workflow, with the version (or `qg-release-promote
+   qso-graph-desktop x.y.z`). It refuses unless the feed can be published, as
+   Release does (#106); then it marks the same pre-release a full release and
+   Latest. Nothing is rebuilt. Then the feed again, so Stable offers it.
 
 ## Fixing a released version
 
