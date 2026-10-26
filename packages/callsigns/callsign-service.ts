@@ -126,7 +126,8 @@ function execute(command: ServiceCommand): CallsignReply | Promise<CallsignReply
         const fetched = core.fetchReference(command.url, command.etag, command.lastModified);
         return { ok: true, data: {
           fresh: fetched.fresh, body: fetched.body,
-          etag: fetched.etag, lastModified: fetched.lastModified
+          etag: fetched.etag, lastModified: fetched.lastModified,
+          restingUntil: typeof fetched.restingUntil === 'number' ? fetched.restingUntil : null
         } };
       }
       // QGD-APP-0007: act with the credential, return the answer. The secret

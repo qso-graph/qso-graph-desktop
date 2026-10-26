@@ -37,6 +37,7 @@ fn service() -> &'static str {
 }
 mod corelog;
 mod backup;
+mod politeness;
 mod reference;
 mod updates;
 mod validation;
@@ -837,6 +838,9 @@ mod addon {
         pub body: Buffer,
         pub etag: Option<String>,
         pub last_modified: Option<String>,
+        // Not asked (#79): the source rests until then, in milliseconds since
+        // the epoch, because of its floor or because it asked to be left alone.
+        pub resting_until: Option<f64>,
     }
 
     #[napi(object)]
@@ -1001,12 +1005,13 @@ mod addon {
             // The host, so a run can be read back later; never the path, which
             // is longer and says no more about where this went.
             let host = url.split('/').nth(2).unwrap_or("").to_string();
-            tracing::info!(host, fresh = fetched.fresh, bytes = fetched.body.len(), "reference fetched");
+            tracing::info!(host, fresh = fetched.fresh, bytes = fetched.body.len(), resting = fetched.resting_until.is_some(), "reference fetched");
             Ok(FetchedReference {
                 fresh: fetched.fresh,
                 body: fetched.body.into(),
                 etag: fetched.etag,
                 last_modified: fetched.last_modified,
+                resting_until: fetched.resting_until,
             })
         }
 

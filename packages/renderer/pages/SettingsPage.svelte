@@ -115,13 +115,23 @@
   // When it was last updated, as a date-time group in UTC, as hams give
   // times (KI7MT, 2026-10-22: "updated today" said too little).
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  function lastUpdated(resource: ResourceSummary): string {
-    if (!resource.fetchedAt) return '';
-    const at = new Date(resource.fetchedAt);
+  function utc(when: string | undefined): string {
+    if (!when) return '';
+    const at = new Date(when);
     if (Number.isNaN(at.getTime())) return '';
     const two = (value: number) => String(value).padStart(2, '0');
-    return ` Last updated ${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()} `
-      + `${two(at.getUTCHours())}:${two(at.getUTCMinutes())} UTC.`;
+    return `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()} ${two(at.getUTCHours())}:${two(at.getUTCMinutes())} UTC`;
+  }
+
+  function lastUpdated(resource: ResourceSummary): string {
+    const at = utc(resource.fetchedAt);
+    return at ? ` Last updated ${at}.` : '';
+  }
+
+  // Why there is no Update yet: its source is asked once a day at most (#79).
+  function nextCheck(resource: ResourceSummary): string {
+    const at = utc(resource.nextCheckAt);
+    return at ? ` Next check after ${at}.` : '';
   }
 
   function stateWords(resource: ResourceSummary): string {
@@ -129,7 +139,7 @@
     if (resource.state === 'not loaded') return 'Not downloaded';
     if (resource.available) return `ADIF ${resource.version ?? ''} installed. ADIF ${resource.available} is available.`;
     const installed = resource.version ? `, ADIF ${resource.version}` : '';
-    return `${resource.due ? 'Out of date' : 'Downloaded'}${installed}.${lastUpdated(resource)}`;
+    return `${resource.due ? 'Out of date' : 'Downloaded'}${installed}.${lastUpdated(resource)}${nextCheck(resource)}`;
   }
 
   // Download while it is not on this computer, Update once it is and an

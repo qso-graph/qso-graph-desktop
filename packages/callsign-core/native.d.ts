@@ -72,6 +72,8 @@ export interface NativeFetchedReference {
   body: Buffer;
   etag: string | null;
   lastModified: string | null;
+  // Not asked (#79): the source rests until then, ms since the epoch.
+  restingUntil: number | null;
 }
 
 export interface NativeImportSummary {

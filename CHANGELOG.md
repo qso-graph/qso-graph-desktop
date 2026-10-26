@@ -12,6 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Checking for updates only checks.** When a newer version is out, Settings and the status bar say
   so, with *Download and install*; nothing is downloaded until you choose. Then, as before, it waits
   for you to restart, or installs when you quit. (#52)
+- **Polite to the services it asks.** No source is asked more often than it needs: POTA spots once a
+  minute, NOAA's conditions every 15 minutes, and the park and summit lists once a day, whatever a
+  page's Refresh or Settings' Update asks. A list that is current says when its next check is,
+  instead of offering Update. A service that says it is busy is left alone for as long as it asks.
+  (#79)
 
 ### Security
 

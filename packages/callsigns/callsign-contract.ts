@@ -44,6 +44,9 @@ export interface FetchedReference {
   body: Uint8Array;
   etag: string | null;
   lastModified: string | null;
+  // Not asked (#79): the credential core held the request to the source's
+  // floor, or to a wait the server asked for. Ms since the epoch.
+  restingUntil?: number | null;
 }
 // What an export did, for the operator to read. The path is shown because the
 // operator chose it; nothing else about the file is.

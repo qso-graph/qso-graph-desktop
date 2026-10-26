@@ -231,6 +231,10 @@ if (!app.requestSingleInstanceLock()) {
     // The suites' recorded responses, never in a packaged application
     // (source-fixtures.ts).
     const recorded = sourceFixtures(app.isPackaged, process.env.QG_DESKTOP_SOURCE_FIXTURES);
+    // What each source last said, for this run: handed back while the
+    // credential core holds the source to its floor (#79). A handful of small
+    // JSON answers, one per registered source.
+    const lastSourceBody = new Map<string, string>();
     // The callsign service's answer while it is still starting (until-ready.ts).
     const starting = (answer: unknown): boolean => answer === CALLSIGNS_STARTING;
     // Told when a page's request reached its source or could not connect,
@@ -340,11 +344,21 @@ if (!app.requestSingleInstanceLock()) {
             else if (fetched.startsWith('The reference source')) onReached(true);
             throw new Error(fetched);
           }
+          // Resting (#79): nothing was sent, so the lamp learns nothing, and
+          // the page is given what this source last said rather than nothing.
+          if (typeof fetched.restingUntil === 'number') {
+            const kept = lastSourceBody.get(url);
+            if (kept !== undefined) return { body: kept, fresh: false };
+            const at = new Date(fetched.restingUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            throw new Error(`This source is resting until ${at}, so as not to ask it too often.`);
+          }
           onReached(true);
           // The core hands back bytes, because reference data includes a zip.
           // A source an application reads is text, decoded here rather than in
           // the core: what the bytes mean is the caller's business.
-          return { body: new TextDecoder('utf-8', { fatal: false }).decode(fetched.body), fresh: fetched.fresh };
+          const body = new TextDecoder('utf-8', { fatal: false }).decode(fetched.body);
+          if (fetched.fresh) lastSourceBody.set(url, body);
+          return { body: fetched.fresh ? body : (lastSourceBody.get(url) ?? body), fresh: fetched.fresh };
         },
         callService: async (service, callsign, operation, parameters) => {
           const answer = await untilReady(() => callsigns.serviceLookup(service, callsign, operation, parameters),

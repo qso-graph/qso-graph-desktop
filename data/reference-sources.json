@@ -287,5 +287,28 @@
       ],
       "conditional": "neither etag nor last-modified is offered, so the daily limit is what prevents a refetch"
     }
+  },
+  "politeness": {
+    "note": "#79, KI7MT 2026-10-26: no source is asked more often than this, whatever Update asks. The credential core enforces it (this file is compiled into it); an activations URL is one floor per park list asked for. Where a provider states a limit, that limit; where none is stated, our judgement and the reason.",
+    "adif": {
+      "minSeconds": 86400,
+      "stated": null,
+      "basis": "adif.org.uk states no limit. A pinned release, fetched once per version by its SHA-256; the floor only stops a retry loop."
+    },
+    "pota": {
+      "minSeconds": 86400,
+      "stated": null,
+      "basis": "POTA states no limit (its API is unofficial; its volunteers ask users not to hammer it). The park, program and location lists change daily at most: once a day, as pota-mcp."
+    },
+    "sota": {
+      "minSeconds": 86400,
+      "stated": null,
+      "basis": "SOTA states no limit. The summit list changes rarely and is about 25 MB: once a day at most."
+    },
+    "activations": {
+      "minSeconds": 86400,
+      "stated": null,
+      "basis": "POTA states no limit. A location's park activation counts are daily figures: once a day per location, entity or program."
+    }
   }
 }

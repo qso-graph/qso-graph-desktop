@@ -59,9 +59,14 @@ export interface ResourceSummary {
   // Loaded, but older than its refresh interval or a version behind what this
   // release pins: worth an Update.
   due: boolean;
-  // Loaded, and an Update could bring something new: POTA always, ADIF only
-  // when this release pins a newer version than the one installed.
+  // Loaded, and an Update could bring something new (#79): POTA's and SOTA's
+  // lists once their day is up or the last attempt failed, activations always
+  // (an Update fetches a location newly in My Area), ADIF only when this
+  // release pins a newer version than the one installed.
   updatable: boolean;
+  // When a POTA or SOTA list is next worth asking for, while it is current:
+  // shown so the operator knows why there is no Update (#79).
+  nextCheckAt?: string;
   // ADIF only: the version installed, and the newer one this release pins.
   version?: string;
   available?: string;

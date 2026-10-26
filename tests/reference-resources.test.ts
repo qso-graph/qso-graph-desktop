@@ -69,15 +69,21 @@ describe('#37: Update is offered only when it could bring something new', () => 
     expect(adif.available).toBe('9.9.9');
   });
 
-  it('always offers POTA an Update once downloaded, as its lists change daily', () => {
-    expect(pota(held(NOW - 1000)).updatable).toBe(true);
+  // #79: POTA's lists change daily at most, so its source is asked once a day.
+  it('offers POTA an Update once its day is up, and says when that is until then', () => {
+    expect(pota(held(NOW - 1000))).toMatchObject({ updatable: false, nextCheckAt: at(NOW - 1000 + DAY) });
     expect(pota(held(NOW - 1000)).version).toBeUndefined();
+    const old = pota(held(NOW - 2 * DAY));
+    expect(old).toMatchObject({ updatable: true, due: true });
+    expect(old.nextCheckAt).toBeUndefined();
   });
 
   it('carries the last attempt\'s problem, and offers Update again', () => {
     const summary = pota(held(NOW - 1000), {}, new Map([['pota', 'Could not be reached.']]));
     expect(summary.problem).toBe('Could not be reached.');
     expect(summary.due).toBe(true);
+    expect(summary.updatable).toBe(true);
+    expect(summary.nextCheckAt).toBeUndefined();
   });
 
   it('never calls a resource that was never loaded out of date', () => {
@@ -140,9 +146,10 @@ describe('SOTA summits, a resource of one list (QGD-REF-0018)', () => {
   const sota = (status: ReferenceStatus, checks: Record<string, string | undefined> = {}) =>
     summarize({ register, held: status, checks, problems: new Map(), updating: undefined, now: NOW }).find(resource => resource.id === 'sota')!;
 
-  it('is not loaded until downloaded, and then can always be updated', () => {
+  it('is not loaded until downloaded, and then can be updated once its day is up (#79)', () => {
     expect(sota(held(NOW))).toMatchObject({ state: 'not loaded', due: false, updatable: false });
-    expect(sota(sotaHeld(NOW - 1000))).toMatchObject({ state: 'loaded', due: false, updatable: true });
+    expect(sota(sotaHeld(NOW - 1000))).toMatchObject({ state: 'loaded', due: false, updatable: false, nextCheckAt: at(NOW - 1000 + DAY) });
+    expect(sota(sotaHeld(NOW - 2 * DAY))).toMatchObject({ state: 'loaded', due: true, updatable: true });
   });
 
   it('is out of date after a day, and current again once its list answers', () => {

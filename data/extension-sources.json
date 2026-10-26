@@ -7,5 +7,33 @@
     "noaa-kp": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
     "noaa-scales": "https://services.swpc.noaa.gov/products/noaa-scales.json",
     "pota-spots": "https://api.pota.app/spot/activator"
+  },
+  "politeness": {
+    "note": "#79, KI7MT 2026-10-26: no source is asked more often than this, whatever a manifest or Refresh asks. The credential core enforces it: this file is compiled into it, so nothing outside that process can loosen it. Where a provider states a limit, that limit; where none is stated, our judgement and the reason, so it can be revisited (CLAUDE.md, security.md: rate limiting).",
+    "solar": {
+      "minSeconds": 86400,
+      "stated": null,
+      "basis": "NOAA SWPC states no limit. The observed solar-cycle indices are a monthly product: more than once a day learns nothing."
+    },
+    "noaa-flux": {
+      "minSeconds": 900,
+      "stated": null,
+      "basis": "NOAA SWPC states no limit. The 10.7 cm flux summary changes a few times a day; 15 minutes is the Conditions page's own cadence."
+    },
+    "noaa-kp": {
+      "minSeconds": 900,
+      "stated": null,
+      "basis": "NOAA SWPC states no limit. Kp is a 3-hour index; 15 minutes is the Conditions page's own cadence."
+    },
+    "noaa-scales": {
+      "minSeconds": 900,
+      "stated": null,
+      "basis": "NOAA SWPC states no limit. The R/S/G scales follow the same observations; 15 minutes, the Conditions page's cadence."
+    },
+    "pota-spots": {
+      "minSeconds": 60,
+      "stated": null,
+      "basis": "POTA's API is unofficial and undocumented; its volunteers ask users not to hammer it. Spots change by the minute, so once a minute, the same as qso-graph's pota-mcp."
+    }
   }
 }
