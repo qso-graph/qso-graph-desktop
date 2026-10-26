@@ -49,7 +49,8 @@ pub struct Backup {
     #[serde(default)]
     pub preferences: BTreeMap<String, BTreeMap<String, String>>,
     // The Locations, as QG Storage handed them over and will take them back.
-    #[serde(default)]
+    // Left out of a file that holds no callsigns (#64).
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
     pub locations: serde_json::Value,
     // The active callsign's id, if one is (version 2).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -158,6 +159,8 @@ mod tests {
         alone.locations = serde_json::Value::Null;
         alone.active = None;
         assert!(read_ok(&alone));
+        let text = write(&alone).unwrap();
+        assert!(!text.contains("\"locations\"") && !text.contains("\"active\""), "a settings-only file names no Locations");
         // Saying it holds the settings without them, or holding them unsaid.
         let mut missing = backup();
         missing.settings = serde_json::Value::Null;
