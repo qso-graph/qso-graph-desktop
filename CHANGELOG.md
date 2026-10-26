@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Checking for updates only checks.** When a newer version is out, Settings and the status bar say
+  so, with *Download and install*; nothing is downloaded until you choose. Then, as before, it waits
+  for you to restart, or installs when you quit. (#52)
+
 ### Security
 
 - **The part that holds your logins and makes secure connections is up to date.** Seven published

@@ -36,8 +36,9 @@
     // A newer version (QGD-FRM-0019): ready to install on restart, or, for a
     // build that cannot install it itself, available from its page. One
     // quiet line, never a dialog; ignored, a ready one installs on quit.
-    update?: { readonly kind: 'ready' | 'available'; readonly version: string };
+    update?: { readonly kind: 'ready' | 'available'; readonly version: string; readonly installable?: boolean };
     onWhatsNew?: () => void;
+    onInstallUpdate?: () => void;
     onRestartToUpdate?: () => void;
   }
   const {
@@ -48,6 +49,7 @@
     onOpenTroubleshooting,
     update,
     onWhatsNew,
+    onInstallUpdate,
     onRestartToUpdate
   }: Props = $props();
   // The line that said when the application goes online is gone: Home's cards
@@ -67,6 +69,9 @@
     <span id="update-note" class="update-note">
       {update.kind === 'ready' ? `Version ${update.version} is ready.` : `Version ${update.version} is available.`}
       {#if onWhatsNew}<button type="button" class="bar-link" id="update-whats-new" onclick={onWhatsNew}>What's new</button>{/if}
+      {#if update.kind === 'available' && update.installable && onInstallUpdate}
+        · <button type="button" class="bar-link" id="update-install-bar" onclick={onInstallUpdate}>Download and install</button>
+      {/if}
       {#if update.kind === 'ready' && onRestartToUpdate}
         · <button type="button" class="bar-link" id="update-restart-bar" onclick={onRestartToUpdate}>Restart to update</button>
       {/if}

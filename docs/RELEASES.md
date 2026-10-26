@@ -282,10 +282,12 @@ is updated by the Store and never updates itself.
 
 ### How it asks
 
+- **Checking only checks** (KI7MT, 2026-10-24). When a newer version is
+  offered, a quiet line says *"Version 0.2.0 is available. What's new ·
+  Download and install"*; nothing is downloaded until the operator chooses.
 - **Never forced, and never restarted without asking.** When an update has
-  downloaded, a quiet line says *"Version 0.2.0 is ready. What's new ·
-  Restart to update"*. Ignored, it installs the next time the application
-  quits.
+  downloaded, the line says *"Version 0.2.0 is ready. What's new · Restart to
+  update"*. Ignored, it installs the next time the application quits.
 - **What's new** opens that version's notes (its `CHANGELOG.md` section).
 - **Offline, nothing is tried.** The check waits for the network, as every
   page that needs the internet does.

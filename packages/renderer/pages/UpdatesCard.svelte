@@ -18,13 +18,14 @@
     onSetCheck?: (on: boolean) => Promise<boolean>;
     onSetTrack?: (track: UpdateTrack) => Promise<boolean>;
     onCheckNow?: () => void;
+    onInstall?: () => void;
     onRestart?: () => void;
     onOpenRelease?: () => void;
   }
   const {
     update, check, track,
     onSetCheck = () => Promise.resolve(false), onSetTrack = () => Promise.resolve(false),
-    onCheckNow = () => {}, onRestart = () => {}, onOpenRelease = () => {}
+    onCheckNow = () => {}, onInstall = () => {}, onRestart = () => {}, onOpenRelease = () => {}
   }: Props = $props();
 
   let failure = $state('');
@@ -48,7 +49,9 @@
       case 'idle': return 'Will check shortly.';
       case 'checking': return 'Checking…';
       case 'current': return `Up to date. Checked at ${at(state.checkedAt)}.`;
-      case 'available': return `Version ${state.version} is available: What's new has its page.`;
+      case 'available': return state.installable
+        ? `Version ${state.version} is available.`
+        : `Version ${state.version} is available: What's new has its page.`;
       case 'downloading': return `Downloading version ${state.version}…`;
       case 'ready': return `Version ${state.version} is ready. It installs on restart, or when you quit.`;
       case 'failed': return `The last check did not finish: ${state.reason}`;
@@ -93,6 +96,9 @@
       </select>
     </label>
     <span class="hint update-state" id="update-state" role="status">{words(update)}</span>
+    {#if update?.kind === 'available' && update.installable}
+      <button type="button" id="update-install" onclick={onInstall}>Download and install</button>
+    {/if}
     {#if update?.kind === 'ready'}
       <button type="button" id="update-restart" onclick={onRestart}>Restart to update</button>
     {/if}

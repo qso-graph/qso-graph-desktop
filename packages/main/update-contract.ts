@@ -102,7 +102,9 @@ export type UpdateState =
   | { kind: 'idle' }                              // not asked yet this session
   | { kind: 'checking' }
   | { kind: 'current'; checkedAt: number }        // nothing newer
-  | { kind: 'available'; version: string; checkedAt: number }   // newer, and this build cannot install it
+  // Newer. installable: this build can download and install it, and does so only when the operator
+  // chooses (KI7MT, 2026-10-24: Check only checks); otherwise What's new links to it.
+  | { kind: 'available'; version: string; checkedAt: number; installable: boolean }
   | { kind: 'downloading'; version: string }
   | { kind: 'ready'; version: string }            // downloaded and checked; applies on restart or quit
   | { kind: 'failed'; reason: string; checkedAt: number };
@@ -110,12 +112,13 @@ export type UpdateState =
 export type UpdateCommand =
   | { type: 'state' }
   | { type: 'check' }        // now, whatever the day's check said
+  | { type: 'install' }      // download and check the offered version, then wait for restart or quit
   | { type: 'restart' }      // apply a ready update
   | { type: 'release' };     // open the newer version's page in the browser
 
 export function validateUpdateCommand(value: unknown): value is UpdateCommand {
   return record(value) && Object.keys(value).length === 1
-    && (value.type === 'state' || value.type === 'check' || value.type === 'restart' || value.type === 'release');
+    && (value.type === 'state' || value.type === 'check' || value.type === 'install' || value.type === 'restart' || value.type === 'release');
 }
 
 const KINDS = ['off', 'idle', 'checking', 'current', 'available', 'downloading', 'ready', 'failed'];
@@ -125,5 +128,6 @@ export function isUpdateState(value: unknown): value is UpdateState {
   if ('reason' in value && (typeof value.reason !== 'string' || value.reason.length > 200)) return false;
   if ('checkedAt' in value && typeof value.checkedAt !== 'number') return false;
   if (value.kind === 'off' && !['switch', 'development', 'preview', 'store'].includes(value.why as string)) return false;
+  if (value.kind === 'available' && typeof value.installable !== 'boolean') return false;
   return true;
 }

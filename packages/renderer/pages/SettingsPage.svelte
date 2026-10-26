@@ -89,6 +89,7 @@
     onSetUpdateCheck?: (on: boolean) => Promise<boolean>;
     onSetUpdateTrack?: (track: UpdateTrack) => Promise<boolean>;
     onCheckUpdates?: () => void;
+    onInstallUpdate?: () => void;
     onRestartToUpdate?: () => void;
     onOpenRelease?: () => void;
     // What's New, from About (KI7MT, 2026-10-24).
@@ -102,7 +103,7 @@
     onInspectBackup = () => Promise.resolve('Restoring is not available here.'),
     onRestore = () => Promise.resolve('Restoring is not available here.'),
     update, updateCheck = true, updateTrack = 'stable',
-    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease,
+    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onInstallUpdate, onRestartToUpdate, onOpenRelease,
     onOpenWhatsNew = () => {}
   }: Props = $props();
 
@@ -197,7 +198,7 @@
 
   <UpdatesCard {update} check={updateCheck} track={updateTrack}
     onSetCheck={onSetUpdateCheck} onSetTrack={onSetUpdateTrack} onCheckNow={onCheckUpdates}
-    onRestart={onRestartToUpdate} {onOpenRelease} />
+    onInstall={onInstallUpdate} onRestart={onRestartToUpdate} {onOpenRelease} />
 
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>

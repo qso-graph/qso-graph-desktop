@@ -57,7 +57,7 @@ export interface UpdaterOptions {
 
 export interface Updater {
   state: () => UpdateState;
-  check: (why: 'scheduled' | 'asked') => Promise<void>;
+  check: (why: 'scheduled' | 'asked' | 'install') => Promise<void>;
   // Called as the application quits, after the stores have closed: a ready
   // update is applied then, and the new version started if the operator
   // chose Restart.
@@ -166,7 +166,10 @@ export function startUpdater(options: UpdaterOptions): Updater {
     return resolve(path).startsWith(folder) && UPDATE_FILE_NAME.test(basename(path)) && existsSync(path);
   };
 
-  async function run(): Promise<void> {
+  // Checking only checks (KI7MT, 2026-10-24): a scheduled or asked check stops at 'available'. The
+  // download, its checks and 'ready' happen only when the operator chooses Download and install,
+  // which asks the feed again, so what is installed is what the feed offers now.
+  async function run(fetch: boolean): Promise<void> {
     if (!options.asks) { publish(notAsking()); return; }
     if (!options.settings().updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     // Nothing is tried offline (QGD-FRM-0019); asked again when it is due.
@@ -189,9 +192,10 @@ export function startUpdater(options: UpdaterOptions): Updater {
     newer = offer.version;
     log.info({ version: offer.version, track: settings.updateTrack }, 'a newer version is offered');
     const file = options.platform ? offer.files[options.platform] : undefined;
-    if (!file) { publish({ kind: 'available', version: offer.version, checkedAt: now() }); return; }
+    if (!file) { publish({ kind: 'available', version: offer.version, checkedAt: now(), installable: false }); return; }
     // Already downloaded and checked this session: nothing to fetch again.
     if (readyFile && basename(readyFile) === file.name) { publish({ kind: 'ready', version: offer.version }); return; }
+    if (!fetch) { publish({ kind: 'available', version: offer.version, checkedAt: now(), installable: true }); return; }
     publish({ kind: 'downloading', version: offer.version });
     const downloaded = await options.download(file.url, file.sha256, file.name);
     if (typeof downloaded === 'string' || !installable(downloaded.path)) {
@@ -223,17 +227,24 @@ export function startUpdater(options: UpdaterOptions): Updater {
     publish({ kind: 'ready', version: offer.version });
   }
 
-  const check = (why: 'scheduled' | 'asked'): Promise<void> => {
+  // An install asked for while a check ran: done when that check finishes.
+  let installAfter = false;
+  const check = (why: 'scheduled' | 'asked' | 'install'): Promise<void> => {
     // One at a time; a second ask while one runs is run again after it, so a
     // change of switch or track made meanwhile is acted on (#57).
-    if (running) { if (why === 'asked') again = true; return running; }
+    if (running) {
+      if (why === 'asked') again = true;
+      if (why === 'install') installAfter = true;
+      return running;
+    }
     if (why === 'scheduled' && lastAsked && now() - lastAsked < CHECK_EVERY_MS) return Promise.resolve();
     // A ready update stays ready: nothing to ask until it is applied.
-    if (state.kind === 'ready' && why === 'scheduled') return Promise.resolve();
-    running = run().catch(() => publish({ kind: 'failed', reason: 'The update check could not be completed.', checkedAt: now() }))
+    if (state.kind === 'ready' && why !== 'asked') return Promise.resolve();
+    running = run(why === 'install').catch(() => publish({ kind: 'failed', reason: 'The update check could not be completed.', checkedAt: now() }))
       .finally(() => {
         running = null;
-        if (again) { again = false; void check('asked'); }
+        if (installAfter) { installAfter = false; again = false; void check('install'); }
+        else if (again) { again = false; void check('asked'); }
       });
     return running;
   };
@@ -288,6 +299,11 @@ export function startUpdater(options: UpdaterOptions): Updater {
     switch (command.type) {
       case 'state': return state;
       case 'check': void check('asked'); return true;
+      // Only an offer this build can install, and only when the operator asks.
+      case 'install':
+        if (state.kind !== 'available' || !state.installable) return false;
+        void check('install');
+        return true;
       // Applied as the application quits, once its stores have closed, so
       // nothing is replaced underneath a write.
       case 'restart':

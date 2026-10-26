@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The updater acts on the switch and the track as they are when it acts, not
-// as they were when it started to check (#57).
+// as they were when it started to check (#57); and checking only checks: the
+// download waits for the operator's Download and install (KI7MT, 2026-10-24).
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -41,35 +42,73 @@ function updater(settings: { updateCheck: boolean; updateTrack: 'stable' | 'earl
   return { started, feed, download, states, release: (bytes: Uint8Array) => release(bytes) };
 }
 
+// A check, then the operator's Download and install, which asks the feed again.
+async function offered(made: ReturnType<typeof updater>): Promise<void> {
+  const checking = made.started.check('asked');
+  made.release(feedBytes);
+  await checking;
+}
+
+describe('checking only checks (KI7MT, 2026-10-24)', () => {
+  it('a newer version is offered, and nothing is downloaded until the operator chooses', async () => {
+    const made = updater({ updateCheck: true, updateTrack: 'early' });
+    await offered(made);
+    expect(made.download).not.toHaveBeenCalled();
+    expect(made.states.at(-1)).toBe('available');
+    expect(made.started.state()).toMatchObject({ kind: 'available', version: '0.2.0', installable: true });
+  });
+
+  it('a build that cannot install it is offered the link only', async () => {
+    let release: (bytes: Uint8Array) => void = () => undefined;
+    const download = vi.fn(() => Promise.resolve('no'));
+    const started = startUpdater({
+      version: '0.1.2', platform: null, asks: true, build: 'release',
+      settings: () => ({ updateCheck: true, updateTrack: 'early' }), online: () => true,
+      feed: () => new Promise<Uint8Array>(resolve => { release = resolve; }), download,
+      updatesDirectory: '/nonexistent/updates', openRelease: () => undefined,
+      window: () => ({ isDestroyed: () => false, webContents: { send: () => undefined } }) as never
+    });
+    stop = started.stop;
+    const checking = started.check('asked');
+    release(feedBytes);
+    await checking;
+    expect(started.state()).toMatchObject({ kind: 'available', installable: false });
+    expect(download).not.toHaveBeenCalled();
+  });
+});
+
 describe('the updater acts on the settings as they are now (#57)', () => {
   it('turned off while the feed is on its way: nothing is downloaded', async () => {
     const settings = { updateCheck: true, updateTrack: 'early' as const };
-    const { started, download, states, release } = updater(settings);
-    const checking = started.check('asked');
+    const made = updater(settings);
+    await offered(made);
+    const installing = made.started.check('install');
     settings.updateCheck = false;
-    release(feedBytes);
-    await checking;
-    expect(download).not.toHaveBeenCalled();
-    expect(states.at(-1)).toBe('off');
+    made.release(feedBytes);
+    await installing;
+    expect(made.download).not.toHaveBeenCalled();
+    expect(made.states.at(-1)).toBe('off');
   });
 
   it('switched to Stable while the feed is on its way: an Early release is not downloaded', async () => {
     const settings: { updateCheck: boolean; updateTrack: 'stable' | 'early' } = { updateCheck: true, updateTrack: 'early' };
-    const { started, download, states, release } = updater(settings);
-    const checking = started.check('asked');
+    const made = updater(settings);
+    await offered(made);
+    const installing = made.started.check('install');
     settings.updateTrack = 'stable';
-    release(feedBytes);
-    await checking;
-    expect(download).not.toHaveBeenCalled();
-    expect(states.at(-1)).toBe('current');
+    made.release(feedBytes);
+    await installing;
+    expect(made.download).not.toHaveBeenCalled();
+    expect(made.states.at(-1)).toBe('current');
   });
 
-  it('left as they were, an Early release is downloaded', async () => {
-    const { started, download, release } = updater({ updateCheck: true, updateTrack: 'early' });
-    const checking = started.check('asked');
-    release(feedBytes);
-    await checking;
-    expect(download).toHaveBeenCalledOnce();
+  it('left as they were, Download and install downloads the Early release', async () => {
+    const made = updater({ updateCheck: true, updateTrack: 'early' });
+    await offered(made);
+    const installing = made.started.check('install');
+    made.release(feedBytes);
+    await installing;
+    expect(made.download).toHaveBeenCalledOnce();
   });
 
   it('switched back on while offline: no longer off, and nothing asked (#57, Turing)', async () => {
@@ -123,6 +162,8 @@ describe('a Windows update must be signed like this copy (#81)', () => {
   it('signed by the same publisher: kept, and ready', async () => {
     const { started, states, asked, updates } = windowsUpdater(true);
     await started.check('asked');
+    expect(states.at(-1)?.kind).toBe('available');
+    await started.check('install');
     expect(asked).toEqual([join(updates, name)]);
     expect(states.at(-1)?.kind).toBe('ready');
   });
@@ -130,6 +171,7 @@ describe('a Windows update must be signed like this copy (#81)', () => {
   it('signed by anyone else, or not at all: removed, and the operator told', async () => {
     const { started, states, updates } = windowsUpdater(false);
     await started.check('asked');
+    await started.check('install');
     expect(states.at(-1)).toMatchObject({ kind: 'failed', reason: expect.stringMatching(/not signed by the same publisher/) });
     expect(existsSync(join(updates, name))).toBe(false);
   });

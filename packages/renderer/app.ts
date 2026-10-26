@@ -90,6 +90,7 @@ mount(Shell, {
     onSetUpdateCheck: (on: boolean) => writeUpdateSetting('updateCheck', on),
     onSetUpdateTrack: (track: UpdateTrack) => writeUpdateSetting('updateTrack', track),
     onCheckUpdates: () => { void window.updates?.request({ type: 'check' }); },
+    onInstallUpdate: () => { void window.updates?.request({ type: 'install' }); },
     onRestartToUpdate: () => { void window.updates?.request({ type: 'restart' }); },
     onOpenRelease: () => { void window.updates?.request({ type: 'release' }); },
     // Injected at build time from package.json, so the number on screen is the
