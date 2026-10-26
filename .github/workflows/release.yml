@@ -5,7 +5,7 @@
 # nothing.
 #
 # Nothing is rebuilt here. The release is the signed build CI already made
-# of main's commit and passed as "all green", so what was tested is what
+# of main's commit and passed as ci-all-green, so what was tested is what
 # ships. Before anything is published it refuses unless every check holds:
 # run from main, main says this version, CHANGELOG.md has its section, its
 # tag is free, its milestone has no open issue, and CI's newest all-green
@@ -37,9 +37,10 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      # CI's run of this commit, and the milestone's open issues.
+      # CI's run of this commit, the milestone's open issues, and Pages (#99).
       actions: read
       issues: read
+      pages: read
     outputs:
       run: ${{ steps.ready.outputs.run }}
       sha: ${{ steps.ready.outputs.sha }}
@@ -87,7 +88,7 @@ jobs:
             [ "$open" = 0 ] && echo "✓ milestone ${VERSION} has no open issue" || fail "milestone ${VERSION} has ${open} open issue(s)"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
-          # The build to publish: CI's newest run on this branch that is all green
+          # The build to publish: CI's newest run on this branch that passed ci-all-green
           # and packaged all four platforms. A documentation-only merge since
           # builds nothing (#95), so that run may be of an earlier commit; it
           # is taken only if every change after it is documentation, which
@@ -96,8 +97,10 @@ jobs:
           built="" run=""
           for candidate in $(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?event=push&branch=${branch}&status=success&per_page=30" \
               --jq '.workflow_runs[] | "\(.id):\(.head_sha)"'); do
-            jobs=$(gh api "repos/${REPO}/actions/runs/${candidate%%:*}/jobs?per_page=100" \
-              --jq '[.jobs[] | select(.conclusion == "success") | .name] | map(select(. == "all green" or startswith("package ("))) | length')
+            # Every attempt, the latest result per job: after "re-run failed
+            # jobs" the default list holds only the re-run (found by Codex).
+            jobs=$(gh api "repos/${REPO}/actions/runs/${candidate%%:*}/jobs?filter=all&per_page=100" --paginate \
+              --jq '.jobs[]' | jq -s '[group_by(.name)[] | max_by(.run_attempt) | select(.conclusion == "success") | .name] | map(select(. == "ci-all-green" or startswith("package ("))) | length')
             if [ "$jobs" = 5 ]; then run=${candidate%%:*}; built=${candidate#*:}; break; fi
           done
           if [ -z "$run" ]; then
@@ -119,6 +122,16 @@ jobs:
           fi
           echo "run=${run}" >> "$GITHUB_OUTPUT"
           echo "sha=${built}" >> "$GITHUB_OUTPUT"
+          # The feed can be published (#99): releasing 0.2.1 published every
+          # file, then failed at the feed because Pages was off, so installed
+          # copies were still offered 0.2.0. Pages must be on, built by
+          # Actions, and serving the feed's own address, before anything goes.
+          pages=$(gh api "repos/${REPO}/pages" --jq '"\(.build_type) \(.cname // "")"' 2>/dev/null) || pages=""
+          if [ "$pages" = "workflow updates.qso-graph.io" ]; then
+            echo "✓ the update feed can be published (Pages, from Actions, at updates.qso-graph.io)"
+          else
+            fail "the update feed cannot be published: this repository's Pages must be on, built from GitHub Actions, at updates.qso-graph.io (it is: ${pages:-off})"
+          fi
           if [ "$problems" -gt 0 ]; then echo "Not released: ${problems} check(s) failed." >&2; exit 1; fi
 
   publish:

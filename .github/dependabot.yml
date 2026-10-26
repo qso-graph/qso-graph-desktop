@@ -1,22 +1,32 @@
-# Dependabot: SECURITY updates only.
+# Dependabot: security updates only, grouped (#102), as every qso-graph MCP repo has it.
 #
-# Routine version bumps are off (open-pull-requests-limit: 0). Pinned versions here
-# are deliberate decisions (for example TypeScript stays on 6.0.3 until
-# typescript-eslint supports 7), and before Release 1 work is reviewed and committed
-# to develop rather than arriving as pull requests. Security updates are not limited
-# by this setting: Dependabot still opens a pull request for a dependency with a
-# known vulnerability, and those are fixed, not parked.
+# Without this file Dependabot opens one pull request per advisory per package,
+# which across the MCP fleet came to 57 pull requests for four upgrades. Grouped,
+# it is one pull request per ecosystem. `open-pull-requests-limit: 0` turns off
+# *version* updates only; security updates have their own fixed limit and are
+# unaffected. CI's dependency audit (npm and RustSec) checks the locks on every
+# build and every night, so a stale lock is caught without a bot.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 0
-    target-branch: "develop"
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
   - package-ecosystem: "cargo"
     directory: "/packages/callsign-core"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 0
-    target-branch: "develop"
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"

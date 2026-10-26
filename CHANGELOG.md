@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **The part that holds your logins and makes secure connections is up to date.** Seven published
+  weaknesses in the libraries it uses for encrypted connections (rustls, its certificate checking and
+  its list of trusted certificate authorities) and for constant-time comparisons are fixed, including
+  one that could accept certificates from a distrusted authority. Every build now checks these
+  libraries against the public advisory databases and stops if one has a known problem. (#103)
+
 ## [0.2.1] - 2026-10-25
 
 ### Added

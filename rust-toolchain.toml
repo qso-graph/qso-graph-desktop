@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# The Rust that builds the credential core (packages/callsign-core), pinned (#104): rustup reads this
+# file from the working directory upward and installs this version before any cargo command, so CI,
+# scripts/core-manylinux.sh and a developer's machine all build with the same compiler. QGSDK's
+# Desktop profile installs the version named here (qso-graph/qso-graph-sdk#4). Change it here only.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"

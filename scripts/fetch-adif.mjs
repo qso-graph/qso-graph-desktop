@@ -60,8 +60,12 @@ if (already?.ok && !process.argv.includes('--force')) {
     await writeFile(zip, archive);
     const unpacked = join(staging, 'tree');
     await mkdir(unpacked, { recursive: true });
-    const run = spawnSync('unzip', ['-q', '-o', zip, '-d', unpacked], { encoding: 'utf8' });
-    if (run.status !== 0) throw new Error(`unzip failed: ${run.stderr || run.stdout}`);
+    // unzip on macOS and Linux; on Windows, which has no unzip, the bsdtar it ships in System32, which
+    // reads zip. By its full path: a GNU tar earlier on PATH (Git for Windows') can't (#105).
+    const run = process.platform === 'win32'
+      ? spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', zip, '-C', unpacked], { encoding: 'utf8' })
+      : spawnSync('unzip', ['-q', '-o', zip, '-d', unpacked], { encoding: 'utf8' });
+    if (run.status !== 0) throw new Error(`unpacking failed: ${run.error?.message || run.stderr || run.stdout}`);
 
     await rm(target, { recursive: true, force: true });
     await mkdir(resolve(target, '..'), { recursive: true });
