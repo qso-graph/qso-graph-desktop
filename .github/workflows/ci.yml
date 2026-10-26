@@ -226,10 +226,10 @@ jobs:
         with:
           go-version: stable
           cache: false
-      # The arm64 image may not carry Rust; the others do.
+      # The arm64 image may not carry Rust; the others do. The version is rust-toolchain.toml's (#104).
       - name: Rust, where the image has none
         if: runner.os == 'Linux'
-        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
+        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
       - name: Windows build tools for the FIPS module
         if: runner.os == 'Windows'
         run: choco install -y --no-progress nasm ninja
@@ -290,10 +290,10 @@ jobs:
         with:
           go-version: stable
           cache: false
-      # The arm64 image may not carry Rust; the others do.
+      # The arm64 image may not carry Rust; the others do. The version is rust-toolchain.toml's (#104).
       - name: Rust, where the image has none
         if: runner.os == 'Linux'
-        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
+        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
       - name: Windows build tools for the FIPS module
         if: runner.os == 'Windows'
         run: choco install -y --no-progress nasm ninja
@@ -416,10 +416,10 @@ jobs:
         with:
           go-version: stable
           cache: false
-      # The arm64 image may not carry Rust; the others do.
+      # The arm64 image may not carry Rust; the others do. The version is rust-toolchain.toml's (#104).
       - name: Rust, where the image has none
         if: runner.os == 'Linux'
-        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
+        run: command -v cargo || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; }
       - name: Windows build tools for the FIPS module
         if: runner.os == 'Windows'
         run: choco install -y --no-progress nasm ninja
