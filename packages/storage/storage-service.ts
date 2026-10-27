@@ -386,12 +386,14 @@ async function refresh(resource: ReferenceResource, chosen: readonly string[] = 
   updating = resource;
   publish();
   try {
-    // Asked for by the operator, so not held back by the once-a-day check;
-    // POTA is still asked conditionally, so an unchanged list costs a 304.
+    // Not forced past a list's once-a-day window (#79): a list fetched inside
+    // it is fresh enough, while one whose body is missing or does not match
+    // its record is fetched, since the cache then has no record to trust.
+    // POTA is asked conditionally, so an unchanged list costs a 304.
     // Activations are fetched for My Area alone: as chosen, or else the
     // active Location's own POTA location, as area.get answers (QGD-STN-0012).
     const area = resource !== 'activations' ? undefined : chosen.length > 0 ? chosen : await ownArea();
-    const outcome = await reference.refresh({ force: true, only: resource, ...(area ? { area } : {}) });
+    const outcome = await reference.refresh({ only: resource, ...(area ? { area } : {}) });
     referenceStatus = outcome.status;
     checks = await reference.lastChecks();
     const problem = problemOf(resource, outcome);

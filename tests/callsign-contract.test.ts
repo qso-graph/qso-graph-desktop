@@ -72,3 +72,29 @@ describe('QGD-SEC-0020: a reference fetch carries no credential', () => {
     }
   });
 });
+
+// One backup, with ticks (#64): the parts, from the window to main and from
+// main to the core, each refused when it is not what a backup has.
+describe('backup parts (#64)', () => {
+  it('the window names the parts it wants backed up or restored, and nothing else', () => {
+    expect(validateCommand({ type: 'export-callsigns', parts: ['callsigns', 'settings'] })).toBe(true);
+    expect(validateCommand({ type: 'export-callsigns', parts: ['settings'] })).toBe(true);
+    for (const parts of [undefined, [], ['logins'], ['settings', 'settings'], ['callsigns', 'settings', 'callsigns'], 'settings']) {
+      expect(validateCommand({ type: 'export-callsigns', parts }), JSON.stringify(parts)).toBe(false);
+    }
+    expect(validateCommand({ type: 'import-callsigns', apply: false, replace: false })).toBe(true);
+    expect(validateCommand({ type: 'import-callsigns', apply: true, replace: true, parts: ['settings'] })).toBe(true);
+    expect(validateCommand({ type: 'import-callsigns', apply: true, replace: true, parts: ['logins'] })).toBe(false);
+  });
+
+  it('main hands the core the Locations, the settings, or both, and never neither', async () => {
+    const { validateServiceCommand } = await import('../packages/callsigns/callsign-contract.js');
+    const ask = (value: Record<string, unknown>) => validateServiceCommand({ type: 'export-callsigns', ...value }, services);
+    expect(ask({ locations: '{}' })).toBe(true);
+    expect(ask({ settings: '{}' })).toBe(true);
+    expect(ask({ locations: '{}', settings: '{}' })).toBe(true);
+    expect(ask({})).toBe(false);
+    expect(ask({ settings: 'x'.repeat(262_145) })).toBe(false);
+    expect(ask({ settings: {} })).toBe(false);
+  });
+});

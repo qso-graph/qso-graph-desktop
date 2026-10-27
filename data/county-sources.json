@@ -47,10 +47,10 @@
     }
   },
   "sections": {
-    "what": "ARRL's Section Boundaries page: which sections each state has, and in states with more than one, which counties each section holds. ARRL's page varies from one request to the next, so the copy pinned is the Internet Archive's of 2026-06-15, which is served byte for byte. scripts/arrl-sections.mjs compares it with ARRL's live page.",
-    "url": "https://web.archive.org/web/20260615180350id_/https://www.arrl.org/section-boundaries",
+    "what": "ARRL's Section Boundaries page: which sections each state has, and in states with more than one, which counties each section holds. ARRL's page varies from one request to the next, so the copy pinned is the Internet Archive's of 2026-06-06, which is served byte for byte. (It was the copy of 2026-06-15 until the Archive began redirecting that one to this, 2026-10-26; both give the same 71 sections.) scripts/arrl-sections.mjs compares it with ARRL's live page.",
+    "url": "https://web.archive.org/web/20260606231430id_/https://www.arrl.org/section-boundaries",
     "live": "https://www.arrl.org/section-boundaries",
-    "sha256": "e4c3ba436436e2c9f198de3c9df259eb67cccabc82877de273a91d830d0f84b9",
-    "archived": "2026-06-15"
+    "sha256": "dfada4c84609808183ba785ebb78ff7e74f2c13f81ace0655ca0d293ce916848",
+    "archived": "2026-06-06"
   }
 }

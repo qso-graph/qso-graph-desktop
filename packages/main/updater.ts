@@ -19,9 +19,10 @@ import { createLogger } from '../logging/logger.js';
 import { signedLikeThisCopy } from './windows-signature.js';
 import type { UpdateTrack } from './settings-contract.js';
 import {
-  UPDATES_CHANNEL, UPDATES_STATE_CHANNEL, choose, isReleaseVersion, readFeed, validateUpdateCommand,
-  type UpdatePlatform, type UpdateState
+  UPDATES_CHANNEL, UPDATES_STATE_CHANNEL, choose, compareVersions, isReleaseVersion, readFeed, validateUpdateCommand, versionChoices,
+  type Feed, type FeedEntry, type UpdatePlatform, type UpdateState, type VersionChoice
 } from './update-contract.js';
+import type { Snapshots } from './snapshots.js';
 
 const log = createLogger('updates');
 
@@ -53,11 +54,16 @@ export interface UpdaterOptions {
   // as this running copy (windows-signature.ts; #81). Given here so the
   // updater is tested without Windows.
   windowsTrusted?: (installer: string) => boolean;
+  // The profile kept before an install and put back when going back (#77,
+  // snapshots.ts). Without it nothing is installed: going back without the
+  // data is not safe.
+  snapshots: Snapshots;
 }
 
 export interface Updater {
   state: () => UpdateState;
-  check: (why: 'scheduled' | 'asked') => Promise<void>;
+  check: (why: 'scheduled' | 'asked' | 'install', version?: string) => Promise<void>;
+  versions: () => VersionChoice[];
   // Called as the application quits, after the stores have closed: a ready
   // update is applied then, and the new version started if the operator
   // chose Restart.
@@ -148,13 +154,16 @@ export function startUpdater(options: UpdaterOptions): Updater {
   let lastAsked = 0;
   let readyFile: string | null = null;
   let newer: string | null = null;
+  // The feed as the last check read it, for Choose a version… (#77).
+  let lastFeed: Feed | null = null;
   let running: Promise<void> | null = null;
   let relaunchAfter = false;
   // Asked again while a check ran: run once more when it finishes.
   let again = false;
 
   const publish = (next: UpdateState): void => {
-    state = next;
+    const stable = lastFeed?.stable?.version;
+    state = stable && compareVersions(stable, options.version) > 0 ? { ...next, stable } : next;
     const window = options.window();
     if (window && !window.isDestroyed()) window.webContents.send(UPDATES_STATE_CHANNEL, state);
   };
@@ -166,7 +175,10 @@ export function startUpdater(options: UpdaterOptions): Updater {
     return resolve(path).startsWith(folder) && UPDATE_FILE_NAME.test(basename(path)) && existsSync(path);
   };
 
-  async function run(): Promise<void> {
+  // Checking only checks (KI7MT, 2026-10-24): a scheduled or asked check stops at 'available'. The
+  // download, its checks and 'ready' happen only when the operator chooses Download and install,
+  // which asks the feed again, so what is installed is what the feed offers now.
+  async function run(fetch: boolean, chosen?: string): Promise<void> {
     if (!options.asks) { publish(notAsking()); return; }
     if (!options.settings().updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     // Nothing is tried offline (QGD-FRM-0019); asked again when it is due.
@@ -184,15 +196,28 @@ export function startUpdater(options: UpdaterOptions): Updater {
     // way still downloaded the update).
     const settings = options.settings();
     if (!settings.updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
-    const offer = choose(feed, settings.updateTrack, options.version);
-    if (!offer) { newer = null; publish({ kind: 'current', checkedAt: now() }); return; }
+    lastFeed = feed;
+    // A version chosen from the list (#77): only one the list offers now, for
+    // this track, forward or back, and never the one running.
+    let offer: FeedEntry | null;
+    if (chosen !== undefined) {
+      const choice = versionChoices(feed, settings.updateTrack, options.version, options.snapshots.list())
+        .find(entry => entry.version === chosen && entry.way !== 'running');
+      offer = choice ? feed.releases.find(entry => entry.version === choice.version) ?? null : null;
+      if (!offer) { publish({ kind: 'failed', reason: `Version ${chosen} is not offered now.`, checkedAt: now() }); return; }
+    } else {
+      offer = choose(feed, settings.updateTrack, options.version);
+      if (!offer) { newer = null; publish({ kind: 'current', checkedAt: now() }); return; }
+    }
     newer = offer.version;
-    log.info({ version: offer.version, track: settings.updateTrack }, 'a newer version is offered');
+    const back = compareVersions(offer.version, options.version) < 0;
+    log.info({ version: offer.version, track: settings.updateTrack, back }, chosen ? 'a version is chosen' : 'a newer version is offered');
     const file = options.platform ? offer.files[options.platform] : undefined;
-    if (!file) { publish({ kind: 'available', version: offer.version, checkedAt: now() }); return; }
+    if (!file) { publish({ kind: 'available', version: offer.version, checkedAt: now(), installable: false }); return; }
     // Already downloaded and checked this session: nothing to fetch again.
-    if (readyFile && basename(readyFile) === file.name) { publish({ kind: 'ready', version: offer.version }); return; }
-    publish({ kind: 'downloading', version: offer.version });
+    if (readyFile && basename(readyFile) === file.name) { publish({ kind: 'ready', version: offer.version, back }); return; }
+    if (!fetch) { publish({ kind: 'available', version: offer.version, checkedAt: now(), installable: true }); return; }
+    publish({ kind: 'downloading', version: offer.version, back });
     const downloaded = await options.download(file.url, file.sha256, file.name);
     if (typeof downloaded === 'string' || !installable(downloaded.path)) {
       readyFile = null;
@@ -219,21 +244,29 @@ export function startUpdater(options: UpdaterOptions): Updater {
       return;
     }
     readyFile = downloaded.path;
-    log.info({ version: offer.version }, 'an update is ready');
-    publish({ kind: 'ready', version: offer.version });
+    log.info({ version: offer.version, back }, 'an update is ready');
+    publish({ kind: 'ready', version: offer.version, back });
   }
 
-  const check = (why: 'scheduled' | 'asked'): Promise<void> => {
+  // An install asked for while a check ran: done when that check finishes.
+  let installAfter = false;
+  let installVersion: string | undefined;
+  const check = (why: 'scheduled' | 'asked' | 'install', version?: string): Promise<void> => {
     // One at a time; a second ask while one runs is run again after it, so a
     // change of switch or track made meanwhile is acted on (#57).
-    if (running) { if (why === 'asked') again = true; return running; }
+    if (running) {
+      if (why === 'asked') again = true;
+      if (why === 'install') { installAfter = true; installVersion = version; }
+      return running;
+    }
     if (why === 'scheduled' && lastAsked && now() - lastAsked < CHECK_EVERY_MS) return Promise.resolve();
     // A ready update stays ready: nothing to ask until it is applied.
     if (state.kind === 'ready' && why === 'scheduled') return Promise.resolve();
-    running = run().catch(() => publish({ kind: 'failed', reason: 'The update check could not be completed.', checkedAt: now() }))
+    running = run(why === 'install', why === 'install' ? version : undefined).catch(() => publish({ kind: 'failed', reason: 'The update check could not be completed.', checkedAt: now() }))
       .finally(() => {
         running = null;
-        if (again) { again = false; void check('asked'); }
+        if (installAfter) { installAfter = false; again = false; void check('install', installVersion); }
+        else if (again) { again = false; void check('asked'); }
       });
     return running;
   };
@@ -244,26 +277,46 @@ export function startUpdater(options: UpdaterOptions): Updater {
   // new one. An AppImage is replaced in place; Electron starts the new one.
   const apply = (relaunch: boolean): boolean => {
     if (!readyFile || !installable(readyFile)) return false;
+    // The profile as it is now, kept under the version being left, before
+    // anything is installed (#77). Not kept, nothing is installed.
+    if (!options.snapshots.take(options.version)) {
+      log.warn({}, 'the profile could not be kept; the update was not applied');
+      return false;
+    }
+    // Going back: the data kept when that version was left, put back before
+    // it opens anything. Where none is kept, it opens today's, as the
+    // operator was told before choosing it.
+    const restored = state.kind === 'ready' && state.back === true && options.snapshots.restore(state.version);
+    if (state.kind === 'ready' && state.back) log.info({ version: state.version, restored }, 'going back');
+    const applied = install(readyFile, relaunch);
+    // Not installed after all: this version's own data back where it was.
+    if (!applied && restored) options.snapshots.restore(options.version);
+    if (applied) readyFile = null;
+    return applied;
+  };
+
+  // The file installed, by the platform's own means.
+  const install = (file: string, relaunch: boolean): boolean => {
     try {
       if (options.platform === 'win-x64') {
         // Asked again just before it runs: the file sat in the profile
         // folder since it was downloaded.
-        if (!windowsTrusted(readyFile)) {
+        if (!windowsTrusted(file)) {
           log.warn({}, 'the installer is not signed by this copy\'s publisher; not run');
           return false;
         }
-        const child = spawn(readyFile, relaunch ? ['--updated', '/S', '--force-run'] : ['--updated', '/S'],
+        const child = spawn(file, relaunch ? ['--updated', '/S', '--force-run'] : ['--updated', '/S'],
           { detached: true, stdio: 'ignore', shell: false, windowsHide: true });
         child.unref();
       } else if (options.platform === 'mac-arm64') {
-        replaceMacBundle(readyFile);
+        replaceMacBundle(file);
         rmSync(options.updatesDirectory, { recursive: true, force: true });
         // The same path, now the new bundle.
         if (relaunch) app.relaunch();
       } else if (options.platform && process.env.APPIMAGE) {
         const target = process.env.APPIMAGE;
         const staged = `${target}.update`;
-        copyFileSync(readyFile, staged);
+        copyFileSync(file, staged);
         chmodSync(staged, 0o755);
         renameSync(staged, target);
         rmSync(options.updatesDirectory, { recursive: true, force: true });
@@ -272,7 +325,6 @@ export function startUpdater(options: UpdaterOptions): Updater {
         return false;
       }
       log.info({ relaunch }, 'update applied');
-      readyFile = null;
       return true;
     } catch {
       log.warn({}, 'the update could not be applied');
@@ -280,7 +332,11 @@ export function startUpdater(options: UpdaterOptions): Updater {
     }
   };
 
-  ipcMain.handle(UPDATES_CHANNEL, (event, command: unknown): UpdateState | boolean => {
+  const versions = (): VersionChoice[] => lastFeed
+    ? versionChoices(lastFeed, options.settings().updateTrack, options.version, options.snapshots.list())
+    : [];
+
+  ipcMain.handle(UPDATES_CHANNEL, (event, command: unknown): UpdateState | VersionChoice[] | boolean => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateUpdateCommand(command)) {
       log.warn({ accepted: false }, 'update request refused');
       return false;
@@ -288,6 +344,18 @@ export function startUpdater(options: UpdaterOptions): Updater {
     switch (command.type) {
       case 'state': return state;
       case 'check': void check('asked'); return true;
+      // Only an offer this build can install, and only when the operator asks.
+      case 'install':
+        // A version from the list: whenever nothing is under way.
+        if ('version' in command) {
+          if (running || state.kind === 'downloading' || state.kind === 'off' || !options.platform) return false;
+          void check('install', command.version);
+          return true;
+        }
+        if (state.kind !== 'available' || !state.installable) return false;
+        void check('install');
+        return true;
+      case 'versions': return versions();
       // Applied as the application quits, once its stores have closed, so
       // nothing is replaced underneath a write.
       case 'restart':
@@ -307,6 +375,7 @@ export function startUpdater(options: UpdaterOptions): Updater {
   return {
     state: () => state,
     check,
+    versions,
     applyOnQuit: () => { if (state.kind === 'ready' && readyFile) apply(relaunchAfter); },
     stop: () => { clearTimeout(first); clearInterval(hourly); ipcMain.removeHandler(UPDATES_CHANNEL); }
   };

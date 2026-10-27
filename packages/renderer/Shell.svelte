@@ -29,8 +29,9 @@
   import type { HomeModel, HomeStore } from './home-store.js';
   import type { LinkCommand } from '../main/links-contract.js';
   import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
+  import type { VersionChoice } from '../main/update-contract.js';
   import type { Level } from '../logging/logging.js';
-  import type { ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
+  import type { BackupPart, ExportResult, ImportPreview, ImportResult } from '../callsigns/callsign-contract.js';
   import type { FieldProblem, NamedReferences, ParkDraft, StationChoices, StationDraft } from '../storage/station-contract.js';
 
   interface Props {
@@ -71,15 +72,18 @@
     // the caller knows how — its markup is imperative, from P1.
     onFinishSetup: () => void;
     onSaveCredential: (service: string, values: Record<string, string>) => Promise<string | undefined>;
-    onExportCallsigns: () => Promise<ExportResult | string>;
+    onExportCallsigns: (parts: BackupPart[]) => Promise<ExportResult | string>;
     onInspectImport: () => Promise<ImportPreview | string>;
-    onApplyImport: (replace: boolean) => Promise<ImportResult | string>;
+    onApplyImport: (replace: boolean, parts: BackupPart[]) => Promise<ImportResult | string>;
     // Updates (QGD-FRM-0019): Settings' switch and track, and the actions.
     onSetUpdateCheck?: (on: boolean) => Promise<boolean>;
     onSetUpdateTrack?: (track: UpdateTrack) => Promise<boolean>;
     onCheckUpdates?: () => void;
+    onInstallUpdate?: () => void;
     onRestartToUpdate?: () => void;
     onOpenRelease?: () => void;
+    onListVersions?: () => Promise<VersionChoice[]>;
+    onInstallVersion?: (version: string) => void;
     version: string;
   }
   const {
@@ -87,7 +91,8 @@
     onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseUpdate, onOpenWhatsNew, onCloseWhatsNew, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
     onExportCallsigns, onInspectImport, onApplyImport, version,
-    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onRestartToUpdate, onOpenRelease
+    onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onInstallUpdate, onRestartToUpdate, onOpenRelease,
+    onListVersions, onInstallVersion
   }: Props = $props();
 
   // Named `shell`, not `state`: `$state` is both Svelte's rune and the
@@ -106,7 +111,7 @@
   $effect(() => store.subscribe(next => { shell = next; }));
   // The status bar's quiet line: only a newer version is worth a word there.
   const updateNote = $derived(shell.update?.kind === 'ready' || shell.update?.kind === 'available'
-    ? { kind: shell.update.kind, version: shell.update.version } : undefined);
+    ? { kind: shell.update.kind, version: shell.update.version, installable: shell.update.kind === 'available' && shell.update.installable } : undefined);
 
   let homeModel = $state<HomeModel>(untrack(() => home.get()));
   $effect(() => home.subscribe(next => { homeModel = next; }));
@@ -286,7 +291,8 @@
       <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
         onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport}
         update={shell.update} updateCheck={shell.updateCheck} updateTrack={shell.updateTrack}
-        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onRestartToUpdate} {onOpenRelease} {onOpenWhatsNew} />
+        {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onInstallUpdate} {onRestartToUpdate} {onOpenRelease} {onOpenWhatsNew}
+        {onListVersions} {onInstallVersion} />
     </div>
   </main>
 </div>
@@ -303,7 +309,7 @@
            onOpenCallsigns={() => store.set({ page: 'callsigns', extensionPage: null })}
            onOpenLocations={() => store.set({ page: 'stations', extensionPage: null })}
            onOpenTroubleshooting={() => store.set({ troubleshooting: true })}
-           update={updateNote} onWhatsNew={onOpenRelease} {onRestartToUpdate} />
+           update={updateNote} onWhatsNew={onOpenRelease} {onInstallUpdate} {onRestartToUpdate} />
 {#if shell.troubleshooting}
   <TroubleshootingPanel storage={shell.storage}
                         logs={shell.logs} {onSetLevel} {onExport}

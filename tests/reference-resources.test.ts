@@ -69,15 +69,21 @@ describe('#37: Update is offered only when it could bring something new', () => 
     expect(adif.available).toBe('9.9.9');
   });
 
-  it('always offers POTA an Update once downloaded, as its lists change daily', () => {
-    expect(pota(held(NOW - 1000)).updatable).toBe(true);
+  // #79: POTA's lists change daily at most, so its source is asked once a day.
+  it('offers POTA an Update once its day is up, and says when that is until then', () => {
+    expect(pota(held(NOW - 1000))).toMatchObject({ updatable: false, nextCheckAt: at(NOW - 1000 + DAY) });
     expect(pota(held(NOW - 1000)).version).toBeUndefined();
+    const old = pota(held(NOW - 2 * DAY));
+    expect(old).toMatchObject({ updatable: true, due: true });
+    expect(old.nextCheckAt).toBeUndefined();
   });
 
   it('carries the last attempt\'s problem, and offers Update again', () => {
     const summary = pota(held(NOW - 1000), {}, new Map([['pota', 'Could not be reached.']]));
     expect(summary.problem).toBe('Could not be reached.');
     expect(summary.due).toBe(true);
+    expect(summary.updatable).toBe(true);
+    expect(summary.nextCheckAt).toBeUndefined();
   });
 
   it('never calls a resource that was never loaded out of date', () => {
@@ -140,9 +146,10 @@ describe('SOTA summits, a resource of one list (QGD-REF-0018)', () => {
   const sota = (status: ReferenceStatus, checks: Record<string, string | undefined> = {}) =>
     summarize({ register, held: status, checks, problems: new Map(), updating: undefined, now: NOW }).find(resource => resource.id === 'sota')!;
 
-  it('is not loaded until downloaded, and then can always be updated', () => {
+  it('is not loaded until downloaded, and then can be updated once its day is up (#79)', () => {
     expect(sota(held(NOW))).toMatchObject({ state: 'not loaded', due: false, updatable: false });
-    expect(sota(sotaHeld(NOW - 1000))).toMatchObject({ state: 'loaded', due: false, updatable: true });
+    expect(sota(sotaHeld(NOW - 1000))).toMatchObject({ state: 'loaded', due: false, updatable: false, nextCheckAt: at(NOW - 1000 + DAY) });
+    expect(sota(sotaHeld(NOW - 2 * DAY))).toMatchObject({ state: 'loaded', due: true, updatable: true });
   });
 
   it('is out of date after a day, and current again once its list answers', () => {
@@ -170,5 +177,29 @@ describe('POTA activations, fetched for Most Wanted (QGD-REF-0019)', () => {
     expect(problemOf('activations', outcome)).toMatch(/Focus Area/);
     const unreachable = { ...outcome, noArea: undefined, activations: { 'US-ID': { state: 'kept', failure: { kind: 'fetch' } } } } as unknown as RefreshOutcome;
     expect(problemOf('activations', unreachable)).toMatch(/Could not be reached/);
+  });
+});
+
+// What summarize() builds must pass the contract main and the window check it
+// against. #79 added nextCheckAt to a current list's row and not to the
+// contract, so every storage reply was refused while POTA was current: the
+// window lost its Locations and a restore's reply (KI7MT, 0.3.0-pr107). The
+// test above only built rows that were not loaded or had failed.
+describe('a summary passes the storage contract in every state (#79)', () => {
+  const statusOf = (resources: unknown[]) => ({
+    state: 'ready',
+    reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'not loaded' }, refreshing: false, resources }
+  });
+  it('current, out of date, failed and updating', () => {
+    for (const [potaFetched, problems, updating] of [
+      [NOW - 1000, new Map<string, string>(), undefined],
+      [NOW - 2 * DAY, new Map<string, string>(), undefined],
+      [NOW - 1000, new Map([['pota', 'Could not be reached.']]), 'pota']
+    ] as const) {
+      const rows = summarize({ register, held: held(potaFetched), checks: {}, problems, updating, now: NOW });
+      for (const row of rows) expect(isStorageStatus(statusOf([row])), `${row.id} at ${NOW - potaFetched} ms`).toBe(true);
+    }
+    const current = summarize({ register, held: held(NOW - 1000), checks: {}, problems: new Map(), updating: undefined, now: NOW });
+    expect(current.find(row => row.id === 'pota')?.nextCheckAt, 'the case that broke is covered').toBeDefined();
   });
 });

@@ -490,6 +490,28 @@ withData('P5-reconcile: the file is the record of what is loaded (QGD-ENG-0015.1
 });
 
 withData('POTA refreshes (QGD-REF-0010)', () => {
+  // #79: Settings' Update asks as the storage service does, with no force, so
+  // pressing it again and again inside the day sends nothing to POTA.
+  it('Update pressed three times inside the day asks POTA once', async () => {
+    const calls: string[] = [];
+    const first = await reference({ fetchText: pota(BODIES, [], calls) });
+    try {
+      await first.ref.refresh({ only: 'pota' });
+      expect(calls.length).toBe(3);
+      for (let press = 0; press < 3; press++) {
+        clock += 60 * 1000;
+        const outcome = await first.ref.refresh({ only: 'pota' });
+        for (const list of POTA_LISTS) expect(outcome.pota[list].state).toBe('fresh enough');
+      }
+      expect(calls.length, 'nothing asked again inside the day').toBe(3);
+    } finally { first.done(); }
+  });
+
+  it('the storage service\'s Update never forces past the day (#79)', () => {
+    const source = readFileSync(new URL('../packages/storage/storage-service.ts', import.meta.url), 'utf8');
+    expect(source).not.toMatch(/refresh\(\{[^}]*force:\s*true/);
+  });
+
   it('P5-pota-freshness: within the day nothing is asked; after it, a 304 rebuilds nothing', async () => {
     const calls: string[] = [];
     const first = await reference({ fetchText: pota(BODIES, [], calls) });

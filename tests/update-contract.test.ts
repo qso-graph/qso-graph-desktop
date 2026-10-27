@@ -111,7 +111,8 @@ describe('what the window may ask and be told', () => {
     expect(readSettings({ updateCheck: 'no', updateTrack: 'nightly' })).toMatchObject({ updateCheck: true, updateTrack: 'stable' });
     expect(validateSettingsCommand({ type: 'write', key: 'updateCheck', value: false })).toBe(true);
     expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'early' })).toBe(true);
-    expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'preview' })).toBe(false);
+    expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'preview' })).toBe(true);
+    expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'nightly' })).toBe(false);
   });
 
   it('a newer version\'s page is built from the register, and only main may ask for it', () => {

@@ -28,7 +28,24 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      pages: read  # whether the feed can be published (#106)
     steps:
+      # The feed can be published (#106), checked before anything changes: Promote
+      # made the release Stable and Latest first and ran the feed after, so with
+      # Pages off it left GitHub saying Stable while installed copies' feed still
+      # said none. Release has had this check since #99.
+      - name: The update feed can be published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          pages=$(gh api "repos/${REPO}/pages" --jq '"\(.build_type) \(.cname // "")"' 2>/dev/null) || pages=""
+          if [ "$pages" = "workflow updates.qso-graph.io" ]; then
+            echo "✓ the update feed can be published (Pages, from Actions, at updates.qso-graph.io)"
+          else
+            echo "Not promoted: the update feed cannot be published. This repository's Pages must be on, built from GitHub Actions, at updates.qso-graph.io (it is: ${pages:-off})." >&2
+            exit 1
+          fi
       - name: Promote
         env:
           GH_TOKEN: ${{ github.token }}

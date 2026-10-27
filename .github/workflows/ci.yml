@@ -906,6 +906,18 @@ jobs:
           gh release create "$tag" --repo "$REPO" --prerelease --target "$SHA" \
             --title "Preview of ${next}" --notes-file ../notes.md -- *
 
+  # The feed lists the Preview (#77), for those who tick Show previews, so a
+  # new one is in it the night it is published.
+  preview-feed:
+    name: update feed
+    needs: [preview]
+    if: ${{ !cancelled() && needs.preview.result == 'success' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/feed.yml
+
   # The dependencies' own security (#102): npm's advisories at high and above,
   # and RustSec's for the credential core, against the locked versions. On every
   # build, and every night even when main has not changed (the plan skips the

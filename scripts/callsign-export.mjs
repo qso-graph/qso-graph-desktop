@@ -91,7 +91,8 @@ try {
   }
   check(sentinelsIn(file.toString('latin1')).length === 0, 'A backup holds no credential sentinel');
   const parsed = JSON.parse(file.toString('utf8'));
-  check(parsed.format === 'qso-graph-desktop-backup' && parsed.version === 2, 'A backup names itself and its version');
+  check(parsed.format === 'qso-graph-desktop-backup' && parsed.version === 3, 'A backup names itself and its version');
+  check(JSON.stringify(parsed.parts) === '["callsigns"]' && parsed.settings === undefined, 'A backup names the parts it holds, and holds no other');
   check(parsed.callsigns.some(entry => entry.call === 'W1AW' && entry.description === description), 'A backup holds the callsigns, readably');
   check(parsed.locations.stations[0].name === 'Home', 'A backup holds the Locations it was handed');
   notes.push(`a ${file.length}-byte plain file holding the callsigns and Locations, and none of the three private values that went into the profile`);
@@ -104,6 +105,7 @@ try {
   check(preview.callsigns === 2, 'The preview counts the callsigns');
   check(preview.arriving.length === 2 && preview.here.length === 0, 'A clean machine has nothing to remove first');
   check(JSON.parse(preview.locations).stations[0].name === 'Home', 'The Locations come back as they went in, for QG Storage');
+  check(JSON.stringify(preview.parts) === '["callsigns"]' && preview.settings === '', 'The preview names the parts');
 
   const applied = to.applyBackup(file, false);
   check(applied.callsigns === 2, 'The restore reports what it did');
@@ -134,14 +136,34 @@ try {
     const before = JSON.stringify(to.list());
     for (const [bad, name] of [
       [Buffer.from('hello'), 'A file that is not a backup'],
-      [Buffer.from(file.toString('utf8').replace('"version": 2', '"version": 9')), 'A backup of another version'],
+      [Buffer.from(file.toString('utf8').replace('"version": 3', '"version": 9')), 'A backup of another version'],
+      [Buffer.from(file.toString('utf8').replace('"callsigns"\n  ]', '"callsigns", "settings"\n  ]')), 'A backup naming a part it does not hold'],
       [Buffer.from(file.toString('utf8').replace('{', '{"credentials":{},')), 'A backup carrying a field it does not have'],
       [Buffer.from('QGD-CALLSIGN-EXPORT\n{}'), 'An encrypted export from an earlier build']
     ]) {
       refusal(() => to.applyBackup(bad, true), name);
       check(JSON.stringify(to.list()) === before, `${name} changed nothing`);
     }
-    notes.push('a file that is not a backup, one of another version, one carrying an unknown field, and an earlier encrypted export each change nothing');
+    notes.push('a file that is not a backup, one of another version, one naming a part it does not hold, one carrying an unknown field, and an earlier encrypted export each change nothing');
+  }
+
+  // ---- the parts ticked (#64) -----------------------------------------
+  {
+    const settings = JSON.stringify({ theme: 'light', grants: {}, pins: [], extensionsOn: ['pota'], area: [], updateCheck: true, updateTrack: 'early' });
+    const alone = from.exportBackup(undefined, settings);
+    const read = JSON.parse(alone.toString('utf8'));
+    check(JSON.stringify(read.parts) === '["settings"]' && read.callsigns.length === 0 && read.locations === undefined,
+      'Settings alone: no callsign and no Location');
+    check(read.settings.theme === 'light' && read.settings.updateTrack === 'early', 'Settings alone: the settings, readably');
+    const looked = to.inspectBackup(alone);
+    check(JSON.stringify(looked.parts) === '["settings"]' && JSON.parse(looked.settings).extensionsOn[0] === 'pota', 'Its preview names the part and hands the settings back');
+    const before = JSON.stringify(to.list());
+    refusal(() => to.applyBackup(alone, true), 'Restoring callsigns from a file that holds none');
+    check(JSON.stringify(to.list()) === before, 'And the callsigns here are as they were');
+    const both = JSON.parse(from.exportBackup(locations, settings).toString('utf8'));
+    check(JSON.stringify(both.parts) === '["callsigns","settings"]', 'Both ticked: a full backup');
+    refusal(() => from.exportBackup(undefined, undefined), 'A backup of nothing');
+    notes.push('settings alone, both parts, and nothing at all: each file holds what was ticked and names it, and a file with no callsigns never touches the callsigns here');
   }
 
   // ---- P6-export-goes-nowhere ------------------------------------------

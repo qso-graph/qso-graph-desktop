@@ -59,9 +59,14 @@ export interface ResourceSummary {
   // Loaded, but older than its refresh interval or a version behind what this
   // release pins: worth an Update.
   due: boolean;
-  // Loaded, and an Update could bring something new: POTA always, ADIF only
-  // when this release pins a newer version than the one installed.
+  // Loaded, and an Update could bring something new (#79): POTA's and SOTA's
+  // lists once their day is up or the last attempt failed, activations always
+  // (an Update fetches a location newly in My Area), ADIF only when this
+  // release pins a newer version than the one installed.
   updatable: boolean;
+  // When a POTA or SOTA list is next worth asking for, while it is current:
+  // shown so the operator knows why there is no Update (#79).
+  nextCheckAt?: string;
   // ADIF only: the version installed, and the newer one this release pins.
   version?: string;
   available?: string;
@@ -181,11 +186,12 @@ function isVersion(value: unknown): boolean {
 }
 
 function isResource(value: unknown): value is ResourceSummary {
-  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updatable', 'version', 'available', 'updating', 'problem'])) return false;
+  if (!record(value) || !only(value, ['id', 'name', 'what', 'owner', 'size', 'state', 'fetchedAt', 'due', 'updatable', 'nextCheckAt', 'version', 'available', 'updating', 'problem'])) return false;
   return typeof value.id === 'string' && RESOURCE_ID.test(value.id)
     && words(value.name, 64) && words(value.what, 200) && words(value.owner, 64) && words(value.size, 32)
     && (value.state === 'loaded' || value.state === 'not loaded')
     && (value.fetchedAt === undefined || (typeof value.fetchedAt === 'string' && !Number.isNaN(Date.parse(value.fetchedAt))))
+    && (value.nextCheckAt === undefined || (typeof value.nextCheckAt === 'string' && value.nextCheckAt.length <= 40 && !Number.isNaN(Date.parse(value.nextCheckAt))))
     && typeof value.due === 'boolean' && typeof value.updatable === 'boolean' && typeof value.updating === 'boolean'
     && (value.version === undefined || isVersion(value.version))
     && (value.available === undefined || isVersion(value.available))

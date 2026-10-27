@@ -93,9 +93,11 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
     // ADIF's definitions change only with a new ADIF release, which reaches the
     // app when a release pins it, so Update is offered only then; an Update of
     // the pinned version would fetch nothing new (KI7MT, 2026-10-12, #37).
-    // POTA's and SOTA's lists change daily, so they can always be updated;
-    // so can activations, whose Update also fetches a location newly in
-    // My Area, while one fetched today is not asked again (QGD-REF-0019).
+    // POTA's and SOTA's lists change daily, so they are worth an Update once
+    // their day is up or the last attempt failed, and not before: their
+    // sources are asked once a day at most (#79). Activations always, since
+    // their Update also fetches a location newly in My Area, while one
+    // fetched today is not asked again (QGD-REF-0019).
     const version = id === 'adif' && held.adif.state === 'loaded' ? held.adif.version : undefined;
     return {
       id, name: entry.name, what: entry.what, owner: entry.owner, size: entry.size,
@@ -103,7 +105,9 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
       ...(fetched.length > 0 ? { fetchedAt: new Date(current ?? Math.min(...fetched)).toISOString() } : {}),
       // A failed or deferred attempt leaves it worth trying again.
       due: loaded && (stale || problem !== undefined),
-      updatable: loaded && (id !== 'adif' || stale),
+      updatable: loaded && (id === 'adif' ? stale : id === 'activations' || stale || problem !== undefined),
+      ...(loaded && id !== 'adif' && id !== 'activations' && !stale && problem === undefined && current !== undefined
+        ? { nextCheckAt: new Date(current + refreshAfter(register, id)).toISOString() } : {}),
       ...(version ? { version } : {}),
       ...(version && stale ? { available: register.adif.version } : {}),
       updating: updating === id,

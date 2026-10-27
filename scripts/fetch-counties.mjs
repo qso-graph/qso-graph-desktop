@@ -26,18 +26,30 @@ for (const key of ['boundaries', 'connecticut', 'names', 'sections']) {
     console.log(`${key}: already fetched.`);
     continue;
   }
+  // A busy source is waited on as it asks (#79): its Retry-After, or else
+  // 15, 30 then 60 seconds, never more than two minutes at a time. The
+  // Internet Archive answers 503 for minutes at a time, and two retries a few
+  // seconds apart failed the build on 2026-10-26 for an outage of its own.
   let body;
-  for (let attempt = 1; attempt <= 3 && !body; attempt++) {
+  const attempts = 4;
+  for (let attempt = 1; attempt <= attempts && !body; attempt++) {
+    let wait = 15_000 * 2 ** (attempt - 1);
     try {
       const response = await fetch(source.url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const asked = Number(response.headers.get('retry-after'));
+        if (Number.isFinite(asked) && asked > 0) wait = asked * 1000;
+        throw new Error(`HTTP ${response.status}`);
+      }
       body = Buffer.from(await response.arrayBuffer());
     } catch (error) {
-      if (attempt === 3) {
+      if (attempt === attempts) {
         console.error(`${key}: could not be fetched (${error.message}).`);
         process.exit(1);
       }
-      await new Promise(done => setTimeout(done, 2000 * attempt));
+      wait = Math.min(wait, 120_000);
+      console.log(`${key}: ${error.message}; asking again in ${Math.round(wait / 1000)} s.`);
+      await new Promise(done => setTimeout(done, wait));
     }
   }
   const got = sha256(body);

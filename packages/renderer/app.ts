@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
   callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
-  type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
+  type BackupPart, type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
 } from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
-import { isUpdateState, type UpdateCommand } from '../main/update-contract.js';
+import { isUpdateState, isVersionChoices, type UpdateCommand } from '../main/update-contract.js';
 import { isWhatsNewNotes } from '../main/whats-new-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
@@ -90,8 +90,15 @@ mount(Shell, {
     onSetUpdateCheck: (on: boolean) => writeUpdateSetting('updateCheck', on),
     onSetUpdateTrack: (track: UpdateTrack) => writeUpdateSetting('updateTrack', track),
     onCheckUpdates: () => { void window.updates?.request({ type: 'check' }); },
+    onInstallUpdate: () => { void window.updates?.request({ type: 'install' }); },
     onRestartToUpdate: () => { void window.updates?.request({ type: 'restart' }); },
     onOpenRelease: () => { void window.updates?.request({ type: 'release' }); },
+    // Choose a version… (#77): the list as main read it, checked before it is shown.
+    onListVersions: async () => {
+      const reply: unknown = await window.updates?.request({ type: 'versions' });
+      return isVersionChoices(reply) ? reply : [];
+    },
+    onInstallVersion: (version: string) => { void window.updates?.request({ type: 'install', version }); },
     // Injected at build time from package.json, so the number on screen is the
     // number that was built rather than one typed twice.
     version: __QG_VERSION__
@@ -575,7 +582,11 @@ async function writeUpdateSetting(key: 'updateCheck' | 'updateTrack', value: boo
   return true;
 }
 if (window.updates) {
-  const showUpdate = (state: unknown): void => { if (isUpdateState(state)) shell.set({ update: state }); };
+  const showUpdate = (state: unknown): void => {
+    if (!isUpdateState(state)) return;
+    shell.set({ update: state });
+    document.title = windowTitle(__QG_VERSION__, state.stable);
+  };
   window.updates.onState(showUpdate);
   void window.updates.request({ type: 'state' }).then(showUpdate);
 }
@@ -642,8 +653,8 @@ export async function exportDiagnostics(): Promise<string> {
 // written by the main process. A refusal is returned as its sentence
 // rather than thrown, because every one of them is something the operator can
 // act on.
-export async function exportCallsigns(): Promise<ExportResult | string> {
-  const reply = await window.callsigns.request({ type: 'export-callsigns' });
+export async function exportCallsigns(parts: BackupPart[]): Promise<ExportResult | string> {
+  const reply = await window.callsigns.request({ type: 'export-callsigns', parts });
   if (!reply.ok) return reply.error;
   const data = reply.data as ExportResult | null;
   return data && typeof data.written === 'string' ? data : 'The export could not be written.';
@@ -653,12 +664,12 @@ export async function inspectImport(): Promise<ImportPreview | string> {
   const reply = await window.callsigns.request({ type: 'import-callsigns', apply: false, replace: false });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportPreview | null;
-  return data && Array.isArray(data.arriving) ? data : 'That file could not be read.';
+  return data && Array.isArray(data.arriving) && Array.isArray(data.parts) ? data : 'That file could not be read.';
 }
 
 // `replace`: what is on this computer is removed first (a clean slate).
-export async function applyImport(replace: boolean): Promise<ImportResult | string> {
-  const reply = await window.callsigns.request({ type: 'import-callsigns', apply: true, replace });
+export async function applyImport(replace: boolean, parts: BackupPart[]): Promise<ImportResult | string> {
+  const reply = await window.callsigns.request({ type: 'import-callsigns', apply: true, replace, parts });
   if (!reply.ok) return reply.error;
   const data = reply.data as ImportResult | null;
   if (!data || typeof data.callsigns !== 'number') return 'The import did not finish.';

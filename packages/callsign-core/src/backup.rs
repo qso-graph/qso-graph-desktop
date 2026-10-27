@@ -10,8 +10,13 @@
 // passphrase would only be one more thing to lose. It is JSON an operator can
 // read, written where they choose and sent nowhere.
 //
-//   {"format":"qso-graph-desktop-backup","version":1,"created":"…",
-//    "callsigns":[…],"preferences":{…},"locations":{…}}
+//   {"format":"qso-graph-desktop-backup","version":3,"created":"…",
+//    "parts":["callsigns","settings"],
+//    "callsigns":[…],"preferences":{…},"locations":{…},"settings":{…}}
+//
+// Version 3 (#64) holds the parts the operator ticked: the callsigns with
+// their Locations, the settings, or both. The settings are checked by main
+// (settings-contract.ts), as the Locations are by QG Storage.
 //
 // Read whole and checked before anything changes: the shape here, every
 // callsign field as if typed (absorb, lib.rs), the Locations by QG Storage.
@@ -22,8 +27,11 @@ pub const FORMAT: &str = "qso-graph-desktop-backup";
 // 2 adds which callsign is active (KI7MT, 2026-10-24: it did not come over).
 // A version 1 file is still read; a build that knows only 1 says a version 2
 // file is from a different version rather than calling it broken.
-pub const VERSION: u32 = 2;
-const READS: [u32; 2] = [1, 2];
+// 3 adds the parts, and the settings (#64).
+pub const VERSION: u32 = 3;
+const READS: [u32; 3] = [1, 2, 3];
+pub const CALLSIGNS: &str = "callsigns";
+pub const SETTINGS: &str = "settings";
 
 // What a file may be, to be read at all: a few hundred callsigns and five
 // hundred Locations are well inside it.
@@ -41,11 +49,23 @@ pub struct Backup {
     #[serde(default)]
     pub preferences: BTreeMap<String, BTreeMap<String, String>>,
     // The Locations, as QG Storage handed them over and will take them back.
-    #[serde(default)]
+    // Left out of a file that holds no callsigns (#64).
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
     pub locations: serde_json::Value,
     // The active callsign's id, if one is (version 2).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active: Option<String>,
+    // What the file holds (version 3); a version 1 or 2 file holds the
+    // callsigns and their Locations, and is read as saying so.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<String>,
+    // The settings, as main handed them over and will take them back.
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub settings: serde_json::Value,
+}
+
+impl Backup {
+    pub fn holds(&self, part: &str) -> bool { self.parts.iter().any(|held| held == part) }
 }
 
 pub fn write(backup: &Backup) -> Result<String, &'static str> {
@@ -63,6 +83,23 @@ pub fn read(text: &str) -> Result<Backup, &'static str> {
     if backup.format != FORMAT { return Err("That file is not a backup this product wrote."); }
     if !READS.contains(&backup.version) { return Err("That backup was written by a different version of QSO Graph Desktop."); }
     if !(backup.locations.is_null() || backup.locations.is_object()) { return Err("That file's Locations are not the shape a backup has."); }
+    let mut backup = backup;
+    const SHAPE: &str = "That file is not a backup this product wrote.";
+    if backup.version < 3 {
+        if !backup.parts.is_empty() || !backup.settings.is_null() { return Err(SHAPE); }
+        backup.parts = vec![CALLSIGNS.into()];
+    }
+    // Each part named once, only the parts there are, and the file holding
+    // what it says and nothing it does not.
+    let mut seen = std::collections::BTreeSet::new();
+    if backup.parts.is_empty() || !backup.parts.iter().all(|part| (part == CALLSIGNS || part == SETTINGS) && seen.insert(part.clone())) {
+        return Err(SHAPE);
+    }
+    if backup.holds(SETTINGS) != backup.settings.is_object() { return Err(SHAPE); }
+    if !backup.holds(CALLSIGNS)
+        && (!backup.callsigns.is_empty() || !backup.preferences.is_empty() || !backup.locations.is_null() || backup.active.is_some()) {
+        return Err(SHAPE);
+    }
     Ok(backup)
 }
 
@@ -82,6 +119,8 @@ mod tests {
             preferences: Default::default(),
             locations: serde_json::json!({ "stations": [{ "name": "Camp", "place": { "MY_GRIDSQUARE": "DN13" } }], "defaults": {}, "active": null }),
             active: Some(ID.into()),
+            parts: vec![CALLSIGNS.into(), SETTINGS.into()],
+            settings: serde_json::json!({ "theme": "dark" }),
         }
     }
 
@@ -100,16 +139,54 @@ mod tests {
         let mut first = backup();
         first.version = 1;
         first.active = None;
+        first.parts = vec![];
+        first.settings = serde_json::Value::Null;
         let read = read(&write(&first).unwrap()).unwrap();
         assert_eq!(read.version, 1);
         assert!(read.active.is_none());
+        assert_eq!(read.parts, vec![CALLSIGNS.to_string()], "an older file holds the callsigns");
     }
+
+    #[test]
+    fn holds_the_parts_it_says_and_only_those() {
+        let read = read(&write(&backup()).unwrap()).unwrap();
+        assert!(read.holds(CALLSIGNS) && read.holds(SETTINGS));
+        assert_eq!(read.settings["theme"], "dark");
+        // Settings alone.
+        let mut alone = backup();
+        alone.parts = vec![SETTINGS.into()];
+        alone.callsigns.clear();
+        alone.locations = serde_json::Value::Null;
+        alone.active = None;
+        assert!(read_ok(&alone));
+        let text = write(&alone).unwrap();
+        assert!(!text.contains("\"locations\"") && !text.contains("\"active\""), "a settings-only file names no Locations");
+        // Saying it holds the settings without them, or holding them unsaid.
+        let mut missing = backup();
+        missing.settings = serde_json::Value::Null;
+        assert!(!read_ok(&missing));
+        let mut unsaid = backup();
+        unsaid.parts = vec![CALLSIGNS.into()];
+        assert!(!read_ok(&unsaid));
+        // Callsigns in a file that says it holds only settings.
+        let mut extra = backup();
+        extra.parts = vec![SETTINGS.into()];
+        assert!(!read_ok(&extra));
+        // A part named twice, a part there is not, or none.
+        for parts in [vec![SETTINGS, SETTINGS], vec![CALLSIGNS, "logins"], vec![]] {
+            let mut odd = backup();
+            odd.parts = parts.into_iter().map(String::from).collect();
+            assert!(!read_ok(&odd));
+        }
+    }
+
+    fn read_ok(backup: &Backup) -> bool { read(&write(backup).unwrap()).is_ok() }
 
     #[test]
     fn refuses_what_it_did_not_write() {
         assert!(read("hello").is_err());
         assert!(read(&write(&backup()).unwrap().replace(FORMAT, "something-else")).is_err());
-        assert!(read(&write(&backup()).unwrap().replace("\"version\": 2", "\"version\": 3")).err().unwrap().contains("different version"));
+        assert!(read(&write(&backup()).unwrap().replace("\"version\": 3", "\"version\": 4")).err().unwrap().contains("different version"));
         // A field it does not know: a secret could not ride in on one.
         assert!(read(&write(&backup()).unwrap().replacen("{", "{\"credentials\":{},", 1)).is_err());
         assert!(read("QGD-CALLSIGN-EXPORT\n{}").err().unwrap().contains("earlier build"));

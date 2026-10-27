@@ -37,6 +37,7 @@ fn service() -> &'static str {
 }
 mod corelog;
 mod backup;
+mod politeness;
 mod reference;
 mod updates;
 mod validation;
@@ -480,7 +481,18 @@ impl Store {
     // manage. Users still manage their credentials"): nothing here reads the
     // Keychain, and a service's record goes as having no secret saved, which
     // on the other computer is true until the operator enters it.
-    fn gather_without_secrets(&self, locations: serde_json::Value) -> CoreResult<backup::Backup> {
+    // The parts the operator ticked (#64): the callsigns with their Locations
+    // when `locations` is given, the settings when `settings` is.
+    fn gather_without_secrets(&self, locations: Option<serde_json::Value>, settings: Option<serde_json::Value>) -> CoreResult<backup::Backup> {
+        let mut parts = Vec::new();
+        if locations.is_some() { parts.push(backup::CALLSIGNS.to_string()); }
+        if settings.is_some() { parts.push(backup::SETTINGS.to_string()); }
+        if parts.is_empty() { return Err("Choose something to back up."); }
+        let settings = settings.unwrap_or(serde_json::Value::Null);
+        let Some(locations) = locations else {
+            return Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(),
+                callsigns: Vec::new(), preferences: Default::default(), locations: serde_json::Value::Null, active: None, parts, settings });
+        };
         let index = self.load()?;
         let preferences = self.preferences()?.callsigns;
         let callsigns = index.callsigns.into_values().map(|mut callsign| {
@@ -493,7 +505,7 @@ impl Store {
             callsign
         }).collect();
         let active = self.active_id()?;
-        Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(), callsigns, preferences, locations, active })
+        Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(), callsigns, preferences, locations, active, parts, settings })
     }
 
     // The callsigns on this computer, as the operator knows them, which a
@@ -807,6 +819,10 @@ mod addon {
         pub here: Vec<String>,
         // The Locations, as QG Storage handed them to the export.
         pub locations: String,
+        // What the file holds (#64): "callsigns", "settings", or both.
+        pub parts: Vec<String>,
+        // The settings, as main handed them to the export, or empty.
+        pub settings: String,
     }
 
     /// What came back from a reference source. `fresh` false is a 304: the
@@ -837,6 +853,9 @@ mod addon {
         pub body: Buffer,
         pub etag: Option<String>,
         pub last_modified: Option<String>,
+        // Not asked (#79): the source rests until then, in milliseconds since
+        // the epoch, because of its floor or because it asked to be left alone.
+        pub resting_until: Option<f64>,
     }
 
     #[napi(object)]
@@ -1001,12 +1020,13 @@ mod addon {
             // The host, so a run can be read back later; never the path, which
             // is longer and says no more about where this went.
             let host = url.split('/').nth(2).unwrap_or("").to_string();
-            tracing::info!(host, fresh = fetched.fresh, bytes = fetched.body.len(), "reference fetched");
+            tracing::info!(host, fresh = fetched.fresh, bytes = fetched.body.len(), resting = fetched.resting_until.is_some(), "reference fetched");
             Ok(FetchedReference {
                 fresh: fetched.fresh,
                 body: fetched.body.into(),
                 etag: fetched.etag,
                 last_modified: fetched.last_modified,
+                resting_until: fetched.resting_until,
             })
         }
 
@@ -1031,10 +1051,24 @@ mod addon {
         /// A plain backup of the callsigns and the Locations it is handed,
         /// with nothing of any login (QGD-PSN-0007).
         #[napi]
-        pub fn export_backup(&self, locations: String) -> Result<Buffer> {
-            if locations.len() > 2 * 1024 * 1024 { return Err(error("The Locations are too large to back up.")); }
-            let locations: serde_json::Value = serde_json::from_str(&locations).map_err(|_| error("The Locations could not be backed up."))?;
-            let bundle = self.store.gather_without_secrets(locations).map_err(error)?;
+        pub fn export_backup(&self, locations: Option<String>, settings: Option<String>) -> Result<Buffer> {
+            let locations = match locations {
+                Some(text) => {
+                    if text.len() > 2 * 1024 * 1024 { return Err(error("The Locations are too large to back up.")); }
+                    Some(serde_json::from_str::<serde_json::Value>(&text).map_err(|_| error("The Locations could not be backed up."))?)
+                }
+                None => None,
+            };
+            let settings = match settings {
+                Some(text) => {
+                    if text.len() > 256 * 1024 { return Err(error("The settings could not be backed up.")); }
+                    let value: serde_json::Value = serde_json::from_str(&text).map_err(|_| error("The settings could not be backed up."))?;
+                    if !value.is_object() { return Err(error("The settings could not be backed up.")); }
+                    Some(value)
+                }
+                None => None,
+            };
+            let bundle = self.store.gather_without_secrets(locations, settings).map_err(error)?;
             let text = crate::backup::write(&bundle).map_err(error)?;
             tracing::info!(callsigns = bundle.callsigns.len(), "callsigns backed up");
             Ok(text.into_bytes().into())
@@ -1052,6 +1086,8 @@ mod addon {
                 arriving,
                 here: self.store.labels().map_err(error)?,
                 locations: if bundle.locations.is_null() { String::new() } else { bundle.locations.to_string() },
+                parts: bundle.parts.clone(),
+                settings: if bundle.settings.is_null() { String::new() } else { bundle.settings.to_string() },
             })
         }
 
@@ -1059,6 +1095,7 @@ mod addon {
         pub fn apply_backup(&self, file: Buffer, replace: bool) -> Result<ImportSummary> {
             let text = std::str::from_utf8(file.as_ref()).map_err(|_| error("That file is not a backup this product wrote."))?;
             let bundle = crate::backup::read(text).map_err(error)?;
+            if !bundle.holds(crate::backup::CALLSIGNS) { return Err(error("That backup holds no callsigns.")); }
             let callsigns = self.store.absorb(&bundle, replace).map_err(error)?;
             tracing::info!(callsigns, "callsigns restored");
             Ok(ImportSummary { callsigns: callsigns as u32, locations: if bundle.locations.is_null() { String::new() } else { bundle.locations.to_string() } })
@@ -1184,7 +1221,7 @@ mod tests {
         let old = store.create("KE1HA", "Previous", Some("1995-01-01".into()), Some("2001-01-01".into())).unwrap().id;
         let current = store.create("KI7MT", "Current", Some("2015-01-01".into()), None).unwrap().id;
         atomic_write(&from.path().join("current.txt"), current.as_bytes()).unwrap();
-        let bundle = store.gather_without_secrets(serde_json::Value::Null).unwrap();
+        let bundle = store.gather_without_secrets(Some(serde_json::Value::Null), None).unwrap();
         assert_eq!(bundle.active.as_deref(), Some(current.as_str()));
 
         let to = tempfile::tempdir().unwrap();
@@ -1208,7 +1245,7 @@ mod tests {
         let here = tempfile::tempdir().unwrap();
         let store = Store::new(here.path().into()).unwrap();
         let kept = store.create("KI7MT", "Current", Some("2015-01-01".into()), None).unwrap().id;
-        let mut bad = store.gather_without_secrets(serde_json::Value::Null).unwrap();
+        let mut bad = store.gather_without_secrets(Some(serde_json::Value::Null), None).unwrap();
         let mut second = bad.callsigns[0].clone();
         second.id = "11111111-1111-4111-8111-111111111111".into();
         second.call = "W1 AW".into();

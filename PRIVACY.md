@@ -26,8 +26,9 @@ Only when you:
   most once a day each, so POTA's server sees which areas are asked for, as it would from its own website.
 
 And, unless you turn it off, it **checks for updates** once a day while you're online (Settings →
-Updates → Check for updates). It asks `updates.qso-graph.io` which version is newest, and when there's
-a newer one for your computer it downloads it from GitHub, where the releases are published. Nothing
+Updates → Check for updates). It asks `updates.qso-graph.io` which version is newest and tells you when
+there's a newer one; only when you choose **Download and install** does it download it, from GitHub,
+where the releases are published. Nothing
 about you is sent: no callsign, no settings, no identifier. GitHub, like any web server, sees the
 address the download came from.
 

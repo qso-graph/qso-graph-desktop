@@ -20,6 +20,7 @@
 // 1.2 and a 1.3-only client never reached it; a credential is never sent this
 // way (reference_tls_config). The caller passes a URL it read from the
 // register and gets bytes back.
+use crate::politeness::{self, Gate, Outcome};
 use crate::validation::reference_tls_config;
 use std::io::Read;
 use std::time::Duration;
@@ -40,6 +41,12 @@ pub struct Fetched {
     pub body: Vec<u8>,
     pub etag: Option<String>,
     pub last_modified: Option<String>,
+    // Not asked (#79): the source rests until then, in ms since the epoch.
+    pub resting_until: Option<f64>,
+}
+
+fn resting(until: Option<std::time::Instant>) -> Fetched {
+    Fetched { fresh: false, body: Vec::new(), etag: None, last_modified: None, resting_until: until.map(politeness::epoch_ms) }
 }
 
 fn header(response: &reqwest::blocking::Response, name: &str) -> Option<String> {
@@ -61,6 +68,9 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
     if !parsed.username().is_empty() || parsed.password().is_some() {
         return Err("A reference source address may not carry a user name or password.");
     }
+    // Its floor, and any wait the server asked for, before anything is sent:
+    // nothing outside this process can ask more often (#79).
+    if let Gate::Resting(until) = politeness::gate(url)? { return Ok(resting(Some(until))); }
 
     let client = reqwest::blocking::Client::builder()
         .use_preconfigured_tls(reference_tls_config()?)
@@ -80,11 +90,24 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
         request = request.header("If-Modified-Since", since);
     }
 
-    let response = request.send().map_err(|_| "The reference source could not be reached.")?;
-    if response.status().as_u16() == 304 {
-        return Ok(Fetched { fresh: false, body: Vec::new(), etag: None, last_modified: None });
+    let response = match request.send() {
+        Ok(response) => response,
+        Err(_) => {
+            politeness::record(url, Outcome::Unreachable);
+            return Err("The reference source could not be reached.");
+        }
+    };
+    let status = response.status();
+    // Busy or failing: left alone for as long as it asks, or a backoff (#79).
+    if status.as_u16() == 429 || status.is_server_error() {
+        let asked = politeness::retry_after(response.headers().get("retry-after").and_then(|value| value.to_str().ok()));
+        return Ok(resting(politeness::record(url, Outcome::Busy(asked))));
     }
-    if !response.status().is_success() { return Err("The reference source refused the request."); }
+    politeness::record(url, Outcome::Answered);
+    if status.as_u16() == 304 {
+        return Ok(Fetched { fresh: false, body: Vec::new(), etag: None, last_modified: None, resting_until: None });
+    }
+    if !status.is_success() { return Err("The reference source refused the request."); }
     if response.content_length().is_some_and(|length| length > MAX_BODY) {
         return Err("The reference source sent more than this product will read.");
     }
@@ -98,7 +121,7 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
     if body.len() as u64 > MAX_BODY {
         return Err("The reference source sent more than this product will read.");
     }
-    Ok(Fetched { fresh: true, body, etag, last_modified })
+    Ok(Fetched { fresh: true, body, etag, last_modified, resting_until: None })
 }
 
 #[cfg(test)]

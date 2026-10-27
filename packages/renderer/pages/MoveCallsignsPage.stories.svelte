@@ -15,10 +15,10 @@
     args: {
       onExport: () => Promise.resolve({ written: 'qso-graph-backup.json', bytes: 1195 }),
       onInspect: () => Promise.resolve(showcasePreview() ?? {
-        created: '2026-10-09T06:13:30Z', callsigns: 2,
+        parts: ['callsigns' as const, 'settings' as const], created: '2026-10-09T06:13:30Z', callsigns: 2,
         arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: [], locations: ['Home', 'Camp'], locationsHere: 0
       }),
-      onImport: () => Promise.resolve({ callsigns: 2, locations: 2 })
+      onImport: () => Promise.resolve({ callsigns: 2, locations: 2, settings: true })
     }
   });
 </script>
@@ -29,9 +29,17 @@
      them first, said before it is done and only once the operator agrees. -->
 <Story name="Would remove what is here" args={{
   onInspect: () => Promise.resolve({
-    created: '2026-10-09T06:13:30Z', callsigns: 2,
+    parts: ['callsigns' as const], created: '2026-10-09T06:13:30Z', callsigns: 2,
     arriving: ['W1AW · Home', 'W1AW/P · Portable'], here: ['K7ABC · Shack'], locations: ['Home', 'Camp'], locationsHere: 4
   })
+}} />
+
+<!-- #64: a backup of the settings alone; restoring it restarts the application. -->
+<Story name="Settings only" args={{
+  onInspect: () => Promise.resolve({
+    parts: ['settings' as const], created: '2026-10-26T18:00:00Z', callsigns: 0, arriving: [], here: ['K7ABC · Shack'], locations: [], locationsHere: 4
+  }),
+  onImport: () => Promise.resolve({ callsigns: 0, locations: 0, settings: true })
 }} />
 
 <!-- An encrypted export from an earlier build, said as such. -->

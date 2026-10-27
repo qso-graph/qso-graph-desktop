@@ -44,6 +44,9 @@ export interface FetchedReference {
   body: Uint8Array;
   etag: string | null;
   lastModified: string | null;
+  // Not asked (#79): the credential core held the request to the source's
+  // floor, or to a wait the server asked for. Ms since the epoch.
+  restingUntil?: number | null;
 }
 // What an export did, for the operator to read. The path is shown because the
 // operator chose it; nothing else about the file is.
@@ -52,18 +55,30 @@ export interface ExportResult { written: string; bytes: number }
 // Locations move, logins do not). Counts and names, never a value: the
 // window is told which callsigns and Locations the file holds and which are
 // here to be removed first, and nothing of a Location but its name.
+// The parts a backup may hold (#64): the callsigns with their Locations, and
+// the settings. Each extension's own data joins them once one keeps any.
+export const BACKUP_PARTS = ['callsigns', 'settings'] as const;
+export type BackupPart = typeof BACKUP_PARTS[number];
+export function isBackupParts(value: unknown): value is BackupPart[] {
+  return Array.isArray(value) && value.length > 0 && value.length <= BACKUP_PARTS.length
+    && value.every(part => (BACKUP_PARTS as readonly unknown[]).includes(part))
+    && new Set(value).size === value.length;
+}
 export interface ImportPreview {
+  // What the file holds.
+  parts: BackupPart[];
   created: string; callsigns: number; arriving: string[];
   // The callsigns on this computer, which a restore removes first.
   here: string[];
   // The Locations in the file, by name, and how many are on this computer.
   locations: string[]; locationsHere: number;
 }
-export interface ImportResult { callsigns: number; locations: number }
+// settings: restored, so the application restarts to take them up.
+export interface ImportResult { callsigns: number; locations: number; settings: boolean }
 // The same, as the credential core answers main: the Locations as the JSON
 // QG Storage handed the export, which main gives to QG Storage to restore
 // and turns into names for the window. Never sent to a window.
-export interface CoreImportPreview { created: string; callsigns: number; arriving: string[]; here: string[]; locations: string }
+export interface CoreImportPreview { created: string; callsigns: number; arriving: string[]; here: string[]; locations: string; parts: string[]; settings: string }
 export interface CoreImportResult { callsigns: number; locations: string }
 export type CallsignCommand =
   | { type: 'list' }
@@ -85,10 +100,12 @@ export type CallsignCommand =
   // what is public (QGD-PSN-0007 to QGD-PSN-0011). The main process shows
   // the dialog and reads or writes the bytes, so the renderer never touches
   // a file.
-  | { type: 'export-callsigns' }
+  // The parts ticked (#64).
+  | { type: 'export-callsigns'; parts: BackupPart[] }
   // `replace`: what is on this computer is removed first, which a restore
   // onto anything but an empty one needs (a clean slate, never a merge).
-  | { type: 'import-callsigns'; apply: boolean; replace: boolean };
+  // `parts`: which of the file's parts to restore, when applying (#64).
+  | { type: 'import-callsigns'; apply: boolean; replace: boolean; parts?: BackupPart[] };
 // What a service lookup answers (QGD-APP-0007). Its own outcome set, not the
 // credential test's: a lookup can come back "not-found", which is an answer
 // about a callsign rather than anything about the credential, and
@@ -158,9 +175,10 @@ export function validateCommand(value: unknown, providers: Services): value is C
     case 'remove-secret': return keys(value, ['type', 'id', 'provider', 'field']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider) && ['password', 'api_key'].includes(value.field as string);
     case 'set-preference': return keys(value, ['type', 'id', 'provider', 'preferred']) && isCallsignId(value.id) && typeof value.provider === 'string' && providers.has(value.provider) && ['service', 'password', 'api_key'].includes(value.preferred as string);
     case 'export-callsigns':
-      return keys(value, ['type']);
+      return keys(value, ['type', 'parts']) && isBackupParts(value.parts);
     case 'import-callsigns':
-      return keys(value, ['type', 'apply', 'replace']) && typeof value.apply === 'boolean' && typeof value.replace === 'boolean';
+      return keys(value, ['type', 'apply', 'replace', 'parts']) && typeof value.apply === 'boolean' && typeof value.replace === 'boolean'
+        && (value.parts === undefined || isBackupParts(value.parts));
     case 'save-credentials': {
       if (!keys(value, ['type', 'id', 'provider', 'credentials']) || !isCallsignId(value.id) || typeof value.provider !== 'string' || !providers.has(value.provider) || !record(value.credentials) || !keys(value.credentials, ['username', 'password', 'apiKey'])) return false;
       return Object.values(value.credentials).every(item => item === undefined || (typeof item === 'string' && item.length <= 4096));
@@ -189,8 +207,9 @@ export function isReply(value: unknown): value is CallsignReply {
 // (QGD-SEC-0006).
 export type ServiceCommand =
   | Exclude<CallsignCommand, { type: 'import-callsigns' | 'export-callsigns' }>
-  // The Locations are added by main, from QG Storage, as JSON the core seals.
-  | { type: 'export-callsigns'; locations: string }
+  // Added by main, for the parts ticked: the Locations from QG Storage, and
+  // the settings, each as JSON the core writes into the file. Neither: no part.
+  | { type: 'export-callsigns'; locations?: string; settings?: string }
   | { type: 'import-callsigns'; apply: boolean; replace: boolean; file: Uint8Array }
   // Fetching reference data, which the credential core does because KI7MT
   // decided all outbound HTTPS goes through it (D-18, D-31). It is not a
@@ -263,8 +282,10 @@ export function validateServiceCommand(value: unknown, providers: Services): val
       && typeof value.name === 'string' && UPDATE_FILE_NAME.test(value.name);
   }
   if (value.type === 'export-callsigns') {
-    return keys(value, ['type', 'locations'])
-      && typeof value.locations === 'string' && value.locations.length <= 2_097_152;
+    return keys(value, ['type', 'locations', 'settings'])
+      && (value.locations !== undefined || value.settings !== undefined)
+      && (value.locations === undefined || (typeof value.locations === 'string' && value.locations.length <= 2_097_152))
+      && (value.settings === undefined || (typeof value.settings === 'string' && value.settings.length <= 262_144));
   }
   if (value.type === 'import-callsigns') {
     return keys(value, ['type', 'apply', 'replace', 'file'])

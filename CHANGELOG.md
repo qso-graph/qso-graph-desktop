@@ -7,6 +7,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Checking for updates only checks.** When a newer version is out, Settings and the status bar say
+  so, with *Download and install*; nothing is downloaded until you choose. Then, as before, it waits
+  for you to restart, or installs when you quit. (#52)
+- **Polite to the services it asks.** No source is asked more often than it needs: POTA spots once a
+  minute, NOAA's conditions every 15 minutes, and the park and summit lists once a day, whatever a
+  page's Refresh or Settings' Update asks. A list that is current says when its next check is,
+  instead of offering Update. A service that says it is busy is left alone for as long as it asks.
+  (#79)
+- **Choose a version, and go back.** *Choose a version…* in Settings → Updates lists the versions you
+  can install: newer ones, and the Stable releases before yours. Before any update installs, your
+  callsigns, Locations, settings and extensions' data are copied as they are; going back to a Stable
+  release puts back the copy from when you left it, and says first what is lost. Your logins are
+  never touched. A third choice, **Previews**, offers last night's build; Early and Previews carry no
+  guarantee. While a newer Stable release is out, the window's title says so. (#77)
+- **One backup, with ticks.** *Tools → Back Up…* saves your **Callsigns and Locations** and your
+  **Settings** (theme, pins, which extensions are on, your POTA Focus Area, the updates choice), both
+  ticked; untick either. *Restore…* shows what a backup holds, ticked; each part you restore replaces
+  this computer's, and restoring the settings restarts the application, which it says first.
+  Backups from earlier versions still restore. Still no login, username or Location notes. (#64)
+
 ### Security
 
 - **The part that holds your logins and makes secure connections is up to date.** Seven published

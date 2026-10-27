@@ -22,7 +22,8 @@ import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
 import { startUpdater, updatePlatform } from './updater.js';
 import { startWhatsNewBroker } from './whats-new.js';
-import { isReleaseVersion } from './update-contract.js';
+import { isOfferedVersion, isReleaseVersion } from './update-contract.js';
+import { snapshots } from './snapshots.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
@@ -231,6 +232,10 @@ if (!app.requestSingleInstanceLock()) {
     // The suites' recorded responses, never in a packaged application
     // (source-fixtures.ts).
     const recorded = sourceFixtures(app.isPackaged, process.env.QG_DESKTOP_SOURCE_FIXTURES);
+    // What each source last said, for this run: handed back while the
+    // credential core holds the source to its floor (#79). A handful of small
+    // JSON answers, one per registered source.
+    const lastSourceBody = new Map<string, string>();
     // The callsign service's answer while it is still starting (until-ready.ts).
     const starting = (answer: unknown): boolean => answer === CALLSIGNS_STARTING;
     // Told when a page's request reached its source or could not connect,
@@ -340,11 +345,21 @@ if (!app.requestSingleInstanceLock()) {
             else if (fetched.startsWith('The reference source')) onReached(true);
             throw new Error(fetched);
           }
+          // Resting (#79): nothing was sent, so the lamp learns nothing, and
+          // the page is given what this source last said rather than nothing.
+          if (typeof fetched.restingUntil === 'number') {
+            const kept = lastSourceBody.get(url);
+            if (kept !== undefined) return { body: kept, fresh: false };
+            const at = new Date(fetched.restingUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            throw new Error(`This source is resting until ${at}, so as not to ask it too often.`);
+          }
           onReached(true);
           // The core hands back bytes, because reference data includes a zip.
           // A source an application reads is text, decoded here rather than in
           // the core: what the bytes mean is the caller's business.
-          return { body: new TextDecoder('utf-8', { fatal: false }).decode(fetched.body), fresh: fetched.fresh };
+          const body = new TextDecoder('utf-8', { fatal: false }).decode(fetched.body);
+          if (fetched.fresh) lastSourceBody.set(url, body);
+          return { body: fetched.fresh ? body : (lastSourceBody.get(url) ?? body), fresh: fetched.fresh };
         },
         callService: async (service, callsign, operation, parameters) => {
           const answer = await untilReady(() => callsigns.serviceLookup(service, callsign, operation, parameters),
@@ -378,21 +393,24 @@ if (!app.requestSingleInstanceLock()) {
     if (homeBroker) onReached = homeBroker.reached;
 
     // Updates (QGD-FRM-0019): asked once a day through the credential core,
-    // applied as the application quits. A preview or a development run never
-    // asks: its version is not a release. Nor does a copy from the Microsoft
+    // applied as the application quits. A development run or a pull
+    // request's build never asks: its version is neither a release nor a
+    // Preview. Nor does a copy from the Microsoft
     // Store, which the Store updates, and whose rules forbid an app updating
     // itself (KI7MT, 2026-10-24).
     const fromStore = process.windowsStore === true;
     const updater = startUpdater({
       version: app.getVersion(),
       platform: fromStore ? null : updatePlatform(),
-      asks: app.isPackaged && isReleaseVersion(app.getVersion()) && !fromStore,
+      // A Preview asks as a release does (#77), so it can be left for one.
+      asks: app.isPackaged && isOfferedVersion(app.getVersion()) && !fromStore,
       build: fromStore ? 'store' : !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,
       download: callsigns.downloadUpdate,
       updatesDirectory: callsigns.updatesDirectory,
+      snapshots: snapshots({ root: app.getPath('userData'), callsigns: dirname(callsigns.updatesDirectory) }),
       openRelease: version => links.open({ type: 'release', version }),
       window: () => BrowserWindow.getAllWindows()[0] ?? null
     });
@@ -481,8 +499,8 @@ if (!app.requestSingleInstanceLock()) {
         ...(mac ? [] : [settingsItem])
       ] },
       { label: 'Tools', submenu: [
-        setupItem('export-callsigns', 'Back Up Callsigns and Locations…'),
-        setupItem('import-callsigns', 'Restore Callsigns and Locations…')
+        setupItem('export-callsigns', 'Back Up…'),
+        setupItem('import-callsigns', 'Restore…')
       ] },
       // Help, as every desktop application has (KI7MT, 2026-10-22): the way
       // to Troubleshooting from the menu, beside the status bar's button
