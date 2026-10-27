@@ -65,6 +65,9 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
     // No credential in the URL: reqwest would send userinfo as Basic auth, and
     // this client may use TLS 1.2, which a credential never does.
     let parsed = reqwest::Url::parse(url).map_err(|_| "That is not a reference source address.")?;
+    // Checked on the parsed address too, which is the one that is fetched (code scanning's
+    // rust/non-https-url; the client below refuses anything else as well).
+    if parsed.scheme() != "https" { return Err("Reference data is fetched over HTTPS only."); }
     if !parsed.username().is_empty() || parsed.password().is_some() {
         return Err("A reference source address may not carry a user name or password.");
     }
@@ -79,7 +82,7 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
         .user_agent("QGDesktop/0.0.0-preview.1")
         .build().map_err(|_| "Secure client is unavailable.")?;
 
-    let mut request = client.get(url);
+    let mut request = client.get(parsed);
     // Asked with both where both are known: a server honouring either
     // answers 304 and sends nothing, which is the point of asking
     // (QGD-REF-0010).

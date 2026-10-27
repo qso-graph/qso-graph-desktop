@@ -13,6 +13,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Desktop closes and reopens by itself, and how long that takes (about a minute on Windows, where nothing is on
   screen while it installs). **OK** installs; **Cancel** leaves it to install when you next quit. (#114)
 
+### Security
+
+- **Conditions can't be held up by a malformed NOAA reply.** Stripping the padding NOAA's servers sometimes
+  add took time growing with the square of its length: a reply padded with 200,000 of them in the middle held
+  the page for about 15 seconds. It's now stripped in one pass. Found by GitHub's code scanning, with seven
+  more alerts fixed and one closed as a false alarm in code the native-addon library generates. (#115)
+
 ### Fixed
 
 - **A busy service's wait is never cut short.** When two requests to the same service were out at once,

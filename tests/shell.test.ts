@@ -213,7 +213,11 @@ describe('one page, one framework, one Svelte configuration', () => {
     const html = await readFile('packages/renderer/index.html', 'utf8');
     const body = html.slice(html.indexOf('<body>') + '<body>'.length, html.indexOf('</body>'));
     // Comments only: anything else is markup the shell does not own.
-    expect(body.replace(/<!--[\s\S]*?-->/g, '').trim()).toBe('');
+    // Stripped until nothing changes, so a comment left by removing another
+    // cannot survive (code scanning: js/incomplete-multi-character-sanitization).
+    let stripped = body;
+    for (let previous = ''; stripped !== previous;) { previous = stripped; stripped = stripped.replace(/<!--[\s\S]*?-->/g, ''); }
+    expect(stripped.trim()).toBe('');
     const app = await readFile('packages/renderer/app.ts', 'utf8');
     expect(app).toContain("mount(Shell, {");
   });
