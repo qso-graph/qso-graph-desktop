@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-27
+
 ### Changed
 
 - **Restart to update says what happens first.** A dialog says which version is installing, that QSO Graph
