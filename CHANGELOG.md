@@ -13,6 +13,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   whichever answered last decided how long to leave it alone, even if that was shorter than the other
   had been asked for. The longer wait now always stands. (#110)
 
+## [0.3.0] - 2026-10-27
+
 ### Changed
 
 - **Checking for updates only checks.** When a newer version is out, Settings and the status bar say
