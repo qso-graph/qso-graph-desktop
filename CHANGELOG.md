@@ -12,6 +12,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Linux: install from our own apt or dnf repository**, and QSO Graph Desktop updates with the rest
   of your system. Every package and index is signed with our release key, which KI7MT's own key
   signs; the install page has the steps. (#113)
+- **macOS: install with Homebrew**, `brew install qso-graph/tap/qso-graph-desktop`: the same signed,
+  notarized app, and `brew upgrade` brings each Stable release. (#88)
 
 ### Fixed
 
