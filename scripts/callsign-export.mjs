@@ -138,7 +138,8 @@ try {
       [Buffer.from('hello'), 'A file that is not a backup'],
       [Buffer.from(file.toString('utf8').replace('"version": 3', '"version": 9')), 'A backup of another version'],
       [Buffer.from(file.toString('utf8').replace('"callsigns"\n  ]', '"callsigns", "settings"\n  ]')), 'A backup naming a part it does not hold'],
-      [Buffer.from(file.toString('utf8').replace('{', '{"credentials":{},')), 'A backup carrying a field it does not have'],
+      // The field added by parsing, not by replacing the first "{" (code scanning: js/incomplete-sanitization).
+      [Buffer.from(JSON.stringify({ credentials: {}, ...JSON.parse(file.toString('utf8')) }, null, 2)), 'A backup carrying a field it does not have'],
       [Buffer.from('QGD-CALLSIGN-EXPORT\n{}'), 'An encrypted export from an earlier build']
     ]) {
       refusal(() => to.applyBackup(bad, true), name);

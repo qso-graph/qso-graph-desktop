@@ -4,7 +4,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  cachedSource, comparable, contains, encodeRing, nameCounties, readDbf, readShp, simplify, tqslCounties
+  cachedSource, comparable, contains, encodeRing, nameCounties, readDbf, readShp, simplify, tqslCounties,
+  htmlText,
 } from '../scripts/county-data.mjs';
 import { read } from '../dist/reference/zip.js';
 
@@ -83,5 +84,23 @@ describe('the real sources', () => {
       .filter(row => !(row.STUSPS === 'VA' && row.LSAD === '25'))
       .filter(row => !(row.STUSPS === 'NV' && row.NAME === 'Carson City'));
     expect(counted.length + 4).toBe(3077);
+  });
+});
+
+// The page's text, read by scanning rather than regex replacement (code
+// scanning: js/bad-tag-filter, js/double-escaping,
+// js/incomplete-multi-character-sanitization).
+describe('htmlText', () => {
+  it('skips script and style to their closing tag, whatever its spacing or case', () => {
+    expect(htmlText('a<script>x</script >b<STYLE>y</Style>c')).toBe('a\nb\nc');
+    expect(htmlText('a<script>never closed')).toBe('a\n');
+  });
+
+  it('decodes entities once: an escaped entity stays text', () => {
+    expect(htmlText('Q &amp; A &amp;nbsp; x&nbsp;y it&#39;s it&rsquo;s')).toBe("Q & A &nbsp; x y it's it's");
+  });
+
+  it('drops an unclosed tag at the end rather than reading it as text', () => {
+    expect(htmlText('text<p')).toBe('text');
   });
 });

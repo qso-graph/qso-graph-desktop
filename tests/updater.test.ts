@@ -7,12 +7,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+// The update channel's handler, kept so a test can ask it as the window would (#114).
+const electron = vi.hoisted(() => ({ handler: undefined as undefined | ((event: unknown, command: unknown) => unknown), quits: 0 }));
 vi.mock('electron', () => ({
-  app: { isPackaged: true, getName: () => 'QSO Graph Desktop', relaunch: () => undefined, quit: () => undefined },
-  ipcMain: { handle: () => undefined, removeHandler: () => undefined }
+  app: { isPackaged: true, getName: () => 'QSO Graph Desktop', relaunch: () => undefined, quit: () => { electron.quits += 1; } },
+  ipcMain: { handle: (_channel: string, handler: (event: unknown, command: unknown) => unknown) => { electron.handler = handler; }, removeHandler: () => undefined },
+  dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) }
 }));
 
-const { startUpdater } = await import('../packages/main/updater.js');
+const { restartNotice, startUpdater } = await import('../packages/main/updater.js');
 const { snapshots } = await import('../packages/main/snapshots.js');
 
 const sum = 'a'.repeat(64);
@@ -310,5 +313,71 @@ describe('choosing a version, and going back (#77)', () => {
     for (const state of states) expect(isUpdateState(state), JSON.stringify(state)).toBe(true);
     expect(states.at(-1)).toMatchObject({ kind: 'ready', stable: '0.2.1', back: false });
     expect(isVersionChoices(started.versions())).toBe(true);
+  });
+});
+
+// Restart to update says what happens first, and goes only on OK (#114; KI7MT, 2026-10-27: "a Dialog
+// w/OK, that's a positive ack", "It should have a Cancel on it also").
+describe('restart says first, and waits for OK (#114)', () => {
+  it('says what happens, by platform, and what becomes of the data going back', () => {
+    expect(restartNotice('win-x64', '0.4.0', false, false)).toEqual({
+      message: 'Installing version 0.4.0',
+      detail: 'QSO Graph Desktop closes, installs it and reopens by itself. That takes about a minute, and nothing is on screen while it installs.'
+    });
+    expect(restartNotice('mac-arm64', '0.4.0', false, false).detail).toBe('QSO Graph Desktop closes and reopens by itself in a few seconds.');
+    expect(restartNotice('linux-x86_64', '0.3.0', true, true)).toEqual({
+      message: 'Going back to version 0.3.0',
+      detail: 'QSO Graph Desktop closes and reopens by itself in a few seconds. Your data is put back as it was when you left that version.'
+    });
+    expect(restartNotice('win-x64', '0.2.1', true, false).detail).toMatch(/It opens today's data\.$/);
+  });
+
+  async function readyUpdater(answer: boolean) {
+    const folder = mkdtempSync(join(tmpdir(), 'qgd-restart-'));
+    const updates = join(folder, 'updates');
+    const name = 'qso-graph-desktop-0.4.0-linux-x86_64.AppImage';
+    const feed = new TextEncoder().encode(JSON.stringify({
+      format: 'qso-graph-desktop-updates', version: 1, early: null,
+      stable: { version: '0.4.0', files: { 'linux-x86_64': { name, url: `https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/${name}`, sha256: sum } } }
+    }));
+    const asked: string[] = [];
+    const started = startUpdater({
+      version: '0.3.0', platform: 'linux-x86_64', asks: true, build: 'release',
+      settings: () => ({ updateCheck: true, updateTrack: 'stable' }), online: () => true,
+      feed: () => Promise.resolve(feed),
+      download: () => { mkdirSync(updates, { recursive: true }); writeFileSync(join(updates, name), 'new'); return Promise.resolve({ path: join(updates, name) }); },
+      updatesDirectory: updates, openRelease: () => undefined, snapshots: noSnapshots,
+      confirm: notice => { asked.push(notice.message); return Promise.resolve(answer); },
+      window: () => ({ isDestroyed: () => false, webContents: { send: () => undefined } }) as never
+    });
+    stop = started.stop;
+    await started.check('asked');
+    await started.check('install');
+    expect(started.state()).toMatchObject({ kind: 'ready', version: '0.4.0' });
+    return { started, asked, folder };
+  }
+
+  // As the window asks: from the bundled page's own frame.
+  const frame = { url: 'qg://desktop/index.html' };
+  const fromWindow = { senderFrame: frame, sender: { mainFrame: frame } };
+
+  it('OK closes the application to install it', async () => {
+    const { started, asked, folder } = await readyUpdater(true);
+    const quits = electron.quits;
+    expect(await electron.handler?.(fromWindow, { type: 'restart' })).toBe(true);
+    expect(asked).toEqual(['Installing version 0.4.0']);
+    expect(electron.quits).toBe(quits + 1);
+    expect(started.state()).toMatchObject({ kind: 'ready' });
+    rmSync(folder, { recursive: true, force: true });
+  });
+
+  it('Cancel closes nothing, and the update stays ready for the next quit', async () => {
+    const { started, asked, folder } = await readyUpdater(false);
+    const quits = electron.quits;
+    expect(await electron.handler?.(fromWindow, { type: 'restart' })).toBe(false);
+    expect(asked).toEqual(['Installing version 0.4.0']);
+    expect(electron.quits).toBe(quits);
+    expect(started.state()).toMatchObject({ kind: 'ready', version: '0.4.0' });
+    rmSync(folder, { recursive: true, force: true });
   });
 });

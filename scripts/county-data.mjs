@@ -191,10 +191,39 @@ export function contains(rings, x, y) {
 // page order: { name, counties } with counties null for a whole-state
 // section, or the line's other text where it lists none ("Hawaii and U.S.
 // possessions in the Pacific").
+// An HTML page's text, one line per run between tags: read by scanning, not by
+// regex replacement. Script and style blocks are skipped to their closing tag
+// whatever its spacing or case (`</script >`), every tag becomes a line break,
+// and the four entities the page uses are decoded in ONE pass, so `&amp;nbsp;`
+// reads as the text "&nbsp;", not a space (code scanning: js/bad-tag-filter,
+// js/double-escaping, js/incomplete-multi-character-sanitization). The result
+// is text to read, never HTML to show.
+const ENTITIES = { '&amp;': '&', '&nbsp;': ' ', '&#39;': "'", '&rsquo;': "'" };
+
+export function htmlText(html) {
+  const lower = html.toLowerCase();
+  let out = '';
+  let at = 0;
+  while (at < html.length) {
+    const open = html.indexOf('<', at);
+    if (open < 0) { out += html.slice(at); break; }
+    out += html.slice(at, open);
+    const close = html.indexOf('>', open + 1);
+    if (close < 0) break; // an unclosed tag: the rest is not text
+    const name = /^<\s*([a-z]+)/.exec(lower.slice(open, open + 12))?.[1];
+    at = close + 1;
+    if (name === 'script' || name === 'style') {
+      const end = lower.indexOf(`</${name}`, at);
+      const endClose = end < 0 ? -1 : html.indexOf('>', end);
+      at = endClose < 0 ? html.length : endClose + 1;
+    }
+    out += '\n';
+  }
+  return out.replace(/&(?:amp|nbsp|#39|rsquo);/g, entity => ENTITIES[entity]);
+}
+
 export function parseSections(html) {
-  const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '')
-    .replace(/<[^>]+>/g, '\n')
-    .replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;|&rsquo;/g, "'")
+  const text = htmlText(html)
     .split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
   const start = text.indexOf('Atlantic Division');
   if (start < 0) throw new Error('ARRL\'s page has no Atlantic Division: not the shape this reads');

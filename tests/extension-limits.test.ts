@@ -26,7 +26,10 @@ describe('the extension limits (QGD-APP-0021, QGD-APP-0022)', () => {
     // Inherited names are not limits: JSON.parse makes them own fields, and
     // an `in` check would have let them through.
     for (const name of ['__proto__', 'constructor', 'toString']) {
-      const withName = JSON.parse(JSON.stringify(shipped).replace('{', `{"${name}":1,`));
+      // Written into the JSON text, so JSON.parse makes it an own field; by
+      // concatenation, not by replacing the first "{" (code scanning:
+      // js/incomplete-sanitization).
+      const withName = JSON.parse(`{"${name}":1,${JSON.stringify(shipped).slice(1)}`);
       expect(() => parseLimits(withName), name).toThrowError(new RegExp(`does not know: "${name}"`));
     }
   });

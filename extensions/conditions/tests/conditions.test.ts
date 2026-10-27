@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validatePageAnswer } from '../../../packages/extension-api/pages.js';
-import { BAND_STATUSES, bandOutlook, conditionsPage, outlookRows, parseConditions } from '../src/conditions.js';
+import { BAND_STATUSES, bandOutlook, conditionsPage, outlookRows, parseConditions, stripNul } from '../src/conditions.js';
 
 const fixture = (name: string, file: string) => readFileSync(`tests/fixtures/noaa/${name}/${file}`, 'utf8');
 const bodies = (name: string) => ({ flux: fixture(name, '10cm-flux.json'), kp: fixture(name, 'noaa-planetary-k-index.json'), scales: fixture(name, 'noaa-scales.json') });
@@ -238,3 +238,24 @@ describe('the A index, as solar-mcp reads it', () => {
   });
 });
 
+
+// NOAA's padding stripped by index (code scanning: js/polynomial-redos). The
+// regex it replaced retried from every position of a run of NULs that did not
+// end the body, so a crafted response held the page for seconds.
+describe('stripNul', () => {
+  it('strips NUL padding at either end and nowhere else', () => {
+    expect(stripNul('\0\0{"a":1}\0')).toBe('{"a":1}');
+    expect(stripNul('{"a":"\0"}')).toBe('{"a":"\0"}');
+    expect(stripNul('\0\0\0')).toBe('');
+    expect(stripNul('')).toBe('');
+  });
+
+  // Measured 2026-10-27, the old regex on NULs mid-body: 5 000 → 9 ms, 20 000
+  // → 149 ms, 40 000 → 601 ms (quadratic); 200 000 would be about 15 s.
+  it('is quick on a long run of NULs in the middle of the body', () => {
+    const body = `x${'\0'.repeat(200_000)}x`;
+    const started = performance.now();
+    expect(stripNul(body)).toBe(body);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+});

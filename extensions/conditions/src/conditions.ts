@@ -162,9 +162,20 @@ export function outlookRows(bands: Record<string, string>): BandRow[] {
 }
 
 // As solar-mcp's _get_json: NOAA's file servers sometimes pad a response
-// with NUL bytes, which are stripped before it is read.
+// with NUL bytes, which are stripped before it is read. Stripped by index, not
+// by /\0+$/: that pattern retries from every position of a long run of NULs
+// that does not end the body, quadratic in its length, and the body comes from
+// the network (code scanning's js/polynomial-redos).
+export function stripNul(body: string): string {
+  let start = 0;
+  let end = body.length;
+  while (start < end && body.charCodeAt(start) === 0) start++;
+  while (end > start && body.charCodeAt(end - 1) === 0) end--;
+  return body.slice(start, end);
+}
+
 function parse(body: string): unknown {
-  try { return JSON.parse(body.replace(/^\0+|\0+$/g, '').trim()); } catch { return undefined; }
+  try { return JSON.parse(stripNul(body).trim()); } catch { return undefined; }
 }
 
 // What NOAA's feeds hold, keeping what worked as solar-mcp does. Nothing at
