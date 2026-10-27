@@ -25,10 +25,16 @@
 //                                               as "<track> <tag> <date>" lines
 //   node scripts/release.mjs list <track> <tag> <date> <SHA256SUMS.txt> <desktop.json>
 //                                               one of them added to the feed's list
+//   node scripts/release.mjs state <version> <built> <tag-commit|-> <release.json|->
+//                                               where a release stands (#118): new, or
+//                                               existing and to be finished, as state=…
+//   node scripts/release.mjs resume <expected-sums> <present-sums>
+//                                               the files an existing release lacks, one
+//                                               a line; refuses a file that differs
 //
 // Offline, and it changes nothing but CHANGELOG.md, package.json and
-// package-lock.json. Whether the tag is already taken is the workflow's
-// question: it is the one that can ask GitHub.
+// package-lock.json. The workflow asks GitHub about the tag and the release;
+// what follows from the answers is decided here, where it is tested.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -208,6 +214,53 @@ export function withVersion(text, from, to, count) {
   return out;
 }
 
+// Where a release stands (#118), from the release (null when there is none) and
+// the commit its tag points to ('' when there is no tag). A release failing past
+// publishing left a tag and a release, perhaps with some files, and the gate
+// refused "already tagged", so it could not be finished:
+//   no release, no tag              new
+//   release and tag, on the build   existing: upload what is missing, then the
+//                                   milestone and the feed, which repeat safely
+//   anything else                   stop, and say what is there
+export function releaseState(version, built, release, tagCommit) {
+  const tag = `v${version}`;
+  if (!release && !tagCommit) return { state: 'new' };
+  if (!release) return { state: 'stop', reason: `${tag} is tagged on ${tagCommit.slice(0, 7)} with no release behind it: not guessing what it is. Delete the tag, or make its release, by hand.` };
+  if (release.tagName !== tag) return { state: 'stop', reason: `GitHub answered with ${release.tagName} for ${tag}.` };
+  if (release.isDraft === true) return { state: 'stop', reason: `${tag} is a draft release. Publish or delete it by hand.` };
+  if (!tagCommit) return { state: 'stop', reason: `${tag} is a release with no tag.` };
+  if (tagCommit !== built) return { state: 'stop', reason: `${tag} is tagged on ${tagCommit.slice(0, 7)}, but CI's build is ${built.slice(0, 7)}: a release is finished only from the build it began with.` };
+  return { state: 'existing' };
+}
+
+function sumsMap(text) {
+  const map = new Map();
+  for (const line of text.split('\n')) {
+    const match = /^([0-9a-f]{64}) [ *]?(\S+)$/.exec(line.trim());
+    if (match) map.set(match[2], match[1]);
+  }
+  return map;
+}
+
+// What an existing release needs (#118): the files the build has and the release
+// lacks. A file on the release that differs from the build's, or that the build
+// does not have, is refused: it is not this build's, and nothing is replaced.
+export function resumePlan(expectedSums, presentSums) {
+  const expected = sumsMap(expectedSums);
+  const present = sumsMap(presentSums);
+  if (expected.size === 0) throw new Error('The build lists no files.');
+  const upload = [...expected.keys()].filter(name => !present.has(name));
+  const differ = [...present.keys()].filter(name => expected.has(name) && expected.get(name) !== present.get(name));
+  const extra = [...present.keys()].filter(name => !expected.has(name));
+  if (differ.length || extra.length) {
+    throw new Error([
+      ...differ.map(name => `${name} on the release is not the build's file.`),
+      ...extra.map(name => `${name} is on the release and not in the build.`),
+    ].join('\n'));
+  }
+  return upload;
+}
+
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -235,6 +288,22 @@ function main([command, argument]) {
     try { feed = readJson(feedFile); } catch { feed = undefined; }
     writeJson(feedFile, withListed(feed, listEntry(track, tag, date, readFileSync(sumsFile, 'utf8'))));
     console.log(`${feedFile}: lists ${tag} (${track}).`);
+    return 0;
+  }
+  if (command === 'state') {
+    const [, version, built, tagCommit, releaseFile] = process.argv.slice(2);
+    if (!releaseFile || !isRelease(version) || !/^[0-9a-f]{40}$/.test(built) || !(tagCommit === '-' || /^[0-9a-f]{40}$/.test(tagCommit))) {
+      console.error('Usage: node scripts/release.mjs state <version> <built> <tag-commit|-> <release.json|->'); return 2;
+    }
+    const result = releaseState(version, built, releaseFile === '-' ? null : readJson(releaseFile), tagCommit === '-' ? '' : tagCommit);
+    if (result.state === 'stop') { console.error(result.reason); return 1; }
+    process.stdout.write(`state=${result.state}\n`);
+    return 0;
+  }
+  if (command === 'resume') {
+    const [, expectedFile, presentFile] = process.argv.slice(2);
+    if (!presentFile) { console.error('Usage: node scripts/release.mjs resume <expected-sums> <present-sums>'); return 2; }
+    for (const name of resumePlan(readFileSync(expectedFile, 'utf8'), readFileSync(presentFile, 'utf8'))) process.stdout.write(`${name}\n`);
     return 0;
   }
   const version = readJson('package.json').version;
@@ -277,7 +346,7 @@ function main([command, argument]) {
       return 0;
     }
     default:
-      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed> | listed <releases.json> | list <track> <tag> <date> <sums> <feed>');
+      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed> | listed <releases.json> | list <track> <tag> <date> <sums> <feed> | state <version> <built> <tag-commit|-> <release.json|-> | resume <expected-sums> <present-sums>');
       return 2;
   }
 }

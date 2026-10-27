@@ -128,7 +128,8 @@ in bulk.
    (`.github/workflows/release.yml`). It refuses, in a minute and before
    anything is published, unless every one of these holds, and it lists each:
    - it was run from `main`, and `main`'s `package.json` says `x.y.z`;
-   - CHANGELOG.md has a `[x.y.z]` section, and the tag `vx.y.z` is not taken;
+   - CHANGELOG.md has a `[x.y.z]` section;
+   - `vx.y.z` is new, or was begun from this same build and stopped (below);
    - milestone `x.y.z` exists and has **no open issues**;
    - CI's run of that very commit on `main` passed **`ci-all-green`**;
    - this repository's **GitHub Pages is on**, built from Actions, at
@@ -140,11 +141,25 @@ in bulk.
    on the commit that was built. CI keeps `main`'s build 90 days. The
    Microsoft Store package stays with CI's run, for upload to Partner Center.
 4. **It closes the milestone and updates the feed**, so Early offers `x.y.z`.
+
+   **If it fails after the release was made**, run Release again with the same
+   version (#118). It finishes the release instead of refusing it: it uploads
+   only the files the release lacks, then closes the milestone and updates the
+   feed, both safe to repeat. It stops, and says what it found, if the release
+   holds a file that isn't this build's, if the tag is on another commit, or if
+   there is a tag with no release behind it; those are put right by hand.
 5. **Promote**, when it has proved itself and KI7MT says so: Actions →
    **Promote** → Run workflow, with the version (or `qg-release-promote
    qso-graph-desktop x.y.z`). It refuses unless the feed can be published, as
    Release does (#106); then it marks the same pre-release a full release and
    Latest. Nothing is rebuilt. Then the feed again, so Stable offers it.
+
+   **A security release is promoted straight away** (KI7MT, 2026-10-27, on
+   0.3.1): an operator can't check a security fix from the screen, so holding it
+   on Early only keeps it from Stable users. Before releasing, sanity-check a lab
+   build of the commit (any one platform, from the build listing): it installs,
+   starts, and the part the fix touches works. Then release and promote back to
+   back. Feature releases stay on Early until they've proved themselves.
 
 ## Fixing a released version
 

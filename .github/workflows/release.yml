@@ -7,11 +7,13 @@
 # Nothing is rebuilt here. The release is the signed build CI already made
 # of main's commit and passed as ci-all-green, so what was tested is what
 # ships. Before anything is published it refuses unless every check holds:
-# run from main, main says this version, CHANGELOG.md has its section, its
-# tag is free, its milestone has no open issue, and CI's newest all-green
+# run from main, main says this version, CHANGELOG.md has its section, it is
+# new or was begun from this same build (#118), its milestone has no open issue, and CI's newest all-green
 # build of main packaged every platform, with nothing but documentation
 # since. Then the pre-release vx.y.z (tagging the commit built), the
-# milestone closed, and the Early update feed. Promoting it to Stable is
+# milestone closed, and the Early update feed. A run that failed after the
+# release was made is finished by running Release again: it uploads only the
+# files the release lacks, and the milestone and feed steps repeat safely. Promoting it to Stable is
 # promote.yml.
 name: Release
 
@@ -45,6 +47,7 @@ jobs:
       run: ${{ steps.ready.outputs.run }}
       sha: ${{ steps.ready.outputs.sha }}
       milestone: ${{ steps.ready.outputs.milestone }}
+      mode: ${{ steps.ready.outputs.mode }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,11 +78,6 @@ jobs:
           have=$(node -p "require('./package.json').version")
           [ "$have" = "$VERSION" ] && echo "✓ ${branch} says ${VERSION}" || fail "${branch} says ${have}, not ${VERSION}"
           node scripts/release.mjs check && echo "✓ CHANGELOG.md has its ${VERSION} section" || fail "CHANGELOG.md is not ready (above)"
-          if git ls-remote --exit-code --tags "https://github.com/${REPO}.git" "refs/tags/v${VERSION}" >/dev/null; then
-            fail "v${VERSION} is already tagged"
-          else
-            echo "✓ v${VERSION} is free"
-          fi
           milestone=$(gh api --paginate "repos/${REPO}/milestones?state=all&per_page=100" --jq ".[] | select(.title == \"${VERSION}\") | \"\(.number) \(.open_issues) \(.state)\"")
           if [ -z "$milestone" ]; then
             fail "there is no milestone ${VERSION}"
@@ -120,6 +118,32 @@ jobs:
               fail "CI's newest packaged build is ${built}, and ${branch} has changed since: wait for CI's run of ${GITHUB_SHA}"
             fi
           fi
+          # Where the release stands (#118): new, or begun and to be finished. A
+          # failure past publishing left the tag and the release, perhaps with some
+          # of its files, and a re-run used to refuse "already tagged". The tag's
+          # commit (a lightweight tag's own, an annotated tag's ^{}), and the
+          # release: only GitHub's "release not found" is none, and any other error
+          # stops here, so an answer that never came is not read as nothing there.
+          mode=""
+          if [ -n "$built" ]; then
+            tags=$(git ls-remote --tags "https://github.com/${REPO}.git" "refs/tags/v${VERSION}" "refs/tags/v${VERSION}^{}")
+            tag_commit=$(awk -v t="refs/tags/v${VERSION}^{}" '$2 == t { print $1 }' <<< "$tags")
+            [ -n "$tag_commit" ] || tag_commit=$(awk -v t="refs/tags/v${VERSION}" '$2 == t { print $1 }' <<< "$tags")
+            if gh release view "v${VERSION}" --repo "$REPO" --json tagName,isDraft > "$RUNNER_TEMP/release.json" 2> "$RUNNER_TEMP/release.err"; then
+              release_file="$RUNNER_TEMP/release.json"
+            elif grep -q 'release not found' "$RUNNER_TEMP/release.err"; then
+              release_file=-
+            else
+              cat "$RUNNER_TEMP/release.err" >&2; echo "✗ GitHub could not say whether v${VERSION} is released." >&2; exit 1
+            fi
+            if state=$(node scripts/release.mjs state "$VERSION" "$built" "${tag_commit:--}" "$release_file"); then
+              mode=${state#state=}
+              [ "$mode" = new ] && echo "✓ v${VERSION} is free" || echo "✓ v${VERSION} is released on ${built}, and is finished from where it stopped"
+            else
+              fail "v${VERSION} cannot be released or finished (above)"
+            fi
+          fi
+          echo "mode=${mode}" >> "$GITHUB_OUTPUT"
           echo "run=${run}" >> "$GITHUB_OUTPUT"
           echo "sha=${built}" >> "$GITHUB_OUTPUT"
           # The feed can be published (#99): releasing 0.2.1 published every
@@ -186,6 +210,7 @@ jobs:
           REPO: ${{ github.repository }}
           VERSION: ${{ inputs.version }}
           BUILT: ${{ needs.checks.outputs.sha }}
+          MODE: ${{ needs.checks.outputs.mode }}
         run: |
           set -euo pipefail
           # Every file carries this version: nothing from another build rides along.
@@ -209,11 +234,33 @@ jobs:
             echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
             echo "Check a download against **SHA256SUMS.txt**. Every file here was built by this repository's CI, and GitHub signs that it was: \`gh attestation verify <file> -R qso-graph/qso-graph-desktop\` ([how to verify a download](https://github.com/qso-graph/qso-graph-desktop#verify-your-download))."
           } > notes.md
-          # Refuses if the tag exists, so a release is never published twice.
-          (cd release && gh release create "v${VERSION}" --repo "$REPO" --prerelease --target "$BUILT" \
-            --title "QSO Graph Desktop ${VERSION}" --notes-file ../notes.md -- *)
+          if [ "$MODE" = new ]; then
+            # Refuses if the tag exists, so a release is never published twice.
+            (cd release && gh release create "v${VERSION}" --repo "$REPO" --prerelease --target "$BUILT" \
+              --title "QSO Graph Desktop ${VERSION}" --notes-file ../notes.md -- *)
+          else
+            # Begun and stopped (#118): the files it lacks, and nothing replaced. A
+            # file on it that is not this build's stops the run (release.mjs resume).
+            mkdir -p "$RUNNER_TEMP/present"
+            # A release that stopped before its first file has none: gh says
+            # "no assets to download" for that, and only that is taken as empty.
+            if ! gh release download "v${VERSION}" --repo "$REPO" --dir "$RUNNER_TEMP/present" 2> "$RUNNER_TEMP/download.err"; then
+              grep -qx 'no assets to download' "$RUNNER_TEMP/download.err" || { cat "$RUNNER_TEMP/download.err" >&2; exit 1; }
+            fi
+            (cd release && sha256sum -- *) > "$RUNNER_TEMP/expected.sums"
+            (cd "$RUNNER_TEMP/present" && { sha256sum -- * 2>/dev/null || true; }) > "$RUNNER_TEMP/present.sums"
+            missing=$(node scripts/release.mjs resume "$RUNNER_TEMP/expected.sums" "$RUNNER_TEMP/present.sums")
+            if [ -n "$missing" ]; then
+              echo "Uploading what v${VERSION} lacks:"; echo "$missing"
+              mapfile -t files <<< "$missing"
+              (cd release && gh release upload "v${VERSION}" --repo "$REPO" -- "${files[@]}")
+            else
+              echo "v${VERSION} has every file already."
+            fi
+          fi
           gh release view "v${VERSION}" --repo "$REPO" --json tagName,isPrerelease,assets \
             -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'
+      # Safe to repeat: closing a closed milestone changes nothing.
       - name: Close the milestone
         env:
           GH_TOKEN: ${{ github.token }}

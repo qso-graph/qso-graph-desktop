@@ -4,7 +4,11 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
+import { check, feedEntry, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { choose, compareVersions, isVersionChoices, readFeed, versionChoices } from '../packages/main/update-contract.js';
 
 const changelog = [
@@ -152,5 +156,63 @@ describe('the feed\'s list of versions (#77)', () => {
     expect(compareVersions('0.3.0-202610260100-0123456789a', '0.3.0')).toBeLessThan(0);
     expect(compareVersions('0.3.0-202610260100-0123456789a', '0.2.1')).toBeGreaterThan(0);
     expect(compareVersions('0.3.0-202610260100-0123456789a', '0.3.0-202610270100-0123456789b')).toBeLessThan(0);
+  });
+});
+
+// #118: a release that failed past publishing is finished by running Release
+// again, from the build it began with, and anything else stops. Each state as
+// GitHub states it: `gh release view --json tagName,isDraft` prints
+// {"isDraft":false,"tagName":"v0.4.0"}, or fails with "release not found"
+// (the workflow passes "-"); `git ls-remote` gives the tag's commit, or nothing.
+describe('#118: where a release stands', () => {
+  const built = 'a'.repeat(40);
+  const other = 'b'.repeat(40);
+  const published = { isDraft: false, tagName: 'v0.4.0' };
+
+  it('no release and no tag: a new release', () => {
+    expect(releaseState('0.4.0', built, null, '')).toEqual({ state: 'new' });
+  });
+  it('a release and its tag, on the build: finished from where it stopped', () => {
+    expect(releaseState('0.4.0', built, published, built)).toEqual({ state: 'existing' });
+  });
+  it('a tag with nothing behind it: stop, rather than guess', () => {
+    expect(releaseState('0.4.0', built, null, built).state).toBe('stop');
+  });
+  it('tagged on another commit: stop, since it is not this build', () => {
+    expect(releaseState('0.4.0', built, published, other)).toMatchObject({ state: 'stop', reason: expect.stringMatching(/bbbbbbb.*aaaaaaa/) });
+  });
+  it('a draft, a release with no tag, or another tag: stop', () => {
+    expect(releaseState('0.4.0', built, { ...published, isDraft: true }, built).state).toBe('stop');
+    expect(releaseState('0.4.0', built, published, '').state).toBe('stop');
+    expect(releaseState('0.4.0', built, { ...published, tagName: 'v0.3.1' }, built).state).toBe('stop');
+  });
+
+  it('the command, as the workflow runs it: state= on stdout, or a reason and exit 1', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'release-'));
+    const file = join(dir, 'release.json');
+    writeFileSync(file, JSON.stringify(published));
+    const run = (...args) => execFileSync('node', ['scripts/release.mjs', 'state', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    expect(run('0.4.0', built, '-', '-')).toBe('state=new\n');
+    expect(run('0.4.0', built, built, file)).toBe('state=existing\n');
+    expect(() => run('0.4.0', built, built, '-')).toThrow(/no release behind it/);
+    expect(() => run('0.4.0', 'not-a-sha', '-', '-')).toThrow(/Usage/);
+  });
+});
+
+describe('#118: what an existing release still needs', () => {
+  const sums = (...rows) => rows.map(([hash, name]) => `${hash.repeat(64)}  ${name}`).join('\n');
+  const build = sums(['1', 'qso-graph-desktop-0.4.0-win-x64.exe'], ['2', 'qso-graph-desktop-0.4.0-mac-arm64.dmg'], ['3', 'SHA256SUMS.txt']);
+
+  it('the files it lacks, and only those', () => {
+    expect(resumePlan(build, sums(['1', 'qso-graph-desktop-0.4.0-win-x64.exe']))).toEqual(['qso-graph-desktop-0.4.0-mac-arm64.dmg', 'SHA256SUMS.txt']);
+    expect(resumePlan(build, '')).toHaveLength(3);
+    expect(resumePlan(build, build)).toEqual([]);
+  });
+  it('refuses a file that is not the build\'s, or one the build does not have: nothing is replaced', () => {
+    expect(() => resumePlan(build, sums(['9', 'qso-graph-desktop-0.4.0-win-x64.exe']))).toThrow(/not the build's file/);
+    expect(() => resumePlan(build, sums(['4', 'qso-graph-desktop-0.3.9-win-x64.exe']))).toThrow(/not in the build/);
+  });
+  it('refuses an empty build', () => {
+    expect(() => resumePlan('', '')).toThrow(/lists no files/);
   });
 });
