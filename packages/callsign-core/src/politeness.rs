@@ -197,6 +197,9 @@ mod tests {
         let floors = table();
         assert!(floors.iter().any(|floor| floor.prefix == "https://api.pota.app/spot/activator" && floor.min == Duration::from_secs(60)));
         assert!(floors.iter().any(|floor| floor.prefix == "https://api.pota.app/location/parks/" && floor.template));
+        // A FLOOR assertion (how stale an answer may be before the source is asked again), not spacing
+        // (the gap between two calls in a burst): no source is asked more than once a minute, whatever
+        // asks. Widening a spacing gap to 60 s from this line would be reading it wrong.
         assert!(floors.iter().all(|floor| floor.min >= Duration::from_secs(60)), "no source is asked more than once a minute");
     }
 
