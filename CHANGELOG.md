@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Restart to update says what happens first.** A dialog says which version is installing, that QSO Graph
+  Desktop closes and reopens by itself, and how long that takes (about a minute on Windows, where nothing is on
+  screen while it installs). **OK** installs; **Cancel** leaves it to install when you next quit. (#114)
+
 ### Fixed
 
 - **A busy service's wait is never cut short.** When two requests to the same service were out at once,

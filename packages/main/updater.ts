@@ -10,7 +10,7 @@
 // Windows installer is run silently, an AppImage is replaced, and on macOS
 // the signed zip is unpacked beside the application, checked to be signed by
 // the same team, and put in its place.
-import { app, ipcMain, type BrowserWindow } from 'electron';
+import { app, dialog, ipcMain, type BrowserWindow } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
 import { accessSync, chmodSync, constants, copyFileSync, existsSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
@@ -54,10 +54,35 @@ export interface UpdaterOptions {
   // as this running copy (windows-signature.ts; #81). Given here so the
   // updater is tested without Windows.
   windowsTrusted?: (installer: string) => boolean;
+  // What Restart says before the application closes, and whether the operator said OK (#114). Given
+  // here so the updater is tested without a window.
+  confirm?: (notice: RestartNotice) => Promise<boolean>;
   // The profile kept before an install and put back when going back (#77,
   // snapshots.ts). Without it nothing is installed: going back without the
   // data is not safe.
   snapshots: Snapshots;
+}
+
+// What Restart to update (or to go back) says first, and waits for OK on (KI7MT, 2026-10-27: "a
+// Dialog w/OK, that's a positive ack rather than another flash on a screen"). Without it the window
+// closed and, on Windows, nothing was on screen for the minute the installer ran (#114).
+export interface RestartNotice { message: string; detail: string }
+
+export function restartNotice(platform: UpdatePlatform | null, version: string, back: boolean, restored: boolean): RestartNotice {
+  const message = back ? `Going back to version ${version}` : `Installing version ${version}`;
+  const timing = platform === 'win-x64'
+    ? 'QSO Graph Desktop closes, installs it and reopens by itself. That takes about a minute, and nothing is on screen while it installs.'
+    : 'QSO Graph Desktop closes and reopens by itself in a few seconds.';
+  const data = !back ? '' : restored
+    ? ' Your data is put back as it was when you left that version.'
+    : ' It opens today\'s data.';
+  return { message, detail: `${timing}${data}` };
+}
+
+async function askOk(window: BrowserWindow | null, notice: RestartNotice): Promise<boolean> {
+  const options = { type: 'info' as const, buttons: ['OK', 'Cancel'], defaultId: 0, cancelId: 1, noLink: true, message: notice.message, detail: notice.detail };
+  const answer = window && !window.isDestroyed() ? await dialog.showMessageBox(window, options) : await dialog.showMessageBox(options);
+  return answer.response === 0;
 }
 
 export interface Updater {
@@ -336,7 +361,9 @@ export function startUpdater(options: UpdaterOptions): Updater {
     ? versionChoices(lastFeed, options.settings().updateTrack, options.version, options.snapshots.list())
     : [];
 
-  ipcMain.handle(UPDATES_CHANNEL, (event, command: unknown): UpdateState | VersionChoice[] | boolean => {
+  const confirm = options.confirm ?? (notice => askOk(options.window(), notice));
+
+  ipcMain.handle(UPDATES_CHANNEL, async (event, command: unknown): Promise<UpdateState | VersionChoice[] | boolean> => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateUpdateCommand(command)) {
       log.warn({ accepted: false }, 'update request refused');
       return false;
@@ -358,11 +385,17 @@ export function startUpdater(options: UpdaterOptions): Updater {
       case 'versions': return versions();
       // Applied as the application quits, once its stores have closed, so
       // nothing is replaced underneath a write.
-      case 'restart':
+      // Said first, and only on OK (#114). Cancel leaves it ready: it applies when the application quits.
+      case 'restart': {
+        if (state.kind !== 'ready' || !readyFile) return false;
+        const back = state.back === true;
+        const notice = restartNotice(options.platform, state.version, back, back && options.snapshots.list().includes(state.version));
+        if (!(await confirm(notice))) return false;
         if (state.kind !== 'ready' || !readyFile) return false;
         relaunchAfter = true;
         app.quit();
         return true;
+      }
       case 'release':
         if (!newer || !isReleaseVersion(newer)) return false;
         options.openRelease(newer);
