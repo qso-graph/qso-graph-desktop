@@ -3,7 +3,10 @@
 # release, its same files, marked a release and Latest. Nothing is rebuilt or
 # renamed, so what was tested is what ships. Run by hand, when KI7MT says so:
 # Actions → Promote → Run workflow, with the version. Then the update feed
-# names it on the Stable track (feed.yml).
+# names it on the Stable track (feed.yml), and the apt and dnf repositories
+# offer it (linux-repos.yml, #113). A run that stopped after the release was
+# marked Latest is finished by running Promote again: the feed and the
+# repositories are rebuilt from the releases, so both repeat safely.
 name: Promote
 
 on:
@@ -61,8 +64,17 @@ jobs:
           tag="v${VERSION}"
           state=$(gh release view "$tag" --repo "$REPO" --json isPrerelease,assets \
             -q '"\(.isPrerelease) \([.assets[].name] | index("SHA256SUMS.txt") != null)"')
+          # Which release GitHub marks Latest: a full release that is, was
+          # promoted and stopped before the feed or the repositories (#118's
+          # shape), and is finished from here.
+          latest=$(gh release view --repo "$REPO" --json tagName -q .tagName 2>/dev/null || true)
+          promoted=false
           case "$state" in
             "true true") ;;
+            "false true")
+              [ "$latest" = "$tag" ] || { echo "$tag is a full release, and not the Latest (${latest:-none}): not promoting it again." >&2; exit 1; }
+              promoted=true
+              echo "$tag is already promoted and Latest: finishing the feed and the repositories." ;;
             "false "*) echo "$tag is already a full release." >&2; exit 1 ;;
             *) echo "$tag has no SHA256SUMS.txt: it is not a release this repository built." >&2; exit 1 ;;
           esac
@@ -75,7 +87,7 @@ jobs:
             echo "$tag is not a commit on main or ${fix}." >&2
             exit 1
           }
-          gh release edit "$tag" --repo "$REPO" --prerelease=false --latest
+          [ "$promoted" = true ] || gh release edit "$tag" --repo "$REPO" --prerelease=false --latest
           gh release view "$tag" --repo "$REPO" --json tagName,isPrerelease -q '"\(.tagName) pre-release=\(.isPrerelease)"'
 
   feed:
@@ -86,3 +98,11 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/feed.yml
+
+  linux-repos:
+    name: apt and dnf repositories
+    needs: [promote]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/linux-repos.yml
+    secrets: inherit

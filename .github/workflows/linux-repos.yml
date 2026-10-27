@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Our signed apt and dnf repositories (#113), https://packages.qso-graph.io, on Cloudflare R2.
+#
+# Like the update feed (feed.yml), they are worked out from the published releases every time: the
+# newest Stable releases' .deb and .rpm files, signed and indexed by scripts/linux-repos.sh, then
+# uploaded. Nothing is kept between runs, so the repositories can never disagree with the Releases
+# page. Called by Promote, since only a Stable release is offered; run by hand to rebuild them.
+#
+# Signed with the release key, "QSO Graph Releases (Linux package signing key)", which KI7MT's root
+# key signs (#113). The secret is checked to hold that key, by fingerprint, before anything is signed.
+#
+# Needs, as repository secrets: LINUX_PACKAGE_SIGNING_KEY_PRIVATE and
+# LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE; and for R2, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and
+# R2_SECRET_ACCESS_KEY, a token that can write the bucket R2_BUCKET (a repository variable) and nothing
+# else. A run without them stops and says which is missing.
+name: Linux repositories
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-repos
+  cancel-in-progress: false
+
+env:
+  # The release key (#113): RSA 4096, to 2036-10-24, signed by KI7MT's root key
+  # C177 6630 7115 78FE 9A2B  9F7F 18C0 F6B7 0DA2 F991.
+  RELEASE_KEY: E4EC9751F1AA66AB2BA508EF041096B9A6EBD256
+  # How many Stable releases the repositories offer: the newest, and a few to go back to.
+  KEEP: 5
+
+jobs:
+  repos:
+    name: apt and dnf repositories
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Everything it needs is set
+        env:
+          KEY: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
+          PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          missing=0
+          for name in KEY PASSPHRASE R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            [ -n "${!name}" ] || { echo "✗ ${name} is not set" >&2; missing=$((missing + 1)); }
+          done
+          [ "$missing" = 0 ] || { echo "Not built: ${missing} setting(s) missing (above)." >&2; exit 1; }
+          [[ $R2_BUCKET =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { echo "✗ R2_BUCKET is not a bucket name." >&2; exit 1; }
+          [[ $R2_ACCOUNT_ID =~ ^[0-9a-f]{32}$ ]] || { echo "✗ R2_ACCOUNT_ID is not an account ID." >&2; exit 1; }
+          echo "✓ the signing key and R2 are set"
+      - name: The tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rpm createrepo-c apt-utils gnupg >/dev/null
+      - name: The newest Stable releases' Linux packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/packages"
+          gh release list --repo "$REPO" --limit 200 --json tagName,isPrerelease,isDraft,publishedAt \
+            --jq "[.[] | select(.isPrerelease == false and .isDraft == false)] | sort_by(.publishedAt) | reverse | .[:${KEEP}] | .[].tagName" \
+            > "$RUNNER_TEMP/tags"
+          [ -s "$RUNNER_TEMP/tags" ] || { echo "No Stable release to offer." >&2; exit 1; }
+          while read -r tag; do
+            [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a release tag: $tag" >&2; exit 1; }
+            gh release download "$tag" --repo "$REPO" --dir "$RUNNER_TEMP/packages" \
+              --pattern 'qso-graph-desktop-*-linux-*.deb' --pattern 'qso-graph-desktop-*-linux-*.rpm'
+            # Each file as the release lists it in its SHA256SUMS.txt.
+            gh release download "$tag" --repo "$REPO" --pattern SHA256SUMS.txt --output - > "$RUNNER_TEMP/sums"
+            (cd "$RUNNER_TEMP/packages" && grep -E ' [ *]?qso-graph-desktop-[^ ]+-linux-[^ ]+\.(deb|rpm)$' "$RUNNER_TEMP/sums" \
+              | grep -F -- "-${tag#v}-linux-" | sha256sum --check --strict)
+            echo "✓ $tag"
+          done < "$RUNNER_TEMP/tags"
+      - name: Signed and indexed
+        env:
+          KEY: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
+          PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$PASSPHRASE" > "$RUNNER_TEMP/passphrase" && chmod 0600 "$RUNNER_TEMP/passphrase"
+          printf '%s\n' "$KEY" | gpg --batch --quiet --import
+          # The secret holds the release key, and the passphrase opens it: its
+          # fingerprint, and a signature made with it, before anything is signed.
+          echo "Loaded: $(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
+          echo test | gpg --batch --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/passphrase" \
+            --local-user "$RELEASE_KEY" --clearsign > /dev/null
+          SIGNING_KEY="$RELEASE_KEY" PASSPHRASE_FILE="$RUNNER_TEMP/passphrase" \
+            bash scripts/linux-repos.sh "$RUNNER_TEMP/packages" "$RUNNER_TEMP/repo"
+          rm -f "$RUNNER_TEMP/passphrase"
+          rm -rf "$GNUPGHOME"
+      # Packages first, then the indexes that name them, then what is no longer
+      # named: an index never points at a file that is not there. A package's
+      # name is unique, so it is kept long; an index changes, so briefly.
+      - name: Uploaded to packages.qso-graph.io
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          s3=(aws s3 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" --only-show-errors)
+          cd "$RUNNER_TEMP/repo"
+          "${s3[@]}" sync . "s3://${R2_BUCKET}/" --exclude '*' --include '*.deb' --include '*.rpm' \
+            --cache-control 'public, max-age=31536000, immutable'
+          "${s3[@]}" sync . "s3://${R2_BUCKET}/" --exclude '*.deb' --exclude '*.rpm' \
+            --cache-control 'public, max-age=300'
+          "${s3[@]}" sync . "s3://${R2_BUCKET}/" --delete
+      - name: Served as built
+        run: |
+          set -euo pipefail
+          # What a user's apt and dnf fetch, from the public address, against what was built.
+          for path in apt/dists/stable/InRelease rpm/x86_64/repodata/repomd.xml rpm/x86_64/repodata/repomd.xml.asc qso-graph-desktop.asc; do
+            served=$(curl -fsS --retry 3 "https://packages.qso-graph.io/${path}?run=${GITHUB_RUN_ID}" | sha256sum | cut -d' ' -f1)
+            built=$(sha256sum "$RUNNER_TEMP/repo/${path}" | cut -d' ' -f1)
+            if [ "$served" != "$built" ]; then echo "✗ ${path} is not what was built" >&2; exit 1; fi
+            echo "✓ ${path}"
+          done

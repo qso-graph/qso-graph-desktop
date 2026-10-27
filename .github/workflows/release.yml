@@ -138,7 +138,7 @@ jobs:
             fi
             if state=$(node scripts/release.mjs state "$VERSION" "$built" "${tag_commit:--}" "$release_file"); then
               mode=${state#state=}
-              [ "$mode" = new ] && echo "✓ v${VERSION} is free" || echo "✓ v${VERSION} is released on ${built}, and is finished from where it stopped"
+              if [ "$mode" = new ]; then echo "✓ v${VERSION} is free"; else echo "✓ v${VERSION} is released on ${built}, and is finished from where it stopped"; fi
             else
               fail "v${VERSION} cannot be released or finished (above)"
             fi

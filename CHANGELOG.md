@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Linux: install from our own apt or dnf repository**, and QSO Graph Desktop updates with the rest
+  of your system. Every package and index is signed with our release key, which KI7MT's own key
+  signs; the install page has the steps. (#113)
+
 ### Fixed
 
 - **What's New shows only what's new to you.** After an update, it shows the releases from the version you

@@ -31,7 +31,7 @@ file for your computer:
 | Computer | File | Then |
 |---|---|---|
 | **Windows** | `…-win-x64.exe` | Run it. From 0.2.0 the installer is signed by **Gregory Beam (KI7MT)**. The signature is new, so Edge may say the file *isn't commonly downloaded* (choose **Keep**), and Windows may say it *protected your PC*: **More info** shows *Publisher: Gregory Beam*, then **Run anyway**. Installers before 0.2.0 aren't signed. A Microsoft Store listing, without those warnings, is planned. |
-| **Linux** | `…-linux-x86_64.AppImage` (PC) or `…-linux-arm64.AppImage` (Raspberry Pi 5) | Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too. |
+| **Linux** | `…-linux-x86_64.AppImage` (PC) or `…-linux-arm64.AppImage` (Raspberry Pi 5) | Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too, or install from [our apt and dnf repository](guide/install.md#linux) and it updates with your system. |
 | **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed by **Greg Beam (KI7MT)** with an Apple Developer ID, and notarized by Apple. |
 
 Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
@@ -46,7 +46,9 @@ one, three ways. **If it doesn't verify, it isn't an official build.**
 - **Who published it.**
   - **Windows:** right-click the `.exe` → **Properties** → **Digital Signatures**. It says
     **Gregory Beam**.
-  - **Linux:** packages aren't signed yet; the next two checks cover them.
+  - **Linux:** a package from [our repository](guide/install.md#linux) is checked by apt or dnf
+    against our signing key, `E4EC 9751 F1AA 66AB 2BA5  08EF 0410 96B9 A6EB D256`. A file from the
+    Releases page is covered by the next two checks.
   - **macOS:** in Terminal, `spctl -a -vv "/Applications/QSO Graph Desktop.app"` says *accepted*,
     *Notarized Developer ID*, *Developer ID Application: Greg Beam*.
 - **That it wasn't changed.** Its SHA-256 matches the release's `SHA256SUMS.txt`: on Windows,
