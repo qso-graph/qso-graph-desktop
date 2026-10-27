@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A busy service's wait is never cut short.** When two requests to the same service were out at once,
+  whichever answered last decided how long to leave it alone, even if that was shorter than the other
+  had been asked for. The longer wait now always stands. (#110)
+
 ### Changed
 
 - **Checking for updates only checks.** When a newer version is out, Settings and the status bar say

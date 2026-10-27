@@ -134,23 +134,29 @@ impl Ledger {
         Ok(Gate::Go)
     }
 
+    // The wait in force afterwards, if any. A wait is only ever lengthened: two requests to one source
+    // can be out at once (the timeout outlasts the shortest floor), and whichever answers last must not
+    // shorten a wait the other was told, by a shorter Retry-After, a backoff, or by succeeding.
     pub(crate) fn record(&mut self, url: &str, outcome: Outcome, now: Instant) -> Option<Instant> {
         let entry = self.entries.entry(url.to_string()).or_default();
-        match outcome {
-            Outcome::Answered => { entry.failures = 0; entry.not_before = None; None }
+        let wait = match outcome {
+            Outcome::Answered => { entry.failures = 0; None }
             Outcome::Busy(Some(asked)) => {
                 entry.failures = entry.failures.saturating_add(1);
-                entry.not_before = Some(now + asked.min(MAX_RETRY_AFTER));
-                entry.not_before
+                Some(asked.min(MAX_RETRY_AFTER))
             }
             Outcome::Busy(None) | Outcome::Unreachable => {
                 entry.failures = entry.failures.saturating_add(1);
                 let doublings = entry.failures.saturating_sub(1).min(16);
-                let wait = FIRST_BACKOFF.saturating_mul(1u32 << doublings).min(MAX_BACKOFF);
-                entry.not_before = Some(now + wait);
-                entry.not_before
+                Some(FIRST_BACKOFF.saturating_mul(1u32 << doublings).min(MAX_BACKOFF))
             }
-        }
+        };
+        let in_force = entry.not_before.filter(|until| *until > now);
+        entry.not_before = match (in_force, wait.map(|wait| now + wait)) {
+            (Some(held), Some(asked)) => Some(held.max(asked)),
+            (held, asked) => held.or(asked),
+        };
+        entry.not_before
     }
 }
 
@@ -250,8 +256,29 @@ mod tests {
         let url = "https://api.pota.app/spot/activator";
         let waits: Vec<u64> = (0..9).map(|_| (ledger.record(url, Outcome::Unreachable, t0).unwrap() - t0).as_secs()).collect();
         assert_eq!(waits, vec![60, 120, 240, 480, 960, 1920, 3600, 3600, 3600]);
+        // An answer resets the count; the wait already in force stands until it ends.
         ledger.record(url, Outcome::Answered, t0);
-        assert_eq!((ledger.record(url, Outcome::Busy(None), t0).unwrap() - t0).as_secs(), 60, "an answer resets the backoff");
+        let later = t0 + Duration::from_secs(3601);
+        assert_eq!((ledger.record(url, Outcome::Busy(None), later).unwrap() - later).as_secs(), 60, "an answer resets the backoff");
+    }
+
+    // Two requests to one source can be out at once: the request timeout (120 s) is longer than the
+    // shortest floor (POTA spots, 60 s). Whichever answers last must not shorten a wait already in
+    // force (found by Hopper in the MCP fleet's limiter, 2026-10-27, and present here too).
+    #[test]
+    fn a_later_answer_never_shortens_a_wait_in_force() {
+        let mut ledger = Ledger::default();
+        let t0 = Instant::now();
+        let spots = "https://api.pota.app/spot/activator";
+        ledger.record(spots, Outcome::Busy(Some(Duration::from_secs(300))), t0);
+        let block = t0 + Duration::from_secs(300);
+        // A shorter Retry-After, a backoff, and a success from the slower request: none shortens it.
+        assert_eq!(ledger.record(spots, Outcome::Busy(Some(Duration::from_secs(60))), t0), Some(block));
+        assert_eq!(ledger.record(spots, Outcome::Unreachable, t0), Some(block));
+        assert_eq!(ledger.record(spots, Outcome::Answered, t0), Some(block));
+        assert_eq!(ledger.gate(&table(), spots, t0 + Duration::from_secs(120)), Ok(Gate::Resting(block)));
+        // A longer one lengthens it.
+        assert_eq!(ledger.record(spots, Outcome::Busy(Some(Duration::from_secs(900))), t0), Some(t0 + Duration::from_secs(900)));
     }
 
     #[test]
