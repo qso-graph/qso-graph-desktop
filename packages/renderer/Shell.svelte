@@ -210,7 +210,8 @@
           } else store.set({ page: place, extensionPage: null });
         }}
         onWhatsNew={onOpenWhatsNew}
-        updatedTo={shell.updatedFrom !== null ? version : undefined}
+        updatedTo={shell.updateLine !== null ? version : undefined}
+        wentBack={shell.updateLine?.back ?? false}
         onCloseUpdate={onCloseUpdate}
         onDownloads={() => onOpenPage({ type: 'site', name: 'releases' })}
         onContributing={() => onOpenPage({ type: 'document', name: 'contributing' })}

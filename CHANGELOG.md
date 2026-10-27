@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **What's New shows only what's new to you.** After an update, it shows the releases from the version you
+  had to the one you have now, and nothing older, even if you never closed the line on Home after earlier
+  updates. Updating from 0.2.1 to 0.3.1 shows 0.3.0 and 0.3.1. After going back to an older version, Home
+  says *Went back to* it, with nothing to read. (#119)
+
 ## [0.3.1] - 2026-10-27
 
 ### Changed

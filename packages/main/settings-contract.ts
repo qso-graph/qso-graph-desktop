@@ -34,10 +34,14 @@ export interface Settings {
   // Locations and Settings alone, and the operator adds what they use (KI7MT,
   // 2026-10-23). An extension a later release brings arrives off too.
   extensionsOn: readonly string[];
-  // The version whose notes the operator has seen or closed (QGD-FRM-0016),
-  // or empty on a new install. A different version running means it was
-  // updated, and Home says so in one line until it is closed.
+  // What's new (QGD-FRM-0016, #119), each a version or empty:
+  // the version Home's line was last closed for (empty on a new install);
   seenVersion: string;
+  // the version the application last ran as, written at every start, so a
+  // different one running is an update from it (empty before this was kept);
+  lastRunVersion: string;
+  // and the version the last update came from, for the notes (empty when not known).
+  updatedFrom: string;
   // My Area (KI7MT, 2026-10-23): the parts of POTA the operator works in, at
   // POTA's own three levels, a program (IT), an entity (291) or a location
   // (US-ID), at most MAX_AREA. Chosen before anything is fetched for them,
@@ -91,12 +95,13 @@ export const DAY_ONE_PINS: readonly string[] = [];
 
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', area: [],
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', lastRunVersion: '', updatedFrom: '', area: [],
   updateCheck: true, updateTrack: 'stable', windowBounds: null };
 
-// A version, as package.json writes one, or empty.
+// A version, as package.json writes one, or empty. Up to 60 characters: a lab
+// build's version is <release>-local.<YYYYMMDDHHMMSS>.<commit>.
 export function isSeenVersion(value: unknown): value is string {
-  return typeof value === 'string' && value.length <= 40 && /^[0-9A-Za-z.+-]*$/.test(value);
+  return typeof value === 'string' && value.length <= 60 && /^[0-9A-Za-z.+-]*$/.test(value);
 }
 
 const PAGE_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
@@ -185,6 +190,8 @@ const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Setting
   theme: isThemeChoice,
   grants: isGrantMap,
   seenVersion: isSeenVersion,
+  lastRunVersion: isSeenVersion,
+  updatedFrom: isSeenVersion,
   area: isArea,
   updateCheck: isBoolean,
   updateTrack: isUpdateTrack
@@ -241,6 +248,8 @@ export function readSettings(stored: unknown): Settings {
   read('pins', isPins);
   read('extensionsOn', isExtensionIds);
   read('seenVersion', isSeenVersion);
+  read('lastRunVersion', isSeenVersion);
+  read('updatedFrom', isSeenVersion);
   read('area', isArea);
   read('updateCheck', isBoolean);
   read('updateTrack', isUpdateTrack);

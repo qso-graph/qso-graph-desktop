@@ -44,6 +44,9 @@
     // After an update, the version now running: one line at the top, until
     // closed (QGD-FRM-0016).
     updatedTo?: string;
+    // Whether that was going back to an older version (#119): the line says so,
+    // with no notes.
+    wentBack?: boolean;
     onCloseUpdate?: () => void;
     onDownloads?: () => void;
     onContributing?: () => void;
@@ -55,7 +58,7 @@
   }
   const {
     home, onSavePins, onOpenPage = () => {}, onDismissNotice = () => {},
-    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, updatedTo, onCloseUpdate = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {},
+    platform = 'darwin', steps, onGo = () => {}, onWhatsNew = () => {}, updatedTo, wentBack = false, onCloseUpdate = () => {}, onDownloads = () => {}, onContributing = () => {}, onSite = () => {},
     picking = false, onPicking = () => {}
   }: Props = $props();
 
@@ -85,8 +88,8 @@
 <PageLayout title="Home" width="full" titleShown={false}>
   {#if updatedTo}
     <!-- A preview's version is long; it is named by the release it leads to. -->
-    <UpdateStrip version={isPreview(updatedTo) ? `a new preview of ${releaseOf(updatedTo) ?? updatedTo}` : updatedTo}
-      onSee={onWhatsNew} onClose={onCloseUpdate} />
+    <UpdateStrip version={isPreview(updatedTo) && !wentBack ? `a new preview of ${releaseOf(updatedTo) ?? updatedTo}` : updatedTo}
+      back={wentBack} onSee={onWhatsNew} onClose={onCloseUpdate} />
   {/if}
   <HomeWelcome {platform} {steps} {onGo} onCustomize={() => onPicking(true)} {onWhatsNew} {onDownloads} {onContributing} {onSite} />
 

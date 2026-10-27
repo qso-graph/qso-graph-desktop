@@ -113,12 +113,58 @@ export function notesFor(sections: NotesSection[], version: string, since: strin
   return { version, sections: chosen.length ? chosen : sections.filter(entry => entry.version === 'Unreleased') };
 }
 
-// Who may ask, and what: the version last seen, or none for this release's.
+// Which of two versions is newer: by release, then a release after its own
+// previews, then previews in order (a lab build's stamp, 20261027213534, and
+// CI's, 202610240100, both sort as text). 0 when either is not a version.
+export function compareVersions(a: string, b: string): number {
+  const [ra, rb] = [releaseOf(a), releaseOf(b)];
+  if (!ra || !rb) return 0;
+  const byRelease = compare(ra, rb);
+  if (byRelease !== 0) return byRelease;
+  const [pa, pb] = [a.slice(ra.length), b.slice(rb.length)];
+  if (pa === pb) return 0;
+  if (pa === '') return 1;
+  if (pb === '') return -1;
+  return pa < pb ? -1 : 1;
+}
+
+// What the application knows at start about versions (QGD-FRM-0016, #119): the
+// version it last ran as, the one Home's line was last closed for, and the one
+// the last update came from ('' when unknown).
+export interface VersionRecord { lastRunVersion: string; seenVersion: string; updatedFrom: string }
+// Home's line: an update from `from` (null when not known), or going back.
+export interface UpdateLine { from: string | null; back: boolean }
+
+// At start: what to record, and whether Home shows its line. An update is a
+// change from the version last run, A, to this one, B, whatever notes were
+// last closed (KI7MT, 2026-10-27: 0.3.0 → 0.3.1 showed every release back to
+// 0.1.3, because the line had not been closed since then). The line stays
+// until it is closed for this version.
+export function versionAtStart(record: VersionRecord, running: string): { write: Partial<VersionRecord>; line: UpdateLine | null } {
+  const { lastRunVersion: last, seenVersion: seen, updatedFrom } = record;
+  // A new install: recorded, nothing shown.
+  if (last === '' && seen === '') return { write: { lastRunVersion: running, seenVersion: running }, line: null };
+  // From before the last version was recorded: where it came from is not known,
+  // so the notes are this release's own.
+  if (last === '') {
+    return { write: { lastRunVersion: running, updatedFrom: '' }, line: seen === running ? null : { from: null, back: false } };
+  }
+  if (last !== running) {
+    return {
+      write: { lastRunVersion: running, updatedFrom: last, seenVersion: last },
+      line: { from: last, back: compareVersions(running, last) < 0 },
+    };
+  }
+  if (seen === running) return { write: {}, line: null };
+  return { write: {}, line: { from: updatedFrom || null, back: updatedFrom !== '' && compareVersions(running, updatedFrom) < 0 } };
+}
+
+// Who may ask, and what: the version updated from, or none for this release's.
 export function validateWhatsNewCommand(value: unknown): value is { type: 'notes'; since: string | null } {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return Object.keys(record).length === 2 && record.type === 'notes'
-    && (record.since === null || (typeof record.since === 'string' && /^[0-9A-Za-z.+-]{1,40}$/.test(record.since)));
+    && (record.since === null || (typeof record.since === 'string' && /^[0-9A-Za-z.+-]{1,60}$/.test(record.since)));
 }
 
 export function isWhatsNewNotes(value: unknown): value is WhatsNewNotes {

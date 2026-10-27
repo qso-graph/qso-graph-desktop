@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // QGD-FRM-0016: What's new is CHANGELOG.md, read into text, never markup, and
-// the notes are this version's, or every version's since the one last seen.
+// the notes are this version's, or every version's since the one updated from.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { notesFor, parseChangelog, runs, validateWhatsNewCommand } from '../packages/main/whats-new-contract.js';
+import { compareVersions, notesFor, parseChangelog, runs, validateWhatsNewCommand, versionAtStart, type VersionRecord } from '../packages/main/whats-new-contract.js';
 
 const changelog = [
   '# Changelog', '', 'Intro text.', '',
@@ -53,6 +53,11 @@ describe('which notes', () => {
     expect(notesFor(sections, '0.4.0', null).sections.map(s => s.version)).toEqual(['Unreleased']);
   });
 
+  it('a lab build\'s version, up to 60 characters, is accepted (#119)', () => {
+    expect(validateWhatsNewCommand({ type: 'notes', since: '0.3.1-local.20261027213534.1ba6a44' })).toBe(true);
+    expect(validateWhatsNewCommand({ type: 'notes', since: '1'.repeat(61) })).toBe(false);
+  });
+
   it('accepts a version or none, and nothing else', () => {
     expect(validateWhatsNewCommand({ type: 'notes', since: null })).toBe(true);
     expect(validateWhatsNewCommand({ type: 'notes', since: '0.1.0' })).toBe(true);
@@ -76,3 +81,73 @@ describe('the window title names the version', () => {
     expect(windowTitle('nonsense')).toBe('QSO Graph Desktop');
   });
 });
+
+describe('which versions are newer', () => {
+  it('by release, then a release after its previews, then previews in order', () => {
+    expect(compareVersions('0.3.1', '0.3.0')).toBeGreaterThan(0);
+    expect(compareVersions('0.2.1', '0.10.0')).toBeLessThan(0);
+    expect(compareVersions('0.3.1', '0.3.1-local.20261027213534.1ba6a44')).toBeGreaterThan(0);
+    expect(compareVersions('0.3.1-local.20261027213534.1ba6a44', '0.3.1-local.20261027221002.1ba6a44')).toBeLessThan(0);
+    expect(compareVersions('0.3.1', '0.3.1')).toBe(0);
+    expect(compareVersions('nonsense', '0.3.1')).toBe(0);
+  });
+});
+
+// What the application records, run by run, and what Home shows at each start.
+function run(record: VersionRecord, version: string): { record: VersionRecord; line: ReturnType<typeof versionAtStart>['line'] } {
+  const start = versionAtStart(record, version);
+  return { record: { ...record, ...start.write }, line: start.line };
+}
+const closed = (record: VersionRecord, version: string): VersionRecord => ({ ...record, seenVersion: version });
+
+describe('QGD-FRM-0016, #119: an update is from the version last run to this one', () => {
+  const fresh: VersionRecord = { lastRunVersion: '', seenVersion: '', updatedFrom: '' };
+
+  it('a new install records its version and shows nothing', () => {
+    const first = run(fresh, '0.2.1');
+    expect(first.line).toBeNull();
+    expect(first.record).toEqual({ lastRunVersion: '0.2.1', seenVersion: '0.2.1', updatedFrom: '' });
+    expect(run(first.record, '0.2.1').line).toBeNull();
+  });
+
+  it('KI7MT\'s test VM: 0.2.1 → 0.3.0 → 0.2.1 → 0.3.0 → 0.3.1, never closed, ends on 0.3.1\'s notes alone', () => {
+    let state = run(fresh, '0.2.1');
+    state = run(state.record, '0.3.0');
+    expect(state.line).toEqual({ from: '0.2.1', back: false });
+    state = run(state.record, '0.2.1');
+    expect(state.line).toEqual({ from: '0.3.0', back: true });
+    state = run(state.record, '0.3.0');
+    expect(state.line).toEqual({ from: '0.2.1', back: false });
+    state = run(state.record, '0.3.1');
+    expect(state.line).toEqual({ from: '0.3.0', back: false });
+    expect(notesFor(sections3(), '0.3.1', state.line?.from ?? null).sections.map(s => s.version)).toEqual(['0.3.1']);
+  });
+
+  it('an update across several releases shows each one in between', () => {
+    const state = run(run(fresh, '0.1.0').record, '0.3.0');
+    expect(state.line).toEqual({ from: '0.1.0', back: false });
+    expect(notesFor(sections, '0.3.0', state.line?.from ?? null).sections.map(s => s.version)).toEqual(['0.3.0', '0.2.0']);
+  });
+
+  it('the line stays across restarts until it is closed, and closed stays closed', () => {
+    let state = run(run(fresh, '0.2.0').record, '0.3.0');
+    state = run(state.record, '0.3.0');
+    expect(state.line).toEqual({ from: '0.2.0', back: false });
+    state = run(closed(state.record, '0.3.0'), '0.3.0');
+    expect(state.line).toBeNull();
+  });
+
+  it('an install from before the last version was kept shows the running release\'s own notes', () => {
+    // 0.3.1 never kept lastRunVersion; its line was last closed at 0.1.3.
+    const state = run({ lastRunVersion: '', seenVersion: '0.1.3', updatedFrom: '' }, '0.4.0');
+    expect(state.line).toEqual({ from: null, back: false });
+    expect(state.record.lastRunVersion).toBe('0.4.0');
+    expect(run({ lastRunVersion: '', seenVersion: '0.4.0', updatedFrom: '' }, '0.4.0').line).toBeNull();
+  });
+});
+
+// The release notes KI7MT's VM went through.
+function sections3() {
+  return parseChangelog(['## [0.3.1] - 2026-10-27', '', '- Security.', '', '## [0.3.0] - 2026-10-26', '', '- Backup.', '',
+    '## [0.2.1] - 2026-10-25', '', '- Fixes.', ''].join('\n'));
+}
