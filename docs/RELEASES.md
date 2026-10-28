@@ -154,10 +154,6 @@ in bulk.
    Release does (#106); then it marks the same pre-release a full release and
    Latest. Nothing is rebuilt. Then the feed again, so Stable offers it.
 
-   **Then the Homebrew cask** (#88): in `qso-graph/homebrew-tap`, set `version` and `sha256` in
-   `Casks/qso-graph-desktop.rb` to the release's and its `…-mac-arm64.dmg` line in
-   `SHA256SUMS.txt`, by pull request; its CI installs it on a Mac and checks it is notarized.
-
    **A security release is promoted straight away** (KI7MT, 2026-10-27, on
    0.3.1): an operator can't check a security fix from the screen, so holding it
    on Early only keeps it from Stable users. Before releasing, sanity-check a lab
