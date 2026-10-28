@@ -4,7 +4,8 @@
 # renamed, so what was tested is what ships. Run by hand, when KI7MT says so:
 # Actions → Promote → Run workflow, with the version. Then the update feed
 # names it on the Stable track (feed.yml), and the apt and dnf repositories
-# offer it (linux-repos.yml, #113). A run that stopped after the release was
+# offer it, and the Windows installer is at its versioned address for the
+# Microsoft Store (packages.yml, #113, #86). A run that stopped after the release was
 # marked Latest is finished by running Promote again: the feed and the
 # repositories are rebuilt from the releases, so both repeat safely.
 name: Promote
@@ -99,10 +100,10 @@ jobs:
       id-token: write
     uses: ./.github/workflows/feed.yml
 
-  linux-repos:
-    name: apt and dnf repositories
+  packages:
+    name: packages.qso-graph.net
     needs: [promote]
     permissions:
       contents: read
-    uses: ./.github/workflows/linux-repos.yml
+    uses: ./.github/workflows/packages.yml
     secrets: inherit

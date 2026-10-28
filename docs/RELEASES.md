@@ -154,6 +154,15 @@ in bulk.
    Release does (#106); then it marks the same pre-release a full release and
    Latest. Nothing is rebuilt. Then the feed again, so Stable offers it.
 
+   **Then the Microsoft Store** (#86). Promote has put the release's signed Windows installer on
+   `packages.qso-graph.net` at a versioned address, and its run summary gives it. In Partner Center,
+   on QSO Graph Desktop (an *EXE or MSI* product): **Start update** → **Packages** → the package →
+   **Package URL** `https://packages.qso-graph.net/windows/x.y.z/qso-graph-desktop-x.y.z-win-x64.exe`,
+   **Installer parameters** `/S`, **Architecture** x64, **Language** en-us → **Save** → **Submit
+   to the Store**. Microsoft reviews it, which takes days. The file at that address never changes:
+   the Store requires that, and each version keeps its own address. A copy from the Store updates
+   itself as any other does (policy 10.2.9 binds only games to the Store's updates).
+
    **A security release is promoted straight away** (KI7MT, 2026-10-27, on
    0.3.1): an operator can't check a security fix from the screen, so holding it
    on Early only keeps it from Stable users. Before releasing, sanity-check a lab

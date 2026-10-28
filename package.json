@@ -112,7 +112,8 @@
       ],
       "icon": "build/icon.png",
       "signExts": [
-        ".node"
+        ".node",
+        ".dll"
       ]
     },
     "appx": {

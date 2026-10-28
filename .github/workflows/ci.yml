@@ -492,9 +492,9 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      # electron-builder signs each executable, the native core (signExts in
-      # package.json: a list, which -c on the command line cannot give; #84,
-      # found by Turing) and the installer with Microsoft's TrustedSigning
+      # electron-builder signs each executable, the native core and every DLL
+      # (signExts in package.json: a list, which -c on the command line cannot
+      # give; #84, found by Turing; DLLs for the Microsoft Store, #86) and the installer with Microsoft's TrustedSigning
       # module, which uses the sign-in above. The account, profile and endpoint are names, not
       # secrets; the publisher is the certificate's, as Windows shows it.
       - name: Installers, signed (Windows)
@@ -506,22 +506,31 @@ jobs:
           -c.win.azureSignOptions.endpoint=https://wus2.codesigning.azure.net
           -c.win.azureSignOptions.codeSigningAccountName=qsographsigning
           -c.win.azureSignOptions.certificateProfileName=qso-graph
-      # What Windows will say: every executable, the native core and the
-      # installer validly signed, by Gregory Beam and nobody else.
+      # What Windows will say: the installer and every program file in the
+      # application (.exe, .dll, .node) validly signed. The Microsoft Store
+      # requires every PE file signed (policy 10.2.9, #86); this checked only
+      # the .exe and .node files, so the unsigned DLLs Electron and the
+      # credential core's crypto library ship passed it. Ours are signed by
+      # Gregory Beam; a DLL Microsoft signed itself may keep Microsoft's.
       - name: Signatures (Windows)
         if: env.SIGN_WIN == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $files = @(Get-ChildItem out\*.exe) + @(Get-ChildItem out\win-unpacked\*.exe) + @(Get-ChildItem -Recurse out\win-unpacked -Filter *.node)
-          if ($files.Count -lt 3) { throw "Expected the installer, the application and the native core; found $($files.Count) file(s)." }
+          $files = @(Get-ChildItem out\*.exe) + @(Get-ChildItem -Recurse out\win-unpacked -Include *.exe,*.dll,*.node)
+          if ($files.Count -lt 10) { throw "Expected the installer and the application's program files; found $($files.Count) file(s)." }
+          $bad = 0
           foreach ($file in $files) {
             $signature = Get-AuthenticodeSignature $file.FullName
             $subject = $signature.SignerCertificate.Subject
-            Write-Output "$($file.Name): $($signature.Status), $subject"
-            if ($signature.Status -ne 'Valid') { throw "$($file.Name) is not validly signed: $($signature.StatusMessage)" }
-            if ($subject -notmatch '(^|, )CN=Gregory Beam(,|$)') { throw "$($file.Name) is signed by someone else: $subject" }
+            $name = $file.FullName.Substring((Resolve-Path out).Path.Length + 1)
+            Write-Output "$name`: $($signature.Status), $subject"
+            if ($signature.Status -ne 'Valid') { Write-Output "::error::$name is not validly signed: $($signature.StatusMessage)"; $bad++; continue }
+            $ours = $subject -match '(^|, )CN=Gregory Beam(,|$)'
+            $microsoft = $file.Extension -eq '.dll' -and $subject -match '(^|, )CN=Microsoft Corporation(,|$)'
+            if (-not ($ours -or $microsoft)) { Write-Output "::error::$name is signed by someone else: $subject"; $bad++ }
           }
+          if ($bad -gt 0) { throw "$bad file(s) not signed as they must be." }
       # Signed and notarized. The secrets reach this step and no other. The
       # notarization key is written to the runner's temporary folder, which
       # is removed with the runner, because electron-builder takes a path.
