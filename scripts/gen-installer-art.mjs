@@ -7,22 +7,23 @@
 // needs no browser; run this after the icon or the artwork changes:
 //   node scripts/gen-installer-art.mjs
 //
-// Each piece is drawn at twice its size and box-filtered down, so text and edges are smooth at
-// the size NSIS shows them, then written as a 24-bit BMP, the format NSIS's pages load.
+// Drawn in Electron, the browser npm ci installs (scripts/installer-art-window.cjs), never
+// Playwright's own Chromium, which npm ci does not fetch (tests/toolchain.test.mjs). Each piece is
+// drawn at the size NSIS shows it (box-filtered down where the screen draws at 2x, as a Retina
+// Mac does), then written as a 24-bit BMP, the format NSIS's pages load.
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { chromium } from '@playwright/test';
+import { _electron as electron } from '@playwright/test';
 import { decode } from './png.mjs';
 
 export const PIECES = [
   ['#sidebar', 'build/installerSidebar.bmp', 164, 314],
   ['#header', 'build/installerHeader.bmp', 150, 57]
 ];
-const SCALE = 2;
 
-// Each output pixel the average of the SCALE x SCALE pixels it covers. The pieces are opaque.
-export function halve({ width, height, pixels }, scale = SCALE) {
+// Each output pixel the average of the scale x scale pixels it covers. The pieces are opaque.
+export function halve({ width, height, pixels }, scale = 2) {
   const w = width / scale, h = height / scale;
   if (!Number.isInteger(w) || !Number.isInteger(h)) throw new Error(`${width} x ${height} is not a multiple of ${scale}`);
   const out = new Uint8Array(w * h * 3);
@@ -67,20 +68,22 @@ export function bmp({ width, height, rgb }) {
 }
 
 async function main() {
-  const browser = await chromium.launch();
+  // Headless on Linux, so it runs with no display; elsewhere Electron needs nothing.
+  const args = process.platform === 'linux' ? ['--ozone-platform=headless'] : [];
+  const application = await electron.launch({ args: [...args, resolve('scripts/installer-art-window.cjs'), resolve('build/installer-art.html')] });
   try {
-    const page = await browser.newPage({ deviceScaleFactor: SCALE });
-    await page.goto(pathToFileURL(resolve('build/installer-art.html')).href);
-    await page.waitForLoadState('networkidle');
+    const page = await application.firstWindow();
+    await page.waitForLoadState('load');
     for (const [selector, file, width, height] of PIECES) {
       const shot = decode(await page.locator(selector).screenshot());
-      const piece = halve(shot);
+      // The screen's own scale: 1 on most, 2 on a Retina Mac, where the box filter brings it to size.
+      const piece = halve(shot, shot.width / width);
       if (piece.width !== width || piece.height !== height) throw new Error(`${selector} drew ${piece.width} x ${piece.height}, not ${width} x ${height}`);
       writeFileSync(file, bmp(piece));
       console.log(`${file}: ${width} x ${height}`);
     }
   } finally {
-    await browser.close();
+    await application.close();
   }
 }
 
