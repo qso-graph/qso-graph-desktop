@@ -511,7 +511,7 @@ jobs:
       # requires every PE file signed (policy 10.2.9, #86); this checked only
       # the .exe and .node files, so the unsigned DLLs Electron and the
       # credential core's crypto library ship passed it. Ours are signed by
-      # Gregory Beam; a DLL Microsoft signed itself may keep Microsoft's.
+      # Gregory Beam; a DLL Microsoft signed itself keeps Microsoft's.
       - name: Signatures (Windows)
         if: env.SIGN_WIN == 'true'
         shell: pwsh
@@ -527,7 +527,9 @@ jobs:
             Write-Output "$name`: $($signature.Status), $subject"
             if ($signature.Status -ne 'Valid') { Write-Output "::error::$name is not validly signed: $($signature.StatusMessage)"; $bad++; continue }
             $ours = $subject -match '(^|, )CN=Gregory Beam(,|$)'
-            $microsoft = $file.Extension -eq '.dll' -and $subject -match '(^|, )CN=Microsoft Corporation(,|$)'
+            # Microsoft signs its own DLLs as "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, …"
+            # (d3dcompiler_47.dll, dxil.dll: run #131); Valid above means the chain is Windows' own.
+            $microsoft = $file.Extension -eq '.dll' -and $subject -match '(^|, )O=Microsoft Corporation(,|$)' -and $subject -match '(^|, )L=Redmond(,|$)'
             if (-not ($ours -or $microsoft)) { Write-Output "::error::$name is signed by someone else: $subject"; $bad++ }
           }
           if ($bad -gt 0) { throw "$bad file(s) not signed as they must be." }
