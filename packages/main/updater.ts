@@ -41,7 +41,7 @@ export interface UpdaterOptions {
   // Whether this build asks at all: a preview or a development run does not,
   // and which it is, so the window can say.
   asks: boolean;
-  build?: 'release' | 'development' | 'preview' | 'store';
+  build?: 'release' | 'development' | 'preview';
   settings: () => { updateCheck: boolean; updateTrack: UpdateTrack };
   online: () => boolean;
   feed: () => Promise<Uint8Array | string>;
@@ -120,6 +120,9 @@ export function updatePlatform(): UpdatePlatform | null {
   return null;
 }
 
+// Our Apple Developer ID team, which signs and notarizes every release.
+const OUR_TEAM = 'DP5KUCDR7L';
+
 // The .app this process runs from: <bundle>/Contents/MacOS/<name>.
 function macBundle(): string | null {
   const bundle = resolve(process.execPath, '..', '..', '..');
@@ -145,8 +148,8 @@ function macTeam(bundle: string, verify: boolean): string | null {
 function replaceMacBundle(zip: string): string {
   const bundle = macBundle();
   if (!bundle) throw new Error('not a bundle');
-  const team = macTeam(bundle, false);
-  if (!team) throw new Error('the running application is not signed');
+  // An unsigned copy, a lab build (#121), takes our team: it has none of its own.
+  const team = macTeam(bundle, false) ?? OUR_TEAM;
   const staging = join(dirname(bundle), `.qso-graph-desktop-update-${process.pid}`);
   rmSync(staging, { recursive: true, force: true });
   try {
@@ -174,7 +177,7 @@ function replaceMacBundle(zip: string): string {
 export function startUpdater(options: UpdaterOptions): Updater {
   const now = options.now ?? Date.now;
   const windowsTrusted = options.windowsTrusted ?? signedLikeThisCopy;
-  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' || options.build === 'development' || options.build === 'store' ? options.build : 'switch' });
+  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' || options.build === 'development' ? options.build : 'switch' });
   let state: UpdateState = options.asks ? { kind: 'idle' } : notAsking();
   let lastAsked = 0;
   let readyFile: string | null = null;
@@ -409,7 +412,19 @@ export function startUpdater(options: UpdaterOptions): Updater {
     state: () => state,
     check,
     versions,
-    applyOnQuit: () => { if (state.kind === 'ready' && readyFile) apply(relaunchAfter); },
+    applyOnQuit: () => {
+      if (state.kind !== 'ready' || !readyFile) return;
+      const version = state.version;
+      if (apply(relaunchAfter) || !relaunchAfter) return;
+      // Restart was chosen and nothing was installed (#121): KI7MT was left
+      // with nothing on screen, waiting. Say so, and open again as it was.
+      dialog.showMessageBoxSync({
+        type: 'warning', title: 'QSO Graph Desktop', buttons: ['OK'],
+        message: `Version ${version} was not installed`,
+        detail: 'Nothing was changed: QSO Graph Desktop opens again as it was. Help → Troubleshooting has the log with the reason.'
+      });
+      app.relaunch();
+    },
     stop: () => { clearTimeout(first); clearInterval(hourly); ipcMain.removeHandler(UPDATES_CHANNEL); }
   };
 }

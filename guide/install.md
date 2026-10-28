@@ -32,10 +32,37 @@ PC (`…-linux-x86_64.AppImage`) or a Raspberry Pi 5 (`…-linux-arm64.AppImage`
 On Ubuntu 22.04 and later, an AppImage needs FUSE, which is not installed by default:
 `sudo apt install libfuse2t64` on Ubuntu 24.04, `sudo apt install libfuse2` on 22.04.
 
-Prefer a package? Use `sudo apt install ./qso-graph-desktop-*-linux-amd64.deb` on Debian, Ubuntu
-or Raspberry Pi OS, or `sudo dnf install ./qso-graph-desktop-*-linux-x86_64.rpm` on Fedora, Rocky or
-RHEL (arm64 builds of each are there too). These do not update themselves: the application tells
-you when a newer version is out.
+**Prefer a package?** Install from our own repository, and QSO Graph Desktop updates with the rest of
+your system. It offers Stable releases, on PCs and on a Raspberry Pi 5.
+
+On Debian, Ubuntu or Raspberry Pi OS:
+
+```bash
+sudo curl -fsSL -o /usr/share/keyrings/qso-graph-desktop.gpg https://packages.qso-graph.net/qso-graph-desktop.gpg
+echo "deb [signed-by=/usr/share/keyrings/qso-graph-desktop.gpg] https://packages.qso-graph.net/apt stable main" | sudo tee /etc/apt/sources.list.d/qso-graph-desktop.list
+sudo apt update
+sudo apt install qg-desktop
+```
+
+On Fedora, Rocky or RHEL:
+
+```bash
+sudo curl -fsSL -o /etc/yum.repos.d/qso-graph-desktop.repo https://packages.qso-graph.net/qso-graph-desktop.repo
+sudo dnf install qg-desktop
+```
+
+dnf asks you to accept our key the first time. Check that its fingerprint is
+`E4EC 9751 F1AA 66AB 2BA5  08EF 0410 96B9 A6EB D256` (*QSO Graph Releases*), then answer **y**. Every
+package and every index in the repository is signed with it, and apt and dnf refuse anything that
+isn't. The key is itself signed by KI7MT's own long-standing key, `C177 6630 7115 78FE 9A2B  9F7F
+18C0 F6B7 0DA2 F991`.
+
+From then on, `sudo apt upgrade` or `sudo dnf upgrade` brings each new release.
+
+You can also install a single `.deb` or `.rpm` from the Releases page, with
+`sudo apt install ./qso-graph-desktop-*-linux-amd64.deb` or
+`sudo dnf install ./qso-graph-desktop-*-linux-x86_64.rpm`. A package installed that way doesn't
+update itself: the application tells you when a newer version is out.
 
 ## macOS
 

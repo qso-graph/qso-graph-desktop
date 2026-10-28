@@ -239,6 +239,8 @@ jobs:
       # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
       - name: Credential core against glibc 2.28
         if: runner.os == 'Linux'
+        # Normally 2 to 5 minutes; a stalled mirror inside the container is cut off here, not at the job's 60.
+        timeout-minutes: 20
         run: |
           case "$(uname -m)" in
             x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
@@ -310,6 +312,8 @@ jobs:
       # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
       - name: Credential core against glibc 2.28
         if: runner.os == 'Linux'
+        # Normally 2 to 5 minutes; a stalled mirror inside the container is cut off here, not at the job's 60.
+        timeout-minutes: 20
         run: |
           case "$(uname -m)" in
             x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
@@ -433,6 +437,8 @@ jobs:
       # RHEL 8+, not just on a system as new as the runner. Images pinned by digest.
       - name: Credential core against glibc 2.28
         if: runner.os == 'Linux'
+        # Normally 2 to 5 minutes; a stalled mirror inside the container is cut off here, not at the job's 60.
+        timeout-minutes: 20
         run: |
           case "$(uname -m)" in
             x86_64) image=quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae ;;
@@ -492,9 +498,9 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      # electron-builder signs each executable, the native core (signExts in
-      # package.json: a list, which -c on the command line cannot give; #84,
-      # found by Turing) and the installer with Microsoft's TrustedSigning
+      # electron-builder signs each executable, the native core and every DLL
+      # (signExts in package.json: a list, which -c on the command line cannot
+      # give; #84, found by Turing; DLLs for the Microsoft Store, #86) and the installer with Microsoft's TrustedSigning
       # module, which uses the sign-in above. The account, profile and endpoint are names, not
       # secrets; the publisher is the certificate's, as Windows shows it.
       - name: Installers, signed (Windows)
@@ -506,22 +512,33 @@ jobs:
           -c.win.azureSignOptions.endpoint=https://wus2.codesigning.azure.net
           -c.win.azureSignOptions.codeSigningAccountName=qsographsigning
           -c.win.azureSignOptions.certificateProfileName=qso-graph
-      # What Windows will say: every executable, the native core and the
-      # installer validly signed, by Gregory Beam and nobody else.
+      # What Windows will say: the installer and every program file in the
+      # application (.exe, .dll, .node) validly signed. The Microsoft Store
+      # requires every PE file signed (policy 10.2.9, #86); this checked only
+      # the .exe and .node files, so the unsigned DLLs Electron and the
+      # credential core's crypto library ship passed it. Ours are signed by
+      # Gregory Beam; a DLL Microsoft signed itself keeps Microsoft's.
       - name: Signatures (Windows)
         if: env.SIGN_WIN == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $files = @(Get-ChildItem out\*.exe) + @(Get-ChildItem out\win-unpacked\*.exe) + @(Get-ChildItem -Recurse out\win-unpacked -Filter *.node)
-          if ($files.Count -lt 3) { throw "Expected the installer, the application and the native core; found $($files.Count) file(s)." }
+          $files = @(Get-ChildItem out\*.exe) + @(Get-ChildItem -Recurse out\win-unpacked -Include *.exe,*.dll,*.node)
+          if ($files.Count -lt 10) { throw "Expected the installer and the application's program files; found $($files.Count) file(s)." }
+          $bad = 0
           foreach ($file in $files) {
             $signature = Get-AuthenticodeSignature $file.FullName
             $subject = $signature.SignerCertificate.Subject
-            Write-Output "$($file.Name): $($signature.Status), $subject"
-            if ($signature.Status -ne 'Valid') { throw "$($file.Name) is not validly signed: $($signature.StatusMessage)" }
-            if ($subject -notmatch '(^|, )CN=Gregory Beam(,|$)') { throw "$($file.Name) is signed by someone else: $subject" }
+            $name = $file.FullName.Substring((Resolve-Path out).Path.Length + 1)
+            Write-Output "$name`: $($signature.Status), $subject"
+            if ($signature.Status -ne 'Valid') { Write-Output "::error::$name is not validly signed: $($signature.StatusMessage)"; $bad++; continue }
+            $ours = $subject -match '(^|, )CN=Gregory Beam(,|$)'
+            # Microsoft signs its own DLLs as "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, …"
+            # (d3dcompiler_47.dll, dxil.dll: run #131); Valid above means the chain is Windows' own.
+            $microsoft = $file.Extension -eq '.dll' -and $subject -match '(^|, )O=Microsoft Corporation(,|$)' -and $subject -match '(^|, )L=Redmond(,|$)'
+            if (-not ($ours -or $microsoft)) { Write-Output "::error::$name is signed by someone else: $subject"; $bad++ }
           }
+          if ($bad -gt 0) { throw "$bad file(s) not signed as they must be." }
       # Signed and notarized. The secrets reach this step and no other. The
       # notarization key is written to the runner's temporary folder, which
       # is removed with the runner, because electron-builder takes a path.
@@ -596,26 +613,6 @@ jobs:
       - name: The signed build launches (macOS)
         if: env.SIGN_MAC == 'true'
         run: npm run verify -- --suites packaged-launch
-      # The Microsoft Store package (KI7MT, 2026-10-24): an MSIX made from the
-      # application just built, for KI7MT to upload to Partner Center. The
-      # Store hosts it and signs it itself, so it is not signed here and not
-      # offered as a download; it is its own artifact, kept out of the
-      # Preview's files. Its identity comes from Partner Center
-      # (package.json build.appx).
-      # Built on every Windows run, a PR's included, so a change that breaks
-      # it is caught before it merges.
-      - name: Microsoft Store package (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: npx electron-builder --win appx --x64 --prepackaged out/win-unpacked --publish never
-      - name: Microsoft Store package, for upload (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: microsoft-store-package
-          path: out/*.appx
-          if-no-files-found: error
-          retention-days: 30
       # Microsoft's Visual C++ runtime (#91). GitHub's runners always have it
       # and a fresh Windows 11 does not, which is how 0.2.0's credential core
       # failed for new users while every test here passed. So: every DLL our

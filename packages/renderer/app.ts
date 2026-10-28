@@ -5,7 +5,7 @@ import {
 } from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import { isUpdateState, isVersionChoices, type UpdateCommand } from '../main/update-contract.js';
-import { isWhatsNewNotes } from '../main/whats-new-contract.js';
+import { isWhatsNewNotes, versionAtStart, type VersionRecord } from '../main/whats-new-contract.js';
 import type { LogsCommand, LogsReply } from '../main/logs-contract.js';
 import { isStorageStatus, type StorageCommand, type StorageReply } from '../storage/storage-contract.js';
 import type { AreaProgram } from '../storage/area-entry.js';
@@ -559,11 +559,16 @@ async function loadTheme(): Promise<void> {
   const reply = await window.settings.request({ type: 'read' });
   // A settings channel that cannot answer must not leave the window unthemed.
   if (reply.ok) themeChoice = reply.data.theme;
-  // What's new (QGD-FRM-0016): a different version from the one last seen
-  // was an update, and Home says so in one line. A new install records its
-  // version and says nothing.
-  if (reply.ok && reply.data.seenVersion === '') void window.settings.request({ type: 'write', key: 'seenVersion', value: __QG_VERSION__ });
-  else if (reply.ok && reply.data.seenVersion !== __QG_VERSION__) shell.set({ updatedFrom: reply.data.seenVersion });
+  // What's new (QGD-FRM-0016, #119): a different version from the one last
+  // run was an update from it (or going back), and Home says so in one line.
+  // A new install records its version and says nothing.
+  if (reply.ok) {
+    const start = versionAtStart(reply.data, __QG_VERSION__);
+    for (const [key, value] of Object.entries(start.write) as [keyof VersionRecord, string][]) {
+      void window.settings.request({ type: 'write', key, value });
+    }
+    shell.set({ updateLine: start.line });
+  }
   if (reply.ok) shell.set({ area: reply.data.area, updateCheck: reply.data.updateCheck, updateTrack: reply.data.updateTrack });
   shell.set({ themeChoice });
   startTheme();
@@ -858,20 +863,20 @@ export async function lookUpParks(references: string): Promise<NamedReferences |
 
 // What's new (QGD-FRM-0016). Home's line, closed, stays closed until the next
 // update; the notes are this version's, or every version's since the one
-// last seen when they are opened from that line.
+// updated from while that line is up.
 export function closeUpdate(): void {
-  shell.set({ updatedFrom: null });
+  shell.set({ updateLine: null });
   void window.settings.request({ type: 'write', key: 'seenVersion', value: __QG_VERSION__ });
 }
 export function openWhatsNew(): void {
-  const since = shell.get().updatedFrom;
+  const since = shell.get().updateLine?.from ?? null;
   shell.set({ whatsNew: {} });
   void window.whatsNew?.notes(since).then(notes => {
     if (shell.get().whatsNew) shell.set({ whatsNew: isWhatsNewNotes(notes) ? { notes } : { notes: { version: __QG_VERSION__, sections: [] } } });
   });
 }
 export function closeWhatsNew(): void {
-  const updated = shell.get().updatedFrom !== null;
+  const updated = shell.get().updateLine !== null;
   shell.set({ whatsNew: null });
   // Read from Home's line, the notes count as seen.
   if (updated) closeUpdate();

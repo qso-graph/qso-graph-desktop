@@ -6,6 +6,22 @@
 ; Microsoft, and Windows asks for an administrator once. If it cannot, the
 ; operator is told why, and the application says so again when it starts,
 ; with Microsoft's page.
+;
+; While an update installs (#116): the updater runs this installer silently
+; (--updated /S --force-run), so nothing was on screen for the minute it takes.
+; The Banner plugin's small window says what is happening, from the start of the
+; install to its end; the application then opens again by itself.
+
+; An install for all users runs a second, elevated copy of the installer while
+; the first waits: the banner is the first copy's alone, so there is one, and
+; it stays until the elevated copy has finished.
+!macro customInit
+  ${if} ${isUpdated}
+    ${IfNot} ${UAC_IsInnerInstance}
+      Banner::show /set 76 "Updating QSO Graph Desktop..." "It opens again by itself when it's done."
+    ${EndIf}
+  ${endif}
+!macroend
 
 !macro customInstall
   File "/oname=$PLUGINSDIR\vc-runtime.ps1" "${BUILD_RESOURCES_DIR}\vc-runtime.ps1"
@@ -29,5 +45,8 @@
     ${ifNot} ${Silent}
       MessageBox MB_OK|MB_ICONEXCLAMATION "QSO Graph Desktop needs Microsoft's Visual C++ runtime, and it was not installed: $1$\r$\n$\r$\nQSO Graph Desktop will say so when it starts, with Microsoft's page to get it from."
     ${endif}
+  ${endif}
+  ${if} ${isUpdated}
+    Banner::destroy
   ${endif}
 !macroend

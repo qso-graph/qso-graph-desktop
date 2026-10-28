@@ -7,7 +7,7 @@
 // the one subscriber; app.ts is the one writer.
 import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import type { UpdateState } from '../main/update-contract.js';
-import type { WhatsNewNotes } from '../main/whats-new-contract.js';
+import type { UpdateLine, WhatsNewNotes } from '../main/whats-new-contract.js';
 import type { LogsStatus } from '../main/logs-contract.js';
 import type { StorageStatus } from '../storage/storage-contract.js';
 import type { ServiceSummary } from '../callsigns/service-contract.js';
@@ -103,9 +103,9 @@ export interface ShellState {
   // while `page === 'settings'`, which is where they used to be shown. Found
   // in review.
   troubleshooting: boolean;
-  // After an update, the version it was updated from, for Home's one line;
-  // null otherwise, and once it is closed (QGD-FRM-0016).
-  updatedFrom: string | null;
+  // After an update or going back, Home's one line: the version it came from
+  // (null when not known); null otherwise, and once it is closed (QGD-FRM-0016).
+  updateLine: UpdateLine | null;
   // What's new, while it is open: undefined notes while they are read.
   whatsNew: { notes?: WhatsNewNotes } | null;
   // Whether "Customize your pins" is open, from Home or the Setup menu.
@@ -164,7 +164,7 @@ export const INITIAL_SHELL: ShellState = {
   // opened on an offer and then withdrew it would flash it at somebody who
   // already has callsigns.
   troubleshooting: false,
-  updatedFrom: null,
+  updateLine: null,
   whatsNew: null,
   customizing: false,
   setup: false,

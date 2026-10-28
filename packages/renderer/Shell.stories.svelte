@@ -61,7 +61,7 @@
       logs,
       storage: { state: 'ready' },
       troubleshooting: false,
-      updatedFrom: '0.0.9', whatsNew: null, customizing: false, setup: false,
+      updateLine: { from: '0.0.9', back: false }, whatsNew: null, customizing: false, setup: false,
       firstRun: false,
       services: [],
       extensions: undefined,

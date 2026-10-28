@@ -1,7 +1,7 @@
 {
   "name": "qg-desktop",
   "productName": "QSO Graph Desktop",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "description": "QSO Graph Desktop — an extensible desktop platform for amateur radio",
   "license": "GPL-3.0-only",
@@ -112,20 +112,9 @@
       ],
       "icon": "build/icon.png",
       "signExts": [
-        ".node"
+        ".node",
+        ".dll"
       ]
-    },
-    "appx": {
-      "identityName": "QSOGraph.QSOGraphDesktop",
-      "publisher": "CN=DCAC3308-EAF8-4F86-BFD3-859CC5D26EC5",
-      "publisherDisplayName": "QSO Graph",
-      "displayName": "QSO Graph Desktop",
-      "applicationId": "QSOGraphDesktop",
-      "backgroundColor": "transparent",
-      "languages": [
-        "en-US"
-      ],
-      "customManifestPath": "appxmanifest.xml"
     },
     "linux": {
       "target": [
@@ -147,7 +136,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "runAfterFinish": false,
+      "runAfterFinish": true,
       "include": "installer.nsh"
     }
   },

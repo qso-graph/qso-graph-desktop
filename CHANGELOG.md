@@ -7,6 +7,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **The Windows installer has our own artwork:** the QSO Graph icon on the app's dark navy, on the
+  installer's first and last pages and along the top of the others. (#122)
+- **Start it when the installer finishes:** the Windows installer's last page has *Run QSO Graph Desktop*,
+  ticked; untick it to finish without starting. (#122)
+
+- **Linux: install from our own apt or dnf repository**, and QSO Graph Desktop updates with the rest
+  of your system. Every package and index is signed with our release key, which KI7MT's own key
+  signs; the install page has the steps. (#113)
+
+### Fixed
+
+- **What's New shows only what's new to you.** After an update, it shows the releases from the version you
+  had to the one you have now, and nothing older, even if you never closed the line on Home after earlier
+  updates. Updating from 0.2.1 to 0.3.1 shows 0.3.0 and 0.3.1. After going back to an older version, Home
+  says *Went back to* it, with nothing to read. (#119)
+- **A test build can go back to a release.** A lab build installed by hand now checks for updates like a
+  Preview, so **Choose a version…** lists the Stable releases to go back to. It installs only an update
+  signed by us. (#121)
+- **An update that can't be installed says so.** If the version you chose can't be installed after you
+  click **Restart to update**, QSO Graph Desktop tells you, changes nothing, and opens again as it was,
+  instead of closing and leaving nothing on screen. (#121)
+
 ## [0.3.1] - 2026-10-27
 
 ### Changed

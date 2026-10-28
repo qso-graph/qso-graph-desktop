@@ -58,6 +58,17 @@ describe('snapshots (#77)', () => {
     expect(existsSync(join(callsigns, 'updates', 'qso-graph-desktop-0.2.1-linux-x86_64.AppImage'))).toBe(true);
   });
 
+  // #121: going back from a lab build stopped at "the profile could not be kept".
+  it('keeps a lab build\'s profile under its version, as the newest of the non-Stable', () => {
+    const { root, kept } = profile();
+    const lab = '0.4.0-local.20261028011734.b6b8272';
+    expect(kept.take(lab)).toBe(true);
+    expect(readFileSync(join(root, 'snapshots', lab, 'state.sqlite'), 'utf8')).toBe('state');
+    expect(kept.list()).toEqual([lab]);
+    expect(kept.restore(lab)).toBe(true);
+    expect(kept.take('0.4.0-local.20261028011734.b6b8272/../x')).toBe(false);
+  });
+
   it('refuses a name that is not a version, and one it does not hold', () => {
     const { kept } = profile();
     expect(kept.take('../x')).toBe(false);
