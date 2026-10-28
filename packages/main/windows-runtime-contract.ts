@@ -3,19 +3,17 @@
 // its FIPS crypto module import VCRUNTIME140.dll, which a freshly installed
 // Windows 11 does not have; without it the core cannot start, and nothing
 // that goes online works. We do not ship Microsoft's DLL (KI7MT,
-// 2026-10-25): the installer runs Microsoft's own installer, the Store
-// package declares Microsoft's package, and this is what catches the rest
+// 2026-10-25): the installer runs Microsoft's own installer (a Microsoft Store copy
+// is the same installer, #86), and this is what catches the rest
 // (the portable zip, or an install made offline): a plain message with
 // Microsoft's page, never a silent failure.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Where Windows's loader finds it: the system folder. The application is a
-// 64-bit process, so this is the 64-bit System32, never SysWOW64. A Store
-// copy is never asked: Microsoft's package brings it there, inside the
-// package's own dependencies rather than System32 (found by Codex, #91).
-export function windowsRuntimeMissing(platform: string, systemRoot: string | undefined, fromStore: boolean, exists: (path: string) => boolean = existsSync): boolean {
-  if (platform !== 'win32' || fromStore) return false;
+// 64-bit process, so this is the 64-bit System32, never SysWOW64.
+export function windowsRuntimeMissing(platform: string, systemRoot: string | undefined, exists: (path: string) => boolean = existsSync): boolean {
+  if (platform !== 'win32') return false;
   if (!systemRoot) return true;
   return !exists(join(systemRoot, 'System32', 'vcruntime140.dll'));
 }

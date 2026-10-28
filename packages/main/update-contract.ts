@@ -175,9 +175,7 @@ export function versionChoices(feed: Feed, track: UpdateTrack, running: string, 
 export type UpdateState = { stable?: string } & (
   // Not checking, and why: the switch is off, or this is a development
   // build or a preview, which never check (KI7MT, 2026-10-24: say which).
-  // 'store': installed from the Microsoft Store, which updates it (KI7MT,
-  // 2026-10-24); its own updater never runs there.
-  | { kind: 'off'; why: 'switch' | 'development' | 'preview' | 'store' }
+  | { kind: 'off'; why: 'switch' | 'development' | 'preview' }
   | { kind: 'idle' }                              // not asked yet this session
   | { kind: 'checking' }
   | { kind: 'current'; checkedAt: number }        // nothing newer
@@ -225,7 +223,7 @@ export function isUpdateState(value: unknown): value is UpdateState {
   if ('stable' in value && !isReleaseVersion(value.stable)) return false;
   if ('reason' in value && (typeof value.reason !== 'string' || value.reason.length > 200)) return false;
   if ('checkedAt' in value && typeof value.checkedAt !== 'number') return false;
-  if (value.kind === 'off' && !['switch', 'development', 'preview', 'store'].includes(value.why as string)) return false;
+  if (value.kind === 'off' && !['switch', 'development', 'preview'].includes(value.why as string)) return false;
   if (value.kind === 'available' && typeof value.installable !== 'boolean') return false;
   return true;
 }

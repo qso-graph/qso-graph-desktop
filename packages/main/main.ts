@@ -398,14 +398,13 @@ if (!app.requestSingleInstanceLock()) {
     // Preview. Nor does a copy from the Microsoft
     // Store, which the Store updates, and whose rules forbid an app updating
     // itself (KI7MT, 2026-10-24).
-    const fromStore = process.windowsStore === true;
     const updater = startUpdater({
       version: app.getVersion(),
-      platform: fromStore ? null : updatePlatform(),
+      platform: updatePlatform(),
       // A Preview asks as a release does (#77), so it can be left for one, and
       // so does a lab build (#121): installed by hand, it is otherwise stuck.
-      asks: app.isPackaged && (isOfferedVersion(app.getVersion()) || isLabVersion(app.getVersion())) && !fromStore,
-      build: fromStore ? 'store' : !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
+      asks: app.isPackaged && (isOfferedVersion(app.getVersion()) || isLabVersion(app.getVersion())),
+      build: !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,
@@ -542,7 +541,7 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
     // Without Microsoft's Visual C++ runtime the credential core cannot start
     // on Windows (#91): said once, plainly, with Microsoft's page.
-    if (windowsRuntimeMissing(process.platform, process.env.SystemRoot, fromStore)) {
+    if (windowsRuntimeMissing(process.platform, process.env.SystemRoot)) {
       log.warn({}, "Microsoft's Visual C++ runtime is missing; the credential core cannot start");
       void warnWindowsRuntime(BrowserWindow.getAllWindows()[0], () => links.open({ type: 'site', name: 'vcruntime' }));
     }

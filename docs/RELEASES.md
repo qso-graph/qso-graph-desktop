@@ -138,8 +138,7 @@ in bulk.
 3. **It publishes what CI built**, nothing rebuilt: the pre-release `vx.y.z`
    with every installer from that run (each checked to carry that version),
    `SHA256SUMS.txt`, and the CHANGELOG section as its notes. The tag is created
-   on the commit that was built. CI keeps `main`'s build 90 days. The
-   Microsoft Store package stays with CI's run, for upload to Partner Center.
+   on the commit that was built. CI keeps `main`'s build 90 days.
 4. **It closes the milestone and updates the feed**, so Early offers `x.y.z`.
 
    **If it fails after the release was made**, run Release again with the same

@@ -182,24 +182,6 @@ describe('a Windows update must be signed like this copy (#81)', () => {
   });
 });
 
-describe('a copy from the Microsoft Store never updates itself (KI7MT, 2026-10-24)', () => {
-  it('says the Store updates it, and asks nothing', async () => {
-    const feed = vi.fn(() => Promise.resolve(feedBytes));
-    const states: string[] = [];
-    const started = startUpdater({
-      version: '0.2.0', platform: null, asks: false, build: 'store',
-      settings: () => ({ updateCheck: true, updateTrack: 'early' }), online: () => true, feed,
-      download: () => Promise.resolve('no'), updatesDirectory: '/nonexistent/updates', openRelease: () => undefined, snapshots: noSnapshots,
-      window: () => ({ isDestroyed: () => false, webContents: { send: (_c: string, state: { kind: string; why?: string }) => states.push(`${state.kind}:${state.why ?? ''}`) } }) as never
-    });
-    stop = started.stop;
-    expect(started.state()).toEqual({ kind: 'off', why: 'store' });
-    await started.check('asked');
-    expect(feed).not.toHaveBeenCalled();
-    expect(states.at(-1)).toBe('off:store');
-  });
-});
-
 // Choosing a version (#77, QGD-FRM-0020): forward as the track allows, back to
 // Stable only, and going back puts back the data kept when it was left.
 describe('choosing a version, and going back (#77)', () => {
