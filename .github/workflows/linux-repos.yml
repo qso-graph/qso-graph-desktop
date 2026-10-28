@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# Our signed apt and dnf repositories (#113), https://packages.qso-graph.io, on Cloudflare R2.
+# Our signed apt and dnf repositories (#113), https://packages.qso-graph.net, on Cloudflare R2.
 #
 # Like the update feed (feed.yml), they are worked out from the published releases every time: the
 # newest Stable releases' .deb and .rpm files, signed and indexed by scripts/linux-repos.sh, then
@@ -10,9 +10,11 @@
 # key signs (#113). The secret is checked to hold that key, by fingerprint, before anything is signed.
 #
 # Needs, as repository secrets: LINUX_PACKAGE_SIGNING_KEY_PRIVATE and
-# LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE; and for R2, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and
-# R2_SECRET_ACCESS_KEY, a token that can write the bucket R2_BUCKET (a repository variable) and nothing
-# else. A run without them stops and says which is missing.
+# LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE; and for R2, three secrets named after what Cloudflare's token
+# page calls them (KI7MT, 2026-10-28): R2_ACCESS_KEY_ID (Access Key ID), R2_SECRET_ACCESS_KEY (Secret
+# Access Key) and R2_ENDPOINT (the S3 endpoint, https://<account>.r2.cloudflarestorage.com), from an
+# Account API token with Object Read & Write on the bucket R2_BUCKET (a repository variable) only. A run
+# without them stops and says which is missing.
 name: Linux repositories
 
 on:
@@ -46,18 +48,18 @@ jobs:
         env:
           KEY: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
           PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
         run: |
           missing=0
-          for name in KEY PASSPHRASE R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+          for name in KEY PASSPHRASE R2_ENDPOINT R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
             [ -n "${!name}" ] || { echo "✗ ${name} is not set" >&2; missing=$((missing + 1)); }
           done
           [ "$missing" = 0 ] || { echo "Not built: ${missing} setting(s) missing (above)." >&2; exit 1; }
           [[ $R2_BUCKET =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { echo "✗ R2_BUCKET is not a bucket name." >&2; exit 1; }
-          [[ $R2_ACCOUNT_ID =~ ^[0-9a-f]{32}$ ]] || { echo "✗ R2_ACCOUNT_ID is not an account ID." >&2; exit 1; }
+          [[ $R2_ENDPOINT =~ ^https://[0-9a-f]{32}(\.[a-z]{2,4})?\.r2\.cloudflarestorage\.com/?$ ]] || { echo "✗ R2_ENDPOINT is not an R2 S3 endpoint (https://<account>.r2.cloudflarestorage.com)." >&2; exit 1; }
           echo "✓ the signing key and R2 are set"
       - name: The tools
         run: |
@@ -106,16 +108,16 @@ jobs:
       # Packages first, then the indexes that name them, then what is no longer
       # named: an index never points at a file that is not there. A package's
       # name is unique, so it is kept long; an index changes, so briefly.
-      - name: Uploaded to packages.qso-graph.io
+      - name: Uploaded to packages.qso-graph.net
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
         run: |
           set -euo pipefail
-          s3=(aws s3 --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" --only-show-errors)
+          s3=(aws s3 --endpoint-url "${R2_ENDPOINT%/}" --only-show-errors)
           cd "$RUNNER_TEMP/repo"
           "${s3[@]}" sync . "s3://${R2_BUCKET}/" --exclude '*' --include '*.deb' --include '*.rpm' \
             --cache-control 'public, max-age=31536000, immutable'
@@ -127,7 +129,7 @@ jobs:
           set -euo pipefail
           # What a user's apt and dnf fetch, from the public address, against what was built.
           for path in apt/dists/stable/InRelease rpm/x86_64/repodata/repomd.xml rpm/x86_64/repodata/repomd.xml.asc qso-graph-desktop.asc; do
-            served=$(curl -fsS --retry 3 "https://packages.qso-graph.io/${path}?run=${GITHUB_RUN_ID}" | sha256sum | cut -d' ' -f1)
+            served=$(curl -fsS --retry 3 "https://packages.qso-graph.net/${path}?run=${GITHUB_RUN_ID}" | sha256sum | cut -d' ' -f1)
             built=$(sha256sum "$RUNNER_TEMP/repo/${path}" | cut -d' ' -f1)
             if [ "$served" != "$built" ]; then echo "✗ ${path} is not what was built" >&2; exit 1; fi
             echo "✓ ${path}"

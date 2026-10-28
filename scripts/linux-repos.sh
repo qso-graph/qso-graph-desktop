@@ -5,7 +5,7 @@
 #   scripts/linux-repos.sh <packages-dir> <repo-dir>
 #
 # <packages-dir> holds the releases' Linux packages (qso-graph-desktop-<version>-linux-*.deb|rpm). The
-# repository is written to <repo-dir>, new or empty, laid out as packages.qso-graph.io serves it:
+# repository is written to <repo-dir>, new or empty, laid out as packages.qso-graph.net serves it:
 #   rpm/x86_64/, rpm/aarch64/   each .rpm signed with rpmsign; createrepo_c's metadata, repomd.xml
 #                               signed (repomd.xml.asc), for gpgcheck and repo_gpgcheck both
 #   apt/pool/main/              the .deb files
@@ -24,7 +24,7 @@ out=${2:?usage: linux-repos.sh <packages-dir> <repo-dir>}
 key=${SIGNING_KEY:?SIGNING_KEY: the fingerprint of the release key}
 pass=${PASSPHRASE_FILE:?PASSPHRASE_FILE: a file holding its passphrase}
 [[ $key =~ ^[0-9A-F]{40}$ ]] || { echo "SIGNING_KEY is not a fingerprint: $key" >&2; exit 2; }
-base=https://packages.qso-graph.io
+base=https://packages.qso-graph.net
 
 # The key in the keyring is the release key, and it can sign.
 have=$({ gpg --batch --with-colons --list-secret-keys "$key" 2>/dev/null || true; } | awk -F: '$1 == "fpr" { print $10; exit }')

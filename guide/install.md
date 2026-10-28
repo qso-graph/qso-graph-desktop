@@ -38,8 +38,8 @@ your system. It offers Stable releases, on PCs and on a Raspberry Pi 5.
 On Debian, Ubuntu or Raspberry Pi OS:
 
 ```bash
-sudo curl -fsSL -o /usr/share/keyrings/qso-graph-desktop.gpg https://packages.qso-graph.io/qso-graph-desktop.gpg
-echo "deb [signed-by=/usr/share/keyrings/qso-graph-desktop.gpg] https://packages.qso-graph.io/apt stable main" | sudo tee /etc/apt/sources.list.d/qso-graph-desktop.list
+sudo curl -fsSL -o /usr/share/keyrings/qso-graph-desktop.gpg https://packages.qso-graph.net/qso-graph-desktop.gpg
+echo "deb [signed-by=/usr/share/keyrings/qso-graph-desktop.gpg] https://packages.qso-graph.net/apt stable main" | sudo tee /etc/apt/sources.list.d/qso-graph-desktop.list
 sudo apt update
 sudo apt install qg-desktop
 ```
@@ -47,7 +47,7 @@ sudo apt install qg-desktop
 On Fedora, Rocky or RHEL:
 
 ```bash
-sudo curl -fsSL -o /etc/yum.repos.d/qso-graph-desktop.repo https://packages.qso-graph.io/qso-graph-desktop.repo
+sudo curl -fsSL -o /etc/yum.repos.d/qso-graph-desktop.repo https://packages.qso-graph.net/qso-graph-desktop.repo
 sudo dnf install qg-desktop
 ```
 
