@@ -1,7 +1,7 @@
 # Conditions
 
-QSO Graph Desktop's built-in extension for HF conditions (`QGD-HOM-0008`). It ships with the application, is on by
-default, and can be turned off; off, its destination leaves Home and nothing of it runs. It was On the Air's first page
+QSO Graph Desktop's extension for HF conditions (`QGD-HOM-0008`). It ships with the application as an official extension and, like every extension, starts off: turn it on in **Settings → Extensions**. Off, its destination leaves Home and nothing of
+it runs. It was On the Air's first page
 until 2026-10-23, when On the Air was split so that each switch turns off one destination (KI7MT).
 
 | Page | What it shows | Asked at most every |

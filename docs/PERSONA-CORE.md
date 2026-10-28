@@ -4,17 +4,17 @@ The credential core owns its entry names and stored formats (`QGD-CRD-0003`). Th
 `qso-graph-auth`'s and are kept because they work, not because anything else reads
 them — `QGD-CRD-0004` rules out Python and MCP interoperability in any Part:
 
-- Non-secret index: `personas.json`, `{ "personas": { name: record } }`.
+- Non-secret index: `callsigns.json`, `{ "callsigns": { id: record } }`, each callsign keyed by its own random id.
 - Record: lowercase name, uppercase callsign, start/end dates, provider refs.
-- Active persona: `current.txt` in the same directory.
+- Active callsign: `current.txt` in the same directory, holding its id.
 - Credentials: JSON `username`, `password`, `api_key`, with empty fields omitted,
-  in Keychain service `io.qso-graph.desktop`, account `persona:provider` lowercased.
+  in Keychain service `io.qso-graph.desktop`, account `<id>:<service>`.
   Until 2026-10-09 this said `adif-mcp` — the MCP servers' namespace — and so did the
   code (`QGD-CRD-0003`, `QGD-CRD-0013`).
 - Secret selection: `qrz_logbook` prefers `api_key`; others prefer `password`;
   each falls back to the other, as in `PersonaManager.require()`.
 
-Default profile directory: a `personas` directory inside the one the operating
+Default directory: a `callsigns` folder inside the one the operating
 system gives the application — `~/Library/Application Support/QSO Graph Desktop`
 on macOS — beside the application's own SQLite stores and the reference cache. Only the trusted
 app process chooses this path.
