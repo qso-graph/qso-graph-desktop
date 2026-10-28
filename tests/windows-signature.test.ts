@@ -71,8 +71,11 @@ describe.runIf(process.platform === 'win32')('Windows\' own signature check (#81
       // A name a path could not hide in: the file is passed by environment.
       const plain = join(folder, "it's $(unsigned); & so.exe");
       writeFileSync(plain, 'MZ not a real program');
-      expect(windowsSigner(plain)?.status).not.toBe('Valid');
-      expect(samePublisher(signed, windowsSigner(plain))).toBe(false);
+      const unsigned = windowsSigner(plain);
+      expect(unsigned?.status).not.toBe('Valid');
+      expect(samePublisher(signed, unsigned)).toBe(false);
     } finally { rmSync(folder, { recursive: true, force: true }); }
-  });
+  // Two real Windows PowerShell starts, each of which windowsSigner allows 60 s; vitest's default
+  // 5 s failed it on a slow CI runner (13.9 s, run #129).
+  }, 120_000);
 });
