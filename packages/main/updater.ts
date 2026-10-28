@@ -120,6 +120,9 @@ export function updatePlatform(): UpdatePlatform | null {
   return null;
 }
 
+// Our Apple Developer ID team, which signs and notarizes every release.
+const OUR_TEAM = 'DP5KUCDR7L';
+
 // The .app this process runs from: <bundle>/Contents/MacOS/<name>.
 function macBundle(): string | null {
   const bundle = resolve(process.execPath, '..', '..', '..');
@@ -145,8 +148,8 @@ function macTeam(bundle: string, verify: boolean): string | null {
 function replaceMacBundle(zip: string): string {
   const bundle = macBundle();
   if (!bundle) throw new Error('not a bundle');
-  const team = macTeam(bundle, false);
-  if (!team) throw new Error('the running application is not signed');
+  // An unsigned copy, a lab build (#121), takes our team: it has none of its own.
+  const team = macTeam(bundle, false) ?? OUR_TEAM;
   const staging = join(dirname(bundle), `.qso-graph-desktop-update-${process.pid}`);
   rmSync(staging, { recursive: true, force: true });
   try {

@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { choose, compareVersions, isVersionChoices, readFeed, versionChoices } from '../packages/main/update-contract.js';
+import { choose, compareVersions, isLabVersion, isVersionChoices, readFeed, versionChoices } from '../packages/main/update-contract.js';
 
 const changelog = [
   '# Changelog', '',
@@ -133,6 +133,30 @@ describe('the feed\'s list of versions (#77)', () => {
     expect(isVersionChoices(choices)).toBe(true);
     expect(choose(read, 'preview', '0.2.2').version).toBe(preview);
     expect(choose(read, 'stable', '0.2.2')).toBe(null);
+  });
+
+  // #121: KI7MT installed a 0.4.0 lab build by hand, and nothing let him back.
+  it('a lab build is offered every Stable release to go back to, and its own release forward', () => {
+    const lab = '0.4.0-local.20261027225334.a316dce';
+    expect(isLabVersion(lab)).toBe(true);
+    expect(isLabVersion('0.4.0-local.20261027225334.g1234567')).toBe(true);
+    expect(isLabVersion('0.4.0-local.0261027225334.a316dce')).toBe(false);
+    expect(isLabVersion('0.4.0-local.20261027225334.a316dce; rm')).toBe(false);
+    let feed = withListed(undefined, listEntry('stable', 'v0.3.1', '2026-10-27T19:30:00Z', sumsFor('0.3.1')));
+    feed = withListed(feed, listEntry('stable', 'v0.3.0', '2026-10-27T03:00:00Z', sumsFor('0.3.0')));
+    const read = readFeed(new TextEncoder().encode(JSON.stringify(feed)));
+    expect(versionChoices(read, 'stable', lab, []).map(choice => `${choice.version}:${choice.way}`)).toEqual(['0.3.1:back', '0.3.0:back']);
+    // 0.4.0, once released, is newer than any lab build of it.
+    expect(compareVersions('0.4.0', lab)).toBeGreaterThan(0);
+    const released = withListed(feed, listEntry('stable', 'v0.4.0', '2026-11-01T00:00:00Z', sumsFor('0.4.0')));
+    expect(choose(readFeed(new TextEncoder().encode(JSON.stringify({ ...released, stable: feedEntry('0.4.0', sumsFor('0.4.0')) }))), 'stable', lab).version).toBe('0.4.0');
+  });
+
+  it('lab builds and Previews of one release sort by when they were built', () => {
+    expect(compareVersions('0.4.0-local.20261027225334.a316dce', '0.4.0-local.20261027224134.f222649')).toBeGreaterThan(0);
+    expect(compareVersions('0.4.0-202610280100-0123456789a', '0.4.0-local.20261027225334.a316dce')).toBeGreaterThan(0);
+    expect(compareVersions('0.4.0-local.20261028010030.a316dce', '0.4.0-202610280100-0123456789a')).toBeGreaterThan(0);
+    expect(compareVersions('0.4.0-local.20261027225334.a316dce', '0.3.1')).toBeGreaterThan(0);
   });
 
   it('a feed an older copy reads is unchanged by the list', () => {

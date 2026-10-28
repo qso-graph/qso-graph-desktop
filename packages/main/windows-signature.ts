@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Who signed a Windows file, asked of Windows itself (#81). An update is run
 // only when its installer is validly signed by the same publisher as the copy
-// of QSO Graph Desktop that is running, as macOS requires the same team
+// of QSO Graph Desktop that is running (by us, when that copy is unsigned:
+// #121), as macOS requires the same team
 // (updater.ts). The comparison is pure, so it is tested on every platform;
 // reading a signature is Windows' own Get-AuthenticodeSignature.
 
@@ -36,12 +37,19 @@ export function parseSigner(output: string): WindowsSigner | null {
   return { status, subject };
 }
 
-// An installer the running copy may run: both validly signed, by exactly the
-// same subject. An unsigned running copy trusts nothing, as on macOS.
+// Our publisher, as Windows names the certificate that signs every release
+// (read from 0.3.1's installer, 2026-10-28).
+export const OUR_PUBLISHER = 'CN=Gregory Beam, O=Gregory Beam, L=Boise, S=id, C=US';
+
+// An installer the running copy may run: validly signed, by exactly the
+// subject that signed the running copy. A copy that is not validly signed, a
+// lab build (#121), has no publisher of its own to compare, so the installer
+// must be ours: until then it trusted nothing, and could not go back to a
+// release at all.
 export function samePublisher(running: WindowsSigner | null, update: WindowsSigner | null): boolean {
-  if (!running || !update) return false;
-  if (running.status !== 'Valid' || update.status !== 'Valid') return false;
-  return running.subject !== '' && running.subject === update.subject;
+  if (!update || update.status !== 'Valid') return false;
+  const expected = running && running.status === 'Valid' ? running.subject : OUR_PUBLISHER;
+  return expected !== '' && update.subject === expected;
 }
 
 // Windows PowerShell at its fixed place under the Windows folder; no shell.
@@ -71,7 +79,7 @@ export function windowsSigner(file: string): WindowsSigner | null {
 }
 
 // The check the updater makes, before it keeps a download and again before
-// it runs it: signed by whoever signed this running copy.
+// it runs it: signed by whoever signed this running copy, or by us when it is unsigned.
 export function signedLikeThisCopy(installer: string): boolean {
   return samePublisher(windowsSigner(process.execPath), windowsSigner(installer));
 }

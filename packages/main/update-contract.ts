@@ -45,6 +45,15 @@ export function isPreviewVersion(value: unknown): value is string {
   return typeof value === 'string' && PREVIEW.test(value);
 }
 // A version the feed may offer: a release, or a Preview (#77).
+// A lab build's version (qso-graph-devel builds/): the release it leads to,
+// -local, the build's UTC time to the second, and the commit. It is never in
+// the feed; a lab build reads the feed as a Preview does, so it can go back to
+// a release (#121).
+const LAB = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-local\.([1-9]\d{13})\.(g?[0-9a-f]{7})$/;
+export function isLabVersion(value: unknown): value is string {
+  return typeof value === 'string' && LAB.test(value);
+}
+
 export function isOfferedVersion(value: unknown): value is string {
   return isReleaseVersion(value) || isPreviewVersion(value);
 }
@@ -54,7 +63,9 @@ export function isOfferedVersion(value: unknown): value is string {
 export function compareVersions(a: string, b: string): number {
   const [x, y] = [a, b].map(version => version.split('-')[0].split('.').map(Number));
   for (let at = 0; at < 3; at++) if (x[at] !== y[at]) return x[at] - y[at];
-  const [p, q] = [a, b].map(version => PREVIEW.exec(version)?.[4]);
+  // Before its release, a Preview or a lab build, ordered by when it was
+  // built: a Preview's time is to the minute, a lab build's to the second.
+  const [p, q] = [a, b].map(version => { const preview = PREVIEW.exec(version)?.[4]; return preview !== undefined ? `${preview}00` : LAB.exec(version)?.[4]; });
   if (p === q) return 0;
   if (p === undefined) return 1;
   if (q === undefined) return -1;

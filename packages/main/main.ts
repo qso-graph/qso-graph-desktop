@@ -22,7 +22,7 @@ import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
 import { startUpdater, updatePlatform } from './updater.js';
 import { startWhatsNewBroker } from './whats-new.js';
-import { isOfferedVersion, isReleaseVersion } from './update-contract.js';
+import { isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
 import { snapshots } from './snapshots.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { extensionDirectories } from './extension-directories.js';
@@ -402,8 +402,9 @@ if (!app.requestSingleInstanceLock()) {
     const updater = startUpdater({
       version: app.getVersion(),
       platform: fromStore ? null : updatePlatform(),
-      // A Preview asks as a release does (#77), so it can be left for one.
-      asks: app.isPackaged && isOfferedVersion(app.getVersion()) && !fromStore,
+      // A Preview asks as a release does (#77), so it can be left for one, and
+      // so does a lab build (#121): installed by hand, it is otherwise stuck.
+      asks: app.isPackaged && (isOfferedVersion(app.getVersion()) || isLabVersion(app.getVersion())) && !fromStore,
       build: fromStore ? 'store' : !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,

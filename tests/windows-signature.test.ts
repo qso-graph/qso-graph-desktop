@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // An update's Windows installer runs only when it is signed by the same
-// publisher as the running copy (#81). The rules on every platform; a real
+// publisher as the running copy (#81), or by us when it is unsigned (#121). The rules on every platform; a real
 // signature read where there is Windows to ask.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseSigner, samePublisher, signatureEnvironment, windowsSigner } from '../packages/main/windows-signature.js';
+import { OUR_PUBLISHER, parseSigner, samePublisher, signatureEnvironment, windowsSigner } from '../packages/main/windows-signature.js';
 
 const ME = { status: 'Valid', subject: 'CN=Gregory Beam, O=Gregory Beam, L=Boise, S=Idaho, C=US' };
 
@@ -23,9 +23,25 @@ describe('the publisher an update must have (#81)', () => {
     expect(samePublisher(ME, null)).toBe(false);
   });
 
-  it('trusts nothing when the running copy is not validly signed, as macOS', () => {
-    expect(samePublisher({ status: 'NotSigned', subject: '' }, { status: 'NotSigned', subject: '' })).toBe(false);
-    expect(samePublisher(null, ME)).toBe(false);
+  // #121: a lab build is unsigned, and trusting nothing left it unable to go
+  // back to any release. It trusts our publisher alone, exactly as Windows names it.
+  it('an unsigned running copy runs only an installer validly signed by us', () => {
+    const ours = { status: 'Valid', subject: OUR_PUBLISHER };
+    const unsigned = { status: 'NotSigned', subject: '' };
+    expect(OUR_PUBLISHER).toBe('CN=Gregory Beam, O=Gregory Beam, L=Boise, S=id, C=US');
+    expect(samePublisher(unsigned, ours)).toBe(true);
+    expect(samePublisher(null, ours)).toBe(true);
+    expect(samePublisher(unsigned, { status: 'Valid', subject: 'CN=Someone Else, O=Someone Else, C=US' })).toBe(false);
+    expect(samePublisher(unsigned, { status: 'Valid', subject: 'CN=Gregory Beam' })).toBe(false);
+    expect(samePublisher(unsigned, { status: 'HashMismatch', subject: OUR_PUBLISHER })).toBe(false);
+    expect(samePublisher(unsigned, { status: 'NotSigned', subject: '' })).toBe(false);
+    expect(samePublisher(unsigned, null)).toBe(false);
+  });
+
+  it('a signed running copy still compares with its own publisher, not ours', () => {
+    const other = { status: 'Valid', subject: 'CN=A Fork, O=A Fork, C=US' };
+    expect(samePublisher(other, { status: 'Valid', subject: OUR_PUBLISHER })).toBe(false);
+    expect(samePublisher(other, { ...other })).toBe(true);
   });
 
   it('reads Windows\' answer by its shape, and nothing else', () => {

@@ -21,6 +21,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   had to the one you have now, and nothing older, even if you never closed the line on Home after earlier
   updates. Updating from 0.2.1 to 0.3.1 shows 0.3.0 and 0.3.1. After going back to an older version, Home
   says *Went back to* it, with nothing to read. (#119)
+- **A test build can go back to a release.** A lab build installed by hand now checks for updates like a
+  Preview, so **Choose a version…** lists the Stable releases to go back to. It installs only an update
+  signed by us. (#121)
 
 ## [0.3.1] - 2026-10-27
 
