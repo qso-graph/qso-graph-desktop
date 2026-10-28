@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **The Windows installer has our own artwork:** the QSO Graph icon on the app's dark navy, on the
+  installer's first and last pages and along the top of the others. (#122)
+
 - **Linux: install from our own apt or dnf repository**, and QSO Graph Desktop updates with the rest
   of your system. Every package and index is signed with our release key, which KI7MT's own key
   signs; the install page has the steps. (#113)

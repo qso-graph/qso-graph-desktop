@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!--
+  The Windows installer's artwork, direction A "Night" (KI7MT, 2026-10-28): the app icon on the
+  dark navy of the app's dark theme, the name under it, the icon's dotted globe fading in at the
+  foot. scripts/gen-installer-art.mjs renders #sidebar (164 x 314, the Welcome and Finish pages,
+  the uninstaller's too) and #header (150 x 57, the right of each inner page's top strip) into
+  build/installerSidebar.bmp and build/installerHeader.bmp, which electron-builder uses.
+-->
+<html><head><meta charset="utf-8">
+<style>
+  body { margin:0; padding:20px; background:#888; font-family:"Segoe UI", "Noto Sans", "DejaVu Sans", sans-serif; }
+  #sidebar, #header { position:relative; overflow:hidden; margin-bottom:20px;
+    background: radial-gradient(120% 70% at 30% 20%, #17324d 0%, #0b1726 62%, #08121e 100%); }
+  #sidebar { width:164px; height:314px; }
+  #header { width:150px; height:57px; }
+  #sidebar .icon { position:absolute; left:28px; top:34px; width:108px; height:108px; border-radius:22px; box-shadow:0 0 28px rgba(63,224,238,.25); }
+  #sidebar .name { position:absolute; left:0; right:0; top:166px; text-align:center; color:#e8f6fb; font-weight:600; font-size:17px; line-height:1.15; }
+  #sidebar .name small { display:block; color:#7fd6e3; font-weight:400; font-size:11px; letter-spacing:.12em; margin-top:6px; }
+  #sidebar .dots { position:absolute; left:0; right:0; bottom:0; height:80px; opacity:.5;
+    background-image:radial-gradient(#3a6f8f 1px, transparent 1.3px); background-size:7px 7px;
+    -webkit-mask-image:linear-gradient(transparent, #000); }
+  #header .w { position:absolute; left:10px; top:13px; color:#e8f6fb; font-weight:600; font-size:12px; line-height:1.15; }
+  #header .w small { display:block; color:#7fd6e3; font-weight:400; font-size:9px; letter-spacing:.1em; }
+  #header .mini { position:absolute; right:10px; top:9px; width:39px; height:39px; border-radius:8px; }
+</style></head>
+<body>
+  <div id="sidebar"><img class="icon" src="icon.png" alt=""><div class="name">QSO Graph<br>Desktop<small>FOR HAM RADIO</small></div><div class="dots"></div></div>
+  <div id="header"><div class="w">QSO Graph<small>DESKTOP</small></div><img class="mini" src="icon.png" alt=""></div>
+</body></html>
