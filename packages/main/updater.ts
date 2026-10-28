@@ -412,7 +412,19 @@ export function startUpdater(options: UpdaterOptions): Updater {
     state: () => state,
     check,
     versions,
-    applyOnQuit: () => { if (state.kind === 'ready' && readyFile) apply(relaunchAfter); },
+    applyOnQuit: () => {
+      if (state.kind !== 'ready' || !readyFile) return;
+      const version = state.version;
+      if (apply(relaunchAfter) || !relaunchAfter) return;
+      // Restart was chosen and nothing was installed (#121): KI7MT was left
+      // with nothing on screen, waiting. Say so, and open again as it was.
+      dialog.showMessageBoxSync({
+        type: 'warning', title: 'QSO Graph Desktop', buttons: ['OK'],
+        message: `Version ${version} was not installed`,
+        detail: 'Nothing was changed: QSO Graph Desktop opens again as it was. Help → Troubleshooting has the log with the reason.'
+      });
+      app.relaunch();
+    },
     stop: () => { clearTimeout(first); clearInterval(hourly); ipcMain.removeHandler(UPDATES_CHANNEL); }
   };
 }

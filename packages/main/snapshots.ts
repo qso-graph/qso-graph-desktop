@@ -11,7 +11,12 @@
 // the system's own store. A link is never followed or copied.
 import { cpSync, lstatSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join, sep } from 'node:path';
-import { compareVersions, isOfferedVersion, isReleaseVersion } from './update-contract.js';
+import { compareVersions, isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
+
+// A version a snapshot is kept under: a release, a Preview, or a lab build,
+// which can go back to a release too (#121: refusing a lab build's version
+// stopped its going back at "the profile could not be kept").
+const keepable = (version: string): boolean => isOfferedVersion(version) || isLabVersion(version);
 
 // The last three Stable versions left, and the newest of anything else.
 export const KEEP_STABLE = 3;
@@ -49,7 +54,7 @@ export function snapshots(places: SnapshotPlaces): Snapshots {
 
   const list = (): string[] => {
     if (!present(folder)) return [];
-    return readdirSync(folder).filter(name => isOfferedVersion(name) && lstatSync(join(folder, name)).isDirectory());
+    return readdirSync(folder).filter(name => keepable(name) && lstatSync(join(folder, name)).isDirectory());
   };
 
   const prune = (): void => {
@@ -60,7 +65,7 @@ export function snapshots(places: SnapshotPlaces): Snapshots {
   };
 
   const take = (version: string): boolean => {
-    if (!isOfferedVersion(version)) return false;
+    if (!keepable(version)) return false;
     const partial = join(folder, `.${version}.partial`);
     const done = join(folder, version);
     try {
@@ -85,7 +90,7 @@ export function snapshots(places: SnapshotPlaces): Snapshots {
   };
 
   const restore = (version: string): boolean => {
-    if (!isOfferedVersion(version) || !list().includes(version)) return false;
+    if (!keepable(version) || !list().includes(version)) return false;
     const kept = join(folder, version);
     try {
       for (const name of [...FILES, 'state.sqlite-shm', ...FOLDERS]) rmSync(join(places.root, name), { recursive: true, force: true });

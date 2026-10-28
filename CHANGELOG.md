@@ -24,6 +24,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **A test build can go back to a release.** A lab build installed by hand now checks for updates like a
   Preview, so **Choose a version…** lists the Stable releases to go back to. It installs only an update
   signed by us. (#121)
+- **An update that can't be installed says so.** If the version you chose can't be installed after you
+  click **Restart to update**, QSO Graph Desktop tells you, changes nothing, and opens again as it was,
+  instead of closing and leaving nothing on screen. (#121)
 
 ## [0.3.1] - 2026-10-27
 

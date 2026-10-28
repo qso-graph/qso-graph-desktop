@@ -8,11 +8,11 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The update channel's handler, kept so a test can ask it as the window would (#114).
-const electron = vi.hoisted(() => ({ handler: undefined as undefined | ((event: unknown, command: unknown) => unknown), quits: 0 }));
+const electron = vi.hoisted(() => ({ handler: undefined as undefined | ((event: unknown, command: unknown) => unknown), quits: 0, relaunches: 0, told: [] as string[] }));
 vi.mock('electron', () => ({
-  app: { isPackaged: true, getName: () => 'QSO Graph Desktop', relaunch: () => undefined, quit: () => { electron.quits += 1; } },
+  app: { isPackaged: true, getName: () => 'QSO Graph Desktop', relaunch: () => { electron.relaunches += 1; }, quit: () => { electron.quits += 1; } },
   ipcMain: { handle: (_channel: string, handler: (event: unknown, command: unknown) => unknown) => { electron.handler = handler; }, removeHandler: () => undefined },
-  dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) }
+  dialog: { showMessageBox: () => Promise.resolve({ response: 1 }), showMessageBoxSync: (options: { message: string }) => { electron.told.push(options.message); return 0; } }
 }));
 
 const { restartNotice, startUpdater } = await import('../packages/main/updater.js');
@@ -294,6 +294,21 @@ describe('choosing a version, and going back (#77)', () => {
     expect(readFileSync(join(root, 'snapshots', '0.2.2', 'settings.json'), 'utf8')).toBe('{"was":"0.2.2"}');
   });
 
+  // #121: KI7MT, on a 0.4.0 lab build, chose 0.3.1 and was left with nothing: "the profile could not
+  // be kept; the update was not applied".
+  it('a lab build goes back to a release, keeping its own data under its version', async () => {
+    const lab = '0.4.0-local.20261028011734.b6b8272';
+    const { started, root, kept } = chooser(lab);
+    writeFileSync(join(root, 'settings.json'), '{"was":"lab"}');
+    await started.check('asked');
+    expect(started.versions().find(choice => choice.version === '0.2.1')).toMatchObject({ way: 'back' });
+    await started.check('install', '0.2.1');
+    expect(started.state()).toMatchObject({ kind: 'ready', version: '0.2.1', back: true });
+    started.applyOnQuit();
+    expect(readFileSync(process.env.APPIMAGE!, 'utf8')).toBe('the AppImage of qso-graph-desktop-0.2.1-linux-x86_64.AppImage');
+    expect(kept.list()).toEqual([lab]);
+  });
+
   it('nothing is installed when today\'s data cannot be kept', async () => {
     const { started, root } = chooser('0.2.2');
     await started.check('asked');
@@ -332,7 +347,7 @@ describe('restart says first, and waits for OK (#114)', () => {
     expect(restartNotice('win-x64', '0.2.1', true, false).detail).toMatch(/It opens today's data\.$/);
   });
 
-  async function readyUpdater(answer: boolean) {
+  async function readyUpdater(answer: boolean, kept = noSnapshots) {
     const folder = mkdtempSync(join(tmpdir(), 'qgd-restart-'));
     const updates = join(folder, 'updates');
     const name = 'qso-graph-desktop-0.4.0-linux-x86_64.AppImage';
@@ -346,7 +361,7 @@ describe('restart says first, and waits for OK (#114)', () => {
       settings: () => ({ updateCheck: true, updateTrack: 'stable' }), online: () => true,
       feed: () => Promise.resolve(feed),
       download: () => { mkdirSync(updates, { recursive: true }); writeFileSync(join(updates, name), 'new'); return Promise.resolve({ path: join(updates, name) }); },
-      updatesDirectory: updates, openRelease: () => undefined, snapshots: noSnapshots,
+      updatesDirectory: updates, openRelease: () => undefined, snapshots: kept,
       confirm: notice => { asked.push(notice.message); return Promise.resolve(answer); },
       window: () => ({ isDestroyed: () => false, webContents: { send: () => undefined } }) as never
     });
@@ -368,6 +383,17 @@ describe('restart says first, and waits for OK (#114)', () => {
     expect(asked).toEqual(['Installing version 0.4.0']);
     expect(electron.quits).toBe(quits + 1);
     expect(started.state()).toMatchObject({ kind: 'ready' });
+    rmSync(folder, { recursive: true, force: true });
+  });
+
+  // #121: after OK the window had closed, nothing was installed, and nothing said so.
+  it('a restart that installs nothing says so, and opens the application again', async () => {
+    const { started, folder } = await readyUpdater(true, { take: () => false, restore: () => false, list: () => [] });
+    const [relaunches, told] = [electron.relaunches, electron.told.length];
+    expect(await electron.handler?.(fromWindow, { type: 'restart' })).toBe(true);
+    started.applyOnQuit();
+    expect(electron.told.slice(told)).toEqual(['Version 0.4.0 was not installed']);
+    expect(electron.relaunches).toBe(relaunches + 1);
     rmSync(folder, { recursive: true, force: true });
   });
 
