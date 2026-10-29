@@ -9,6 +9,7 @@
 //                                               a plain release and CHANGELOG has
 //                                               its section
 //   node scripts/release.mjs notes <version>    that section, the release's notes
+//   node scripts/release.mjs downloads <version> <folder>   the Quick downloads, from the files
 //   node scripts/release.mjs next <minor|patch|major>
 //                                               a new milestone's branch: its version
 //                                               in package.json and its lock
@@ -35,7 +36,7 @@
 // Offline, and it changes nothing but CHANGELOG.md, package.json and
 // package-lock.json. The workflow asks GitHub about the tag and the release;
 // what follows from the answers is decided here, where it is tested.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const RELEASE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
@@ -58,6 +59,44 @@ export function notes(changelog, version) {
   const rest = lines.slice(start + 1);
   const end = rest.findIndex(line => line.startsWith('## '));
   return (end < 0 ? rest : rest.slice(0, end)).join('\n').trim();
+}
+
+// "Quick downloads" at the top of a release's page: the file for each
+// computer, so nobody reads a list of thirteen to find theirs (KI7MT,
+// 2026-10-29, after WSJT-X's release pages). Windows first, then Linux, then
+// macOS. Only the files the release has are listed, from their own names.
+const DOWNLOAD = 'https://github.com/qso-graph/qso-graph-desktop/releases/download';
+const INSTALL = 'https://github.com/qso-graph/qso-graph-desktop/blob/main/guide/install.md';
+export function quickDownloads(version, files) {
+  const has = new Set(files);
+  const link = (label, suffix) => {
+    const name = `qso-graph-desktop-${version}-${suffix}`;
+    return has.has(name) ? `[${label}](${DOWNLOAD}/v${version}/${name})` : undefined;
+  };
+  const row = (label, links, after = '') => {
+    const present = links.filter(Boolean);
+    return present.length ? `- ${label}: ${present.join(' · ')}${after}` : undefined;
+  };
+  const sections = [
+    ['Windows', [
+      row('Installer', [link('64-bit .exe', 'win-x64.exe')]),
+      row('Portable', [link('.zip', 'win-x64.zip')])
+    ]],
+    ['Linux', [
+      row('AppImage', [link('x86_64', 'linux-x86_64.AppImage'), link('arm64 (Raspberry Pi 5)', 'linux-arm64.AppImage')]),
+      row('Debian, Ubuntu (.deb)', [link('amd64', 'linux-amd64.deb'), link('arm64', 'linux-arm64.deb')], `, or [our apt repository](${INSTALL}#linux) (Stable releases only)`),
+      row('Fedora, RHEL, Rocky (.rpm)', [link('x86_64', 'linux-x86_64.rpm'), link('aarch64', 'linux-aarch64.rpm')], `, or [our dnf repository](${INSTALL}#linux) (Stable releases only)`),
+      row('Portable', [link('x64 .zip', 'linux-x64.zip'), link('arm64 .zip', 'linux-arm64.zip')])
+    ]],
+    ['macOS', [
+      row('Apple silicon', [link('.dmg', 'mac-arm64.dmg'), link('portable .zip', 'mac-arm64.zip')], has.has(`qso-graph-desktop-${version}-mac-arm64.dmg`) ? ', or `brew install qso-graph/tap/qso-graph-desktop` (Stable releases only)' : '')
+    ]]
+  ];
+  const body = sections
+    .map(([name, rows]) => [name, rows.filter(Boolean)])
+    .filter(([, rows]) => rows.length)
+    .map(([name, rows]) => `### ${name}\n\n${rows.join('\n')}`);
+  return body.length ? `## Quick downloads\n\n${body.join('\n\n')}` : '';
 }
 
 // [Unreleased] renamed to the version and date, with an empty [Unreleased]
@@ -300,6 +339,12 @@ function main([command, argument]) {
     process.stdout.write(`state=${result.state}\n`);
     return 0;
   }
+  if (command === 'downloads') {
+    const [, given, folder] = process.argv.slice(2);
+    if (!given || !folder || !isRelease(given)) { console.error('Usage: node scripts/release.mjs downloads <version> <folder of the release\'s files>'); return 2; }
+    process.stdout.write(`${quickDownloads(given, readdirSync(folder))}\n`);
+    return 0;
+  }
   if (command === 'resume') {
     const [, expectedFile, presentFile] = process.argv.slice(2);
     if (!presentFile) { console.error('Usage: node scripts/release.mjs resume <expected-sums> <present-sums>'); return 2; }
@@ -346,7 +391,7 @@ function main([command, argument]) {
       return 0;
     }
     default:
-      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed> | listed <releases.json> | list <track> <tag> <date> <sums> <feed> | state <version> <built> <tag-commit|-> <release.json|-> | resume <expected-sums> <present-sums>');
+      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | downloads <version> <folder> | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed> | listed <releases.json> | list <track> <tag> <date> <sums> <feed> | state <version> <built> <tag-commit|-> <release.json|-> | resume <expected-sums> <present-sums>');
       return 2;
   }
 }

@@ -23,6 +23,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **QSO Graph Desktop tells QRZ and every other service its real version** (#129), instead of
   `0.0.0-preview.1`.
 
+### Changed
+
+- **A release's page starts with Quick downloads:** the file for your computer, Windows, Linux or
+  macOS, before the full list, and ends with one line saying CI's checks passed on every platform,
+  linked to the build the files came from.
+
 - **The documentation says what the application does.** Every extension starts off until you turn it
   on in Settings → Extensions (four READMEs said "on by default"); the extensions README lists the
   four that ship; the Windows installer is signed (Troubleshooting said it wasn't); Linux packages

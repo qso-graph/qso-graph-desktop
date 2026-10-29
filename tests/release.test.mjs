@@ -4,7 +4,7 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
+import { check, feedEntry, quickDownloads, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,6 +17,34 @@ const changelog = [
   '### Added', '', '- Parks Near Me.', '',
   '## [0.0.9] - 2026-09-01', '', '- Older.', ''
 ].join('\n');
+
+describe('quick downloads (after WSJT-X\'s release pages)', () => {
+  const files = ['qso-graph-desktop-0.4.0-linux-aarch64.rpm', 'qso-graph-desktop-0.4.0-linux-amd64.deb',
+    'qso-graph-desktop-0.4.0-linux-arm64.AppImage', 'qso-graph-desktop-0.4.0-linux-arm64.deb',
+    'qso-graph-desktop-0.4.0-linux-arm64.zip', 'qso-graph-desktop-0.4.0-linux-x64.zip',
+    'qso-graph-desktop-0.4.0-linux-x86_64.AppImage', 'qso-graph-desktop-0.4.0-linux-x86_64.rpm',
+    'qso-graph-desktop-0.4.0-mac-arm64.dmg', 'qso-graph-desktop-0.4.0-mac-arm64.zip',
+    'qso-graph-desktop-0.4.0-win-x64.exe', 'qso-graph-desktop-0.4.0-win-x64.zip', 'SHA256SUMS.txt'];
+
+  it('lists every computer\'s file, Windows first, linking to the release\'s own files', () => {
+    const text = quickDownloads('0.4.0', files);
+    expect(text.indexOf('### Windows')).toBeLessThan(text.indexOf('### Linux'));
+    expect(text.indexOf('### Linux')).toBeLessThan(text.indexOf('### macOS'));
+    for (const name of files.filter(name => name !== 'SHA256SUMS.txt')) {
+      expect(text, name).toContain(`https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/${name}`);
+    }
+    expect(text).toContain('brew install qso-graph/tap/qso-graph-desktop');
+    expect(text).toContain('our apt repository');
+  });
+
+  it('leaves out what the release does not have', () => {
+    const text = quickDownloads('0.4.0', ['qso-graph-desktop-0.4.0-win-x64.exe']);
+    expect(text).toContain('### Windows');
+    expect(text).not.toContain('### Linux');
+    expect(text).not.toContain('Portable');
+    expect(quickDownloads('0.4.0', [])).toBe('');
+  });
+});
 
 describe('release text', () => {
   it('turns [Unreleased] into the version, under a new empty [Unreleased]', () => {
