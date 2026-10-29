@@ -487,3 +487,57 @@ not load on Raspberry Pi OS's 2.36, nor on Debian 12, Ubuntu 22.04 or Rocky 9. C
 because it built and tested on the same new system. The core is now built against glibc 2.28,
 and the build refuses one that needs more (`QGD-SCP-0008`). On the Pi it starts in about four
 seconds and uses about 500 MB across its processes.
+
+## 16. Integrations: how the one way in was built
+
+`QGD-PRT-0113` added Integrations on 2026-10-28; this is why it was built the way it was, for
+whoever changes it next. The requirements are `QGD-SPEC-001` §4.8.
+
+**Its own crate, not a module of the credential core.** `QGD-INT-0001` asks for a Rust utility
+process built with the credential core's toolchain. The listener is `packages/integrations-core`,
+its own crate and its own addon, depending on napi alone. Bitwarden desktop, the reference for an
+Electron application with a Rust napi core, keeps a Cargo workspace of separate crates and binds
+them into one addon (`apps/desktop/desktop_native/Cargo.toml`, the `napi` member), with the
+browser bridge built as a process of its own (`proxy`). We go one step further on purpose: the
+process that listens loads an addon that holds no keyring, TLS or credential code at all, so
+nothing reachable from a datagram can reach a secret. The cost is a second library to build
+against glibc 2.28, sign and audit; `scripts/build-native.mjs` and `scripts/core-manylinux.sh`
+build both, and `cargo audit` reads both lockfiles.
+
+**The reader is pulled, not pushed.** The JavaScript around the listener awaits `next()`, a napi
+`AsyncTask` that returns a batch from a queue of fixed length. A threadsafe function pushing every
+datagram into JavaScript would have needed its own back-pressure; a bounded queue in Rust is the
+bound `QGD-INT-0007` asks for, and what does not fit is counted as `queue-full`.
+
+**On is the extension's switch.** An adapter is on when its extension is on and holds its grant;
+Integrations' page carries the same switch rather than a second one. Two switches for one thing
+would have to agree, and one of them would sometimes not.
+
+**Grant ids stay in one place.** `integration:receive` and `integration:events` are written only in
+`packages/extension-api/api-contract.ts` (`deliveryGrant`), as every other grant id is written
+only beside `requiredGrant`; the manifest and the broker ask for them.
+
+**Live pages and views are the page model, extended, not a second one.** The Monitor needed a page
+that changes as decodes arrive and a tab per source. VS Code's tree views have the same shape: a
+provider answers when asked and fires `onDidChangeTreeData` when its data changes, and the
+workbench asks again (`src/vscode-dts/vscode.d.ts`). `context.pages.changed()` is that event;
+the core still decides when to ask (`QGD-HOM-0005`), no sooner than a second after it last did,
+so a cycle's burst of decodes is one question. A page's views are named in its answer and asked
+for the way a field's value is, so a pin, the rail and the scheduler see one page, as they always
+have (`QGD-HOM-0015`, `QGD-HOM-0016`).
+
+**The Monitor's Settings tab is any page's.** Its first version was drawn by the shell and kept in
+a setting of the core's own, as Parks On the Air's My Area is. The review before the first commit
+caught it: an official extension's behaviour in the core is something no other extension can
+have. A page now declares its settings in its manifest, and the core draws, keeps and passes them
+(`QGD-HOM-0017`); the Monitor declares one, how many cycles its grid shows, and trims its own grid.
+
+**Hashed callsigns are drawn as ‹ ›.** WSJT-X writes a hashed callsign in angle brackets. A page
+refuses markup in what it draws (`QGD-HOM-0002`), so the Monitor draws them as the guillemets
+that look like them; the event keeps WSJT-X's text exactly.
+
+**The simulator is the operator's, not a copy in this repository.** #125 asked for
+`scripts/wsjtx-sim`; `QGD-INT-0024` names `qso-graph-sim` instead, so the suites drive the same
+program an operator or a developer would, pinned by version, run with `uvx`. The adapter's decoder
+is also held to captured messages, in `extensions/wsjtx/tests/fixtures`: the simulator's now, and
+WSJT-X's own once they are captured from WSJT-X on Rig: None playing recorded audio.

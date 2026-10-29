@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **The Monitor: WSJT-X's decodes, as they arrive** (#125). Turn on the **WSJT-X** adapter and the
+  **Monitor** in Settings → Extensions, point WSJT-X's UDP Server at this computer, and the Monitor
+  shows each copy of WSJT-X's dial frequency, mode and whether it is transmitting, with its decodes
+  grouped by cycle, newest first, low-confidence and off-air ones marked. **All** shows every copy
+  together; each copy has a tab of its own. It asks WSJT-X for the decodes it already has, so it is
+  not empty when it opens. It is read-only: nothing is sent to WSJT-X but that one request, and
+  nothing it shows changes your data.
+- **Integrations**, in the rail: what is listening for the programs your station runs. Nothing
+  listens until you turn an adapter on, and turning it off closes its port. Each adapter listens on
+  this computer alone unless you choose a network, and on a network only the computers you name
+  may send. The page shows the port, who may send, whether it is hearing WSJT-X and when it last
+  did, and anything it dropped and why.
+
 ## [0.4.1] - 2026-10-29
 
 ### Security
