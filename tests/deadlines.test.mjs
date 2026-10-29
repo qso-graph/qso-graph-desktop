@@ -75,9 +75,12 @@ describe('the callsign service deadlines', () => {
 
   it('waits past the core\'s own ceilings for updates (updates.rs)', () => {
     const source = readFileSync('packages/callsign-core/src/updates.rs', 'utf8');
-    const feed = Number(/Duration::from_secs\((\d+)\)\)\?\s*\.get\(&sources\.feed\)/.exec(source)?.[1]);
-    expect(feed).toBeGreaterThan(0);
-    expect(DEADLINES['update-feed'].ms).toBeGreaterThan(feed * 1000);
+    const each = Number(/const FEED_TIMEOUT_SECS: u64 = (\d+);/.exec(source)?.[1]);
+    const requests = Number(/const FEED_REQUESTS: u64 = (\d+);/.exec(source)?.[1]);
+    expect(each).toBeGreaterThan(0);
+    // The feed and its signature, fetched one after the other (#128).
+    expect(requests).toBe((source.match(/fetch_small\(&sources\./g) ?? []).length);
+    expect(DEADLINES['update-feed'].ms).toBeGreaterThan(each * requests * 1000);
     expect(source).toContain('Duration::from_secs(2 * 60 * 60)');
     expect(DEADLINES['update-download'].ms).toBeGreaterThan(2 * 60 * 60 * 1000);
   });

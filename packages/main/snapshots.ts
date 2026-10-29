@@ -10,7 +10,7 @@
 // schema is not this version's (reference.ts), and never a login, which is in
 // the system's own store. A link is never followed or copied.
 import { cpSync, lstatSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { compareVersions, isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
 
 // A version a snapshot is kept under: a release, a Preview, or a lab build,
@@ -49,8 +49,13 @@ function copy(from: string, to: string, skip?: (path: string) => boolean): void 
 
 export function snapshots(places: SnapshotPlaces): Snapshots {
   const folder = join(places.root, 'snapshots');
+  // Never kept and never put back: the downloaded update, which is large and
+  // about to be installed, and the record of the newest signed update feed
+  // (#128, updates.rs FEED_SEEN), which going back must not wind back, or an
+  // old signed feed would be believed again.
   const updates = join(places.callsigns, 'updates');
-  const notUpdates = (path: string): boolean => path === updates || path.startsWith(updates + sep);
+  const feedSeen = join(places.callsigns, 'feed-signed.txt');
+  const notUpdates = (path: string): boolean => path === updates || path.startsWith(updates + sep) || path === feedSeen;
 
   const list = (): string[] => {
     if (!present(folder)) return [];
@@ -104,7 +109,12 @@ export function snapshots(places: SnapshotPlaces): Snapshots {
           if (!notUpdates(path)) rmSync(path, { recursive: true, force: true });
         }
       }
-      if (present(join(kept, 'callsigns'))) copy(join(kept, 'callsigns'), places.callsigns);
+      // Filtered on the way back too: a snapshot an older version took may hold
+      // the record of the newest signed feed, and putting that back would wind
+      // the guard back (#128).
+      const keptCallsigns = join(kept, 'callsigns');
+      const notPutBack = (path: string): boolean => notUpdates(join(places.callsigns, relative(keptCallsigns, path)));
+      if (present(keptCallsigns)) copy(keptCallsigns, places.callsigns, notPutBack);
       return true;
     } catch {
       return false;

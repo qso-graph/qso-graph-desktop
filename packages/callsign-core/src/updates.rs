@@ -27,14 +27,19 @@ const SOURCES: &str = include_str!("../../../data/update-sources.json");
 #[serde(rename_all = "camelCase")]
 struct Sources {
     feed: String,
+    feed_signature: String,
+    feed_key: crate::feed_signature::FeedKey,
     download_hosts: Vec<String>,
     max_feed_bytes: u64,
+    max_signature_bytes: u64,
     max_download_bytes: u64,
 }
 
 fn sources() -> CoreResult<Sources> {
     let sources: Sources = serde_json::from_str(SOURCES).map_err(|_| "The update register could not be read.")?;
-    if !sources.feed.starts_with("https://") { return Err("The update register could not be read."); }
+    if !sources.feed.starts_with("https://") || sources.feed_signature != format!("{}.asc", sources.feed) {
+        return Err("The update register could not be read.");
+    }
     Ok(sources)
 }
 
@@ -75,22 +80,66 @@ fn client(redirect: reqwest::redirect::Policy, timeout: Duration) -> CoreResult<
         .use_preconfigured_tls(reference_tls_config()?)
         .https_only(true).no_proxy().redirect(redirect)
         .connect_timeout(Duration::from_secs(10)).timeout(timeout)
-        .user_agent("QGDesktop")
+        .user_agent(crate::AGENT)
         .build().map_err(|_| "Secure client is unavailable.")
 }
 
-/// The feed, as bytes: main reads and checks it.
-pub fn fetch_feed() -> CoreResult<Vec<u8>> {
-    let sources = sources()?;
-    let response = client(reqwest::redirect::Policy::none(), Duration::from_secs(30))?
-        .get(&sources.feed).send().map_err(|_| "The update feed could not be reached.")?;
+// The feed is two requests, one after the other (the feed, then its
+// signature), each allowed this long. The callsign service's deadline for the
+// whole is set past both (packages/callsigns/deadlines.ts, which a test reads
+// against these two numbers).
+const FEED_TIMEOUT_SECS: u64 = 30;
+const FEED_REQUESTS: u64 = 2;
+// Both requests at their ceiling still end inside the service's 75 s deadline.
+const _: () = assert!(FEED_TIMEOUT_SECS * FEED_REQUESTS < 75);
+
+// One small file from one address, never redirected, no larger than `limit`.
+fn fetch_small(url: &str, limit: u64) -> CoreResult<Vec<u8>> {
+    let response = client(reqwest::redirect::Policy::none(), Duration::from_secs(FEED_TIMEOUT_SECS))?
+        .get(url).send().map_err(|_| "The update feed could not be reached.")?;
     if !response.status().is_success() { return Err("The update feed refused the request."); }
-    if response.content_length().is_some_and(|length| length > sources.max_feed_bytes) {
+    if response.content_length().is_some_and(|length| length > limit) {
         return Err("The update feed is larger than this product will read.");
     }
     let mut body = Vec::new();
-    response.take(sources.max_feed_bytes + 1).read_to_end(&mut body).map_err(|_| "The update feed could not be read.")?;
-    if body.len() as u64 > sources.max_feed_bytes { return Err("The update feed is larger than this product will read."); }
+    response.take(limit + 1).read_to_end(&mut body).map_err(|_| "The update feed could not be read.")?;
+    if body.len() as u64 > limit { return Err("The update feed is larger than this product will read."); }
+    Ok(body)
+}
+
+// When the newest feed this copy accepted was signed. A feed signed earlier is
+// refused, so an old feed that was genuinely signed cannot be served again to
+// offer an old release (#128). It is beside the callsign files, not in
+// updates/, which the updater empties after every update; and a version's
+// snapshot never keeps it and going back never restores it (packages/main/
+// snapshots.ts names it), so returning to an earlier version cannot wind it
+// back.
+pub(crate) const FEED_SEEN: &str = "feed-signed.txt";
+
+pub(crate) fn accept_signed_at(directory: &Path, signed: i64) -> CoreResult<()> {
+    let path = directory.join(FEED_SEEN);
+    let seen = fs::read_to_string(&path).ok().and_then(|text| text.trim().parse::<i64>().ok());
+    if seen.is_some_and(|seen| signed < seen) {
+        return Err("The update feed is older than one this copy has already seen, so it was not used.");
+    }
+    if seen != Some(signed) {
+        fs::create_dir_all(directory).map_err(|_| "The update feed could not be recorded.")?;
+        let partial = directory.join(format!("{FEED_SEEN}.part"));
+        fs::write(&partial, signed.to_string()).map_err(|_| "The update feed could not be recorded.")?;
+        fs::rename(&partial, &path).map_err(|_| "The update feed could not be recorded.")?;
+    }
+    Ok(())
+}
+
+/// The feed, as bytes, once its signature is the release key's and it is no
+/// older than the newest this copy has accepted. Main reads what it says.
+pub fn fetch_feed(directory: &Path) -> CoreResult<Vec<u8>> {
+    let sources = sources()?;
+    let body = fetch_small(&sources.feed, sources.max_feed_bytes)?;
+    let signature = fetch_small(&sources.feed_signature, sources.max_signature_bytes)
+        .map_err(|_| "The update feed has no signature that could be fetched, so it was not used.")?;
+    let signed = crate::feed_signature::verify(&body, &signature, &sources.feed_key)?;
+    accept_signed_at(directory, signed)?;
     Ok(body)
 }
 
@@ -152,6 +201,27 @@ mod tests {
     use super::*;
 
     fn patterns() -> Vec<String> { sources().unwrap().download_hosts }
+
+    #[test]
+    fn the_register_names_the_release_key_and_its_numbers_are_that_key() {
+        let sources = sources().unwrap();
+        assert_eq!(sources.feed_key.fingerprint, "E4EC9751F1AA66AB2BA508EF041096B9A6EBD256");
+        assert_eq!(sources.feed_signature, "https://updates.qso-graph.io/desktop.json.asc");
+        // The built-in numbers are that key's: they reproduce its fingerprint.
+        let key = &sources.feed_key;
+        assert_eq!(crate::feed_signature::fingerprint_of(key), crate::feed_signature::hex(&key.fingerprint));
+    }
+
+    #[test]
+    fn an_older_feed_than_one_already_accepted_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        accept_signed_at(dir.path(), 1_800_000_000).unwrap();
+        accept_signed_at(dir.path(), 1_800_000_000).unwrap(); // the same feed again
+        accept_signed_at(dir.path(), 1_800_000_100).unwrap(); // a newer one
+        assert!(accept_signed_at(dir.path(), 1_800_000_050).is_err());
+        assert_eq!(fs::read_to_string(dir.path().join(FEED_SEEN)).unwrap(), "1800000100");
+    }
+
 
     #[test]
     fn the_register_builds_in_and_names_an_https_feed() {

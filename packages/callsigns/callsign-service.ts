@@ -204,7 +204,13 @@ const MESSAGES = [
   'Updates are downloaded only from the hosts this product names.',
   'The update could not be reached.', 'The update download was refused.',
   'The update is larger than this product will download.', 'The update could not be saved.',
-  'The update download was interrupted.', 'The update did not match its checksum, so it was not kept.'
+  'The update download was interrupted.', 'The update did not match its checksum, so it was not kept.',
+  // The feed's signature and its replay guard (#128, feed_signature.rs): the
+  // operator is told why an update check was refused, never just that it was.
+  "The update feed's signature is not the release key's, so the feed was not used.",
+  'The update feed has no signature that could be fetched, so it was not used.',
+  'The update feed is older than one this copy has already seen, so it was not used.',
+  'The update feed could not be recorded.'
 ];
 process.parentPort.on('message', (event: { data?: unknown }) => {
   // The envelope is checked before anything in it is used: the id has to be a

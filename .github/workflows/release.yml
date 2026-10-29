@@ -211,6 +211,7 @@ jobs:
           VERSION: ${{ inputs.version }}
           BUILT: ${{ needs.checks.outputs.sha }}
           MODE: ${{ needs.checks.outputs.mode }}
+          CI_RUN: ${{ needs.checks.outputs.run }}
         run: |
           set -euo pipefail
           # Every file carries this version: nothing from another build rides along.
@@ -223,11 +224,27 @@ jobs:
           done
           ls -la
           cd ..
+          # The CI run these files came from, the one the checks chose, for
+          # one line saying its checks passed on every platform rather than a
+          # list of every test (KI7MT, 2026-10-29). CI runs the fast suites and
+          # the window and package ones; the rest run before a sign-off
+          # (make verify), so the line says CI's checks, and no more.
+          ci_run=""
+          if [[ "${CI_RUN:-}" =~ ^[0-9]+$ ]]; then ci_run="https://github.com/${REPO}/actions/runs/${CI_RUN}"; fi
           {
+            # Quick downloads first: the file for each computer (after WSJT-X's pages).
+            node scripts/release.mjs downloads "$VERSION" release
+            echo
+            echo "---"
+            echo
             node scripts/release.mjs notes "$VERSION"
             echo
             echo "---"
             echo
+            if [ -n "$ci_run" ]; then
+              echo "**Tested:** CI's checks passed on Windows, Linux x64, Linux arm64 and macOS, in [the build these files came from](${ci_run})."
+              echo
+            fi
             echo "A pre-release: the final ${VERSION}, out for testing before it is marked Latest."
             echo "Signed by KI7MT: Windows as **Gregory Beam**, macOS as **Greg Beam** (Apple Developer ID) and notarized by Apple."
             echo
@@ -277,3 +294,6 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/feed.yml
+    secrets:
+      LINUX_PACKAGE_SIGNING_KEY_PRIVATE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
+      LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}

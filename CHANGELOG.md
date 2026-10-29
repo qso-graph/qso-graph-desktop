@@ -7,7 +7,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **The update feed is signed, and nothing in it is believed without that signature** (#128). On
+  Linux an AppImage update was trusted on what the feed said alone, so whoever could change the feed
+  could choose what was installed. The feed is now signed with the release key that signs our apt
+  and dnf repository, and the application checks that signature, and that the feed is not older
+  than one it has already seen, before it reads a word of it. Windows and macOS were already
+  protected by the installer's own signature, and now have both.
+
 ### Fixed
+
+- **QRZ Logbook's credential test works with just its API key** (#8). It asked for a username the
+  setup never offered, so a key saved through Setup could not be tested.
+- **QSO Graph Desktop tells QRZ and every other service its real version** (#129), instead of
+  `0.0.0-preview.1`.
+
+### Changed
+
+- **A release's page starts with Quick downloads:** the file for your computer, Windows, Linux or
+  macOS, before the full list, and ends with one line saying CI's checks passed on every platform,
+  linked to the build the files came from.
 
 - **The documentation says what the application does.** Every extension starts off until you turn it
   on in Settings → Extensions (four READMEs said "on by default"); the extensions README lists the

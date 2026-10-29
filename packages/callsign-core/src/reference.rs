@@ -79,7 +79,7 @@ pub fn fetch(url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Core
         .use_preconfigured_tls(reference_tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(120))
-        .user_agent("QGDesktop/0.0.0-preview.1")
+        .user_agent(crate::AGENT)
         .build().map_err(|_| "Secure client is unavailable.")?;
 
     let mut request = client.get(parsed);
