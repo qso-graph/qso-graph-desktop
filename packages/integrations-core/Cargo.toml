@@ -1,0 +1,25 @@
+[package]
+name = "qg-integrations-core"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+
+# Integrations, the one way in (QGD-INT-0001). Its own crate, and not a module
+# of the credential core, so the process that listens links no keyring, no TLS
+# and no credential code at all: it holds no credential and cannot reach one.
+# The standard library's sockets and napi, nothing else.
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["addon"]
+addon = ["dep:napi", "dep:napi-derive"]
+
+[dependencies]
+napi = { version = "=3.14.0", default-features = false, features = ["napi8"], optional = true }
+# Exactly the credential core's: a newer napi-derive emits calls napi 3.14.0 does not have.
+napi-derive = { version = "=3.6.12", optional = true }
+
+[build-dependencies]
+napi-build = "2"

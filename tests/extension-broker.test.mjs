@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readManifests, readSourceRegister } from '../packages/main/extension-runtime.js';
 import { plainRequest } from '../packages/extension-api/plain.js';
-import { validateRequest } from '../packages/extension-api/api-contract.js';
+import { validateRequest, REQUEST_KINDS } from '../packages/extension-api/api-contract.js';
 
 let root;
 beforeAll(async () => {
@@ -98,6 +98,29 @@ describe('what crosses when an extension calls', () => {
     // The point of the exercise: the result can actually be cloned.
     expect(() => structuredClone(plain)).not.toThrow();
     expect(structuredClone(plain)).toEqual({ kind: 'source.fetch', source: 'solar' });
+  });
+
+  it('carries every kind the contract has, each as the core accepts it', () => {
+    // The three Integrations kinds had no case here and crossed as nothing,
+    // so every event the WSJT-X adapter published was refused and the Monitor
+    // stayed empty (found 2026-10-29 by integrations-sim). Derived from the
+    // contract's own list, so a kind added later is held to it too.
+    const sample = {
+      'extension.info': { kind: 'extension.info' }, 'callsign.list': { kind: 'callsign.list' }, 'callsign.active': { kind: 'callsign.active' },
+      'station.active': { kind: 'station.active' }, 'adif.search': { kind: 'adif.search', query: 'FT8' }, 'adif.bands': { kind: 'adif.bands' },
+      'adif.list': { kind: 'adif.list', name: 'Band' }, 'area.get': { kind: 'area.get' }, 'pota.activations': { kind: 'pota.activations' },
+      'pota.places': { kind: 'pota.places', locations: ['US-ID'] }, 'pota.near': { kind: 'pota.near' }, 'source.fetch': { kind: 'source.fetch', source: 'solar' },
+      'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} },
+      'integration.events': { kind: 'integration.events', events: [{ type: 'close', source: 'WSJT-X' }], malformed: 2 },
+      'integration.reply': { kind: 'integration.reply', to: '127.0.0.1:2237', bytes: 'AA==' },
+      'page.changed': { kind: 'page.changed', page: 'monitor' }
+    };
+    expect(Object.keys(sample).sort()).toEqual([...REQUEST_KINDS].sort());
+    for (const kind of REQUEST_KINDS) {
+      const plain = plainRequest(sample[kind]);
+      expect(plain, kind).toEqual(sample[kind]);
+      expect(() => validateRequest(structuredClone(plain)), kind).not.toThrow();
+    }
   });
 
   it('carries the contract’s fields and nothing an extension attached', () => {

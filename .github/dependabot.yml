@@ -30,3 +30,14 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
+  - package-ecosystem: "cargo"
+    directory: "/packages/integrations-core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"

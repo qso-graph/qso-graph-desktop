@@ -20,7 +20,7 @@
 //   (QGD-APP-0022).
 import type { ExtensionReply } from '../extension-api/api-contract.js';
 import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
-import { parseFromExtension, parseFromHost, type Port, type ToHost } from '../extension-host/protocol.js';
+import { parseFromExtension, parseFromHost, type Port, type ToExtension, type ToHost } from '../extension-host/protocol.js';
 import type { ExtensionLimits } from './extension-limits.js';
 
 export interface HostLink {
@@ -333,7 +333,7 @@ export function createSupervisor(deps: SupervisorDeps) {
 
   // Ask an extension for a page's data. The core decides when (QGD-HOM-0005);
   // `signal` asks the extension to stop, which only it can confirm.
-  async function page(id: string, pageId: string, signal?: AbortSignal, inputs: Readonly<Record<string, string>> = {}): Promise<PageOutcome> {
+  async function page(id: string, pageId: string, signal?: AbortSignal, inputs: Readonly<Record<string, string>> = {}, settings: Readonly<Record<string, string>> = {}): Promise<PageOutcome> {
     // Cancelled before it was sent: nothing happened, so that is confirmed.
     if (signal?.aborted) return { outcome: 'cancelled' };
     const ready = await ensureActive(id);
@@ -358,13 +358,32 @@ export function createSupervisor(deps: SupervisorDeps) {
       }, limits.requestDeadlineMs);
       generation.pages.set(key, { settle, timer });
       signal?.addEventListener('abort', onAbort, { once: true });
-      port.post({ type: 'page', cid, pageId, inputs: { ...inputs } });
+      port.post({ type: 'page', cid, pageId, inputs: { ...inputs }, settings: { ...settings } });
     });
+  }
+
+  // Something for an extension that it did not ask for: an adapter's
+  // datagrams, a consumer's events (QGD-INT-0020, QGD-INT-0021). Started if
+  // it is on and not running, as a page is; an extension that is off, or
+  // failed, is given nothing. Says whether it was delivered.
+  //
+  // `allowed` is asked again at the moment of posting: starting an extension
+  // takes time, and a grant withdrawn or an adapter turned off meanwhile
+  // must stop what was waiting (QGD-INT-0020; Codex review, 2026-10-29).
+  async function deliver(id: string, message: Extract<ToExtension, { type: 'datagrams' | 'events' }>, allowed: () => boolean = () => true): Promise<boolean> {
+    if (!allowed()) return false;
+    const ready = await ensureActive(id);
+    if (!ready.ok || !allowed()) return false;
+    const port = current?.channels.get(id);
+    if (!port || !active.has(id)) return false;
+    port.post(message);
+    return true;
   }
 
   return {
     ensureActive,
     page,
+    deliver,
     async setEnabled(id: string, enabled: boolean): Promise<void> {
       if (enabled) { disabled.delete(id); failed.delete(id); changed(); return; }
       disabled.add(id);

@@ -20,6 +20,7 @@
   import CallsignsPage from './pages/CallsignsPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import StationsPage from './pages/StationsPage.svelte';
+  import IntegrationsPage from './pages/IntegrationsPage.svelte';
   import TroubleshootingPanel from './pages/TroubleshootingPanel.svelte';
   import AreaCard from './pages/AreaCard.svelte';
   import { MAX_AREA } from '../main/settings-contract.js';
@@ -63,6 +64,8 @@
     onOpenPage: (command: LinkCommand) => void;
     onCountiesAt: (area: { south: number; west: number; north: number; east: number }) => Promise<{ counties: string[]; sections: Record<string, string> } | string>;
     onSetLevel: (level: Level) => Promise<boolean>;
+    // Integrations (QGD-INT-0010): an adapter's port, network and senders.
+    onSetIntegration: (adapter: string, port: number, network: string | null, allow: string[]) => Promise<string | undefined>;
     onExport: () => Promise<string>;
     // Guided setup (QGD-PSN-0004). The services come from the store, because
     // they are read after the shell is mounted; the two actions are the real
@@ -87,7 +90,7 @@
     version: string;
   }
   const {
-    store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport,
+    store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport, onSetIntegration,
     onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseUpdate, onOpenWhatsNew, onCloseWhatsNew, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
     onExportCallsigns, onInspectImport, onApplyImport, version,
@@ -227,7 +230,11 @@
         onRefresh={() => { if (shell.extensionPage) home.refreshPage(shell.extensionPage); }}
         offline={!homeModel.online && homeModel.page?.network === true}
         settings={openArea === 'pota' ? potaSettings : undefined} showingSettings={shell.extensionSettings}
+        onSetting={(id, value) => { if (homeModel.page) home.setPageSetting(homeModel.page.key, id, value); }}
         onSettings={() => store.set({ extensionSettings: true })} />
+    </div>
+    <div class="page" hidden={shell.page !== 'integrations'}>
+      <IntegrationsPage view={shell.integrations} onSet={onSetIntegration} onSetExtension={onSetExtension} />
     </div>
     <div class="page" hidden={shell.page !== 'callsigns'}>
       <!-- Guided setup is offered and never imposed (QGD-PSN-0004). The page

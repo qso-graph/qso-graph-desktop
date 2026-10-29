@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  hardCodedHosts, violations, NETWORK_EXCEPTIONS, productSources
+  hardCodedHosts, violations, NETWORK_EXCEPTIONS, productSources, extensionSources, rustListeners, LISTENER_CRATE
 } from '../scripts/network-static.mjs';
 
 describe('QGD-CRD-0007 static gate', () => {
@@ -141,5 +141,43 @@ describe('QGD-SEC-0020 no outbound client in the product\u2019s TypeScript', () 
     expect(hardCodedHosts("await get('https://adif.org.uk/317/x.zip');", 'somewhere.ts')).toEqual([
       { line: 1, file: 'somewhere.ts', what: 'names https://adif.org.uk rather than reading it from the register' }
     ]);
+  });
+});
+
+describe('QGD-INT-0002 Integrations is the only part of the product that listens', () => {
+  let root;
+  beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'qg-listen-')); });
+  afterEach(async () => { await rm(root, { recursive: true, force: true }); });
+
+  it('finds no networking in what any extension ships', async () => {
+    const files = await extensionSources();
+    // Not vacuous: every shipped extension's code is read, the adapter's too.
+    expect(files.some(file => file.includes(join('extensions', 'wsjtx', 'src')))).toBe(true);
+    expect(files.length).toBeGreaterThan(10);
+    for (const file of files) expect(violations(await readFile(file, 'utf8'), file), file).toEqual([]);
+  });
+
+  it('would catch an extension that opened a socket of its own, and reads no test', async () => {
+    await mkdir(join(root, 'adapter', 'src'), { recursive: true });
+    await mkdir(join(root, 'adapter', 'tests'), { recursive: true });
+    await writeFile(join(root, 'adapter', 'src', 'main.ts'), "import { createSocket } from 'node:dgram';\ncreateSocket('udp4').bind(2237);\n");
+    await writeFile(join(root, 'adapter', 'tests', 'main.test.ts'), "import { createSocket } from 'node:dgram';\n");
+    const files = await extensionSources(root);
+    expect(files).toEqual([join(root, 'adapter', 'src', 'main.ts')]);
+    expect(violations(await readFile(files[0], 'utf8'), files[0]).length).toBeGreaterThan(0);
+  });
+
+  it('finds a listening socket in the Rust of Integrations\' crate alone', async () => {
+    const found = await rustListeners();
+    // Not vacuous: the listener itself is found.
+    expect(found.length).toBeGreaterThan(0);
+    for (const entry of found) expect(entry.file, `${entry.file}:${entry.line}`).toContain(join('packages', LISTENER_CRATE, 'src'));
+  });
+
+  it('would catch a socket in another crate, and not one named in a comment', async () => {
+    await mkdir(join(root, 'callsign-core', 'src'), { recursive: true });
+    await writeFile(join(root, 'callsign-core', 'src', 'lib.rs'),
+      '// a UdpSocket is not here\n/* nor a TcpListener */\nfn f() { let s = std::net::UdpSocket::bind("0.0.0.0:2237"); }\n');
+    expect(await rustListeners(root)).toEqual([{ file: join(root, 'callsign-core', 'src', 'lib.rs'), line: 3 }]);
   });
 });

@@ -25,6 +25,7 @@ import {
 } from './extension-runtime.js';
 import { findGrant, type GrantRegister } from '../extension-api/grants.js';
 import type { ExtensionInventory } from './extensions-contract.js';
+import type { IntegrationEvent } from '../extension-api/integration-events.js';
 
 // What serving needs from the rest of the core, injected rather than
 // imported, so the path can be exercised without a window, a credential core
@@ -60,6 +61,15 @@ export interface ExtensionBrokerPorts {
   callService: (
     service: string, callsign: string, operation: string, parameters: Readonly<Record<string, string>>
   ) => Promise<Readonly<Record<string, string>>>;
+  // An adapter's events, checked, for the consumers that are on; how many
+  // they went to (QGD-INT-0021). The adapter's id is the channel's, never
+  // the extension's word.
+  integrationEvents: (adapter: string, events: readonly IntegrationEvent[], malformed: number) => number;
+  // An adapter's one reply, to a sender it heard (QGD-INT-0009); a sentence
+  // when it is refused.
+  integrationReply: (adapter: string, to: string, bytes: Uint8Array) => Promise<string | undefined>;
+  // A live page of this extension's changed: asked again if it is open.
+  pageChanged: (extension: string, page: string) => void;
 }
 
 // Only what is used, so a test can pass a recorder instead of the real logger.
@@ -152,6 +162,19 @@ export function createServe(deps: ServeDeps) {
           const answer = await deps.ports.callService(
             request.service, request.callsign, request.operation, request.parameters);
           return { ok: true, kind: 'service.request', answer };
+        }
+        case 'integration.events':
+          return { ok: true, kind: 'integration.events', consumers: deps.ports.integrationEvents(id, request.events, request.malformed ?? 0) };
+        case 'integration.reply': {
+          const refused = await deps.ports.integrationReply(id, request.to, Buffer.from(request.bytes, 'base64'));
+          return refused === undefined ? { ok: true, kind: 'integration.reply' } : refusal(refused);
+        }
+        case 'page.changed': {
+          // Its own page, and a live one: any other is not its to announce.
+          const page = extension.manifest.contributes.pages.find(entry => entry.id === request.page);
+          if (!page?.live) return refusal(`"${request.page}" is not a live page of this extension.`);
+          deps.ports.pageChanged(id, page.id);
+          return { ok: true, kind: 'page.changed' };
         }
       }
     } catch (error) {

@@ -20,6 +20,7 @@ import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
+import { isIntegrationsReply, isIntegrationsView } from '../main/integrations-page-contract.js';
 import { forStore } from '../callsigns/credential-store.js';
 declare const __QG_VERSION__: string;
 
@@ -46,6 +47,11 @@ declare global {
     whatsNew?: { notes(since: string | null): Promise<unknown> };
     // A page in the browser, built by main from its register (QGD-SEC-0009).
     links?: { open(command: LinkCommand): Promise<boolean> };
+    // Integrations (QGD-INT-0010): asked for once, then pushed when it changes.
+    integrations?: {
+      request(command: unknown): Promise<unknown>;
+      onStatus(listener: (view: unknown) => void): () => void;
+    };
     // Updates (QGD-FRM-0019): asked for once, then pushed when it changes.
     updates?: {
       request(command: UpdateCommand): Promise<unknown>;
@@ -83,7 +89,7 @@ mount(Shell, {
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
     onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseUpdate: closeUpdate, onOpenWhatsNew: openWhatsNew, onCloseWhatsNew: closeWhatsNew, onStationFromSummit: stationFromSummit, onOpenPage: openPage, onAreaChoices: areaChoices, onAreaDefault: areaDefault, onSaveArea: saveArea,
-    onSetLevel: setLogLevel, onExport: exportDiagnostics,
+    onSetLevel: setLogLevel, onExport: exportDiagnostics, onSetIntegration: setIntegration,
     onExportCallsigns: exportCallsigns, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreateCallsign: createCallsign, onSaveCredential: saveSetupCredential,
     onFinishSetup: finishSetup,
@@ -618,6 +624,27 @@ export async function setExtensionEnabled(id: string, enabled: boolean): Promise
 }
 
 void window.extensions?.inventory({ type: 'inventory' }).then(takeExtensions, () => undefined);
+
+// Integrations (QGD-INT-0010): read once, then pushed when it changes; every
+// view checked before it is shown (QGD-SEC-0006). Turning an adapter on or off
+// changes what is listening, so the view is read again after.
+function takeIntegrations(view: unknown): void {
+  if (isIntegrationsView(view)) shell.set({ integrations: view });
+}
+const stopIntegrations = window.integrations?.onStatus(takeIntegrations);
+window.addEventListener('pagehide', () => { stopIntegrations?.(); }, { once: true });
+void window.integrations?.request({ type: 'read' }).then(reply => { if (isIntegrationsReply(reply) && reply.ok) takeIntegrations(reply.view); }, () => undefined);
+export async function setIntegration(adapter: string, port: number, network: string | null, allow: string[]): Promise<string | undefined> {
+  try {
+    const reply = await window.integrations?.request({ type: 'set', adapter, port, network, allow });
+    if (!isIntegrationsReply(reply)) return 'Integrations did not answer.';
+    if (!reply.ok) return reply.error;
+    takeIntegrations(reply.view);
+    return undefined;
+  } catch {
+    return 'The change could not be saved.';
+  }
+}
 // What Settings needs to show the applications and their grants
 // (QGD-APP-0012). Asked for once at start and re-read after every change;
 // nothing waits for it, and Settings says it is reading until it answers.

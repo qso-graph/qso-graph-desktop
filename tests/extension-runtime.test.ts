@@ -195,16 +195,22 @@ describe('the decision', () => {
       'pota.places': { kind: 'pota.places', locations: ['US-ID'] },
       'pota.near': { kind: 'pota.near' },
       'source.fetch': { kind: 'source.fetch', source: 'solar' },
-      'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} }
+      'service.request': { kind: 'service.request', service: 'qrz', callsign: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', operation: 'lookup', parameters: {} },
+      'integration.events': { kind: 'integration.events', events: [] },
+      'integration.reply': { kind: 'integration.reply', to: '127.0.0.1:2237', bytes: 'AA==' },
+      'page.changed': { kind: 'page.changed', page: 'monitor' }
     };
+    // Free, besides knowing what you hold: saying your own live page changed,
+    // which serving checks is your own and live (extension-serve.ts).
+    const FREE = ['extension.info', 'page.changed'];
     expect(Object.keys(sample).sort()).toEqual([...REQUEST_KINDS].sort());
     for (const kind of REQUEST_KINDS) {
       const request = sample[kind];
-      // Either it needs a grant, or it is extension.info. Nothing else may be free.
-      if (kind === 'extension.info') expect(requiredGrant(request)).toBeUndefined();
+      // Either it needs a grant, or it is one of FREE. Nothing else may be free.
+      if (FREE.includes(kind)) expect(requiredGrant(request)).toBeUndefined();
       else expect(requiredGrant(request), kind).toBeTypeOf('string');
-      // And an extension holding nothing is refused everything but extension.info.
-      expect(decide(bare, request, register).allowed, kind).toBe(kind === 'extension.info');
+      // And an extension holding nothing is refused everything but those.
+      expect(decide(bare, request, register).allowed, kind).toBe(FREE.includes(kind));
     }
   });
 });

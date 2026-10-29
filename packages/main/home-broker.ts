@@ -15,6 +15,18 @@ import { load, save } from './settings.js';
 import { isExtensionIcon } from '../ui/icons.js';
 import { inputValues } from '../extension-api/inputs.js';
 import { PAGE_HUES, pageNeedsNetwork } from '../extension-api/manifest.js';
+import { VIEW_ID } from '../extension-api/pages.js';
+
+// What a page in views is asked with: the view chosen, or none for its
+// first (manifest.ts views). Anything else is refused, as a field's value is.
+function viewInput(values: unknown): Record<string, string> | undefined {
+  if (values === undefined) return {};
+  if (typeof values !== 'object' || values === null || Array.isArray(values)) return undefined;
+  const entries = Object.entries(values);
+  if (entries.length === 0) return {};
+  if (entries.length !== 1 || entries[0][0] !== 'view' || typeof entries[0][1] !== 'string' || !VIEW_ID.test(entries[0][1])) return undefined;
+  return { view: entries[0][1] };
+}
 
 export interface HomeBrokerOptions {
   loaded: () => readonly LoadedExtension[];
@@ -29,7 +41,7 @@ export interface HomeBrokerOptions {
   online?: boolean;
 }
 
-export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void; reached: (ok: boolean) => void; online: () => boolean } {
+export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void; reached: (ok: boolean) => void; online: () => boolean; pageChanged: (extension: string, page: string) => void } {
   const log = createLogger('home', options.logDirectory);
 
   // Every page a loaded extension offers. An extension that is turned off
@@ -43,8 +55,17 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
       // The page's own word, or else its extension's grants (manifest.ts).
       network: pageNeedsNetwork(extension.manifest, page),
       area: `${extension.manifest.id}/${page.under ?? page.id}`, tab: page.tab ?? page.name,
-      hue: PAGE_HUES[page.hue ?? 'blue']
+      hue: PAGE_HUES[page.hue ?? 'blue'],
+      live: page.live === true, views: page.views === true, settings: page.settings ?? []
     })));
+
+  // A page's settings in force: what the operator chose, where it is still
+  // one of the page's choices, else its default (QGD-HOM-0017).
+  const settingsOf = (page: CataloguePage): Record<string, string> => {
+    const chosen = load().pageSettings[page.key] ?? {};
+    return Object.fromEntries((page.settings ?? []).map(setting =>
+      [setting.id, Object.hasOwn(chosen, setting.id) && setting.choices.includes(chosen[setting.id]) ? chosen[setting.id] : setting.default]));
+  };
 
   // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
   let open: string | null = null;
@@ -56,7 +77,10 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   const scheduler = createPageScheduler({
     catalogue,
     pins: () => (open === null ? [] : [open]),
-    page: (extension, page, signal, inputs) => options.supervisor.page(extension, page, signal, inputs),
+    page: (extension, page, signal, inputs) => {
+      const entry = catalogue().find(candidate => candidate.key === `${extension}/${page}`);
+      return options.supervisor.page(extension, page, signal, inputs, entry ? settingsOf(entry) : {});
+    },
     inputs: key => (key === open ? openInputs : {}),
     // Pushed to every window; a window not showing Home ignores it.
     publish: view => {
@@ -97,8 +121,13 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   };
 
   const state = (): HomeState => ({
-    available: catalogue().map(({ key, name, description, extensionName, icon, rail, inputs, network, area, tab, hue }) =>
-      ({ key, name, description, extensionName, icon, rail, inputs, network, area: area ?? key, tab: tab ?? name, hue: hue ?? 'general' })),
+    available: catalogue().map(page => {
+      const { key, name, description, extensionName, icon, rail, inputs, network, area, tab, hue } = page;
+      const values = settingsOf(page);
+      return { key, name, description, extensionName, icon, rail, inputs, network, area: area ?? key, tab: tab ?? name, hue: hue ?? 'general',
+        settings: (page.settings ?? []).map(setting => ({ id: setting.id, label: setting.label, choices: [...setting.choices], value: values[setting.id],
+          ...(setting.hint !== undefined ? { hint: setting.hint } : {}) })) };
+    }),
     pins: load().pins,
     pages: scheduler.views(),
     notice: notice(),
@@ -127,7 +156,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
         // The fields' values, checked by kind against the page's own fields
         // before the extension is asked with them (inputs.ts).
         const page = command.key === null ? undefined : catalogue().find(entry => entry.key === command.key);
-        const inputs = page ? inputValues(page.inputs, command.inputs) : {};
+        const inputs = page ? (page.views ? viewInput(command.inputs) : inputValues(page.inputs, command.inputs)) : {};
         if (inputs === undefined) return { ok: false, error: 'That is not something this page can look up.' };
         const sameInputs = JSON.stringify(inputs) === JSON.stringify(openInputs);
         const samePage = command.key === open;
@@ -158,6 +187,18 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
         // Only the page on screen; any other key is answered with the state.
         if (command.key === open) scheduler.refreshNow(open);
         return { ok: true, state: state() };
+      case 'page-setting': {
+        // One of the page's own choices, or refused; saved, then the page is
+        // asked again with it, as a change to its fields is.
+        const page = catalogue().find(entry => entry.key === command.key);
+        const setting = page?.settings?.find(entry => entry.id === command.id);
+        if (!page || !setting || !setting.choices.includes(command.value)) return { ok: false, error: 'That is not a setting this page offers.' };
+        const settings = load();
+        const pageSettings = { ...settings.pageSettings, [page.key]: { ...(settings.pageSettings[page.key] ?? {}), [setting.id]: command.value } };
+        if (!save({ ...settings, pageSettings })) return { ok: false, error: 'The setting could not be saved.' };
+        scheduler.inputsChanged(page.key);
+        return { ok: true, state: state() };
+      }
       case 'dismiss': {
         // Only a stop that has happened can be dismissed; a later one shows.
         const next = dismiss(dismissed, command.id, options.supervisor.status().stops);
@@ -174,6 +215,8 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
     // A page's request reached its source, or could not connect.
     reached: (ok: boolean) => setReached(ok),
     // As the operating system last told the window, for the update check.
-    online: () => online
+    online: () => online,
+    // A live page of an extension said it changed (QGD-INT-0023).
+    pageChanged: (extension: string, page: string) => scheduler.pageChanged(`${extension}/${page}`)
   };
 }

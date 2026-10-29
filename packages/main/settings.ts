@@ -51,7 +51,9 @@ export function save(settings: Settings, directory = app.getPath('userData')): b
 // and would otherwise find the welcome over every page (QGD-FRM-0016). It is
 // honoured only by an unpackaged run, as the recorded NOAA responses are: a
 // packaged application always shows the welcome as the operator set it.
-export function startSettingsBroker(): () => void {
+// `changed` is told the key after each write, so what depends on a setting
+// can follow it: a grant withdrawn closes an adapter's port (QGD-INT-0004).
+export function startSettingsBroker(changed: (key: string) => void = () => undefined): () => void {
   ipcMain.handle('settings:request', (event, command: unknown): SettingsReply => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) ||
         !validateSettingsCommand(command)) {
@@ -70,6 +72,7 @@ export function startSettingsBroker(): () => void {
     // The key and the value are both non-secret by the contract that allowed
     // them; a setting nobody may see does not belong in this file.
     log.info({ key: command.key, value: String(command.value) }, 'setting changed');
+    changed(command.key);
     return { ok: true, data: settings };
   });
   return () => { ipcMain.removeHandler('settings:request'); };

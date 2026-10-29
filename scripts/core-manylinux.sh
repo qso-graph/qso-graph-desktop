@@ -1,6 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Builds the credential core against glibc 2.28, inside a manylinux_2_28 container.
+# Builds the credential core and Integrations' listener against glibc 2.28, inside a
+# manylinux_2_28 container: $1 is where the credential core goes, $2 the listener.
 set -euo pipefail
 # A stalled mirror is given up on, not waited on: in CI (2026-10-28) this dnf, silenced, hung a
 # job twice for 18 minutes while the same step elsewhere took 2. minrate drops a mirror slower
@@ -23,3 +24,5 @@ export PATH="$HOME/.cargo/bin:$PATH"
 go version; cmake --version | head -1
 cargo build --release --target-dir /tmp/core --manifest-path packages/callsign-core/Cargo.toml
 cp /tmp/core/release/libqg_callsign_core.so "$1"
+cargo build --release --target-dir /tmp/integrations --manifest-path packages/integrations-core/Cargo.toml
+cp /tmp/integrations/release/libqg_integrations_core.so "$2"

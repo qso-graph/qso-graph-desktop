@@ -14,6 +14,7 @@ import type { PageInput } from '../extension-api/inputs.js';
 import type { PageView } from './home-contract.js';
 import type { PageOutcome } from './extension-host-supervisor.js';
 import { MAX_PINS } from './settings-contract.js';
+import type { PageSetting } from '../extension-api/manifest.js';
 
 // A page some loaded, enabled extension offers. `key` is "extension/page",
 // which is what a pin names.
@@ -37,6 +38,12 @@ export interface CataloguePage {
   readonly tab?: string;
   // The theme token of its colour on the rail (manifest.ts PAGE_HUES).
   readonly hue?: string;
+  // A live page says when it changed (manifest.ts live); a page in views is
+  // asked with the one chosen (manifest.ts views).
+  readonly live?: boolean;
+  readonly views?: boolean;
+  // Its own settings (manifest.ts settings, QGD-HOM-0017).
+  readonly settings?: readonly PageSetting[];
 }
 
 export type { PageView } from './home-contract.js';
@@ -68,6 +75,9 @@ interface Tracked {
   view?: PageView;
   // The inputs its view answered, so it is never shown again for others.
   inputs?: string;
+  // A live page said it changed while a question was in flight: asked again
+  // when that one settles.
+  changed?: boolean;
 }
 
 // The least time between two questions the operator asks for with Refresh
@@ -75,6 +85,11 @@ interface Tracked {
 // answered by what was fetched moments ago. It keeps a button held down, or
 // pressed in a hurry, from becoming a burst at somebody else's service.
 export const REFRESH_FLOOR_MS = 10_000;
+
+// The least time between two questions to a live page that says it changed
+// (manifest.ts live; QGD-INT-0023). WSJT-X decodes arrive in a burst each
+// cycle; a second gathers a burst into one question rather than one each.
+export const LIVE_FLOOR_MS = 1_000;
 
 export function createPageScheduler(deps: PageSchedulerDeps) {
   let visible = false;
@@ -177,8 +192,23 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       publish(entry, { key: page.key, state: 'failed', reason: outcome.reason });
     }
     // Whatever happened, the next question is decided by the clock, for this
-    // entry or the one that replaced it while this was asked.
+    // entry or the one that replaced it while this was asked; a live page
+    // that changed meanwhile is asked again as soon as its floor allows.
+    if (entry.changed && tracked.get(page.key) === entry) { entry.changed = false; soon(page, entry); return; }
     if (tracked.has(page.key)) schedule(page);
+  }
+
+  // Asked again once LIVE_FLOOR_MS has passed since the last question,
+  // replacing a later timer: a live page that changed is not left until its
+  // interval.
+  function soon(page: CataloguePage, entry: Tracked): void {
+    if (!visible || stopped) return;
+    if (entry.work) { entry.changed = true; return; }
+    if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
+    const last = lastAsked.get(page.key);
+    const due = last === undefined ? 0 : last + LIVE_FLOOR_MS - deps.now();
+    if (due <= 0) void ask(page, entry);
+    else entry.timer = setTimeout(() => { entry.timer = undefined; void ask(page, entry); }, due);
   }
 
   function reconcile(): void {
@@ -245,6 +275,16 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
       void ask(page, entry);
       return true;
+    },
+    // A live page said it changed (QGD-INT-0023): asked again if it is the
+    // page on screen, no sooner than LIVE_FLOOR_MS after the last question.
+    // A page that is not open is asked nothing; a page that is not live is
+    // not this extension's to hurry.
+    pageChanged(key: string): void {
+      const entry = tracked.get(key);
+      const page = shown().find(candidate => candidate.key === key);
+      if (!entry || !page?.live || offline(page)) return;
+      soon(page, entry);
     },
     // The operating system said the network went or came back. Gone: what an
     // internet page has in flight or waiting is stopped. Back: each is asked

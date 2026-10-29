@@ -10,6 +10,7 @@
 import { isAreaEntry } from '../storage/area-entry.js';
 import { isWindowBounds, type WindowBounds } from './window-place.js';
 import { THEME_CHOICES, isThemeChoice, type ThemeChoice } from '../ui/theme-choice.js';
+import { MAX_ALLOWED, isAddress, isPort } from '../integrations/integration-contract.js';
 export { THEME_CHOICES, isThemeChoice, type ThemeChoice };
 
 export interface Settings {
@@ -58,6 +59,54 @@ export interface Settings {
   // 2026-10-24), or null. Main's alone: written as the window closes, never
   // through the settings channel.
   windowBounds: WindowBounds | null;
+  // Each adapter's port, as the operator set it on Integrations' page
+  // (QGD-INT-0005, QGD-INT-0006): the port, the network interface it listens
+  // on by name or null for this computer alone, and who may send on that
+  // network. An adapter with no entry listens on its program's usual port,
+  // on this computer alone. Written only through Integrations' channel,
+  // which opens and closes the ports as it records them.
+  integrations: Readonly<Record<string, AdapterSettings>>;
+  // Each page's own settings as the operator chose them on its Settings tab
+  // (QGD-HOM-0017), by "extension/page" and the setting's id. Checked against
+  // the page's manifest when used, so a choice a page no longer offers is its
+  // default. Written only through Home's channel, which asks the page again.
+  pageSettings: Readonly<Record<string, Readonly<Record<string, string>>>>;
+}
+
+const SETTING_VALUE = (value: unknown) => typeof value === 'string' && value.trim() !== '' && value.length <= 16 && !/[<>]/.test(value);
+export function isPageSettings(value: unknown): value is Readonly<Record<string, Readonly<Record<string, string>>>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const pages = Object.entries(value as Record<string, unknown>);
+  return pages.length <= 64 && pages.every(([key, chosen]) => PAGE_KEY.test(key) && typeof chosen === 'object' && chosen !== null && !Array.isArray(chosen)
+    && Object.entries(chosen as Record<string, unknown>).length <= 4
+    && Object.entries(chosen as Record<string, unknown>).every(([id, entry]) => APP_ID.test(id) && SETTING_VALUE(entry)));
+}
+
+export interface AdapterSettings {
+  readonly port: number;
+  readonly network: string | null;
+  readonly allow: readonly string[];
+}
+
+// A network interface's name as the operating system gives it: en0, eth0,
+// "Ethernet 2", "Wi-Fi".
+const INTERFACE = /^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,63}$/;
+export const isInterfaceName = (value: unknown): value is string => typeof value === 'string' && INTERFACE.test(value);
+
+export function isAdapterSettings(value: unknown): value is AdapterSettings {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const entry = value as Record<string, unknown>;
+  const fields = Object.keys(entry);
+  return fields.length === 3 && fields.every(key => ['port', 'network', 'allow'].includes(key))
+    && isPort(entry.port) && (entry.network === null || isInterfaceName(entry.network))
+    && Array.isArray(entry.allow) && entry.allow.length <= MAX_ALLOWED && entry.allow.every(isAddress)
+    && new Set(entry.allow).size === entry.allow.length;
+}
+
+export function isIntegrationSettings(value: unknown): value is Readonly<Record<string, AdapterSettings>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const entries = Object.entries(value as Record<string, unknown>);
+  return entries.length <= 16 && entries.every(([id, entry]) => APP_ID.test(id) && isAdapterSettings(entry));
 }
 
 export const UPDATE_TRACKS = ['stable', 'early', 'preview'] as const;
@@ -96,7 +145,7 @@ export const DAY_ONE_PINS: readonly string[] = [];
 // Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
 export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', lastRunVersion: '', updatedFrom: '', area: [],
-  updateCheck: true, updateTrack: 'stable', windowBounds: null };
+  updateCheck: true, updateTrack: 'stable', windowBounds: null, integrations: {}, pageSettings: {} };
 
 // A version, as package.json writes one, or empty. Up to 60 characters: a lab
 // build's version is <release>-local.<YYYYMMDDHHMMSS>.<commit>.
@@ -166,7 +215,9 @@ export function isGrantMap(value: unknown): value is Readonly<Record<string, rea
 // flight (QGD-HOM-0005); a write that bypassed it would leave that running.
 // Nor is which extensions are on: that changes only through the extensions
 // channel, which stops the extension as it records it (QGD-HOM-0007).
-export type WritableSetting = Exclude<keyof Settings, 'pins' | 'extensionsOn' | 'windowBounds'>;
+// Nor are the adapters' ports: they change only through Integrations'
+// channel, which opens and closes them as it records them (QGD-INT-0004).
+export type WritableSetting = Exclude<keyof Settings, 'pins' | 'extensionsOn' | 'windowBounds' | 'integrations' | 'pageSettings'>;
 
 export type SettingsCommand =
   | { type: 'read' }
@@ -254,6 +305,8 @@ export function readSettings(stored: unknown): Settings {
   read('updateCheck', isBoolean);
   read('updateTrack', isUpdateTrack);
   read('windowBounds', isWindowBounds);
+  read('integrations', isIntegrationSettings);
+  read('pageSettings', isPageSettings);
   return settings;
 }
 

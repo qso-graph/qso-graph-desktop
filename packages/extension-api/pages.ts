@@ -44,8 +44,16 @@
 // three or more headed parts), and say it may be
 // sorted by any column, which the core does in the window when a heading is
 // clicked: a column with a filter's options sorts in their order.
-export const PAGE_DATA_VERSION = 6;
-export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6];
+//
+// Version 7 let a page come in views (QGD-INT-0023): the Monitor's All and
+// one per source, which the core draws as the page's tabs and asks with the
+// one chosen (manifest.ts views). The answer names its views and the one it
+// answered; a page asked with a view it no longer has answers its first.
+export const PAGE_DATA_VERSION = 7;
+export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
+
+// A view's id, as the core asks with it, and its name on its tab.
+export const VIEW_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 // Bounds on everything an extension can put on a page. A page fills the main
 // pane, so these are a page's and not a card's; and bounded content is
@@ -75,8 +83,15 @@ export const PAGE_LIMITS = {
   // A cell holds ADIF's own text whole, up to the 1000 characters QG Storage
   // allows it (ADIF Lookup, KI7MT 2026-10-23): cut, ADIF would be reworded.
   cell: 1000,
-  heading: 60
+  heading: 60,
+  views: 12,
+  viewLabel: 40
 } as const;
+
+export interface ViewTab {
+  readonly id: string;
+  readonly label: string;
+}
 
 export interface Figure {
   readonly label: string;
@@ -187,6 +202,10 @@ export interface PageData {
   // says how old it is; an extension cannot claim its data is fresh.
   readonly observedAt: string;
   readonly sections: readonly Section[];
+  // A page in views, from version 7: every view in tab order, and the one
+  // this answer is.
+  readonly views?: readonly ViewTab[];
+  readonly view?: string;
 }
 
 // A page answer: its data, or why there is none, in words (QGD-HOM-0006).
@@ -543,7 +562,7 @@ export function validatePageAnswer(value: unknown): PageAnswer {
   only(value, ['ok', 'data'], 'A page answer');
   const data = value.data;
   if (!isRecord(data)) throw new PageError('A page answer has no data.');
-  only(data, ['version', 'observedAt', 'sections'], 'Page data');
+  only(data, ['version', 'observedAt', 'sections', 'views', 'view'], 'Page data');
   if (typeof data.version !== 'number' || !PAGE_DATA_VERSIONS.includes(data.version)) {
     throw new PageError(`Page data is version ${String(data.version)}; this core draws versions ${PAGE_DATA_VERSIONS.slice(0, -1).join(', ')} and ${PAGE_DATA_VERSIONS.at(-1)}.`);
   }
@@ -556,5 +575,22 @@ export function validatePageAnswer(value: unknown): PageAnswer {
   }
   const sections = each(data.sections, 'Page data', (entry, i) => section(entry, i, version));
   if (sections.filter(entry => entry.shape === 'fields').length > 1) throw new PageError('Page data places the page\'s fields more than once.');
-  return { ok: true, data: { version, observedAt: data.observedAt, sections } };
+  // Views and the view answered, both or neither, from version 7.
+  if ((data.views === undefined) !== (data.view === undefined)) throw new PageError('Page data names its views without the one it is, or the other way round.');
+  if (data.views === undefined) return { ok: true, data: { version, observedAt: data.observedAt, sections } };
+  if (version < 7) throw new PageError(`Page data has views, which page data version ${version} does not have.`);
+  if (!Array.isArray(data.views) || data.views.length === 0 || data.views.length > PAGE_LIMITS.views) {
+    throw new PageError(`Page data has no views, or more than ${PAGE_LIMITS.views}.`);
+  }
+  const ids = new Set<string>();
+  const views = each(data.views, 'Page data views', (entry, i): ViewTab => {
+    const where = `View ${i + 1}`;
+    if (!isRecord(entry)) throw new PageError(`${where} is not an object.`);
+    only(entry, ['id', 'label'], where);
+    if (typeof entry.id !== 'string' || !VIEW_ID.test(entry.id) || ids.has(entry.id)) throw new PageError(`${where} has no well-formed, unique id.`);
+    ids.add(entry.id);
+    return { id: entry.id, label: text(entry.label, PAGE_LIMITS.viewLabel, `${where}'s label`) };
+  });
+  if (typeof data.view !== 'string' || !ids.has(data.view)) throw new PageError('Page data says it is a view it does not name.');
+  return { ok: true, data: { version, observedAt: data.observedAt, sections, views, view: data.view } };
 }

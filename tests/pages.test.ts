@@ -40,7 +40,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validatePageAnswer(answer([FIGURES], { version: 7 }))).toThrowError(/version 7; this core draws versions 1, 2, 3, 4, 5 and 6/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 8 }))).toThrowError(/version 8; this core draws versions 1, 2, 3, 4, 5, 6 and 7/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {
@@ -332,5 +332,24 @@ describe('plain text, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(6, [{ shape: 'text', text: '<b>x</b>' }]))).toThrowError(/markup/);
     expect(() => validatePageAnswer(v(6, [{ shape: 'text', text: 'x'.repeat(201) }]))).toThrowError(/text/);
     expect(() => validatePageAnswer(v(6, [{ shape: 'text', text: 'x', level: 'info' }]))).toThrowError(/"level"/);
+  });
+});
+
+describe('P13-views: a page in views (QGD-HOM-0016)', () => {
+  const VIEWS = [{ id: 'all', label: 'All' }, { id: 'source-0', label: 'WSJT-X - IC-7300' }];
+  it('names its views and the one it answered, from version 7', () => {
+    const data = validatePageAnswer(answer([FIGURES], { version: 7, views: VIEWS, view: 'source-0' }));
+    expect(data.ok && data.data.views).toEqual(VIEWS);
+    expect(data.ok && data.data.view).toBe('source-0');
+  });
+  it('refuses views before version 7, one without the other, an answer that is a view it does not name, and a view id off its shape', () => {
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 6, views: VIEWS, view: 'all' }))).toThrowError(/version 6 does not have/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, views: VIEWS }))).toThrowError(/without the one it is/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, view: 'all' }))).toThrowError(/without the one it is/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, views: VIEWS, view: 'source-9' }))).toThrowError(/does not name/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, views: [{ id: 'All Of It', label: 'All' }], view: 'All Of It' }))).toThrowError(/no well-formed, unique id/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, views: [VIEWS[0], VIEWS[0]], view: 'all' }))).toThrowError(/no well-formed, unique id/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, views: [{ id: 'x', label: '<b>' }], view: 'x' }))).toThrowError(/markup/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 7, views: Array.from({ length: 13 }, (_, n) => ({ id: `v${n}`, label: 'V' })), view: 'v0' }))).toThrowError(/more than 12/);
   });
 });

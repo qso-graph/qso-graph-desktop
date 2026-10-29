@@ -39,9 +39,19 @@
     settings?: Snippet;
     showingSettings?: boolean;
     onSettings?: () => void;
+    // One of the page's own declared settings chosen (QGD-HOM-0017).
+    onSetting?: (id: string, value: string) => void;
   }
   const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {}, onOpenReference,
-    settings, showingSettings = false, onSettings = () => {} }: Props = $props();
+    settings: ownSettings, showingSettings = false, onSettings = () => {}, onSetting = () => {} }: Props = $props();
+  // The page's Settings tab: the core's own drawing of the settings its
+  // manifest declares, or the shell's for an area that has core settings
+  // of its own (Parks On the Air's My Area).
+  const settings = $derived(ownSettings ?? (page && page.settings.length > 0 ? declaredSettings : undefined));
+  // A page in views draws them as its tabs (pages.ts version 7): choosing one
+  // asks the page again with it, as a field does.
+  const views = $derived(page?.views ?? []);
+
   const onSettingsTab = $derived(settings !== undefined && showingSettings);
 
   // Why a field's value is refused, by its kind, said as it is typed.
@@ -115,13 +125,31 @@
   {/if}
 {/snippet}
 
+{#snippet declaredSettings()}
+  {#if page}
+    {#each page.settings as setting (setting.id)}
+      <label class="page-setting">
+        {setting.label}
+        <select id="page-setting-{setting.id}" value={setting.value} onchange={event => onSetting(setting.id, event.currentTarget.value)}>
+          {#each setting.choices as choice (choice)}<option value={choice}>{choice}</option>{/each}
+        </select>
+        {#if setting.hint}<span class="hint">{setting.hint}</span>{/if}
+      </label>
+    {/each}
+  {/if}
+{/snippet}
+
 {#if page}
   <PageLayout title={page.areaName} eyebrow={extensionName.toUpperCase()} width="full"
     hue={page.hue === 'callsigns' || page.hue === 'locations' || page.hue === 'settings' ? page.hue : 'general'}>
     <!-- An area's pages, as tabs (KI7MT, 2026-10-23): each its own page,
          asked for only while it is the one shown (QGD-HOM-0005). -->
-    {#if page.tabs.length > 1 || settings}
+    {#if page.tabs.length > 1 || views.length > 0 || settings}
       <nav class="page-tabs" aria-label="{page.areaName} pages">
+        {#each views as tab (tab.id)}
+          <button type="button" class="page-tab" id="page-view-{tab.id}" aria-current={!onSettingsTab && tab.id === page.view ? 'page' : undefined}
+            onclick={() => { if (tab.id !== page.view || onSettingsTab) { if (onSettingsTab) onTab(page.key); onAsk({ view: tab.id }); } }}>{tab.label}</button>
+        {/each}
         {#each page.tabs as tab (tab.key)}
           <button type="button" class="page-tab" id="page-tab-{tab.key.replace('/', '-')}" aria-current={!onSettingsTab && tab.key === page.key ? 'page' : undefined}
             onclick={() => { if (tab.key !== page.key || onSettingsTab) onTab(tab.key); }}>{tab.label}</button>

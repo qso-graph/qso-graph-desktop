@@ -8,6 +8,9 @@ import { join } from 'node:path';
 import { cargoPath } from './cargo-path.mjs';
 
 const cargo = await cargoPath();
+// Every crate, the credential core and Integrations' listener (QGD-INT-0001).
 // --release reuses the profile scripts/build-native.mjs already built.
-const run = spawnSync(cargo, ['test', '--release', '--manifest-path', 'packages/callsign-core/Cargo.toml'], { stdio: 'inherit' });
-process.exitCode = run.status === 0 ? 0 : run.status || 1;
+for (const crate of ['callsign-core', 'integrations-core']) {
+  const run = spawnSync(cargo, ['test', '--release', '--manifest-path', `packages/${crate}/Cargo.toml`], { stdio: 'inherit' });
+  if (run.status !== 0) { process.exitCode = run.status || 1; break; }
+}

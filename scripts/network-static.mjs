@@ -21,7 +21,7 @@
 // token and `from` in the next statement is not in this one.
 //
 // The guarantee is tests/network-static.test.mjs.
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 // Node's networking, with or without the node: prefix.
@@ -291,6 +291,46 @@ export async function productSources(root = 'packages') {
   };
   await walk(root);
   return found.sort();
+}
+
+// What each extension ships: its src/, walked the same way. An extension may
+// not open a socket or a connection of any kind (QGD-INV-0005, QGD-APP-0008,
+// QGD-INT-0002): what it receives arrives through the extension API. Its
+// tests do not ship, and are not product code.
+export async function extensionSources(root = 'extensions') {
+  const found = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const source = join(root, entry.name, 'src');
+    try { found.push(...await productSources(source)); } catch { /* an extension with no code */ }
+  }
+  return found.sort();
+}
+
+// QGD-INT-0002: Integrations is the only part of the product that listens.
+// Its listener is the Rust crate packages/integrations-core, so a socket
+// that listens or receives, named in any other Rust source, is a second way
+// in. Read over every .rs file under packages/, Cargo's build tree aside,
+// with comments removed so a sentence about a socket is not one.
+const RUST_LISTENERS = /\b(?:UdpSocket|TcpListener|UnixListener|UnixDatagram|socket2)\b/;
+export const LISTENER_CRATE = 'integrations-core';
+export async function rustListeners(root = 'packages') {
+  const found = [];
+  const walk = async directory => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory() && entry.name === 'target') continue;
+      if (entry.isDirectory()) { await walk(path); continue; }
+      if (!entry.name.endsWith('.rs')) continue;
+      const code = (await readFile(path, 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '').split('\n')
+        .map(line => line.replace(/\/\/.*$/, ''));
+      code.forEach((line, at) => {
+        if (RUST_LISTENERS.test(line)) found.push({ file: path, line: at + 1 });
+      });
+    }
+  };
+  await walk(root);
+  return found;
 }
 
 // The exceptions, each named with what makes it one.

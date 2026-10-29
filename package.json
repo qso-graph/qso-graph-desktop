@@ -65,6 +65,7 @@
       "data/extension-grants.json",
       "data/extension-sources.json",
       "data/extension-limits.json",
+      "data/integration-limits.json",
       "drizzle/**/*"
     ],
     "asar": true,

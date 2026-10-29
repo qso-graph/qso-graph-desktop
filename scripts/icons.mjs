@@ -23,6 +23,8 @@ export const ICONS = [
   { key: 'callsigns', name: 'id-card', style: 'solid' },
   // Stations (QGD-STN-*): where the operator is operating from.
   { key: 'stations', name: 'location-dot', style: 'solid' },
+  // Integrations (QGD-INT-*): the programs a station runs, plugged in.
+  { key: 'integrations', name: 'plug', style: 'solid' },
   { key: 'settings', name: 'gear', style: 'solid' },
   // The Apps entry's icon went with the demonstration applications on
   // 2026-10-10 (QGD-APP-0014). tests/icons.test.mjs holds the rail's icons to

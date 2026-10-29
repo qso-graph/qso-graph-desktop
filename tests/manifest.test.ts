@@ -39,7 +39,7 @@ describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
   });
 
   it('refuses an engines.qgd range the core does not satisfy, naming the version it needs', () => {
-    expect(() => validateManifest({ ...BASE, engines: { qgd: '^2.0.0' } }, known)).toThrowError(/needs extension API \^2\.0\.0; this core serves 1\.0\.0/);
+    expect(() => validateManifest({ ...BASE, engines: { qgd: '^2.0.0' } }, known)).toThrowError(/needs extension API \^2\.0\.0; this core serves 1\.1\.0/);
     expect(() => validateManifest({ ...BASE, engines: { qgd: '>=1.0.0' } }, known)).toThrowError(/needs extension API >=1\.0\.0/);
     expect(() => validateManifest({ ...BASE, engines: {} }, known)).toThrowError(/needs extension API undefined/);
     const { engines: _gone, ...noEngines } = BASE;
@@ -47,7 +47,9 @@ describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
   });
 
   it('reads caret ranges against the API version, and nothing else', () => {
-    expect(API_VERSION).toBe('1.0.0');
+    expect(API_VERSION).toBe('1.1.0');
+    // An extension written for 1.0.0 still loads under 1.1.0.
+    expect(satisfiesApi('^1.0.0', API_VERSION)).toBe(true);
     expect(satisfiesApi('^1.0.0', '1.0.0')).toBe(true);
     expect(satisfiesApi('^1.0.0', '1.4.2')).toBe(true);
     expect(satisfiesApi('^1.2.0', '1.1.9')).toBe(false);
@@ -159,5 +161,45 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     const manifest = validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, icon: 'sun' }] } }, known);
     expect(manifest.contributes.pages[0]).toEqual({ ...PAGE, icon: 'sun' });
     expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, rail: false }] } }, known)).toThrowError(/"rail"/);
+  });
+});
+
+describe('P13: an adapter, a live page and a page in views (QGD-INT-0003, QGD-INT-0020, QGD-HOM-0015, QGD-HOM-0016)', () => {
+  const withIntegration = new Set([...known, 'integration:receive', 'integration:events']);
+  const ADAPTER = { ...BASE, id: 'wsjtx', engines: { qgd: '^1.1.0' }, grants: ['integration:receive'], contributes: { integration: { program: 'WSJT-X', transport: 'udp', port: 2237 } } };
+  it('reads an adapter\'s declaration', () => {
+    expect(validateManifest(ADAPTER, withIntegration).contributes.integration).toEqual({ program: 'WSJT-X', transport: 'udp', port: 2237 });
+  });
+  it('refuses a transport not on the closed list, and a port outside 1024 to 65535', () => {
+    expect(() => validateManifest({ ...ADAPTER, contributes: { integration: { program: 'WSJT-X', transport: 'tcp', port: 2237 } } }, withIntegration)).toThrowError(/transport "tcp"/);
+    expect(() => validateManifest({ ...ADAPTER, contributes: { integration: { program: 'WSJT-X', transport: 'multicast', port: 2237 } } }, withIntegration)).toThrowError(/transport/);
+    expect(() => validateManifest({ ...ADAPTER, contributes: { integration: { program: 'WSJT-X', transport: 'udp', port: 80 } } }, withIntegration)).toThrowError(/1024 to 65535/);
+  });
+  it('holds the declaration and the grant together: both or neither', () => {
+    expect(() => validateManifest({ ...ADAPTER, grants: [] }, withIntegration)).toThrowError(/does not ask for "integration:receive"/);
+    expect(() => validateManifest({ ...BASE, grants: ['integration:receive'] }, withIntegration)).toThrowError(/declares no integration/);
+  });
+  it('reads a live page and a page in views, and refuses one in views with fields or in a shared area', () => {
+    const LIVE = { ...PAGE, id: 'monitor', live: true, views: true };
+    expect(validateManifest({ ...BASE, contributes: { pages: [LIVE] } }, known).contributes.pages[0]).toMatchObject({ live: true, views: true });
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...LIVE, live: false }] } }, known)).toThrowError(/live with something other than true/);
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...LIVE, inputs: [{ id: 'dx', label: 'DX', kind: 'grid' }] }] } }, known)).toThrowError(/views and fields/);
+    expect(() => validateManifest({ ...BASE, contributes: { pages: [LIVE, { ...PAGE, id: 'tab', under: 'monitor' }] } }, known)).toThrowError(/shares its area/);
+  });
+});
+
+describe('a page\'s own settings (QGD-HOM-0017)', () => {
+  const CYCLES = { id: 'cycles', label: 'Cycles shown', choices: ['10', '20', '40'], default: '20' };
+  const withSettings = (settings: unknown) => ({ ...BASE, contributes: { pages: [{ ...PAGE, settings }] } });
+  it('reads them', () => {
+    expect(validateManifest(withSettings([CYCLES]), known).contributes.pages[0].settings).toEqual([CYCLES]);
+  });
+  it('refuses a default not among the choices, one choice, a repeated choice, markup, and more than four', () => {
+    expect(() => validateManifest(withSettings([{ ...CYCLES, default: '30' }]), known)).toThrowError(/default that is not one of its choices/);
+    expect(() => validateManifest(withSettings([{ ...CYCLES, choices: ['10'], default: '10' }]), known)).toThrowError(/two to 8/);
+    expect(() => validateManifest(withSettings([{ ...CYCLES, choices: ['10', '10'], default: '10' }]), known)).toThrowError(/two to 8/);
+    expect(() => validateManifest(withSettings([{ ...CYCLES, label: '<b>' }]), known)).toThrowError(/plain label/);
+    expect(() => validateManifest(withSettings(Array.from({ length: 5 }, (_, n) => ({ ...CYCLES, id: `s${n}x` }))), known)).toThrowError(/one to 4/);
+    expect(() => validateManifest(withSettings([CYCLES, CYCLES]), known)).toThrowError(/unique id/);
   });
 });

@@ -16,6 +16,8 @@
 // A request kind arrives with the extension that needs it, not in advance:
 // an unused surface is a surface nobody has exercised, and every kind here is
 // gated and tested.
+import { EventError, MAX_MALFORMED, validateEvents, type IntegrationEvent } from './integration-events.js';
+import { isSender } from './address.js';
 
 export type ExtensionRequest =
   // What am I and what do I hold. No grant: an extension is always allowed
@@ -75,7 +77,19 @@ export type ExtensionRequest =
       readonly callsign: string;
       readonly operation: string;
       readonly parameters: Readonly<Record<string, string>>;
-    };
+    }
+  // An adapter's decoded events, for the consumers that are on
+  // (QGD-INT-0008, QGD-INT-0021): checked field by field, and stamped with
+  // this adapter's id by the core. `malformed` is how many of its program's
+  // messages it dropped since it last said, so the count can be shown
+  // (QGD-INT-0010).
+  | { readonly kind: 'integration.events'; readonly events: readonly IntegrationEvent[]; readonly malformed?: number }
+  // The one reply an adapter's program defines, to a sender it heard
+  // (QGD-INT-0003, QGD-INT-0009): `bytes` as base64.
+  | { readonly kind: 'integration.reply'; readonly to: string; readonly bytes: string }
+  // What a live page shows has changed (manifest.ts `live`): the core asks
+  // it again if it is open. Only for a page of its own that is live.
+  | { readonly kind: 'page.changed'; readonly page: string };
 
 export type RequestKind = ExtensionRequest['kind'];
 
@@ -169,6 +183,10 @@ export type ExtensionReply =
   | { readonly ok: true; readonly kind: 'pota.activations'; readonly parks: readonly ActivationPark[]; readonly fetchedAt: string; readonly locations: readonly string[]; readonly home?: PotaPlace }
   | { readonly ok: true; readonly kind: 'source.fetch'; readonly body: string; readonly fresh: boolean }
   | { readonly ok: true; readonly kind: 'service.request'; readonly answer: Readonly<Record<string, string>> }
+  // How many consumers the events went to.
+  | { readonly ok: true; readonly kind: 'integration.events'; readonly consumers: number }
+  | { readonly ok: true; readonly kind: 'integration.reply' }
+  | { readonly ok: true; readonly kind: 'page.changed' }
   // A refusal says which capability was refused, so the core can tell the
   // operator in words and the extension can say why it stopped
   // (QGD-APP-0011). `refused` is present only when a grant was the reason.
@@ -187,6 +205,13 @@ export type ExtensionReply =
 // Returned rather than checked here: this package enforces nothing. The core
 // is the enforcement point (QGD-CRD-0002), because an extension asking
 // itself whether it is allowed is not a permission system.
+// What the core gives an extension unasked (QGD-INT-0020, QGD-INT-0021):
+// an adapter its program's datagrams, a consumer the events. Named here, with
+// the grant each request needs, because this is the one place a grant is.
+export function deliveryGrant(what: 'datagrams' | 'events'): string {
+  return what === 'datagrams' ? 'integration:receive' : 'integration:events';
+}
+
 export function requiredGrant(request: ExtensionRequest): string | undefined {
   switch (request.kind) {
     // Knowing what you hold needs nothing (QGD-APP-0005: an extension with
@@ -204,13 +229,19 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     case 'pota.near': return 'station:active';
     case 'source.fetch': return `source:${request.source}`;
     case 'service.request': return `service:${request.service}`;
+    // Only an adapter publishes events and replies: what it receives is
+    // what it answers for.
+    case 'integration.events': return deliveryGrant('datagrams');
+    case 'integration.reply': return deliveryGrant('datagrams');
+    // An extension's own page, which the core checks is its own and live.
+    case 'page.changed': return undefined;
   }
 }
 
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request'];
+  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -268,8 +299,15 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'pota.places': ['kind', 'locations'],
   'pota.near': ['kind'],
   'source.fetch': ['kind', 'source'],
-  'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters']
+  'service.request': ['kind', 'service', 'callsign', 'operation', 'parameters'],
+  'integration.events': ['kind', 'events', 'malformed'],
+  'integration.reply': ['kind', 'to', 'bytes'],
+  'page.changed': ['kind', 'page']
 };
+
+// Base64 of at most a UDP datagram's 65,507 bytes.
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+const BASE64_MAX = 87_344;
 
 export function validateRequest(value: unknown): ExtensionRequest {
   if (!isRecord(value)) throw new RequestError('a request is not an object');
@@ -340,6 +378,27 @@ export function validateRequest(value: unknown): ExtensionRequest {
         operation: value.operation,
         parameters: parameters(value.parameters)
       };
+    }
+    case 'integration.events': {
+      let events: IntegrationEvent[];
+      try { events = validateEvents(value.events); } catch (error) {
+        throw new RequestError(error instanceof EventError ? error.message : 'events are not events', 'events');
+      }
+      if (value.malformed !== undefined && (!Number.isSafeInteger(value.malformed) || (value.malformed as number) < 0 || (value.malformed as number) > MAX_MALFORMED)) {
+        throw new RequestError(`malformed is not a count from 0 to ${MAX_MALFORMED}`, 'malformed');
+      }
+      return { kind, events, ...(value.malformed === undefined ? {} : { malformed: value.malformed as number }) };
+    }
+    case 'integration.reply': {
+      if (!isSender(value.to)) throw new RequestError('to is not a sender', 'to');
+      if (typeof value.bytes !== 'string' || value.bytes.length === 0 || value.bytes.length > BASE64_MAX || value.bytes.length % 4 !== 0 || !BASE64.test(value.bytes)) {
+        throw new RequestError('bytes is not base64 of a datagram', 'bytes');
+      }
+      return { kind, to: value.to, bytes: value.bytes };
+    }
+    case 'page.changed': {
+      if (typeof value.page !== 'string' || !/^[a-z][a-z0-9-]{1,30}$/.test(value.page)) throw new RequestError('page is not a page id', 'page');
+      return { kind, page: value.page };
     }
     default:
       // Named, so an extension written against a later release gets a

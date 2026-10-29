@@ -408,3 +408,53 @@ describe('review findings, each held by a test (S2)', () => {
     sup.stop();
   });
 });
+
+describe('P13: what an adapter and a consumer receive (QGD-INT-0008, QGD-INT-0021)', () => {
+  it('starts each to deliver, gives an adapter its datagrams and a consumer its events, and drops what is off its shape', async () => {
+    const datagrams: unknown[] = [];
+    const events: unknown[] = [];
+    const { sup, served } = supervisor({
+      '/pkg/a/main.js': () => ({ activate: context => {
+        context.subscriptions.push(context.integration.onDatagrams(received => {
+          datagrams.push(...received);
+          // One event the core would refuse: dropped here and counted, so the
+          // other still goes (runtime.ts publish).
+          void context.integration.publish([{ type: 'close', source: 'WSJT-X' }, { type: 'close', source: '<bad>' }], 1);
+        }));
+      } }),
+      '/pkg/b/main.js': () => ({ activate: context => { context.subscriptions.push(context.integration.onEvents(received => { events.push(...received); })); } })
+    });
+    expect(await sup.deliver('a', { type: 'datagrams', datagrams: [{ from: '127.0.0.1:50000', bytes: new Uint8Array([1, 2]) }] })).toBe(true);
+    await flush();
+    expect(datagrams).toEqual([{ from: '127.0.0.1:50000', bytes: new Uint8Array([1, 2]) }]);
+    expect(served.map(entry => entry.request)).toContainEqual({ kind: 'integration.events', events: [{ type: 'close', source: 'WSJT-X' }], malformed: 2 });
+    // A delivered event without its adapter is not one the core sent.
+    expect(await sup.deliver('b', { type: 'events', events: [{ type: 'close', source: 'WSJT-X', adapter: 'wsjtx' }, { type: 'close', source: 'WSJT-X' }] })).toBe(true);
+    await flush();
+    expect(events).toEqual([{ type: 'close', source: 'WSJT-X', adapter: 'wsjtx' }]);
+    sup.stop();
+  });
+
+  it('gives nothing once it is no longer allowed, even if that changed while it was starting', async () => {
+    const datagrams: unknown[] = [];
+    const { sup } = supervisor({ '/pkg/a/main.js': () => ({ activate: context => { context.integration.onDatagrams(received => { datagrams.push(...received); }); } }) });
+    let allowed = true;
+    // Withdrawn while the extension starts: what was waiting is not posted.
+    const pending = sup.deliver('a', { type: 'datagrams', datagrams: [{ from: '127.0.0.1:50000', bytes: new Uint8Array([1]) }] }, () => allowed);
+    allowed = false;
+    expect(await pending).toBe(false);
+    await flush();
+    expect(datagrams).toEqual([]);
+    sup.stop();
+  });
+
+  it('gives nothing to an extension that is off', async () => {
+    const datagrams: unknown[] = [];
+    const { sup } = supervisor({ '/pkg/a/main.js': () => ({ activate: context => { context.integration.onDatagrams(received => { datagrams.push(...received); }); } }) });
+    await sup.setEnabled('a', false);
+    expect(await sup.deliver('a', { type: 'datagrams', datagrams: [{ from: '127.0.0.1:50000', bytes: new Uint8Array([1]) }] })).toBe(false);
+    await flush();
+    expect(datagrams).toEqual([]);
+    sup.stop();
+  });
+});

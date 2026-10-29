@@ -9,6 +9,7 @@
 // with no window behind it.
 import { isPageView, isHomeReply, isHostNotice, type AvailablePage, type PageView, type HomeState, type HostNotice } from '../main/home-contract.js';
 import type { PageShown } from '../ui/page-shapes.js';
+import type { ViewTab } from '../extension-api/pages.js';
 
 export interface HomeApi {
   request(command: unknown): Promise<unknown>;
@@ -48,6 +49,12 @@ export interface HomeModel {
     // Its destination's colour, a theme token: the eyebrow matches the rail.
     readonly hue: string;
     readonly tabs: readonly { readonly key: string; readonly label: string }[];
+    // A page in views (pages.ts version 7): every view, and the one shown.
+    // Kept from its last answer while the next is asked, so the tabs stay.
+    readonly views: readonly ViewTab[];
+    readonly view?: string;
+    // Its own settings, drawn as its Settings tab (QGD-HOM-0017).
+    readonly settings: AvailablePage['settings'];
   } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
@@ -66,6 +73,18 @@ export function shownOf(view: PageView): PageShown {
   if (view.state === 'failed') return { state: 'failed', reason: view.reason };
   if (!view.answer.ok) return { state: 'failed', reason: view.answer.reason };
   return { state: 'ready', observedAt: view.answer.data.observedAt, sections: view.answer.data.sections, fetchedAt: view.fetchedAt };
+}
+
+// A page's views and the one its answer was, from the last answer that had
+// them: while the next view is asked, the tabs stay where they are.
+const lastViews = new Map<string, { views: readonly ViewTab[]; view: string }>();
+function viewsOf(view: PageView | undefined): { views: readonly ViewTab[]; view?: string } {
+  if (!view) return { views: [] };
+  if (view.state === 'ready' && view.answer.ok && view.answer.data.views && view.answer.data.view) {
+    lastViews.set(view.key, { views: view.answer.data.views, view: view.answer.data.view });
+  }
+  const last = lastViews.get(view.key);
+  return last ? { views: last.views, view: last.view } : { views: [] };
 }
 
 function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: HostNotice | null, open: string | null, values: Readonly<Record<string, string>>, online: boolean, reached: boolean | null, error?: string): HomeModel {
@@ -97,7 +116,9 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
       key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
       network: opened.network, inputs: opened.inputs, values,
       area: head.key, areaName: head.name, hue: head.hue,
-      tabs: inArea.length > 1 ? inArea.map(page => ({ key: page.key, label: page.tab })) : []
+      tabs: inArea.length > 1 ? inArea.map(page => ({ key: page.key, label: page.tab })) : [],
+      settings: opened.settings,
+      ...viewsOf(views.get(opened.key))
     } : null,
     notice,
     online,
@@ -235,6 +256,14 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       const askedNotice = noticePushes;
       void api.request({ type: 'dismiss', id }).then(reply => take(reply, 'The notice could not be dismissed.', asked, askedNotice),
         () => take(undefined, 'The notice could not be dismissed.', asked, askedNotice));
+    },
+    // One of a page's own settings, from its Settings tab (QGD-HOM-0017).
+    setPageSetting(key: string, id: string, value: string): void {
+      if (!api) return;
+      const asked = pushes;
+      const askedNotice = noticePushes;
+      void api.request({ type: 'page-setting', key, id, value }).then(reply => take(reply, 'The setting could not be saved.', asked, askedNotice),
+        () => take(undefined, 'The setting could not be saved.', asked, askedNotice));
     },
     // The pins, in the operator's order (QGD-HOM-0003).
     savePins(pins: readonly string[]): void {

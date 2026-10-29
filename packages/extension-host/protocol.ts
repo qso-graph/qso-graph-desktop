@@ -35,8 +35,13 @@ export type FromExtension =
 export type ToExtension =
   | { readonly type: 'reply'; readonly cid: number; readonly reply: unknown }
   // `inputs` are the page's fields as the core checked them (inputs.ts).
-  | { readonly type: 'page'; readonly cid: number; readonly pageId: string; readonly inputs: Readonly<Record<string, string>> }
-  | { readonly type: 'page-cancel'; readonly cid: number };
+  // `settings` are the page's own, as chosen or by default (QGD-HOM-0017).
+  | { readonly type: 'page'; readonly cid: number; readonly pageId: string; readonly inputs: Readonly<Record<string, string>>; readonly settings?: Readonly<Record<string, string>> }
+  | { readonly type: 'page-cancel'; readonly cid: number }
+  // An adapter's datagrams, as Integrations passed them on (QGD-INT-0008).
+  | { readonly type: 'datagrams'; readonly datagrams: readonly { readonly from: string; readonly bytes: Uint8Array }[] }
+  // A consumer's events, each checked and stamped by the core (QGD-INT-0021).
+  | { readonly type: 'events'; readonly events: readonly unknown[] };
 
 // One end of a message channel, whichever kind: Electron's MessagePortMain in
 // the application, Node's MessagePort in the tests. Adapted at the edge so

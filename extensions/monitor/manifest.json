@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "monitor",
+  "name": "Monitor",
+  "tier": "official",
+  "version": "1.0.0",
+  "engines": {
+    "qgd": "^1.1.0"
+  },
+  "grants": [
+    "integration:events"
+  ],
+  "main": "main.js",
+  "contributes": {
+    "pages": [
+      {
+        "id": "monitor",
+        "name": "Monitor",
+        "description": "What WSJT-X decodes, cycle by cycle, as it decodes it: every copy together, or each on its own tab.",
+        "refreshSeconds": 60,
+        "icon": "tower-broadcast",
+        "network": false,
+        "live": true,
+        "views": true,
+        "settings": [
+          {
+            "id": "cycles",
+            "label": "Cycles shown",
+            "choices": [
+              "10",
+              "20",
+              "40"
+            ],
+            "default": "20",
+            "hint": "Newest first. The Monitor keeps the last 40; this is how many the grid shows."
+          }
+        ]
+      }
+    ]
+  }
+}

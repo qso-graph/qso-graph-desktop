@@ -12,9 +12,10 @@
 //
 // The direction, from QGD-REP-0006:
 //
-//   callsign-core, logging, reference, ui, preload, extension-api   depend on no package
-//   callsigns, storage                                        depend only on those
-//   main                                                     adds callsigns, storage, extension-api
+//   callsign-core, integrations-core, logging, reference, ui,
+//   preload, extension-api                                   depend on no package
+//   callsigns, storage, integrations                         depend only on those
+//   main                                                     adds callsigns, storage, integrations, extension-api
 //   renderer                                                 may depend on any of them
 //   an application                                           extension-api and ui, nothing else
 //
@@ -29,6 +30,9 @@ import { normalize, join, dirname, relative, sep } from 'node:path';
 // absent as a key means the package may reach nothing.
 export const ALLOWED = {
   'callsign-core': [],
+  // Integrations' native listener (QGD-INT-0001): sockets and the gate,
+  // nothing of the product above it.
+  'integrations-core': [],
   'logging': [],
   'reference': [],
   'ui': [],
@@ -42,11 +46,15 @@ export const ALLOWED = {
   // the contract they are written against.
   'extension-host': ['extension-api'],
   'callsigns': ['logging', 'callsign-core'],
+  // The Integrations process: the listener and the log, and nothing of the
+  // credential core or storage (QGD-INT-0001, QGD-INT-0002); extension-api
+  // only for the shape of an address, which it shares with the request kinds.
+  'integrations': ['logging', 'integrations-core', 'extension-api'],
   // The SQLite stores (QGD-ENG-0001). extension-api only for the shape of an
   // application id, which names a folder (QGD-ENG-0018).
   'storage': ['extension-api', 'logging', 'reference'],
-  'main': ['logging', 'callsigns', 'storage', 'reference', 'callsign-core', 'ui', 'extension-api', 'extension-host'],
-  'renderer': ['logging', 'callsigns', 'storage', 'reference', 'callsign-core', 'ui', 'main', 'extension-api']
+  'main': ['logging', 'callsigns', 'storage', 'integrations', 'reference', 'callsign-core', 'ui', 'extension-api', 'extension-host'],
+  'renderer': ['logging', 'callsigns', 'storage', 'integrations', 'reference', 'callsign-core', 'ui', 'main', 'extension-api']
 };
 
 // An application is not a package: QGD-REP-0003 says a built-in application
