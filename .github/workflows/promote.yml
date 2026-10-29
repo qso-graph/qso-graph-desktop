@@ -99,6 +99,9 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/feed.yml
+    secrets:
+      LINUX_PACKAGE_SIGNING_KEY_PRIVATE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
+      LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
 
   packages:
     name: packages.qso-graph.net

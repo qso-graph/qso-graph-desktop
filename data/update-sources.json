@@ -1,5 +1,5 @@
 {
-  "$comment": "Where updates come from (QGD-FRM-0019, QGD-SEC-0020, docs/RELEASES.md). Built into the credential core, which is the only thing that reads it: the feed is asked at most once a day, and a download is accepted only from these hosts, after every redirect, and only when its SHA-256 matches the feed's. A host here is trusted to deliver bytes, never to say what they are: the feed says that. '*.' means any name under that domain. The domains are KI7MT's, so where each points can change without a release.",
+  "$comment": "Where updates come from (QGD-FRM-0019, QGD-SEC-0020, docs/RELEASES.md). Built into the credential core, which is the only thing that reads it: the feed is asked at most once a day, and a download is accepted only from these hosts, after every redirect, and only when its SHA-256 matches the feed's. A host here is trusted to deliver bytes, never to say what they are: the feed says that. '*.' means any name under that domain. The domains are KI7MT's, so where each points can change without a release. The feed is believed only when desktop.json.asc beside it is a signature by feedKey, the release key (#128): the same key the apt and dnf repository is signed with, its public half built in here, its fingerprint checked against its own numbers on every use.",
   "feed": "https://updates.qso-graph.io/desktop.json",
   "downloadHosts": [
     "github.com",
@@ -12,5 +12,13 @@
     "*.dl.sourceforge.net"
   ],
   "maxFeedBytes": 65536,
-  "maxDownloadBytes": 419430400
+  "maxDownloadBytes": 419430400,
+  "feedSignature": "https://updates.qso-graph.io/desktop.json.asc",
+  "maxSignatureBytes": 16384,
+  "feedKey": {
+    "fingerprint": "E4EC9751F1AA66AB2BA508EF041096B9A6EBD256",
+    "created": 1793117882,
+    "n": "ec904376a0382976c99e354546e1d489dc3e829a3a3b57de16a11ef96223db7d5ce3c9136e2ab619448a8d9b0f335d799e6bb03c21de76212b591a69d1c51d43150b2cafca606d87997e2a9599701c186510fa4190c7381cf2aadecba910457a79f29517594a4a9ce79ddf676b2d77131330d6c015241eabdb3549410486741cdc151dbb136b9895cb9f2a5b434390fcb4e1e2bd5546de9a0942bb4e604270aa958aa6b842a59ef05f7f68af3965f83011fe7f713f48d6089f708f78e96ae6a14796196232cc3c06bdd779496deeb193c69ee17de4a4fe4eba120956886446a9a566fa716dce80935ac3d8a9b69e00e30be22a2032a7ed317f1583cdaa228bf932e05bb77cb10b2cdbb6a5c2929a071fc28d6ebf204e594c35b38afdfe37179817ada70bf561e48a72d11a65dc0d22bee45bf8c71e24bd8a2295105a625c86a880f94a846d9e9842948e5dfaaa0ee512c6739b2b0924167d180a55a2e4830e824e47245f703ba6f362fbe8da71668461fc4c99d6b37cac6ecb5cc36915386459b4d39e2719e071a40e7d92974f3b2d302efc1706e94174beb18030974fac111d1ff677f1f7a80d297b9619b45367ca3cadd3ee44bab17b897bffe71ed050c8a8cfef1b57ff3d5a33bbce7c0fc72e53bd008df36889bbdd8c4759f57a880ca09ce71170791be589847f1f31e936adc0fcb0a5a431eccd69eb87087f7b11a7cccf",
+    "e": "010001"
+  }
 }

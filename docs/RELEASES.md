@@ -243,6 +243,13 @@ Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
   package and index with the release key
   `E4EC 9751 F1AA 66AB 2BA5  08EF 0410 96B9 A6EB D256`; a file from the
   Releases page is checked by `SHA256SUMS.txt` and its attestation.
+- **The update feed, every platform (#128):** the Update feed workflow signs
+  `desktop.json` with that same release key, published beside it as
+  `desktop.json.asc`. The credential core believes the feed only when that
+  signature verifies against the release key's public half, built in from
+  `data/update-sources.json`, and when it was signed no earlier than the last
+  feed this copy accepted. Without that, an AppImage would have been trusted
+  on the feed's word alone.
 - **Provenance, every platform (#83):** CI attests each installer of a build
   that may be published (`main`, the Preview, a fix branch; never a pull
   request's): GitHub signs, in Sigstore's public log, that this repository's

@@ -39,6 +39,12 @@ mod corelog;
 mod backup;
 mod politeness;
 mod reference;
+// What this product tells every service it connects to: its name and its
+// real version, from package.json at build time (#129). QRZ asks each client
+// to identify itself truthfully, and a placeholder version is not that.
+pub(crate) const AGENT: &str = concat!("QGDesktop/", env!("QGD_VERSION"));
+
+mod feed_signature;
 mod updates;
 mod validation;
 type CoreResult<T> = std::result::Result<T, &'static str>;
@@ -1038,7 +1044,7 @@ mod addon {
         // other request to this process must still be answered meanwhile.
         #[napi]
         pub fn fetch_update_feed(&self) -> Result<Buffer> {
-            let body = crate::updates::fetch_feed().map_err(error)?;
+            let body = crate::updates::fetch_feed(&self.store.directory).map_err(error)?;
             tracing::info!(bytes = body.len(), "update feed fetched");
             Ok(body.into())
         }

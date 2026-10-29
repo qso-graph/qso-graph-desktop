@@ -37,10 +37,11 @@ export const DEADLINES: Readonly<Record<string, Deadline>> = {
     ms: 135_000,
     said: 'The reference source did not answer in time.'
   },
-  // Past the core's own ceilings, for the same reason: 30s for the feed, two
-  // hours for a download (updates.rs).
+  // Past the core's own ceilings, for the same reason: two requests of 30s
+  // each for the feed and its signature (#128), two hours for a download
+  // (updates.rs).
   'update-feed': {
-    ms: 45_000,
+    ms: 75_000,
     said: 'The update feed did not answer in time.'
   },
   'update-download': {

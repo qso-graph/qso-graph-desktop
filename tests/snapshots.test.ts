@@ -58,6 +58,30 @@ describe('snapshots (#77)', () => {
     expect(existsSync(join(callsigns, 'updates', 'qso-graph-desktop-0.2.1-linux-x86_64.AppImage'))).toBe(true);
   });
 
+  // #128: going back must not wind back the record of the newest signed feed,
+  // or an old signed feed would be believed again.
+  it('leaves the record of the newest signed feed as it is when going back', () => {
+    const { root, callsigns, kept } = profile();
+    writeFileSync(join(callsigns, 'feed-signed.txt'), '1800000000');
+    kept.take('0.2.1');
+    expect(existsSync(join(root, 'snapshots', '0.2.1', 'callsigns', 'feed-signed.txt'))).toBe(false);
+    writeFileSync(join(callsigns, 'feed-signed.txt'), '1800000100');
+    expect(kept.restore('0.2.1')).toBe(true);
+    expect(readFileSync(join(callsigns, 'feed-signed.txt'), 'utf8')).toBe('1800000100');
+  });
+
+  // #128: a snapshot an older version took may hold the record; restoring it
+  // must still leave the newer one in place.
+  it('does not put back a record of the signed feed that an older version kept', () => {
+    const { root, callsigns, kept } = profile();
+    kept.take('0.2.1');
+    writeFileSync(join(root, 'snapshots', '0.2.1', 'callsigns', 'feed-signed.txt'), '1700000000');
+    writeFileSync(join(callsigns, 'feed-signed.txt'), '1800000100');
+    expect(kept.restore('0.2.1')).toBe(true);
+    expect(readFileSync(join(callsigns, 'feed-signed.txt'), 'utf8')).toBe('1800000100');
+    expect(readFileSync(join(callsigns, 'KI7MT.json'), 'utf8')).toBe('KI7MT');
+  });
+
   // #121: going back from a lab build stopped at "the profile could not be kept".
   it('keeps a lab build\'s profile under its version, as the newest of the non-Stable', () => {
     const { root, kept } = profile();

@@ -1,0 +1,164 @@
+{
+  "format": "qso-graph-desktop-updates",
+  "version": 1,
+  "stable": {
+    "version": "0.4.0",
+    "files": {
+      "win-x64": {
+        "name": "qso-graph-desktop-0.4.0-win-x64.exe",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-win-x64.exe",
+        "sha256": "a2c5d7750eab44351276214913b31dd34bca05d7e669b88d668fba07d9c15d62"
+      },
+      "linux-x86_64": {
+        "name": "qso-graph-desktop-0.4.0-linux-x86_64.AppImage",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-linux-x86_64.AppImage",
+        "sha256": "9c45dc5805a930b78968b5132ba3237e5c7ef166c3f3b17d23a90ecd7c54a887"
+      },
+      "linux-arm64": {
+        "name": "qso-graph-desktop-0.4.0-linux-arm64.AppImage",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-linux-arm64.AppImage",
+        "sha256": "7d56fbc69e24450182c1487e92f21245c75a851cf91e5f7df4e20c5ca434c9a1"
+      },
+      "mac-arm64": {
+        "name": "qso-graph-desktop-0.4.0-mac-arm64.zip",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-mac-arm64.zip",
+        "sha256": "2e8fd73eae93c518103d81e0fed678a68d85115634a9eb8fefb0fec71fc180be"
+      }
+    }
+  },
+  "early": {
+    "version": "0.4.0",
+    "files": {
+      "win-x64": {
+        "name": "qso-graph-desktop-0.4.0-win-x64.exe",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-win-x64.exe",
+        "sha256": "a2c5d7750eab44351276214913b31dd34bca05d7e669b88d668fba07d9c15d62"
+      },
+      "linux-x86_64": {
+        "name": "qso-graph-desktop-0.4.0-linux-x86_64.AppImage",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-linux-x86_64.AppImage",
+        "sha256": "9c45dc5805a930b78968b5132ba3237e5c7ef166c3f3b17d23a90ecd7c54a887"
+      },
+      "linux-arm64": {
+        "name": "qso-graph-desktop-0.4.0-linux-arm64.AppImage",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-linux-arm64.AppImage",
+        "sha256": "7d56fbc69e24450182c1487e92f21245c75a851cf91e5f7df4e20c5ca434c9a1"
+      },
+      "mac-arm64": {
+        "name": "qso-graph-desktop-0.4.0-mac-arm64.zip",
+        "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-mac-arm64.zip",
+        "sha256": "2e8fd73eae93c518103d81e0fed678a68d85115634a9eb8fefb0fec71fc180be"
+      }
+    }
+  },
+  "releases": [
+    {
+      "version": "0.4.0",
+      "files": {
+        "win-x64": {
+          "name": "qso-graph-desktop-0.4.0-win-x64.exe",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-win-x64.exe",
+          "sha256": "a2c5d7750eab44351276214913b31dd34bca05d7e669b88d668fba07d9c15d62"
+        },
+        "linux-x86_64": {
+          "name": "qso-graph-desktop-0.4.0-linux-x86_64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-linux-x86_64.AppImage",
+          "sha256": "9c45dc5805a930b78968b5132ba3237e5c7ef166c3f3b17d23a90ecd7c54a887"
+        },
+        "linux-arm64": {
+          "name": "qso-graph-desktop-0.4.0-linux-arm64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-linux-arm64.AppImage",
+          "sha256": "7d56fbc69e24450182c1487e92f21245c75a851cf91e5f7df4e20c5ca434c9a1"
+        },
+        "mac-arm64": {
+          "name": "qso-graph-desktop-0.4.0-mac-arm64.zip",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.4.0/qso-graph-desktop-0.4.0-mac-arm64.zip",
+          "sha256": "2e8fd73eae93c518103d81e0fed678a68d85115634a9eb8fefb0fec71fc180be"
+        }
+      },
+      "track": "stable",
+      "date": "2026-10-28T15:38:16.000Z"
+    },
+    {
+      "version": "0.3.1",
+      "files": {
+        "win-x64": {
+          "name": "qso-graph-desktop-0.3.1-win-x64.exe",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.1/qso-graph-desktop-0.3.1-win-x64.exe",
+          "sha256": "11dd6bb33ee1f34b8fda6e5c33e604a86fc72740cee02ac27a527255051825c1"
+        },
+        "linux-x86_64": {
+          "name": "qso-graph-desktop-0.3.1-linux-x86_64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.1/qso-graph-desktop-0.3.1-linux-x86_64.AppImage",
+          "sha256": "12745b55b930d83066ef293e188a819050b4ceffd1399896076c01cfde02f35b"
+        },
+        "linux-arm64": {
+          "name": "qso-graph-desktop-0.3.1-linux-arm64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.1/qso-graph-desktop-0.3.1-linux-arm64.AppImage",
+          "sha256": "df2e634e1df2ae869e9f5d516b48bc7eae233e7ec987e7639a9265f784544765"
+        },
+        "mac-arm64": {
+          "name": "qso-graph-desktop-0.3.1-mac-arm64.zip",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.1/qso-graph-desktop-0.3.1-mac-arm64.zip",
+          "sha256": "604e2740dd8c401ca77d70386bd9f29258b3cc33448dcab9abd7ac42b652b766"
+        }
+      },
+      "track": "stable",
+      "date": "2026-10-27T19:43:09.000Z"
+    },
+    {
+      "version": "0.3.0",
+      "files": {
+        "win-x64": {
+          "name": "qso-graph-desktop-0.3.0-win-x64.exe",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0/qso-graph-desktop-0.3.0-win-x64.exe",
+          "sha256": "e9e1a3ea419a640fe5c964c3fdc77df6146d10efd04296ef345c077d165494bf"
+        },
+        "linux-x86_64": {
+          "name": "qso-graph-desktop-0.3.0-linux-x86_64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0/qso-graph-desktop-0.3.0-linux-x86_64.AppImage",
+          "sha256": "0c6dcda14281852bea9d5739c37b7ec330b7163a6e3e10fd1eed1c6a45a9fc2a"
+        },
+        "linux-arm64": {
+          "name": "qso-graph-desktop-0.3.0-linux-arm64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0/qso-graph-desktop-0.3.0-linux-arm64.AppImage",
+          "sha256": "35c17a720cf6e59a38c8fa7d3d827d07728bcf4312a1660e55a35d8cc9ec939f"
+        },
+        "mac-arm64": {
+          "name": "qso-graph-desktop-0.3.0-mac-arm64.zip",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0/qso-graph-desktop-0.3.0-mac-arm64.zip",
+          "sha256": "7aaed426081a90574baa02547a39a1f14e45b8637e93ac81eeaaaf28492b580b"
+        }
+      },
+      "track": "stable",
+      "date": "2026-10-27T15:05:55.000Z"
+    },
+    {
+      "version": "0.2.1",
+      "files": {
+        "win-x64": {
+          "name": "qso-graph-desktop-0.2.1-win-x64.exe",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.2.1/qso-graph-desktop-0.2.1-win-x64.exe",
+          "sha256": "a3dcf78100ea2ecd5d2782630f247acc310eb6e360da4fa684abae6bc1b6a365"
+        },
+        "linux-x86_64": {
+          "name": "qso-graph-desktop-0.2.1-linux-x86_64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.2.1/qso-graph-desktop-0.2.1-linux-x86_64.AppImage",
+          "sha256": "b1af96b03d3e5b78f2d9c56338b2b89fdfeba27874cbb6fa3ba089a51ab00273"
+        },
+        "linux-arm64": {
+          "name": "qso-graph-desktop-0.2.1-linux-arm64.AppImage",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.2.1/qso-graph-desktop-0.2.1-linux-arm64.AppImage",
+          "sha256": "516c49bdea34b0492a4afa1c50ccc6eb746d0d00a20e63092e65544a0b516c3b"
+        },
+        "mac-arm64": {
+          "name": "qso-graph-desktop-0.2.1-mac-arm64.zip",
+          "url": "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.2.1/qso-graph-desktop-0.2.1-mac-arm64.zip",
+          "sha256": "8b78b681d992d16905dee9b168f6a5e7df24862ec0e0581aece6498554285f42"
+        }
+      },
+      "track": "stable",
+      "date": "2026-10-25T22:31:47.000Z"
+    }
+  ]
+}

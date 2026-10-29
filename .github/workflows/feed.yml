@@ -14,6 +14,14 @@ name: Update feed
 
 on:
   workflow_call:
+    # The release key signs the feed (#128): the copies that read it believe it
+    # only with that signature. Passed by name by each caller, never inherited
+    # whole, so this workflow holds the one key it uses and nothing else.
+    secrets:
+      LINUX_PACKAGE_SIGNING_KEY_PRIVATE:
+        required: true
+      LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE:
+        required: true
   workflow_dispatch:
 
 permissions:
@@ -77,6 +85,34 @@ jobs:
           done < "$work/listed"
           touch site/.nojekyll
           cat site/desktop.json
+      # Signed with the release key, as desktop.json.asc beside it (#128). The
+      # key's fingerprint comes from data/update-sources.json, the register the
+      # application builds in, so what CI signs with and what a copy checks
+      # against are one fact in one place; the signature is verified, by that
+      # fingerprint, before anything is published.
+      - name: The feed, signed
+        env:
+          KEY: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
+          PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          [ -n "${KEY:-}" ] && [ -n "${PASSPHRASE:-}" ] || { echo "✗ the release key's secrets are not set: the feed would be unsigned" >&2; exit 1; }
+          fpr=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("data/update-sources.json","utf8")).feedKey.fingerprint)')
+          [[ $fpr =~ ^[0-9A-F]{40}$ ]] || { echo "✗ the register names no release key fingerprint" >&2; exit 1; }
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$PASSPHRASE" > "$RUNNER_TEMP/passphrase" && chmod 0600 "$RUNNER_TEMP/passphrase"
+          printf '%s\n' "$KEY" | gpg --batch --quiet --import
+          gpg --batch --yes --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/passphrase" \
+            --local-user "$fpr" --digest-algo SHA512 --armor --detach-sign \
+            --output site/desktop.json.asc site/desktop.json
+          rm -f "$RUNNER_TEMP/passphrase"
+          # Good, and by that key: the VALIDSIG line names the signer's fingerprint.
+          gpg --batch --status-fd 1 --verify site/desktop.json.asc site/desktop.json 2>/dev/null \
+            | awk -v want="$fpr" '$2 == "VALIDSIG" && $3 == want { ok = 1 } END { exit !ok }' \
+            || { echo "✗ the feed's signature does not verify as $fpr" >&2; exit 1; }
+          echo "✓ desktop.json signed by $fpr"
+          rm -rf "$GNUPGHOME"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site

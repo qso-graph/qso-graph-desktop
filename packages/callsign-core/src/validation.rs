@@ -62,18 +62,23 @@ pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
     panic!("the ClientHello carries no supported_versions extension");
 }
 
+fn needs_username(provider: &str) -> bool { provider == "qrz" }
+
 pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
     let secret = selected_secret(provider, creds, preference)?;
-    let username = creds.username.as_deref().filter(|s| !s.is_empty()).ok_or("No username is stored.")?;
+    // Only QRZ's lookup signs in with a username; the Logbook's API takes its
+    // key alone, and its register entry asks for nothing else (#8).
+    let username = creds.username.as_deref().filter(|s| !s.is_empty());
+    if needs_username(provider) && username.is_none() { return Err("No username is stored."); }
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
-        .user_agent("QGDesktop/0.0.0-preview.1").build().map_err(|_| "Secure client is unavailable.")?;
+        .user_agent(crate::AGENT).build().map_err(|_| "Secure client is unavailable.")?;
     // Fixed destinations and POST bodies: no credentials in URLs. The caller
     // sees a fixed outcome only, never response bodies, session keys or errors.
     let request = match provider {
         "qrz" => client.post("https://xmldata.qrz.com/xml/current/")
-            .form(&[("username", username), ("password", secret), ("agent", "QGDesktop/0.0.0-preview.1")]),
+            .form(&[("username", username.unwrap_or_default()), ("password", secret), ("agent", crate::AGENT)]),
         "qrz_logbook" => client.post("https://logbook.qrz.com/api")
             .form(&[("KEY", secret), ("ACTION", "STATUS")]),
         _ => return Ok("unsupported"),
@@ -142,11 +147,11 @@ pub fn lookup(
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
-        .user_agent("QGDesktop/0.0.0-preview.1").build().map_err(|_| "Secure client is unavailable.")?;
+        .user_agent(crate::AGENT).build().map_err(|_| "Secure client is unavailable.")?;
 
     // 1. Sign in. Same fixed destination and POST body as the credential test.
     let login = match client.post("https://xmldata.qrz.com/xml/current/")
-        .form(&[("username", username), ("password", secret), ("agent", "QGDesktop/0.0.0-preview.1")])
+        .form(&[("username", username), ("password", secret), ("agent", crate::AGENT)])
         .send() { Ok(response) => response, Err(_) => return Ok(Looked::Nothing("network-error")) };
     let body = match read_bounded(login) { Ok(body) => body, Err(reason) => return Ok(Looked::Nothing(reason)) };
     let text = match std::str::from_utf8(&body) { Ok(text) => text, Err(_) => return Ok(Looked::Nothing("invalid-response")) };
@@ -155,7 +160,7 @@ pub fn lookup(
     // 2. Ask. POSTed, not in the query string: a session key is a credential
     //    for the rest of its life and this project puts none in a URL.
     let asked = match client.post("https://xmldata.qrz.com/xml/current/")
-        .form(&[("s", key.as_str()), ("callsign", callsign), ("agent", "QGDesktop/0.0.0-preview.1")])
+        .form(&[("s", key.as_str()), ("callsign", callsign), ("agent", crate::AGENT)])
         .send() { Ok(response) => response, Err(_) => return Ok(Looked::Nothing("network-error")) };
     let body = match read_bounded(asked) { Ok(body) => body, Err(reason) => return Ok(Looked::Nothing(reason)) };
     let text = match std::str::from_utf8(&body) { Ok(text) => text, Err(_) => return Ok(Looked::Nothing("invalid-response")) };
@@ -246,6 +251,21 @@ fn parse_response(provider: &str, body: &str) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_qrz_s_lookup_needs_a_username_and_the_logbook_s_key_stands_alone() {
+        // #8: the register gives QRZ Logbook one field, its API key.
+        assert!(needs_username("qrz"));
+        assert!(!needs_username("qrz_logbook"));
+    }
+
+    #[test]
+    fn the_agent_is_the_application_s_real_version() {
+        // #129: never the placeholder, always package.json's version.
+        let manifest: serde_json::Value = serde_json::from_str(include_str!("../../../package.json")).unwrap();
+        assert_eq!(crate::AGENT, format!("QGDesktop/{}", manifest["version"].as_str().unwrap()));
+        assert!(!crate::AGENT.contains("0.0.0"));
+    }
+
     use super::*;
     // QGD-APP-0014 and QGD-PII-0007, at the parser.
     //
