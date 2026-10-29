@@ -70,6 +70,15 @@ Download `…-mac-arm64.dmg` (Apple silicon), open it, and drag **QSO Graph Desk
 **Applications**. Open it from Applications, not from the disk image: the first time, macOS asks
 whether to open an app downloaded from the internet. It is signed by Greg Beam (KI7MT) with an Apple Developer ID, and notarized by Apple.
 
+Or with [Homebrew](https://brew.sh), which installs the same signed download:
+
+```bash
+brew install qso-graph/tap/qso-graph-desktop
+```
+
+The app updates itself either way. To have Homebrew move it to a new Stable release, name it:
+`brew upgrade qso-graph-desktop`.
+
 ## The portable build
 
 Each platform also has a `.zip`. Unpack it anywhere, a USB stick included, and run it: nothing is

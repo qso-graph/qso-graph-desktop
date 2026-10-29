@@ -18,8 +18,9 @@ Security problems go privately, as [SECURITY.md](../SECURITY.md) says, not in a 
 
 ## Common problems
 
-- **Windows says it protected your PC**: the Windows build is not signed yet. **More info → Run
-  anyway**.
+- **Windows says it protected your PC**: the installer is signed by **Gregory Beam**, but a new
+  signature has little download history yet, so SmartScreen may still warn. **More info** shows
+  *Publisher: Gregory Beam*; then **Run anyway**.
 - **The AppImage does not start on Ubuntu**: install FUSE (`sudo apt install libfuse2t64` on 24.04).
 - **A page says it is waiting for the network**: check the [Internet lamp](offline.md).
 - **Parks On the Air's Near Me is empty**: download POTA's parks in **Settings → Reference data**,

@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The documentation says what the application does.** Every extension starts off until you turn it
+  on in Settings → Extensions (four READMEs said "on by default"); the extensions README lists the
+  four that ship; the Windows installer is signed (Troubleshooting said it wasn't); Linux packages
+  come from our signed apt and dnf repository; diagnostics are saved from Help → Save Diagnostics for
+  Support…; security fixes are made for the latest Stable release on `main`; and the install page
+  shows Homebrew for macOS.
+
 ## [0.4.0] - 2026-10-28
 
 ### Added

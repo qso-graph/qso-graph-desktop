@@ -35,7 +35,7 @@ file for your computer:
 | **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed by **Greg Beam (KI7MT)** with an Apple Developer ID, and notarized by Apple. |
 
 Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
-application checks for updates once a day (Stable or Early, or off, in Settings) and never
+application checks for updates once a day (Stable, Early or Previews, or off, in Settings) and never
 restarts without asking. The [install page](guide/install.md) has the details.
 
 ### Verify your download

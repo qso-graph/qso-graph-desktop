@@ -237,10 +237,12 @@ Every official build is signed in KI7MT's own name (`QGD-SCP-0003`).
   Environment of this repository alone, so no signing secret exists; the
   Environment holds only three IDs. CI checks every signed file says
   `CN=Gregory Beam`. A new signature has no download history yet, so Edge and
-  SmartScreen may still warn; the **Microsoft Store** copy shows no warning,
-  and the Store signs its own package.
-- **Linux:** packages are unsigned; `SHA256SUMS.txt` lets a download be
-  checked.
+  SmartScreen may still warn. A Microsoft Store listing, which carries this
+  same signed installer, is in Microsoft's review.
+- **Linux:** the apt and dnf repository on `packages.qso-graph.net` signs every
+  package and index with the release key
+  `E4EC 9751 F1AA 66AB 2BA5  08EF 0410 96B9 A6EB D256`; a file from the
+  Releases page is checked by `SHA256SUMS.txt` and its attestation.
 - **Provenance, every platform (#83):** CI attests each installer of a build
   that may be published (`main`, the Preview, a fix branch; never a pull
   request's): GitHub signs, in Sigstore's public log, that this repository's
@@ -303,7 +305,7 @@ working. Both get one click.
 Chosen in Settings. **Early and Previews carry no guarantee** (KI7MT,
 2026-10-26): running one is the operator's choice. A Preview checks for
 updates as a release does, so it can be left for one. A copy from the
-Microsoft Store is updated by the Store and never updates itself.
+Microsoft Store updates itself as any other does.
 
 ### Choosing a version, and going back (#77)
 
@@ -348,7 +350,7 @@ update (`QGD-FRM-0020`).
 | Windows installer | itself: downloads in the background, installs on restart |
 | Linux AppImage | itself: the new AppImage replaces the old |
 | macOS | itself: the signed zip, checked against the feed and then by `codesign` to be signed by the same team, replaces the application where it is. Run from the disk image, or from a folder it cannot write to, a notice with the download link |
-| Linux deb and rpm | through a package repository later, with the rest of the system; until then, a notice with the download link |
+| Linux deb and rpm | from our apt and dnf repository, with the rest of the system (the application itself shows a notice with the download link) |
 | A portable zip | a notice with the download link, by design: it lives where the operator put it |
 
 ### How it is safe
@@ -433,17 +435,12 @@ record.
 
 ## Not built yet
 
-What this document describes but is not in place yet, in the order it will
-be done:
+What this document describes but is not in place yet:
 
-1. **GitHub settings, once 0.2.1's pull request is merged** (the workflows
-   are built; these are KI7MT's): `main` becomes the default branch;
-   `develop` is **frozen, not deleted**: it stays, locked against pushes,
-   because every copy up to 0.2.0 opens Help's documents from it (0.2.1 and
-   later read `main`), and is deleted once those copies have updated. It is
-   dropped from both signing Environments, which gain the fix branches
-   (`*.*.x`) instead; GitHub Pages is turned on for this repository with
-   **GitHub Actions** as its source, its `github-pages` Environment allows
-   `main` and `*.*.x`, and the custom domain `updates.qso-graph.io` moves here
-   from `qso-graph-desktop-updates`.
-2. A package repository for deb and rpm.
+1. **Deleting `develop`.** `main` is the default branch, Pages serves the
+   update feed from this repository at `updates.qso-graph.io`, and `develop`
+   is frozen (protected, no pushes) because copies up to 0.2.0 open Help's
+   documents from it. It is deleted once those copies have updated.
+
+The package repository for deb and rpm is built: apt and dnf on
+`packages.qso-graph.net`, signed, Stable releases only.

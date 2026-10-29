@@ -1,8 +1,8 @@
 # Astro
 
-QSO Graph Desktop's built-in extension for where the sun and the moon are at
-your Location (`QGD-AST-*`). It ships with the application, is on by default,
-can be turned off, and has an item in the rail as well as a page you can pin.
+QSO Graph Desktop's extension for where the sun and the moon are at
+your Location (`QGD-AST-*`). It ships with the application as an official extension and, like every extension, starts off: turn it on in **Settings → Extensions**. On, it has an item in the rail as well as a
+page you can pin.
 
 | On the page | What it is |
 |---|---|

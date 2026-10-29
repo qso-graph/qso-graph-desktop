@@ -15,7 +15,7 @@ security problems are taken seriously.
 Helpful details:
 - what the problem is, and what an attacker could do with it;
 - steps to reproduce, or a proof of concept;
-- the version or commit, and your macOS version.
+- the version or commit, and your operating system and its version.
 
 **Never include a real credential** in a report. Use made-up values.
 
@@ -29,8 +29,8 @@ Helpful details:
 
 ## Supported versions
 
-Before Release 1 there are no supported releases; only the current `develop` branch is
-maintained. After Release 1, security fixes are made for the latest release.
+Security fixes are made for the latest Stable release, and land on `main`. A security fix is
+released as soon as it is ready.
 
 ## Scope
 
