@@ -32,7 +32,7 @@ file for your computer:
 |---|---|---|
 | **Windows** | `…-win-x64.exe` | Run it. From 0.2.0 the installer is signed by **Gregory Beam (KI7MT)**. The signature is new, so Edge may say the file *isn't commonly downloaded* (choose **Keep**), and Windows may say it *protected your PC*: **More info** shows *Publisher: Gregory Beam*, then **Run anyway**. Installers before 0.2.0 aren't signed. A Microsoft Store listing, without those warnings, is planned. |
 | **Linux** | `…-linux-x86_64.AppImage` (PC) or `…-linux-arm64.AppImage` (Raspberry Pi 5) | Mark it executable and run it; it updates itself. Ubuntu 22.04 and later need FUSE (`sudo apt install libfuse2t64` on 24.04). A `.deb` and an `.rpm` are there too, or install from [our apt and dnf repository](guide/install.md#linux) and it updates with your system. |
-| **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed by **Greg Beam (KI7MT)** with an Apple Developer ID, and notarized by Apple. |
+| **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed by **Greg Beam (KI7MT)** with an Apple Developer ID, and notarized by Apple. Or `brew install qso-graph/tap/qso-graph-desktop`. |
 
 Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
 application checks for updates once a day (Stable, Early or Previews, or off, in Settings) and never
