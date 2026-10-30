@@ -28,6 +28,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   repository was rebuilt, every package was signed again and the index described the new copy,
   while the site kept the old one. Packages already published are now kept as they are, and
   publishing checks every file the site serves, packages included, against what was built.
+- **The Linux package is named `qso-graph-desktop`, like everything else** (#145). It was
+  `qg-desktop`, so `sudo dnf upgrade qso-graph-desktop` and its apt equivalent answered that no such
+  package exists. The package and the command that starts the application are now
+  `qso-graph-desktop`. A copy installed under the old name moves over on its next `sudo dnf upgrade`
+  or `sudo apt upgrade`, settings and all.
 
 ## [0.5.0] - 2026-10-30
 

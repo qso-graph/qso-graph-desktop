@@ -41,14 +41,14 @@ On Debian, Ubuntu or Raspberry Pi OS:
 sudo curl -fsSL -o /usr/share/keyrings/qso-graph-desktop.gpg https://packages.qso-graph.net/qso-graph-desktop.gpg
 echo "deb [signed-by=/usr/share/keyrings/qso-graph-desktop.gpg] https://packages.qso-graph.net/apt stable main" | sudo tee /etc/apt/sources.list.d/qso-graph-desktop.list
 sudo apt update
-sudo apt install qg-desktop
+sudo apt install qso-graph-desktop
 ```
 
 On Fedora, Rocky or RHEL:
 
 ```bash
 sudo curl -fsSL -o /etc/yum.repos.d/qso-graph-desktop.repo https://packages.qso-graph.net/qso-graph-desktop.repo
-sudo dnf install qg-desktop
+sudo dnf install qso-graph-desktop
 ```
 
 dnf asks you to accept our key the first time. Check that its fingerprint is
