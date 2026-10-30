@@ -8,7 +8,7 @@
 # of main's commit and passed as ci-all-green, so what was tested is what
 # ships. Before anything is published it refuses unless every check holds:
 # run from main, main says this version, CHANGELOG.md has its section, it is
-# new or was begun from this same build (#118), its milestone has no open issue, and CI's newest all-green
+# new or was begun from this same build (#118), its milestone exists, and CI's newest all-green
 # build of main packaged every platform, with nothing but documentation
 # since. Then the pre-release vx.y.z (tagging the commit built), the
 # milestone closed, and the Early update feed. A run that failed after the
@@ -82,8 +82,10 @@ jobs:
           if [ -z "$milestone" ]; then
             fail "there is no milestone ${VERSION}"
           else
-            read -r number open state <<< "$milestone"
-            [ "$open" = 0 ] && echo "✓ milestone ${VERSION} has no open issue" || fail "milestone ${VERSION} has ${open} open issue(s)"
+            read -r number _ _ <<< "$milestone"
+            # Its issues do not gate a release (KI7MT, 2026-10-30): a milestone can hold any number,
+            # deferred or won't-fix among them.
+            echo "✓ milestone ${VERSION}"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
           # The build to publish: CI's newest run on this branch that passed ci-all-green

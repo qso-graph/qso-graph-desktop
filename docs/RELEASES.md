@@ -71,7 +71,7 @@ in bulk.
    run that proves it, which the comment names. GitHub's "Fixes #N" is not
    used: it closes an issue at the merge, after validation should already
    have happened.
-5. **When every issue is closed:** the release checks on a lab machine
+5. **When KI7MT says the milestone is done** (its open issues do not hold it): the release checks on a lab machine
    (screenshots and the gallery, as before), `node scripts/release.mjs prepare`
    (CHANGELOG.md's `[Unreleased]` becomes `[x.y.z] - <date>`), a final
    validation build, a review on the pull request, and **KI7MT merges it**.
@@ -130,7 +130,9 @@ in bulk.
    - it was run from `main`, and `main`'s `package.json` says `x.y.z`;
    - CHANGELOG.md has a `[x.y.z]` section;
    - `vx.y.z` is new, or was begun from this same build and stopped (below);
-   - milestone `x.y.z` exists and has **no open issues**;
+   - milestone `x.y.z` exists. **Its issues do not gate a release**
+     (KI7MT, 2026-10-30): a milestone can hold any number of open ones,
+     deferred or won't-fix among them;
    - CI's run of that very commit on `main` passed **`ci-all-green`**;
    - this repository's **GitHub Pages is on**, built from Actions, at
      `updates.qso-graph.io`, so the feed can be published (#99: 0.2.1 was
