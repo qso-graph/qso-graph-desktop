@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-30
+
 ### Security
 
 - **Linux and Windows: no connection to Google at startup** (#138). Each time it started, the
