@@ -23,6 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   repositories no longer name, and checks every file they hold before it finishes.
 - **The banner Windows shows while an update installs says all of its message** (#135). Its second
   line was cut off after "when it's"; it now reads "It reopens when it's done."
+- **dnf installs and updates from our repository again** (#143). After 0.5.1 was published, dnf
+  refused its package with "checksum doesn't match", and older versions the same way. Each time the
+  repository was rebuilt, every package was signed again and the index described the new copy,
+  while the site kept the old one. Packages already published are now kept as they are, and
+  publishing checks every file the site serves, packages included, against what was built.
 
 ## [0.5.0] - 2026-10-30
 

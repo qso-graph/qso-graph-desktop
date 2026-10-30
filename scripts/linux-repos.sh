@@ -41,6 +41,20 @@ mkdir -p "$out"
 [ -z "$(ls -A "$out")" ] || { echo "$out is not empty: give a new or empty folder." >&2; exit 1; }
 
 # dnf. Each .rpm signed in a copy: the release's own file is left as CI built it.
+#
+# A package already served is kept, not signed again (#143). A signature carries the time it was
+# made, so signing anew gives a file of the same size and different bytes: the upload, which never
+# rewrites a package, kept the old one, and the index named the new one. dnf refused every package
+# but the newest after the first rebuild, and the newest too when Promote ran twice. The served copy
+# is kept only if it is this release's package (header and payload digests equal) and carries a
+# signature that verifies against the release key; anything else is signed here as before.
+served_base=${PACKAGES_BASE:-$base}
+[[ $served_base =~ ^(https|file):// ]] || { echo "PACKAGES_BASE is not https:// or file://: $served_base" >&2; exit 2; }
+rpmdb=$(mktemp -d)
+trap 'rm -rf "$rpmdb"' EXIT
+gpg --batch --armor --export "$key" > "$rpmdb/release-key.asc"
+rpm --dbpath "$rpmdb" --import "$rpmdb/release-key.asc"
+contents() { rpm -qp --qf '%{SHA256HEADER} %{PAYLOADDIGEST}' "$1" 2>/dev/null; }
 for arch in x86_64 aarch64; do mkdir -p "$out/rpm/$arch"; done
 for file in "${rpms[@]}"; do
   name=$(basename "$file")
@@ -49,7 +63,15 @@ for file in "${rpms[@]}"; do
     *-linux-aarch64.rpm) arch=aarch64 ;;
     *) echo "An .rpm for no architecture we serve: $name" >&2; exit 1 ;;
   esac
-  cp "$file" "$out/rpm/$arch/$name"
+  dest="$out/rpm/$arch/$name"
+  if curl -fsS --retry 3 --proto '=https,file' -o "$dest" "$served_base/rpm/$arch/$name" 2>/dev/null \
+    && [ -n "$(contents "$file")" ] && [ "$(contents "$dest")" = "$(contents "$file")" ] \
+    && rpm --dbpath "$rpmdb" --checksig "$dest" 2>/dev/null | grep -q 'digests signatures OK'; then
+    echo "Kept as served: $name"
+    continue
+  fi
+  cp "$file" "$dest"
+  echo "Signed: $name"
   rpmsign --addsign \
     --define "__gpg $(command -v gpg)" \
     --define "_gpg_name $key" \

@@ -157,20 +157,16 @@ jobs:
         run: |
           set -euo pipefail
           # Every file the build made, from the public address (#134): it checked four, so a run that
-          # lost aarch64's repomd.xml passed. Each index against what was built; each package and
-          # installer is there (its name is unique and it is never rewritten).
+          # lost aarch64's repomd.xml passed. Each file, packages too, against what was built (#143):
+          # checking only that a package was there passed while every .rpm differed from the index
+          # naming it, because the upload kept an older signing of the same size.
           cd "$RUNNER_TEMP/repo"
           checked=0
           while IFS= read -r path; do
             url="https://packages.qso-graph.net/${path}?run=${GITHUB_RUN_ID}"
-            case "$path" in
-              *.deb|*.rpm|*.exe)
-                curl -fsSI --retry 3 -o /dev/null "$url" || { echo "✗ ${path} is not served" >&2; exit 1; } ;;
-              *)
-                served=$(curl -fsS --retry 3 "$url" | sha256sum | cut -d' ' -f1) || { echo "✗ ${path} is not served" >&2; exit 1; }
-                [ "$served" = "$(sha256sum < "$path" | cut -d' ' -f1)" ] || { echo "✗ ${path} is not what was built" >&2; exit 1; }
-                echo "✓ ${path}" ;;
-            esac
+            served=$(set -o pipefail; curl -fsS --retry 3 "$url" | sha256sum | cut -d' ' -f1) || { echo "✗ ${path} is not served" >&2; exit 1; }
+            [ "$served" = "$(sha256sum < "$path" | cut -d' ' -f1)" ] || { echo "✗ ${path} is not what was built" >&2; exit 1; }
+            echo "✓ ${path}"
             checked=$((checked + 1))
           done < <(find . -type f -printf '%P\n' | LC_ALL=C sort)
           echo "✓ all ${checked} file(s) served as built"
