@@ -46,6 +46,17 @@ export interface AvailablePage {
   // Its colour on the rail, as a theme token: general, callsigns, locations
   // or settings (manifest.ts PAGE_HUES).
   readonly hue: string;
+  // Its own settings, which the window draws as its Settings tab, each with
+  // the choice in force (QGD-HOM-0017). Empty for a page with none.
+  readonly settings: readonly PageSettingView[];
+}
+
+export interface PageSettingView {
+  readonly id: string;
+  readonly label: string;
+  readonly choices: readonly string[];
+  readonly value: string;
+  readonly hint?: string;
 }
 
 export type PageView =
@@ -77,7 +88,10 @@ export type HomeCommand =
   | { readonly type: 'refresh'; readonly key: string }
   // The window's network went or came back, as the operating system says
   // (its online and offline events): nothing is polled to find out.
-  | { readonly type: 'connection'; readonly online: boolean };
+  | { readonly type: 'connection'; readonly online: boolean }
+  // One of a page's own settings chosen on its Settings tab (QGD-HOM-0017):
+  // checked by the broker against the page's own choices.
+  | { readonly type: 'page-setting'; readonly key: string; readonly id: string; readonly value: string };
 
 export type HomeReply = { readonly ok: true; readonly state: HomeState } | { readonly ok: false; readonly error: string };
 
@@ -106,6 +120,8 @@ export function validateHomeCommand(value: unknown): value is HomeCommand {
   if (value.type === 'connection') return exactly(value, ['type', 'online']) && typeof value.online === 'boolean';
   if (value.type === 'refresh') return exactly(value, ['type', 'key']) && typeof value.key === 'string' && KEY.test(value.key);
   if (value.type === 'dismiss') return exactly(value, ['type', 'id']) && Number.isSafeInteger(value.id) && (value.id as number) > 0;
+  if (value.type === 'page-setting') return exactly(value, ['type', 'key', 'id', 'value']) && typeof value.key === 'string' && KEY.test(value.key)
+    && typeof value.id === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.id) && plainText(value.value, 16);
   return false;
 }
 
@@ -145,7 +161,8 @@ function isInput(value: unknown): boolean {
 }
 
 function isAvailable(value: unknown): value is AvailablePage {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab', 'hue'])
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab', 'hue', 'settings'])
+    && everyIndex(value.settings, isSettingView) && (value.settings as unknown[]).length <= 4
     && typeof value.hue === 'string' && ['general', 'callsigns', 'locations', 'settings'].includes(value.hue)
     && typeof value.area === 'string' && KEY.test(value.area) && plainText(value.tab, 40)
     && typeof value.network === 'boolean'
@@ -153,6 +170,16 @@ function isAvailable(value: unknown): value is AvailablePage {
     && plainText(value.name, 40) && plainText(value.description, 120) && plainText(value.extensionName, 64)
     && typeof value.icon === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.icon) && typeof value.rail === 'boolean'
     && everyIndex(value.inputs, isInput) && (value.inputs as unknown[]).length <= MAX_INPUTS;
+}
+
+function isSettingView(value: unknown): boolean {
+  if (!record(value)) return false;
+  const keys = ['id', 'label', 'choices', 'value'];
+  if (!(exactly(value, keys) || exactly(value, [...keys, 'hint']))) return false;
+  return typeof value.id === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.id) && plainText(value.label, 32)
+    && everyIndex(value.choices, choice => plainText(choice, 16)) && (value.choices as unknown[]).length <= 8
+    && typeof value.value === 'string' && (value.choices as unknown[]).includes(value.value)
+    && (value.hint === undefined || plainText(value.hint, HINT_MAX));
 }
 
 // Every index, holes included: every() skips a hole, so a list with gaps in it

@@ -56,7 +56,10 @@
         <path d={glyph(page.icon)?.path} />
       </svg>
     {/if}
-    <span class="rail-label">{page.label}</span>
+    <!-- A word longer than the rail is wide, Integrations, is drawn a point
+         smaller rather than cut or broken mid-word; labels of several words
+         wrap as they always did. -->
+    <span class="rail-label" class:rail-label-long={page.label.split(' ').some(word => word.length > 10)}>{page.label}</span>
   </button>
 {/snippet}
 

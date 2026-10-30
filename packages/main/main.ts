@@ -25,6 +25,7 @@ import { startWhatsNewBroker } from './whats-new.js';
 import { isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
 import { snapshots } from './snapshots.js';
 import { startExtensionBroker } from './extension-broker.js';
+import { startIntegrationsBroker, type IntegrationsBroker } from './integrations-broker.js';
 import { extensionDirectories } from './extension-directories.js';
 import { sourceFixtures } from './source-fixtures.js';
 import { startLinksBroker } from './links-broker.js';
@@ -188,7 +189,10 @@ if (!app.requestSingleInstanceLock()) {
       distDirectory,
       join(app.getAppPath(), 'data', 'service-profiles.json'));
     const stopCallsignBroker = callsigns.stop;
-    const stopSettingsBroker = startSettingsBroker();
+    // Told after a setting is written; the brokers below that follow one
+    // take it once they have started.
+    let settingChanged: (key: string) => void = () => undefined;
+    const stopSettingsBroker = startSettingsBroker(key => settingChanged(key));
     // What's new (QGD-FRM-0016): the notes are the changelog that ships.
     const stopWhatsNew = startWhatsNewBroker(join(app.getAppPath(), 'CHANGELOG.md'), app.getVersion());
     const stopAppearanceBroker = startAppearanceBroker();
@@ -241,6 +245,12 @@ if (!app.requestSingleInstanceLock()) {
     // Told when a page's request reached its source or could not connect,
     // for the Internet lamp; Home's broker takes it once it has started.
     let onReached: (ok: boolean) => void = () => undefined;
+    // Integrations (QGD-INT-*), started once the extension API has: its
+    // adapters and consumers are extensions. Until then, nothing listens and
+    // an event goes nowhere.
+    let integrations: IntegrationsBroker | undefined;
+    // A live page's change, for Home's broker once it has started.
+    let onPageChanged: (extension: string, page: string) => void = () => undefined;
     const extensionBroker = await startExtensionBroker({
       // The package's own extensions, and in a development run any more
       // directories the environment names; those are never official, and a
@@ -366,7 +376,12 @@ if (!app.requestSingleInstanceLock()) {
             starting, { withinMs: 10_000 });
           if (typeof answer === 'string') throw new Error(answer);
           return answer;
-        }
+        },
+        // An adapter's events and its one reply (QGD-INT-0009, QGD-INT-0021).
+        integrationEvents: (adapter, events, malformed) => integrations?.hub.events(adapter, events, malformed) ?? 0,
+        integrationReply: async (adapter, to, bytes) =>
+          integrations ? integrations.hub.reply(adapter, to, bytes) : 'Integrations is not running.',
+        pageChanged: (extension, page) => onPageChanged(extension, page)
       }
     }).catch((error: unknown) => {
       // A register this product ships that cannot be read is worth saying
@@ -390,7 +405,30 @@ if (!app.requestSingleInstanceLock()) {
         storageBroker.onActiveStationChanged(listener);
       }
     }) : undefined;
-    if (homeBroker) onReached = homeBroker.reached;
+    if (homeBroker) { onReached = homeBroker.reached; onPageChanged = homeBroker.pageChanged; }
+
+    // Integrations: the one way in (QGD-INT-0001). Nothing listens until an
+    // adapter is turned on (QGD-INT-0004); turning it off, or withdrawing its
+    // grant, closes its port.
+    if (extensionBroker) {
+      const broker = extensionBroker;
+      integrations = startIntegrationsBroker({
+        distDirectory,
+        limitsFile: join(app.getAppPath(), 'data', 'integration-limits.json'),
+        extensions: () => broker.loaded().map(extension => ({
+          id: extension.manifest.id, name: extension.manifest.name, grants: extension.manifest.grants,
+          ...(extension.manifest.contributes.integration ? { integration: extension.manifest.contributes.integration } : {})
+        })),
+        isOn: id => broker.enablement.isOn(id),
+        holds: (id, grant) => broker.holds(id, grant),
+        readSettings: () => load().integrations,
+        writeSettings: entries => save({ ...load(), integrations: { ...entries } }),
+        deliver: (id, message, allowed) => broker.supervisor.deliver(id, message, allowed)
+      });
+      const following = integrations;
+      broker.enablement.onChange(() => following.reconcile());
+      settingChanged = key => { if (key === 'grants') following.reconcile(); };
+    }
 
     // Updates (QGD-FRM-0019): asked once a day through the credential core,
     // applied as the application quits. A development run or a pull
@@ -430,8 +468,9 @@ if (!app.requestSingleInstanceLock()) {
       if (quitting) return;
       quitting = true;
       event.preventDefault();
-      void storageBroker.stop()
-        .catch(() => log.warn({}, 'storage did not close cleanly'))
+      // Every port closed, and the stores: both waited for, neither for long.
+      void Promise.allSettled([integrations?.stop(), storageBroker.stop()
+        .catch(() => log.warn({}, 'storage did not close cleanly'))])
         .finally(() => app.quit());
     });
     localSession.webRequest.onBeforeRequest((details, callback) => {

@@ -1,0 +1,9 @@
+{
+  "register": "Integration limits",
+  "note": "QGD-INT-0007 and QGD-INT-0009. What Integrations holds every sender to, kept here rather than as constants in code so each one is visible and testable. A datagram larger than maxDatagramBytes is dropped; each sender may send burst datagrams at once and perSecond after that, and is dropped while over; at most queueLength wait for an adapter; and an adapter may reply to one sender at most repliesPerMinute times a minute. The burst has to hold WSJT-X answering Replay, which is every decode in its window at once. A WSJT-X message is a few hundred bytes; 4096 leaves room for fields a later WSJT-X adds, which an adapter ignores.",
+  "maxDatagramBytes": 4096,
+  "perSecond": 100,
+  "burst": 2000,
+  "queueLength": 4096,
+  "repliesPerMinute": 6
+}

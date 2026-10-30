@@ -34,7 +34,7 @@ import { validateGrantRegister, type GrantRegister } from '../extension-api/gran
 import { validateExtensionsCommand, type ExtensionsReply } from './extensions-contract.js';
 import { REQUEST_KINDS } from '../extension-api/api-contract.js';
 import {
-  loadExtensions, readManifests, readSourceRegister, type LoadedExtension
+  loadExtensions, readManifests, readSourceRegister, withGrants, type LoadedExtension
 } from './extension-runtime.js';
 // The serving itself is in extension-serve.ts, with no Electron above it, so it can
 // be unit tested. This file is the Electron wiring: the channels, the sender
@@ -79,6 +79,9 @@ export interface ExtensionBroker {
   supervisor: Supervisor;
   // Which extensions are on, and word when one is turned off or on (QGD-HOM-0007).
   enablement: Enablement;
+  // Whether an extension holds a grant now, from the settings read afresh:
+  // what it declared, less what the operator withdrew (QGD-APP-0012).
+  holds: (id: string, grant: string) => boolean;
 }
 
 function adapt(port: MessagePortMain): Port {
@@ -178,7 +181,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   // added to the contract with no branch falls through the switch and returns
   // undefined, which TypeScript catches — this asserts it at run time too, in
   // case the contract is widened without rebuilding this file.
-  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request'].includes(kind));
+  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'].includes(kind));
   if (unserved.length > 0) log.error({ unserved }, 'the extension API declares request kinds this broker does not serve');
 
   return {
@@ -186,6 +189,10 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
     supervisor,
     enablement,
     loaded: () => deps.extensions,
-    refused: () => result.refused
+    refused: () => result.refused,
+    holds: (id, grant) => {
+      const found = deps.extensions.find(extension => extension.manifest.id === id);
+      return found !== undefined && withGrants(found, register, options.ports.allowed()).held.includes(grant);
+    }
   };
 }

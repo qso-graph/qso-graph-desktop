@@ -13,7 +13,7 @@ Every extension holds to the spec's invariants and conventions (`QGD-SPEC-001` Â
 for example, no connection of its own, no credential, and every value written the way the core
 writes it.
 
-The four that ship today:
+The six that ship today:
 
 | Extension | What |
 |---|---|
@@ -21,7 +21,9 @@ The four that ship today:
 | [`conditions`](conditions/README.md) | Conditions: solar flux, the K and A indices, NOAA's scales and the band outlook |
 | [`astro`](astro/README.md) | Astro: the grey line, the sun, the twilights and the moon at your Location |
 | [`adif-lookup`](adif-lookup/README.md) | ADIF Lookup: every ADIF field and enumeration value, in ADIF's own words |
+| [`wsjtx`](wsjtx/README.md) | WSJT-X: the adapter that turns what WSJT-X sends into events (`QGD-INT-0022`) |
+| [`monitor`](monitor/README.md) | Monitor: WSJT-X's decodes as they arrive, read-only (`QGD-INT-0023`) |
 
-Planned next are integrations with the programs operators already run, WSJT-X
-first (#125). The boundary gate holds every one to the same rule: an extension
-may depend on `extension-api` and `ui` and nothing else.
+The boundary gate holds every one to the same rule: an extension may depend on
+`extension-api` and `ui` and nothing else. A test that drives two extensions
+together, the adapter into the Monitor, lives in `tests/`.

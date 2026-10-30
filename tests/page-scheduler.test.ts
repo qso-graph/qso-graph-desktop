@@ -4,7 +4,7 @@
 // Time is the test's: fake timers, and `now` read from the same fake clock.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PageAnswer } from '../packages/extension-api/pages.js';
-import { createPageScheduler, REFRESH_FLOOR_MS, type PageView, type CataloguePage } from '../packages/main/page-scheduler.js';
+import { createPageScheduler, REFRESH_FLOOR_MS, LIVE_FLOOR_MS, type PageView, type CataloguePage } from '../packages/main/page-scheduler.js';
 import type { PageOutcome } from '../packages/main/extension-host-supervisor.js';
 
 const AT = '2026-10-11T18:00:00Z';
@@ -421,5 +421,74 @@ describe('leaving and coming back (Codex review, 2026-10-23)', () => {
     const afterReturn = published.slice(published.findIndex(view => view.state === 'ready') + 1);
     expect(afterReturn.some(view => view.state === 'ready')).toBe(false);
     scheduler.stop();
+  });
+});
+
+describe('P13-live: a live page that says it changed (QGD-HOM-0015)', () => {
+  const MONITOR: CataloguePage = { key: 'monitor/monitor', extension: 'monitor', extensionName: 'Monitor', page: 'monitor', name: 'Monitor', description: 'Decodes.', refreshSeconds: 60, icon: 'tower-broadcast', rail: true, inputs: [], network: false, live: true };
+  const STILL: CataloguePage = { ...MONITOR, key: 'monitor/still', page: 'still', live: false };
+  function live(pins: string[], respond?: (page: string) => Promise<PageOutcome>) {
+    const asked: string[] = [];
+    const scheduler = createPageScheduler({
+      catalogue: () => [MONITOR, STILL], pins: () => pins,
+      page: (_extension, page) => { asked.push(page); return respond ? respond(page) : Promise.resolve({ outcome: 'completed', answer: answer(page) }); },
+      publish: () => undefined, now: () => Date.now()
+    });
+    return { scheduler, asked };
+  }
+
+  it('is asked again when it says so, no sooner than LIVE_FLOOR_MS after the last question, and a burst is one question', async () => {
+    const { scheduler, asked } = live(['monitor/monitor']);
+    scheduler.setVisible(true);
+    await flush();
+    expect(asked).toEqual(['monitor']);
+    for (let n = 0; n < 20; n += 1) scheduler.pageChanged('monitor/monitor');
+    await vi.advanceTimersByTimeAsync(LIVE_FLOOR_MS - 1);
+    expect(asked).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(asked).toHaveLength(2);
+    // Long after, at once.
+    await vi.advanceTimersByTimeAsync(5_000);
+    scheduler.pageChanged('monitor/monitor');
+    await flush();
+    expect(asked).toHaveLength(3);
+    scheduler.stop();
+  });
+
+  it('a change while it is being asked is asked again once that settles', async () => {
+    let settle: (outcome: PageOutcome) => void = () => undefined;
+    const { scheduler, asked } = live(['monitor/monitor'], () => new Promise(resolve => { settle = resolve; }));
+    scheduler.setVisible(true);
+    await flush();
+    scheduler.pageChanged('monitor/monitor');
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(asked).toHaveLength(1);
+    settle({ outcome: 'completed', answer: answer('monitor') });
+    await flush();
+    await vi.advanceTimersByTimeAsync(LIVE_FLOOR_MS);
+    expect(asked).toHaveLength(2);
+    scheduler.stop();
+  });
+
+  it('asks nothing of a page that is not open, or not live, or while Home is hidden', async () => {
+    const closed = live([]);
+    closed.scheduler.setVisible(true);
+    closed.scheduler.pageChanged('monitor/monitor');
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(closed.asked).toEqual([]);
+    const still = live(['monitor/still']);
+    still.scheduler.setVisible(true);
+    await flush();
+    still.scheduler.pageChanged('monitor/still');
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(still.asked).toEqual(['still']);
+    const hidden = live(['monitor/monitor']);
+    hidden.scheduler.setVisible(true);
+    await flush();
+    hidden.scheduler.setVisible(false);
+    hidden.scheduler.pageChanged('monitor/monitor');
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(hidden.asked).toEqual(['monitor']);
+    for (const run of [closed, still, hidden]) run.scheduler.stop();
   });
 });

@@ -63,6 +63,18 @@
       "needsOperator": false
     },
     {
+      "id": "integration:receive",
+      "what": "Receive what a program on this computer or the network sends, as Integrations passes it on: the bytes and the sender's address, from the port the operator opened by turning this extension on.",
+      "notWhat": "No socket of its own, no choice of port, address or sender, and nothing sent but the one reply its program defines, to a sender it heard (QGD-INT-0002, QGD-INT-0008, QGD-INT-0009).",
+      "needsOperator": true
+    },
+    {
+      "id": "integration:events",
+      "what": "Receive the events the adapters that are on decode, each naming its adapter and source: what a program such as WSJT-X says it heard and is doing.",
+      "notWhat": "No bytes, no address, no port and nothing sent to any program; and nothing it receives changes the operator's data (QGD-INT-0009, QGD-INT-0021).",
+      "needsOperator": false
+    },
+    {
       "id": "files:chosen",
       "what": "Read or write the one path the operator chose in a dialog, for that action.",
       "notWhat": "No ambient filesystem: the path is not kept and nothing else is reachable (QGD-APP-0010).",

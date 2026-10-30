@@ -50,6 +50,7 @@ This section is navigation; the requirements themselves are in the spec.
 | If the change touches… | It belongs in… | Read first |
 |---|---|---|
 | Credentials, outbound network, cryptography | `callsign-core` (Rust) | `QGD-CRD-*`, `QGD-SEC-0020`, §4.3.1 |
+| Listening for the programs a station runs (WSJT-X's UDP) | `integrations-core` (Rust) and `integrations` | `QGD-INT-*`, `QGD-INV-0005` |
 | Windows, IPC brokering, process supervision | `main` | `QGD-PRC-*`, `QGD-SEC-*` |
 | Screens and components | `renderer`, `ui` | `QGD-FRM-*`, `QGD-CRD-0007`, `QGD-PRC-0006` |
 | Storage, schema, migrations, reference data files | `storage` | `QGD-ENG-*` |
@@ -87,6 +88,8 @@ The floor is a Raspberry Pi 5 (`QGD-SCP-0009`); Linux packages target glibc 2.28
 qso-graph-desktop/
 ├── packages/            the core (P0–P7); extensions may depend only on extension-api and ui
 │   ├── callsign-core/    Rust (napi-rs): OS credential store, outbound HTTPS, crypto
+│   ├── integrations-core/ Rust (napi-rs): Integrations' listener, the one way in (QGD-INT-0001)
+│   ├── integrations/    the Integrations utility process around it
 │   ├── main/            Electron main: windows, IPC brokers, process supervision
 │   ├── preload/         the only bridge to the renderer: named, typed functions
 │   ├── renderer/        the Svelte shell and pages
@@ -201,8 +204,10 @@ Versions change, so pick the current ones rather than the names here.
 ## Code standards
 
 - **Language:** TypeScript (pinned at 6.0.3 until typescript-eslint supports 7; see
-  `QGD-HDBK-001`), Svelte for screens, Rust only in `callsign-core` (D-17). No Python anywhere
-  (`QGD-CRD-0004`).
+  `QGD-HDBK-001`), Svelte for screens, Rust only in `callsign-core` (D-17) and in Integrations'
+  listener, `integrations-core` (`QGD-INT-0001`). No Python anywhere in the product
+  (`QGD-CRD-0004`); `qso-graph-sim`, which the integrations-sim suite drives, is a test tool from
+  PyPI and never ships.
 - **Dependencies:** runtime dependencies are deliberately few. Each new one is a reviewed
   decision, pinned exactly, installed with `npm ci` (`QGD-SEC-0012`).
 - **Security rules:** `QGD-SEC-0001` onward, with `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*`.

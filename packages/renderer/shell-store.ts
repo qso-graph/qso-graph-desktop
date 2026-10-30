@@ -5,6 +5,7 @@
 // Plain TypeScript rather than a rune, so `tsc -p tsconfig.renderer.json`
 // checks it and a test can drive it without a component tree. Shell.svelte is
 // the one subscriber; app.ts is the one writer.
+import type { IntegrationsView } from '../main/integrations-page-contract.js';
 import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import type { UpdateState } from '../main/update-contract.js';
 import type { UpdateLine, WhatsNewNotes } from '../main/whats-new-contract.js';
@@ -43,6 +44,16 @@ export const PAGES = [
     icon: 'stations',
     hue: 'locations',
     description: 'Where you operate from: home, a park, a summit, the car',
+    placement: 'top'
+  },
+  {
+    // Integrations (QGD-PRT-0113): core, and always on the rail, as
+    // Callsigns and Locations are. It hears nothing until an adapter is on.
+    id: 'integrations',
+    label: 'Integrations',
+    icon: 'integrations',
+    hue: 'general',
+    description: 'What is listening for the programs your station runs, such as WSJT-X',
     placement: 'top'
   },
   {
@@ -131,6 +142,9 @@ export interface ShellState {
   extensions: ExtensionSwitch[] | undefined;
   // Extensions that did not load, by folder, with why (QGD-APP-0011).
   refusedExtensions: readonly { readonly folder: string; readonly reason: string }[];
+  // What Integrations is listening on (QGD-INT-0010): undefined until the
+  // main process has answered, then pushed when it changes.
+  integrations: IntegrationsView | undefined;
   // My Area as saved (settings-contract.ts): empty means the Location's own.
   area: readonly string[];
   // Updates (QGD-FRM-0019): what the updater last said, undefined until it
@@ -172,6 +186,7 @@ export const INITIAL_SHELL: ShellState = {
   services: [],
   extensions: undefined,
   refusedExtensions: [],
+  integrations: undefined,
   area: [],
   update: undefined,
   updateCheck: true,

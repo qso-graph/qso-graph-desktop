@@ -75,5 +75,25 @@ export function plainRequest(request: ExtensionRequest): unknown {
         parameters: rebuilt
       };
     }
+    case 'integration.events':
+      // Each event copied as a plain object; anything else crosses as it is
+      // and is refused on arrival.
+      return {
+        kind: request.kind,
+        events: Array.isArray(request.events) ? Array.from(request.events as readonly unknown[], event =>
+          typeof event === 'object' && event !== null && !Array.isArray(event) ? Object.fromEntries(Object.entries(event)) : event) : request.events,
+        ...(request.malformed === undefined ? {} : { malformed: request.malformed })
+      };
+    case 'integration.reply':
+      return { kind: request.kind, to: request.to, bytes: request.bytes };
+    case 'page.changed':
+      return { kind: request.kind, page: request.page };
+    default: {
+      // Every kind has a case: one added to the contract without one fails to
+      // compile here, rather than crossing as nothing (as the three
+      // Integrations kinds did until 2026-10-29).
+      const unhandled: never = request;
+      return unhandled;
+    }
   }
 }

@@ -30,6 +30,7 @@
     onOpenPage: () => {},
     onCountiesAt: () => Promise.resolve({ counties: [], sections: {} }),
     onSetLevel: () => Promise.resolve(true),
+    onSetIntegration: () => Promise.resolve(undefined),
     onExport: () => Promise.resolve('Saved 3 log files (0.4 MB).'),
     onCreateCallsign: () => Promise.resolve(undefined),
     onSaveCredential: () => Promise.resolve(undefined),
@@ -66,6 +67,7 @@
       services: [],
       extensions: undefined,
       refusedExtensions: [],
+      integrations: undefined,
       area: [],
       update: { kind: 'ready', version: '0.1.1' }, updateCheck: true, updateTrack: 'stable'
     })

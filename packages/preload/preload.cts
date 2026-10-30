@@ -96,6 +96,17 @@ contextBridge.exposeInMainWorld('updates', Object.freeze({
     return () => { ipcRenderer.removeListener('updates:state', handler); };
   }
 }));
+// Integrations (QGD-INT-0010): what is listening, asked for and then pushed,
+// and an adapter's port to set. The listener receives the view only.
+contextBridge.exposeInMainWorld('integrations', Object.freeze({
+  request: (command: unknown) => ipcRenderer.invoke('integrations:request', command),
+  onStatus: (listener: (view: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, view: unknown) => listener(view);
+    ipcRenderer.on('integrations:status', handler);
+    return () => { ipcRenderer.removeListener('integrations:status', handler); };
+  }
+}));
 // What's new (QGD-FRM-0016): this version's notes, or those since the one last seen.
 contextBridge.exposeInMainWorld('whatsNew', Object.freeze({
   notes: (since: unknown) => ipcRenderer.invoke('whatsnew:request', { type: 'notes', since })

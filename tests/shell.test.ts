@@ -15,7 +15,9 @@ describe('the shell store', () => {
       // Not setup: that is decided once the callsigns have been read, so a
       // machine with callsigns never sees a frame of the setup screen
       // (QGD-PSN-0004).
-      setup: false, firstRun: false, services: [], extensions: undefined, refusedExtensions: [], area: [], update: undefined, updateCheck: true, updateTrack: 'stable'
+      setup: false, firstRun: false, services: [], extensions: undefined, refusedExtensions: [], area: [], update: undefined, updateCheck: true, updateTrack: 'stable',
+      // Nothing known of Integrations until main answers (QGD-INT-0010).
+      integrations: undefined
     });
     expect(createShellStore().get()).toEqual(INITIAL_SHELL);
   });
@@ -105,9 +107,10 @@ describe('the rail', () => {
     // detail there too, so neither is a rail item; and the demonstration
     // applications that briefly added an Apps entry are gone
     // (QGD-APP-0014). Stations sit beside Callsigns: who you are, and where
-    // you are operating from (QGD-STN-0001).
-    expect(visiblePages().map(page => page.id)).toEqual(['home', 'callsigns', 'stations', 'settings']);
-    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Callsigns', 'Locations', 'Settings']);
+    // you are operating from (QGD-STN-0001). Integrations is core and
+    // always on the rail (QGD-PRT-0113): what is listening, after where.
+    expect(visiblePages().map(page => page.id)).toEqual(['home', 'callsigns', 'stations', 'integrations', 'settings']);
+    expect(visiblePages().map(page => page.label)).toEqual(['Home', 'Callsigns', 'Locations', 'Integrations', 'Settings']);
     // Home at the top, Settings at the foot: it is where you change how the
     // places you work behave, not one of them.
     expect(visiblePages()[0].placement).toBe('top');

@@ -6,11 +6,11 @@
 
   // Pages as their manifests describe them; Home draws tiles from these alone.
   const available = [
-    { key: 'on-the-air/conditions', name: 'Conditions', description: "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.", extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false, area: 'on-the-air/conditions', tab: 'Conditions', hue: 'general' },
-    { key: 'astro/astro', name: 'Astro', description: 'The sun, the moon and the grey line at your location.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false, area: 'astro/astro', tab: 'Astro', hue: 'general' },
-    { key: 'on-the-air/parks', name: 'Parks and summits', description: 'POTA and SOTA activators on the air now.', extensionName: 'On the Air', icon: 'tower-broadcast', rail: false, inputs: [], network: false, area: 'on-the-air/parks', tab: 'Parks and summits', hue: 'general' },
-    { key: 'club/nets', name: 'Nets', description: "This week's nets, and who checked in last time.", extensionName: 'Club', icon: 'calendar', rail: false, inputs: [], network: false, area: 'club/nets', tab: 'Nets', hue: 'general' },
-    { key: 'logbook/recent', name: 'Recent QSOs', description: 'The last contacts in your log, with their QSL state.', extensionName: 'Logbook', icon: 'list', rail: false, inputs: [], network: false, area: 'logbook/recent', tab: 'Recent QSOs', hue: 'general' }
+    { key: 'on-the-air/conditions', name: 'Conditions', description: "Solar flux, the K and A indices, NOAA's storm scales and the band outlook.", extensionName: 'On the Air', icon: 'sun', rail: false, inputs: [], network: false, area: 'on-the-air/conditions', tab: 'Conditions', hue: 'general', settings: [] },
+    { key: 'astro/astro', name: 'Astro', description: 'The sun, the moon and the grey line at your location.', extensionName: 'Astro', icon: 'moon', rail: true, inputs: [], network: false, area: 'astro/astro', tab: 'Astro', hue: 'general', settings: [] },
+    { key: 'on-the-air/parks', name: 'Parks and summits', description: 'POTA and SOTA activators on the air now.', extensionName: 'On the Air', icon: 'tower-broadcast', rail: false, inputs: [], network: false, area: 'on-the-air/parks', tab: 'Parks and summits', hue: 'general', settings: [] },
+    { key: 'club/nets', name: 'Nets', description: "This week's nets, and who checked in last time.", extensionName: 'Club', icon: 'calendar', rail: false, inputs: [], network: false, area: 'club/nets', tab: 'Nets', hue: 'general', settings: [] },
+    { key: 'logbook/recent', name: 'Recent QSOs', description: 'The last contacts in your log, with their QSL state.', extensionName: 'Logbook', icon: 'list', rail: false, inputs: [], network: false, area: 'logbook/recent', tab: 'Recent QSOs', hue: 'general', settings: [] }
   ];
   const tiles = (keys: string[]) => keys.flatMap(key => {
     const page = available.find(entry => entry.key === key);

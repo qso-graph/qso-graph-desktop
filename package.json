@@ -65,6 +65,7 @@
       "data/extension-grants.json",
       "data/extension-sources.json",
       "data/extension-limits.json",
+      "data/integration-limits.json",
       "drizzle/**/*"
     ],
     "asar": true,
@@ -131,6 +132,15 @@
       "fpm": [
         "--rpm-rpmbuild-define",
         "_build_id_links none"
+      ],
+      "depends": [
+        "gtk3",
+        "libnotify",
+        "nss",
+        "(libXtst or libXtst6)",
+        "xdg-utils",
+        "at-spi2-core",
+        "(libuuid or libuuid1)"
       ]
     },
     "nsis": {
@@ -138,6 +148,18 @@
       "allowToChangeInstallationDirectory": true,
       "runAfterFinish": true,
       "include": "installer.nsh"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
     }
   },
   "dependencies": {

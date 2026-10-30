@@ -23,6 +23,11 @@ const known = grantIds(register);
 
 const SOLAR = { id: 'solar', name: 'Space weather', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['source:solar'], page: 'SolarPage.svelte' };
 const QRZ = { id: 'qrz-lookup', name: 'Callsign lookup', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['service:qrz', 'callsign:list'], page: 'LookupPage.svelte' };
+// An adapter and a consumer, as Integrations' are (QGD-INT-0020, QGD-INT-0021).
+const WSJTX = { id: 'wsjtx', name: 'WSJT-X', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.1.0' }, grants: ['integration:receive'], main: 'main.js',
+  contributes: { integration: { program: 'WSJT-X', transport: 'udp', port: 2237 } } };
+const MONITOR = { id: 'monitor', name: 'Monitor', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.1.0' }, grants: ['integration:events'], main: 'main.js',
+  contributes: { pages: [{ id: 'monitor', name: 'Monitor', description: 'Decodes.', refreshSeconds: 60, live: true, views: true }, { id: 'still', name: 'Still', description: 'Not live.', refreshSeconds: 60 }] } };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Every port records what it was asked and by whom, so "nothing was touched"
@@ -48,8 +53,11 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     callService: async (service, callsign, operation, parameters) => {
       calls.push(`callService:${service}/${callsign}/${operation}/${JSON.stringify(parameters)}`);
       return { outcome: 'success', call: 'W1AW' };
-    }
-  };
+    },
+    integrationEvents: (adapter, events, malformed) => { calls.push(`integrationEvents:${adapter}:${events.length}:${malformed}`); return 1; },
+    integrationReply: async (adapter, to, bytes) => { calls.push(`integrationReply:${adapter}:${to}:${[...bytes].join(',')}`); return undefined; },
+    pageChanged: (extension, page) => { calls.push(`pageChanged:${extension}/${page}`); }
+  } as ExtensionBrokerPorts;
   const warnings: string[] = [];
   const deps: ServeDeps = {
     register,
@@ -57,7 +65,7 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     ports,
     log: { warn: (_fields, message) => warnings.push(message) },
     extensions: [...loadExtensions(
-      [SOLAR, QRZ, BARE].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value, shipped: true })),
+      [SOLAR, QRZ, BARE, WSJTX, MONITOR].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value, shipped: true })),
       register, allowed
     ).loaded],
     refused: []
@@ -226,5 +234,41 @@ describe('the inventory the core shows itself', () => {
     for (const extension of inventory.extensions) {
       for (const grant of extension.grants) expect(grant.what.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('Integrations\' requests (QGD-INT-0008, QGD-INT-0009, QGD-HOM-0015)', () => {
+  const close = { type: 'close', source: 'WSJT-X' };
+  it('takes an adapter\'s events under its own identity, and nobody else\'s', async () => {
+    const { serve, calls } = recorder();
+    expect(await serve('wsjtx', { kind: 'integration.events', events: [close], malformed: 2 })).toEqual({ ok: true, kind: 'integration.events', consumers: 1 });
+    expect(calls).toEqual(['integrationEvents:wsjtx:1:2']);
+    const refused = await serve('monitor', { kind: 'integration.events', events: [close] });
+    expect(refused).toMatchObject({ ok: false, refused: 'integration:receive' });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('refuses an event off its shape before anything is reached', async () => {
+    const { serve, calls } = recorder();
+    const refused = await serve('wsjtx', { kind: 'integration.events', events: [{ ...close, extra: 1 }] });
+    expect(refused.ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  it('passes an adapter\'s one reply on as bytes, and refuses one that is not a sender', async () => {
+    const { serve, calls } = recorder();
+    expect(await serve('wsjtx', { kind: 'integration.reply', to: '127.0.0.1:2237', bytes: 'AQI=' })).toEqual({ ok: true, kind: 'integration.reply' });
+    expect(calls).toEqual(['integrationReply:wsjtx:127.0.0.1:2237:1,2']);
+    expect((await serve('wsjtx', { kind: 'integration.reply', to: 'example.invalid:2237', bytes: 'AQI=' })).ok).toBe(false);
+    expect((await serve('monitor', { kind: 'integration.reply', to: '127.0.0.1:2237', bytes: 'AQI=' })).ok).toBe(false);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('lets an extension say only its own live page changed', async () => {
+    const { serve, calls } = recorder();
+    expect(await serve('monitor', { kind: 'page.changed', page: 'monitor' })).toEqual({ ok: true, kind: 'page.changed' });
+    expect((await serve('monitor', { kind: 'page.changed', page: 'still' })).ok).toBe(false);
+    expect((await serve('wsjtx', { kind: 'page.changed', page: 'monitor' })).ok).toBe(false);
+    expect(calls).toEqual(['pageChanged:monitor/monitor']);
   });
 });
