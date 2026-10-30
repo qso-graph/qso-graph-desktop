@@ -57,6 +57,15 @@ async function run(page, context, collect = true) {
   return result;
 }
 
+// QGD-FRM-0022: the window never scrolls, a page does. The document is never
+// taller than the window; when it is, the browser adds a second scrollbar
+// beside the page's own and scrolls the header, rail and status bar away.
+const windowScrolls = page => page.evaluate(() => {
+  const over = document.documentElement.scrollHeight - window.innerHeight;
+  return over > 0 ? over : 0;
+});
+let scrollChecked = 0;
+
 try {
   application = await electron.launch({
     args: ['.'], cwd: process.cwd(),
@@ -104,6 +113,15 @@ try {
     failures.push('the contrast control did not fire: grey on grey was not reported, so contrast is not being measured on this page');
   }
   await page.evaluate(() => document.getElementById('__axe_contrast__')?.remove());
+  // The window-scroll control: a box below the window's bottom edge, as the
+  // hidden legend was, must be seen to make the window scroll.
+  await page.evaluate(() => {
+    const box = Object.assign(document.createElement('span'), { id: '__scroll_control__', textContent: 'x' });
+    Object.assign(box.style, { position: 'absolute', left: '0', top: `${window.innerHeight + 500}px` });
+    document.body.append(box);
+  });
+  if (!(await windowScrolls(page))) failures.push('the window-scroll control did not fire: a box 500 px below the window did not make it scroll, so QGD-FRM-0022 is not being measured');
+  await page.evaluate(() => document.getElementById('__scroll_control__')?.remove());
 
   // A callsign, so the credential card and the status bar are on screen too —
   // the empty state is the smallest page there is and the least worth
@@ -133,6 +151,9 @@ try {
       await rail(name).click();
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
       await run(page, `${name} in ${theme}`);
+      const over = await windowScrolls(page);
+      scrollChecked += 1;
+      if (over) failures.push(`${name} in ${theme}: the window scrolls, ${over} px taller than it (QGD-FRM-0022)`);
     }
 
     // Troubleshooting is a surface with controls on it — a level switch, a
@@ -147,12 +168,24 @@ try {
     await expect(page.locator('#troubleshooting')).toHaveCount(0);
   }
 
+  // Every rail page, not only the four scanned above, for QGD-FRM-0022.
+  const sections = page.getByRole('navigation', { name: 'Sections' }).getByRole('button');
+  for (const name of await sections.allInnerTexts()) {
+    const label = name.trim();
+    if (!label) continue;
+    await rail(label).click();
+    await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
+    const over = await windowScrolls(page);
+    scrollChecked += 1;
+    if (over) failures.push(`${label}: the window scrolls, ${over} px taller than it (QGD-FRM-0022)`);
+  }
+
   if (failures.length) {
     console.error('Accessibility check failed.');
     for (const failure of failures) console.error(`  ${failure}`);
     process.exitCode = 1;
   } else {
-    console.log(`Accessibility: axe-core ${axeVersion}, ${checked} page views (${PAGES.join(', ')} and Troubleshooting, in ${THEMES.join(' and ')}), both controls fired, 0 violations: PASS`);
+    console.log(`Accessibility: axe-core ${axeVersion}, ${checked} page views (${PAGES.join(', ')} and Troubleshooting, in ${THEMES.join(' and ')}), both controls fired, 0 violations; the window scrolled on none of ${scrollChecked}: PASS`);
   }
 } catch (error) {
   console.error('Accessibility check could not run.');

@@ -24,6 +24,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Settings and Home no longer scroll the whole window.** A second scrollbar appeared beside the
+  page's own, and scrolling it moved the header, the rail and the status bar off the window, leaving
+  an empty band below. Only the page scrolls now.
 - **The rpm installs on Rocky Linux and RHEL 10 without EPEL.** It required `libXScrnSaver`, which
   the application does not use and which those systems ship only in EPEL, so on a system without
   EPEL dnf refused to install it. The deb drops the same library (`libxss1`).
