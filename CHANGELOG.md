@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-30
+
 ### Added
 
 - **The Monitor: WSJT-X's decodes, as they arrive** (#125). Turn on the **WSJT-X** adapter and the
