@@ -126,12 +126,18 @@
       ],
       "category": "Utility",
       "icon": "build/icon.png",
-      "maintainer": "QSO Graph contributors <maintainers@qso-graph.io>"
+      "maintainer": "QSO Graph contributors <maintainers@qso-graph.io>",
+      "executableName": "qso-graph-desktop"
     },
     "rpm": {
+      "packageName": "qso-graph-desktop",
       "fpm": [
         "--rpm-rpmbuild-define",
-        "_build_id_links none"
+        "_build_id_links none",
+        "--replaces",
+        "qg-desktop <= 0.5.1",
+        "--provides",
+        "qg-desktop"
       ],
       "depends": [
         "gtk3",
@@ -150,6 +156,7 @@
       "include": "installer.nsh"
     },
     "deb": {
+      "packageName": "qso-graph-desktop",
       "depends": [
         "libgtk-3-0",
         "libnotify4",
@@ -159,6 +166,12 @@
         "libatspi2.0-0",
         "libuuid1",
         "libsecret-1-0"
+      ],
+      "fpm": [
+        "--replaces",
+        "qg-desktop (<= 0.5.1)",
+        "--deb-field",
+        "Breaks: qg-desktop (<= 0.5.1)"
       ]
     }
   },

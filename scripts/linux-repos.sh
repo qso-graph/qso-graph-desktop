@@ -86,6 +86,39 @@ done
 # apt: one suite, stable, one component, main.
 mkdir -p "$out/apt/pool/main"
 cp "${debs[@]}" "$out/apt/pool/main/"
+# Until 0.5.1 the package was named qg-desktop (#145). dnf follows the rpm's Obsoletes by itself; apt
+# never moves to a renamed package, so while a release under the old name is offered, so is an empty
+# qg-desktop that depends on qso-graph-desktop: `apt upgrade` updates qg-desktop, which brings
+# qso-graph-desktop. Built the same, byte for byte, every run (fixed times, owner and modes): a
+# package already served is never rewritten (#143), so a rebuilt one would not match its index.
+transitional=0
+named() { for file in "${debs[@]}"; do if [ "$(dpkg-deb -f "$file" Package)" = "$1" ]; then echo "$file"; fi; done; }
+if [ -n "$(named qg-desktop)" ]; then
+  for arch in amd64 arm64; do
+    newest=$(named qso-graph-desktop | while read -r file; do
+      if [ "$(dpkg-deb -f "$file" Architecture)" = "$arch" ]; then dpkg-deb -f "$file" Version; fi; done | sort -V | tail -1)
+    [ -n "$newest" ] || continue
+    root=$(mktemp -d)
+    mkdir -m 0755 "$root/DEBIAN"
+    cat > "$root/DEBIAN/control" <<EOF
+Package: qg-desktop
+Version: $newest
+Architecture: $arch
+Maintainer: QSO Graph contributors <maintainers@qso-graph.io>
+Depends: qso-graph-desktop (>= $newest)
+Section: oldlibs
+Priority: optional
+Description: transitional package for qso-graph-desktop
+ QSO Graph Desktop's package is now named qso-graph-desktop. This empty
+ package moves an installation made under the old name, and can be removed.
+EOF
+    chmod 0755 "$root"; chmod 0644 "$root/DEBIAN/control"
+    find "$root" -exec touch -h -d @0 {} +
+    SOURCE_DATE_EPOCH=0 dpkg-deb --root-owner-group -Zxz --build "$root" "$out/apt/pool/main/qg-desktop_${newest}_${arch}.deb" >/dev/null
+    rm -rf "$root"
+    transitional=$((transitional + 1))
+  done
+fi
 # Every package listed once, then split by architecture: apt-ftparchive's --arch lists nothing for
 # these files.
 (cd "$out/apt" && apt-ftparchive packages pool/main) > "$out/apt/Packages.all"
@@ -99,7 +132,7 @@ for arch in amd64 arm64; do
   gzip -9nk "$dir/Packages"
 done
 rm "$out/apt/Packages.all"
-[ "$listed" -eq ${#debs[@]} ] || { echo "The apt index lists $listed packages of ${#debs[@]}." >&2; exit 1; }
+[ "$listed" -eq $((${#debs[@]} + transitional)) ] || { echo "The apt index lists $listed packages of $((${#debs[@]} + transitional))." >&2; exit 1; }
 apt-ftparchive \
   -o APT::FTPArchive::Release::Origin="QSO Graph" \
   -o APT::FTPArchive::Release::Label="QSO Graph Desktop" \
