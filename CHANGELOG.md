@@ -22,6 +22,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   may send. The page shows the port, who may send, whether it is hearing WSJT-X and when it last
   did, and anything it dropped and why.
 
+### Fixed
+
+- **The rpm installs on Rocky Linux and RHEL 10 without EPEL.** It required `libXScrnSaver`, which
+  the application does not use and which those systems ship only in EPEL, so on a system without
+  EPEL dnf refused to install it. The deb drops the same library (`libxss1`).
+
 ## [0.4.1] - 2026-10-29
 
 ### Security
