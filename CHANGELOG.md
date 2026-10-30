@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **Linux and Windows: no connection to Google at startup** (#138). Each time it started, the
+  application's browser engine fetched a spellcheck dictionary from Google's servers, though spell
+  checking was already off. Nothing about you was sent, but it was a connection the application
+  promises not to make: only its credential core goes online, and only for what you ask. It no
+  longer fetches one. macOS was not affected.
+
+### Fixed
+
+- **dnf can read our repository after every release** (#134). Publishing 0.5.0 left one of the two
+  dnf repositories on packages.qso-graph.net without its index, first x86_64's and then aarch64's,
+  so dnf there could not update QSO Graph Desktop. Publishing now removes only files the new
+  repositories no longer name, and checks every file they hold before it finishes.
+- **The banner Windows shows while an update installs says all of its message** (#135). Its second
+  line was cut off after "when it's"; it now reads "It reopens when it's done."
+
 ## [0.5.0] - 2026-10-30
 
 ### Added

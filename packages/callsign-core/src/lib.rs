@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
+// Our own code uses no `unsafe` (QGD-SEC-0022): napi-rs's generated bindings
+// allow it for themselves, which is why this is deny and not forbid.
+#![deny(unsafe_code)]
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

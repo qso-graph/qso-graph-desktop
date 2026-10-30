@@ -38,7 +38,7 @@
 // Test credential with a real credential, which no automated suite does.
 import { _electron as electron, expect } from '@playwright/test';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile, readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -131,13 +131,24 @@ function storagePids() {
   return pids;
 }
 
+// lsof by a fixed path, never a search of PATH: macOS and Ubuntu put it in
+// /usr/sbin, Rocky, RHEL and Fedora in /usr/bin. Only /usr/sbin was tried, so on
+// Rocky every sample failed as "Connections could not be captured", which hid
+// that lsof was not found (#137).
+const LSOF = ['/usr/sbin/lsof', '/usr/bin/lsof'].find(path => existsSync(path));
+
+function lsof(args) {
+  if (!LSOF) throw new Error('lsof was not found at /usr/sbin/lsof or /usr/bin/lsof: install it.');
+  return spawnSync(LSOF, args, { encoding: 'utf8' });
+}
+
 // Unix-domain sockets, which `lsof -i` does not show. Electron's own channels
 // between its processes are unnamed socket pairs, which every process has; what
 // QGD-ENG-0017 forbids is a socket bound to a path, which something else on the
 // machine could reach. So the ones with a filesystem path are what is returned.
 function unixSockets(pids) {
   if (pids.length === 0) return [];
-  const run = spawnSync('/usr/sbin/lsof', ['-nP', '-w', '-U', '-a', '-p', pids.join(',')], { encoding: 'utf8' });
+  const run = lsof(['-nP', '-w', '-U', '-a', '-p', pids.join(',')]);
   const named = [];
   for (const line of (run.stdout || '').split('\n').slice(1)) {
     const columns = line.trim().split(/\s+/);
@@ -158,7 +169,7 @@ function storageEndpoints(endpoints) {
 }
 
 function sample(label, processes) {
-  const run = spawnSync('/usr/sbin/lsof', ['-nP', '-w', '-i', '-a', '-p', [...processes.keys()].join(',')], { encoding: 'utf8' });
+  const run = lsof(['-nP', '-w', '-i', '-a', '-p', [...processes.keys()].join(',')]);
   if (run.status !== 0 && !run.stdout) throw new Error('Connections could not be captured.');
   const endpoints = [];
   for (const line of (run.stdout || '').split('\n').slice(1)) {
@@ -366,11 +377,13 @@ try {
   expect(arrivals, `unexpected arrivals: ${arrivals.join(', ')}`).toEqual(['/control/linger']);
 
   stage = 'the capture is not vacuous';
-  // One sample at idle, one per credential step, one per reference resource
-  // loaded, and one after the renderer's outbound routes. Counted from the
-  // same lists the samples were taken from, so adding a resource or a step
-  // cannot leave this behind again (it did, with 716cffa).
-  expect(labelled.length, 'one sample per step taken').toBe(1 + steps.length + register.resources.length + 1);
+  // One sample at idle, one when the callsign is created, one per credential
+  // step, one per reference resource loaded, and one after the renderer's
+  // outbound routes. Counted from the same lists the samples were taken from,
+  // so adding a resource or a step cannot leave this behind again (it did,
+  // with 716cffa; and 062d013 took the callsign's sample out of the steps
+  // without counting it, #137).
+  expect(labelled.length, 'one sample per step taken').toBe(1 + 1 + steps.length + register.resources.length + 1);
   expect(observed.size, 'the poll observed nothing at all').toBeGreaterThan(0);
   for (const taken of labelled) {
     const kinds = Object.values(taken.processes);
@@ -406,15 +419,24 @@ try {
   const everyEndpoint = [...observed.values(), ...labelled.flatMap(taken => taken.endpoints)];
   const external = everyEndpoint.filter(endpoint => endpoint.external);
   const describe = list => list.map(e => `${e.process} ${e.protocol} ${e.local}->${e.remote}`).join(', ');
-  const unexpected = external.filter(endpoint =>
+  // Before it connects, the core asks the system's resolver for the address,
+  // and on Linux that is its own socket to a nameserver in /etc/resolv.conf.
+  // On macOS (mDNSResponder) and on Ubuntu (127.0.0.53) that is never seen as
+  // external; where the resolver is not loopback, as in a container, it was,
+  // and the suite failed at random on the core's own name lookup (#137). So
+  // port 53 is allowed from the core alone, and only to those nameservers.
+  const nameservers = new Set((existsSync('/etc/resolv.conf') ? readFileSync('/etc/resolv.conf', 'utf8') : '').split('\n')
+    .map(line => line.trim().split(/\s+/)).filter(([key, value]) => key === 'nameserver' && value).map(([, value]) => value));
+  const remoteHost = remote => String(remote).slice(0, String(remote).lastIndexOf(':')).replace(/^\[|\]$/g, '');
+  const lookup = endpoint => endpoint.process === CORE && String(endpoint.remote).endsWith(':53')
+    && nameservers.has(remoteHost(endpoint.remote));
+  const unexpected = external.filter(endpoint => !lookup(endpoint) && (
     endpoint.process !== CORE
     || endpoint.protocol !== 'TCP'
-    || !String(endpoint.remote).endsWith(':443'));
+    || !String(endpoint.remote).endsWith(':443')));
   expect(unexpected, `external connection(s) QGD-SEC-0020 does not allow: ${describe(unexpected)}`).toEqual([]);
-  if (external.length) {
-    console.log(`  the credential core reached ${new Set(external.map(e => e.remote)).size} address(es) on 443: ` +
-      `${[...new Set(external.map(e => e.remote))].join(', ')}`);
-  }
+  const https = [...new Set(external.filter(endpoint => !lookup(endpoint)).map(e => e.remote))];
+  if (https.length) console.log(`  the credential core reached ${https.length} address(es) on 443: ${https.join(', ')}`);
 
   // And the run said what happened to the reference load, either way. Without
   // this the rule above passes on a run where nothing was ever fetched — on a
@@ -447,7 +469,7 @@ try {
     expect(listening, `the credential core listened on ${listening.length} endpoint(s): ` +
       listening.map(e => `${e.protocol} ${e.local}`).join(', ')).toEqual([]);
     const wrongPort = held.filter(endpoint =>
-      endpoint.kind === 'connected' && !String(endpoint.remote).endsWith(':443'));
+      endpoint.kind === 'connected' && !lookup(endpoint) && !String(endpoint.remote).endsWith(':443'));
     expect(wrongPort, `the credential core reached ${wrongPort.length} endpoint(s) off 443: ` +
       describe(wrongPort)).toEqual([]);
   }
@@ -528,7 +550,7 @@ try {
   const privacy = await readFile('PRIVACY.md', 'utf8');
   expect(privacy).toContain('**test a login** for a service you\'ve set up;');
   expect(privacy).toContain('**download or update reference data**');
-  expect(privacy).toContain('**pin a card on Home** that shows outside data');
+  expect(privacy).toContain('**open a page that shows outside data**');
   expect(privacy).toContain('Nothing about you is sent with any of these.');
   // An absolute claim would be false the moment a user tests a credential.
   expect(privacy).not.toMatch(/never goes online|no connection/i);
@@ -600,7 +622,7 @@ try {
   // What was measured, said in the terms the rules are now written in: the
   // credential core may reach a reference source on 443 and nothing else may
   // reach anything.
-  const reached = [...new Set(external.map(endpoint => endpoint.remote))];
+  const reached = https;
   const coreNote = reached.length
     ? `the credential core reached ${reached.length} address(es) on 443 and listened on none`
     : 'the credential core reached nothing (no network on this run) and listened on none';

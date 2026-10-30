@@ -6,6 +6,11 @@
 //
 // Nothing here reads or writes a file, holds a credential, logs, or opens a
 // connection of its own: the only send is `reply`, to a sender already heard.
+
+// Our own code uses no `unsafe` (QGD-SEC-0022): napi-rs's generated bindings
+// allow it for themselves, which is why this is deny and not forbid.
+#![deny(unsafe_code)]
+
 pub mod gate;
 pub mod listener;
 
