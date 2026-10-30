@@ -29,6 +29,7 @@ import { createSocket } from 'node:dgram';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { stopProcessTree } from './stop-process-tree.mjs';
 import { redact } from './report.mjs';
 import { socketsOf } from './platform-process.mjs';
 import { assertNoVisibleWindow } from './no-visible-window.mjs';
@@ -156,7 +157,7 @@ try {
   }
   throw error;
 } finally {
-  simulator?.kill();
+  stopProcessTree(simulator);
   await application?.close().catch(() => undefined);
   await rm(directory, { recursive: true, force: true });
 }
