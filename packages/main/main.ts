@@ -166,7 +166,13 @@ if (!app.requestSingleInstanceLock()) {
   });
   void app.whenReady().then(async () => {
     const localSession = session.defaultSession;
+    // QGD-SEC-0020: no spellchecker, and no dictionary for one. Turning it off
+    // was not enough: on Linux and Windows Chromium still fetched the locale's
+    // Hunspell dictionary from Google (redirector.gvt1.com) at startup, a
+    // connection out of the network service, not the credential core (#138).
+    // With no language set, there is no dictionary to fetch.
     localSession.setSpellCheckerEnabled(false);
+    localSession.setSpellCheckerLanguages([]);
     localSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     localSession.setPermissionCheckHandler(() => false);
     localSession.on('will-download', event => event.preventDefault());

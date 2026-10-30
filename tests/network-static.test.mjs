@@ -181,3 +181,21 @@ describe('QGD-INT-0002 Integrations is the only part of the product that listens
     expect(await rustListeners(root)).toEqual([{ file: join(root, 'callsign-core', 'src', 'lib.rs'), line: 3 }]);
   });
 });
+
+// #138 (QGD-SEC-0020): Chromium's spellchecker fetched a Hunspell dictionary
+// from Google at every start on Linux and Windows, with spellcheck already
+// turned off. connection-capture saw it, but CI does not run that suite, so
+// the setting that stops it is held here.
+export function spellcheckQuiet(source) {
+  return /\.setSpellCheckerEnabled\(false\)/.test(source) && /\.setSpellCheckerLanguages\(\[\]\)/.test(source);
+}
+
+describe('Chromium fetches no spellcheck dictionary (#138)', () => {
+  it('main sets no spellcheck language as well as turning it off', async () => {
+    expect(spellcheckQuiet(await readFile('packages/main/main.ts', 'utf8'))).toBe(true);
+  });
+
+  it('would catch spellcheck turned off with its language left', () => {
+    expect(spellcheckQuiet('localSession.setSpellCheckerEnabled(false);')).toBe(false);
+  });
+});

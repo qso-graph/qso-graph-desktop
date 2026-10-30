@@ -10,7 +10,9 @@
 ; While an update installs (#116): the updater runs this installer silently
 ; (--updated /S --force-run), so nothing was on screen for the minute it takes.
 ; The Banner plugin's small window says what is happening, from the start of the
-; install to its end; the application then opens again by itself.
+; install to its end; the application then opens again by itself. That window is
+; the plugin's own, a fixed size, so each line is kept short (#135: "It opens again
+; by itself when it's done." was cut off after "when it's").
 
 ; An install for all users runs a second, elevated copy of the installer while
 ; the first waits: the banner is the first copy's alone, so there is one, and
@@ -18,7 +20,7 @@
 !macro customInit
   ${if} ${isUpdated}
     ${IfNot} ${UAC_IsInnerInstance}
-      Banner::show /set 76 "Updating QSO Graph Desktop..." "It opens again by itself when it's done."
+      Banner::show /set 76 "Updating QSO Graph Desktop..." "It reopens when it's done."
     ${EndIf}
   ${endif}
 !macroend

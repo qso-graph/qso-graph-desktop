@@ -121,6 +121,12 @@ jobs:
       # Packages first, then the indexes that name them, then what is no longer
       # named: an index never points at a file that is not there. A package's
       # name is unique, so it is kept long; an index changes, so briefly.
+      #
+      # Not `aws s3 sync --delete` (#134): on R2 it deleted files it had just
+      # uploaded, where one name begins another (repomd.xml, repomd.xml.asc), and
+      # promoting 0.5.0 lost a dnf repository's repomd.xml that way. The indexes
+      # are copied, which compares nothing, and what is no longer named is worked
+      # out as a set by scripts/stale-keys.mjs: a key that was built is never removed.
       - name: Uploaded to packages.qso-graph.net
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -133,22 +139,41 @@ jobs:
           s3=(aws s3 --endpoint-url "${R2_ENDPOINT%/}" --only-show-errors)
           cd "$RUNNER_TEMP/repo"
           # A version's file never changes (the Store requires it of the installer), so --size-only: a
-          # file already there is never written again.
+          # file already there is never written again. No package's name begins another's.
           "${s3[@]}" sync . "s3://${R2_BUCKET}/" --size-only --exclude '*' --include '*.deb' --include '*.rpm' --include '*.exe' \
             --cache-control 'public, max-age=31536000, immutable'
-          "${s3[@]}" sync . "s3://${R2_BUCKET}/" --exclude '*.deb' --exclude '*.rpm' --exclude '*.exe' \
+          "${s3[@]}" cp . "s3://${R2_BUCKET}/" --recursive --exclude '*.deb' --exclude '*.rpm' --exclude '*.exe' \
             --cache-control 'public, max-age=300'
-          "${s3[@]}" sync . "s3://${R2_BUCKET}/" --delete
+          find . -type f -printf '%P\n' > "$RUNNER_TEMP/built-keys"
+          aws s3api list-objects-v2 --endpoint-url "${R2_ENDPOINT%/}" --bucket "$R2_BUCKET" --output json \
+            | jq -r '.Contents[]?.Key' > "$RUNNER_TEMP/served-keys"
+          node "$GITHUB_WORKSPACE/scripts/stale-keys.mjs" "$RUNNER_TEMP/built-keys" "$RUNNER_TEMP/served-keys" > "$RUNNER_TEMP/stale-keys"
+          while IFS= read -r key; do
+            "${s3[@]}" rm "s3://${R2_BUCKET}/${key}"
+            echo "removed ${key}"
+          done < "$RUNNER_TEMP/stale-keys"
+          echo "$(wc -l < "$RUNNER_TEMP/built-keys") file(s) built, $(wc -l < "$RUNNER_TEMP/stale-keys") no longer named and removed"
       - name: Served as built
         run: |
           set -euo pipefail
-          # What a user's apt and dnf fetch, from the public address, against what was built.
-          for path in apt/dists/stable/InRelease rpm/x86_64/repodata/repomd.xml rpm/x86_64/repodata/repomd.xml.asc qso-graph-desktop.asc; do
-            served=$(curl -fsS --retry 3 "https://packages.qso-graph.net/${path}?run=${GITHUB_RUN_ID}" | sha256sum | cut -d' ' -f1)
-            built=$(sha256sum "$RUNNER_TEMP/repo/${path}" | cut -d' ' -f1)
-            if [ "$served" != "$built" ]; then echo "✗ ${path} is not what was built" >&2; exit 1; fi
-            echo "✓ ${path}"
-          done
+          # Every file the build made, from the public address (#134): it checked four, so a run that
+          # lost aarch64's repomd.xml passed. Each index against what was built; each package and
+          # installer is there (its name is unique and it is never rewritten).
+          cd "$RUNNER_TEMP/repo"
+          checked=0
+          while IFS= read -r path; do
+            url="https://packages.qso-graph.net/${path}?run=${GITHUB_RUN_ID}"
+            case "$path" in
+              *.deb|*.rpm|*.exe)
+                curl -fsSI --retry 3 -o /dev/null "$url" || { echo "✗ ${path} is not served" >&2; exit 1; } ;;
+              *)
+                served=$(curl -fsS --retry 3 "$url" | sha256sum | cut -d' ' -f1) || { echo "✗ ${path} is not served" >&2; exit 1; }
+                [ "$served" = "$(sha256sum < "$path" | cut -d' ' -f1)" ] || { echo "✗ ${path} is not what was built" >&2; exit 1; }
+                echo "✓ ${path}" ;;
+            esac
+            checked=$((checked + 1))
+          done < <(find . -type f -printf '%P\n' | LC_ALL=C sort)
+          echo "✓ all ${checked} file(s) served as built"
           # The newest Stable Windows installer, as the Store will fetch it: the file itself, no redirect.
           version=$(head -1 "$RUNNER_TEMP/tags"); version=${version#v}
           path="windows/${version}/qso-graph-desktop-${version}-win-x64.exe"
