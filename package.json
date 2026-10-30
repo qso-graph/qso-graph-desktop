@@ -1,7 +1,7 @@
 {
   "name": "qg-desktop",
   "productName": "QSO Graph Desktop",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "description": "QSO Graph Desktop — an extensible desktop platform for amateur radio",
   "license": "GPL-3.0-only",
