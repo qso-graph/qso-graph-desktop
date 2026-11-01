@@ -46,14 +46,18 @@ export function freeze(pid) {
 
 // One reading of a process's open network sockets: { ok, sockets }. lsof on
 // macOS and Linux; netstat on Windows, whose last column is the owning pid.
-export function socketsOf(pid) {
+// { udp: true } reads UDP sockets only. A port number is per protocol: a UDP
+// port and a TCP port can carry the same number at once, and on a macOS runner
+// one of the window's TCP connections did (#149), so a check about a UDP
+// listener has to ask about UDP.
+export function socketsOf(pid, { udp = false } = {}) {
   if (WINDOWS) {
     const run = spawnSync('netstat', ['-ano'], { encoding: 'utf8', timeout: 30_000 });
     if (run.error || run.status !== 0) return { ok: false, sockets: [] };
     const sockets = [];
     for (const line of (run.stdout || '').split(/\r?\n/)) {
       const fields = line.trim().split(/\s+/);
-      if (!/^(TCP|UDP)$/.test(fields[0] ?? '') || Number(fields.at(-1)) !== pid) continue;
+      if (!(udp ? /^UDP$/ : /^(TCP|UDP)$/).test(fields[0] ?? '') || Number(fields.at(-1)) !== pid) continue;
       // As lsof writes them: a listener by its own address, a connection as
       // local->remote.
       const listening = /^(0\.0\.0\.0:0|\[::\]:0|\*:\*)$/.test(fields[2] ?? '');
@@ -66,7 +70,7 @@ export function socketsOf(pid) {
   // -w, because a warning about some other mount it cannot stat (a container's
   // bind mounts, a FUSE file system) is not a failure to read this process,
   // and was being taken for one; errors are still written.
-  const run = spawnSync('lsof', ['-w', '-a', '-p', String(pid), '-i', '-n', '-P', '-F', 'n'], { encoding: 'utf8' });
+  const run = spawnSync('lsof', ['-w', '-a', '-p', String(pid), udp ? '-iUDP' : '-i', '-n', '-P', '-F', 'n'], { encoding: 'utf8' });
   if (run.error || (run.status !== 0 && (run.stderr || '').trim() !== '')) return { ok: false, sockets: [] };
   return { ok: true, sockets: (run.stdout || '').split('\n').filter(line => line.startsWith('n')).map(line => line.slice(1)) };
 }
