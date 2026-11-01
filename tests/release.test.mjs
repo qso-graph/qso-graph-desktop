@@ -108,6 +108,20 @@ describe('release text', () => {
   });
 });
 
+describe('the Preview (2026-11-01)', () => {
+  it('is never of a version already released', () => {
+    // main kept saying 0.5.2 after 0.5.2 shipped, and the nightly published
+    // "Preview of 0.5.2". The job refuses before it touches the Preview there is.
+    const job = readFileSync('.github/workflows/ci.yml', 'utf8').split('- name: Replace the Preview pre-release')[1];
+    expect(job).toBeDefined();
+    const refuse = job.indexOf('refs/tags/v${next}"');
+    expect(refuse, 'the check for a released version').toBeGreaterThan(0);
+    expect(job.slice(refuse, refuse + 400)).toContain('exit 1');
+    expect(refuse, 'refused before the old Preview is deleted').toBeLessThan(job.indexOf('gh release delete'));
+    expect(refuse, 'refused before a new one is made').toBeLessThan(job.indexOf('gh release create'));
+  });
+});
+
 describe('which version each update track names (#94)', () => {
   const release = (tagName, isPrerelease, isLatest = false, isDraft = false) => ({ tagName, isPrerelease, isLatest, isDraft });
 

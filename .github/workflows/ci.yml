@@ -893,6 +893,15 @@ jobs:
           # above every released version and below <next> once that is out
           # (KI7MT, 2026-10-24: "they are not visible on my screen").
           tag="v${next}-preview"
+          # A preview is of a version not yet released. main kept saying 0.5.2
+          # after 0.5.2 shipped, and the nightly published "Preview of 0.5.2"
+          # (2026-11-01): the version a milestone's branch sets first
+          # (docs/RELEASES.md, step 2) had not reached main. Refused before the
+          # Preview there is now is touched.
+          if git ls-remote --exit-code "https://github.com/${REPO}.git" "refs/tags/v${next}" >/dev/null; then
+            echo "::error::main says ${next}, and v${next} is released. Set the next version on the milestone's branch first (docs/RELEASES.md, step 2)."
+            exit 1
+          fi
           {
             echo "**A preview of ${next}**, built from main at ${SHA} (version ${version})."
             echo
