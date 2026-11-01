@@ -77,10 +77,10 @@ pub(crate) fn credential_tls_config(provider: &str) -> CoreResult<rustls::Client
     if provider == "eqsl" { reference_tls_config() } else { tls_config() }
 }
 
-// Today's date in UTC, as LoTW's qso_qslsince takes it (YYYY-MM-DD).
-fn today_utc() -> String {
+// This minute in UTC, as LoTW's qso_qslsince takes it (YYYY-MM-DD HH:MM:00).
+fn now_utc_minute() -> String {
     let seconds = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or_default();
-    chrono::DateTime::from_timestamp(seconds, 0).map(|t| t.format("%Y-%m-%d").to_string()).unwrap_or_else(|| "1970-01-01".into())
+    chrono::DateTime::from_timestamp(seconds, 0).map(|t| t.format("%Y-%m-%d %H:%M:00").to_string()).unwrap_or_else(|| "1970-01-01 00:00:00".into())
 }
 
 // The services whose answer is decided from its start: LoTW's ADIF header.
@@ -163,10 +163,14 @@ pub fn test(provider: &str, creds: &Credentials) -> CoreResult<&'static str> {
         // test. No limit is stated: one request, when the operator presses Test.
         "eqsl" => client.get("https://www.eqsl.cc/qslcard/DisplayLastUploadDate.cfm")
             .query(&[("UserName", username.unwrap_or_default()), ("Password", secret)]),
-        // LoTW: lotwreport.adi asked for today's confirmations only, the query
-        // lotw-mcp's query_confirmations makes against real logins, narrowed to
-        // a day. An accepted login answers with an ADIF header, <eoh>, and at
-        // most a day's records; a refused one with an HTML page
+        // LoTW: lotwreport.adi asked for confirmations since this minute, the
+        // query lotw-mcp's query_confirmations makes against real logins,
+        // narrowed to now. qso_qslsince takes a time (KI7MT's reply: "QSL RX
+        // SINCE: 2026-11-01 00:00:00 (user supplied value)"), so the answer is
+        // the ADIF header and almost never a record, however many QSOs were
+        // confirmed today: the decision is <eoh>, which ADIF puts before any
+        // record, never the answer's size (KI7MT, 2026-11-01). A refused login
+        // answers with an HTML page
         // (lotw.arrl.org/lotw-help/developer-query-qsos-qsls, read 2026-11-01).
         // It was asked without qso_query until KI7MT's tests (2026-11-01) got
         // neither, twice, with a correct login: that shape is in no client we
@@ -175,7 +179,7 @@ pub fn test(provider: &str, creds: &Credentials) -> CoreResult<&'static str> {
         // stated: one request, when the operator presses Test.
         "lotw" => client.get("https://lotw.arrl.org/lotwuser/lotwreport.adi")
             .query(&[("login", username.unwrap_or_default()), ("password", secret),
-                ("qso_query", "1"), ("qso_qsl", "yes"), ("qso_qslsince", today_utc().as_str())]),
+                ("qso_query", "1"), ("qso_qsl", "yes"), ("qso_qslsince", now_utc_minute().as_str())]),
         _ => return Ok("unsupported"),
     };
     let response = match request.send() { Ok(response) => response, Err(_) => return Ok("network-error") };
@@ -611,10 +615,15 @@ mod tests {
         let cut = &big[..MAX_BODY as usize];
         assert_eq!(parse_response("lotw", cut), "success");
         assert!(reads_prefix_only("lotw"));
-        // Today's date, the shape qso_qslsince takes.
-        let today = today_utc();
-        assert_eq!(today.len(), 10);
-        assert!(today.chars().enumerate().all(|(at, c)| if at == 4 || at == 7 { c == '-' } else { c.is_ascii_digit() }), "{today}");
+        // This minute, the shape qso_qslsince takes with a time.
+        let now = now_utc_minute();
+        assert_eq!(now.len(), 19, "{now}");
+        assert!(now.chars().enumerate().all(|(at, c)| match at { 4 | 7 => c == '-', 10 => c == ' ', 13 | 16 => c == ':', _ => c.is_ascii_digit() }), "{now}");
+        assert!(now.ends_with(":00"), "{now}");
+        // KI7MT's real reply, 2026-11-01 (Watson, on the M3): an accepted
+        // login with no records. The decision is <eoh>, wherever records follow.
+        let real = "ARRL Logbook of the World Status Report\nGenerated at 2026-11-01 23:15:15\nfor w1aw\nQuery:\n    QSL ONLY: YES\nQSL RX SINCE: 2026-11-01 00:00:00 (user supplied value)\n\n<PROGRAMID:4>LoTW\n<APP_LoTW_NUMREC:1>0\n\n<eoh>\n\n<APP_LoTW_EOF>\n";
+        assert_eq!(parse_response("lotw", real), "success");
         for provider in ["qrz", "qrz_logbook", "eqsl", "hamqth", "clublog"] { assert!(!reads_prefix_only(provider), "{provider}"); }
     }
     #[test]

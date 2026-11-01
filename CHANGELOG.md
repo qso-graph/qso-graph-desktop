@@ -22,7 +22,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   FIPS-approved kind the application already allows for public reference data. Every other service
   is still TLS 1.3 only.
 - **LoTW: Test credential said "unexpected response"** (#12) with a correct login. The test now asks
-  LoTW the way other LoTW programs do, for your confirmations since today, which answers with a
+  LoTW the way other LoTW programs do, for your confirmations since this minute, which answers with a
   small file that says the login was accepted. If a service ever answers in a way the application
   cannot read, the log now says what kind of answer it was (its size and type, never its contents),
   so the cause can be found.
