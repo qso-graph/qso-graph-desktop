@@ -199,7 +199,7 @@ function clearSecretFields() {
 // is saved" — that is the documented behaviour and the Remove buttons are how
 // a secret is deleted — but now so does untouched.
 function enteredSecret(id: 'password' | 'api-key'): string | undefined {
-  if (!edited.has(id)) return undefined;
+  if (!edited.has(id) || input(id).disabled) return undefined;
   return input(id).value || undefined;
 }
 
@@ -287,10 +287,34 @@ function list() {
     firstRun: snapshot.callsigns.length === 0
   });
 }
+// The register, read once the core answers (below). The Callsigns page shows a
+// service only the fields its entry takes (KI7MT, 2026-11-01: eQSL, LoTW and
+// HamQTH have no API key, and Club Log and QRZ Logbook take no username or
+// password), and the Preferred credential choice only where it takes both a
+// password and an API key. Before the register is read, or if it could not
+// be, every field is shown: hiding a field the operator needs is worse than
+// showing one they do not.
+let registered: ServiceSummary[] = [];
+function takes(provider: string): Set<string> | undefined {
+  const entry = registered.find(service => service.id === provider);
+  return entry ? new Set(entry.fields.map(field => field.name)) : undefined;
+}
+function showServiceFields() {
+  const fields = takes(element<HTMLSelectElement>('provider').value);
+  for (const [id, name] of [['username', 'username'], ['password', 'password'], ['api-key', 'api_key']] as const) {
+    const used = !fields || fields.has(name);
+    element(`${id}-field`).hidden = !used;
+    // Disabled as well as hidden, so the form neither validates nor sends it.
+    input(id).disabled = !used;
+  }
+  element('preference-field').hidden = !(!fields || (fields.has('password') && fields.has('api_key')));
+}
+
 async function credentialStatus() {
   const id = selected;
   const provider = element<HTMLSelectElement>('provider').value;
   if (!id) return;
+  showServiceFields();
   // Nothing is known about this service until the answer comes back, and the
   // line says so rather than making a claim it has not checked.
   serviceState = undefined;
@@ -425,7 +449,7 @@ element('credential-form').addEventListener('submit', event => {
   event.preventDefault(); void busy('save-credential', async () => {
     if (!selected) return;
     const credentials = {
-      username: input('username').value || undefined,
+      username: input('username').disabled ? undefined : input('username').value || undefined,
       password: enteredSecret('password'),
       apiKey: enteredSecret('api-key')
     };
@@ -532,7 +556,9 @@ async function initialize() {
       // An empty list is what a register that could not be read looks like
       // from here, and setup then has a callsign step and nothing after it —
       // which is still a working setup (QGD-PSN-0004).
-      shell.set({ services: listed.ok && Array.isArray(listed.data) ? listed.data as ServiceSummary[] : [] });
+      registered = listed.ok && Array.isArray(listed.data) ? listed.data as ServiceSummary[] : [];
+      shell.set({ services: registered });
+      showServiceFields();
       return;
     }
     catch (error) { if (attempt === 9) message((error as Error).message, true); else await new Promise(resolve => setTimeout(resolve, 250)); }

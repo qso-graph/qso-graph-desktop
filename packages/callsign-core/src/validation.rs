@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::{CoreResult, Credentials, selected_secret};
+use crate::{CoreResult, Credentials};
 use std::io::Read;
 use std::sync::Arc;
 use std::time::Duration;
@@ -82,8 +82,20 @@ fn reads_prefix_only(provider: &str) -> bool { provider == "lotw" }
 
 pub(crate) fn needs_username(provider: &str) -> bool { !matches!(provider, "qrz_logbook" | "clublog") }
 
-pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
-    let secret = selected_secret(provider, creds, preference)?;
+// The secret a service takes: the API key (QRZ Logbook's key, Club Log's
+// token) or the password, by the service and never by a saved preference.
+// Every registered service takes exactly one kind, so a preference could only
+// send the wrong one: with Password preferred, Club Log's test sent an old
+// password as the token (KI7MT, 2026-11-01). The preference stays the core's
+// for require_credential, and the screen offers it only for a service that
+// takes both.
+pub(crate) fn service_secret<'a>(provider: &str, creds: &'a Credentials) -> Option<&'a str> {
+    let secret = if crate::key_first(provider) { creds.api_key.as_deref() } else { creds.password.as_deref() };
+    secret.filter(|s| !s.is_empty())
+}
+
+pub fn test(provider: &str, creds: &Credentials) -> CoreResult<&'static str> {
+    let secret = service_secret(provider, creds).ok_or("No credential this service takes is stored.")?;
     // QRZ Logbook's key and Club Log's token stand alone; every other service
     // signs in with a username (#8, #11).
     let username = creds.username.as_deref().filter(|s| !s.is_empty());
@@ -217,14 +229,13 @@ const MAX_FIELD_LEN: usize = 256;
 pub fn lookup(
     provider: &str,
     creds: &Credentials,
-    preference: Option<&str>,
     operation: &str,
     callsign: &str,
 ) -> CoreResult<Looked> {
     if !known_operation(provider, operation) { return Ok(Looked::Nothing("unsupported")); }
     if !plain_callsign(callsign) { return Ok(Looked::Nothing("invalid-request")); }
 
-    let secret = selected_secret(provider, creds, preference)?;
+    let secret = service_secret(provider, creds).ok_or("No password is stored.")?;
     let username = creds.username.as_deref().filter(|s| !s.is_empty()).ok_or("No username is stored.")?;
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())

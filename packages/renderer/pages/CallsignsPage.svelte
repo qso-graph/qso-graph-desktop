@@ -63,13 +63,16 @@
       {findInStore(platform)}</p>
     <div class="credential-test"><button id="test-credential" class="secondary" type="button" disabled>Test credential</button><p id="credential-test-result" role="status">Not tested yet.</p></div>
     <form id="credential-form" autocomplete="off">
-      <label>Username<input id="username" name="username" maxlength="4096" required autocomplete="off"></label>
+      <label id="username-field">Username<input id="username" name="username" maxlength="4096" required autocomplete="off"></label>
       <div class="fields">
-        <div><label>Password<input id="password" type="password" name="password" maxlength="4096" autocomplete="new-password" aria-describedby="password-saved"></label><p id="password-saved" class="saved-indicator" hidden>{forStore('Password saved in Keychain', platform)}</p><button id="remove-password" class="danger field-remove" type="button" hidden>Remove password</button></div>
-        <div><label>API key<input id="api-key" type="password" name="apiKey" maxlength="4096" autocomplete="new-password" aria-describedby="api-key-saved"></label><p id="api-key-saved" class="saved-indicator" hidden>{forStore('API key saved in Keychain', platform)}</p><button id="remove-api-key" class="danger field-remove" type="button" hidden>Remove API key</button></div>
+        <div id="password-field"><label>Password<input id="password" type="password" name="password" maxlength="4096" autocomplete="new-password" aria-describedby="password-saved"></label><p id="password-saved" class="saved-indicator" hidden>{forStore('Password saved in Keychain', platform)}</p><button id="remove-password" class="danger field-remove" type="button" hidden>Remove password</button></div>
+        <div id="api-key-field"><label>API key<input id="api-key" type="password" name="apiKey" maxlength="4096" autocomplete="new-password" aria-describedby="api-key-saved"></label><p id="api-key-saved" class="saved-indicator" hidden>{forStore('API key saved in Keychain', platform)}</p><button id="remove-api-key" class="danger field-remove" type="button" hidden>Remove API key</button></div>
       </div>
-      <label for="credential-preference">Preferred credential</label><select id="credential-preference" disabled><option value="service">Service default</option><option value="password">Password</option><option value="api_key">API key</option></select>
-      <p id="credential-effective" class="hint"></p>
+      <!-- Only for a service whose register entry takes both a password and an
+           API key (KI7MT, 2026-11-01). A service that takes one of them uses
+           it, with nothing to choose. -->
+      <div id="preference-field" hidden><label for="credential-preference">Preferred credential</label><select id="credential-preference" disabled><option value="service">Service default</option><option value="password">Password</option><option value="api_key">API key</option></select>
+      <p id="credential-effective" class="hint"></p></div>
       <p class="hint">Saving updates the fields you enter. Blank password and API key fields keep their saved values. Use Remove to delete one. Saved secrets are never displayed.</p>
       <div class="form-footer"><button id="remove-credential" class="danger" type="button" hidden>Remove saved credential</button><button id="save-credential" type="submit">{forStore('Save in Keychain', platform)}</button></div>
     </form>

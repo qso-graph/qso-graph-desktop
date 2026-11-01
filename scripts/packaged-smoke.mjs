@@ -100,7 +100,9 @@ try {
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Make W1AW active', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
-  await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
+  // QRZ lookup shows a username and a password; QRZ Logbook its API key alone
+  // (KI7MT, 2026-11-01: a service shows only the fields it takes).
+  await page.getByLabel('Service', { exact: true }).selectOption('qrz');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const username = page.getByLabel('Username', { exact: true });
   await username.fill(fakeCredential);
@@ -111,7 +113,8 @@ try {
   // to cover.
   await username.press(`${modifier}+a`);
   await username.press(`${modifier}+c`);
-  for (const label of ['Password', 'API key']) {
+  for (const [provider, label] of [['qrz', 'Password'], ['qrz_logbook', 'API key']]) {
+    await page.getByLabel('Service', { exact: true }).selectOption(provider);
     const field = page.getByLabel(label, { exact: true });
     await expect.poll(async () => {
       await field.focus();
@@ -120,14 +123,14 @@ try {
       return field.inputValue();
     }, { message: `a native paste must reach the ${label} field`, timeout: 15_000 }).toBe(fakeCredential);
   }
-  await username.fill('W1AW');
-  await username.press(`${modifier}+a`); await username.press(`${modifier}+c`);
-  await page.getByLabel('Password', { exact: true }).fill('');
+  // QRZ Logbook, now selected: no username, no password, nothing to prefer.
+  await expect(page.locator('#username-field')).toBeHidden();
+  await expect(page.locator('#password-field')).toBeHidden();
+  await expect(page.locator('#preference-field')).toBeHidden();
   await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   credentialSaved = true;
   await expect(page.locator('#api-key-saved')).toBeVisible();
-  await expect(page.locator('#password-saved')).toBeHidden();
   // toHaveAttribute, not a read of getAttribute: the placeholder appears when
   // the Keychain round-trip returns, and a single read races it — which is how
   // this suite failed a run while the application was behaving correctly. The
@@ -137,13 +140,9 @@ try {
   await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
   expect((await readFile(join(profile, 'callsigns.json'), 'utf8')).includes(fakeCredential)).toBe(false);
-  await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
-  await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
-  await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('#api-key-saved')).toBeVisible();
-  await page.getByLabel('Preferred credential', { exact: true }).selectOption('password');
-  await expect(page.locator('#credential-effective')).toContainText('Selected for use: password');
-  await expect(page.locator('#message')).toHaveText('Preferred credential saved.');
+  // The preference between a saved password and API key, and its surviving a
+  // restart, is the core's and is held by the credential-editing suite: no
+  // registered service takes both, so the screen never offers the choice.
   await stop();
   // As if it had been updated from an earlier version (QGD-FRM-0016): Home
   // says so in one line, the notes open from it, and once read the line is
@@ -168,18 +167,14 @@ try {
   await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   await expect(page.locator('#api-key-saved')).toBeVisible();
-  await expect(page.getByLabel('Preferred credential', { exact: true })).toHaveValue('password');
-  await expect(page.locator('#credential-effective')).toContainText('Selected for use: password');
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Remove password', exact: true }).click();
-  await expect(page.locator('#password-saved')).toBeHidden({ timeout: 30_000 });
-  await expect(page.locator('#api-key-saved')).toBeVisible();
-  await expect(page.locator('#credential-effective')).toContainText('Selected for use: API key');
+  await expect(page.locator('#preference-field')).toBeHidden();
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
   await page.getByLabel('Service', { exact: true }).selectOption('eqsl');
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
-  await expect(page.locator('#api-key-saved')).toBeHidden();
-  await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '');
+  // eQSL takes a callsign and a password: no API key field, nothing to prefer.
+  await expect(page.locator('#api-key-field')).toBeHidden();
+  await expect(page.locator('#password-field')).toBeVisible();
+  await expect(page.locator('#preference-field')).toBeHidden();
   // QGD-CRD-0011: a control that cannot be used says why without being
   // pressed. eQSL can be tested since #9, so what stops it here is that
   // nothing is saved to test.
