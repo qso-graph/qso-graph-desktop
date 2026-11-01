@@ -85,6 +85,10 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
         // account's own usage: read-only, and it names no callsign (#11). One
         // day rather than the default thirty, so the reply stays small; it
         // also carries the last hundred requests, which nothing here reads.
+        // Club Log's stated limit: 60 requests a minute and 1,000 a UTC day per
+        // account, however many tokens it holds; 429 with Retry-After beyond
+        // it (clublog.org/support/knowledgebase/rest-api/, read 2026-11-01).
+        // A test is one request, sent only when the operator presses Test.
         "clublog" => client.get("https://clublog.org/api/v1/me/usage?days=1")
             .bearer_auth(secret).header(reqwest::header::ACCEPT, "application/json"),
         _ => return Ok("unsupported"),
