@@ -51,13 +51,14 @@ describe('QGD-PSN-0003 what the register ships with', () => {
       const answer = 'what' in entry.test ? entry.test.what : entry.test.none;
       expect(answer.length, entry.id).toBeGreaterThan(20);
     }
-    // Two have a test today and four do not, and the four say why rather than
-    // leaving a null for a reader to interpret. The credential-editing suite
-    // is what holds this to the core, which is the authority on which exist.
+    // Three have a test today (Club Log's since #11) and three do not, and the
+    // three say why rather than leaving a null for a reader to interpret. The
+    // credential-editing suite is what holds this to the core, which is the
+    // authority on which exist.
     expect(shipped.services.filter(entry => 'what' in entry.test).map(entry => entry.id))
-      .toEqual(['qrz', 'qrz_logbook']);
+      .toEqual(['qrz', 'qrz_logbook', 'clublog']);
     expect(shipped.services.filter(entry => 'none' in entry.test).map(entry => entry.id))
-      .toEqual(['eqsl', 'lotw', 'hamqth', 'clublog']);
+      .toEqual(['eqsl', 'lotw', 'hamqth']);
   });
 
   it('says of every service whether its credential expires (QGD-PSN-0006)', () => {

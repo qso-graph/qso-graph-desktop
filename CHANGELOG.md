@@ -7,6 +7,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Club Log: Test credential works** (#11). Club Log now gives each ham a token for each program,
+  instead of asking for your email and password, so Club Log setup asks for one thing: a token you
+  make at Club Log under Settings → API, labelled QSO Graph Desktop. Test credential asks Club Log
+  for your account's usage with it, which reads nothing from your log and changes nothing. A token
+  Club Log refuses is reported once and never retried, as Club Log asks. Every request now names
+  the application and its website, which Club Log requires.
+
+### Fixed
+
+- **QRZ Logbook: Test credential with only the API key saved** (#11). Guided setup saves the
+  logbook's key on its own, and the test answered that nothing was saved, because it looked for a
+  username the logbook never asks for. It now asks for a username only where the service signs in
+  with one, which is QRZ's lookup.
+
 ## [0.5.2] - 2026-10-30
 
 ### Security
