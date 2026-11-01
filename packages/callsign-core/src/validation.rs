@@ -82,8 +82,10 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
         "qrz_logbook" => client.post("https://logbook.qrz.com/api")
             .form(&[("KEY", secret), ("ACTION", "STATUS")]),
         // Club Log's token, in the Authorization header and nowhere else. The
-        // account's own usage: read-only, and it names no callsign (#11).
-        "clublog" => client.get("https://clublog.org/api/v1/me/usage")
+        // account's own usage: read-only, and it names no callsign (#11). One
+        // day rather than the default thirty, so the reply stays small; it
+        // also carries the last hundred requests, which nothing here reads.
+        "clublog" => client.get("https://clublog.org/api/v1/me/usage?days=1")
             .bearer_auth(secret).header(reqwest::header::ACCEPT, "application/json"),
         _ => return Ok("unsupported"),
     };
