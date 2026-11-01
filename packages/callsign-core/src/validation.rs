@@ -8,7 +8,8 @@ use zeroize::Zeroizing;
 const MAX_BODY: u64 = 64 * 1024;
 pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook" | "clublog" | "hamqth" | "eqsl" | "lotw") }
 
-// For anything that carries a credential: TLS 1.3 only.
+// For anything that carries a credential: TLS 1.3 only, with one named
+// exception (credential_tls_config).
 pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
     let provider = rustls::crypto::aws_lc_rs::default_provider();
     if !provider.fips() { return Err("Secure client is unavailable."); }
@@ -20,8 +21,8 @@ pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
     Ok(config)
 }
 
-// For public reference data only, which carries no credential: TLS 1.3, or
-// TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
+// For public reference data, which carries no credential, and for eQSL's login
+// (credential_tls_config): TLS 1.3, or TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
 // Still the FIPS provider, so 1.2 means ECDHE with AES-GCM on P-256 or P-384
 // and Extended Master Secret required (NIST SP 800-52r2); config.fips() is
 // checked as it is above. KI7MT, 2026-10-11 (QGD-SEC-0020).
@@ -64,6 +65,18 @@ pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
 
 // Every service signs in with a username but the two whose credential is a key
 // of its own: QRZ Logbook's API key and Club Log's token.
+// The TLS a service's credential connection may use. TLS 1.3, but for eQSL,
+// whose www.eqsl.cc offers nothing newer than TLS 1.2 (checked 2026-11-01:
+// ECDHE-RSA-AES256-GCM-SHA384, Extended Master Secret yes). Its login gets the
+// same FIPS-mode TLS 1.2 reference data may use: ECDHE with AES-GCM on P-256
+// or P-384, Extended Master Secret required (NIST SP 800-52r2). KI7MT,
+// 2026-11-01: "eQSL only. They need to update their service." The exception
+// is this one service by its id, never a host or a prefix; every other
+// credential stays TLS 1.3 only (QGD-SEC-0020).
+pub(crate) fn credential_tls_config(provider: &str) -> CoreResult<rustls::ClientConfig> {
+    if provider == "eqsl" { reference_tls_config() } else { tls_config() }
+}
+
 pub(crate) fn needs_username(provider: &str) -> bool { !matches!(provider, "qrz_logbook" | "clublog") }
 
 pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
@@ -72,7 +85,7 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
     // signs in with a username (#8, #11).
     let username = creds.username.as_deref().filter(|s| !s.is_empty());
     if needs_username(provider) && username.is_none() { return Err("No username is stored."); }
-    let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
+    let client = reqwest::blocking::Client::builder().use_preconfigured_tls(credential_tls_config(provider)?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
         .user_agent(crate::HTTP_AGENT).build().map_err(|_| "Secure client is unavailable.")?;
@@ -549,5 +562,20 @@ mod tests {
         assert!(config.fips());
         // Only TLS 1.3 may be advertised to anything carrying a credential.
         assert_eq!(offered_versions(config), vec![2, 3, 4]);
+    }
+
+    #[test]
+    fn only_eqsl_s_login_may_use_tls_1_2() {
+        // KI7MT, 2026-11-01: www.eqsl.cc offers TLS 1.2 and nothing newer, so
+        // its login alone gets FIPS-mode TLS 1.2; every other credential is
+        // TLS 1.3 only (QGD-SEC-0020). A second service on 1.2 is a decision,
+        // and this test is where it shows.
+        let eqsl = credential_tls_config("eqsl").unwrap();
+        assert!(eqsl.fips());
+        assert_eq!(offered_versions(eqsl), vec![4, 3, 4, 3, 3]);
+        for provider in ["qrz", "qrz_logbook", "lotw", "hamqth", "clublog", "EQSL", "eqsl.cc", "unknown"] {
+            let config = credential_tls_config(provider).unwrap();
+            assert_eq!(offered_versions(config), vec![2, 3, 4], "{provider} must be TLS 1.3 only");
+        }
     }
 }

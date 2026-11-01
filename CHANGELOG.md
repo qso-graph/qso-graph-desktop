@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **eQSL: Test credential could not connect** ("Could not connect securely to eQSL"). eQSL's server
+  offers nothing newer than TLS 1.2, and the application spoke only TLS 1.3 to any service that
+  takes your password. eQSL's login alone now also accepts TLS 1.2, limited to the strong,
+  FIPS-approved kind the application already allows for public reference data. Every other service
+  is still TLS 1.3 only.
+
 ### Added
 
 - **Club Log: Test credential works** (#11). Club Log now gives each ham a token for each program,
