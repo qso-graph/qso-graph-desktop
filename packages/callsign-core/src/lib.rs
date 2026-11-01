@@ -47,6 +47,11 @@ mod reference;
 // real version, from package.json at build time (#129). QRZ asks each client
 // to identify itself truthfully, and a placeholder version is not that.
 pub(crate) const AGENT: &str = concat!("QGDesktop/", env!("QGD_VERSION"));
+// The HTTP User-Agent: the product and where to find its owner. Club Log
+// requires "a HTTP agent which can be uniquely mapped to the owner of the code
+// by their product name or callsign", and bans one that is not (#11). AGENT
+// stays the bare name for the `agent` field QRZ's form asks for.
+pub(crate) const HTTP_AGENT: &str = concat!("QGDesktop/", env!("QGD_VERSION"), " (+https://qso-graph.io)");
 
 mod feed_signature;
 mod updates;
@@ -755,8 +760,21 @@ fn now_utc() -> String {
         .unwrap_or_default()
 }
 
+// The services whose own credential is a key: QRZ Logbook's API key, and Club
+// Log's token (#11), which replaced its email and password. A profile an
+// earlier build saved with a Club Log password as well is tested with the token.
+fn key_first(provider: &str) -> bool { matches!(provider.to_lowercase().as_str(), "qrz_logbook" | "clublog") }
+
+// Whether what is saved is enough to test. A username only where the service
+// signs in with one: guided setup saves QRZ Logbook and Club Log with their key
+// alone, and asking every service for a username answered "missing" to a
+// saved key (#11).
+fn testable_with(provider: &str, creds: &Credentials) -> bool {
+    !validation::needs_username(provider) || creds.username.as_ref().is_some_and(|s| !s.is_empty())
+}
+
 fn effective_field(provider: &str, has_password: bool, has_api_key: bool, prefer: Option<&str>) -> Option<String> {
-    let preferred = prefer.unwrap_or(if provider.to_lowercase() == "qrz_logbook" { "api_key" } else { "password" });
+    let preferred = prefer.unwrap_or(if key_first(provider) { "api_key" } else { "password" });
     let (first, second, first_name, second_name) = match preferred {
         "api_key" => (has_api_key, has_password, "api_key", "password"),
         "password" => (has_password, has_api_key, "password", "api_key"),
@@ -766,7 +784,7 @@ fn effective_field(provider: &str, has_password: bool, has_api_key: bool, prefer
 }
 
 fn selected_field(provider: &str, creds: &Credentials, prefer: Option<&str>) -> CoreResult<&'static str> {
-    let preferred = prefer.unwrap_or(if provider.to_lowercase() == "qrz_logbook" { "api_key" } else { "password" });
+    let preferred = prefer.unwrap_or(if key_first(provider) { "api_key" } else { "password" });
     let (first, second, first_name, second_name) = match preferred {
         "api_key" => (&creds.api_key, &creds.password, "api_key", "password"),
         "password" => (&creds.password, &creds.api_key, "password", "api_key"),
@@ -903,7 +921,7 @@ mod addon {
                 let preference = self.store.preference(&id, &provider).map_err(error)?;
                 let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
                 match creds {
-                    Some(creds) if creds.username.as_ref().is_some_and(|s| !s.is_empty()) => {
+                    Some(creds) if testable_with(&provider, &creds) => {
                         let result = validation::test(&provider, &creds, if preference == "service" { None } else { Some(&preference) }).map_err(error)?;
                         tracing::info!(provider = %provider, outcome = %result, "credential tested");
                         result
@@ -1266,6 +1284,22 @@ mod tests {
         // on a machine with one, what was here would be gone).
         assert_eq!(store.absorb(&bad, true).err(), Some("Enter a callsign: letters, digits and /."));
         assert!(store.lookup(&kept).is_ok(), "and what was here is still here");
+    }
+
+    #[test]
+    fn a_key_saved_alone_is_tested_rather_than_called_missing() {
+        // #11: guided setup saves QRZ Logbook and Club Log with the key and no
+        // username, and the test answered "missing" to both.
+        let key = Credentials { username: None, password: None, api_key: Some("fixture-key".into()) };
+        assert!(testable_with("qrz_logbook", &key));
+        assert!(testable_with("clublog", &key));
+        // QRZ's lookup signs in with a username, so without one there is nothing to test.
+        let password = Credentials { username: None, password: Some("fixture-password".into()), api_key: None };
+        assert!(!testable_with("qrz", &password));
+        // A Club Log profile an earlier build saved with a password too is tested with the token.
+        let both = Credentials { username: None, password: Some("fixture-password".into()), api_key: Some("fixture-key".into()) };
+        assert_eq!(selected_field("clublog", &both, None).unwrap(), "api_key");
+        assert_eq!(effective_field("clublog", true, true, None).as_deref(), Some("api_key"));
     }
 
     #[test]

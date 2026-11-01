@@ -98,14 +98,17 @@ try {
   expect(await bindable(port), 'the port is held while the adapter is on').toBe(false);
   const [listener] = await integrationsProcess(application);
   expect(listener, 'the QG Integrations process is running').toBeGreaterThan(0);
-  const held = socketsOf(listener);
+  // UDP, and the port as this end of a socket's address: a TCP connection whose
+  // number matched, or one whose far end did, is not this port (#149).
+  const local = socket => socket.split('->')[0].endsWith(`:${port}`);
+  const held = socketsOf(listener, { udp: true });
   expect(held.ok, 'the Integrations process\'s sockets can be read').toBe(true);
-  expect(held.sockets.some(socket => socket.endsWith(`:${port}`)), held.sockets.join(', ')).toBe(true);
+  expect(held.sockets.some(local), held.sockets.join(', ')).toBe(true);
   // The one way in: the window and main hold no socket on that port.
   for (const metric of await application.evaluate(({ app }) => app.getAppMetrics())) {
     if (metric.pid === listener) continue;
-    const other = socketsOf(metric.pid);
-    if (other.ok) expect(other.sockets.filter(socket => socket.endsWith(`:${port}`)), `${metric.type} ${metric.pid}`).toEqual([]);
+    const other = socketsOf(metric.pid, { udp: true });
+    if (other.ok) expect(other.sockets.filter(local), `${metric.type} ${metric.pid}`).toEqual([]);
   }
 
   // P13-sim: the simulator plays its sample, looping, at four times real

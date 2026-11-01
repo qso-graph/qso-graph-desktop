@@ -6,7 +6,7 @@ use std::time::Duration;
 use zeroize::Zeroizing;
 
 const MAX_BODY: u64 = 64 * 1024;
-pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook") }
+pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook" | "clublog") }
 
 // For anything that carries a credential: TLS 1.3 only.
 pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
@@ -62,7 +62,7 @@ pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
     panic!("the ClientHello carries no supported_versions extension");
 }
 
-fn needs_username(provider: &str) -> bool { provider == "qrz" }
+pub(crate) fn needs_username(provider: &str) -> bool { provider == "qrz" }
 
 pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
     let secret = selected_secret(provider, creds, preference)?;
@@ -73,7 +73,7 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
-        .user_agent(crate::AGENT).build().map_err(|_| "Secure client is unavailable.")?;
+        .user_agent(crate::HTTP_AGENT).build().map_err(|_| "Secure client is unavailable.")?;
     // Fixed destinations and POST bodies: no credentials in URLs. The caller
     // sees a fixed outcome only, never response bodies, session keys or errors.
     let request = match provider {
@@ -81,6 +81,16 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
             .form(&[("username", username.unwrap_or_default()), ("password", secret), ("agent", crate::AGENT)]),
         "qrz_logbook" => client.post("https://logbook.qrz.com/api")
             .form(&[("KEY", secret), ("ACTION", "STATUS")]),
+        // Club Log's token, in the Authorization header and nowhere else. The
+        // account's own usage: read-only, and it names no callsign (#11). One
+        // day rather than the default thirty, so the reply stays small; it
+        // also carries the last hundred requests, which nothing here reads.
+        // Club Log's stated limit: 60 requests a minute and 1,000 a UTC day per
+        // account, however many tokens it holds; 429 with Retry-After beyond
+        // it (clublog.org/support/knowledgebase/rest-api/, read 2026-11-01).
+        // A test is one request, sent only when the operator presses Test.
+        "clublog" => client.get("https://clublog.org/api/v1/me/usage?days=1")
+            .bearer_auth(secret).header(reqwest::header::ACCEPT, "application/json"),
         _ => return Ok("unsupported"),
     };
     let response = match request.send() { Ok(response) => response, Err(_) => return Ok("network-error") };
@@ -147,7 +157,7 @@ pub fn lookup(
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
-        .user_agent(crate::AGENT).build().map_err(|_| "Secure client is unavailable.")?;
+        .user_agent(crate::HTTP_AGENT).build().map_err(|_| "Secure client is unavailable.")?;
 
     // 1. Sign in. Same fixed destination and POST body as the credential test.
     let login = match client.post("https://xmldata.qrz.com/xml/current/")
@@ -245,6 +255,14 @@ fn parse_response(provider: &str, body: &str) -> &'static str {
             if results.len() != 1 { return "invalid-response"; }
             match results[0].trim() { "OK" => "success", "FAIL" | "AUTH" => "rejected", _ => "invalid-response" }
         }
+        // 200 with a JSON object that is not Club Log's error shape. A refused
+        // token is 401 and never reaches here; Club Log asks that it is not
+        // retried, and it is not: a test runs once, when the operator asks.
+        "clublog" => match serde_json::from_str::<serde_json::Value>(body) {
+            Ok(serde_json::Value::Object(fields)) if !fields.contains_key("error") => "success",
+            Ok(serde_json::Value::Object(_)) => "rejected",
+            _ => "invalid-response",
+        },
         _ => "unsupported",
     }
 }
@@ -256,6 +274,9 @@ mod tests {
         // #8: the register gives QRZ Logbook one field, its API key.
         assert!(needs_username("qrz"));
         assert!(!needs_username("qrz_logbook"));
+        // #11: Club Log's token stands alone too, and can be tested.
+        assert!(!needs_username("clublog"));
+        assert!(supported("clublog"));
     }
 
     #[test]
@@ -264,6 +285,8 @@ mod tests {
         let manifest: serde_json::Value = serde_json::from_str(include_str!("../../../package.json")).unwrap();
         assert_eq!(crate::AGENT, format!("QGDesktop/{}", manifest["version"].as_str().unwrap()));
         assert!(!crate::AGENT.contains("0.0.0"));
+        // Club Log bans an agent it cannot map to its owner (#11).
+        assert_eq!(crate::HTTP_AGENT, format!("{} (+https://qso-graph.io)", crate::AGENT));
     }
 
     use super::*;
@@ -381,6 +404,10 @@ mod tests {
         assert_eq!(parse_response("qrz_logbook", "RESULT=AUTH"), "rejected");
         assert_eq!(parse_response("qrz_logbook", "RESULT=FAIL&RESULT=OK"), "invalid-response");
         assert_eq!(parse_response("qrz_logbook", "<html>RESULT=OK</html>"), "invalid-response");
+        assert_eq!(parse_response("clublog", r#"{"allowance":{"minute":60,"day":1000}}"#), "success");
+        assert_eq!(parse_response("clublog", r#"{"error":{"code":"unauthorized","message":"synthetic echoed secret","details":null}}"#), "rejected");
+        assert_eq!(parse_response("clublog", "[]"), "invalid-response");
+        assert_eq!(parse_response("clublog", "<html>ok</html>"), "invalid-response");
     }
     #[test]
     fn secure_client_requires_fips_crypto_and_only_tls13() {

@@ -147,33 +147,21 @@
       "name": "Club Log",
       "what": "DXCC analysis and log upload",
       "site": "https://clublog.org/",
-      "howToGet": "A Club Log account, and an API key the operator asks Club Log for. Both are needed: the key identifies the application and the account identifies the operator.",
+      "howToGet": "A Club Log account, and a token you make for this program at Club Log: Settings, the API tab, label it QSO Graph Desktop, leave Test mode off, and Create token. Club Log shows the token once, so copy it straight in. It is not your Club Log password, and a token not used for six months is deleted.",
       "fields": [
         {
-          "name": "username",
-          "label": "Club Log email",
-          "secret": false,
-          "required": true
-        },
-        {
-          "name": "password",
-          "label": "Club Log password",
-          "secret": true,
-          "required": true
-        },
-        {
           "name": "api_key",
-          "label": "Club Log API key",
+          "label": "Club Log token",
           "secret": true,
-          "required": false
+          "required": true
         }
       ],
       "expiry": {
         "known": false,
-        "why": "Neither the Club Log password nor the API key carries an expiry date."
+        "why": "A Club Log token carries no date. Club Log deletes one that goes unused for six months, which is not a date this product can read in advance."
       },
       "test": {
-        "none": "This product has no test for Club Log yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
+        "what": "Asks Club Log for the account's own usage with the token, which reads and changes nothing in a log"
       }
     }
   ]
