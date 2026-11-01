@@ -49,8 +49,10 @@ try {
   check(!core.credentialStatus(id, 'qrz_logbook').stored, 'Last secret removes Keychain entry');
   core.saveCredentials(id, 'qrz_logbook', { username: 'W1AW', password, apiKey });
   core.saveCredentials(id, 'eqsl', { username: 'W1AW', password });
-  check(core.testCredential(id, 'eqsl').outcome === 'unsupported', 'Unsupported service never claims validation');
   core.saveCredentials(id, 'legacy_provider', { username: 'W1AW', password });
+  // Every registered service has a test since #9, #10 and #12; a provider the
+  // core has none for still never claims one.
+  check(core.testCredential(id, 'legacy_provider').outcome === 'unsupported', 'Unsupported service never claims validation');
   other = core.create('K1ABC', 'qg-test', undefined, undefined).id;
   core.saveCredentials(other, 'qrz_logbook', { username: 'K1ABC', apiKey });
   core.setActive(id);
@@ -98,8 +100,11 @@ try {
   }
   check(register.services.filter(s => 'what' in s.test).length >= 1,
     'At least one service has a test, or this check is vacuous');
-  check(register.services.filter(s => 'none' in s.test).length >= 1,
-    'At least one service has none, or this check is vacuous');
+  // Every registered service has a test since #9, #10 and #12 (found by
+  // Codex), so the other side of the check is a provider the core has none
+  // for: it must say so, with nothing stored, rather than claim one.
+  check(core.credentialStatus(untouched, 'legacy_provider').testable === false,
+    'A provider with no test says so, or this check is vacuous');
 
   console.log('Credential editing and callsign deletion: merge, independent removal, preference, fallback, cascade and isolation: PASS');
   console.log(`The register and the core agree about which of the ${register.services.length} services can be tested: PASS`);

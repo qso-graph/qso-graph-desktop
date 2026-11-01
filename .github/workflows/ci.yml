@@ -898,8 +898,14 @@ jobs:
           # (2026-11-01): the version a milestone's branch sets first
           # (docs/RELEASES.md, step 2) had not reached main. Refused before the
           # Preview there is now is touched.
-          if git ls-remote --exit-code "https://github.com/${REPO}.git" "refs/tags/v${next}" >/dev/null; then
+          # --exit-code: 0 the tag exists, 2 it does not. Anything else is a
+          # lookup that failed, and is not "not released" (found by Codex).
+          status=0; git ls-remote --exit-code "https://github.com/${REPO}.git" "refs/tags/v${next}" >/dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
             echo "::error::main says ${next}, and v${next} is released. Set the next version on the milestone's branch first (docs/RELEASES.md, step 2)."
+            exit 1
+          elif [ "$status" -ne 2 ]; then
+            echo "::error::Could not ask GitHub whether v${next} is released (git ls-remote: ${status}). Nothing was changed."
             exit 1
           fi
           {

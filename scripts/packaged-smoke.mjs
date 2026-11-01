@@ -180,15 +180,19 @@ try {
   await expect(page.locator('#credential-status')).toContainText('No credential saved');
   await expect(page.locator('#api-key-saved')).toBeHidden();
   await expect(page.getByLabel('API key', { exact: true })).toHaveAttribute('placeholder', '');
+  // QGD-CRD-0011: a control that cannot be used says why without being
+  // pressed. eQSL can be tested since #9, so what stops it here is that
+  // nothing is saved to test.
+  await expect(page.getByRole('button', { name: 'Test credential', exact: true })).toBeDisabled();
+  await expect(page.locator('#credential-test-result')).toContainText('Save a username and password or API key first');
   await page.getByLabel('Password', { exact: true }).fill(fakeCredential);
   await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#password-saved')).toBeVisible({ timeout: 30_000 });
   expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe('');
-  // QGD-CRD-0011: eQSL cannot be tested yet, and that is said without being
-  // pressed. It used to be learned by pressing, which left a service with
-  // nothing saved showing a dead, silent button.
-  await expect(page.getByRole('button', { name: 'Test credential', exact: true })).toBeDisabled();
-  await expect(page.locator('#credential-test-result')).toContainText('Testing for this service is not implemented yet.');
+  // Saved, it can be pressed. It is not pressed: that would send a fake
+  // credential to eQSL, and no suite signs in anywhere for real.
+  await expect(page.getByRole('button', { name: 'Test credential', exact: true })).toBeEnabled();
+  await expect(page.locator('#credential-test-result')).toContainText('Not tested yet.');
   await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Remove saved credential', exact: true }).click();

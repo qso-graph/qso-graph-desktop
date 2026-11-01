@@ -272,7 +272,9 @@ try {
     ['callsign activated', { type: 'set-active', id }],
     ['credential saved', { type: 'save-credentials', id, provider: 'qrz_logbook', credentials: { username: 'W1AW', password } }],
     ['status read', { type: 'status', id, provider: 'qrz_logbook' }],
-    ['credential tested on an unsupported provider', { type: 'test-credential', id, provider: 'eqsl' }],
+    // eQSL can be tested since #9; with nothing saved for it the core answers
+    // "missing" without a connection, which is what this capture is for.
+    ['credential tested with nothing saved', { type: 'test-credential', id, provider: 'eqsl' }],
     ['credential deleted', { type: 'delete-credentials', id, provider: 'qrz_logbook' }],
     ['callsign removed', { type: 'remove-callsign', id }]
   ];
@@ -281,7 +283,7 @@ try {
     expect(reply, `${label} was refused`).toMatchObject({ ok: true });
     if (label === 'credential saved') credentialSaved = true;
     if (label === 'credential deleted') credentialSaved = false;
-    if (label === 'credential tested on an unsupported provider') expect(reply.data.outcome).toBe('unsupported');
+    if (label === 'credential tested with nothing saved') expect(reply.data.outcome).toBe('missing');
     labelled.push(sample(label, tree(mainPid)));
   }
 
