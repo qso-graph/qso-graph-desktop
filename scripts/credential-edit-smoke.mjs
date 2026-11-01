@@ -49,8 +49,10 @@ try {
   check(!core.credentialStatus(id, 'qrz_logbook').stored, 'Last secret removes Keychain entry');
   core.saveCredentials(id, 'qrz_logbook', { username: 'W1AW', password, apiKey });
   core.saveCredentials(id, 'eqsl', { username: 'W1AW', password });
-  check(core.testCredential(id, 'eqsl').outcome === 'unsupported', 'Unsupported service never claims validation');
   core.saveCredentials(id, 'legacy_provider', { username: 'W1AW', password });
+  // Every registered service has a test since #9, #10 and #12; a provider the
+  // core has none for still never claims one.
+  check(core.testCredential(id, 'legacy_provider').outcome === 'unsupported', 'Unsupported service never claims validation');
   other = core.create('K1ABC', 'qg-test', undefined, undefined).id;
   core.saveCredentials(other, 'qrz_logbook', { username: 'K1ABC', apiKey });
   core.setActive(id);

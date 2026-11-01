@@ -3,10 +3,10 @@ use crate::{CoreResult, Credentials, selected_secret};
 use std::io::Read;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 const MAX_BODY: u64 = 64 * 1024;
-pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook" | "clublog") }
+pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook" | "clublog" | "hamqth" | "eqsl" | "lotw") }
 
 // For anything that carries a credential: TLS 1.3 only.
 pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
@@ -62,20 +62,32 @@ pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
     panic!("the ClientHello carries no supported_versions extension");
 }
 
-pub(crate) fn needs_username(provider: &str) -> bool { provider == "qrz" }
+// Every service signs in with a username but the two whose credential is a key
+// of its own: QRZ Logbook's API key and Club Log's token.
+pub(crate) fn needs_username(provider: &str) -> bool { !matches!(provider, "qrz_logbook" | "clublog") }
 
 pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
     let secret = selected_secret(provider, creds, preference)?;
-    // Only QRZ's lookup signs in with a username; the Logbook's API takes its
-    // key alone, and its register entry asks for nothing else (#8).
+    // QRZ Logbook's key and Club Log's token stand alone; every other service
+    // signs in with a username (#8, #11).
     let username = creds.username.as_deref().filter(|s| !s.is_empty());
     if needs_username(provider) && username.is_none() { return Err("No username is stored."); }
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
         .user_agent(crate::HTTP_AGENT).build().map_err(|_| "Secure client is unavailable.")?;
-    // Fixed destinations and POST bodies: no credentials in URLs. The caller
-    // sees a fixed outcome only, never response bodies, session keys or errors.
+    // Fixed destinations. The caller sees a fixed outcome only, never response
+    // bodies, session keys, tokens or errors.
+    //
+    // A credential goes in a POST body or a header wherever the service takes
+    // one there. eQSL and LoTW document theirs only as query strings (#9, #12),
+    // so for those two the password is in the URL, and the URL is protected:
+    // HTTPS only, no proxy, no redirect followed (a Location could carry it on),
+    // every reqwest::Error dropped unread rather than formatted (its Display
+    // names the URL), only this crate's own tracing events logged (corelog),
+    // and nothing of the response shown, because eQSL's pages have been seen to
+    // echo the request (eqsl-mcp).
+    let hamqth_body;
     let request = match provider {
         "qrz" => client.post("https://xmldata.qrz.com/xml/current/")
             .form(&[("username", username.unwrap_or_default()), ("password", secret), ("agent", crate::AGENT)]),
@@ -91,6 +103,34 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
         // A test is one request, sent only when the operator presses Test.
         "clublog" => client.get("https://clublog.org/api/v1/me/usage?days=1")
             .bearer_auth(secret).header(reqwest::header::ACCEPT, "application/json"),
+        // HamQTH's API v2: the password in a JSON POST body, "never in a URL"
+        // (hamqth.com/developers, read 2026-11-01). The token it returns is
+        // checked and thrown away; nothing more is asked (#10). No limit is
+        // stated for login, but several wrong passwords and it refuses logins
+        // for a while with 429 and Retry-After, which is why a test is one
+        // request, sent only when the operator presses Test.
+        "hamqth" => {
+            hamqth_body = Zeroizing::new(serde_json::to_vec(&serde_json::json!({ "callsign": username.unwrap_or_default(), "password": secret }))
+                .map_err(|_| "Secure client is unavailable.")?);
+            client.post("https://www.hamqth.com/api/v2/login")
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .header(reqwest::header::ACCEPT, "application/json")
+                .body(hamqth_body.to_vec())
+        }
+        // eQSL: the date of the account's last upload, which reads no inbox and
+        // changes nothing; eqsl-mcp's eqsl_last_upload makes the same call. eQSL
+        // asks programs not to mass-download inboxes, so the inbox is not the
+        // test. No limit is stated: one request, when the operator presses Test.
+        "eqsl" => client.get("https://www.eqsl.cc/qslcard/DisplayLastUploadDate.cfm")
+            .query(&[("UserName", username.unwrap_or_default()), ("Password", secret)]),
+        // LoTW: lotwreport.adi without qso_query returns an ADIF header and no
+        // QSO records, so it reads nothing from the log; a refused login returns
+        // an HTML page instead (lotw.arrl.org/lotw-help/developer-query-qsos-qsls,
+        // read 2026-11-01). "Each query is an HTTP GET string." The username is
+        // LoTW's own, which is not always the call. No limit is stated: one
+        // request, when the operator presses Test.
+        "lotw" => client.get("https://lotw.arrl.org/lotwuser/lotwreport.adi")
+            .query(&[("login", username.unwrap_or_default()), ("password", secret)]),
         _ => return Ok("unsupported"),
     };
     let response = match request.send() { Ok(response) => response, Err(_) => return Ok("network-error") };
@@ -258,6 +298,34 @@ fn parse_response(provider: &str, body: &str) -> &'static str {
         // 200 with a JSON object that is not Club Log's error shape. A refused
         // token is 401 and never reaches here; Club Log asks that it is not
         // retried, and it is not: a test runs once, when the operator asks.
+        // A token in the reply, non-empty. It is read into a String of our own
+        // and zeroized there; nothing keeps it.
+        "hamqth" => {
+            #[derive(serde::Deserialize)]
+            struct Login { token: String }
+            match serde_json::from_str::<Login>(body) {
+                Ok(mut login) => { let got = !login.token.trim().is_empty(); login.token.zeroize(); if got { "success" } else { "invalid-response" } }
+                Err(_) => "invalid-response",
+            }
+        }
+        // eQSL's reply is a short HTML page. A refusal says "Error" (eqsl-mcp
+        // reads it the same way) or "No such"; an answer names a date, so it
+        // carries a digit. Only the outcome word leaves here.
+        "eqsl" => {
+            let text = body.to_ascii_lowercase();
+            if text.contains("error") || text.contains("no such") { "rejected" }
+            else if text.chars().any(|c| c.is_ascii_digit()) { "success" }
+            else { "invalid-response" }
+        }
+        // LoTW: ADIF's end-of-header tag is an accepted login; an HTML page
+        // without one is LoTW's explanation of a refusal (ARRL: "the absence of
+        // an ADIF end of header tag can be used to detect this outcome").
+        "lotw" => {
+            let text = body.to_ascii_lowercase();
+            if text.contains("<eoh>") { "success" }
+            else if text.contains("<html") { "rejected" }
+            else { "invalid-response" }
+        }
         "clublog" => match serde_json::from_str::<serde_json::Value>(body) {
             Ok(serde_json::Value::Object(fields)) if !fields.contains_key("error") => "success",
             Ok(serde_json::Value::Object(_)) => "rejected",
@@ -277,6 +345,11 @@ mod tests {
         // #11: Club Log's token stands alone too, and can be tested.
         assert!(!needs_username("clublog"));
         assert!(supported("clublog"));
+        // #9, #10, #12: each signs in with a username, and each can be tested.
+        for provider in ["eqsl", "hamqth", "lotw"] {
+            assert!(needs_username(provider), "{provider}");
+            assert!(supported(provider), "{provider}");
+        }
     }
 
     #[test]
@@ -408,6 +481,16 @@ mod tests {
         assert_eq!(parse_response("clublog", r#"{"error":{"code":"unauthorized","message":"synthetic echoed secret","details":null}}"#), "rejected");
         assert_eq!(parse_response("clublog", "[]"), "invalid-response");
         assert_eq!(parse_response("clublog", "<html>ok</html>"), "invalid-response");
+        assert_eq!(parse_response("hamqth", r#"{"token":"synthetic-token","expiresIn":3600}"#), "success");
+        assert_eq!(parse_response("hamqth", r#"{"token":"  ","expiresIn":3600}"#), "invalid-response");
+        assert_eq!(parse_response("hamqth", r#"{"type":"about:blank","detail":"synthetic echoed secret"}"#), "invalid-response");
+        assert_eq!(parse_response("eqsl", "<html><body>Your last upload was 01-Mar-2026 12:00 UTC</body></html>"), "success");
+        assert_eq!(parse_response("eqsl", "<html><body>Error: No such Username/Password found synthetic echoed secret</body></html>"), "rejected");
+        assert_eq!(parse_response("eqsl", "<html><body>No such Username</body></html>"), "rejected");
+        assert_eq!(parse_response("eqsl", "<html><body>Welcome</body></html>"), "invalid-response");
+        assert_eq!(parse_response("lotw", "ARRL Logbook of the World Status Report\n<PROGRAMID:4>LoTW\n<eoh>\n"), "success");
+        assert_eq!(parse_response("lotw", "<html><head><title>Logbook of the World</title></head><body><b>Username/password incorrect</b></body></html>"), "rejected");
+        assert_eq!(parse_response("lotw", "something else"), "invalid-response");
     }
     #[test]
     fn secure_client_requires_fips_crypto_and_only_tls13() {

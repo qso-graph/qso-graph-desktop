@@ -83,7 +83,7 @@
         "why": "An eQSL password does not expire on a date."
       },
       "test": {
-        "none": "This product has no test for eQSL yet. The credential is saved and used; nothing here can tell you in advance whether it is right, and saying otherwise would be a button that proves nothing."
+        "what": "Asks eQSL for the date of the account's last upload, which reads nothing from the inbox and changes nothing"
       }
     },
     {
@@ -111,7 +111,7 @@
         "why": "The LoTW credential this product stores is the web account, not ARRL's TQSL certificate. The certificate expires and the account password does not, and this product does not hold the certificate — so there is no date here to read (QGD-PSN-0006)."
       },
       "test": {
-        "none": "This product has no test for LoTW yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
+        "what": "Asks LoTW for a report with no QSOs in it, which reads nothing from the log; an accepted login answers with an ADIF header"
       }
     },
     {
@@ -123,7 +123,7 @@
       "fields": [
         {
           "name": "username",
-          "label": "HamQTH username",
+          "label": "HamQTH username (your callsign)",
           "secret": false,
           "required": true
         },
@@ -139,7 +139,7 @@
         "why": "A HamQTH password does not expire on a date."
       },
       "test": {
-        "none": "This product has no test for HamQTH yet. The credential is saved and used; nothing here can tell you in advance whether it is right."
+        "what": "Signs in to HamQTH's API with the username and password in the request body, and throws the session it returns away"
       }
     },
     {

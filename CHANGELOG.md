@@ -15,6 +15,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   for your account's usage with it, which reads nothing from your log and changes nothing. A token
   Club Log refuses is reported once and never retried, as Club Log asks. Every request now names
   the application and its website, which Club Log requires.
+- **eQSL, HamQTH and LoTW: Test credential works** (#9, #10, #12), so now every service the
+  application lists can be tested. eQSL is asked for the date of your last upload, LoTW for a report
+  with no QSOs in it, and HamQTH signs you in through its current API; none of them reads or changes
+  your log. HamQTH takes your password in the body of the request. eQSL and LoTW take it only in the
+  web address, so there it goes over HTTPS only, is never followed to another site, and never
+  appears in a message or the log.
 
 ### Fixed
 
@@ -22,6 +28,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   logbook's key on its own, and the test answered that nothing was saved, because it looked for a
   username the logbook never asks for. It now asks for a username only where the service signs in
   with one, which is QRZ's lookup.
+
+### Security
+
+- **The application log holds only the application's own messages** (#12). The libraries under the
+  credential core, for HTTPS and for Linux's keyring, write detailed messages of their own about
+  connections and keyring calls, and those reached the log. Until now no password went in a web
+  address, but eQSL and LoTW take it there, so a message describing one of those connections could
+  have carried it. Only the application's own messages, which never hold a credential, are written now.
 
 ## [0.5.2] - 2026-10-30
 

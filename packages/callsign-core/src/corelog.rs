@@ -68,7 +68,13 @@ pub fn init() {
         .with_target(false)
         .with_current_span(false)
         .with_span_list(false);
-    let _ = tracing_subscriber::registry().with(layer).try_init();
+    // Only this crate's own events. The libraries under it (hyper-util for
+    // HTTPS, zbus for Linux's keyring) raise their own, at every level down to
+    // trace, about connections and keyring calls; a URL with a password in its
+    // query string (eQSL, LoTW: #9, #12) is exactly what one could carry. The
+    // core's events name a provider and an outcome, never a value (LOG-0004).
+    let ours = tracing_subscriber::filter::filter_fn(|meta| meta.target().starts_with(env!("CARGO_CRATE_NAME")));
+    let _ = tracing_subscriber::registry().with(layer.with_filter(ours)).try_init();
 }
 
 /// Takes everything buffered so far. The caller hands these to the logger.
@@ -113,6 +119,23 @@ mod tests {
         assert!(first.iter().any(|line| line.contains("qrz_logbook")));
         // Draining takes them: a second call must not repeat what was handled.
         assert!(drain().is_empty());
+    }
+
+    #[test]
+    fn only_the_core_s_own_events_are_kept() {
+        // hyper-util and zbus raise `tracing` events of their own, at every
+        // level down to trace, about connections and keyring calls. None of
+        // that is ours to log, and with eQSL's and LoTW's passwords in a
+        // query string (#9, #12) none of it may reach a log at all.
+        let _serialised = TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        reset();
+        init();
+        tracing::trace!(target: "hyper_util::client::legacy", uri = "https://lotw.arrl.org/lotwuser/lotwreport.adi?login=w1aw&password=planted-secret", "connecting");
+        tracing::debug!(target: "zbus::connection", "planted-secret in a message");
+        tracing::info!(provider = "lotw", "credential tested");
+        let drained = drain();
+        assert!(drained.iter().all(|line| !line.contains("planted-secret")), "{drained:?}");
+        assert!(drained.iter().any(|line| line.contains("credential tested")));
     }
 
     #[test]
