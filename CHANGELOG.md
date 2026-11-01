@@ -21,10 +21,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   takes your password. eQSL's login alone now also accepts TLS 1.2, limited to the strong,
   FIPS-approved kind the application already allows for public reference data. Every other service
   is still TLS 1.3 only.
-- **LoTW: Test credential said "unexpected response"** (#12). With a correct login, LoTW can send
-  back a file of all your confirmations, and the test read only the first 64 KB and gave up. LoTW's
-  answer starts with a header that says the login was accepted, so the test now decides from the
-  start of the file and stops reading there, without downloading the rest.
+- **LoTW: Test credential said "unexpected response"** (#12) with a correct login. The test now asks
+  LoTW the way other LoTW programs do, for your confirmations since this minute, which answers with a
+  small file that says the login was accepted. If a service ever answers in a way the application
+  cannot read, the log now says what kind of answer it was (its size and type, never its contents),
+  so the cause can be found.
 - **Club Log: Test credential failed with Password preferred.** A Club Log password saved before
   Club Log moved to tokens was sent as the token, and Club Log refused it. Each service is now
   tested with the kind of secret it takes, whatever preference was saved.
