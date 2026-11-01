@@ -612,7 +612,7 @@ try {
     requestsThatArrived: arrivals,
     chromiumRequests: requests,
     allowedCoreDestinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],
-    coreTransport: 'HTTPS only, no proxy, no redirects, FIPS provider; TLS 1.3 only for credentials, TLS 1.3 or 1.2 for public reference data',
+    coreTransport: 'HTTPS only, no proxy, no redirects, FIPS provider; TLS 1.3 only for credentials but eQSL\'s, whose server offers only TLS 1.2 (KI7MT, 2026-11-01); TLS 1.3 or 1.2 for public reference data and eQSL\'s login',
     liveRequestExercised: false,
     logLinesWritten: logLines,
     coreRecordsInLog: coreRecords,

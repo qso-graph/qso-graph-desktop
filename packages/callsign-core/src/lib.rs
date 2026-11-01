@@ -763,14 +763,18 @@ fn now_utc() -> String {
 // The services whose own credential is a key: QRZ Logbook's API key, and Club
 // Log's token (#11), which replaced its email and password. A profile an
 // earlier build saved with a Club Log password as well is tested with the token.
-fn key_first(provider: &str) -> bool { matches!(provider.to_lowercase().as_str(), "qrz_logbook" | "clublog") }
+pub(crate) fn key_first(provider: &str) -> bool { matches!(provider.to_lowercase().as_str(), "qrz_logbook" | "clublog") }
 
 // Whether what is saved is enough to test. A username only where the service
 // signs in with one: guided setup saves QRZ Logbook and Club Log with their key
 // alone, and asking every service for a username answered "missing" to a
 // saved key (#11).
+//
+// And the service's own kind of secret saved: a Club Log entry holding only a
+// password an earlier build kept has nothing Club Log takes (#11).
 fn testable_with(provider: &str, creds: &Credentials) -> bool {
-    !validation::needs_username(provider) || creds.username.as_ref().is_some_and(|s| !s.is_empty())
+    (!validation::needs_username(provider) || creds.username.as_ref().is_some_and(|s| !s.is_empty()))
+        && validation::service_secret(provider, creds).is_some()
 }
 
 fn effective_field(provider: &str, has_password: bool, has_api_key: bool, prefer: Option<&str>) -> Option<String> {
@@ -918,11 +922,10 @@ mod addon {
             let provider = identifier(&provider).map_err(error)?;
             let outcome = if !validation::supported(&provider) { "unsupported" }
             else {
-                let preference = self.store.preference(&id, &provider).map_err(error)?;
                 let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
                 match creds {
                     Some(creds) if testable_with(&provider, &creds) => {
-                        let result = validation::test(&provider, &creds, if preference == "service" { None } else { Some(&preference) }).map_err(error)?;
+                        let result = validation::test(&provider, &creds).map_err(error)?;
                         tracing::info!(provider = %provider, outcome = %result, "credential tested");
                         result
                     }
@@ -953,16 +956,11 @@ mod addon {
             if !validation::plain_callsign(&callsign) {
                 return Ok(LookupResult { outcome: "invalid-request".into(), fields: Vec::new() });
             }
-            let preference = self.store.preference(&id, &provider).map_err(error)?;
             let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
             let Some(creds) = creds.filter(|c| c.username.as_ref().is_some_and(|s| !s.is_empty())) else {
                 return Ok(LookupResult { outcome: "missing".into(), fields: Vec::new() });
             };
-            let looked = validation::lookup(
-                &provider, &creds,
-                if preference == "service" { None } else { Some(&preference) },
-                &operation, &callsign,
-            ).map_err(error)?;
+            let looked = validation::lookup(&provider, &creds, &operation, &callsign).map_err(error)?;
             match looked {
                 validation::Looked::Found(fields) => {
                     tracing::info!(provider = %provider, operation = %operation, fields = fields.len(), "service lookup answered");
@@ -1300,6 +1298,16 @@ mod tests {
         let both = Credentials { username: None, password: Some("fixture-password".into()), api_key: Some("fixture-key".into()) };
         assert_eq!(selected_field("clublog", &both, None).unwrap(), "api_key");
         assert_eq!(effective_field("clublog", true, true, None).as_deref(), Some("api_key"));
+        // KI7MT's test, 2026-11-01: with Password preferred, Club Log's test
+        // sent a password saved before #149 as the token, and Club Log refused
+        // it. A service that takes one kind of secret is tested with that kind,
+        // whatever preference is saved.
+        assert_eq!(validation::service_secret("clublog", &both), Some("fixture-key"));
+        assert_eq!(validation::service_secret("qrz_logbook", &both), Some("fixture-key"));
+        for provider in ["qrz", "eqsl", "lotw", "hamqth"] { assert_eq!(validation::service_secret(provider, &both), Some("fixture-password"), "{provider}"); }
+        // A Club Log entry holding only that old password has nothing to test.
+        let old = Credentials { username: Some("W1AW".into()), password: Some("fixture-password".into()), api_key: None };
+        assert!(!testable_with("clublog", &old));
     }
 
     #[test]

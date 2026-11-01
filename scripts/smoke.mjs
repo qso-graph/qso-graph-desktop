@@ -114,7 +114,10 @@ try {
   await expect(page.getByRole('heading', { name: 'W1AW', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Make W1AW active', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
-  await page.getByLabel('Service', { exact: true }).selectOption('qrz_logbook');
+  // QRZ lookup takes a username and a password, so both fields are shown;
+  // QRZ Logbook takes its API key alone (KI7MT, 2026-11-01: a service shows only
+  // the fields its register entry takes).
+  await page.getByLabel('Service', { exact: true }).selectOption('qrz');
   const editRoles = await application.evaluate(({ Menu }) => Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.map(item => item.role));
   for (const role of ['cut', 'copy', 'paste', 'selectall']) expect(editRoles).toContain(role);
   // Exercise native keyboard editing with a synthetic value, including both
@@ -136,7 +139,8 @@ try {
   // the machine's state as much as the application's — it failed a run that
   // way on a machine in use. Setting it is deterministic and still measures
   // what this is for: a native paste reaching a masked field.
-  for (const label of ['Password', 'API key']) {
+  for (const [provider, label] of [['qrz', 'Password'], ['qrz_logbook', 'API key']]) {
+    await page.getByLabel('Service', { exact: true }).selectOption(provider);
     const field = page.getByLabel(label, { exact: true });
     await expect.poll(async () => {
       await application.evaluate(({ clipboard }, value) => clipboard.writeText(value), fakeCredential);
@@ -147,8 +151,10 @@ try {
     }, { message: `a native paste must reach the ${label} field`, timeout: 15_000 }).toBe(fakeCredential);
   }
   await application.evaluate(({ clipboard }) => clipboard.clear());
-  await usernameField.fill('W1AW');
-  await page.getByLabel('Password', { exact: true }).fill('');
+  // QRZ Logbook, now selected, shows no username or password field at all.
+  await expect(page.locator('#username-field')).toBeHidden();
+  await expect(page.locator('#password-field')).toBeHidden();
+  await expect(page.locator('#preference-field')).toBeHidden();
   await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
   await expect(page.locator('#credential-status')).toContainText(said('Stored in Keychain'), { timeout: 30_000 });
   expect(await page.getByLabel('API key', { exact: true }).inputValue()).toBe('');
@@ -193,12 +199,14 @@ try {
     // correct and would not exercise this.
     const freshApiKey = `QG_FAKE_CREDENTIAL_${randomUUID()}`;
     await page.getByLabel('API key', { exact: true }).fill(freshApiKey);
+    // QRZ Logbook takes no password, so its Password field is hidden and
+    // disabled; a value planted there must reach nothing either.
     await page.evaluate(value => {
       // No dispatchEvent: the point is a field holding something the operator
       // never put there.
       document.getElementById('password').value = value;
     }, planted);
-    expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe(planted);
+    expect(await page.evaluate(() => document.getElementById('password').value)).toBe(planted);
     await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
     await expect(page.locator('#message')).toHaveText(said('Credential saved in macOS Keychain.'), { timeout: 30_000 });
     await expect(page.locator('#api-key-saved')).toBeVisible();
@@ -207,10 +215,11 @@ try {
 
     // The control for the control: the same value, typed, is saved. Without
     // this the check above would pass on an application that had simply
-    // stopped saving passwords.
+    // stopped saving passwords. On QRZ lookup, which takes a password.
     await service.selectOption('eqsl');
-    await service.selectOption('qrz_logbook');
+    await service.selectOption('qrz');
     await expect(page.locator('#message')).toHaveText('');
+    await page.getByLabel('Username', { exact: true }).fill('W1AW');
     await page.getByLabel('Password', { exact: true }).fill(planted);
     await page.getByRole('button', { name: said('Save in Keychain'), exact: true }).click();
     await expect(page.locator('#message')).toHaveText(said('Credential saved in macOS Keychain.'), { timeout: 30_000 });
@@ -218,8 +227,9 @@ try {
 
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Remove password', exact: true }).click();
-    await expect(page.locator('#password-saved')).toBeHidden({ timeout: 30_000 });
-    await expect(page.locator('#api-key-saved')).toBeVisible();
+    await expect(page.locator('#credential-status')).toContainText('No credential saved', { timeout: 30_000 });
+    await service.selectOption('qrz_logbook');
+    await expect(page.locator('#api-key-saved')).toBeVisible({ timeout: 30_000 });
   }
 
   // QGD-CRD-0009 and QGD-CRD-0010. This restart is the exact thing KI7MT hit:

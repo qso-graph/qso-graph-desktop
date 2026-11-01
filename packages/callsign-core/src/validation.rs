@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::{CoreResult, Credentials, selected_secret};
+use crate::{CoreResult, Credentials};
 use std::io::Read;
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,7 +8,8 @@ use zeroize::Zeroizing;
 const MAX_BODY: u64 = 64 * 1024;
 pub fn supported(provider: &str) -> bool { matches!(provider, "qrz" | "qrz_logbook" | "clublog" | "hamqth" | "eqsl" | "lotw") }
 
-// For anything that carries a credential: TLS 1.3 only.
+// For anything that carries a credential: TLS 1.3 only, with one named
+// exception (credential_tls_config).
 pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
     let provider = rustls::crypto::aws_lc_rs::default_provider();
     if !provider.fips() { return Err("Secure client is unavailable."); }
@@ -20,8 +21,8 @@ pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
     Ok(config)
 }
 
-// For public reference data only, which carries no credential: TLS 1.3, or
-// TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
+// For public reference data, which carries no credential, and for eQSL's login
+// (credential_tls_config): TLS 1.3, or TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
 // Still the FIPS provider, so 1.2 means ECDHE with AES-GCM on P-256 or P-384
 // and Extended Master Secret required (NIST SP 800-52r2); config.fips() is
 // checked as it is above. KI7MT, 2026-10-11 (QGD-SEC-0020).
@@ -64,15 +65,42 @@ pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
 
 // Every service signs in with a username but the two whose credential is a key
 // of its own: QRZ Logbook's API key and Club Log's token.
+// The TLS a service's credential connection may use. TLS 1.3, but for eQSL,
+// whose www.eqsl.cc offers nothing newer than TLS 1.2 (checked 2026-11-01:
+// ECDHE-RSA-AES256-GCM-SHA384, Extended Master Secret yes). Its login gets the
+// same FIPS-mode TLS 1.2 reference data may use: ECDHE with AES-GCM on P-256
+// or P-384, Extended Master Secret required (NIST SP 800-52r2). KI7MT,
+// 2026-11-01: "eQSL only. They need to update their service." The exception
+// is this one service by its id, never a host or a prefix; every other
+// credential stays TLS 1.3 only (QGD-SEC-0020).
+pub(crate) fn credential_tls_config(provider: &str) -> CoreResult<rustls::ClientConfig> {
+    if provider == "eqsl" { reference_tls_config() } else { tls_config() }
+}
+
+// The services whose answer is decided from its start: LoTW's ADIF header.
+fn reads_prefix_only(provider: &str) -> bool { provider == "lotw" }
+
 pub(crate) fn needs_username(provider: &str) -> bool { !matches!(provider, "qrz_logbook" | "clublog") }
 
-pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
-    let secret = selected_secret(provider, creds, preference)?;
+// The secret a service takes: the API key (QRZ Logbook's key, Club Log's
+// token) or the password, by the service and never by a saved preference.
+// Every registered service takes exactly one kind, so a preference could only
+// send the wrong one: with Password preferred, Club Log's test sent an old
+// password as the token (KI7MT, 2026-11-01). The preference stays the core's
+// for require_credential, and the screen offers it only for a service that
+// takes both.
+pub(crate) fn service_secret<'a>(provider: &str, creds: &'a Credentials) -> Option<&'a str> {
+    let secret = if crate::key_first(provider) { creds.api_key.as_deref() } else { creds.password.as_deref() };
+    secret.filter(|s| !s.is_empty())
+}
+
+pub fn test(provider: &str, creds: &Credentials) -> CoreResult<&'static str> {
+    let secret = service_secret(provider, creds).ok_or("No credential this service takes is stored.")?;
     // QRZ Logbook's key and Club Log's token stand alone; every other service
     // signs in with a username (#8, #11).
     let username = creds.username.as_deref().filter(|s| !s.is_empty());
     if needs_username(provider) && username.is_none() { return Err("No username is stored."); }
-    let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
+    let client = reqwest::blocking::Client::builder().use_preconfigured_tls(credential_tls_config(provider)?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5)).timeout(Duration::from_secs(12))
         .user_agent(crate::HTTP_AGENT).build().map_err(|_| "Secure client is unavailable.")?;
@@ -144,12 +172,22 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
     if code == 429 { return Ok("rate-limited"); }
     if code == 401 || code == 403 { return Ok("rejected"); }
     if !response.status().is_success() { return Ok("network-error"); }
-    if response.content_length().is_some_and(|length| length > MAX_BODY) { return Ok("invalid-response"); }
+    // LoTW's answer to an accepted login is an ADIF file whose header, ending
+    // <eoh>, comes first. Without qso_query it holds no QSO records, but it can
+    // still carry every confirmation: KI7MT's test (2026-11-01) got neither an
+    // HTML refusal nor a header within 64 KB. So for LoTW only the first 64 KB
+    // is read and decided on, and the rest is never downloaded: the response
+    // is dropped, which closes the connection.
+    let prefix_only = reads_prefix_only(provider);
+    if !prefix_only && response.content_length().is_some_and(|length| length > MAX_BODY) { return Ok("invalid-response"); }
     let mut body = Zeroizing::new(Vec::new());
-    if response.take(MAX_BODY + 1).read_to_end(&mut body).is_err() { return Ok("network-error"); }
+    let limit = if prefix_only { MAX_BODY } else { MAX_BODY + 1 };
+    if response.take(limit).read_to_end(&mut body).is_err() { return Ok("network-error"); }
     if body.len() as u64 > MAX_BODY { return Ok("invalid-response"); }
-    let text = match std::str::from_utf8(&body) { Ok(text) => text, Err(_) => return Ok("invalid-response") };
-    Ok(parse_response(provider, text))
+    // A prefix can end inside a character; what is looked for is ASCII.
+    let text: Zeroizing<String> = if prefix_only { Zeroizing::new(String::from_utf8_lossy(&body).into_owned()) }
+        else { match std::str::from_utf8(&body) { Ok(text) => Zeroizing::new(text.to_owned()), Err(_) => return Ok("invalid-response") } };
+    Ok(parse_response(provider, &text))
 }
 
 // A lookup: act with the operator's stored credential and return what the
@@ -191,14 +229,13 @@ const MAX_FIELD_LEN: usize = 256;
 pub fn lookup(
     provider: &str,
     creds: &Credentials,
-    preference: Option<&str>,
     operation: &str,
     callsign: &str,
 ) -> CoreResult<Looked> {
     if !known_operation(provider, operation) { return Ok(Looked::Nothing("unsupported")); }
     if !plain_callsign(callsign) { return Ok(Looked::Nothing("invalid-request")); }
 
-    let secret = selected_secret(provider, creds, preference)?;
+    let secret = service_secret(provider, creds).ok_or("No password is stored.")?;
     let username = creds.username.as_deref().filter(|s| !s.is_empty()).ok_or("No username is stored.")?;
     let client = reqwest::blocking::Client::builder().use_preconfigured_tls(tls_config()?)
         .https_only(true).no_proxy().redirect(reqwest::redirect::Policy::none())
@@ -542,6 +579,13 @@ mod tests {
         assert_eq!(parse_response("lotw", "ARRL Logbook of the World Status Report\n<PROGRAMID:4>LoTW\n<eoh>\n"), "success");
         assert_eq!(parse_response("lotw", "<html><head><title>Logbook of the World</title></head><body><b>Username/password incorrect</b></body></html>"), "rejected");
         assert_eq!(parse_response("lotw", "something else"), "invalid-response");
+        // #12, KI7MT's test: an accepted login whose file runs past 64 KB is
+        // decided from its header, cut wherever the read stopped.
+        let big = format!("ARRL Logbook of the World Status Report\n<PROGRAMID:4>LoTW\n<eoh>\n{}", "<CALL:4>W1AW<QSL_RCVD:1>Y<eor>\n".repeat(4000));
+        let cut = &big[..MAX_BODY as usize];
+        assert_eq!(parse_response("lotw", cut), "success");
+        assert!(reads_prefix_only("lotw"));
+        for provider in ["qrz", "qrz_logbook", "eqsl", "hamqth", "clublog"] { assert!(!reads_prefix_only(provider), "{provider}"); }
     }
     #[test]
     fn secure_client_requires_fips_crypto_and_only_tls13() {
@@ -549,5 +593,20 @@ mod tests {
         assert!(config.fips());
         // Only TLS 1.3 may be advertised to anything carrying a credential.
         assert_eq!(offered_versions(config), vec![2, 3, 4]);
+    }
+
+    #[test]
+    fn only_eqsl_s_login_may_use_tls_1_2() {
+        // KI7MT, 2026-11-01: www.eqsl.cc offers TLS 1.2 and nothing newer, so
+        // its login alone gets FIPS-mode TLS 1.2; every other credential is
+        // TLS 1.3 only (QGD-SEC-0020). A second service on 1.2 is a decision,
+        // and this test is where it shows.
+        let eqsl = credential_tls_config("eqsl").unwrap();
+        assert!(eqsl.fips());
+        assert_eq!(offered_versions(eqsl), vec![4, 3, 4, 3, 3]);
+        for provider in ["qrz", "qrz_logbook", "lotw", "hamqth", "clublog", "EQSL", "eqsl.cc", "unknown"] {
+            let config = credential_tls_config(provider).unwrap();
+            assert_eq!(offered_versions(config), vec![2, 3, 4], "{provider} must be TLS 1.3 only");
+        }
     }
 }

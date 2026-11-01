@@ -7,6 +7,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The Callsigns page shows only what each service takes** (KI7MT). eQSL, LoTW and HamQTH ask for
+  a username and password, with no API key field; QRZ Logbook and Club Log ask for their key or
+  token alone. Preferred credential appears only for a service that takes both a password and a
+  key, which none does today, so each service simply uses its own kind.
+
+### Fixed
+
+- **eQSL: Test credential could not connect** ("Could not connect securely to eQSL"). eQSL's server
+  offers nothing newer than TLS 1.2, and the application spoke only TLS 1.3 to any service that
+  takes your password. eQSL's login alone now also accepts TLS 1.2, limited to the strong,
+  FIPS-approved kind the application already allows for public reference data. Every other service
+  is still TLS 1.3 only.
+- **LoTW: Test credential said "unexpected response"** (#12). With a correct login, LoTW can send
+  back a file of all your confirmations, and the test read only the first 64 KB and gave up. LoTW's
+  answer starts with a header that says the login was accepted, so the test now decides from the
+  start of the file and stops reading there, without downloading the rest.
+- **Club Log: Test credential failed with Password preferred.** A Club Log password saved before
+  Club Log moved to tokens was sent as the token, and Club Log refused it. Each service is now
+  tested with the kind of secret it takes, whatever preference was saved.
+
 ### Added
 
 - **Club Log: Test credential works** (#11). Club Log now gives each ham a token for each program,
