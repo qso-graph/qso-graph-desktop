@@ -14,6 +14,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   takes your password. eQSL's login alone now also accepts TLS 1.2, limited to the strong,
   FIPS-approved kind the application already allows for public reference data. Every other service
   is still TLS 1.3 only.
+- **LoTW: Test credential said "unexpected response"** (#12). With a correct login, LoTW can send
+  back a file of all your confirmations, and the test read only the first 64 KB and gave up. LoTW's
+  answer starts with a header that says the login was accepted, so the test now decides from the
+  start of the file and stops reading there, without downloading the rest.
 
 ### Added
 

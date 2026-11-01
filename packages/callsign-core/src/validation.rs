@@ -77,6 +77,9 @@ pub(crate) fn credential_tls_config(provider: &str) -> CoreResult<rustls::Client
     if provider == "eqsl" { reference_tls_config() } else { tls_config() }
 }
 
+// The services whose answer is decided from its start: LoTW's ADIF header.
+fn reads_prefix_only(provider: &str) -> bool { provider == "lotw" }
+
 pub(crate) fn needs_username(provider: &str) -> bool { !matches!(provider, "qrz_logbook" | "clublog") }
 
 pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> CoreResult<&'static str> {
@@ -157,12 +160,22 @@ pub fn test(provider: &str, creds: &Credentials, preference: Option<&str>) -> Co
     if code == 429 { return Ok("rate-limited"); }
     if code == 401 || code == 403 { return Ok("rejected"); }
     if !response.status().is_success() { return Ok("network-error"); }
-    if response.content_length().is_some_and(|length| length > MAX_BODY) { return Ok("invalid-response"); }
+    // LoTW's answer to an accepted login is an ADIF file whose header, ending
+    // <eoh>, comes first. Without qso_query it holds no QSO records, but it can
+    // still carry every confirmation: KI7MT's test (2026-11-01) got neither an
+    // HTML refusal nor a header within 64 KB. So for LoTW only the first 64 KB
+    // is read and decided on, and the rest is never downloaded: the response
+    // is dropped, which closes the connection.
+    let prefix_only = reads_prefix_only(provider);
+    if !prefix_only && response.content_length().is_some_and(|length| length > MAX_BODY) { return Ok("invalid-response"); }
     let mut body = Zeroizing::new(Vec::new());
-    if response.take(MAX_BODY + 1).read_to_end(&mut body).is_err() { return Ok("network-error"); }
+    let limit = if prefix_only { MAX_BODY } else { MAX_BODY + 1 };
+    if response.take(limit).read_to_end(&mut body).is_err() { return Ok("network-error"); }
     if body.len() as u64 > MAX_BODY { return Ok("invalid-response"); }
-    let text = match std::str::from_utf8(&body) { Ok(text) => text, Err(_) => return Ok("invalid-response") };
-    Ok(parse_response(provider, text))
+    // A prefix can end inside a character; what is looked for is ASCII.
+    let text: Zeroizing<String> = if prefix_only { Zeroizing::new(String::from_utf8_lossy(&body).into_owned()) }
+        else { match std::str::from_utf8(&body) { Ok(text) => Zeroizing::new(text.to_owned()), Err(_) => return Ok("invalid-response") } };
+    Ok(parse_response(provider, &text))
 }
 
 // A lookup: act with the operator's stored credential and return what the
@@ -555,6 +568,13 @@ mod tests {
         assert_eq!(parse_response("lotw", "ARRL Logbook of the World Status Report\n<PROGRAMID:4>LoTW\n<eoh>\n"), "success");
         assert_eq!(parse_response("lotw", "<html><head><title>Logbook of the World</title></head><body><b>Username/password incorrect</b></body></html>"), "rejected");
         assert_eq!(parse_response("lotw", "something else"), "invalid-response");
+        // #12, KI7MT's test: an accepted login whose file runs past 64 KB is
+        // decided from its header, cut wherever the read stopped.
+        let big = format!("ARRL Logbook of the World Status Report\n<PROGRAMID:4>LoTW\n<eoh>\n{}", "<CALL:4>W1AW<QSL_RCVD:1>Y<eor>\n".repeat(4000));
+        let cut = &big[..MAX_BODY as usize];
+        assert_eq!(parse_response("lotw", cut), "success");
+        assert!(reads_prefix_only("lotw"));
+        for provider in ["qrz", "qrz_logbook", "eqsl", "hamqth", "clublog"] { assert!(!reads_prefix_only(provider), "{provider}"); }
     }
     #[test]
     fn secure_client_requires_fips_crypto_and_only_tls13() {
