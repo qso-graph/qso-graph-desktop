@@ -3,7 +3,7 @@
 // from it. A feed that cannot say a track properly offers nothing on it.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { choose, compareVersions, readFeed, validateUpdateCommand, isUpdateState } from '../packages/main/update-contract.js';
+import { choose, compareVersions, isLabVersion, readFeed, validateUpdateCommand, isUpdateState } from '../packages/main/update-contract.js';
 import { linkFor, validateLinkCommand, validateLinkRegister } from '../packages/main/links-contract.js';
 import { readSettings, validateSettingsCommand } from '../packages/main/settings-contract.js';
 
@@ -83,6 +83,14 @@ describe('which update a build is offered', () => {
   it('compares versions by number, not by text', () => {
     expect(compareVersions('0.10.0', '0.9.0')).toBeGreaterThan(0);
     expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
+  });
+
+  it('knows a lab build of a Beta, and orders it before that Beta (#157)', () => {
+    const lab = '0.6.0-beta.1-local.20261102032434.020a55c';
+    expect(isLabVersion(lab)).toBe(true);
+    expect(isLabVersion('0.6.0-beta.0-local.20261102032434.020a55c')).toBe(false);
+    expect(compareVersions(lab, '0.6.0-beta.1')).toBeLessThan(0);
+    expect(compareVersions(lab, '0.5.2')).toBeGreaterThan(0);
   });
 
   it('orders Betas between the last Release and the one they lead to (#157)', () => {

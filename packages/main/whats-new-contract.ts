@@ -25,6 +25,24 @@ export function releaseOf(version: string): string | undefined {
 export function isPreview(version: string): boolean {
   return version.includes('-');
 }
+
+// What a version is, in a ham's words, for Home's "Updated to" line (#157,
+// KI7MT 2026-11-02: it said "a new preview" of every build with a suffix,
+// a Beta's included). A Beta keeps its own version, which is short and is
+// what its release page is called; the others are long, so are named by the
+// release they lead to.
+const BETA = /^\d{1,5}\.\d{1,5}\.\d{1,5}-beta\.[1-9]\d{0,2}$/;
+const DAILY = /^\d{1,5}\.\d{1,5}\.\d{1,5}-\d{12}-[0-9a-f]{11}$/;
+export function describeVersion(version: string): string {
+  if (RELEASE.test(version)) return version;
+  if (BETA.test(version)) return `${version} (Beta)`;
+  const release = releaseOf(version);
+  if (!release) return version;
+  if (DAILY.test(version)) return `a Daily build of ${release}`;
+  if (version.includes('-local.')) return `a lab build of ${release}`;
+  if (/-pr\d+\./.test(version)) return `a test build of ${release}`;
+  return version;
+}
 function compare(a: string, b: string): number {
   const [x, y] = [a, b].map(v => v.split('.').map(Number));
   for (let at = 0; at < 3; at++) if (x[at] !== y[at]) return x[at] - y[at];

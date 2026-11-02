@@ -68,8 +68,12 @@ export function isDailyVersion(value: unknown): value is string {
 // the feed; a lab build reads the feed as a Preview does, so it can go back to
 // a release (#121).
 const LAB = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-local\.([1-9]\d{13})\.(g?[0-9a-f]{7})$/;
+// A lab build of a Beta (#157): main says x.y.z-beta.N, and the build service
+// adds -local.<time>.<commit> to what main says.
+const LAB_BETA = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-beta\.[1-9]\d{0,2}-local\.([1-9]\d{13})\.(g?[0-9a-f]{7})$/;
+const labStamp = (version: string): string | undefined => LAB.exec(version)?.[4] ?? LAB_BETA.exec(version)?.[4];
 export function isLabVersion(value: unknown): value is string {
-  return typeof value === 'string' && LAB.test(value);
+  return typeof value === 'string' && (LAB.test(value) || LAB_BETA.test(value));
 }
 
 export function isOfferedVersion(value: unknown): value is string {
@@ -87,7 +91,7 @@ export function compareVersions(a: string, b: string): number {
     if (beta !== undefined) return [1, beta.padStart(3, '0')];
     const daily = DAILY.exec(version)?.[4];
     if (daily !== undefined) return [0, `${daily}00`];
-    const lab = LAB.exec(version)?.[4];
+    const lab = labStamp(version);
     if (lab !== undefined) return [0, lab];
     return [2, ''];
   };

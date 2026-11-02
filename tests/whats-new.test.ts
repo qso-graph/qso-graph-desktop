@@ -3,7 +3,7 @@
 // the notes are this version's, or every version's since the one updated from.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compareVersions, notesFor, parseChangelog, runs, validateWhatsNewCommand, versionAtStart, type VersionRecord } from '../packages/main/whats-new-contract.js';
+import { compareVersions, describeVersion, notesFor, parseChangelog, runs, validateWhatsNewCommand, versionAtStart, type VersionRecord } from '../packages/main/whats-new-contract.js';
 
 const changelog = [
   '# Changelog', '', 'Intro text.', '',
@@ -151,3 +151,17 @@ function sections3() {
   return parseChangelog(['## [0.3.1] - 2026-10-27', '', '- Security.', '', '## [0.3.0] - 2026-10-26', '', '- Backup.', '',
     '## [0.2.1] - 2026-10-25', '', '- Fixes.', ''].join('\n'));
 }
+
+describe('Home names what was installed (#157)', () => {
+  it('says a Beta, a Daily, a lab or a test build for what it is, never "a new preview"', () => {
+    // KI7MT, 2026-11-02: Home said "a new preview of 0.6.0" for every build
+    // with a suffix, which a Beta is not.
+    expect(describeVersion('0.6.0')).toBe('0.6.0');
+    expect(describeVersion('0.6.0-beta.1')).toBe('0.6.0-beta.1 (Beta)');
+    expect(describeVersion('0.6.0-202611020100-0123456789a')).toBe('a Daily build of 0.6.0');
+    expect(describeVersion('0.6.0-local.20261102025634.925c9c6')).toBe('a lab build of 0.6.0');
+    expect(describeVersion('0.6.0-beta.1-local.20261102032434.020a55c')).toBe('a lab build of 0.6.0');
+    expect(describeVersion('0.6.0-beta.1-pr166.020a55c')).toBe('a test build of 0.6.0');
+    for (const version of ['0.6.0', '0.6.0-beta.1', '0.6.0-202611020100-0123456789a']) expect(describeVersion(version)).not.toMatch(/preview/i);
+  });
+});
