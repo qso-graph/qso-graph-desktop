@@ -89,6 +89,23 @@ try {
   await expect(page.locator('#home-pinned-title')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#whats-new')).toHaveCount(0);
   await expect(page.locator('#update-strip')).toHaveCount(0);
+  // QGD-SEC-0014 at run time (#158): what Electron applied to the packaged
+  // window, seen from inside it, where the static audit reads the code. No
+  // Node in the page, and contextIsolation keeps the preload's own world out
+  // of it: only the named bridges are there. A new window is refused. A
+  // navigation away is refused too (will-navigate), which electron-audit holds
+  // in the packaged code; it is not tried here, because Playwright then waits
+  // for a navigation the application cancelled, and the next step times out
+  // on a page that is fine (probed 2026-11-02: unchanged, complete, visible).
+  const inside = await page.evaluate(() => ({
+    require: typeof globalThis.require, process: typeof globalThis.process, module: typeof globalThis.module,
+    ipcRenderer: typeof globalThis.ipcRenderer, electron: typeof globalThis.electron,
+    bridge: typeof window.callsigns?.request,
+    opened: window.open('https://example.com/') === null
+  }));
+  expect(inside).toEqual({ require: 'undefined', process: 'undefined', module: 'undefined', ipcRenderer: 'undefined',
+    electron: 'undefined', bridge: 'function', opened: true });
+  expect(browser.contexts().flatMap(context => context.pages()).length, 'window.open made no window').toBe(1);
   // The application opens on Home now (QGD-FRM-0011).
   await page.getByRole('navigation', { name: 'Sections' })
     .getByRole('button', { name: 'Callsigns', exact: true }).click();
