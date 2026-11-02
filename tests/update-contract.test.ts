@@ -3,7 +3,7 @@
 // from it. A feed that cannot say a track properly offers nothing on it.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { choose, compareVersions, readFeed, validateUpdateCommand, isUpdateState } from '../packages/main/update-contract.js';
+import { choose, compareVersions, isLabVersion, readFeed, validateUpdateCommand, isUpdateState } from '../packages/main/update-contract.js';
 import { linkFor, validateLinkCommand, validateLinkRegister } from '../packages/main/links-contract.js';
 import { readSettings, validateSettingsCommand } from '../packages/main/settings-contract.js';
 
@@ -85,6 +85,14 @@ describe('which update a build is offered', () => {
     expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
   });
 
+  it('knows a lab build of a Beta, and orders it before that Beta (#157)', () => {
+    const lab = '0.6.0-beta.1-local.20261102032434.020a55c';
+    expect(isLabVersion(lab)).toBe(true);
+    expect(isLabVersion('0.6.0-beta.0-local.20261102032434.020a55c')).toBe(false);
+    expect(compareVersions(lab, '0.6.0-beta.1')).toBeLessThan(0);
+    expect(compareVersions(lab, '0.5.2')).toBeGreaterThan(0);
+  });
+
   it('orders Betas between the last Release and the one they lead to (#157)', () => {
     const order = ['0.5.2', '0.6.0-202611020100-0123456789a', '0.6.0-beta.1', '0.6.0-beta.2', '0.6.0-beta.9', '0.6.0-beta.10', '0.6.0'];
     for (let at = 1; at < order.length; at++) expect(compareVersions(order[at], order[at - 1]), `${order[at]} after ${order[at - 1]}`).toBeGreaterThan(0);
@@ -148,6 +156,11 @@ describe('what the window may ask and be told', () => {
     expect(linkFor(register, { type: 'release', version: '0.1.1' }))
       .toBe('https://github.com/qso-graph/qso-graph-desktop/releases/tag/v0.1.1');
     expect(linkFor(register, { type: 'release', version: '0.1.1/../../x' })).toBe('');
+    // A Beta's page (#157), and nothing shaped otherwise.
+    expect(linkFor(register, { type: 'release', version: '0.6.0-beta.1' }))
+      .toBe('https://github.com/qso-graph/qso-graph-desktop/releases/tag/v0.6.0-beta.1');
+    expect(linkFor(register, { type: 'release', version: '0.6.0-beta.0' })).toBe('');
+    expect(linkFor(register, { type: 'release', version: '0.6.0-202611020100-0123456789a' })).toBe('');
     expect(validateLinkCommand({ type: 'release', version: '0.1.1' })).toBe(false);
   });
 });

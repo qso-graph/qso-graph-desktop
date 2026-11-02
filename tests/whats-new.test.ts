@@ -3,7 +3,7 @@
 // the notes are this version's, or every version's since the one updated from.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compareVersions, notesFor, parseChangelog, runs, validateWhatsNewCommand, versionAtStart, type VersionRecord } from '../packages/main/whats-new-contract.js';
+import { compareVersions, describeVersion, notesFor, parseChangelog, runs, validateWhatsNewCommand, versionAtStart, type VersionRecord } from '../packages/main/whats-new-contract.js';
 
 const changelog = [
   '# Changelog', '', 'Intro text.', '',
@@ -70,7 +70,13 @@ describe('the window title names the version', () => {
   it('a release by its version, a preview by the release it leads to', async () => {
     const { windowTitle } = await import('../packages/ui/release.js');
     expect(windowTitle('0.1.0')).toBe('QSO Graph Desktop v0.1.0');
-    expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 preview');
+    // #157: a Daily, a lab build and a Beta say what they are; nothing says "preview".
+    expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 Daily');
+    expect(windowTitle('0.6.0-beta.1')).toBe('QSO Graph Desktop v0.6.0-beta.1');
+    expect(windowTitle('0.6.0-beta.1-local.20261102034834.9ffd1bb')).toBe('QSO Graph Desktop v0.6.0 lab build');
+    expect(windowTitle('0.6.0-local.20261102025634.925c9c6')).toBe('QSO Graph Desktop v0.6.0 lab build');
+    expect(windowTitle('0.6.0-beta.1-pr166.9ffd1bb')).toBe('QSO Graph Desktop v0.6.0-beta.1-pr166.9ffd1bb');
+    expect(windowTitle('0.6.0-beta.1', '0.5.2')).toBe('QSO Graph Desktop v0.6.0-beta.1 — Update available: v0.5.2');
     // A newer Stable release in the title (QGD-FRM-0021, #77), and only a Stable one.
     expect(windowTitle('0.1.2', '0.2.1')).toBe('QSO Graph Desktop v0.1.2 — Update available: v0.2.1');
     expect(windowTitle('0.1.2', '0.3.0-202610260100-0123456789a')).toBe('QSO Graph Desktop v0.1.2');
@@ -151,3 +157,17 @@ function sections3() {
   return parseChangelog(['## [0.3.1] - 2026-10-27', '', '- Security.', '', '## [0.3.0] - 2026-10-26', '', '- Backup.', '',
     '## [0.2.1] - 2026-10-25', '', '- Fixes.', ''].join('\n'));
 }
+
+describe('Home names what was installed (#157)', () => {
+  it('says a Beta, a Daily, a lab or a test build for what it is, never "a new preview"', () => {
+    // KI7MT, 2026-11-02: Home said "a new preview of 0.6.0" for every build
+    // with a suffix, which a Beta is not.
+    expect(describeVersion('0.6.0')).toBe('0.6.0');
+    expect(describeVersion('0.6.0-beta.1')).toBe('0.6.0-beta.1 (Beta)');
+    expect(describeVersion('0.6.0-202611020100-0123456789a')).toBe('a Daily build of 0.6.0');
+    expect(describeVersion('0.6.0-local.20261102025634.925c9c6')).toBe('a lab build of 0.6.0');
+    expect(describeVersion('0.6.0-beta.1-local.20261102032434.020a55c')).toBe('a lab build of 0.6.0');
+    expect(describeVersion('0.6.0-beta.1-pr166.020a55c')).toBe('a test build of 0.6.0');
+    for (const version of ['0.6.0', '0.6.0-beta.1', '0.6.0-202611020100-0123456789a']) expect(describeVersion(version)).not.toMatch(/preview/i);
+  });
+});

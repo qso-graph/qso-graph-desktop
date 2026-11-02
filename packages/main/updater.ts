@@ -19,7 +19,7 @@ import { createLogger } from '../logging/logger.js';
 import { signedLikeThisCopy } from './windows-signature.js';
 import type { UpdateTrack } from './settings-contract.js';
 import {
-  UPDATES_CHANNEL, UPDATES_STATE_CHANNEL, choose, compareVersions, isReleaseVersion, readFeed, validateUpdateCommand, versionChoices,
+  UPDATES_CHANNEL, UPDATES_STATE_CHANNEL, choose, compareVersions, isOfferedVersion, readFeed, validateUpdateCommand, versionChoices,
   type Feed, type FeedEntry, type InstallSource, type UpdatePlatform, type UpdateState, type VersionChoice
 } from './update-contract.js';
 import type { Snapshots } from './snapshots.js';
@@ -427,7 +427,8 @@ export function startUpdater(options: UpdaterOptions): Updater {
         return true;
       }
       case 'release':
-        if (!newer || !isReleaseVersion(newer)) return false;
+        // A Beta has a release page as a Release does (#157).
+        if (!newer || !isOfferedVersion(newer)) return false;
         options.openRelease(newer);
         return true;
     }

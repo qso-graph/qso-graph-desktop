@@ -16,7 +16,7 @@
 -->
 <script lang="ts">
   import UpdateStrip from '../../ui/UpdateStrip.svelte';
-  import { isPreview, releaseOf } from '../../main/whats-new-contract.js';
+  import { describeVersion } from '../../main/whats-new-contract.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import PinTile from '../../ui/PinTile.svelte';
   import PinPicker from '../../ui/PinPicker.svelte';
@@ -87,8 +87,10 @@
 
 <PageLayout title="Home" width="full" titleShown={false}>
   {#if updatedTo}
-    <!-- A preview's version is long; it is named by the release it leads to. -->
-    <UpdateStrip version={isPreview(updatedTo) && !wentBack ? `a new preview of ${releaseOf(updatedTo) ?? updatedTo}` : updatedTo}
+    <!-- Named for what it is: a Release or a Beta by its version, a Daily, a
+         lab or a test build by the release it leads to (#157). Going back is
+         always to a Release, said by its version. -->
+    <UpdateStrip version={wentBack ? updatedTo : describeVersion(updatedTo)}
       back={wentBack} onSee={onWhatsNew} onClose={onCloseUpdate} />
   {/if}
   <HomeWelcome {platform} {steps} {onGo} onCustomize={() => onPicking(true)} {onWhatsNew} {onDownloads} {onContributing} {onSite} />

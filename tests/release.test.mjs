@@ -4,7 +4,7 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, quickDownloads, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
+import { check, feedEntry, quickDownloads, isPublishable, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -114,7 +114,9 @@ describe('release text', () => {
 
   it('this repository has a version and a changelog the steps can read', () => {
     const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
-    expect(isRelease(version), version).toBe(true);
+    // A Release or a Beta (#157): main carries the version Release publishes,
+    // and between a milestone's start and its Release that may be a Beta.
+    expect(isPublishable(version), version).toBe(true);
     expect(readFileSync('CHANGELOG.md', 'utf8')).toMatch(/^## \[Unreleased\]\s*$/m);
   });
 });
