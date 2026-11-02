@@ -107,7 +107,9 @@ export function linkFor(register: LinkRegister, command: LinkCommand): string {
   if (command.type === 'site') return register.sites[command.name];
   if (command.type === 'document') return register.documents.base + register.documents.pages[command.name];
   if (command.type === 'release') {
-    return /^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(command.version) ? register.release.replace('{version}', command.version) : '';
+    // A Release's page, or a Beta's (#157): x.y.z or x.y.z-beta.N, nothing else.
+    const shaped = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(command.version) || /^\d{1,5}\.\d{1,5}\.\d{1,5}-beta\.[1-9]\d{0,2}$/.test(command.version);
+    return shaped ? register.release.replace('{version}', command.version) : '';
   }
   return register.references[command.kind].replace('{reference}', command.reference);
 }

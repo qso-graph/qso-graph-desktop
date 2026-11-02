@@ -148,6 +148,11 @@ describe('what the window may ask and be told', () => {
     expect(linkFor(register, { type: 'release', version: '0.1.1' }))
       .toBe('https://github.com/qso-graph/qso-graph-desktop/releases/tag/v0.1.1');
     expect(linkFor(register, { type: 'release', version: '0.1.1/../../x' })).toBe('');
+    // A Beta's page (#157), and nothing shaped otherwise.
+    expect(linkFor(register, { type: 'release', version: '0.6.0-beta.1' }))
+      .toBe('https://github.com/qso-graph/qso-graph-desktop/releases/tag/v0.6.0-beta.1');
+    expect(linkFor(register, { type: 'release', version: '0.6.0-beta.0' })).toBe('');
+    expect(linkFor(register, { type: 'release', version: '0.6.0-202611020100-0123456789a' })).toBe('');
     expect(validateLinkCommand({ type: 'release', version: '0.1.1' })).toBe(false);
   });
 });
