@@ -12,12 +12,13 @@ describe('QGD-SEC-0019 the TypeScript pin', () => {
     expect(dev.typescript).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('is 6.x, the line typescript-eslint, svelte-check and Electronegativity accept', () => {
+  it('is 6.x, the line typescript-eslint and svelte-check accept', () => {
     expect(dev.typescript.startsWith('6.')).toBe(true);
   });
 
   it('keeps the tools the pin exists for', () => {
-    for (const tool of ['typescript-eslint', 'svelte-check', '@doyensec/electronegativity']) {
+    // Electronegativity was a third until #158 replaced it with the project's own audit.
+    for (const tool of ['typescript-eslint', 'svelte-check']) {
       expect(dev[tool], `${tool} is why TypeScript is pinned`).toBeTruthy();
     }
   });

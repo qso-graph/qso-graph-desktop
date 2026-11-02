@@ -695,8 +695,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       # What shipped: the built-in extensions and the host are in it, and no
-      # development material is (QGD-APP-0017).
-      - run: npm run verify -- --suites package-contents
+      # development material is (QGD-APP-0017). And its Electron security
+      # (QGD-SEC-0014, #158): the fuses read from the binary, the window, the
+      # switches and the CSP, on every packaged platform.
+      - run: npm run verify -- --suites package-contents,electron-audit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: qso-graph-desktop-${{ runner.os }}-${{ runner.arch }}

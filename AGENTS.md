@@ -230,7 +230,7 @@ Versions change, so pick the current ones rather than the names here.
 - **[napi-rs](https://napi.rs/):** the Rust native addon bridge
 - **[rustls](https://github.com/rustls/rustls)** on **[aws-lc-rs](https://github.com/aws/aws-lc-rs)** (FIPS feature): TLS and cryptography in the credential core
 - **[keyring](https://crates.io/crates/keyring):** the OS credential store
-- **[Playwright](https://playwright.dev/), [Vitest](https://vitest.dev/), [axe-core](https://github.com/dequelabs/axe-core), [Storybook](https://storybook.js.org/), [Electronegativity](https://github.com/doyensec/electronegativity):** verification
+- **[Playwright](https://playwright.dev/), [Vitest](https://vitest.dev/), [axe-core](https://github.com/dequelabs/axe-core), [Storybook](https://storybook.js.org/), [@electron/fuses](https://github.com/electron/fuses):** verification (the Electron audit is this project's own, `scripts/electron-audit.mjs`)
 
 ## Common pitfalls for AI agents
 

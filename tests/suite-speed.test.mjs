@@ -38,7 +38,7 @@ describe('the development pass', () => {
       if (!script) continue;
       const text = await readFile(script, 'utf8');
       expect(text, `${name} must not drive a window in the development pass`)
-        .not.toMatch(/@playwright\/test|_electron|electron-builder|electronegativity/);
+        .not.toMatch(/@playwright\/test|_electron|electron-builder|@electron\/fuses/);
       expect(text, `${name} must not read the operator's credential store`)
         .not.toMatch(/keychain-service\.mjs|QG_DESKTOP_TEST_KEYCHAIN/);
       expect(text, `${name} must not build the gallery`).not.toMatch(/node_modules\/\.bin\/storybook/);
