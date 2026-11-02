@@ -2,7 +2,8 @@
 # Release (#94, #157, docs/RELEASES.md): the only way anything is published.
 # Run by hand when KI7MT says so: Actions → Release → Run workflow, from main
 # (or a released version's fix branch, 0.2.x), with the version main says.
-# Merging into main builds, tests and signs; it publishes nothing.
+# Merging into main builds nothing and publishes nothing: the pull request's
+# run was the check and the build (KI7MT, 2026-11-02).
 #
 # Two kinds (KI7MT, 2026-11-01): a Beta, MAJOR.MINOR.PATCH-beta.N, published
 # as a pre-release and offered on the Beta track; or a Release,
@@ -11,14 +12,16 @@
 # Promote did until #157: there is no promoting now. A Beta becomes a Release
 # by a pull request setting main's version to the release, and a Release run.
 #
-# Nothing is rebuilt here. What is published is the signed build CI already
-# made of main's commit and passed as ci-all-green, so what was tested is what
-# ships. Before anything is published it refuses unless every check holds:
-# run from main, main says this version, CHANGELOG.md is ready for it (a
-# Release's own section, or for a Beta something under [Unreleased]), it is
-# new or was begun from this same build (#118), its milestone exists, and CI's
-# newest all-green build of main packaged every platform, with nothing but
-# documentation since. A run that failed after it was published is finished
+# Nothing is rebuilt here. What is published is the signed build CI made in
+# the pull request that brought main its version, passed as ci-all-green, and
+# only once it is proved to be of exactly the files main holds: the same git
+# tree, which is a hash of every file. So what was tested is what ships, and a
+# change is built and signed once. Before anything is published it refuses
+# unless every check holds: run from main, main says this version,
+# CHANGELOG.md is ready for it (a Release's own section, or for a Beta
+# something under [Unreleased]), it is new or was begun from this same build
+# (#118), its milestone exists, and a release candidate's all-green build of
+# main's files packaged every platform, with nothing but documentation since. A run that failed after it was published is finished
 # by running Release again: it uploads only the files it lacks, and the
 # milestone, feed and package steps repeat safely.
 name: Release
@@ -103,23 +106,47 @@ jobs:
             echo "✓ milestone ${target}"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
-          # The build to publish: CI's newest run on this branch that passed ci-all-green
-          # and packaged all four platforms. A documentation-only merge since
-          # builds nothing (#95), so that run may be of an earlier commit; it
-          # is taken only if every change after it is documentation, which
-          # never touches package.json, CHANGELOG.md or the spec (found by
-          # Codex, #94). The release is tagged on the commit that was built.
-          built="" run=""
-          for candidate in $(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?event=push&branch=${branch}&status=success&per_page=30" \
-              --jq '.workflow_runs[] | "\(.id):\(.head_sha)"'); do
+          # The build to publish: a release candidate's pull request build
+          # (ci.yml's plan: signed, and stamped with this very version, not
+          # -prN) that passed ci-all-green and packaged all four platforms, of
+          # exactly the files a commit of main holds. A merge builds nothing,
+          # so the build is the pull request's: its commit's git tree, the hash
+          # of every file in it, must be that main commit's tree. A pull request
+          # behind main when it merged has a different tree, and is refused:
+          # what it built is not what main holds. A documentation-only merge
+          # since builds nothing (#95), so the commit matched may be an earlier
+          # one; it is taken only if every change after it is documentation,
+          # which never touches package.json, CHANGELOG.md or the spec (found by
+          # Codex, #94). The release is tagged on that main commit.
+          built="" run="" best=""
+          # main's newest commits, with their trees, newest first.
+          gh api "repos/${REPO}/commits?sha=${GITHUB_SHA}&per_page=50" --jq '.[] | "\(.sha) \(.commit.tree.sha)"' > "$RUNNER_TEMP/main-trees"
+          for candidate in $(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?event=pull_request&status=success&per_page=50" \
+              --jq ".workflow_runs[] | select(.head_repository.full_name == \"${REPO}\") | \"\(.id):\(.head_sha)\""); do
+            id=${candidate%%:*}; head=${candidate#*:}
+            tree=$(gh api "repos/${REPO}/git/commits/${head}" --jq .tree.sha)
+            # The newest main commit holding exactly these files, by its place in the list.
+            at=$(awk -v t="$tree" '$2 == t { print NR " " $1; exit }' "$RUNNER_TEMP/main-trees")
+            [ -n "$at" ] || continue
+            [ -z "$best" ] || [ "${at%% *}" -lt "$best" ] || continue
             # Every attempt, the latest result per job: after "re-run failed
             # jobs" the default list holds only the re-run (found by Codex).
-            jobs=$(gh api "repos/${REPO}/actions/runs/${candidate%%:*}/jobs?filter=all&per_page=100" --paginate \
+            jobs=$(gh api "repos/${REPO}/actions/runs/${id}/jobs?filter=all&per_page=100" --paginate \
               --jq '.jobs[]' | jq -s '[group_by(.name)[] | max_by(.run_attempt) | select(.conclusion == "success") | .name] | map(select(. == "ci-all-green" or startswith("package ("))) | length')
-            if [ "$jobs" = 5 ]; then run=${candidate%%:*}; built=${candidate#*:}; break; fi
+            [ "$jobs" = 5 ] || continue
+            # Stamped with this version: the pull request build's own download of
+            # the Windows installer is named for it (a name kept after its 14 days;
+            # the platforms' files, which are published, are kept 90). A build stamped -prN is not
+            # a release candidate, was not signed as one and has no provenance.
+            named=$(gh api "repos/${REPO}/actions/runs/${id}/artifacts?per_page=100" --paginate \
+              --jq ".artifacts[] | select(.name == \"qso-graph-desktop-${VERSION}-win-x64.exe\") | .name" | head -n1)
+            [ -n "$named" ] || continue
+            best=${at%% *}; built=${at#* }; run=$id
+            echo "  run ${id}: the build of ${head::7}, the same files as main's ${built::7}"
+            [ "$best" = 1 ] && break
           done
           if [ -z "$run" ]; then
-            fail "CI has no all-green run on ${branch} that packaged every platform"
+            fail "no release candidate's pull request build of ${VERSION} is of the files main holds: the pull request setting ${VERSION} must be built from a milestone's (feature/x.y.z) or a fix's branch, up to date with main, and green"
           elif [ "$built" = "$GITHUB_SHA" ]; then
             echo "✓ CI is all green and packaged ${GITHUB_SHA} (run ${run})"
           else
@@ -132,7 +159,7 @@ jobs:
             if [ "$(printf '%s\n' "$after" | node scripts/docs-only.mjs)" = true ]; then
               echo "✓ CI is all green and packaged ${built} (run ${run}); since then, documentation only"
             else
-              fail "CI's newest packaged build is ${built}, and ${branch} has changed since: wait for CI's run of ${GITHUB_SHA}"
+              fail "the newest release candidate's build is of ${built}, and ${branch} has changed since by more than documentation: a pull request's build of what ${branch} holds now is needed"
             fi
           fi
           # Where the release stands (#118): new, or begun and to be finished. A
@@ -195,7 +222,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-      # The installers CI built and signed, from its own run of this commit.
+      # The installers CI built and signed, from the pull request's run the
+      # checks proved to be of main's files.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ needs.checks.outputs.run }}
