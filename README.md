@@ -35,7 +35,7 @@ file for your computer:
 | **macOS** (Apple silicon) | `…-mac-arm64.dmg` | Drag the app to Applications. Signed by **Greg Beam (KI7MT)** with an Apple Developer ID, and notarized by Apple. Or `brew install qso-graph/tap/qso-graph-desktop`. |
 
 Each platform also has a portable `.zip`, and `SHA256SUMS.txt` lets you check any download. The
-application checks for updates once a day (Stable, Early or Previews, or off, in Settings) and never
+application checks for updates once a day (Release or Beta, or off, in Settings) and never
 restarts without asking. The [install page](guide/install.md) has the details.
 
 ### Verify your download
@@ -60,9 +60,11 @@ one, three ways. **If it doesn't verify, it isn't an official build.**
   `gh attestation verify <file> -R qso-graph/qso-graph-desktop`. Every one is on the
   [attestations page](https://github.com/qso-graph/qso-graph-desktop/attestations).
 
-**The Preview** (*Preview of 0.x.y*, at the top of the Releases page) is the newest build of
-`main`, rebuilt each night it has changed: for testing what is coming, not for running your
-station. [docs/RELEASES.md](docs/RELEASES.md) explains versions, previews and releases.
+**Releases, Betas and Dailies.** A **Release** (`0.6.0`) is for everyone. A **Beta**
+(`0.6.0-beta.1`) is the next release before it is final, offered in the app to those who choose
+Beta in Settings. A **Daily** (*Daily build of 0.6.0*) is the day's build of `main`, on the
+Releases page for 7 days and never offered by the app: for trying what is coming, not for running
+your station. [docs/RELEASES.md](docs/RELEASES.md) explains them.
 
 ## What you can do
 

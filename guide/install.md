@@ -33,7 +33,7 @@ On Ubuntu 22.04 and later, an AppImage needs FUSE, which is not installed by def
 `sudo apt install libfuse2t64` on Ubuntu 24.04, `sudo apt install libfuse2` on 22.04.
 
 **Prefer a package?** Install from our own repository, and QSO Graph Desktop updates with the rest of
-your system. It offers Stable releases, on PCs and on a Raspberry Pi 5.
+your system. It offers Releases only, on PCs and on a Raspberry Pi 5.
 
 On Debian, Ubuntu or Raspberry Pi OS:
 
@@ -76,8 +76,14 @@ Or with [Homebrew](https://brew.sh), which installs the same signed download:
 brew install qso-graph/tap/qso-graph-desktop
 ```
 
-The app updates itself either way. To have Homebrew move it to a new Stable release, name it:
-`brew upgrade qso-graph-desktop`.
+Homebrew then keeps it up to date: when a new Release is out, the app says so and you update with
+
+```bash
+brew upgrade --cask qso-graph-desktop
+```
+
+A copy Homebrew installed never replaces itself, so Homebrew always knows which version you have.
+Homebrew offers Releases only; to try a Beta, see [Trying a Beta](#trying-a-beta).
 
 ## The portable build
 
@@ -93,30 +99,59 @@ Once a day, while you are online, the application asks whether a newer version i
 nothing about you. When one is out, a line at the bottom of the window says so, with **Download
 and install**; nothing is downloaded until you choose. Once it has downloaded, choose **Restart to
 update**, or carry on, and it updates the next time you quit. It never restarts without asking.
-While a newer Stable release is out, the window's title says so too.
+While a newer Release is out, the window's title says so too.
 
 In **Settings → Updates** you choose:
 
-- **Stable**, the default: full releases only.
-- **Early**: pre-releases too, the newest the day it is out.
-- **Previews**: last night's build too.
+- **Release**, the default: finished releases only.
+- **Beta**: the next release's Betas too, before it is final.
 - Or turn **Check for updates** off.
 
-Early releases and Previews are for those who want to try what is coming. They carry no guarantee.
+A Beta is for those who want to try what is coming. It carries no guarantee.
+
+### Trying a Beta
+
+Whoever installed the application keeps it up to date, so where you can take a Beta depends on how
+you installed it:
+
+| Installed from | Release | Beta | Kept up to date by |
+|---|---|---|---|
+| The Windows installer, from GitHub | ✓ | ✓ | the application |
+| The Linux AppImage | ✓ | ✓ | the application |
+| The Mac `.dmg` or `.zip`, from GitHub | ✓ | ✓ | the application |
+| The Microsoft Store | ✓ | ✓ | the application, as the Windows installer is: the Store lists Releases only |
+| Our apt or dnf repository | ✓ | | `apt upgrade` or `dnf upgrade` |
+| Homebrew | ✓ | | `brew upgrade --cask qso-graph-desktop` |
+| A portable `.zip` | | | you, by hand, from the Releases page |
+
+On Windows with the installer from GitHub, which is most of us, a Beta is just **Beta** in Settings.
+Elsewhere, Settings shows Beta greyed out and says why. To try one, install from GitHub on purpose:
+
+- **Homebrew:** `brew uninstall --cask qso-graph-desktop` first, so there are never two copies in
+  Applications, then install the `.dmg` from the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases).
+- **apt or dnf:** install the AppImage from the Releases page beside it.
+
+Your callsigns, Locations and settings carry over: they live in your profile, not in the
+application. To go back, install a Release the same way, or choose it in **Choose a version…**.
+
+**Dailies** are on the [Releases page](https://github.com/qso-graph/qso-graph-desktop/releases) for
+7 days, for anyone who wants to try the very latest. The application never offers one; go back by
+installing a Release.
 
 ### Going back
 
-**Choose a version…** lists the versions you can install: newer ones, as your choice above allows,
-and the Stable releases before the one you run. Going back is only ever to a Stable release.
+**Choose a version…** lists the versions you can install: the current Release and the one before,
+and on Beta the next release's Betas as well. Going back is only ever to a Release.
 
 Before any update installs, the application keeps a copy of your callsigns, Locations, settings and
 your extensions' data, as they are. Going back to a version puts back the copy kept when you left
 it, so the older version opens the data it knew; anything you changed since is lost, and you are
-told so before anything happens. The copies of the last three Stable versions you left are kept.
+told so before anything happens. A copy is kept for each Release you can go back to.
 Your logins are in your computer's own credential store and are never touched.
 
-The Windows installer, the AppImage and the Mac app update themselves. The `.deb`, the `.rpm` and
-the portable `.zip` tell you a newer version is out, and its page opens from there.
+The Windows installer, the AppImage and the Mac app update themselves. A copy from the Microsoft
+Store, apt or dnf, or Homebrew tells you a newer Release is out and how it is updated; the portable
+`.zip` tells you and opens its page.
 
 After an update, Home's top line says *Updated to* the new version, with **See what's new**.
 Help → What's New shows the notes at any time.
