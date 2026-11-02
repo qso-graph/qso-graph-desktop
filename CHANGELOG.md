@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-02
+
 ### Changed
 
 - **Updates: Release and Beta** (#157). Settings → Updates now offers two choices. **Release**, the
@@ -39,6 +41,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Club Log: Test credential failed with Password preferred.** A Club Log password saved before
   Club Log moved to tokens was sent as the token, and Club Log refused it. Each service is now
   tested with the kind of secret it takes, whatever preference was saved.
+- **QRZ Logbook: Test credential with only the API key saved** (#11). Guided setup saves the
+  logbook's key on its own, and the test answered that nothing was saved, because it looked for a
+  username the logbook never asks for. It now asks for a username only where the service signs in
+  with one, which is QRZ's lookup.
 
 ### Added
 
@@ -54,13 +60,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   your log. HamQTH takes your password in the body of the request. eQSL and LoTW take it only in the
   web address, so there it goes over HTTPS only, is never followed to another site, and never
   appears in a message or the log.
-
-### Fixed
-
-- **QRZ Logbook: Test credential with only the API key saved** (#11). Guided setup saves the
-  logbook's key on its own, and the test answered that nothing was saved, because it looked for a
-  username the logbook never asks for. It now asks for a username only where the service signs in
-  with one, which is QRZ's lookup.
 
 ### Security
 

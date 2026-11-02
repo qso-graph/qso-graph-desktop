@@ -2,7 +2,7 @@
 // The release in one line, for Home's welcome (KI7MT, 2026-10-22). Written
 // per release, in plain words for the operator; What's new has the rest,
 // from CHANGELOG.md (QGD-FRM-0016).
-export const HIGHLIGHT = 'Parks On the Air near you, even offline; the sun, the moon and the grey line; and your logins kept in your computer\'s own store.';
+export const HIGHLIGHT = 'Test credential for every service: QRZ, QRZ Logbook, Club Log, eQSL, HamQTH and LoTW; and updates on Release or Beta, your choice.';
 
 // The window's title, with the version (KI7MT, 2026-10-24): "QSO Graph
 // Desktop v0.1.0". A Beta by its own version, "v0.6.0-beta.1" (#157). A Daily
