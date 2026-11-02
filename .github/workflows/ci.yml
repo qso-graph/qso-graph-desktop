@@ -20,8 +20,9 @@ on:
     branches: [main, '[0-9]*.[0-9]*.x']
   pull_request:
     branches: [main, '[0-9]*.[0-9]*.x']
-  # Nightly (KI7MT, 2026-10-24): the Preview, a signed build of main, on a
-  # night main has changed. GitHub runs a schedule from the default branch.
+  # Once a day (KI7MT, 2026-11-01, #157): the Daily, a signed build of main
+  # with its own version, on a day main has changed; a day it has not builds
+  # nothing. GitHub runs a schedule from the default branch.
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
@@ -49,10 +50,10 @@ jobs:
   # What this run is for, decided once:
   #   ref       what to build: main at night, a pull request's own branch,
   #             else what was pushed
-  #   sign      sign the builds: main, nightly, by hand on main, and a
+  #   sign      sign the builds: main, the Daily, by hand on main, and a
   #             milestone's or a fix's pull request
-  #   preview   publish the Preview: nightly, or a full run by hand on main
-  #   run       false when a night finds main already the Preview or released
+  #   daily     publish the Daily (#157): once a day, or a full run by hand on main
+  #   run       false when the day finds main already a Daily or released
   #   pr        the pull request a validation build is for (#92)
   plan:
     name: plan
@@ -62,7 +63,7 @@ jobs:
       ref: ${{ steps.plan.outputs.ref }}
       sha: ${{ steps.plan.outputs.sha }}
       sign: ${{ steps.plan.outputs.sign }}
-      preview: ${{ steps.plan.outputs.preview }}
+      daily: ${{ steps.plan.outputs.daily }}
       run: ${{ steps.plan.outputs.run }}
       docs_only: ${{ steps.docs.outputs.docs_only }}
       pr: ${{ steps.plan.outputs.pr }}
@@ -144,23 +145,24 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          ref=""; sha="$SHA"; sign=false; preview=false; run=true; pr=""
+          ref=""; sha="$SHA"; sign=false; daily=false; run=true; pr=""
           case "$EVENT" in
             schedule)
               ref=main
               sha=$(git ls-remote "https://github.com/${REPO}.git" refs/heads/main | cut -f1)
-              # The Preview's tag is v<next>-preview (the preview job).
-              published=$(git ls-remote "https://github.com/${REPO}.git" 'refs/tags/v*-preview' | head -n1 | cut -f1)
-              # A release's tag is vMAJOR.MINOR.PATCH, on the commit it built.
-              released=$(git ls-remote --tags "https://github.com/${REPO}.git" \
-                | awk -v sha="$sha" '$1 == sha && $2 ~ /^refs\/tags\/v[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$/ { print $2 }' | head -n1)
-              sign=true; preview=true
-              if [ -n "$published" ] && [ "$published" = "$sha" ]; then run=false; echo "main is already the Preview ($sha)."; fi
-              if [ -n "$released" ]; then run=false; echo "main is released as ${released#refs/tags/} ($sha)."; fi
+              tags=$(git ls-remote --tags "https://github.com/${REPO}.git")
+              # A Daily's tag is v<its version>, MAJOR.MINOR.PATCH-<UTC time>-<commit>
+              # (the daily job): one on this commit means today's is done.
+              published=$(awk -v sha="$sha" '$1 == sha && $2 ~ /^refs\/tags\/v[0-9]+\.[0-9]+\.[0-9]+-[0-9]{12}-[0-9a-f]{11}$/ { print $2 }' <<< "$tags" | head -n1)
+              # A Release's or a Beta's tag, on the commit it built: published already.
+              released=$(awk -v sha="$sha" '$1 == sha && $2 ~ /^refs\/tags\/v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?(\^\{\})?$/ { print $2 }' <<< "$tags" | head -n1)
+              sign=true; daily=true
+              if [ -n "$published" ]; then run=false; echo "main is already the Daily ${published#refs/tags/} ($sha)."; fi
+              if [ -n "$released" ]; then run=false; echo "main is published as ${released#refs/tags/} ($sha)."; fi
               ;;
             workflow_dispatch)
               if [ "$REF" = refs/heads/main ]; then sign=true; fi
-              if [ "$REF" = refs/heads/main ] && [ "$MAC_ONLY" != true ]; then preview=true; fi
+              if [ "$REF" = refs/heads/main ] && [ "$MAC_ONLY" != true ]; then daily=true; fi
               ;;
             # main, and a released version's fix branch: either may be what
             # the Release workflow publishes.
@@ -181,8 +183,8 @@ jobs:
               fi
               ;;
           esac
-          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "preview=$preview"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
-          echo "event=$EVENT ref=${ref:-$REF} sign=$sign preview=$preview run=$run pr=${pr:-none}"
+          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "daily=$daily"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT ref=${ref:-$REF} sign=$sign daily=$daily run=$run pr=${pr:-none}"
 
   # Every requirement ID a Markdown file cites exists in the spec (#95). It
   # runs on every change, documentation-only ones included, because those
@@ -440,17 +442,20 @@ jobs:
       # The versions are stamped before anything is compiled, the credential
       # core included: it tells QRZ and every other service the version it is
       # (#129), and on Linux it is built in the container just below.
-      # The Preview's version gains the commit's UTC date and time and the
-      # commit (docs/RELEASES.md), here, never in a commit. The commit's time,
-      # so all four platforms carry one version. A push to main is not
-      # stamped: that build is the one the Release workflow publishes.
-      - name: Preview version
-        if: needs.plan.outputs.preview == 'true'
+      # The Daily's version (#157) is the release it leads to, the commit's UTC
+      # date and time and the commit (docs/RELEASES.md), here, never in a
+      # commit. The release, not a Beta: while main says 0.6.0-beta.2 its Daily
+      # is 0.6.0-<time>-<commit>. The commit's time, so all four platforms carry
+      # one version. A push to main is not stamped: that build is the one the
+      # Release workflow publishes.
+      - name: Daily version
+        if: needs.plan.outputs.daily == 'true'
         shell: bash
         run: |
           stamp=$(TZ=UTC git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD)
           commit=$(git rev-parse HEAD)
-          npm pkg set version="$(node -p "require('./package.json').version")-${stamp}-${commit::11}"
+          base=$(node -p "require('./package.json').version")
+          npm pkg set version="${base%%-*}-${stamp}-${commit::11}"
           node -p "require('./package.json').version"
       # A pull request's build (#92) carries the pull request and its commit:
       # 0.2.1-pr96.c0b8250, in the title bar and About, so the issue can say
@@ -711,7 +716,7 @@ jobs:
       # from this commit. Nobody can make one for this repository, a fork
       # included, so it is what tells an official download from any other
       # (gh attestation verify <file> -R qso-graph/qso-graph-desktop). Only for
-      # the builds that may be published: main, the night's Preview, a fix
+      # the builds that may be published: main, the day's Daily, a fix
       # branch; never a pull request's.
       - name: Provenance
         if: github.event_name != 'pull_request'
@@ -836,17 +841,19 @@ jobs:
             gh api "repos/${REPO}/issues/${PR}/comments" -F body=@comment.md --jq .html_url
           fi
 
-  # The Preview pre-release (docs/RELEASES.md): the night's green build of main,
-  # every installer its own download on the Releases page, replacing the one
-  # before, files, tag and all (KI7MT, 2026-10-23: an artifact is zipped by
-  # GitHub and buried in a run, where nobody finds it). This repository's own
-  # token, so no other credential is held here.
-  preview:
-    name: preview release
-    # Not past a failed dependency audit (#102; found by Codex): the Preview is
+  # The Daily (#157, docs/RELEASES.md): the day's green build of main, on a day
+  # main has changed, every installer its own download on the Releases page
+  # under its own tag (KI7MT, 2026-10-23: an artifact is zipped by GitHub and
+  # buried in a run, where nobody finds it). GitHub only: never in the update
+  # feed, so the app never offers one; whoever wants it downloads it. The last
+  # 7 days are kept and older ones deleted, tag and all (KI7MT, 2026-11-01).
+  # This repository's own token, so no other credential is held here.
+  daily:
+    name: daily release
+    # Not past a failed dependency audit (#102; found by Codex): the Daily is
     # published, so it waits for the audit as Release waits for ci-all-green.
     needs: [plan, package, audit]
-    if: ${{ !cancelled() && needs.plan.outputs.preview == 'true' && needs.package.result == 'success' && needs.audit.result == 'success' }}
+    if: ${{ !cancelled() && needs.plan.outputs.daily == 'true' && needs.package.result == 'success' && needs.audit.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -858,7 +865,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: qso-graph-desktop-*
-          path: preview
+          path: daily
           merge-multiple: true
       # Every file has this repository's CI provenance before it is put up (#83).
       - name: Provenance verifies
@@ -867,37 +874,35 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          for file in preview/*; do
+          for file in daily/*; do
             gh attestation verify "$file" -R "$REPO" --signer-workflow "${REPO}/.github/workflows/ci.yml" >/dev/null
             echo "✓ $(basename "$file")"
           done
       - name: SHA256SUMS.txt
-        run: (cd preview && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+        run: (cd daily && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
       # Made here, so its provenance is this job's (found by Codex, #83).
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: preview/SHA256SUMS.txt
-      - name: Replace the Preview pre-release
+          subject-path: daily/SHA256SUMS.txt
+      - name: Publish the Daily, and keep 7 days
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ needs.plan.outputs.sha }}
         run: |
-          cd preview
+          set -euo pipefail
+          cd daily
           ls -la
           version=$(ls qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's/^qso-graph-desktop-(.*)-linux-x86_64\.AppImage$/\1/')
-          # The release it previews: 0.2.0 from 0.2.0-202610242217-5b9f1d97905.
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]{12}-[0-9a-f]{11}$ ]] || { echo "::error::Not a Daily's version: ${version}"; exit 1; }
+          # The release it leads to: 0.6.0 from 0.6.0-202611021405-1a2b3c4d5e6.
           next=${version%%-*}
-          # Tagged v<next>-preview, so GitHub's Releases page, which sorts by
-          # version and puts a tag that is not one last, shows it at the top,
-          # above every released version and below <next> once that is out
-          # (KI7MT, 2026-10-24: "they are not visible on my screen").
-          tag="v${next}-preview"
-          # A preview is of a version not yet released. main kept saying 0.5.2
+          tag="v${version}"
+          # A Daily is of a version not yet released. main kept saying 0.5.2
           # after 0.5.2 shipped, and the nightly published "Preview of 0.5.2"
           # (2026-11-01): the version a milestone's branch sets first
-          # (docs/RELEASES.md, step 2) had not reached main. Refused before the
-          # Preview there is now is touched.
+          # (docs/RELEASES.md, step 2) had not reached main. Refused before
+          # anything is published or deleted.
           # --exit-code: 0 the tag exists, 2 it does not. Anything else is a
           # lookup that failed, and is not "not released" (found by Codex).
           status=0; git ls-remote --exit-code "https://github.com/${REPO}.git" "refs/tags/v${next}" >/dev/null || status=$?
@@ -908,10 +913,11 @@ jobs:
             echo "::error::Could not ask GitHub whether v${next} is released (git ls-remote: ${status}). Nothing was changed."
             exit 1
           fi
+          day=$(date -u +%Y-%m-%d)
           {
-            echo "**A preview of ${next}**, built from main at ${SHA} (version ${version})."
+            echo "**A Daily build** on the way to ${next}, from main at ${SHA} (version ${version}), ${day}."
             echo
-            echo "For testing what is coming, not for running your station (docs/RELEASES.md). Rebuilt each night main has changed."
+            echo "For trying what is coming, not for running your station: no guarantee, and never offered by the app's updates. Go back by installing a Release. Kept for 7 days (docs/RELEASES.md)."
             echo
             echo "- **Windows:** signed by Gregory Beam (KI7MT). The signature is new, so Edge may say the file isn't commonly downloaded (**Keep**), and Windows may say it protected your PC: **More info** shows the publisher, then **Run anyway**."
             echo "- **macOS:** signed by Greg Beam (KI7MT) with an Apple Developer ID, and notarized by Apple."
@@ -919,28 +925,19 @@ jobs:
             echo
             echo "Check a download against **SHA256SUMS.txt**."
           } > ../notes.md
-          # One Preview at a time: the one before, under its old tag or the
-          # plain `preview` it used to have, goes first, tag and all.
-          gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' \
-            | grep -E '^(preview|v[0-9]+\.[0-9]+\.[0-9]+-preview)$' \
-            | while read -r old; do gh release delete "$old" --repo "$REPO" --cleanup-tag --yes; done
           gh release create "$tag" --repo "$REPO" --prerelease --target "$SHA" \
-            --title "Preview of ${next}" --notes-file ../notes.md -- *
-
-  # The feed lists the Preview (#77), for those who tick Show previews, so a
-  # new one is in it the night it is published.
-  preview-feed:
-    name: update feed
-    needs: [preview]
-    if: ${{ !cancelled() && needs.preview.result == 'success' }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/feed.yml
-    secrets:
-      LINUX_PACKAGE_SIGNING_KEY_PRIVATE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
-      LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
+            --title "Daily build of ${next}, ${day}" --notes-file ../notes.md -- *
+          # The last 7 days only: a Daily older than that is deleted, tag and
+          # all. And the Preview, retired by #157, under either of its tags.
+          cutoff=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh release list --repo "$REPO" --limit 200 --json tagName,publishedAt \
+            --jq ".[] | select((.tagName | test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-[0-9]{12}-[0-9a-f]{11}$\")) and .publishedAt < \"${cutoff}\") | .tagName" > ../old
+          gh release list --repo "$REPO" --limit 200 --json tagName --jq '.[].tagName' | grep -E '^(preview|v[0-9]+\.[0-9]+\.[0-9]+-preview)$' >> ../old || true
+          while read -r old; do
+            [ "$old" = "$tag" ] && continue
+            echo "Deleting ${old}"
+            gh release delete "$old" --repo "$REPO" --cleanup-tag --yes
+          done < ../old
 
   # The dependencies' own security (#102): npm's advisories at high and above,
   # and RustSec's for the credential core, against the locked versions. On every

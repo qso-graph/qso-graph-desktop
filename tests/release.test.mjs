@@ -119,17 +119,57 @@ describe('release text', () => {
   });
 });
 
-describe('the Preview (2026-11-01)', () => {
+describe('the Daily (#157; the Preview until 0.6.0)', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+
   it('is never of a version already released', () => {
     // main kept saying 0.5.2 after 0.5.2 shipped, and the nightly published
-    // "Preview of 0.5.2". The job refuses before it touches the Preview there is.
-    const job = readFileSync('.github/workflows/ci.yml', 'utf8').split('- name: Replace the Preview pre-release')[1];
+    // "Preview of 0.5.2". The job refuses before it publishes or deletes anything.
+    const job = ci.split('- name: Publish the Daily, and keep 7 days')[1];
     expect(job).toBeDefined();
     const refuse = job.indexOf('refs/tags/v${next}"');
     expect(refuse, 'the check for a released version').toBeGreaterThan(0);
     expect(job.slice(refuse, refuse + 400)).toContain('exit 1');
-    expect(refuse, 'refused before the old Preview is deleted').toBeLessThan(job.indexOf('gh release delete'));
+    expect(refuse, 'refused before an old Daily is deleted').toBeLessThan(job.indexOf('gh release delete'));
     expect(refuse, 'refused before a new one is made').toBeLessThan(job.indexOf('gh release create'));
+  });
+
+  it('is once a day, only when main changed, kept 7 days, and never in the feed', () => {
+    // KI7MT, 2026-11-01: once a day only if main changed; never in Settings.
+    expect(ci).toMatch(/schedule:\n\s+- cron: '[^']+'/);
+    const plan = ci.split('schedule)')[1].split(';;')[0];
+    expect(plan, 'a Daily already on this commit stops the day').toContain('main is already the Daily');
+    const job = ci.split('- name: Publish the Daily, and keep 7 days')[1];
+    expect(job).toContain("date -u -d '7 days ago'");
+    // No job sends a Daily to the update feed.
+    const daily = ci.split('\n  daily:\n')[1].split('\n  # The dependencies')[0];
+    expect(daily).not.toContain('feed.yml');
+    expect(ci).not.toMatch(/preview-feed|Replace the Preview/);
+  });
+
+  it('is versioned by the release it leads to, even while main carries a Beta', () => {
+    const step = ci.split('- name: Daily version')[1].split('- name:')[0];
+    expect(step).toContain('${base%%-*}-${stamp}-${commit::11}');
+  });
+});
+
+describe('Release publishes a Beta or a Release, and there is no Promote (#157)', () => {
+  const release = readFileSync('.github/workflows/release.yml', 'utf8');
+  it('takes MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-beta.N, and nothing else', () => {
+    expect(release).toContain('kind=release');
+    expect(release).toContain('kind=beta');
+    expect(release).toContain('-beta\\.[1-9][0-9]{0,2}$');
+  });
+  it('a Beta is a pre-release; a Release is Latest, closes its milestone and builds apt and dnf', () => {
+    expect(release).toMatch(/kind=\(--prerelease\)/);
+    expect(release).toMatch(/kind=\(--latest\)/);
+    expect(release.split('- name: Close the milestone')[1].split('\n')[1]).toContain("kind == 'release'");
+    const packages = release.split('\n  packages:\n')[1];
+    expect(packages).toContain("if: needs.checks.outputs.kind == 'release'");
+    expect(packages).toContain('packages.yml');
+  });
+  it('promote.yml is gone', () => {
+    expect(() => readFileSync('.github/workflows/promote.yml', 'utf8')).toThrow();
   });
 });
 

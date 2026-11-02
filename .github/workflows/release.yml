@@ -1,27 +1,33 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# Release (#94, docs/RELEASES.md): the only way anything is published. Run by
-# hand when KI7MT says so: Actions → Release → Run workflow, from main (or a
-# released version's fix branch, 0.2.x), with the version. Merging into main builds, tests and signs; it publishes
-# nothing.
+# Release (#94, #157, docs/RELEASES.md): the only way anything is published.
+# Run by hand when KI7MT says so: Actions → Release → Run workflow, from main
+# (or a released version's fix branch, 0.2.x), with the version main says.
+# Merging into main builds, tests and signs; it publishes nothing.
 #
-# Nothing is rebuilt here. The release is the signed build CI already made
-# of main's commit and passed as ci-all-green, so what was tested is what
+# Two kinds (KI7MT, 2026-11-01): a Beta, MAJOR.MINOR.PATCH-beta.N, published
+# as a pre-release and offered on the Beta track; or a Release,
+# MAJOR.MINOR.PATCH, published as Latest and offered to everyone. A Release
+# also closes its milestone and rebuilds apt and dnf (packages.yml), which
+# Promote did until #157: there is no promoting now. A Beta becomes a Release
+# by a pull request setting main's version to the release, and a Release run.
+#
+# Nothing is rebuilt here. What is published is the signed build CI already
+# made of main's commit and passed as ci-all-green, so what was tested is what
 # ships. Before anything is published it refuses unless every check holds:
-# run from main, main says this version, CHANGELOG.md has its section, it is
-# new or was begun from this same build (#118), its milestone exists, and CI's newest all-green
-# build of main packaged every platform, with nothing but documentation
-# since. Then the pre-release vx.y.z (tagging the commit built), the
-# milestone closed, and the Early update feed. A run that failed after the
-# release was made is finished by running Release again: it uploads only the
-# files the release lacks, and the milestone and feed steps repeat safely. Promoting it to Stable is
-# promote.yml.
+# run from main, main says this version, CHANGELOG.md is ready for it (a
+# Release's own section, or for a Beta something under [Unreleased]), it is
+# new or was begun from this same build (#118), its milestone exists, and CI's
+# newest all-green build of main packaged every platform, with nothing but
+# documentation since. A run that failed after it was published is finished
+# by running Release again: it uploads only the files it lacks, and the
+# milestone, feed and package steps repeat safely.
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'The version to release, such as 0.2.1: main must already say it'
+        description: 'The version to publish, such as 0.6.0-beta.1 or 0.6.0: main must already say it'
         required: true
         type: string
 
@@ -48,6 +54,8 @@ jobs:
       sha: ${{ steps.ready.outputs.sha }}
       milestone: ${{ steps.ready.outputs.milestone }}
       mode: ${{ steps.ready.outputs.mode }}
+      # beta or release (#157).
+      kind: ${{ steps.ready.outputs.kind }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -64,10 +72,17 @@ jobs:
           set -euo pipefail
           problems=0
           fail() { echo "✗ $1" >&2; problems=$((problems + 1)); }
-          # Checked before it is used in anything: a release version, nothing else.
-          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "✗ Give a release version, such as 0.2.1." >&2; exit 1
+          # Checked before it is used in anything: a Release or a Beta version, nothing else.
+          if [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            kind=release
+          elif [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.[1-9][0-9]{0,2}$ ]]; then
+            kind=beta
+          else
+            echo "✗ Give a Release version, such as 0.6.0, or a Beta, such as 0.6.0-beta.1." >&2; exit 1
           fi
+          echo "kind=${kind}" >> "$GITHUB_OUTPUT"
+          # The milestone is the release's: a Beta of 0.6.0 is in milestone 0.6.0.
+          target=${VERSION%%-*}
           # Only main, or a released version's fix branch (x.y.x, docs/RELEASES.md),
           # is released: Run workflow can be pointed at any branch.
           branch=${GITHUB_REF#refs/heads/}
@@ -77,15 +92,15 @@ jobs:
           echo "Releasing ${VERSION} from ${branch} at ${GITHUB_SHA}."
           have=$(node -p "require('./package.json').version")
           [ "$have" = "$VERSION" ] && echo "✓ ${branch} says ${VERSION}" || fail "${branch} says ${have}, not ${VERSION}"
-          node scripts/release.mjs check && echo "✓ CHANGELOG.md has its ${VERSION} section" || fail "CHANGELOG.md is not ready (above)"
-          milestone=$(gh api --paginate "repos/${REPO}/milestones?state=all&per_page=100" --jq ".[] | select(.title == \"${VERSION}\") | \"\(.number) \(.open_issues) \(.state)\"")
+          node scripts/release.mjs check && echo "✓ CHANGELOG.md is ready for ${VERSION}" || fail "CHANGELOG.md is not ready (above)"
+          milestone=$(gh api --paginate "repos/${REPO}/milestones?state=all&per_page=100" --jq ".[] | select(.title == \"${target}\") | \"\(.number) \(.open_issues) \(.state)\"")
           if [ -z "$milestone" ]; then
-            fail "there is no milestone ${VERSION}"
+            fail "there is no milestone ${target}"
           else
             read -r number _ _ <<< "$milestone"
             # Its issues do not gate a release (KI7MT, 2026-10-30): a milestone can hold any number,
             # deferred or won't-fix among them.
-            echo "✓ milestone ${VERSION}"
+            echo "✓ milestone ${target}"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
           fi
           # The build to publish: CI's newest run on this branch that passed ci-all-green
@@ -206,13 +221,14 @@ jobs:
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: release/SHA256SUMS.txt
-      - name: Publish the pre-release
+      - name: Publish the Beta or the Release
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           VERSION: ${{ inputs.version }}
           BUILT: ${{ needs.checks.outputs.sha }}
           MODE: ${{ needs.checks.outputs.mode }}
+          KIND: ${{ needs.checks.outputs.kind }}
           CI_RUN: ${{ needs.checks.outputs.run }}
         run: |
           set -euo pipefail
@@ -247,16 +263,22 @@ jobs:
               echo "**Tested:** CI's checks passed on Windows, Linux x64, Linux arm64 and macOS, in [the build these files came from](${ci_run})."
               echo
             fi
-            echo "A pre-release: the final ${VERSION}, out for testing before it is marked Latest."
+            if [ "$KIND" = beta ]; then
+              echo "**A Beta** of ${VERSION%%-*}, before it is final: offered in the app to those who choose Beta in Settings, and carries no guarantee. Not offered by the Microsoft Store, apt, dnf or Homebrew, which take Releases only."
+            else
+              echo "**A Release**: offered in the app, by the Microsoft Store, apt and dnf, and Homebrew."
+            fi
             echo "Signed by KI7MT: Windows as **Gregory Beam**, macOS as **Greg Beam** (Apple Developer ID) and notarized by Apple."
             echo
             echo "A **.zip** is the portable build: unpack it anywhere and run it, nothing to install."
             echo "Check a download against **SHA256SUMS.txt**. Every file here was built by this repository's CI, and GitHub signs that it was: \`gh attestation verify <file> -R qso-graph/qso-graph-desktop\` ([how to verify a download](https://github.com/qso-graph/qso-graph-desktop#verify-your-download))."
           } > notes.md
           if [ "$MODE" = new ]; then
-            # Refuses if the tag exists, so a release is never published twice.
-            (cd release && gh release create "v${VERSION}" --repo "$REPO" --prerelease --target "$BUILT" \
-              --title "QSO Graph Desktop ${VERSION}" --notes-file ../notes.md -- *)
+            # Refuses if the tag exists, so nothing is published twice. A Beta
+            # is a pre-release; a Release is a release, and Latest.
+            if [ "$KIND" = beta ]; then kind=(--prerelease); title="QSO Graph Desktop ${VERSION} (Beta)"; else kind=(--latest); title="QSO Graph Desktop ${VERSION}"; fi
+            (cd release && gh release create "v${VERSION}" --repo "$REPO" "${kind[@]}" --target "$BUILT" \
+              --title "$title" --notes-file ../notes.md -- *)
           else
             # Begun and stopped (#118): the files it lacks, and nothing replaced. A
             # file on it that is not this build's stops the run (release.mjs resume).
@@ -279,8 +301,10 @@ jobs:
           fi
           gh release view "v${VERSION}" --repo "$REPO" --json tagName,isPrerelease,assets \
             -q '"\(.tagName) pre-release=\(.isPrerelease), \(.assets | length) files"'
-      # Safe to repeat: closing a closed milestone changes nothing.
+      # A Release finishes its milestone; a Beta leaves it open. Safe to repeat:
+      # closing a closed milestone changes nothing.
       - name: Close the milestone
+        if: needs.checks.outputs.kind == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -299,3 +323,16 @@ jobs:
     secrets:
       LINUX_PACKAGE_SIGNING_KEY_PRIVATE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
       LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
+
+  # A Release only (#157): apt and dnf, and the Windows installer at its
+  # versioned address for the Microsoft Store, all of which take Releases only.
+  # Promote did this until 0.6.0. Homebrew's cask is bumped after it, by
+  # KI7MT's qg-release (qso-graph-devel), Releases only.
+  packages:
+    name: packages.qso-graph.net
+    needs: [checks, publish]
+    if: needs.checks.outputs.kind == 'release'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/packages.yml
+    secrets: inherit

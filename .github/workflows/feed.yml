@@ -3,13 +3,14 @@
 # docs/RELEASES.md), published from this repository's own GitHub Pages (#94),
 # so no other repository and no stored credential is involved.
 #
-# It is worked out from the published releases every time: Stable is the
-# release GitHub marks Latest, Early the newest release of either kind, and
+# It is worked out from the published releases every time: the Release track
+# ('stable') is the release GitHub marks Latest, the Beta track ('early') the
+# newest of the releases and the Betas (#157), and
 # each names its files and their SHA-256 from that release's own
 # SHA256SUMS.txt (scripts/release.mjs tracks and feed). Nothing is kept
 # between runs and nothing is edited by hand, so the feed can never disagree
-# with the Releases page. Called by Release, Promote and the Preview; run by hand to
-# rebuild it.
+# with the Releases page. Called by Release, for a Beta and for a Release; run by hand to
+# rebuild it. A Daily is never in it (#157).
 name: Update feed
 
 on:
@@ -74,8 +75,8 @@ jobs:
             [ -f "$work/$version/SHA256SUMS.txt" ] || gh release download "v${version}" --repo "$REPO" --pattern SHA256SUMS.txt --dir "$work/$version"
             node scripts/release.mjs feed "$track" "$version" "$work/$version/SHA256SUMS.txt" site/desktop.json
           done
-          # The list Choose a version… offers (#77): the last Stable releases,
-          # the newest Early and the Preview, each with its date and files.
+          # The list Choose a version… offers (#77, #157): the current Release and
+          # the one before, and the next release's Betas, each with its date and files.
           # Read by 0.3.0 and later; an older copy reads only the tracks.
           node scripts/release.mjs listed "$work/releases.json" | tee "$work/listed"
           while read -r track tag date; do
