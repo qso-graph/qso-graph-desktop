@@ -2,17 +2,22 @@
 <!--
   Updates, in Settings (QGD-FRM-0019, KI7MT 2026-10-23: "an easy update is a
   must"). The switch, on by default because asking is going online and
-  Privacy names it; the track, Stable for hams who want it to just work and
-  Early for those who want the newest; and what the last check found.
-  Nothing restarts from here without the operator pressing Restart.
+  Privacy names it; the track, Release for hams who want it to just work and
+  Beta for those who want the next release early (#157, KI7MT 2026-11-01);
+  and what the last check found. Nothing restarts from here without the
+  operator pressing Restart.
+
+  Beta is offered only where the copy updates itself. The Microsoft Store,
+  apt and dnf, and Homebrew own their installs and offer Releases only, so
+  there Beta is shown off, with why, and how to get one.
 
   Choose a version… (#77, QGD-FRM-0020): what the feed lists, forward as
-  the track allows and back to Stable releases only (KI7MT, 2026-10-26).
+  the track allows and back to Releases only (KI7MT, 2026-10-26).
   Going back says first what is lost, in a confirmation.
 -->
 <script lang="ts">
   import type { UpdateTrack } from '../../main/settings-contract.js';
-  import type { UpdateState, VersionChoice } from '../../main/update-contract.js';
+  import type { InstallSource, UpdateState, VersionChoice } from '../../main/update-contract.js';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
 
   interface Props {
@@ -51,7 +56,25 @@
     onInstallVersion(choice.version);
   }
 
-  const TRACK_NAME = { stable: 'Stable', early: 'Early', preview: 'Preview' } as const;
+  const TRACK_NAME = { stable: 'Release', early: 'Beta' } as const;
+
+  // Who owns this install, from the main process; until it says, nothing is
+  // held back.
+  const source: InstallSource | undefined = $derived(update?.source);
+  const updatesItself = $derived(source === undefined || source === 'self' || source === 'development');
+  const OWNER: Record<InstallSource, string> = {
+    self: '', development: '',
+    store: 'Installed from the Microsoft Store, which updates it with Releases only.',
+    homebrew: 'Installed with Homebrew, which offers Releases only. To try Betas, install from GitHub instead.',
+    package: 'Installed from our apt or dnf repository, which offers Releases only. To try Betas, install from GitHub instead.',
+    portable: 'A portable copy: updated by hand, Releases or Betas, from GitHub.'
+  };
+  const HOW: Record<InstallSource, string> = {
+    self: '', development: '', portable: "What's new has its page.",
+    store: 'The Microsoft Store will update it.',
+    homebrew: 'Update with: brew upgrade --cask qso-graph-desktop',
+    package: 'Update with your package manager: apt upgrade, or dnf upgrade.'
+  };
 
   function backMessage(choice: VersionChoice): string {
     return choice.snapshot
@@ -72,14 +95,13 @@
     switch (state.kind) {
       case 'off':
         if (state.why === 'development') return 'This is a development build, which does not check for updates.';
-        if (state.why === 'preview') return 'This Preview does not check for updates. Install a release to get them.';
         return 'Not checking for updates.';
       case 'idle': return 'Will check shortly.';
       case 'checking': return 'Checking…';
       case 'current': return `Up to date. Checked at ${at(state.checkedAt)}.`;
       case 'available': return state.installable
         ? `Version ${state.version} is available.`
-        : `Version ${state.version} is available: What's new has its page.`;
+        : `Version ${state.version} is available. ${HOW[state.source ?? 'portable'] || HOW.portable}`;
       case 'downloading': return `Downloading version ${state.version}…`;
       case 'ready': return state.back
         ? `Version ${state.version} is ready. It goes back on restart, or when you quit.`
@@ -98,7 +120,7 @@
 
   async function choose(control: HTMLSelectElement): Promise<void> {
     failure = '';
-    const next: UpdateTrack = control.value === 'early' ? 'early' : control.value === 'preview' ? 'preview' : 'stable';
+    const next: UpdateTrack = control.value === 'early' ? 'early' : 'stable';
     if (!(await onSetTrack(next))) {
       control.value = track;
       failure = 'The setting could not be saved.';
@@ -119,11 +141,11 @@
   <div class="update-row">
     <label class="update-track">Versions
       <select id="update-track" disabled={!check} value={track}
-        title="Stable: full releases only. Early: pre-releases too, the newest the day it is out. Previews: last night's build too. Early and Previews carry no guarantee."
+        title="Release: finished releases only. Beta: the next release's Betas too, before it is final, with no guarantee."
+        aria-describedby={updatesItself ? undefined : 'update-owner'}
         onchange={event => { void choose(event.currentTarget); }}>
-        <option value="stable">Stable</option>
-        <option value="early">Early</option>
-        <option value="preview">Previews</option>
+        <option value="stable">Release</option>
+        <option value="early" disabled={!updatesItself}>Beta</option>
       </select>
     </label>
     <span class="hint update-state" id="update-state" role="status">{words(update)}</span>
@@ -138,9 +160,14 @@
     {/if}
     <button type="button" class="secondary" id="update-check-now" disabled={!check || update?.kind === 'checking' || update?.kind === 'downloading' || update?.kind === 'off'}
       onclick={onCheckNow}>Check now</button>
+    <!-- Not where something else owns the install: it installs nothing there,
+         Releases or a way back alike (#157). -->
     <button type="button" class="secondary" id="update-versions" aria-expanded={choices !== undefined}
-      disabled={!check || update?.kind === 'off'} onclick={() => { void toggleVersions(); }}>Choose a version…</button>
+      disabled={!check || update?.kind === 'off' || !updatesItself} onclick={() => { void toggleVersions(); }}>Choose a version…</button>
   </div>
+  {#if !updatesItself && source}
+    <p class="hint" id="update-owner">{OWNER[source]}</p>
+  {/if}
   {#if choices}
     {#if choices.length === 0}
       <p class="hint" id="update-versions-empty">No list yet: Check now fills it.</p>

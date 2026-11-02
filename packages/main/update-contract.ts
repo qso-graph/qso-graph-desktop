@@ -13,6 +13,13 @@ export const UPDATES_STATE_CHANNEL = 'updates:state';
 // Everything else is told a newer version exists and where to get it.
 export const SELF_UPDATING = ['win-x64', 'linux-x86_64', 'linux-arm64', 'mac-arm64'] as const;
 export type UpdatePlatform = typeof SELF_UPDATING[number];
+
+// Who owns this copy's install, and so who updates it (#157, KI7MT
+// 2026-11-01). Only a copy that updates itself is offered Betas: the
+// Microsoft Store, apt and dnf, and Homebrew offer Releases only, and update
+// it themselves; a portable copy is told, and updated by hand.
+export const INSTALL_SOURCES = ['self', 'store', 'homebrew', 'package', 'portable', 'development'] as const;
+export type InstallSource = typeof INSTALL_SOURCES[number];
 // The file each platform installs, as a release names it: the feed's entry
 // for a platform must be that platform's own file (#57: a Linux entry naming
 // a Windows installer was accepted, and would have replaced the AppImage).
@@ -26,8 +33,10 @@ const PLATFORM_FILE: Record<UpdatePlatform, string> = {
 export interface FeedFile { name: string; url: string; sha256: string }
 export interface FeedEntry { version: string; files: Partial<Record<UpdatePlatform, FeedFile>> }
 // One version the feed lists (#77), for Choose a version…: its track and the
-// date it was published, besides its files.
-export type ListedTrack = 'stable' | 'early' | 'preview';
+// date it was published, besides its files. The feed's names are kept as they
+// were, so every copy already installed reads it (#157): 'stable' is the
+// Release track and 'early' the Beta track. Settings shows Release and Beta.
+export type ListedTrack = 'stable' | 'early';
 export interface ListedEntry extends FeedEntry { track: ListedTrack; date: string }
 export interface Feed { stable: FeedEntry | null; early: FeedEntry | null; releases: ListedEntry[] }
 
@@ -38,13 +47,22 @@ export function isReleaseVersion(value: unknown): value is string {
   return typeof value === 'string' && RELEASE.test(value);
 }
 
-// A Preview's version: the release it leads to, the commit's UTC date and
-// time, and the commit (ci.yml, "Preview version").
-const PREVIEW = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-(\d{12})-[0-9a-f]{11}$/;
-export function isPreviewVersion(value: unknown): value is string {
-  return typeof value === 'string' && PREVIEW.test(value);
+// A Beta's version (#157, KI7MT 2026-11-01): the release it leads to and its
+// number, 0.6.0-beta.1, beta.2 … Plain semantic versioning, so it sorts after
+// the last release and before the one it leads to.
+const BETA = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-beta\.([1-9]\d{0,2})$/;
+export function isBetaVersion(value: unknown): value is string {
+  return typeof value === 'string' && BETA.test(value);
 }
-// A version the feed may offer: a release, or a Preview (#77).
+
+// A Daily's version: the release it leads to, the commit's UTC date and time,
+// and the commit (ci.yml, "Daily version"). It is never in the feed (#157):
+// the Daily is on GitHub for whoever downloads it by hand.
+const DAILY = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-(\d{12})-[0-9a-f]{11}$/;
+export function isDailyVersion(value: unknown): value is string {
+  return typeof value === 'string' && DAILY.test(value);
+}
+// A version the feed may offer: a release, or a Beta (#157).
 // A lab build's version (qso-graph-devel builds/): the release it leads to,
 // -local, the build's UTC time to the second, and the commit. It is never in
 // the feed; a lab build reads the feed as a Preview does, so it can go back to
@@ -55,21 +73,27 @@ export function isLabVersion(value: unknown): value is string {
 }
 
 export function isOfferedVersion(value: unknown): value is string {
-  return isReleaseVersion(value) || isPreviewVersion(value);
+  return isReleaseVersion(value) || isBetaVersion(value);
 }
 
-// Negative when a is older than b. A Preview comes before the release it
-// leads to, and after any other Preview of it built earlier.
+// Negative when a is older than b. Of one release's versions: a Daily or a lab
+// build first, by when it was built (a Daily's time to the minute, a lab
+// build's to the second), then its Betas by number, then the release itself.
 export function compareVersions(a: string, b: string): number {
   const [x, y] = [a, b].map(version => version.split('-')[0].split('.').map(Number));
   for (let at = 0; at < 3; at++) if (x[at] !== y[at]) return x[at] - y[at];
-  // Before its release, a Preview or a lab build, ordered by when it was
-  // built: a Preview's time is to the minute, a lab build's to the second.
-  const [p, q] = [a, b].map(version => { const preview = PREVIEW.exec(version)?.[4]; return preview !== undefined ? `${preview}00` : LAB.exec(version)?.[4]; });
-  if (p === q) return 0;
-  if (p === undefined) return 1;
-  if (q === undefined) return -1;
-  return p < q ? -1 : 1;
+  const rank = (version: string): [number, string] => {
+    const beta = BETA.exec(version)?.[4];
+    if (beta !== undefined) return [1, beta.padStart(3, '0')];
+    const daily = DAILY.exec(version)?.[4];
+    if (daily !== undefined) return [0, `${daily}00`];
+    const lab = LAB.exec(version)?.[4];
+    if (lab !== undefined) return [0, lab];
+    return [2, ''];
+  };
+  const [[r, p], [s, q]] = [rank(a), rank(b)];
+  if (r !== s) return r - s;
+  return p === q ? 0 : p < q ? -1 : 1;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -93,10 +117,12 @@ function readFile(value: unknown, version: string, platform: UpdatePlatform): Fe
   return { name, url, sha256 };
 }
 
-function readEntry(value: unknown, listed = false): FeedEntry | null {
+// `beta`: whether a Beta's version may be named (the Beta track, which the
+// feed calls early). The Release track names releases only.
+function readEntry(value: unknown, listed = false, beta = listed): FeedEntry | null {
   if (!record(value) || !only(value, listed ? ['version', 'files', 'track', 'date'] : ['version', 'files']) || !record(value.files)) return null;
   const version = value.version;
-  if (typeof version !== 'string' || !(listed ? isOfferedVersion(version) : isReleaseVersion(version))) return null;
+  if (typeof version !== 'string' || !(isReleaseVersion(version) || (beta && isBetaVersion(version)))) return null;
   const files: Partial<Record<UpdatePlatform, FeedFile>> = {};
   for (const platform of SELF_UPDATING) {
     if (!Object.hasOwn(value.files, platform)) continue;
@@ -106,18 +132,17 @@ function readEntry(value: unknown, listed = false): FeedEntry | null {
   return { version, files };
 }
 
-// The most the list may hold: ten Stable releases, the newest Early and the
-// Preview (scripts/release.mjs), with room to spare.
+// The most the list may hold: the current Release and the one before, and the
+// next release's Betas (scripts/release.mjs), with room to spare.
 export const MAX_LISTED = 24;
 
 function readListed(value: unknown): ListedEntry | null {
   if (!record(value)) return null;
   const { track, date } = value;
-  if (track !== 'stable' && track !== 'early' && track !== 'preview') return null;
+  if (track !== 'stable' && track !== 'early') return null;
   if (typeof date !== 'string' || date.length > 40 || Number.isNaN(Date.parse(date))) return null;
-  // A track that says what the version is: a Preview's version is a Preview's.
-  if ((track === 'preview') !== isPreviewVersion(value.version)) return null;
-  const entry = readEntry(value, true);
+  // A track that says what the version is: the Release track lists releases.
+  const entry = readEntry(value, true, track === 'early');
   return entry ? { ...entry, track, date } : null;
 }
 
@@ -132,15 +157,14 @@ export function readFeed(bytes: Uint8Array): Feed | undefined {
   const releases = Array.isArray(value.releases) && value.releases.length <= MAX_LISTED
     ? value.releases.map(readListed).filter((entry): entry is ListedEntry => entry !== null)
     : [];
-  return { stable: readEntry(value.stable), early: readEntry(value.early), releases };
+  return { stable: readEntry(value.stable), early: readEntry(value.early, false, true), releases };
 }
 
 // What a build is offered: the newest its track allows, and only if it is
-// newer than what is running. Early is offered a full release too when that
-// is the newer.
+// newer than what is running. Beta is offered a Release too when that is the
+// newer.
 export function choose(feed: Feed, track: UpdateTrack, running: string): FeedEntry | null {
-  const preview = track === 'preview' ? feed.releases.find(entry => entry.track === 'preview') ?? null : null;
-  const candidates = [feed.stable, track !== 'stable' ? feed.early : null, preview]
+  const candidates = [feed.stable, track === 'early' ? feed.early : null]
     .filter((entry): entry is FeedEntry => entry !== null);
   const newest = candidates.sort((a, b) => compareVersions(b.version, a.version))[0];
   return newest && compareVersions(newest.version, running) > 0 ? newest : null;
@@ -158,7 +182,7 @@ export interface VersionChoice {
 }
 
 export function versionChoices(feed: Feed, track: UpdateTrack, running: string, snapshots: readonly string[]): VersionChoice[] {
-  const allowed: ListedTrack[] = track === 'stable' ? ['stable'] : track === 'early' ? ['stable', 'early'] : ['stable', 'early', 'preview'];
+  const allowed: ListedTrack[] = track === 'stable' ? ['stable'] : ['stable', 'early'];
   const out: VersionChoice[] = [];
   for (const entry of feed.releases) {
     const order = compareVersions(entry.version, running);
@@ -171,11 +195,12 @@ export function versionChoices(feed: Feed, track: UpdateTrack, running: string, 
 }
 
 // Every state may carry `stable`: a Stable release newer than the one
-// running, for the window's title (QGD-FRM-0021), whatever the track.
-export type UpdateState = { stable?: string } & (
+// running, for the window's title (QGD-FRM-0021), whatever the track; and
+// `source`, who owns this install (#157), for what Settings can offer.
+export type UpdateState = { stable?: string; source?: InstallSource } & (
   // Not checking, and why: the switch is off, or this is a development
-  // build or a preview, which never check (KI7MT, 2026-10-24: say which).
-  | { kind: 'off'; why: 'switch' | 'development' | 'preview' }
+  // build, which never checks (KI7MT, 2026-10-24: say which).
+  | { kind: 'off'; why: 'switch' | 'development' }
   | { kind: 'idle' }                              // not asked yet this session
   | { kind: 'checking' }
   | { kind: 'current'; checkedAt: number }        // nothing newer
@@ -206,7 +231,7 @@ export function validateUpdateCommand(value: unknown): value is UpdateCommand {
 function isVersionChoice(value: unknown): value is VersionChoice {
   return record(value) && only(value, ['version', 'track', 'date', 'way', 'snapshot'])
     && isOfferedVersion(value.version)
-    && (value.track === 'stable' || value.track === 'early' || value.track === 'preview')
+    && (value.track === 'stable' || value.track === 'early')
     && typeof value.date === 'string' && value.date.length <= 40
     && (value.way === 'running' || value.way === 'forward' || value.way === 'back')
     && typeof value.snapshot === 'boolean';
@@ -221,9 +246,10 @@ export function isUpdateState(value: unknown): value is UpdateState {
   if ('version' in value && !isOfferedVersion(value.version)) return false;
   if ('back' in value && typeof value.back !== 'boolean') return false;
   if ('stable' in value && !isReleaseVersion(value.stable)) return false;
+  if ('source' in value && !(INSTALL_SOURCES as readonly unknown[]).includes(value.source)) return false;
   if ('reason' in value && (typeof value.reason !== 'string' || value.reason.length > 200)) return false;
   if ('checkedAt' in value && typeof value.checkedAt !== 'number') return false;
-  if (value.kind === 'off' && !['switch', 'development', 'preview'].includes(value.why as string)) return false;
+  if (value.kind === 'off' && !['switch', 'development'].includes(value.why as string)) return false;
   if (value.kind === 'available' && typeof value.installable !== 'boolean') return false;
   return true;
 }

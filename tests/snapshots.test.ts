@@ -99,9 +99,13 @@ describe('snapshots (#77)', () => {
     expect(kept.restore('0.1.0')).toBe(false);
   });
 
-  it(`keeps the last ${KEEP_STABLE} Stable versions left, and the newest of anything else`, () => {
+  it(`keeps the last ${KEEP_STABLE} Releases left, one for each Choose a version… can go back to, and the newest of anything else`, () => {
+    // #157: the Release track lists the current Release and the one before.
+    expect(KEEP_STABLE).toBe(2);
     const { kept } = profile();
-    for (const version of ['0.1.0', '0.2.0', '0.2.1', '0.3.0-202610260100-0123456789a', '0.3.0-202610270100-0123456789b', '0.2.2']) kept.take(version);
-    expect(kept.list().sort()).toEqual(['0.2.0', '0.2.1', '0.2.2', '0.3.0-202610270100-0123456789b']);
+    // Releases, Dailies and a Beta, in the order they were left.
+    for (const version of ['0.1.0', '0.2.0', '0.2.1', '0.3.0-202610260100-0123456789a', '0.3.0-beta.1', '0.3.0-202610270100-0123456789b', '0.2.2']) kept.take(version);
+    // The newest by version: a Beta sorts above a Daily of the same release.
+    expect(kept.list().sort()).toEqual(['0.2.1', '0.2.2', '0.3.0-beta.1']);
   });
 });

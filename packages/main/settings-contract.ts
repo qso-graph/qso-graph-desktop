@@ -50,9 +50,10 @@ export interface Settings {
   area: readonly string[];
   // Updates (QGD-FRM-0019): whether to ask, once a day, if there is a newer
   // release, and which track. Asking is going online, so it is a switch, on
-  // by default, and Privacy names it. Stable offers full releases; Early
-  // offers pre-releases as well; Previews the current Preview too (#77). An
-  // older version reads 'preview' as not a track it knows, so as Stable.
+  // by default, and Privacy names it. Two tracks (#157, KI7MT 2026-11-01):
+  // Release ('stable'), and Beta ('early'), which offers the next release's
+  // Betas as well. The names on disk are kept so every copy reads them.
+  // 'preview', a track until 0.6.0, is read as Beta.
   updateCheck: boolean;
   updateTrack: UpdateTrack;
   // Where the window was when the application last closed (KI7MT,
@@ -109,7 +110,7 @@ export function isIntegrationSettings(value: unknown): value is Readonly<Record<
   return entries.length <= 16 && entries.every(([id, entry]) => APP_ID.test(id) && isAdapterSettings(entry));
 }
 
-export const UPDATE_TRACKS = ['stable', 'early', 'preview'] as const;
+export const UPDATE_TRACKS = ['stable', 'early'] as const;
 export type UpdateTrack = typeof UPDATE_TRACKS[number];
 export function isUpdateTrack(value: unknown): value is UpdateTrack {
   return (UPDATE_TRACKS as readonly unknown[]).includes(value);
@@ -303,7 +304,10 @@ export function readSettings(stored: unknown): Settings {
   read('updatedFrom', isSeenVersion);
   read('area', isArea);
   read('updateCheck', isBoolean);
-  read('updateTrack', isUpdateTrack);
+  // Previews were a track until 0.6.0 (#157): someone who chose them asked for
+  // what is coming, so they are on Beta, not moved back to Release.
+  if (source.updateTrack === 'preview') settings.updateTrack = 'early';
+  else read('updateTrack', isUpdateTrack);
   read('windowBounds', isWindowBounds);
   read('integrations', isIntegrationSettings);
   read('pageSettings', isPageSettings);
@@ -317,7 +321,9 @@ export const BACKUP_SETTINGS = ['theme', 'grants', 'pins', 'extensionsOn', 'area
 export type BackupSettings = Pick<Settings, typeof BACKUP_SETTINGS[number]>;
 const BACKUP_VALIDATORS: { [K in typeof BACKUP_SETTINGS[number]]: (value: unknown) => boolean } = {
   theme: isThemeChoice, grants: isGrantMap, pins: isPins, extensionsOn: isExtensionIds,
-  area: isArea, updateCheck: isBoolean, updateTrack: isUpdateTrack
+  // 'preview' too: a backup an earlier version wrote may hold it, and is read
+  // as Beta (#157) rather than refused whole.
+  area: isArea, updateCheck: isBoolean, updateTrack: value => isUpdateTrack(value) || value === 'preview'
 };
 
 export function settingsForBackup(settings: Settings): BackupSettings {
@@ -340,5 +346,6 @@ export function isBackupSettings(value: unknown): value is BackupSettings {
 // Restored over this computer's own: where the window is and which notes were
 // seen stay as they are.
 export function withBackupSettings(here: Settings, restored: BackupSettings): Settings {
-  return { ...here, ...restored };
+  const updateTrack: UpdateTrack = (restored.updateTrack as string) === 'preview' ? 'early' : restored.updateTrack;
+  return { ...here, ...restored, updateTrack };
 }
