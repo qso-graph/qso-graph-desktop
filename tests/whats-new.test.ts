@@ -70,7 +70,13 @@ describe('the window title names the version', () => {
   it('a release by its version, a preview by the release it leads to', async () => {
     const { windowTitle } = await import('../packages/ui/release.js');
     expect(windowTitle('0.1.0')).toBe('QSO Graph Desktop v0.1.0');
-    expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 preview');
+    // #157: a Daily, a lab build and a Beta say what they are; nothing says "preview".
+    expect(windowTitle('0.1.1-202610241200-abcdef01234')).toBe('QSO Graph Desktop v0.1.1 Daily');
+    expect(windowTitle('0.6.0-beta.1')).toBe('QSO Graph Desktop v0.6.0-beta.1');
+    expect(windowTitle('0.6.0-beta.1-local.20261102034834.9ffd1bb')).toBe('QSO Graph Desktop v0.6.0 lab build');
+    expect(windowTitle('0.6.0-local.20261102025634.925c9c6')).toBe('QSO Graph Desktop v0.6.0 lab build');
+    expect(windowTitle('0.6.0-beta.1-pr166.9ffd1bb')).toBe('QSO Graph Desktop v0.6.0-beta.1-pr166.9ffd1bb');
+    expect(windowTitle('0.6.0-beta.1', '0.5.2')).toBe('QSO Graph Desktop v0.6.0-beta.1 — Update available: v0.5.2');
     // A newer Stable release in the title (QGD-FRM-0021, #77), and only a Stable one.
     expect(windowTitle('0.1.2', '0.2.1')).toBe('QSO Graph Desktop v0.1.2 — Update available: v0.2.1');
     expect(windowTitle('0.1.2', '0.3.0-202610260100-0123456789a')).toBe('QSO Graph Desktop v0.1.2');

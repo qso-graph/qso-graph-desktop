@@ -210,7 +210,7 @@ try {
   stage = 'window survives the outage';
   expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   await expect(page.locator('#active-callsign')).toBeVisible();
-  expect(await page.evaluate(() => document.title)).toMatch(/^QSO Graph Desktop v\d+\.\d+\.\d+( preview)?$/);
+  expect(await page.evaluate(() => document.title)).toMatch(/^QSO Graph Desktop v\d+\.\d+\.\d+(-beta\.\d+)?(-pr\d+\.[0-9a-z]+| Daily| lab build)?$/);
 
   // The backoff keeps retrying, so restoring the module is enough to recover.
   stage = 'service recovers once it can start again';
