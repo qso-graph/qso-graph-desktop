@@ -9,7 +9,7 @@
 # Like the update feed (feed.yml), it is worked out from the published releases every time: the
 # newest Stable releases' .deb and .rpm files, signed and indexed by scripts/linux-repos.sh, and
 # their Windows installers, then uploaded. Nothing is kept between runs, so the repositories can never disagree with the Releases
-# page. Called by Promote, since only a Stable release is offered; run by hand to rebuild them.
+# page. Called by Release when it publishes a Release (#157), since only Releases are offered, never a Beta; run by hand to rebuild them.
 #
 # Signed with the release key, "QSO Graph Releases (Linux package signing key)", which KI7MT's root
 # key signs (#113). The secret is checked to hold that key, by fingerprint, before anything is signed.

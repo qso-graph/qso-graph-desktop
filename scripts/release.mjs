@@ -6,8 +6,9 @@
 //                                               becomes this version and today's
 //                                               date, under a new empty [Unreleased]
 //   node scripts/release.mjs check              the Release workflow: the version is
-//                                               a plain release and CHANGELOG has
-//                                               its section
+//                                               a release with its CHANGELOG
+//                                               section, or a Beta (#157) with
+//                                               something under [Unreleased]
 //   node scripts/release.mjs notes <version>    that section, the release's notes
 //   node scripts/release.mjs downloads <version> <folder>   the Quick downloads, from the files
 //   node scripts/release.mjs next <minor|patch|major>
@@ -45,6 +46,18 @@ export function isRelease(version) {
   return RELEASE.test(version);
 }
 
+// A Beta (#157, KI7MT 2026-11-01): the release it leads to and its number,
+// 0.6.0-beta.1. Published as a pre-release, offered on the Beta track only.
+const BETA = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.([1-9]\d{0,2})$/;
+export function isBeta(version) {
+  return BETA.test(version);
+}
+
+// What the Release workflow publishes: a release or a Beta.
+export function isPublishable(version) {
+  return isRelease(version) || isBeta(version);
+}
+
 function escape(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -52,6 +65,7 @@ function escape(text) {
 // The body under `## [version] - date`, up to the next `## `. Undefined when
 // the version has no section.
 export function notes(changelog, version) {
+  if (isBeta(version)) return unreleased(changelog);
   const lines = changelog.split('\n');
   const heading = new RegExp(`^## \\[${escape(version)}\\] - \\d{4}-\\d{2}-\\d{2}\\s*$`);
   const start = lines.findIndex(line => heading.test(line));
@@ -84,12 +98,12 @@ export function quickDownloads(version, files) {
     ]],
     ['Linux', [
       row('AppImage', [link('x86_64', 'linux-x86_64.AppImage'), link('arm64 (Raspberry Pi 5)', 'linux-arm64.AppImage')]),
-      row('Debian, Ubuntu (.deb)', [link('amd64', 'linux-amd64.deb'), link('arm64', 'linux-arm64.deb')], `, or [our apt repository](${INSTALL}#linux) (Stable releases only)`),
-      row('Fedora, RHEL, Rocky (.rpm)', [link('x86_64', 'linux-x86_64.rpm'), link('aarch64', 'linux-aarch64.rpm')], `, or [our dnf repository](${INSTALL}#linux) (Stable releases only)`),
+      row('Debian, Ubuntu (.deb)', [link('amd64', 'linux-amd64.deb'), link('arm64', 'linux-arm64.deb')], `, or [our apt repository](${INSTALL}#linux) (Releases only)`),
+      row('Fedora, RHEL, Rocky (.rpm)', [link('x86_64', 'linux-x86_64.rpm'), link('aarch64', 'linux-aarch64.rpm')], `, or [our dnf repository](${INSTALL}#linux) (Releases only)`),
       row('Portable', [link('x64 .zip', 'linux-x64.zip'), link('arm64 .zip', 'linux-arm64.zip')])
     ]],
     ['macOS', [
-      row('Apple silicon', [link('.dmg', 'mac-arm64.dmg'), link('portable .zip', 'mac-arm64.zip')], has.has(`qso-graph-desktop-${version}-mac-arm64.dmg`) ? ', or `brew install qso-graph/tap/qso-graph-desktop` (Stable releases only)' : '')
+      row('Apple silicon', [link('.dmg', 'mac-arm64.dmg'), link('portable .zip', 'mac-arm64.zip')], has.has(`qso-graph-desktop-${version}-mac-arm64.dmg`) ? ', or `brew install qso-graph/tap/qso-graph-desktop` (Releases only)' : '')
     ]]
   ];
   const body = sections
@@ -109,8 +123,26 @@ export function prepare(changelog, version, date) {
   return changelog.replace(heading, `## [Unreleased]\n\n## [${version}] - ${date}`);
 }
 
+// The body under `## [Unreleased]`, up to the next `## `.
+export function unreleased(changelog) {
+  const lines = changelog.split('\n');
+  const start = lines.findIndex(line => /^## \[Unreleased\]\s*$/.test(line));
+  if (start < 0) return undefined;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex(line => line.startsWith('## '));
+  return (end < 0 ? rest : rest.slice(0, end)).join('\n').trim();
+}
+
 export function check(changelog, version) {
-  if (!isRelease(version)) return `${version} is not a release version: main builds MAJOR.MINOR.PATCH only.`;
+  // A Beta's notes are what [Unreleased] holds so far: the release it leads
+  // to gets its own section only when it is prepared.
+  if (isBeta(version)) {
+    const body = unreleased(changelog);
+    if (body === undefined) return 'CHANGELOG.md has no [Unreleased] section.';
+    if (body === '') return `CHANGELOG.md's [Unreleased] is empty: a Beta says what it brings.`;
+    return undefined;
+  }
+  if (!isRelease(version)) return `${version} is not a release version: main builds MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-beta.N.`;
   const body = notes(changelog, version);
   if (body === undefined) return `CHANGELOG.md has no "## [${version}] - YYYY-MM-DD" section: run "node scripts/release.mjs prepare" on the milestone's branch first.`;
   if (body === '') return `CHANGELOG.md's section for ${version} is empty.`;
@@ -137,23 +169,15 @@ const SELF_UPDATING = {
   'mac-arm64': 'mac-arm64.zip'
 };
 
-// A Preview's version: the release it leads to, the commit's UTC date and
-// time, and the commit (ci.yml, "Preview version").
-const PREVIEW = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-\d{12}-[0-9a-f]{11}$/;
-export function isPreview(version) {
-  return PREVIEW.test(version);
-}
-
-// A Preview's version, read from its own files: its tag names only the
-// release it leads to.
-export function previewVersion(sums) {
-  const found = /qso-graph-desktop-(\S+)-linux-x86_64\.AppImage/.exec(sums);
-  if (!found || !isPreview(found[1])) throw new Error('SHA256SUMS.txt names no Preview AppImage.');
-  return found[1];
+// A Daily's version (#157): the release it leads to, the commit's UTC date and
+// time, and the commit (ci.yml, "Daily version"). Never in the feed.
+const DAILY = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-\d{12}-[0-9a-f]{11}$/;
+export function isDaily(version) {
+  return DAILY.test(version);
 }
 
 export function feedEntry(version, sums, tag = `v${version}`) {
-  if (!isRelease(version) && !isPreview(version)) throw new Error(`${version} is not a release version (MAJOR.MINOR.PATCH).`);
+  if (!isPublishable(version)) throw new Error(`${version} is not a release or a Beta (MAJOR.MINOR.PATCH, or -beta.N).`);
   const listed = new Map();
   for (const line of sums.split('\n')) {
     const match = /^([0-9a-f]{64}) [ *]?(\S+)$/.exec(line.trim());
@@ -175,19 +199,28 @@ export function withEntry(feed, track, entry) {
   return { ...base, [track]: entry };
 }
 
-// The feed's list (#77): what Choose a version… offers. Forward is the
-// newest of each track; back is Stable only (KI7MT, 2026-10-26: "a
-// definitive target to hit"), so the last few Stable releases are listed and
-// no older Early or Preview. The feed stays small (data/update-sources.json's
-// maxFeedBytes): about 1.3 KB an entry.
-export const LISTED_STABLE = 10;
-const TRACK_RANK = { stable: 0, early: 1, preview: 2 };
+// The feed's list (#77, #157): what Choose a version… offers. On the Release
+// track ('stable'), the current release and the one before, and nothing older
+// (KI7MT, 2026-11-01); going back is to a release only (QGD-FRM-0020). On the
+// Beta track ('early'), the Betas of the next release and nothing else: once it
+// is out they leave the list. A Daily is never listed. The feed stays small
+// (data/update-sources.json's maxFeedBytes): about 1.3 KB an entry.
+export const LISTED_STABLE = 2;
+// The most Betas one release lists, newest first.
+export const LISTED_BETAS = 20;
+const TRACK_RANK = { stable: 0, early: 1 };
 
-function versionOrder(a, b) {
+// Newer first is b before a. A Beta comes before the release it leads to, and
+// after the Betas numbered below it.
+export function versionOrder(a, b) {
   const [x, y] = [a, b].map(v => v.split('-')[0].split('.').map(Number));
   for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] - y[i];
-  return 0;
+  const rank = v => { const beta = BETA.exec(v); return beta ? Number(beta[4]) : Infinity; };
+  const [p, q] = [rank(a), rank(b)];
+  return p === q ? 0 : p < q ? -1 : 1;
 }
+
+const core = version => version.split('-')[0];
 
 export function listed(releases) {
   const out = [];
@@ -197,22 +230,22 @@ export function listed(releases) {
     .sort((a, b) => versionOrder(b.tagName.slice(1), a.tagName.slice(1))).slice(0, LISTED_STABLE);
   for (const release of stable) out.push({ track: 'stable', tag: release.tagName, date: release.publishedAt });
   const newestStable = stable[0]?.tagName.slice(1) ?? '0.0.0';
-  const early = plain.filter(release => release.isPrerelease)
-    .sort((a, b) => versionOrder(b.tagName.slice(1), a.tagName.slice(1)))[0];
-  if (early && versionOrder(early.tagName.slice(1), newestStable) > 0) out.push({ track: 'early', tag: early.tagName, date: early.publishedAt });
-  // The one Preview, while the release it leads to is not out.
-  const preview = live.find(release => /^v\d+\.\d+\.\d+-preview$/.test(release.tagName));
-  if (preview && versionOrder(preview.tagName.slice(1, -'-preview'.length), newestStable) > 0) {
-    out.push({ track: 'preview', tag: preview.tagName, date: preview.publishedAt });
+  // The next release's Betas: those leading to the newest release not yet out.
+  const betas = live.filter(release => release.isPrerelease && /^v\d+\.\d+\.\d+-beta\.\d+$/.test(release.tagName) && isBeta(release.tagName.slice(1)))
+    .filter(release => versionOrder(core(release.tagName.slice(1)), newestStable) > 0);
+  const target = betas.map(release => core(release.tagName.slice(1))).sort((a, b) => versionOrder(b, a))[0];
+  for (const release of betas.filter(release => core(release.tagName.slice(1)) === target)
+    .sort((a, b) => versionOrder(b.tagName.slice(1), a.tagName.slice(1))).slice(0, LISTED_BETAS)) {
+    out.push({ track: 'early', tag: release.tagName, date: release.publishedAt });
   }
   return out;
 }
 
 export function listEntry(track, tag, date, sums) {
-  if (!(track in TRACK_RANK)) throw new Error('Say which track: stable, early or preview.');
+  if (!(track in TRACK_RANK)) throw new Error('Say which track: stable or early.');
   if (typeof date !== 'string' || Number.isNaN(Date.parse(date))) throw new Error(`${date} is not a date.`);
-  const version = track === 'preview' ? previewVersion(sums) : tag.replace(/^v/, '');
-  if (track !== 'preview' && tag !== `v${version}`) throw new Error(`${tag} is not a release tag.`);
+  const version = tag.replace(/^v/, '');
+  if (tag !== `v${version}` || (track === 'stable' ? !isRelease(version) : !isBeta(version))) throw new Error(`${tag} is not a ${track === 'stable' ? 'release' : 'Beta'} tag.`);
   return { ...feedEntry(version, sums, tag), track, date: new Date(date).toISOString() };
 }
 
@@ -224,23 +257,21 @@ export function withListed(feed, entry) {
   return { ...base, releases };
 }
 
-// Which version each track names (#94), worked out from the published
+// Which version each track names (#94, #157), worked out from the published
 // releases each time, so the feed holds no state of its own and is never
-// edited by hand: Stable is the release GitHub marks Latest; Early is the
-// newest release of either kind, so it is Stable when nothing newer is out.
-// Drafts, Previews and anything not tagged vMAJOR.MINOR.PATCH are not
-// releases. A track with none is null.
+// edited by hand: the Release track ('stable') is the release GitHub marks
+// Latest; the Beta track ('early') is the newest of the releases and the
+// Betas, so it is the Release when no newer Beta is out. Drafts, Dailies and
+// anything not tagged vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-beta.N are
+// neither. A track with none is null.
 export function tracks(releases) {
   const published = releases
-    .filter(release => !release.isDraft && /^v\d+\.\d+\.\d+$/.test(release.tagName) && isRelease(release.tagName.slice(1)))
+    .filter(release => !release.isDraft && /^v\d+\.\d+\.\d+(-beta\.\d+)?$/.test(release.tagName) && isPublishable(release.tagName.slice(1)))
+    // A Beta is published as a pre-release; one that is not is not a Beta.
+    .filter(release => !isBeta(release.tagName.slice(1)) || release.isPrerelease)
     .map(release => ({ ...release, version: release.tagName.slice(1) }));
-  const newer = (a, b) => {
-    const [x, y] = [a, b].map(v => v.version.split('.').map(Number));
-    for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] > y[i] ? a : b;
-    return a;
-  };
-  const latest = published.find(release => release.isLatest && !release.isPrerelease);
-  const early = published.reduce((best, release) => (best ? newer(best, release) : release), undefined);
+  const latest = published.find(release => release.isLatest && !release.isPrerelease && isRelease(release.version));
+  const early = published.reduce((best, release) => (best && versionOrder(best.version, release.version) >= 0 ? best : release), undefined);
   return { stable: latest ? latest.version : null, early: early ? early.version : null };
 }
 
@@ -331,7 +362,7 @@ function main([command, argument]) {
   }
   if (command === 'state') {
     const [, version, built, tagCommit, releaseFile] = process.argv.slice(2);
-    if (!releaseFile || !isRelease(version) || !/^[0-9a-f]{40}$/.test(built) || !(tagCommit === '-' || /^[0-9a-f]{40}$/.test(tagCommit))) {
+    if (!releaseFile || !isPublishable(version) || !/^[0-9a-f]{40}$/.test(built) || !(tagCommit === '-' || /^[0-9a-f]{40}$/.test(tagCommit))) {
       console.error('Usage: node scripts/release.mjs state <version> <built> <tag-commit|-> <release.json|->'); return 2;
     }
     const result = releaseState(version, built, releaseFile === '-' ? null : readJson(releaseFile), tagCommit === '-' ? '' : tagCommit);
@@ -341,7 +372,7 @@ function main([command, argument]) {
   }
   if (command === 'downloads') {
     const [, given, folder] = process.argv.slice(2);
-    if (!given || !folder || !isRelease(given)) { console.error('Usage: node scripts/release.mjs downloads <version> <folder of the release\'s files>'); return 2; }
+    if (!given || !folder || !isPublishable(given)) { console.error('Usage: node scripts/release.mjs downloads <version> <folder of the release\'s files>'); return 2; }
     process.stdout.write(`${quickDownloads(given, readdirSync(folder))}\n`);
     return 0;
   }

@@ -11,15 +11,16 @@
 // the system's own store. A link is never followed or copied.
 import { cpSync, lstatSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { compareVersions, isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
+import { compareVersions, isDailyVersion, isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
 
-// A version a snapshot is kept under: a release, a Preview, or a lab build,
-// which can go back to a release too (#121: refusing a lab build's version
-// stopped its going back at "the profile could not be kept").
-const keepable = (version: string): boolean => isOfferedVersion(version) || isLabVersion(version);
+// A version a snapshot is kept under: a Release, a Beta, a Daily, or a lab
+// build, each of which can go back to a Release (#121: refusing a lab build's
+// version stopped its going back at "the profile could not be kept").
+const keepable = (version: string): boolean => isOfferedVersion(version) || isDailyVersion(version) || isLabVersion(version);
 
-// The last three Stable versions left, and the newest of anything else.
-export const KEEP_STABLE = 3;
+// One for each Release Choose a version… can go back to (#157: the current
+// Release and the one before), and the newest of anything else.
+export const KEEP_STABLE = 2;
 
 export interface SnapshotPlaces {
   root: string;       // the application's folder (userData)

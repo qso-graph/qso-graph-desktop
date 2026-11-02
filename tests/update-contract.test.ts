@@ -84,6 +84,26 @@ describe('which update a build is offered', () => {
     expect(compareVersions('0.10.0', '0.9.0')).toBeGreaterThan(0);
     expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
   });
+
+  it('orders Betas between the last Release and the one they lead to (#157)', () => {
+    const order = ['0.5.2', '0.6.0-202611020100-0123456789a', '0.6.0-beta.1', '0.6.0-beta.2', '0.6.0-beta.9', '0.6.0-beta.10', '0.6.0'];
+    for (let at = 1; at < order.length; at++) expect(compareVersions(order[at], order[at - 1]), `${order[at]} after ${order[at - 1]}`).toBeGreaterThan(0);
+    expect(compareVersions('0.6.0-beta.2', '0.6.0-beta.2')).toBe(0);
+  });
+
+  it('a Beta is offered on the Beta track only, and Release still wins when it is newer (#157)', () => {
+    const beta = feed(entry('0.5.2'), entry('0.6.0-beta.1'))!;
+    expect(beta.early?.version).toBe('0.6.0-beta.1');
+    expect(choose(beta, 'stable', '0.5.2')).toBeNull();
+    expect(choose(beta, 'early', '0.5.2')?.version).toBe('0.6.0-beta.1');
+    expect(choose(beta, 'early', '0.6.0-beta.1')).toBeNull();
+    // The Release track never names a Beta, and nothing names a Daily.
+    expect(feed(entry('0.6.0-beta.1'), null)?.stable).toBeNull();
+    expect(feed(null, entry('0.6.0-202611020100-0123456789a'))?.early).toBeNull();
+    // Once 0.6.0 is out, a Beta of it is behind and not offered.
+    const out = feed(entry('0.6.0'), entry('0.6.0-beta.2'))!;
+    expect(choose(out, 'early', '0.6.0-beta.2')?.version).toBe('0.6.0');
+  });
 });
 
 describe('what the window may ask and be told', () => {
@@ -97,9 +117,14 @@ describe('what the window may ask and be told', () => {
     expect(isUpdateState({ kind: 'ready', version: '0.1.1' })).toBe(true);
     expect(isUpdateState({ kind: 'ready', version: '<b>0.1.1</b>' })).toBe(false);
     expect(isUpdateState({ kind: 'installing' })).toBe(false);
-    // Not checking says why: the switch, a development build, or a preview.
+    // Not checking says why: the switch, or a development build. A Preview was
+    // a reason until 0.6.0 (#157): there are no Previews now.
     expect(isUpdateState({ kind: 'off', why: 'development' })).toBe(true);
-    expect(isUpdateState({ kind: 'off', why: 'preview' })).toBe(true);
+    expect(isUpdateState({ kind: 'off', why: 'preview' })).toBe(false);
+    // Who owns the install (#157): one of the known owners, or not shown.
+    expect(isUpdateState({ kind: 'idle', source: 'homebrew' })).toBe(true);
+    expect(isUpdateState({ kind: 'idle', source: 'self' })).toBe(true);
+    expect(isUpdateState({ kind: 'idle', source: 'flatpak' })).toBe(false);
     // No Store-only state (#86: the Store copy is the same installer and updates itself).
     expect(isUpdateState({ kind: 'off', why: 'store' })).toBe(false);
     expect(isUpdateState({ kind: 'off' })).toBe(false);
@@ -111,8 +136,11 @@ describe('what the window may ask and be told', () => {
     expect(readSettings({ updateCheck: 'no', updateTrack: 'nightly' })).toMatchObject({ updateCheck: true, updateTrack: 'stable' });
     expect(validateSettingsCommand({ type: 'write', key: 'updateCheck', value: false })).toBe(true);
     expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'early' })).toBe(true);
-    expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'preview' })).toBe(true);
+    // Two tracks (#157): Release ('stable') and Beta ('early').
+    expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'preview' })).toBe(false);
     expect(validateSettingsCommand({ type: 'write', key: 'updateTrack', value: 'nightly' })).toBe(false);
+    // Previews, chosen before 0.6.0, are read as Beta, not moved back to Release.
+    expect(readSettings({ updateTrack: 'preview' })).toMatchObject({ updateTrack: 'early' });
   });
 
   it('a newer version\'s page is built from the register, and only main may ask for it', () => {

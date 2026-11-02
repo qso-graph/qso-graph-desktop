@@ -67,6 +67,17 @@ describe('release text', () => {
     expect(check('## [0.1.0] - 2026-10-24\n\n## [0.0.9] - 2026-09-01\n', '0.1.0')).toMatch(/empty/);
   });
 
+  it('a Beta is released with what [Unreleased] holds so far (#157)', () => {
+    const log = '# Changelog\n\n## [Unreleased]\n\n### Added\n\n- Club Log\n\n## [0.5.2] - 2026-10-30\n\n- Fixes\n';
+    expect(check(log, '0.6.0-beta.1')).toBeUndefined();
+    expect(notes(log, '0.6.0-beta.1')).toBe('### Added\n\n- Club Log');
+    expect(check('# Changelog\n\n## [Unreleased]\n\n## [0.5.2] - 2026-10-30\n\n- Fixes\n', '0.6.0-beta.1')).toMatch(/empty/);
+    // A release still needs its own section; beta.0 and a Daily are neither.
+    expect(check(log, '0.6.0')).toMatch(/no "## \[0\.6\.0\]/);
+    expect(check(log, '0.6.0-beta.0')).toMatch(/not a release version/);
+    expect(check(log, '0.6.0-202611020100-0123456789a')).toMatch(/not a release version/);
+  });
+
   it('a preview version is not a release one', () => {
     expect(isRelease('0.1.0')).toBe(true);
     expect(isRelease('v0.1.0')).toBe(false);
@@ -108,17 +119,57 @@ describe('release text', () => {
   });
 });
 
-describe('the Preview (2026-11-01)', () => {
+describe('the Daily (#157; the Preview until 0.6.0)', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+
   it('is never of a version already released', () => {
     // main kept saying 0.5.2 after 0.5.2 shipped, and the nightly published
-    // "Preview of 0.5.2". The job refuses before it touches the Preview there is.
-    const job = readFileSync('.github/workflows/ci.yml', 'utf8').split('- name: Replace the Preview pre-release')[1];
+    // "Preview of 0.5.2". The job refuses before it publishes or deletes anything.
+    const job = ci.split('- name: Publish the Daily, and keep 7 days')[1];
     expect(job).toBeDefined();
     const refuse = job.indexOf('refs/tags/v${next}"');
     expect(refuse, 'the check for a released version').toBeGreaterThan(0);
     expect(job.slice(refuse, refuse + 400)).toContain('exit 1');
-    expect(refuse, 'refused before the old Preview is deleted').toBeLessThan(job.indexOf('gh release delete'));
+    expect(refuse, 'refused before an old Daily is deleted').toBeLessThan(job.indexOf('gh release delete'));
     expect(refuse, 'refused before a new one is made').toBeLessThan(job.indexOf('gh release create'));
+  });
+
+  it('is once a day, only when main changed, kept 7 days, and never in the feed', () => {
+    // KI7MT, 2026-11-01: once a day only if main changed; never in Settings.
+    expect(ci).toMatch(/schedule:\n\s+- cron: '[^']+'/);
+    const plan = ci.split('schedule)')[1].split(';;')[0];
+    expect(plan, 'a Daily already on this commit stops the day').toContain('main is already the Daily');
+    const job = ci.split('- name: Publish the Daily, and keep 7 days')[1];
+    expect(job).toContain("date -u -d '7 days ago'");
+    // No job sends a Daily to the update feed.
+    const daily = ci.split('\n  daily:\n')[1].split('\n  # The dependencies')[0];
+    expect(daily).not.toContain('feed.yml');
+    expect(ci).not.toMatch(/preview-feed|Replace the Preview/);
+  });
+
+  it('is versioned by the release it leads to, even while main carries a Beta', () => {
+    const step = ci.split('- name: Daily version')[1].split('- name:')[0];
+    expect(step).toContain('${base%%-*}-${stamp}-${commit::11}');
+  });
+});
+
+describe('Release publishes a Beta or a Release, and there is no Promote (#157)', () => {
+  const release = readFileSync('.github/workflows/release.yml', 'utf8');
+  it('takes MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-beta.N, and nothing else', () => {
+    expect(release).toContain('kind=release');
+    expect(release).toContain('kind=beta');
+    expect(release).toContain('-beta\\.[1-9][0-9]{0,2}$');
+  });
+  it('a Beta is a pre-release; a Release is Latest, closes its milestone and builds apt and dnf', () => {
+    expect(release).toMatch(/kind=\(--prerelease\)/);
+    expect(release).toMatch(/kind=\(--latest\)/);
+    expect(release.split('- name: Close the milestone')[1].split('\n')[1]).toContain("kind == 'release'");
+    const packages = release.split('\n  packages:\n')[1];
+    expect(packages).toContain("if: needs.checks.outputs.kind == 'release'");
+    expect(packages).toContain('packages.yml');
+  });
+  it('promote.yml is gone', () => {
+    expect(() => readFileSync('.github/workflows/promote.yml', 'utf8')).toThrow();
   });
 });
 
@@ -152,28 +203,45 @@ describe('the feed\'s list of versions (#77)', () => {
     .map(tail => `${'b'.repeat(64)}  qso-graph-desktop-${version}-${tail}`).join('\n');
   const at = (tagName, isPrerelease, publishedAt = '2026-10-25T00:00:00Z') => ({ tagName, isPrerelease, isDraft: false, isLatest: false, publishedAt });
 
-  it('lists the last Stable releases, the newest Early and the Preview, while each leads somewhere', () => {
-    const releases = [at('v0.2.1', false), at('v0.2.0', true), at('v0.1.3', true), at('v0.3.0-preview', true), at('v0.2.0-preview', true)];
-    expect(listed(releases).map(entry => `${entry.track} ${entry.tag}`)).toEqual(['stable v0.2.1', 'preview v0.3.0-preview']);
-    const many = Array.from({ length: 14 }, (_, n) => at(`v0.1.${n}`, false));
-    expect(listed(many).length).toBe(LISTED_STABLE);
-    expect(listed(many)[0].tag).toBe('v0.1.13');
-    expect(listed([...many, at('v0.2.0', true)]).at(-1)).toMatchObject({ track: 'early', tag: 'v0.2.0' });
+  it('lists the current Release and the one before, and the next release\'s Betas only (#157)', () => {
+    // KI7MT, 2026-11-01: Release lists the current and the previous release;
+    // Beta lists the Betas of the next target and nothing else; no Daily.
+    expect(LISTED_STABLE).toBe(2);
+    const releases = [at('v0.5.2', false), at('v0.5.1', false), at('v0.5.0', false),
+      at('v0.6.0-beta.1', true), at('v0.6.0-beta.2', true), at('v0.5.0-beta.3', true),
+      at('v0.6.0-202611020100-0123456789a', true), at('v0.6.0-preview', true)];
+    expect(listed(releases).map(entry => `${entry.track} ${entry.tag}`))
+      .toEqual(['stable v0.5.2', 'stable v0.5.1', 'early v0.6.0-beta.2', 'early v0.6.0-beta.1']);
+    // Once 0.6.0 is out, its Betas leave the list.
+    const out = [...releases, at('v0.6.0', false)];
+    expect(listed(out).map(entry => `${entry.track} ${entry.tag}`)).toEqual(['stable v0.6.0', 'stable v0.5.2']);
+    // A Beta not published as a pre-release is not a Beta.
+    expect(listed([at('v0.5.2', false), at('v0.6.0-beta.1', false)]).map(entry => entry.tag)).toEqual(['v0.5.2']);
   });
 
-  it('writes a list the application reads, a Preview under its own tag', () => {
-    const preview = '0.3.0-202610260100-0123456789a';
+  it('the tracks are the Latest release, and the newest of the releases and the Betas (#157)', () => {
+    const latest = (tagName) => ({ ...at(tagName, false), isLatest: true });
+    expect(tracks([latest('v0.5.2'), at('v0.6.0-beta.1', true), at('v0.6.0-beta.10', true), at('v0.6.0-beta.9', true)]))
+      .toEqual({ stable: '0.5.2', early: '0.6.0-beta.10' });
+    expect(tracks([latest('v0.6.0'), at('v0.6.0-beta.2', true)])).toEqual({ stable: '0.6.0', early: '0.6.0' });
+    // A Daily is never a track.
+    expect(tracks([latest('v0.5.2'), at('v0.6.0-202611020100-0123456789a', true)])).toEqual({ stable: '0.5.2', early: '0.5.2' });
+  });
+
+  it('writes a list the application reads, each Beta under its own tag (#157)', () => {
     let feed = withListed(undefined, listEntry('stable', 'v0.2.1', '2026-10-25T22:31:47Z', sumsFor('0.2.1')));
-    feed = withListed(feed, listEntry('preview', 'v0.3.0-preview', '2026-10-26T01:00:00Z', sumsFor(preview)));
+    feed = withListed(feed, listEntry('early', 'v0.3.0-beta.1', '2026-10-26T01:00:00Z', sumsFor('0.3.0-beta.1')));
     feed = withListed(feed, listEntry('stable', 'v0.2.2', '2026-10-26T00:00:00Z', sumsFor('0.2.2')));
-    expect(feed.releases.map(entry => entry.version)).toEqual([preview, '0.2.2', '0.2.1']);
-    expect(feed.releases[0].files['win-x64'].url).toBe(`https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0-preview/qso-graph-desktop-${preview}-win-x64.exe`);
+    expect(feed.releases.map(entry => entry.version)).toEqual(['0.3.0-beta.1', '0.2.2', '0.2.1']);
+    expect(feed.releases[0].files['win-x64'].url).toBe('https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.3.0-beta.1/qso-graph-desktop-0.3.0-beta.1-win-x64.exe');
     const read = readFeed(new TextEncoder().encode(JSON.stringify(feed)));
-    expect(read.releases.map(entry => entry.version)).toEqual([preview, '0.2.2', '0.2.1']);
-    const choices = versionChoices(read, 'preview', '0.2.2', ['0.2.1']);
-    expect(choices.map(choice => `${choice.version}:${choice.way}:${choice.snapshot}`)).toEqual([`${preview}:forward:false`, '0.2.2:running:false', '0.2.1:back:true']);
+    expect(read.releases.map(entry => entry.version)).toEqual(['0.3.0-beta.1', '0.2.2', '0.2.1']);
+    const choices = versionChoices(read, 'early', '0.2.2', ['0.2.1']);
+    expect(choices.map(choice => `${choice.version}:${choice.way}:${choice.snapshot}`)).toEqual(['0.3.0-beta.1:forward:false', '0.2.2:running:false', '0.2.1:back:true']);
     expect(isVersionChoices(choices)).toBe(true);
-    expect(choose(read, 'preview', '0.2.2').version).toBe(preview);
+    // On Release, the Beta is not offered; going back is to Releases only, from either.
+    expect(versionChoices(read, 'stable', '0.2.2', []).map(choice => choice.version)).toEqual(['0.2.2', '0.2.1']);
+    expect(versionChoices(read, 'early', '0.3.0-beta.1', []).filter(choice => choice.way === 'back').map(choice => choice.version)).toEqual(['0.2.2', '0.2.1']);
     expect(choose(read, 'stable', '0.2.2')).toBe(null);
   });
 
@@ -208,17 +276,20 @@ describe('the feed\'s list of versions (#77)', () => {
   });
 
   it('refuses what is not what it says it is', () => {
-    expect(() => listEntry('preview', 'v0.3.0-preview', '2026-10-26', sumsFor('0.3.0'))).toThrow(/no Preview/);
+    expect(() => listEntry('preview', 'v0.3.0-preview', '2026-10-26', sumsFor('0.3.0'))).toThrow(/which track/);
+    expect(() => listEntry('stable', 'v0.3.0-beta.1', '2026-10-26', sumsFor('0.3.0-beta.1'))).toThrow(/not a release tag/);
+    expect(() => listEntry('early', 'v0.3.0-202610260100-0123456789a', '2026-10-26', sumsFor('0.3.0-202610260100-0123456789a'))).toThrow(/not a Beta tag/);
     expect(() => listEntry('stable', 'v0.2.2', 'yesterday', sumsFor('0.2.2'))).toThrow(/not a date/);
     expect(() => listEntry('nightly', 'v0.2.2', '2026-10-26', sumsFor('0.2.2'))).toThrow(/which track/);
     const bad = { format: 'qso-graph-desktop-updates', version: 1, stable: null, early: null, releases: [
       { ...listEntry('stable', 'v0.2.1', '2026-10-25', sumsFor('0.2.1')), track: 'preview' },
+      { ...listEntry('early', 'v0.3.0-beta.1', '2026-10-25', sumsFor('0.3.0-beta.1')), track: 'stable' },
       { ...listEntry('stable', 'v0.2.1', '2026-10-25', sumsFor('0.2.1')), extra: 1 }
     ] };
     expect(readFeed(new TextEncoder().encode(JSON.stringify(bad))).releases).toEqual([]);
   });
 
-  it('a Preview comes before the release it leads to, and after an older Preview of it', () => {
+  it('a Daily comes before the release it leads to, and after an older Daily of it', () => {
     expect(compareVersions('0.3.0-202610260100-0123456789a', '0.3.0')).toBeLessThan(0);
     expect(compareVersions('0.3.0-202610260100-0123456789a', '0.2.1')).toBeGreaterThan(0);
     expect(compareVersions('0.3.0-202610260100-0123456789a', '0.3.0-202610270100-0123456789b')).toBeLessThan(0);

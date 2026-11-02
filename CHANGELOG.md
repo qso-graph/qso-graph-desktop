@@ -9,6 +9,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Updates: Release and Beta** (#157). Settings → Updates now offers two choices. **Release**, the
+  default, gets finished releases. **Beta** also gets the next release's Betas (`0.6.0-beta.1`, …)
+  before it is final. If you had chosen Previews, you are on Beta. **Choose a version…** lists the
+  current Release and the one before, and on Beta the next release's Betas; going back is still to
+  a Release only. Daily builds are on the Releases page for 7 days and never offered by the
+  application.
+- **A copy installed with Homebrew no longer updates itself** (#157). It tells you a new Release
+  is out and to run `brew upgrade --cask qso-graph-desktop`, so Homebrew always knows which version
+  you have. Copies from Homebrew, apt and dnf take Releases only, and Settings says so; the install
+  guide's *Trying a Beta* shows how to get one.
 - **The Callsigns page shows only what each service takes** (KI7MT). eQSL, LoTW and HamQTH ask for
   a username and password, with no API key field; QRZ Logbook and Club Log ask for their key or
   token alone. Preferred credential appears only for a service that takes both a password and a

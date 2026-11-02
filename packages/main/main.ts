@@ -20,9 +20,9 @@ import { startAppearanceBroker } from './system-appearance.js';
 import { startLogsBroker } from './logs-broker.js';
 import { startStorageBroker, storageRoot } from './storage-broker.js';
 import { startHomeBroker } from './home-broker.js';
-import { startUpdater, updatePlatform } from './updater.js';
+import { installSource, startUpdater, updatePlatform } from './updater.js';
 import { startWhatsNewBroker } from './whats-new.js';
-import { isLabVersion, isOfferedVersion, isReleaseVersion } from './update-contract.js';
+import { isDailyVersion, isLabVersion, isOfferedVersion } from './update-contract.js';
 import { snapshots } from './snapshots.js';
 import { startExtensionBroker } from './extension-broker.js';
 import { startIntegrationsBroker, type IntegrationsBroker } from './integrations-broker.js';
@@ -445,10 +445,12 @@ if (!app.requestSingleInstanceLock()) {
     const updater = startUpdater({
       version: app.getVersion(),
       platform: updatePlatform(),
-      // A Preview asks as a release does (#77), so it can be left for one, and
-      // so does a lab build (#121): installed by hand, it is otherwise stuck.
-      asks: app.isPackaged && (isOfferedVersion(app.getVersion()) || isLabVersion(app.getVersion())),
-      build: !app.isPackaged ? 'development' : isReleaseVersion(app.getVersion()) ? 'release' : 'preview',
+      // A Beta asks as a Release does, and so do a Daily and a lab build
+      // (#77, #121, #157): installed by hand, each is otherwise stuck, and
+      // can be left for a Release or a Beta.
+      asks: app.isPackaged && (isOfferedVersion(app.getVersion()) || isDailyVersion(app.getVersion()) || isLabVersion(app.getVersion())),
+      build: app.isPackaged ? 'release' : 'development',
+      source: installSource(),
       settings: () => load(),
       online: () => homeBroker?.online() ?? true,
       feed: callsigns.updateFeed,

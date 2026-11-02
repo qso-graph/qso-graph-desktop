@@ -20,7 +20,7 @@ import { signedLikeThisCopy } from './windows-signature.js';
 import type { UpdateTrack } from './settings-contract.js';
 import {
   UPDATES_CHANNEL, UPDATES_STATE_CHANNEL, choose, compareVersions, isReleaseVersion, readFeed, validateUpdateCommand, versionChoices,
-  type Feed, type FeedEntry, type UpdatePlatform, type UpdateState, type VersionChoice
+  type Feed, type FeedEntry, type InstallSource, type UpdatePlatform, type UpdateState, type VersionChoice
 } from './update-contract.js';
 import type { Snapshots } from './snapshots.js';
 
@@ -38,10 +38,12 @@ export interface UpdaterOptions {
   // The feed's key for this build when it installs updates itself, or null:
   // told only that a newer version exists.
   platform: UpdatePlatform | null;
-  // Whether this build asks at all: a preview or a development run does not,
-  // and which it is, so the window can say.
+  // Whether this build asks at all: a development run does not, and which it
+  // is, so the window can say.
   asks: boolean;
-  build?: 'release' | 'development' | 'preview';
+  build?: 'release' | 'development';
+  // Who owns this install (#157), passed on with every state.
+  source?: InstallSource;
   settings: () => { updateCheck: boolean; updateTrack: UpdateTrack };
   online: () => boolean;
   feed: () => Promise<Uint8Array | string>;
@@ -114,10 +116,34 @@ export function updatePlatform(): UpdatePlatform | null {
   if (process.platform === 'darwin' && process.arch === 'arm64') {
     const bundle = macBundle();
     if (!bundle || bundle.startsWith('/Volumes/') || bundle.includes('/AppTranslocation/')) return null;
+    // Homebrew's: Homebrew updates it, never the copy itself (#157). Left to
+    // update itself, Homebrew's record and the app drift apart, and a later
+    // `brew upgrade` puts back whatever the cask names.
+    if (homebrewInstall(bundle)) return null;
     try { accessSync(dirname(bundle), constants.W_OK); } catch { return null; }
     return 'mac-arm64';
   }
   return null;
+}
+
+// Whether Homebrew installed this bundle: its cask's own record, the
+// Caskroom, for the app at the place the cask puts it. A file check; brew is
+// never run.
+export function homebrewInstall(bundle: string): boolean {
+  if (bundle !== `/Applications/${app.getName()}.app`) return false;
+  return ['/opt/homebrew', '/usr/local'].some(prefix => existsSync(join(prefix, 'Caskroom', 'qso-graph-desktop')));
+}
+
+// Who owns this install (#157): the copy itself where it updates itself, and
+// otherwise the Microsoft Store, Homebrew, a package manager, or nobody (a
+// portable copy, updated by hand).
+export function installSource(): InstallSource {
+  if (!app.isPackaged) return 'development';
+  if (updatePlatform() !== null) return 'self';
+  if (process.platform === 'win32') return process.windowsStore ? 'store' : 'portable';
+  if (process.platform === 'darwin') { const bundle = macBundle(); return bundle && homebrewInstall(bundle) ? 'homebrew' : 'portable'; }
+  if (process.platform === 'linux') return /^\/(opt|usr)\//.test(process.execPath) ? 'package' : 'portable';
+  return 'portable';
 }
 
 // Our Apple Developer ID team, which signs and notarizes every release.
@@ -177,7 +203,7 @@ function replaceMacBundle(zip: string): string {
 export function startUpdater(options: UpdaterOptions): Updater {
   const now = options.now ?? Date.now;
   const windowsTrusted = options.windowsTrusted ?? signedLikeThisCopy;
-  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'preview' || options.build === 'development' ? options.build : 'switch' });
+  const notAsking = (): UpdateState => ({ kind: 'off', why: options.build === 'development' ? 'development' : 'switch' });
   let state: UpdateState = options.asks ? { kind: 'idle' } : notAsking();
   let lastAsked = 0;
   let readyFile: string | null = null;
@@ -191,7 +217,8 @@ export function startUpdater(options: UpdaterOptions): Updater {
 
   const publish = (next: UpdateState): void => {
     const stable = lastFeed?.stable?.version;
-    state = stable && compareVersions(stable, options.version) > 0 ? { ...next, stable } : next;
+    const sourced = options.source ? { ...next, source: options.source } : next;
+    state = stable && compareVersions(stable, options.version) > 0 ? { ...sourced, stable } : sourced;
     const window = options.window();
     if (window && !window.isDestroyed()) window.webContents.send(UPDATES_STATE_CHANNEL, state);
   };
