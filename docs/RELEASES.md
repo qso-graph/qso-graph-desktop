@@ -359,7 +359,7 @@ elsewhere Settings shows it off, with why and how to get one:
 | Windows installer, from GitHub | ✓ | ✓ | the application |
 | Linux AppImage | ✓ | ✓ | the application |
 | macOS `.dmg` or `.zip`, from GitHub | ✓ | ✓ | the application |
-| **Microsoft Store** | ✓ | see below | the Store's listing takes Releases only |
+| **Microsoft Store** | ✓ | if chosen | the application; the Store's listing takes Releases only |
 | **apt or dnf** (`packages.qso-graph.net`) | ✓ | — | `apt upgrade` / `dnf upgrade` |
 | **Homebrew** (`qso-graph/tap`) | ✓ | — | `brew upgrade --cask qso-graph-desktop` |
 | A portable `.zip` | told | told | by hand |
@@ -372,9 +372,9 @@ are never two copies in `/Applications`.
 
 A **Microsoft Store** copy is the same signed installer as one from GitHub
 (#86), and is not told apart once installed: the Store delivers Releases only,
-and the copy then updates itself as any other does, Beta included if its
-operator chooses it. Telling it apart needs a marker from the installer, the
-Store's silent-install parameters; see *Not built yet*.
+and the copy then updates itself as any other does. Its default is Release; it
+takes a Beta only if its operator chooses Beta in Settings. That is decided
+(KI7MT, 2026-11-01, option 1, #162): no installer marker.
 
 ### Choosing a version, and going back (#77)
 
@@ -511,11 +511,5 @@ record.
 
 What this document describes but is not in place yet:
 
-1. **Telling a Microsoft Store copy apart** (#157). The Store's listing takes
-   Releases only, but the copy it installs is the same installer as one from
-   GitHub, so the application offers it Beta as it would any other. Partner
-   Center's silent-install parameters (`/S` today) could pass a marker that the
-   installer records, so a Store copy offers Release only. KI7MT's decision.
-
-`develop` is gone (deleted 2026-11-01). The package repository for deb and rpm
+Nothing listed now. `develop` is gone (deleted 2026-11-01). The package repository for deb and rpm
 is built: apt and dnf on `packages.qso-graph.net`, signed, Releases only.
