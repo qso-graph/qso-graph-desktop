@@ -16,7 +16,11 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 ## The rules
 
 1. **One working branch: `main`.** It holds the latest finished, validated
-   work. Merging into it builds and tests, and **never publishes**.
+   work. **A change is checked and built once, in its pull request** (KI7MT,
+   2026-11-02: "we should be able to merge a PR if it can pass checks and
+   build"). Merging builds nothing and **never publishes**; Release publishes
+   the pull request's own build, once it has proved that build is of exactly
+   the files `main` holds.
 2. **One milestone at a time, worked serially** (KI7MT: "parallel is what gets
    us going sideways every time"). One milestone open, one `feature/x.y.z`
    branch, one issue in hand, and nothing started until the one before is
@@ -64,8 +68,9 @@ in bulk.
    on the pull request.
 4. **The issues are worked one at a time.** Each commit names its issue
    (`#91: …`). When an issue's fix is in, KI7MT installs that validation build
-   and tries it. The issue records **"validated on x.y.z-pr<N>.<commit>"**
-   and is closed: KI7MT says it is validated, and the agent working the
+   and tries it, or a lab build of the commit (`qg-lab-build`, below). The
+   issue records **"validated on"** the build's version (`x.y.z-pr<N>.<commit>`,
+   or for a release candidate its version and commit) and is closed: KI7MT says it is validated, and the agent working the
    milestone writes that comment and closes the issue. A change nobody can see
    in the application (CI, a test, the documentation) is validated by the CI
    run that proves it, which the comment names. GitHub's "Fixes #N" is not
@@ -74,14 +79,18 @@ in bulk.
 5. **A Beta, when KI7MT wants one** (#157, KI7MT 2026-11-01): a pull request
    whose one change sets `package.json`'s version to `x.y.z-beta.N`
    (`x.y.z-beta.1`, then `beta.2` …), merged, and then **Release** with
-   `x.y.z-beta.N` (below). It is published as a pre-release and offered on the
+   `x.y.z-beta.N` (below). Its build is the **release candidate**: stamped
+   `x.y.z-beta.N` itself, and the very files Release publishes. It is published as a pre-release and offered on the
    Beta track. As many Betas as the milestone needs; none is required.
 6. **When KI7MT says the milestone is done** (its open issues do not hold it):
    the release checks on a lab machine (screenshots and the gallery, as before),
    `package.json`'s version back to `x.y.z` if a Beta set it, `node
    scripts/release.mjs prepare` (CHANGELOG.md's `[Unreleased]` becomes
-   `[x.y.z] - <date>`), a final validation build, a review on the pull request,
-   and **KI7MT merges it**.
+   `[x.y.z] - <date>`), a final build, which is the release candidate and is
+   what Release publishes, a review on the pull request, and **KI7MT merges
+   it**. The branch must be up to date with `main` when it merges, or its build
+   is not of `main`'s files and Release refuses it; with one pull request at a
+   time it always is.
 7. **Release** `x.y.z` (below). It is Latest at once, offered to everyone, and
    closes the milestone. There is no promoting: a Beta is what an Early
    pre-release was.
@@ -91,10 +100,10 @@ in bulk.
 
 | Kind | Built from | Version | Where it goes | For |
 |---|---|---|---|---|
-| **Validation build** | each push to a pull request from this repository's own branch | `x.y.z-pr<N>.<commit>`: `0.2.1-pr96.c0b8250` | that CI run's files, one download each, linked from one comment on the pull request | validating each issue's fix |
+| **Validation build** | each push to a pull request from this repository's own branch | `x.y.z-pr<N>.<commit>`: `0.2.1-pr96.c0b8250`; a **release candidate's** is its version, `x.y.z` or `x.y.z-beta.N` | that CI run's files, one download each, linked from one comment on the pull request; a release candidate's are what Release publishes | validating each issue's fix |
 | **Daily** | `main`, once a day, only on a day it has changed | `x.y.z-<YYYYMMDDHHMM>-<commit>`: the release it leads to | a pre-release, **Daily build of x.y.z, \<date\>**, under its own tag, **GitHub only**: never in the feed or in Settings. The last 7 days are kept | trying what is coming; never issue validation |
-| **Beta** | the **Release** workflow, from `main` saying `x.y.z-beta.N` | `x.y.z-beta.N` | a pre-release, tag `vx.y.z-beta.N`, on the **Beta** track | the next release, before it is final |
-| **Release** | the **Release** workflow, from `main` saying `x.y.z` | `x.y.z`, no suffix | a release, tag `vx.y.z`, **Latest**, on the **Release** track; apt, dnf, the Microsoft Store and Homebrew | everyone |
+| **Beta** | the **Release** workflow, publishing the release candidate's build of `main` saying `x.y.z-beta.N` | `x.y.z-beta.N` | a pre-release, tag `vx.y.z-beta.N`, on the **Beta** track | the next release, before it is final |
+| **Release** | the **Release** workflow, publishing the release candidate's build of `main` saying `x.y.z` | `x.y.z`, no suffix | a release, tag `vx.y.z`, **Latest**, on the **Release** track; apt, dnf, the Microsoft Store and Homebrew | everyone |
 | **Lab build** | each push to `main` or `feature/*`, by the lab's build service | `x.y.z-local.<time>.<commit>` | Pulp, `pulp.ipa.home.arpa` (qso-graph-devel `builds/`), unsigned (macOS ad-hoc, no hardened runtime) | testing in the lab within minutes; never published |
 
 ### Validation builds
@@ -104,6 +113,13 @@ in bulk.
   7 characters of that commit), so the installed application's title bar and
   Settings → About say exactly what is being tested. A validation build never
   updates itself.
+- **A release candidate** is a signed pull request's build (below) of a
+  version not yet published: it is stamped with that version, `x.y.z` or
+  `x.y.z-beta.N`, carries CI's provenance and is kept 90 days, because it is
+  what Release publishes. A version already out (the branch still says the
+  Beta just released) is built as `-pr<N>` instead, so no build claims a
+  published version. Its comment says it is the release candidate, and it
+  checks for updates like any published copy.
 - **Signed** like a release (Windows: Gregory Beam; macOS: Developer ID,
   notarized) when the branch is a milestone's (`feature/x.y.z`) or a fix's
   (`x.y.x`). Other branches of this repository build unsigned; a fork's pull
@@ -145,8 +161,9 @@ One workflow publishes both a Beta and a Release (#157): which one is the
 version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
 
 1. **The pull request setting the version is merged** (step 5 or 6 above), so
-   `main` has it, the CHANGELOG and every validated fix. Merging builds, tests
-   and signs `main`'s commit, and publishes nothing.
+   `main` has it, the CHANGELOG and every validated fix. Its run already
+   checked, built and signed exactly those files. Merging builds nothing and
+   publishes nothing.
 2. **Actions → Release → Run workflow**, from `main`, with that version
    (`.github/workflows/release.yml`). It refuses, in a minute and before
    anything is published, unless every one of these holds, and it lists each:
@@ -157,14 +174,18 @@ version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
    - milestone `x.y.z` exists, for a Beta the release it leads to. **Its issues
      do not gate it** (KI7MT, 2026-10-30): a milestone can hold any number of
      open ones, deferred or won't-fix among them;
-   - CI's run of that very commit on `main` passed **`ci-all-green`**;
+   - a **release candidate's** pull request build, stamped with this version,
+     passed **`ci-all-green`** and packaged all four platforms, and its commit
+     holds **exactly the files a commit of `main` holds**: the same git tree,
+     which is a hash of every file. That commit is `main`'s, or an earlier one
+     with only documentation changed since. A fork's run is never taken;
    - this repository's **GitHub Pages is on**, built from Actions, at
      `updates.qso-graph.io`, so the feed can be published (#99: 0.2.1 was
      published, then its feed failed because Pages was off).
 3. **It publishes what CI built**, nothing rebuilt, with every installer from
    that run (each checked to carry that version), `SHA256SUMS.txt`, and the
-   notes. The tag is created on the commit that was built. CI keeps `main`'s
-   build 90 days.
+   notes. The tag is created on `main`'s commit holding those files. CI keeps a
+   release candidate's build 90 days.
    - **A Beta:** a pre-release, `vx.y.z-beta.N`, titled *(Beta)*. The feed is
      updated, so the Beta track offers it. The milestone stays open.
    - **A Release:** a release, `vx.y.z`, **Latest**. The feed is updated, so

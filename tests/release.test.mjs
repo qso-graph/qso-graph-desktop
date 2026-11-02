@@ -175,6 +175,56 @@ describe('Release publishes a Beta or a Release, and there is no Promote (#157)'
   });
 });
 
+describe('one check and one build per change (KI7MT, 2026-11-02)', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const release = readFileSync('.github/workflows/release.yml', 'utf8');
+  const packages = readFileSync('.github/workflows/packages.yml', 'utf8');
+  const plan = ci.split('- id: plan')[1].split('\n  # Every requirement ID')[0];
+
+  it('a merge builds nothing, and does not audit again', () => {
+    const push = plan.split('push)')[1].split(';;')[0];
+    expect(push).toContain('run=false');
+    expect(push).not.toContain('sign=true');
+    const audit = ci.split('\n  audit:\n')[1].split('\n    steps:')[0];
+    expect(audit).toContain("github.event_name != 'push'");
+  });
+
+  it('a signed pull request of an unpublished version is the release candidate, stamped with that version', () => {
+    const pr = plan.split('pull_request)')[1].split(';;')[0];
+    expect(pr).toContain('candidate=true');
+    // Only when the tag does not exist: git ls-remote --exit-code says 2.
+    expect(pr).toMatch(/refs\/tags\/v\$\{version\}[\s\S]*-eq 2 \]; then candidate=true/);
+    const stamp = ci.split('- name: Pull request build version')[1].split('\n')[1];
+    expect(stamp).toContain("needs.plan.outputs.candidate != 'true'");
+  });
+
+  it("a candidate's build has provenance and is kept 90 days; other pull requests' have none", () => {
+    const provenance = ci.split('- name: Provenance\n')[1].split('\n')[0];
+    expect(provenance).toContain("github.event_name != 'pull_request' || needs.plan.outputs.candidate == 'true'");
+    expect(ci).toContain("retention-days: ${{ needs.plan.outputs.candidate == 'true' && 90 || 7 }}");
+  });
+
+  it("Release publishes the pull request's build only when its files are main's, by git tree", () => {
+    const ready = release.split('- id: ready')[1].split('\n  publish:')[0];
+    expect(ready).toContain('ci.yml/runs?event=pull_request&status=success');
+    expect(ready).not.toContain('event=push');
+    expect(ready).toContain('.tree.sha');
+    expect(ready).toContain('.commit.tree.sha');
+    // Stamped with this version, so a -prN build is never taken.
+    expect(ready).toContain('qso-graph-desktop-${VERSION}-win-x64.exe');
+    // A fork's run is never a candidate.
+    expect(ready).toContain('.head_repository.full_name == \\"${REPO}\\"');
+  });
+
+  it('uploads to packages.qso-graph.net send each file in one request', () => {
+    // 0.6.0: R2 lost a part of a multipart upload (InvalidPart) and the run stopped.
+    const upload = packages.split('- name: Uploaded to packages.qso-graph.net')[1];
+    const set = upload.indexOf('multipart_threshold 4GB');
+    expect(set).toBeGreaterThan(0);
+    expect(set).toBeLessThan(upload.indexOf('sync . "s3://'));
+  });
+});
+
 describe('which version each update track names (#94)', () => {
   const release = (tagName, isPrerelease, isLatest = false, isDraft = false) => ({ tagName, isPrerelease, isLatest, isDraft });
 

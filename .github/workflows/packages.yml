@@ -138,6 +138,13 @@ jobs:
           set -euo pipefail
           s3=(aws s3 --endpoint-url "${R2_ENDPOINT%/}" --only-show-errors)
           cd "$RUNNER_TEMP/repo"
+          # Each file in one request, never in parts. Releasing 0.6.0, R2 lost a part of the
+          # aarch64 .rpm and refused to finish it (InvalidPart, CompleteMultipartUpload), and
+          # the run stopped. Our files are about 100 MB, and R2 takes up to 5 GiB in one
+          # request, so a part upload bought nothing. Over 4 GiB is stopped here instead.
+          aws configure set default.s3.multipart_threshold 4GB
+          big=$(find . -type f -size +4G -printf '%P\n')
+          [ -z "$big" ] || { echo "✗ over 4 GiB, which R2 cannot take in one request: ${big}" >&2; exit 1; }
           # A version's file never changes (the Store requires it of the installer), so --size-only: a
           # file already there is never written again. No package's name begins another's.
           "${s3[@]}" sync . "s3://${R2_BUCKET}/" --size-only --exclude '*' --include '*.deb' --include '*.rpm' --include '*.exe' \

@@ -13,9 +13,13 @@ on:
   # in about a minute, and builds nothing (KI7MT, 2026-10-24: "I am not going
   # through this build process for docs and readme updates").
   # main is the one working branch (docs/RELEASES.md, #94): a milestone's
-  # branch reaches it by a pull request, and merging builds, tests and signs
-  # but publishes nothing. Publishing is the Release workflow, release.yml.
-  # A released version's fix branch, x.y.x (0.2.x), is built the same way.
+  # branch reaches it by a pull request. The pull request's run is the one
+  # check and build of a change: merging builds nothing and publishes nothing
+  # (KI7MT, 2026-11-02: "we should be able to merge a PR if it can pass checks
+  # and build"). Publishing is the Release workflow, release.yml, and what it
+  # publishes is the pull request's own build, once it is proved to be of
+  # exactly the files main holds. A released version's fix branch, x.y.x
+  # (0.2.x), works the same way.
   push:
     branches: [main, '[0-9]*.[0-9]*.x']
   pull_request:
@@ -50,10 +54,14 @@ jobs:
   # What this run is for, decided once:
   #   ref       what to build: main at night, a pull request's own branch,
   #             else what was pushed
-  #   sign      sign the builds: main, the Daily, by hand on main, and a
+  #   sign      sign the builds: the Daily, by hand on main, and a
   #             milestone's or a fix's pull request
+  #   candidate a signed pull request's build of a version not yet published:
+  #             stamped with that version, not -prN, and kept with its
+  #             provenance, because it is what Release publishes
   #   daily     publish the Daily (#157): once a day, or a full run by hand on main
-  #   run       false when the day finds main already a Daily or released
+  #   run       false for a merge, which builds nothing, and when the day finds
+  #             main already a Daily or released
   #   pr        the pull request a validation build is for (#92)
   plan:
     name: plan
@@ -63,6 +71,7 @@ jobs:
       ref: ${{ steps.plan.outputs.ref }}
       sha: ${{ steps.plan.outputs.sha }}
       sign: ${{ steps.plan.outputs.sign }}
+      candidate: ${{ steps.plan.outputs.candidate }}
       daily: ${{ steps.plan.outputs.daily }}
       run: ${{ steps.plan.outputs.run }}
       docs_only: ${{ steps.docs.outputs.docs_only }}
@@ -143,9 +152,10 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          ref=""; sha="$SHA"; sign=false; daily=false; run=true; pr=""
+          ref=""; sha="$SHA"; sign=false; candidate=false; daily=false; run=true; pr=""
           case "$EVENT" in
             schedule)
               ref=main
@@ -164,10 +174,13 @@ jobs:
               if [ "$REF" = refs/heads/main ]; then sign=true; fi
               if [ "$REF" = refs/heads/main ] && [ "$MAC_ONLY" != true ]; then daily=true; fi
               ;;
-            # main, and a released version's fix branch: either may be what
-            # the Release workflow publishes.
+            # A merge into main or a fix branch: the pull request's run checked,
+            # packaged and signed exactly this (main takes nothing but pull
+            # requests), and Release publishes that build. Building it again
+            # checked nothing new and spent a second set of signatures.
             push)
-              if [ "$REF" = refs/heads/main ] || [[ "$REF" =~ ^refs/heads/[0-9]+\.[0-9]+\.x$ ]]; then sign=true; fi
+              run=false
+              echo "A merge builds nothing: its pull request's run is the build (release.yml publishes that one)."
               ;;
             # A pull request from one of our own branches is a validation
             # build (#92): the branch's own commit, not GitHub's merge of it,
@@ -180,11 +193,27 @@ jobs:
               if [ "$HEAD_REPO" = "$REPO" ]; then
                 ref="$HEAD_REF"; sha="$HEAD_SHA"; pr="$PR"
                 if [[ "$HEAD_REF" =~ ^feature/[0-9]+\.[0-9]+\.[0-9]+$ || "$BASE_REF" =~ ^[0-9]+\.[0-9]+\.x$ ]]; then sign=true; fi
+                # A release candidate: signed, and its version not yet published, so
+                # its build carries that version and Release can publish it as it
+                # is. A version already out (the branch still says the Beta just
+                # released) keeps -prN, so no build claims a published version.
+                if [ "$sign" = true ]; then
+                  version=$(gh api "repos/${REPO}/contents/package.json?ref=${HEAD_SHA}" --jq .content | base64 -d | jq -r .version)
+                  if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[1-9][0-9]{0,2})?$ ]]; then
+                    # --exit-code: 0 the tag exists, 2 it does not; anything else is a failed lookup.
+                    status=0; git ls-remote --exit-code "https://github.com/${REPO}.git" "refs/tags/v${version}" >/dev/null || status=$?
+                    if [ "$status" -eq 2 ]; then candidate=true
+                    elif [ "$status" -ne 0 ]; then echo "Could not ask GitHub whether v${version} is released (git ls-remote: ${status})." >&2; exit 1
+                    fi
+                  fi
+                  if [ "$candidate" = true ]; then echo "${version} is not published: this build carries it, and Release may publish it."
+                  else echo "${version} is published or not publishable: this build is -pr${PR}."; fi
+                fi
               fi
               ;;
           esac
-          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "daily=$daily"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
-          echo "event=$EVENT ref=${ref:-$REF} sign=$sign daily=$daily run=$run pr=${pr:-none}"
+          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "candidate=$candidate"; echo "daily=$daily"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT ref=${ref:-$REF} sign=$sign candidate=$candidate daily=$daily run=$run pr=${pr:-none}"
 
   # Every requirement ID a Markdown file cites exists in the spec (#95). It
   # runs on every change, documentation-only ones included, because those
@@ -446,8 +475,7 @@ jobs:
       # date and time and the commit (docs/RELEASES.md), here, never in a
       # commit. The release, not a Beta: while main says 0.6.0-beta.2 its Daily
       # is 0.6.0-<time>-<commit>. The commit's time, so all four platforms carry
-      # one version. A push to main is not stamped: that build is the one the
-      # Release workflow publishes.
+      # one version.
       - name: Daily version
         if: needs.plan.outputs.daily == 'true'
         shell: bash
@@ -461,9 +489,10 @@ jobs:
       # 0.2.1-pr96.c0b8250, in the title bar and About, so the issue can say
       # exactly which build it was validated on. A commit that is all digits
       # gains a g, because a version's part may not be a number with a
-      # leading zero (git describe does the same).
+      # leading zero (git describe does the same). Not a release candidate's:
+      # that build carries the version it will be published as.
       - name: Pull request build version
-        if: needs.plan.outputs.pr != ''
+        if: needs.plan.outputs.pr != '' && needs.plan.outputs.candidate != 'true'
         shell: bash
         env:
           PR: ${{ needs.plan.outputs.pr }}
@@ -710,18 +739,19 @@ jobs:
             out/*.rpm
             out/*.zip
           if-no-files-found: error
-          # main's build is the one a release publishes, so it is kept long
-          # enough to wait for the Release button (#94).
-          retention-days: ${{ github.event_name == 'push' && needs.plan.outputs.sign == 'true' && 90 || 7 }}
+          # A release candidate's build is the one a release publishes, so it is
+          # kept long enough to wait for the Release button (#94).
+          retention-days: ${{ needs.plan.outputs.candidate == 'true' && 90 || 7 }}
       # Build provenance (#83): GitHub signs, in Sigstore's public transparency
       # log, that each installer was built by this workflow in this repository
       # from this commit. Nobody can make one for this repository, a fork
       # included, so it is what tells an official download from any other
       # (gh attestation verify <file> -R qso-graph/qso-graph-desktop). Only for
-      # the builds that may be published: main, the day's Daily, a fix
-      # branch; never a pull request's.
+      # the builds that may be published: the day's Daily, a run by hand on
+      # main, and a release candidate's pull request; never another pull
+      # request's. A fork's run cannot make one at all: it gets no id-token.
       - name: Provenance
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' || needs.plan.outputs.candidate == 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
@@ -808,6 +838,7 @@ jobs:
           PR: ${{ needs.plan.outputs.pr }}
           SHA: ${{ needs.plan.outputs.sha }}
           SIGNED: ${{ needs.plan.outputs.sign }}
+          CANDIDATE: ${{ needs.plan.outputs.candidate }}
         run: |
           set -euo pipefail
           version=$(ls build/qso-graph-desktop-*-linux-x86_64.AppImage | sed -E 's|^build/qso-graph-desktop-(.*)-linux-x86_64\.AppImage$|\1|')
@@ -830,9 +861,15 @@ jobs:
             else
               echo "Not signed: only a milestone's or a fix's branch is."
             fi
-            echo "The links need a GitHub sign-in and last 14 days. This build never updates itself."
-            echo
-            echo "An issue fixed here is validated on this build, and says so: **validated on \`${version}\`**."
+            if [ "$CANDIDATE" = true ]; then
+              echo "The links need a GitHub sign-in and last 14 days. **This is the release candidate:** if this pull request is merged as it is, Release publishes exactly these files as ${version}, so it checks for updates like any published copy."
+              echo
+              echo "An issue fixed here is validated on this build, and says so: **validated on \`${version}\`, the build of ${SHA::7}**."
+            else
+              echo "The links need a GitHub sign-in and last 14 days. This build never updates itself."
+              echo
+              echo "An issue fixed here is validated on this build, and says so: **validated on \`${version}\`**."
+            fi
           } > comment.md
           cat comment.md
           id=$(gh api "repos/${REPO}/issues/${PR}/comments" --paginate \
@@ -949,7 +986,9 @@ jobs:
   audit:
     name: dependency audit
     needs: [plan]
-    if: ${{ needs.plan.outputs.docs_only != 'true' && !inputs.mac_only }}
+    # Not for a merge: its pull request's run audited exactly these lockfiles,
+    # and the night's run audits main again whatever changed.
+    if: ${{ needs.plan.outputs.docs_only != 'true' && !inputs.mac_only && github.event_name != 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
