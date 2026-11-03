@@ -1007,6 +1007,37 @@ jobs:
           cargo audit --file packages/callsign-core/Cargo.lock
           cargo audit --file packages/integrations-core/Cargo.lock
 
+  # CodeQL, from source alone (no build), for each language the repository
+  # holds. A job here rather than GitHub's default setup, which scans a merge
+  # into main again after its pull request's scan: like the dependency audit,
+  # it runs on the pull request and at night, never for a merge.
+  codeql:
+    name: Analyze (${{ matrix.language }})
+    needs: [plan]
+    if: ${{ needs.plan.outputs.docs_only != 'true' && !inputs.mac_only && github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python, rust]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.plan.outputs.ref != '' && needs.plan.outputs.sha || '' }}
+      - uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          category: /language:${{ matrix.language }}
+
   # All green (#95): the one check the repository's rules require before a
   # merge. It always reports, documentation-only changes included: the plan
   # and the citation check must pass, and so must every build job the plan
@@ -1018,7 +1049,7 @@ jobs:
     # The org-wide name for the one required check (#102): every qso-graph
     # repo rolls its jobs up into a check called exactly ci-all-green.
     name: ci-all-green
-    needs: [plan, citations, check, window, package, pr-build, audit]
+    needs: [plan, citations, check, window, package, pr-build, audit, codeql]
     # Not for a macOS-only run by hand: it skips the test suites, so its
     # ci-all-green would vouch for a commit nothing tested, and a later
     # documentation-only push would trust it (found by Codex, #101).
