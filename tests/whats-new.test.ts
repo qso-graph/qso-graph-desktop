@@ -42,7 +42,7 @@ describe('which notes', () => {
     expect(notesFor(sections, '0.3.0', '0.1.0').sections.map(s => s.version)).toEqual(['0.3.0', '0.2.0']);
   });
 
-  it('a release after a preview of it: that release\'s notes, and those after the preview (#57, Turing)', () => {
+  it('a release after a preview of it: that release\'s notes, and those after the preview (#57)', () => {
     // A preview of 0.3.0 comes before 0.3.0, so 0.3.0's notes are new.
     expect(notesFor(sections, '0.3.0', '0.3.0-202611150100-abc').sections.map(s => s.version)).toEqual(['0.3.0']);
     expect(notesFor(sections, '0.3.0', '0.2.0-202611010100-abc').sections.map(s => s.version)).toEqual(['0.3.0', '0.2.0']);
@@ -160,7 +160,7 @@ function sections3() {
 
 describe('Home names what was installed (#157)', () => {
   it('says a Beta, a Daily, a lab or a test build for what it is, never "a new preview"', () => {
-    // KI7MT, 2026-11-02: Home said "a new preview of 0.6.0" for every build
+    // Home said "a new preview of 0.6.0" for every build
     // with a suffix, which a Beta is not.
     expect(describeVersion('0.6.0')).toBe('0.6.0');
     expect(describeVersion('0.6.0-beta.1')).toBe('0.6.0-beta.1 (Beta)');

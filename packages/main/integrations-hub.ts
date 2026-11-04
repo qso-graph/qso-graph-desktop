@@ -187,7 +187,7 @@ export function createIntegrationsHub(deps: HubDeps) {
 
   // The interfaces an adapter on a network listens by, as they were last
   // looked at: a network that connects after the start, or a new address
-  // from DHCP, is listened on again (Codex review, 2026-10-29).
+  // from DHCP, is listened on again (found in review).
   let seen = '';
   const watching = () => adapters().some(extension => isOn(extension) && chosen(extension).network !== null);
 

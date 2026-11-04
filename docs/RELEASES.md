@@ -16,13 +16,13 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 ## The rules
 
 1. **One working branch: `main`.** It holds the latest finished, validated
-   work. **A change is checked and built once, in its pull request** (KI7MT,
-   2026-11-02: "we should be able to merge a PR if it can pass checks and
-   build"). Merging builds nothing and **never publishes**; Release publishes
+   work. **A change is checked and built once, in its pull request**: a pull
+   request can be merged once it passes its checks and builds. Merging builds
+   nothing and **never publishes**; Release publishes
    the pull request's own build, once it has proved that build is of exactly
    the files `main` holds.
-2. **One milestone at a time, worked serially** (KI7MT: "parallel is what gets
-   us going sideways every time"). One milestone open, one `feature/x.y.z`
+2. **One milestone at a time, worked serially**: work in parallel is what
+   sends a project sideways. One milestone open, one `feature/x.y.z`
    branch, one issue in hand, and nothing started until the one before is
    finished.
 3. **A milestone is a version.** KI7MT names it (`0.2.1`) and lists its issues.
@@ -63,7 +63,7 @@ in bulk.
    version in `package.json` (and its lock) to `x.y.z`.
 3. **Its pull request into `main` is opened with the first fix**, as a draft,
    not before: a pull request with nothing in it builds for an hour and has
-   nothing to test (KI7MT, 2026-10-25). From then on every push to the branch
+   nothing to test. From then on every push to the branch
    builds a **validation build** (below), and its installer links are posted
    on the pull request.
 4. **The issues are worked one at a time.** Each commit names its issue
@@ -76,7 +76,7 @@ in bulk.
    run that proves it, which the comment names. GitHub's "Fixes #N" is not
    used: it closes an issue at the merge, after validation should already
    have happened.
-5. **A Beta, when KI7MT wants one** (#157, KI7MT 2026-11-01): a pull request
+5. **A Beta, when KI7MT wants one** (#157): a pull request
    whose one change sets `package.json`'s version to `x.y.z-beta.N`
    (`x.y.z-beta.1`, then `beta.2` …), merged, and then **Release** with
    `x.y.z-beta.N` (below). Its build is the **release candidate**: stamped
@@ -104,7 +104,7 @@ in bulk.
 | **Daily** | `main`, once a day, only on a day it has changed | `x.y.z-<YYYYMMDDHHMM>-<commit>`: the release it leads to | a pre-release, **Daily build of x.y.z, \<date\>**, under its own tag, **GitHub only**: never in the feed or in Settings. The last 7 days are kept | trying what is coming; never issue validation |
 | **Beta** | the **Release** workflow, publishing the release candidate's build of `main` saying `x.y.z-beta.N` | `x.y.z-beta.N` | a pre-release, tag `vx.y.z-beta.N`, on the **Beta** track | the next release, before it is final |
 | **Release** | the **Release** workflow, publishing the release candidate's build of `main` saying `x.y.z` | `x.y.z`, no suffix | a release, tag `vx.y.z`, **Latest**, on the **Release** track; apt, dnf, the Microsoft Store and Homebrew | everyone |
-| **Lab build** | each push to `main` or `feature/*`, by the lab's build service | `x.y.z-local.<time>.<commit>` | Pulp, `pulp.ipa.home.arpa` (qso-graph-devel `builds/`), unsigned (macOS ad-hoc, no hardened runtime) | testing in the lab within minutes; never published |
+| **Lab build** | each push to `main` or `feature/*`, by the lab's build service | `x.y.z-local.<time>.<commit>` | the lab's internal package store, unsigned (macOS ad-hoc, no hardened runtime) | testing in the lab within minutes; never published |
 
 ### Validation builds
 
@@ -131,7 +131,7 @@ in bulk.
 
 ### Dailies
 
-The Preview until 0.6.0 (#157, KI7MT 2026-11-01).
+The Preview until 0.6.0 (#157).
 
 - **Once a day, only on a day `main` has changed.** A day `main` is already a
   Daily, or is a published Beta or Release, builds nothing and signs nothing.
@@ -144,8 +144,8 @@ The Preview until 0.6.0 (#157, KI7MT 2026-11-01).
   leads to** (also while `main` carries a Beta), the **commit's** UTC date and
   time to the minute, and the first 11 characters of the commit, so every
   platform's file carries one version.
-- **Each its own pre-release, kept 7 days** (KI7MT, 2026-11-01: "never keep
-  more than 7 days of daily"), tagged `v<its version>` and titled **Daily
+- **Each its own pre-release, kept 7 days**, never more, tagged
+  `v<its version>` and titled **Daily
   build of x.y.z, \<date\>**. The job that publishes one deletes those older
   than 7 days, tag and all.
 - **GitHub only.** Never in the update feed, so the application never offers
@@ -172,7 +172,7 @@ version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
      something under `[Unreleased]`, which becomes its notes;
    - the tag is new, or was begun from this same build and stopped (below);
    - milestone `x.y.z` exists, for a Beta the release it leads to. **Its issues
-     do not gate it** (KI7MT, 2026-10-30): a milestone can hold any number of
+     do not gate it**: a milestone can hold any number of
      open ones, deferred or won't-fix among them;
    - a **release candidate's** pull request build, stamped with this version,
      passed **`ci-all-green`** and packaged all four platforms, and its commit
@@ -200,9 +200,9 @@ version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
    It stops, and says what it found, if the release holds a file that isn't
    this build's, if the tag is on another commit, or if there is a tag with no
    release behind it; those are put right by hand.
-4. **Homebrew, after a Release only** (KI7MT, 2026-11-01): the cask in
+4. **Homebrew, after a Release only**: the cask in
    `qso-graph/tap` is bumped to the new version (`qg-tap-bump`, from KI7MT's
-   `qg-release`, qso-graph-devel). Never for a Beta or a Daily.
+   release tool). Never for a Beta or a Daily.
 
    **Then the Microsoft Store, after a Release only** (#86). Release has put the release's signed Windows installer on
    `packages.qso-graph.net` at a versioned address, and its run summary gives it. In Partner Center,
@@ -213,8 +213,8 @@ version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
    the Store requires that, and each version keeps its own address. A copy from the Store updates
    itself as any other does (policy 10.2.9 binds only games to the Store's updates).
 
-   **A security release is a Release straight away, with no Beta** (KI7MT,
-   2026-10-27, on 0.3.1): an operator can't check a security fix from the
+   **A security release is a Release straight away, with no Beta**
+   (on 0.3.1): an operator can't check a security fix from the
    screen, so holding it on Beta only keeps it from everyone else. Before
    releasing, sanity-check a lab build of the commit (any one platform, from
    the build listing): it installs, starts, and the part the fix touches works.
@@ -248,7 +248,7 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 |---|---|---|
 | **MAJOR** | a change breaks what a user or an extension relied on | `1.0.0` to `2.0.0` |
 | **MINOR** | a release adds features | `0.1.0` to `0.2.0` |
-| **PATCH** | a release only fixes things: nits, tweaks and bug fixes (KI7MT, 2026-10-24) | `0.2.0` to `0.2.1` |
+| **PATCH** | a release only fixes things: nits, tweaks and bug fixes | `0.2.0` to `0.2.1` |
 
 - **0.x is before the first general release.** Anything may still change.
   **1.0.0** is the first release meant for every ham.
@@ -264,7 +264,7 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 ## Release notes
 
 `CHANGELOG.md` collects changes under **Unreleased** as they land on a
-milestone's branch. **Every change starts from an issue** (KI7MT, 2026-10-25),
+milestone's branch. **Every change starts from an issue**,
 so the history reads issue, commits naming it (`#91: …`), the build it was
 validated on, and **a CHANGELOG line that cites it** (`(#91)`). Changes a user
 can't see (CI, process, documentation) need an issue but no CHANGELOG line.
@@ -357,7 +357,7 @@ working. Both get one click.
 
 ### Two tracks (#157)
 
-KI7MT, 2026-11-01: "we have too many levels". Settings offers two, and nothing
+Fewer levels are easier to understand. Settings offers two, and nothing
 else:
 
 | Track | Offered | For |
@@ -365,14 +365,14 @@ else:
 | **Release** (the default) | Releases only | hams who want it to just work |
 | **Beta** | Releases, and the next release's Betas | hams who want the next release early |
 
-**A Beta carries no guarantee** (KI7MT, 2026-10-26): running one is the
+**A Beta carries no guarantee**: running one is the
 operator's choice. The feed keeps its names for the two, `stable` and `early`,
 so every copy already installed reads it; a Previews choice made before 0.6.0
 is read as Beta. A Daily, a Beta and a lab build all check for updates as a
 Release does, so each can be left for a Release.
 
-**Who can take a Beta: whoever owns the install updates it** (KI7MT,
-2026-11-01). Beta is offered only where the application updates itself;
+**Who can take a Beta: whoever owns the install updates it**.
+Beta is offered only where the application updates itself;
 elsewhere Settings shows it off, with why and how to get one:
 
 | Installed from | Release | Beta | Updated by |
@@ -395,14 +395,14 @@ A **Microsoft Store** copy is the same signed installer as one from GitHub
 (#86), and is not told apart once installed: the Store delivers Releases only,
 and the copy then updates itself as any other does. Its default is Release; it
 takes a Beta only if its operator chooses Beta in Settings. That is decided
-(KI7MT, 2026-11-01, option 1, #162): no installer marker.
+(option 1, #162): no installer marker.
 
 ### Choosing a version, and going back (#77)
 
 **Choose a version…** lists what the feed lists (#157): on Release, **the
 current Release and the one before**; on Beta, **the next release's Betas** as
 well, which leave once it is out. Forward, what the track allows; **back,
-Releases only** (KI7MT, 2026-10-26: "a definitive target to hit"). Installing
+Releases only**, so going back has a definite target. Installing
 one is the same download, check and install as an update (`QGD-FRM-0020`). Not
 offered where something else owns the install.
 
@@ -425,7 +425,7 @@ offered where something else owns the install.
 
 ### How it asks
 
-- **Checking only checks** (KI7MT, 2026-10-24). When a newer version is
+- **Checking only checks**. When a newer version is
   offered, a quiet line says *"Version 0.2.0 is available. What's new ·
   Download and install"*; nothing is downloaded until the operator chooses.
 - **Never forced, and never restarted without asking.** When an update has
@@ -451,8 +451,8 @@ offered where something else owns the install.
 - **Through the credential core**, as every outbound connection is
   (`QGD-SEC-0020`): the core fetches the feed and the download, and the
   application opens no connection of its own for updates.
-- **Installed by the application itself**, not electron-updater (KI7MT,
-  2026-10-23): electron-updater installs only what it downloaded, over
+- **Installed by the application itself**, not electron-updater:
+  electron-updater installs only what it downloaded, over
   Electron's own networking, and handing it the core's file would need a local
   server, which this product does not have. What it does at the end is small:
   the Windows installer is run silently, only once Windows finds it signed by

@@ -100,8 +100,8 @@ try {
   }
   check(register.services.filter(s => 'what' in s.test).length >= 1,
     'At least one service has a test, or this check is vacuous');
-  // Every registered service has a test since #9, #10 and #12 (found by
-  // Codex), so the other side of the check is a provider the core has none
+  // Every registered service has a test since #9, #10 and #12 (found in
+  // review), so the other side of the check is a provider the core has none
   // for: it must say so, with nothing stored, rather than claim one.
   check(core.credentialStatus(untouched, 'legacy_provider').testable === false,
     'A provider with no test says so, or this check is vacuous');

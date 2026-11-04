@@ -9,7 +9,7 @@
     "pota-spots": "https://api.pota.app/spot/activator"
   },
   "politeness": {
-    "note": "#79, KI7MT 2026-10-26: no source is asked more often than this, whatever a manifest or Refresh asks. The credential core enforces it: this file is compiled into it, so nothing outside that process can loosen it. Where a provider states a limit, that limit; where none is stated, our judgement and the reason, so it can be revisited (CLAUDE.md, security.md: rate limiting).",
+    "note": "#79: no source is asked more often than this, whatever a manifest or Refresh asks. The credential core enforces it: this file is compiled into it, so nothing outside that process can loosen it. Where a provider states a limit, that limit; where none is stated, our judgement and the reason, so it can be revisited (CLAUDE.md, security.md: rate limiting).",
     "solar": {
       "minSeconds": 86400,
       "stated": null,

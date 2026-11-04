@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Every extension that ships loads, through the core's own loader, with none
 // refused. ADIF Lookup's tests passed while its manifest was refused at load
-// for a field id one character short, and it simply was not there (KI7MT,
-// 2026-10-23): the page code was tested, the manifest never was.
+// for a field id one character short, and it simply was not there:
+// the page code was tested, the manifest never was.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';

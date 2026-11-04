@@ -27,6 +27,5 @@ vendor/
 packages/ui/generated/
 
 # A real station for the gallery (storybook/showcase.js): a backup file the
-# operator puts here for their own lab machine. Never committed (KI7MT,
-# 2026-10-24).
+# operator puts here for their own lab machine. Never committed.
 showcase.local.json

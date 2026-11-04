@@ -67,7 +67,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
   });
 });
 
-describe('a figure\'s own time, page data version 3 (KI7MT, 2026-10-22)', () => {
+describe('a figure\'s own time, page data version 3', () => {
   const timed = { shape: 'figures', figures: [{ label: 'Solar flux', value: '115', observedAt: '2026-10-21T20:00:00Z' }] };
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
 
@@ -83,7 +83,7 @@ describe('a figure\'s own time, page data version 3 (KI7MT, 2026-10-22)', () => 
   });
 });
 
-describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
+describe('the table shape, page data version 2', () => {
   const table = { shape: 'table', columns: ['Band', 'Status', 'Comment'], rows: [['20m', 'Good', 'Reliable daytime DX'], ['6m', 'Sporadic', 'Watch for Es']] };
   const v2 = (sections: unknown[]) => ({ ok: true, data: { version: 2, observedAt: AT, sections } });
 
@@ -109,7 +109,7 @@ describe('the table shape, page data version 2 (KI7MT, 2026-10-20)', () => {
   });
 });
 
-describe('a section\'s heading, page data version 4 (KI7MT, 2026-10-22)', () => {
+describe('a section\'s heading, page data version 4', () => {
   const headed = { shape: 'table', heading: 'Sun', columns: ['Event', 'UTC'], rows: [['Sunrise', '12:03']] };
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
 
@@ -124,7 +124,7 @@ describe('a section\'s heading, page data version 4 (KI7MT, 2026-10-22)', () => 
   });
 });
 
-describe('a table in groups, and a value across its columns, page data version 5 (Watson and KI7MT, 2026-10-22)', () => {
+describe('a table in groups, and a value across its columns, page data version 5', () => {
   const columns = ['Event', 'UTC', 'Your clock'];
   const grouped = { shape: 'table', columns, groups: [
     { heading: 'Sun', rows: [['Sunrise', '13:55', '07:55'], ['Length of day', '10 h 42 min']] },
@@ -158,7 +158,7 @@ describe('a table in groups, and a value across its columns, page data version 5
   });
 });
 
-describe('the map, page data version 6 (KI7MT, 2026-10-22)', () => {
+describe('the map, page data version 6', () => {
   const map = { shape: 'map', sun: { latitude: -11.4, longitude: -158.2 }, marks: [{ label: 'Home', latitude: 43.6, longitude: -116.2 }, { label: 'IO91', latitude: 51.5, longitude: -1 }] };
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
 
@@ -199,7 +199,7 @@ describe('the map, page data version 6 (KI7MT, 2026-10-22)', () => {
   });
 });
 
-describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
+describe('a table\'s filters, page data version 6', () => {
   const table = { shape: 'table', columns: ['Activator', 'Band', 'Mode'], rows: [['KI7MT', '20m', 'CW'], ['N0CALL', '40m', 'SSB']] };
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
   const filters = [{ column: 1, label: 'Band', options: ['40m', '20m'] }, { column: 2, label: 'Mode' }];
@@ -219,7 +219,7 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [{ ...table, sortable: true }]))).toThrowError(/version 5 does not have/);
   });
 
-  it('hides its last columns for filters alone, and refuses what would hide too much (KI7MT, 2026-10-23)', () => {
+  it('hides its last columns for filters alone, and refuses what would hide too much', () => {
     const wide = { shape: 'table', columns: ['Call', 'Band', 'Program'], rows: [['W1AW', '20m', 'United States of America']] };
     const hidden = { ...wide, hidden: 1, filters: [{ column: 2, label: 'Program' }] };
     expect(validatePageAnswer(v(6, [hidden]))).toEqual(v(6, [hidden]));
@@ -255,7 +255,7 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
     expect(() => validatePageAnswer(v(5, [{ ...parks, links: [{ column: 0, kind: 'pota' }] }]))).toThrowError(/version 5/);
   });
 
-  it('carries up-to choices for a column of numbers (KI7MT, 2026-10-23)', () => {
+  it('carries up-to choices for a column of numbers', () => {
     const within = { ...table, filters: [{ column: 1, label: 'Distance', upTo: [{ label: 'Within 50 km', value: 50 }], start: 'Within 50 km' }] };
     expect(validatePageAnswer(v(6, [within]))).toEqual(v(6, [within]));
   });
@@ -301,7 +301,7 @@ describe('a table\'s filters, page data version 6 (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('where a page\'s fields go, page data version 6 (KI7MT, 2026-10-23)', () => {
+describe('where a page\'s fields go, page data version 6', () => {
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
   const note = { shape: 'alert', level: 'info', text: 'x' };
   it('places them once, in version 6 data, and nowhere else', () => {
@@ -312,7 +312,7 @@ describe('where a page\'s fields go, page data version 6 (KI7MT, 2026-10-23)', (
   });
 });
 
-describe('a heading left out of the page\'s contents, page data version 6 (KI7MT, 2026-10-23)', () => {
+describe('a heading left out of the page\'s contents, page data version 6', () => {
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
   const note = { shape: 'alert', level: 'info', text: 'x' };
   it('takes contents: false on a section with a heading, and nothing else', () => {
@@ -323,7 +323,7 @@ describe('a heading left out of the page\'s contents, page data version 6 (KI7MT
   });
 });
 
-describe('plain text, page data version 6 (KI7MT, 2026-10-23)', () => {
+describe('plain text, page data version 6', () => {
   const v = (version: number, sections: unknown[]) => ({ ok: true, data: { version, observedAt: AT, sections } });
   it('carries a sentence with no box, bounded and plain, in version 6 data', () => {
     const note = { shape: 'text', text: 'Times are in UTC.' };

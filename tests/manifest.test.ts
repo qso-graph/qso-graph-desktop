@@ -82,7 +82,7 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
   it('refuses a page with no name, description or refresh interval, naming the page', () => {
     for (const [field, value, message] of [
       ['name', '', /has no name of at most 40/], ['description', ' ', /no description of at most 120/],
-      // One line and two on a tile: every extension conforms (KI7MT, 2026-10-22).
+      // One line and two on a tile: every extension conforms.
       ['name', 'x'.repeat(41), /at most 40/], ['description', 'x'.repeat(121), /at most 120/],
       ['icon', 'Sun!', /icon that is not a plain name/], ['rail', true, /does not know: "rail"/],
       ['refreshSeconds', 30, /no refresh interval between a minute and a day/], ['refreshSeconds', 1.5, /refresh interval/],
@@ -124,7 +124,7 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     }
   });
 
-  it('takes a page\'s word on whether it needs the internet, and works it out from the grants otherwise (KI7MT, 2026-10-23)', () => {
+  it('takes a page\'s word on whether it needs the internet, and works it out from the grants otherwise', () => {
     expect(validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, network: false }] } }, known).contributes.pages[0]).toEqual({ ...PAGE, network: false });
     expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, network: 'yes' }] } }, known)).toThrowError(/needs the internet/);
     // On the Air may fetch, yet its page for activators works offline.
@@ -134,7 +134,7 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     expect(pageNeedsNetwork({ grants: [] }, { network: true })).toBe(true);
   });
 
-  it('puts a page under another of its extension as a tab in that page\'s area, one level deep (KI7MT, 2026-10-23)', () => {
+  it('puts a page under another of its extension as a tab in that page\'s area, one level deep', () => {
     const head = { ...PAGE, id: 'parks', tab: 'Spots' };
     const near = { ...PAGE, id: 'near', under: 'parks', tab: 'Near me' };
     expect(validateManifest({ ...BASE, contributes: { pages: [head, near] } }, known).contributes.pages).toEqual([head, near]);
@@ -150,14 +150,14 @@ describe('P8-contribution: the pages a manifest offers (QGD-HOM-0001)', () => {
     }
   });
 
-  it('takes a destination\'s colour from the core\'s own, by name (KI7MT, 2026-10-23)', () => {
+  it('takes a destination\'s colour from the core\'s own, by name', () => {
     expect(validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, hue: 'green' }] } }, known).contributes.pages[0]).toEqual({ ...PAGE, hue: 'green' });
     for (const hue of ['#00ff00', 'red', 'locations', 3]) {
       expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, hue }] } }, known), String(hue)).toThrowError(/colour/);
     }
   });
 
-  it('keeps an icon name when given, and takes no rail field: every destination is on the rail (KI7MT, 2026-10-23)', () => {
+  it('keeps an icon name when given, and takes no rail field: every destination is on the rail', () => {
     const manifest = validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, icon: 'sun' }] } }, known);
     expect(manifest.contributes.pages[0]).toEqual({ ...PAGE, icon: 'sun' });
     expect(() => validateManifest({ ...BASE, contributes: { pages: [{ ...PAGE, rail: false }] } }, known)).toThrowError(/"rail"/);

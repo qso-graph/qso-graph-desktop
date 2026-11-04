@@ -31,7 +31,7 @@ export const ICONS = [
   // the rail in both directions, so an icon nothing uses fails the run — which
   // is how that one was found.
   //
-  // The icons an extension's page may name (KI7MT, 2026-10-22): a tile on
+  // The icons an extension's page may name: a tile on
   // Home and a rail item are drawn by the core, and the window draws no
   // extension artwork (QGD-SEC-0008), so an extension picks from these. A
   // name not here is drawn as `extension`. Held by tests/icons.test.mjs to

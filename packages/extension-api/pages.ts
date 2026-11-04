@@ -11,33 +11,33 @@
 // extension written against version 1 must still draw when the core grows a
 // version 2, so a new shape is added beside these, never by changing them.
 
-// Version 2 added the table (KI7MT, 2026-10-20). The core draws both: data
+// Version 2 added the table. The core draws both: data
 // written against version 1 has no table and is drawn as it always was, and a
 // table in data that says version 1 is refused, not guessed at.
 //
-// Version 3 let a figure carry the time it was observed (KI7MT, 2026-10-22):
+// Version 3 let a figure carry the time it was observed:
 // a page whose figures come from feeds that update at different times, as
 // Conditions' daily solar flux and three-hourly K index do, says each one's
 // time, which a single page time cannot.
 //
-// Version 4 let a section carry a heading (KI7MT, 2026-10-22): a page is a
+// Version 4 let a section carry a heading: a page is a
 // page now, not a card on Home, and Astro's is Sun, Twilight, Radio depths and
 // Moon, each under its own name.
 //
 // Version 5 let a table come in groups, and a row give one value across its
-// columns (Watson and KI7MT, 2026-10-22): Astro's Sun, Twilight, Radio depths
+// columns: Astro's Sun, Twilight, Radio depths
 // and Moon were four tables, each sizing its own columns, so the times moved
 // left and right down the page. One table in four groups lines them up by
 // construction; and a distance or a phase has no clock, so it is said once
 // rather than printed under UTC and again under Your clock.
 //
-// Version 6 added the map (KI7MT, 2026-10-22): a flat world map with the
+// Version 6 added the map: a flat world map with the
 // night greyed out and the terminator drawn, for Astro's grey line. The
 // extension says where the sun is overhead and which places to mark; the core
 // has the map and works out the night itself, so no extension draws a picture.
 // It also let a table name up to three of its columns as filters, which the
 // core draws as choices above it and applies at once, with no new question
-// (KI7MT, 2026-10-23: Parks On the Air's band and mode), mark where on the
+// (Parks On the Air's band and mode), mark where on the
 // page the core draws the page's fields, so an answer can sit just under the
 // question (Astro's grey line, below its map), leave a section's heading out
 // of the page's contents line (which the core draws at the top of a page of
@@ -81,7 +81,7 @@ export const PAGE_LIMITS = {
   groups: 40,
   marks: 4,
   // A cell holds ADIF's own text whole, up to the 1000 characters QG Storage
-  // allows it (ADIF Lookup, KI7MT 2026-10-23): cut, ADIF would be reworded.
+  // allows it (ADIF Lookup): cut, ADIF would be reworded.
   cell: 1000,
   heading: 60,
   views: 12,
@@ -119,11 +119,11 @@ export type Section = (
   // version 5 the rows may come in named groups instead, and a row of two
   // cells in a wider table gives one value across the columns after its first.
   // `hidden`: how many of the last columns are not drawn, each there for a
-  // filter alone (KI7MT, 2026-10-23: Program and Entity, as POTA narrows its
+  // filter alone (Program and Entity, as POTA narrows its
   // parks, on a table already as wide as a table is drawn).
   // `links`: columns whose cells are a park's or summit's reference, which
   // the core draws as a link to its page from the link register, never a URL
-  // from the extension (QGD-SEC-0009; KI7MT, 2026-10-23, #59).
+  // from the extension (QGD-SEC-0009, #59).
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   // The world, with the night greyed out from where the sun is overhead, and
@@ -135,7 +135,7 @@ export type Section = (
   // at most; without it they are at the top. Version 6.
   | { readonly shape: 'fields' }
   // A sentence or two as plain text, with no box: a note that is not an
-  // alert (KI7MT, 2026-10-23). Version 6.
+  // alert. Version 6.
   | { readonly shape: 'text'; readonly text: string }
 ) & { readonly heading?: string; readonly contents?: false };
 
@@ -144,7 +144,7 @@ export type Row = readonly string[];
 // The order the extension sent a sortable table's rows in: by this column,
 // this way. The core shows it as the table's sort from the start, and sorts
 // that column by the order sent rather than by its text, so a time of day
-// that crosses midnight still sorts newest first (KI7MT, 2026-10-23).
+// that crosses midnight still sorts newest first.
 export interface TableSort {
   readonly column: number;
   readonly direction: 'ascending' | 'descending';
@@ -165,15 +165,15 @@ export interface TableFilter {
   readonly options?: readonly string[];
   // The column's cells may each hold several values, separated by ", ": a
   // row matches when any of them is the one chosen, and the choices are the
-  // single values (KI7MT, 2026-10-23: a park in JP-FS, JP-GM, JP-NI and
+  // single values (a park in JP-FS, JP-GM, JP-NI and
   // JP-TC is a park in JP-FS).
   readonly multiple?: true;
   // Choices that stand for several values, offered first: "My area" for the
-  // operator's locations (KI7MT, 2026-10-23). A row matches one when its
+  // operator's locations. A row matches one when its
   // value, or any of its values, is among them.
   readonly named?: readonly { readonly label: string; readonly values: readonly string[] }[];
   // Choices for a column of numbers that keep each row whose number is at
-  // most a bound, "Within 50 km" (KI7MT, 2026-10-23, for Parks Near Me's
+  // most a bound, "Within 50 km" (for Parks Near Me's
   // distance). A filter with these offers them and All, and no options.
   readonly upTo?: readonly { readonly label: string; readonly value: number }[];
   // The choice the filter starts at, rather than All: one of its options, or

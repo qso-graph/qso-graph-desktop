@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Microsoft's Visual C++ runtime, for the Windows installer (#91). The
 # credential core and its FIPS crypto module import VCRUNTIME140.dll, which a
-# freshly installed Windows 11 does not have. We never ship Microsoft's DLL
-# (KI7MT, 2026-10-25): if it is missing, this downloads Microsoft's own
+# freshly installed Windows 11 does not have. We never ship Microsoft's DLL:
+# if it is missing, this downloads Microsoft's own
 # installer from Microsoft, runs it only if Windows finds it validly signed
 # by Microsoft Corporation, and lets it install the runtime. That is one
 # Windows administrator prompt, once per PC.
@@ -27,7 +27,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 # Get-AuthenticodeSignature from Windows PowerShell's own module, by its path:
 # a PowerShell 7 module path inherited from whoever started the installer
-# would otherwise load the wrong one, or none (#85; found by Codex, #91).
+# would otherwise load the wrong one, or none (#85; found in review, #91).
 Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1')
 
 # Where Windows's loader looks: the 64-bit system folder. From a 32-bit

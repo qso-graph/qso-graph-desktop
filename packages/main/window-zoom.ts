@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// View → Zoom (KI7MT, 2026-10-24): larger or smaller, as every desktop
+// View → Zoom: larger or smaller, as every desktop
 // application offers, but not without end: from 80% to 150% in the steps a
 // browser uses. Ctrl (⌘ on a Mac) and the mouse wheel move by the same
 // steps. Pure, so it is tested without Electron.

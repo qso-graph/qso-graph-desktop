@@ -51,7 +51,7 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
     return () => { ipcRenderer.removeListener('home:reach', handler); };
   }
 }));
-// The Help menu's Troubleshooting (KI7MT, 2026-10-22): main says it was
+// The Help menu's Troubleshooting: main says it was
 // chosen and the window opens the panel. No payload: the signal is all.
 const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins', 'settings', 'export-callsigns', 'import-callsigns', 'area', 'whats-new', 'about', 'updates', 'diagnostics'];
 contextBridge.exposeInMainWorld('menu', Object.freeze({
@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('menu', Object.freeze({
     ipcRenderer.on('menu:troubleshooting', handler);
     return () => { ipcRenderer.removeListener('menu:troubleshooting', handler); };
   },
-  // The Setup menu (KI7MT, 2026-10-22): an action from a fixed list, and
+  // The Setup menu: an action from a fixed list, and
   // nothing else, is passed on (QGD-SEC-0006).
   onSetup: (listener: (action: string) => void) => {
     if (typeof listener !== 'function') return () => undefined;

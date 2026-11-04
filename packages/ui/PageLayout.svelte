@@ -7,7 +7,7 @@
   spacing and the same heading level by using it rather than by matching it.
   One h1 per page, which is also what keeps P3-axe quiet.
 
-  How a page uses the width is one setting here (KI7MT, 2026-10-22):
+  How a page uses the width is one setting here:
   "reading", the default, keeps cards to a readable width for forms and
   settings; "full" lets them fill the window, for Home now and for a log, a
   band map or a spot list later.
@@ -23,7 +23,7 @@
     // The place's hue, for the eyebrow (style.css --hue-*).
     hue?: 'general' | 'callsigns' | 'locations' | 'settings';
     // Shown, or read by a screen reader only, where the rail already says
-    // which page this is (Home: KI7MT, 2026-10-22). One h1 either way.
+    // which page this is (Home). One h1 either way.
     titleShown?: boolean;
     children: Snippet;
   }

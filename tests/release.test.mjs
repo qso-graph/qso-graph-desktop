@@ -137,7 +137,7 @@ describe('the Daily (#157; the Preview until 0.6.0)', () => {
   });
 
   it('is once a day, only when main changed, kept 7 days, and never in the feed', () => {
-    // KI7MT, 2026-11-01: once a day only if main changed; never in Settings.
+    // Once a day only if main changed; never in Settings.
     expect(ci).toMatch(/schedule:\n\s+- cron: '[^']+'/);
     const plan = ci.split('schedule)')[1].split(';;')[0];
     expect(plan, 'a Daily already on this commit stops the day').toContain('main is already the Daily');
@@ -175,7 +175,7 @@ describe('Release publishes a Beta or a Release, and there is no Promote (#157)'
   });
 });
 
-describe('one check and one build per change (KI7MT, 2026-11-02)', () => {
+describe('one check and one build per change', () => {
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
   const release = readFileSync('.github/workflows/release.yml', 'utf8');
   const packages = readFileSync('.github/workflows/packages.yml', 'utf8');
@@ -256,7 +256,7 @@ describe('the feed\'s list of versions (#77)', () => {
   const at = (tagName, isPrerelease, publishedAt = '2026-10-25T00:00:00Z') => ({ tagName, isPrerelease, isDraft: false, isLatest: false, publishedAt });
 
   it('lists the current Release and the one before, and the next release\'s Betas only (#157)', () => {
-    // KI7MT, 2026-11-01: Release lists the current and the previous release;
+    // Release lists the current and the previous release;
     // Beta lists the Betas of the next target and nothing else; no Daily.
     expect(LISTED_STABLE).toBe(2);
     const releases = [at('v0.5.2', false), at('v0.5.1', false), at('v0.5.0', false),

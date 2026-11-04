@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The case of what is typed, set as it is typed (QGD-CNV-0016, KI7MT
-// 2026-10-22): `ki7mt` becomes `KI7MT` in the box. Only case: nothing else is
+// The case of what is typed, set as it is typed (QGD-CNV-0016):
+// `ki7mt` becomes `KI7MT` in the box. Only case: nothing else is
 // changed, and what is typed is still checked and refused with the reason if
 // it is wrong. Names the operator gives (descriptions, location names, notes)
 // and logins are never touched (QGD-CNV-0015).

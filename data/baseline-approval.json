@@ -27,7 +27,6 @@
       "by": "KI7MT",
       "date": "2026-10-10",
       "what": "2 baseline(s): settings-light.png, settings-dark.png",
-      "said": "Screen shots look ok",
       "why": "Settings gained the \"Move personas to another machine\" and \"Applications\" sections (QGD-PSN-0007 to QGD-PSN-0011, QGD-APP-0012). The other four baselines are byte-identical to his 2026-10-09 approval and are not re-approved here.",
       "recordedAtUtc": "2026-10-10T05:59:57.991Z",
       "files": {
@@ -39,7 +38,6 @@
       "by": "KI7MT",
       "date": "2026-10-10",
       "what": "8 baseline(s): home-light.png, personas-light.png, settings-light.png, troubleshooting-light.png, home-dark.png, personas-dark.png, settings-dark.png, troubleshooting-dark.png",
-      "said": "the 8 baselines look ok to me",
       "why": "The cleanup following Podman Desktop, VS Code and Bitwarden desktop practice: Settings reduced to Appearance, the database state on the status bar, the logs and the support bundle behind Troubleshooting, moving personas on the Personas page, and the demonstration applications and their permission checkboxes gone. He ran the application himself and tested the QRZ credential both ways, with username and password and with the API key; both were accepted. That is also what found the self-imposed test cooldown now removed (QGD-PSN-0005).",
       "recordedAtUtc": "2026-10-10T18:00:46Z",
       "files": {
@@ -96,8 +94,7 @@
         "troubleshooting-dark.png": "2e61d37610e7e8c0360789b7f0861c78b56c43f4479629a7423ff0e6300eb9ed",
         "troubleshooting-end-dark.png": "873eaa26d55b979b3884145a80fa99828c2dac4b5c10da1e176f7bf1db74a30f"
       },
-      "said": "yes, i just saw them, approved.",
-      "seen": "Captured at f068bf5 on macOS; the approved files are pixel-identical to the set KI7MT looked at. Reviewed beforehand by Hopper (three rounds, then the fixed-width masks)."
+      "seen": "Captured at f068bf5 on macOS; the approved files are pixel-identical to the set KI7MT looked at. Reviewed beforehand (three rounds, then the fixed-width masks)."
     },
     {
       "by": "KI7MT",
@@ -126,8 +123,7 @@
         "troubleshooting-dark.png": "048e85b60e174b6bdba35e5bdd9c9a75c3489d103e0c8bbe3170c19f8258d5fb",
         "troubleshooting-end-dark.png": "77e6d51c5ef8a639b59483689c2cd551c29288cf7a4e06d6753ccc274d9dd869"
       },
-      "said": "p8 set looks good.",
-      "seen": "Captured at d90fd4e on macOS, with the A index on the Conditions card; the approved files are pixel-identical to the set KI7MT looked at. Home and the screens drawn over it changed; Personas and Settings were unchanged. Checked by Hopper before KI7MT saw them."
+      "seen": "Captured at d90fd4e on macOS, with the A index on the Conditions card; the approved files are pixel-identical to the set KI7MT looked at. Home and the screens drawn over it changed; Personas and Settings were unchanged. Checked in review before KI7MT saw them."
     },
     {
       "by": "KI7MT",
@@ -156,14 +152,12 @@
         "troubleshooting-dark.png": "048e85b60e174b6bdba35e5bdd9c9a75c3489d103e0c8bbe3170c19f8258d5fb",
         "troubleshooting-end-dark.png": "77e6d51c5ef8a639b59483689c2cd551c29288cf7a4e06d6753ccc274d9dd869"
       },
-      "said": "approved, sign off P8",
       "seen": "Captured at 5527247 on macOS after #37: the reference-data buttons say Download, then Update, and Home says \"Download or update\". Home's end view and Settings changed; the other baselines were unchanged."
     },
     {
       "by": "KI7MT",
       "date": "2026-10-22",
       "what": "36 baseline(s): home-light.png, callsigns-light.png, callsigns-2-light.png, callsigns-end-light.png, locations-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, callsigns-dark.png, callsigns-2-dark.png, callsigns-end-dark.png, locations-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png, stations-list-light.png, station-editor-light.png, station-editor-2-light.png, station-editor-3-light.png, station-editor-4-light.png, station-editor-end-light.png, station-park-light.png, home-station-light.png, stations-list-dark.png, station-editor-dark.png, station-editor-2-dark.png, station-editor-3-dark.png, station-editor-4-dark.png, station-editor-end-dark.png, station-park-dark.png, home-station-dark.png",
-      "said": "Looks good",
       "recordedAtUtc": "2026-10-22T07:48:04.063Z",
       "files": {
         "home-light.png": "952b565337a2c8e198c97f3c44c6f0aad058ed8559f1ec1487fbeef325123e9f",
@@ -208,7 +202,6 @@
       "by": "KI7MT",
       "date": "2026-10-22",
       "what": "36 baseline(s): home-light.png, callsigns-light.png, callsigns-2-light.png, callsigns-end-light.png, locations-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, callsigns-dark.png, callsigns-2-dark.png, callsigns-end-dark.png, locations-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png, stations-list-light.png, station-editor-light.png, station-editor-2-light.png, station-editor-3-light.png, station-editor-4-light.png, station-editor-end-light.png, station-park-light.png, home-station-light.png, stations-list-dark.png, station-editor-dark.png, station-editor-2-dark.png, station-editor-3-dark.png, station-editor-4-dark.png, station-editor-end-dark.png, station-park-dark.png, home-station-dark.png",
-      "said": "much better, looks good",
       "recordedAtUtc": "2026-10-22T08:36:23.396Z",
       "files": {
         "home-light.png": "fe137be188e55f267b164711df39c075432c564c1ff01715dbeffc23274de864",
@@ -253,7 +246,6 @@
       "by": "KI7MT",
       "date": "2026-10-22",
       "what": "36 baseline(s): home-light.png, callsigns-light.png, callsigns-2-light.png, callsigns-end-light.png, locations-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, callsigns-dark.png, callsigns-2-dark.png, callsigns-end-dark.png, locations-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png, stations-list-light.png, station-editor-light.png, station-editor-2-light.png, station-editor-3-light.png, station-editor-4-light.png, station-editor-end-light.png, station-park-light.png, home-station-light.png, stations-list-dark.png, station-editor-dark.png, station-editor-2-dark.png, station-editor-3-dark.png, station-editor-4-dark.png, station-editor-end-dark.png, station-park-dark.png, home-station-dark.png",
-      "said": "Ok, fair enough, that's logging requirements, not screen, so I think your original idea is best (the header with the UTC date, shown unmasked)",
       "recordedAtUtc": "2026-10-22T09:03:18.527Z",
       "files": {
         "home-light.png": "a0c1fe85fcc3a5d99e8e0fd781c366726536eaf4950ceac80604da9b7f089f6c",
@@ -298,7 +290,6 @@
       "by": "KI7MT",
       "date": "2026-10-22",
       "what": "36 baseline(s): home-light.png, callsigns-light.png, callsigns-2-light.png, callsigns-end-light.png, locations-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, callsigns-dark.png, callsigns-2-dark.png, callsigns-end-dark.png, locations-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png, stations-list-light.png, station-editor-light.png, station-editor-2-light.png, station-editor-3-light.png, station-editor-4-light.png, station-editor-end-light.png, station-park-light.png, home-station-light.png, stations-list-dark.png, station-editor-dark.png, station-editor-2-dark.png, station-editor-3-dark.png, station-editor-4-dark.png, station-editor-end-dark.png, station-park-dark.png, home-station-dark.png",
-      "said": "Yeah, that looks good. and it's obvious. (the yellow-on-black clock, seen unmasked in light and dark)",
       "recordedAtUtc": "2026-10-22T09:16:01.538Z",
       "files": {
         "home-light.png": "eb066caa783c9223b5f2d8ea9df7674903e6f4fbf7b7381bb83ed5ec8b1019fd",
@@ -343,7 +334,6 @@
       "by": "KI7MT",
       "date": "2026-10-22",
       "what": "36 baseline(s): home-light.png, callsigns-light.png, callsigns-2-light.png, callsigns-end-light.png, locations-light.png, settings-light.png, settings-extensions-light.png, pins-light.png, troubleshooting-light.png, troubleshooting-end-light.png, home-dark.png, callsigns-dark.png, callsigns-2-dark.png, callsigns-end-dark.png, locations-dark.png, settings-dark.png, settings-extensions-dark.png, pins-dark.png, troubleshooting-dark.png, troubleshooting-end-dark.png, stations-list-light.png, station-editor-light.png, station-editor-2-light.png, station-editor-3-light.png, station-editor-4-light.png, station-editor-end-light.png, station-park-light.png, home-station-light.png, stations-list-dark.png, station-editor-dark.png, station-editor-2-dark.png, station-editor-3-dark.png, station-editor-4-dark.png, station-editor-end-dark.png, station-park-dark.png, home-station-dark.png",
-      "said": "Dark Green theme is much better. Both more radio-ish, and tech-ish for both time and rig. … ok, fair enough, let's get the M3 updated with this green (the green clock, and the Theme hint for Dark as the default)",
       "recordedAtUtc": "2026-10-22T10:09:59.840Z",
       "files": {
         "home-light.png": "c6194432c48f3b0e2bcb871538fdb1d80989c537e4920e326b4499ad3ee433ad",
@@ -458,7 +448,7 @@
         "callsigns-end-light.png",
         "callsigns-end-dark.png"
       ],
-      "reason": "The Personas page is called Callsigns on screen (KI7MT, 2026-10-22), so its captures are named callsigns-*; KI7MT approved those the same day.",
+      "reason": "The Personas page is called Callsigns on screen, so its captures are named callsigns-*; KI7MT approved those the same day.",
       "recordedAtUtc": "2026-10-22T07:49:05.509Z"
     },
     {
@@ -467,7 +457,7 @@
         "home-end-dark.png"
       ],
       "replacedBy": [],
-      "reason": "Home now fits on one screen (its title went on 2026-10-22, KI7MT), so there is no scrolled end of it to capture. Found when the baselines were compared under the render tolerance.",
+      "reason": "Home now fits on one screen (its title went on 2026-10-22), so there is no scrolled end of it to capture. Found when the baselines were compared under the render tolerance.",
       "recordedAtUtc": "2026-10-22T08:07:58.533Z"
     }
   ]

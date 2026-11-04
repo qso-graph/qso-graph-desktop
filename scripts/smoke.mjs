@@ -115,7 +115,7 @@ try {
   await page.getByRole('button', { name: 'Make W1AW active', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   // QRZ lookup takes a username and a password, so both fields are shown;
-  // QRZ Logbook takes its API key alone (KI7MT, 2026-11-01: a service shows only
+  // QRZ Logbook takes its API key alone (a service shows only
   // the fields its register entry takes).
   await page.getByLabel('Service', { exact: true }).selectOption('qrz');
   const editRoles = await application.evaluate(({ Menu }) => Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.map(item => item.role));
@@ -165,8 +165,8 @@ try {
   // A secret the operator did not enter is not saved, however it got into the
   // field.
   //
-  // KI7MT, 2026-10-09, after packaged-launch stored a password into an entry
-  // whose Password field the suite had just emptied: a security bug, not a
+  // After packaged-launch stored a password into an entry whose Password
+  // field the suite had just emptied, this was treated as a security bug, not a
   // record entry. It has not been reproduced — twelve runs since, eight of
   // them under load — so this does not test a known mechanism. It tests that
   // the mechanism no longer matters: the save sends what the operator typed in
@@ -350,7 +350,7 @@ try {
   expect(gapBelow, 'Settings must sit at the foot of the rail').toBeLessThan(40);
 
   // P3-theme-override: System, Light and Dark, with Dark the default
-  // (KI7MT, 2026-10-22; it was System until then).
+  // (it was System until then).
   const theme = page.getByLabel('Theme', { exact: true });
   await expect(theme).toHaveValue('dark');
   expect(await theme.locator('option').allTextContents()).toEqual(['System', 'Light', 'Dark']);
@@ -460,7 +460,7 @@ try {
 
   // ---- P4-screens and P4-shell-starts-without-it -------------------------
   // QGD-FRM-0012: storage has no indicator of its own, and there is no
-  // empty data slot until an application holds data (KI7MT, 2026-10-24).
+  // empty data slot until an application holds data.
   // The callsign and the Location are each a way to its page.
   await expect(page.locator('#engine-indicator'), 'the database indicator is gone').toHaveCount(0);
   await expect(page.locator('#data-context'), 'no empty data slot').toHaveCount(0);
@@ -485,7 +485,7 @@ try {
   await expect(page.locator('#reference-datasets')).toBeVisible();
   await page.locator('#close-troubleshooting').click();
   // QGD-REF-0017: Settings says, per resource, whether reference data is
-  // downloaded. Nothing is fetched at start (KI7MT, 2026-10-11), so a new
+  // downloaded. Nothing is fetched at start, so a new
   // profile says "Not downloaded" for each, with Download beside it. Home
   // holds the pinned cards only (QGD-FRM-0011, 2026-10-22); the version and
   // what the application sends are in Settings' About.

@@ -3,9 +3,9 @@
 # Run by hand when KI7MT says so: Actions → Release → Run workflow, from main
 # (or a released version's fix branch, 0.2.x), with the version main says.
 # Merging into main builds nothing and publishes nothing: the pull request's
-# run was the check and the build (KI7MT, 2026-11-02).
+# run was the check and the build.
 #
-# Two kinds (KI7MT, 2026-11-01): a Beta, MAJOR.MINOR.PATCH-beta.N, published
+# Two kinds: a Beta, MAJOR.MINOR.PATCH-beta.N, published
 # as a pre-release and offered on the Beta track; or a Release,
 # MAJOR.MINOR.PATCH, published as Latest and offered to everyone. A Release
 # also closes its milestone and rebuilds apt and dnf (packages.yml), which
@@ -101,7 +101,7 @@ jobs:
             fail "there is no milestone ${target}"
           else
             read -r number _ _ <<< "$milestone"
-            # Its issues do not gate a release (KI7MT, 2026-10-30): a milestone can hold any number,
+            # Its issues do not gate a release: a milestone can hold any number,
             # deferred or won't-fix among them.
             echo "✓ milestone ${target}"
             echo "milestone=${number}" >> "$GITHUB_OUTPUT"
@@ -116,8 +116,8 @@ jobs:
           # what it built is not what main holds. A documentation-only merge
           # since builds nothing (#95), so the commit matched may be an earlier
           # one; it is taken only if every change after it is documentation,
-          # which never touches package.json, CHANGELOG.md or the spec (found by
-          # Codex, #94). The release is tagged on that main commit.
+          # which never touches package.json, CHANGELOG.md or the spec (found
+          # in review, #94). The release is tagged on that main commit.
           built="" run="" best=""
           # main's newest commits, with their trees, newest first.
           gh api "repos/${REPO}/commits?sha=${GITHUB_SHA}&per_page=50" --jq '.[] | "\(.sha) \(.commit.tree.sha)"' > "$RUNNER_TEMP/main-trees"
@@ -130,7 +130,7 @@ jobs:
             [ -n "$at" ] || continue
             [ -z "$best" ] || [ "${at%% *}" -lt "$best" ] || continue
             # Every attempt, the latest result per job: after "re-run failed
-            # jobs" the default list holds only the re-run (found by Codex).
+            # jobs" the default list holds only the re-run (found in review).
             jobs=$(gh api "repos/${REPO}/actions/runs/${id}/jobs?filter=all&per_page=100" --paginate \
               --jq '.jobs[]' | jq -s '[group_by(.name)[] | max_by(.run_attempt) | select(.conclusion == "success") | .name] | map(select(. == "ci-all-green" or startswith("package ("))) | length')
             [ "$jobs" = 5 ] || continue
@@ -151,7 +151,7 @@ jobs:
             echo "✓ CI is all green and packaged ${GITHUB_SHA} (run ${run})"
           else
             # At most 300 files are listed; a list that may be partial is not
-            # documentation-only (Codex, #94).
+            # documentation-only (found in review, #94).
             gh api "repos/${REPO}/compare/${built}...${GITHUB_SHA}" > "$RUNNER_TEMP/compare.json"
             after=""
             [ "$(jq '.files | length' "$RUNNER_TEMP/compare.json")" -lt 300 ] \
@@ -272,7 +272,7 @@ jobs:
           cd ..
           # The CI run these files came from, the one the checks chose, for
           # one line saying its checks passed on every platform rather than a
-          # list of every test (KI7MT, 2026-10-29). CI runs the fast suites and
+          # list of every test. CI runs the fast suites and
           # the window and package ones; the rest run before a sign-off
           # (make verify), so the line says CI's checks, and no more.
           ci_run=""
@@ -355,7 +355,7 @@ jobs:
   # A Release only (#157): apt and dnf, and the Windows installer at its
   # versioned address for the Microsoft Store, all of which take Releases only.
   # Promote did this until 0.6.0. Homebrew's cask is bumped after it, by
-  # KI7MT's qg-release (qso-graph-devel), Releases only.
+  # KI7MT's release tool, Releases only.
   packages:
     name: packages.qso-graph.net
     needs: [checks, publish]

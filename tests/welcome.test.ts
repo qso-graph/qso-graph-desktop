@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Home's welcome: the getting-started steps (KI7MT, 2026-10-22), each ticked
+// Home's welcome: the getting-started steps, each ticked
 // when done and all of them gone once every one is.
 import { describe, expect, it } from 'vitest';
 import { welcomeSteps } from '../packages/renderer/welcome.js';
@@ -28,9 +28,9 @@ describe('the welcome\'s getting-started steps', () => {
 
   it('ticks each as it is done, and goes once every step that is not optional is', () => {
     expect(welcomeSteps(true, storage(1, false))?.map(step => step.done)).toEqual([true, true, false, false, false, false]);
-    // Choosing what to add is done once an extension is on (KI7MT, 2026-10-23).
+    // Choosing what to add is done once an extension is on.
     expect(welcomeSteps(true, storage(2, true))?.map(step => step.done)).toEqual([true, true, false, true, false, false]);
-    // POTA and SOTA never downloaded: the list still goes (KI7MT, 2026-10-22).
+    // POTA and SOTA never downloaded: the list still goes.
     expect(welcomeSteps(true, storage(2, true), true)).toEqual([]);
   });
 });

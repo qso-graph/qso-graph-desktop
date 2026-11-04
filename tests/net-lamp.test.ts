@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The Internet lamp (QGD-HOM-0005; KI7MT and Watson, 2026-10-23): it never
+// The Internet lamp (QGD-HOM-0005): it never
 // looks more certain than what it knows.
 import { describe, expect, it } from 'vitest';
 import { lampState, lampWords } from '../packages/ui/net-lamp.js';

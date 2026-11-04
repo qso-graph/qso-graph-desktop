@@ -2,7 +2,7 @@
 // Whether a change is documentation only (#95), so CI runs the citation check
 // alone and builds nothing. The changed files come one per line on standard
 // input, a renamed file by its old name as well as its new one (moving code
-// into docs/ is not documentation; found by Codex, #92). Prints true or false.
+// into docs/ is not documentation; found in review, #92). Prints true or false.
 //
 // The spec and the RVM generated from it are documentation: the application
 // does not ship them, and the citations job checks both. Not on the list, on

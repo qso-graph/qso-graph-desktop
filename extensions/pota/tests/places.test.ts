@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Program and Entity, the filters POTA's own park list starts with (KI7MT,
-// 2026-10-23), carried in columns the core does not draw.
+// Program and Entity, the filters POTA's own park list starts with,
+// carried in columns the core does not draw.
 import { describe, expect, it } from 'vitest';
 import { placeCells, placesBy, withPlaces } from '../src/places.js';
 
@@ -18,7 +18,7 @@ describe('Program and Entity', () => {
     expect(placeCells(['ZZ-QQ'], places)).toEqual({ program: '—', entity: '—' });
   });
 
-  it('adds a column, hidden, with its filter, only where it offers two choices or more (KI7MT, 2026-10-23)', () => {
+  it('adds a column, hidden, with its filter, only where it offers two choices or more', () => {
     const rows = [['A'], ['B'], ['C']];
     // Idaho, Alaska and nowhere: one program, two entities, so Entity alone.
     const added = withPlaces(rows, [placeCells(['US-ID'], places), placeCells(['US-AK'], places), placeCells(['ZZ-QQ'], places)]);
@@ -45,7 +45,7 @@ describe('Program and Entity', () => {
   });
 });
 
-describe('only the levels a page wants (KI7MT, 2026-10-23)', () => {
+describe('only the levels a page wants', () => {
   it('gives Spots Entity alone, the DXCC entity a chaser counts', () => {
     const added = withPlaces([['A'], ['B']], [placeCells(['US-ID'], places), placeCells(['IT-LZ'], places)], {}, ['entity']);
     expect(added.columns).toEqual(['Entity']);

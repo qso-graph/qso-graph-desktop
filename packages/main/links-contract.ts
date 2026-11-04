@@ -13,8 +13,8 @@ export type DocumentName = typeof DOCUMENTS[number];
 export const REFERENCE_KINDS = ['pota', 'sota'] as const;
 export type ReferenceKind = typeof REFERENCE_KINDS[number];
 // The programs and standards this product speaks, each to its own home page
-// (KI7MT, 2026-10-22: Home's welcome names them).
-// `releases` is where to get the application (KI7MT, 2026-10-22): the
+// (Home's welcome names them).
+// `releases` is where to get the application: the
 // Releases page, now that the Preview and releases are published there.
 // `vcruntime` is Microsoft's page for its Visual C++ runtime, for a Windows
 // PC that lacks it (#91).

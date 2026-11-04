@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  A pinned page on Home, as GitHub draws a pinned repository (KI7MT,
-  2026-10-22): the icon, the name on one line and the description on two,
+  A pinned page on Home, as GitHub draws a pinned repository:
+  the icon, the name on one line and the description on two,
   the same size whatever extension it comes from. Drawn from the manifest
   alone, so nothing on Home is fetched. Clicking it opens the page.
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Where the window opens (KI7MT, 2026-10-24): where it was when the
+// Where the window opens: where it was when the
 // application last closed, its size and whether it was maximized, as long as
 // that place is still on a screen. A monitor unplugged, or a laptop away from
 // its desk, and it opens at its default size on the main screen instead of

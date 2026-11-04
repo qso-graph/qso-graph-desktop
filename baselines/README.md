@@ -20,7 +20,7 @@ Approving is a separate command on purpose. A changed screen must not be able
 to become the expected screen by being run past.
 
 The comparison allows **two shades per colour channel** (`RENDER_TOLERANCE` in
-`scripts/png.mjs`) and nothing more (KI7MT, 2026-10-22). The same Mac drew drop
+`scripts/png.mjs`) and nothing more. The same Mac drew drop
 shadows one shade apart over ssh and in a logged-in session, and macOS updates,
 displays and machines move them too: variables without end, none of them the
 product. Two shades absorbs that, and nothing a person would call a change:

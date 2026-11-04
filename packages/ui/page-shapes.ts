@@ -66,7 +66,7 @@ export function filterOptions(section: Extract<Section, { shape: 'table' }>, fil
   return [...seen];
 }
 
-// What a filter offers given the others' choices (KI7MT, 2026-10-23: Program
+// What a filter offers given the others' choices (Program
 // United States should leave Entity with the United States' entities): its
 // options that some row still has once every other filter is applied, as
 // POTA's own park list narrows. The filter's own choice stays offered even
@@ -89,7 +89,7 @@ export function offeredOptions(
 
 // A list cell as drawn: at most three values, then how many more, so one
 // park in sixteen states (the Lewis and Clark trail) does not widen its
-// column for every other row (KI7MT, 2026-10-23). Only how it is drawn: the
+// column for every other row. Only how it is drawn: the
 // cell and what its filter matches are whole, and the whole list is its
 // title. Undefined when the cell is short enough to draw as it is.
 export const LIST_SHOWN = 3;
@@ -107,7 +107,7 @@ export const valuesOf = (cell: string) => cell.split(',').map(value => value.tri
 export function filteredGroups(section: Extract<Section, { shape: 'table' }>, chosen: Readonly<Record<number, string>>) {
   // Only a choice the table still offers: a refresh can bring a table whose
   // columns or filters differ, and a choice left over from the old one would
-  // hide every row with no filter drawn to clear it (Codex review, 2026-10-23).
+  // hide every row with no filter drawn to clear it (found in review).
   const offered = new Set((section.filters ?? []).map(filter => filter.column));
   const several = new Set((section.filters ?? []).filter(filter => filter.multiple).map(filter => filter.column));
   // A named choice stands for its values (My area for the operator's
@@ -119,7 +119,7 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
     section.filters?.find(filter => filter.column === column)?.upTo?.find(choice => choice.label === value)?.value;
   const active = Object.entries(chosen).filter(([column, value]) => value !== '' && offered.has(Number(column)));
   // Each group keeps its place in the table as sent (`at`), which its
-  // contents link names: two groups may share a heading (Codex review).
+  // contents link names: two groups may share a heading (found in review).
   const placed = tableGroups(section).map((group, at) => ({ ...group, at }));
   if (active.length === 0) return placed;
   return placed
@@ -173,7 +173,7 @@ export function sortedGroups<G extends { readonly rows: readonly (readonly strin
     const cells = full.map(row => row[sort.column] ?? '');
     // The options' order only when every cell is one of them: a filter that
     // offers some values (Parks Near Me's "fewer than 10") must not tie every
-    // other one (KI7MT, 2026-10-23: activations would not sort).
+    // other one (activations would not sort).
     const rank = options && cells.every(cell => options.includes(cell)) ? new Map(options.map((option, at) => [option, at])) : undefined;
     // A column of numbers with a few words in it ("none", "—") sorts the
     // numbers as numbers, the words before them.

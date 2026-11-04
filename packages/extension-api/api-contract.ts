@@ -37,18 +37,18 @@ export type ExtensionRequest =
   // (QGD-STN-0003).
   | { readonly kind: 'station.active' }
   // Search ADIF's own definitions, its fields and every enumeration's values,
-  // as the frame loaded them (KI7MT, 2026-10-22: ADIF Lookup). The frame
+  // as the frame loaded them (ADIF Lookup). The frame
   // searches reference.sqlite and answers with ADIF's text; the extension
   // never opens a store (QGD-APP-0009).
   | { readonly kind: 'adif.search'; readonly query: string }
   // ADIF's bands with the edges ADIF gives each, lowest first, so an
-  // extension names a frequency's band by ADIF's own table (KI7MT, 2026-10-23:
+  // extension names a frequency's band by ADIF's own table (for
   // Parks On the Air's band filter). Answered from reference.sqlite.
   | { readonly kind: 'adif.bands' }
   // A whole enumeration by its name, as DXCC_Entity_Code (#58): every value
   // with ADIF's own columns. The list is null when ADIF has none of that name.
   | { readonly kind: 'adif.list'; readonly name: string }
-  // My Area (KI7MT, 2026-10-23): the POTA locations the operator works in,
+  // My Area: the POTA locations the operator works in,
   // as US-ID, or the active Location's own where they have chosen none. It
   // says roughly where the operator is, so it needs station:active.
   | { readonly kind: 'area.get' }
@@ -61,8 +61,8 @@ export type ExtensionRequest =
   // is, so it needs station:active.
   | { readonly kind: 'pota.near' }
   // Each POTA location's program and entity by name, from reference data:
-  // the Program and Entity POTA's own park list narrows by (KI7MT,
-  // 2026-10-23). At most 1000 location codes.
+  // the Program and Entity POTA's own park list narrows by.
+  // At most 1000 location codes.
   | { readonly kind: 'pota.places'; readonly locations: readonly string[] }
   // Fetch from a registered source. The extension names the source; the URL
   // comes from the register and the connection is the credential core's
@@ -314,7 +314,7 @@ export function validateRequest(value: unknown): ExtensionRequest {
   const { kind } = value;
   if (typeof kind !== 'string') throw new RequestError('a request has no kind', 'kind');
   // A request is exactly its kind's fields: anything more is refused, not
-  // dropped (QGD-SEC-0006, found by Turing in review). An own "__proto__" from
+  // dropped (QGD-SEC-0006, found in review). An own "__proto__" from
   // a parsed message is a field like any other here, and is refused.
   const fields = FIELDS[kind];
   if (fields) {

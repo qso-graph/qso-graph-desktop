@@ -78,8 +78,8 @@ pub struct LookupResult {
 #[derive(Default, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "addon", napi_derive::napi(object))]
 pub struct ProviderRef {
-    // Whether a username is saved, never the username (KI7MT, 2026-10-23:
-    // "we don't store anything that's not publicly available"): a username
+    // Whether a username is saved, never the username (nothing is stored
+    // that is not publicly available): a username
     // can be an email address, and it lives in the Keychain entry with the
     // secret. An index an earlier build wrote held the username itself; it is
     // read as having one, and the file is written again without it (load).
@@ -101,7 +101,7 @@ pub struct ProviderRef {
     pub saved_at: Option<String>,
 }
 
-// One of the operator's callsigns (KI7MT, 2026-10-22: "persona" is retired).
+// One of the operator's callsigns ("persona" is retired).
 // `id` is permanent and random, and is what everything else keys on: the
 // Keychain entries, the preferences, the active callsign and the default
 // location. So the call and the description can both be changed, and neither
@@ -492,8 +492,8 @@ impl Store {
 
     // Everything an export carries: the callsigns, which services each one
     // uses, the preferences, and the Locations it is handed. No username and no
-    // secret (KI7MT, 2026-10-23: "the Callsigns and Locations are what we can
-    // manage. Users still manage their credentials"): nothing here reads the
+    // secret (the Callsigns and Locations are what this can manage; the
+    // operator still manages their credentials): nothing here reads the
     // Keychain, and a service's record goes as having no secret saved, which
     // on the other computer is true until the operator enters it.
     // The parts the operator ticked (#64): the callsigns with their Locations
@@ -567,7 +567,7 @@ impl Store {
     // ordering that makes a Keychain and a file atomic together; what this
     // guarantees is that the index never half-changes.
     //
-    // A restore onto a clean slate (KI7MT, 2026-10-23): the callsigns here,
+    // A restore onto a clean slate: the callsigns here,
     // with every Keychain entry each one has, are removed first when the
     // operator says so, and refused otherwise, so nothing is ever merged. No
     // secret is written: a file from before this release that holds some has
@@ -1237,7 +1237,7 @@ mod tests {
         assert!(subject(&format!("{id}:qrz"), "qrz").is_err());
         assert!(subject("", "qrz").is_err());
     }
-    // QGD-INV-0004 (KI7MT, 2026-10-23): no username in the profile file. One
+    // QGD-INV-0004: no username in the profile file. One
     // an earlier build wrote there is read as "a username is saved" and the
     // file is written again at once without it.
     #[test]

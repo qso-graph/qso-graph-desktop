@@ -2,8 +2,8 @@
 <!--
   What's new (QGD-FRM-0016), opened only when asked for: from the strip Home
   shows after an update, Help → What's New, or Home's welcome. It replaced the
-  welcome window that opened by itself at every start (KI7MT, 2026-10-24: "the
-  pop-up gets in the way"). The notes are CHANGELOG.md's, drawn as text: a
+  welcome window that opened by itself at every start, which got in the
+  way. The notes are CHANGELOG.md's, drawn as text: a
   note can be bold or code, and never markup.
 -->
 <script lang="ts">

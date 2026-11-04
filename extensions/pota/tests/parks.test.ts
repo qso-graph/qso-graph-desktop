@@ -45,7 +45,7 @@ describe('Parks On the Air', () => {
     expect(answer.data.sections[0]).toEqual({ shape: 'figures', figures: [{ label: 'Activators', value: '3' }, { label: 'Parks', value: '3' }] });
   });
 
-  it('counts activators, not spots: one activator at two parks is one (#57, Turing)', () => {
+  it('counts activators, not spots: one activator at two parks is one (#57)', () => {
     const at = new Date('2026-10-11T18:50:00Z');
     const spots = [{ activator: 'W1AW', reference: 'US-0001', kHz: 14062, at }, { activator: 'W1AW', reference: 'US-0002', kHz: 14062, at }];
     const answer = validatePageAnswer(parksPage(spots, NOW, BANDS));
@@ -97,7 +97,7 @@ describe('Parks On the Air', () => {
   });
 });
 
-describe('odd values in POTA\'s feed (Codex review, 2026-10-23)', () => {
+describe('odd values in POTA\'s feed (found in review)', () => {
   const spot = (fields: Record<string, unknown>) => JSON.stringify([{ activator: 'KI7MT', reference: 'US-0001', frequency: '14062', mode: 'CW', spotTime: '2026-10-11T18:52:10', ...fields }]);
   it('leaves out a time that does not exist rather than rolling it over', () => {
     expect(parseSpots(spot({ spotTime: '2026-02-30T12:00:00' }))).toEqual([]);
@@ -112,7 +112,7 @@ describe('odd values in POTA\'s feed (Codex review, 2026-10-23)', () => {
   });
 });
 
-describe('long names and parks in several locations (KI7MT, 2026-10-23)', () => {
+describe('long names and parks in several locations', () => {
   it('keeps a long name whole, and offers each location of a park in several on its own', () => {
     const long = 'Contreforts septentrionaux du Causse d\'Aumelas Biological Reserve';
     const spots = parseSpots(JSON.stringify([
@@ -128,7 +128,7 @@ describe('long names and parks in several locations (KI7MT, 2026-10-23)', () => 
   });
 });
 
-describe('My area (KI7MT, 2026-10-23)', () => {
+describe('My area', () => {
   it('offers My area first when the operator has one, and starts on All either way', () => {
     const withArea = validatePageAnswer(parksPage(parseSpots(body)!, NOW, BANDS, ['US-ID', 'GB-ENG']));
     const table = withArea.ok ? withArea.data.sections.find(section => section.shape === 'table') : undefined;
@@ -141,7 +141,7 @@ describe('My area (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('Spots narrows by Entity, the DXCC entity a chaser counts (KI7MT, 2026-10-23)', () => {
+describe('Spots narrows by Entity, the DXCC entity a chaser counts', () => {
   const places = [
     { location: 'US-ID', program: 'United States of America', entity: 'United States of America' },
     { location: 'GB-ENG', program: 'Great Britain', entity: 'England' },

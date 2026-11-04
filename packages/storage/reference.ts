@@ -299,7 +299,7 @@ export class Reference {
 
   // `only` fetches one source and leaves the other as its cache has it: each
   // resource is loaded or updated by its own control, so someone who never
-  // hunts parks never downloads POTA's lists (KI7MT, 2026-10-11).
+  // hunts parks never downloads POTA's lists.
   refresh(options: RefreshOptions = {}): Promise<RefreshOutcome> {
     return this.#refreshes.run(() => this.#refresh(options));
   }

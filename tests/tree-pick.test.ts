@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The tick-box tree's logic (My Area, KI7MT, 2026-10-23): POTA's programs,
+// The tick-box tree's logic (My Area): POTA's programs,
 // their entities and their locations, any of them chosen.
 import { describe, expect, it } from 'vitest';
 import { holdsChoice, labelOf, toggled, visibleNodes, type PickNode } from '../packages/ui/tree-pick.js';

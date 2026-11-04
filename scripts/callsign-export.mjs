@@ -7,7 +7,7 @@
 // being proved is that callsigns and Locations go into one plain file and
 // arrive in a second profile that had none, and that no secret does: the
 // export reads none from the Keychain and the restore writes none to it
-// (KI7MT, 2026-10-23: "Users still manage their credentials"). A round-trip
+// (the operator still manages their credentials). A round-trip
 // through a mock proves nothing about the Keychain.
 //
 // Two profile directories stand in for two machines. They share one Keychain,
@@ -78,8 +78,8 @@ try {
   }
 
   // ---- P6-export-public ------------------------------------------------
-  // KI7MT, 2026-10-23: "we don't store anything that's not publicly
-  // available", and a login never moves. A backup is a plain file of what is
+  // Nothing is stored that is not publicly available, and a login never
+  // moves. A backup is a plain file of what is
   // public, so it is searched for every private value that went in, and none
   // may be there: no secret, and no username either (Club Log's is an email
   // address).
@@ -123,7 +123,7 @@ try {
 
   // ---- P6-import-all-or-none ------------------------------------------
   {
-    // A clean slate, never a merge (KI7MT, 2026-10-23).
+    // A clean slate, never a merge.
     const second = to.inspectBackup(file);
     check(second.here.length === 2, 'A restore onto a machine that has callsigns names them');
     refusal(() => to.applyBackup(file, false), 'A restore onto callsigns not said to be removed');

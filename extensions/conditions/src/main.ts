@@ -2,8 +2,8 @@
 // Conditions: QSO Graph Desktop's built-in extension for solar flux, the K
 // and A indices, NOAA's space weather scales and the band outlook
 // (QGD-HOM-0008). Its own extension, so its switch in Settings turns off
-// Conditions and nothing else (KI7MT, 2026-10-23: "On switch, the lights go
-// out"); it was On the Air's first page until then.
+// Conditions and nothing else, all of it at once; it was On the Air's first
+// page until then.
 //
 // It runs in the extension host (QGD-APP-0015) and reaches the core only
 // through `context` (QGD-APP-0002): NOAA's data is fetched by the core from

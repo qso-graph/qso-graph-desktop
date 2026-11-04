@@ -5,7 +5,7 @@
 //
 // The window asks for the state, says which extension page is open, and sets
 // the pins. Home itself shows tiles drawn from the manifests and fetches
-// nothing (KI7MT, 2026-10-22); the open page's data arrives unasked, pushed as
+// nothing; the open page's data arrives unasked, pushed as
 // the broker gets it, so the window never polls.
 import { HINT_MAX, INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from '../extension-api/inputs.js';
 import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
@@ -40,7 +40,7 @@ export interface AvailablePage {
   // Whether it needs the internet, so the window can say it is offline.
   readonly network: boolean;
   // Its area: the key of the area's first page, its own when it is under
-  // none; and the name on its tab (KI7MT, 2026-10-23).
+  // none; and the name on its tab.
   readonly area: string;
   readonly tab: string;
   // Its colour on the rail, as a theme token: general, callsigns, locations
@@ -72,7 +72,7 @@ export interface HomeState {
   readonly notice: HostNotice | null;
   // Whether the last request a page made reached its source: true, false
   // when it could not connect, null when none has been made since the
-  // network came up (KI7MT, 2026-10-23: the Internet lamp).
+  // network came up (the Internet lamp).
   readonly reached: boolean | null;
 }
 

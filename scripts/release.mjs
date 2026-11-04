@@ -46,7 +46,7 @@ export function isRelease(version) {
   return RELEASE.test(version);
 }
 
-// A Beta (#157, KI7MT 2026-11-01): the release it leads to and its number,
+// A Beta (#157): the release it leads to and its number,
 // 0.6.0-beta.1. Published as a pre-release, offered on the Beta track only.
 const BETA = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.([1-9]\d{0,2})$/;
 export function isBeta(version) {
@@ -76,8 +76,8 @@ export function notes(changelog, version) {
 }
 
 // "Quick downloads" at the top of a release's page: the file for each
-// computer, so nobody reads a list of thirteen to find theirs (KI7MT,
-// 2026-10-29, after WSJT-X's release pages). Windows first, then Linux, then
+// computer, so nobody reads a list of thirteen to find theirs
+// (after WSJT-X's release pages). Windows first, then Linux, then
 // macOS. Only the files the release has are listed, from their own names.
 const DOWNLOAD = 'https://github.com/qso-graph/qso-graph-desktop/releases/download';
 const INSTALL = 'https://github.com/qso-graph/qso-graph-desktop/blob/main/guide/install.md';
@@ -200,8 +200,8 @@ export function withEntry(feed, track, entry) {
 }
 
 // The feed's list (#77, #157): what Choose a version… offers. On the Release
-// track ('stable'), the current release and the one before, and nothing older
-// (KI7MT, 2026-11-01); going back is to a release only (QGD-FRM-0020). On the
+// track ('stable'), the current release and the one before, and nothing older;
+// going back is to a release only (QGD-FRM-0020). On the
 // Beta track ('early'), the Betas of the next release and nothing else: once it
 // is out they leave the list. A Daily is never listed. The feed stays small
 // (data/update-sources.json's maxFeedBytes): about 1.3 KB an entry.

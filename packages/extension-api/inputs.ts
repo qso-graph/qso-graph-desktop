@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The typed fields a page may ask the operator for (KI7MT, 2026-10-22): a
+// The typed fields a page may ask the operator for: a
 // grid, a callsign or a short text, at most four to a page. The core draws
 // each field and checks what is typed, by its kind, before the extension is
 // given it; an extension never receives a value the core refused, and never
@@ -18,7 +18,7 @@ export interface PageInput {
   // For text: the longest value, at most TEXT_MAX.
   readonly max?: number;
   // What the field is for, said under it, at most HINT_MAX characters
-  // (KI7MT, 2026-10-23: a box marked "DX grid" did not say what it did).
+  // (a box marked "DX grid" did not say what it did).
   // Without one, the core says what the kind wants.
   readonly hint?: string;
 }

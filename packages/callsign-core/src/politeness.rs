@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// How often each source may be asked (#79, KI7MT 2026-10-26), enforced here.
+// How often each source may be asked (#79), enforced here.
 //
 // Every reference and extension request goes through this process (D-18,
 // D-31), so this is the one place a floor cannot be stepped around: not by a
@@ -267,7 +267,7 @@ mod tests {
 
     // Two requests to one source can be out at once: the request timeout (120 s) is longer than the
     // shortest floor (POTA spots, 60 s). Whichever answers last must not shorten a wait already in
-    // force (found by Hopper in the MCP fleet's limiter, 2026-10-27, and present here too).
+    // force (found in review of another rate limiter of the same design, and present here too).
     #[test]
     fn a_later_answer_never_shortens_a_wait_in_force() {
         let mut ledger = Ledger::default();

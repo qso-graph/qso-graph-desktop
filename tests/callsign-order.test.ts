@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // #70: the Callsigns page lists the active callsign first, then the rest by
-// start date, newest first (KI7MT, 2026-10-24).
+// start date, newest first.
 import { describe, expect, it } from 'vitest';
 import { callsignDates, isExpired, orderCallsigns } from '../packages/renderer/callsign-order.js';
 

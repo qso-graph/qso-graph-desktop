@@ -30,7 +30,7 @@ export async function parksToActivate(reference: Store<typeof referenceSchema>, 
         eq(potaParkLocation.reference, potaPark.reference), inArray(potaParkLocation.locationDesc, [...locations]))))
     ))
     // Every matching park, ranked below: a limit here cut by reference
-    // before the ranking (#57, found by Turing: the nearest park, last of
+    // before the ranking (#57, found in review: the nearest park, last of
     // 20,001 by reference, was never seen). Ten of POTA's largest locations
     // are some 20,000 parks, which the ranking handles in milliseconds.
     .all());
@@ -52,14 +52,14 @@ function nearest<T extends { reference: string; latitude: number; longitude: num
 }
 
 // The parks nearest a place, from POTA's park list alone, so Near Me works
-// with no network and nothing downloaded beyond POTA's parks (KI7MT,
-// 2026-10-23: "Near Me can't rely on internet"). Active, not POTA's test
+// with no network and nothing downloaded beyond POTA's parks (Near Me cannot
+// rely on the internet). Active, not POTA's test
 // park, and with a position to measure from (QGD-REF-0011). Within NEAR_KM,
 // nearest first by great-circle distance, at most NEAR_PARKS. The database
 // is asked only for the box around that circle, so the exact measure runs
 // over hundreds of parks rather than all 97,000 (a Raspberry Pi, #63).
 export async function parksNear(reference: Store<typeof referenceSchema>, latitude: number, longitude: number, km: number = NEAR_KM): Promise<NearPark[]> {
-  // The box around the circle on the sphere (#57, found by Turing: a flat
+  // The box around the circle on the sphere (#57, found in review: a flat
   // degree of 111.2 km, and a longitude span of km / cos, both fell short,
   // so parks just inside 300 km were left out, more so toward the poles).
   // The radius as an angle, a hair larger so a park on the edge is measured.

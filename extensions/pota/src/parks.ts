@@ -2,7 +2,7 @@
 // Parks On the Air (QGD-HOM-0011): who is activating a POTA park now, from
 // POTA's own spot list. The activator, the park with its name, the frequency,
 // its band, the mode, and when they were last spotted, newest first, with
-// the band and the mode to narrow it by (KI7MT, 2026-10-23).
+// the band and the mode to narrow it by.
 //
 // A spot's band is ADIF's: the band whose edges, as ADIF gives them, hold its
 // frequency. The mode is POTA's, as POTA spells it.
@@ -40,8 +40,8 @@ function plain(value: unknown, limit: number): string | undefined {
 }
 
 // A frequency in kHz as POTA writes one: digits, perhaps a decimal part.
-// Number() alone takes 0x36ee and 1e4 as frequencies (Codex review,
-// 2026-10-23); checked part by part, as the security lint asks of a pattern.
+// Number() alone takes 0x36ee and 1e4 as frequencies (found in review);
+// checked part by part, as the security lint asks of a pattern.
 const DIGITS = /^\d{1,9}$/;
 function frequencyOf(value: unknown): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
@@ -52,7 +52,7 @@ function frequencyOf(value: unknown): number {
 }
 
 // A time that exists. Date rolls 30 February over to 2 March, so the time
-// is written back out and compared with what was sent (Codex review).
+// is written back out and compared with what was sent (found in review).
 function timeOf(value: unknown): Date | undefined {
   if (typeof value !== 'string' || !TIME.test(value)) return undefined;
   const at = new Date(`${value}Z`);
@@ -74,8 +74,8 @@ export function parseSpots(body: string): Spot[] | undefined {
     // POTA's times carry no zone and are UTC.
     const at = timeOf(row.spotTime);
     if (!CALL.test(activator) || !REFERENCE.test(reference) || !Number.isFinite(kHz) || kHz <= 0 || !at || Number.isNaN(at.getTime())) continue;
-    // Whole, as POTA names them (KI7MT, 2026-10-23: "Contreforts
-    // septentrionaux du Causse d'Aumelas Biological R…" was cut short); the
+    // Whole, as POTA names them ("Contreforts septentrionaux du Causse
+    // d'Aumelas Biological R…" was cut short); the
     // bound is only a bound, far past any name POTA gives.
     const park = plain(row.name, 300);
     const location = plain(typeof row.locationDesc === 'string' ? row.locationDesc.split(',').map(part => part.trim()).filter(Boolean).join(', ') : undefined, 300);
@@ -117,15 +117,14 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   }
   const shown = newest.slice(0, SHOWN);
   const parks = new Set(newest.map(spot => spot.reference)).size;
-  // Each call once, however many parks it is spotted at (#57, found by
-  // Turing: a two-park activation counted two activators). A call is as
+  // Each call once, however many parks it is spotted at (#57, found in
+  // review: a two-park activation counted two activators). A call is as
   // spotted: KI7MT and KI7MT/M are counted apart, as they are listed.
   const activators = new Set(newest.map(spot => spot.activator)).size;
   const byPlace = placesBy(places);
   const drawn = shown.map(spot => [
     spot.activator,
-    // The reference and the park's name apart, which reads more easily
-    // (KI7MT, 2026-10-23).
+    // The reference and the park's name apart, which reads more easily.
     spot.reference,
     spot.park ?? NO_NAME,
     spot.location ?? NO_NAME,
@@ -135,7 +134,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
     `${two(spot.at.getUTCHours())}:${two(spot.at.getUTCMinutes())}`
   ]);
   // Entity, not drawn, for its filter alone (places.ts): the DXCC entity a
-  // chaser counts. Program would repeat it here (KI7MT, 2026-10-23).
+  // chaser counts. Program would repeat it here.
   const located = withPlaces(drawn, byPlace.size === 0 ? [] : shown.map(spot =>
     placeCells((spot.location ?? '').split(',').map(value => value.trim()).filter(Boolean), byPlace)), {}, ['entity']);
   const rows = located.rows;
@@ -145,7 +144,7 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
   const onBands = present(5);
   const bandOptions = [...bands.map(band => band.band).filter(band => onBands.has(band)), ...(onBands.has(NO_BAND) ? [NO_BAND] : [])].slice(0, 100);
   const modeOptions = [...present(6)].sort((a, b) => a.localeCompare(b)).slice(0, 100);
-  // The locations on the air, alphabetically: "show me Idaho" (KI7MT, 2026-10-23).
+  // The locations on the air, alphabetically: "show me Idaho".
   // Each location on its own, so a park in several is found under each.
   const locationOptions = [...new Set(rows.flatMap(row => row[3]!.split(',').map(value => value.trim()).filter(Boolean)))]
     .sort((a, b) => a.localeCompare(b)).slice(0, 100);
@@ -160,15 +159,15 @@ export function parksPage(spots: readonly Spot[], now: Date, bands: readonly Adi
       // Each park's reference opens its page on pota.app (#59).
       links: [{ column: 1, kind: 'pota' }],
       // Sent newest first by when spotted, which the core shows as the sort
-      // and keeps right across midnight UTC (KI7MT, 2026-10-23).
+      // and keeps right across midnight UTC.
       sortedBy: { column: 7, direction: 'descending' }, filters: [
-      // Entity first (KI7MT, 2026-10-23); then what a chaser narrows by.
+      // Entity first; then what a chaser narrows by.
       ...located.filters,
       // No band to choose without ADIF's bands: every spot's would be "—".
       ...(bands.length > 0 ? [{ column: 5, label: 'Band', options: bandOptions }] : []),
       { column: 6, label: 'Mode', options: modeOptions },
       // My area offered first when the operator has one, one choice away;
-      // the page starts on All (KI7MT, 2026-10-23).
+      // the page starts on All.
       { column: 3, label: 'Location', options: locationOptions, multiple: true,
         ...(area.length > 0 ? { named: [{ label: 'My focus area', values: [...area] }] } : {}) }
     ] }

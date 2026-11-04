@@ -25,7 +25,7 @@ pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
 // (credential_tls_config): TLS 1.3, or TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
 // Still the FIPS provider, so 1.2 means ECDHE with AES-GCM on P-256 or P-384
 // and Extended Master Secret required (NIST SP 800-52r2); config.fips() is
-// checked as it is above. KI7MT, 2026-10-11 (QGD-SEC-0020).
+// checked as it is above (QGD-SEC-0020).
 pub fn reference_tls_config() -> CoreResult<rustls::ClientConfig> {
     let provider = rustls::crypto::aws_lc_rs::default_provider();
     if !provider.fips() { return Err("Secure client is unavailable."); }
@@ -69,8 +69,8 @@ pub(crate) fn offered_versions(config: rustls::ClientConfig) -> Vec<u8> {
 // whose www.eqsl.cc offers nothing newer than TLS 1.2 (checked 2026-11-01:
 // ECDHE-RSA-AES256-GCM-SHA384, Extended Master Secret yes). Its login gets the
 // same FIPS-mode TLS 1.2 reference data may use: ECDHE with AES-GCM on P-256
-// or P-384, Extended Master Secret required (NIST SP 800-52r2). KI7MT,
-// 2026-11-01: "eQSL only. They need to update their service." The exception
+// or P-384, Extended Master Secret required (NIST SP 800-52r2). eQSL only,
+// until eQSL updates its service. The exception
 // is this one service by its id, never a host or a prefix; every other
 // credential stays TLS 1.3 only (QGD-SEC-0020).
 pub(crate) fn credential_tls_config(provider: &str) -> CoreResult<rustls::ClientConfig> {
@@ -92,7 +92,7 @@ pub(crate) fn needs_username(provider: &str) -> bool { !matches!(provider, "qrz_
 // token) or the password, by the service and never by a saved preference.
 // Every registered service takes exactly one kind, so a preference could only
 // send the wrong one: with Password preferred, Club Log's test sent an old
-// password as the token (KI7MT, 2026-11-01). The preference stays the core's
+// password as the token. The preference stays the core's
 // for require_credential, and the screen offers it only for a service that
 // takes both.
 pub(crate) fn service_secret<'a>(provider: &str, creds: &'a Credentials) -> Option<&'a str> {
@@ -169,7 +169,7 @@ pub fn test(provider: &str, creds: &Credentials) -> CoreResult<&'static str> {
         // SINCE: 2026-11-01 00:00:00 (user supplied value)"), so the answer is
         // the ADIF header and almost never a record, however many QSOs were
         // confirmed today: the decision is <eoh>, which ADIF puts before any
-        // record, never the answer's size (KI7MT, 2026-11-01). A refused login
+        // record, never the answer's size. A refused login
         // answers with an HTML page
         // (lotw.arrl.org/lotw-help/developer-query-qsos-qsls, read 2026-11-01).
         // It was asked without qso_query until KI7MT's tests (2026-11-01) got
@@ -407,7 +407,7 @@ fn parse_response(provider: &str, body: &str) -> &'static str {
         // and zeroized there; nothing keeps it.
         // A token in the reply, non-empty. Read into a Zeroizing String, which
         // wipes it when dropped, on the error path too: serde_json allocates the
-        // field before it finds trailing input, and drops it then (found by Codex).
+        // field before it finds trailing input, and drops it then (found in review).
         "hamqth" => {
             #[derive(serde::Deserialize)]
             struct Login { token: Zeroizing<String> }
@@ -421,7 +421,7 @@ fn parse_response(provider: &str, body: &str) -> &'static str {
         // "Error" (eqsl-mcp reads it the same way) or "No such". An answer is
         // the date of the last upload, so success needs a date in the page's
         // text, not merely a digit: a digit alone passed a maintenance page's
-        // <h1> (found by Codex). Anything else is an answer we do not know.
+        // <h1> (found in review). Anything else is an answer we do not know.
         // The page may echo the request, password included, so it is searched
         // where it lies and copied only into a buffer that is wiped.
         "eqsl" => {
@@ -502,7 +502,7 @@ mod tests {
         assert_eq!(by_name.get("grid").map(String::as_str), Some("FN31pr"));
         assert_eq!(by_name.get("dxcc").map(String::as_str), Some("291"));
         assert_eq!(by_name.get("class").map(String::as_str), Some("C"));
-        // Shown, not stripped. KI7MT, 2026-10-09: showing what QRZ returns for
+        // Shown, not stripped. Showing what QRZ returns for
         // a lookup the operator asked for is QRZ being the source, the same as
         // reading it on QRZ's own site. What QGD-PII-0007 governs is keeping
         // and passing on, which is the caller's rule — nothing here persists.
@@ -599,7 +599,7 @@ mod tests {
         assert_eq!(parse_response("eqsl", "<html><body>Error: No such Username/Password found synthetic echoed secret</body></html>"), "rejected");
         assert_eq!(parse_response("eqsl", "<html><body>No such Username</body></html>"), "rejected");
         assert_eq!(parse_response("eqsl", "<html><body>Welcome</body></html>"), "invalid-response");
-        // Found by Codex: a digit is not a date.
+        // Found in review: a digit is not a date.
         assert_eq!(parse_response("eqsl", "<html><body><h1>Temporarily unavailable</h1></body></html>"), "invalid-response");
         assert_eq!(parse_response("eqsl", "<html><body>Login page. Copyright 2026 eQSL.cc</body></html>"), "invalid-response");
         assert_eq!(parse_response("eqsl", "<html><body>2026-03-01 12:00:00</body></html>"), "success");
@@ -620,7 +620,7 @@ mod tests {
         assert_eq!(now.len(), 19, "{now}");
         assert!(now.chars().enumerate().all(|(at, c)| match at { 4 | 7 => c == '-', 10 => c == ' ', 13 | 16 => c == ':', _ => c.is_ascii_digit() }), "{now}");
         assert!(now.ends_with(":00"), "{now}");
-        // KI7MT's real reply, 2026-11-01 (Watson, on the M3): an accepted
+        // A real reply, 2026-11-01: an accepted
         // login with no records. The decision is <eoh>, wherever records follow.
         let real = "ARRL Logbook of the World Status Report\nGenerated at 2026-11-01 23:15:15\nfor w1aw\nQuery:\n    QSL ONLY: YES\nQSL RX SINCE: 2026-11-01 00:00:00 (user supplied value)\n\n<PROGRAMID:4>LoTW\n<APP_LoTW_NUMREC:1>0\n\n<eoh>\n\n<APP_LoTW_EOF>\n";
         assert_eq!(parse_response("lotw", real), "success");
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn only_eqsl_s_login_may_use_tls_1_2() {
-        // KI7MT, 2026-11-01: www.eqsl.cc offers TLS 1.2 and nothing newer, so
+        // www.eqsl.cc offers TLS 1.2 and nothing newer, so
         // its login alone gets FIPS-mode TLS 1.2; every other credential is
         // TLS 1.3 only (QGD-SEC-0020). A second service on 1.2 is a decision,
         // and this test is where it shows.

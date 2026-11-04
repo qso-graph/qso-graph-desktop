@@ -239,7 +239,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     try { generation.link.kill(); } catch { /* already gone */ }
     for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
     // An extension still starting when the host went is affected too: it was
-    // in the host, and its pages will say so (Turing, review of P8's notice).
+    // in the host, and its pages will say so (found in review of P8's notice).
     const starting = [...generation.activations.values()].map(waiting => waiting.id);
     for (const waiting of generation.activations.values()) { clearTimeout(waiting.timer); waiting.settle(false); }
     for (const waiting of generation.deactivations.values()) { clearTimeout(waiting.timer); waiting.settle(); }
@@ -369,7 +369,7 @@ export function createSupervisor(deps: SupervisorDeps) {
   //
   // `allowed` is asked again at the moment of posting: starting an extension
   // takes time, and a grant withdrawn or an adapter turned off meanwhile
-  // must stop what was waiting (QGD-INT-0020; Codex review, 2026-10-29).
+  // must stop what was waiting (QGD-INT-0020; found in review).
   async function deliver(id: string, message: Extract<ToExtension, { type: 'datagrams' | 'events' }>, allowed: () => boolean = () => true): Promise<boolean> {
     if (!allowed()) return false;
     const ready = await ensureActive(id);

@@ -214,7 +214,7 @@ describe('review findings, each held by a test (S3)', () => {
   });
 });
 
-describe('a page\'s fields (inputs.ts, KI7MT 2026-10-22)', () => {
+describe('a page\'s fields (inputs.ts)', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
@@ -243,7 +243,7 @@ describe('a page\'s fields (inputs.ts, KI7MT 2026-10-22)', () => {
   });
 });
 
-describe('Refresh: the operator asks the open page now (KI7MT, 2026-10-23)', () => {
+describe('Refresh: the operator asks the open page now', () => {
   it('asks at once rather than when the interval allows, and keeps what is shown until the answer', async () => {
     const { scheduler, asked, published } = harness({ pins: ['air/conditions'] });
     scheduler.setVisible(true);
@@ -288,7 +288,7 @@ describe('Refresh: the operator asks the open page now (KI7MT, 2026-10-23)', () 
   });
 });
 
-describe('offline: an internet page asks nothing until the network is back (KI7MT, 2026-10-23)', () => {
+describe('offline: an internet page asks nothing until the network is back', () => {
   function offlineHarness() {
     let online = false;
     const asked: string[] = [];
@@ -352,7 +352,7 @@ describe('offline: an internet page asks nothing until the network is back (KI7M
   });
 });
 
-describe('leaving and coming back (Codex review, 2026-10-23)', () => {
+describe('leaving and coming back (found in review)', () => {
   function pendingHarness(initialInputs: Record<string, string> = {}) {
     let pins = ['air/conditions'];
     let inputs = initialInputs;

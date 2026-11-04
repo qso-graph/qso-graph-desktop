@@ -51,7 +51,7 @@ const captures = resolve('report/screenshots');
 // operator's own folder (a temporary one here), the sizes of the stores, the
 // clock in the header and every card's time. A mask covers the value and
 // nothing more: a mask over a label or a button would let that label or button
-// change unseen (Hopper, 2026-10-12, found three that did). The values
+// change unseen (review found three that did). The values
 // themselves are the smoke suite's to assert. A mask is a box drawn over the
 // element in the capture, so it hides content and nothing else.
 //
@@ -59,7 +59,7 @@ const captures = resolve('report/screenshots');
 // (tests/fixtures/noaa/quiet), so it is the same every run. Its times are
 // masked: they gain the date once the day they show is not today, so the
 // recorded responses would redraw the page at midnight. Home itself is tiles
-// drawn from the manifest and has nothing that moves (KI7MT, 2026-10-22).
+// drawn from the manifest and has nothing that moves.
 const VOLATILE = [
   // The operator's folder (a temporary one here) and the stores' sizes: only
   // the values, so the words around them are still compared.
@@ -175,7 +175,7 @@ const captured = [];
 // mask is painted over its element even where the overlay covers it, which
 // put grey blocks across Troubleshooting's text and its Close button. So the
 // masks of a page's times are left out; Home has no moving values of its own
-// since its pins became tiles (KI7MT, 2026-10-22).
+// since its pins became tiles.
 const OVER_HOME_MASKS = VOLATILE.filter(selector => selector !== '#page-observed' && selector !== '.figure-time');
 async function recordOverHome(page, file, theme, options = {}) {
   await record(page, file, theme, OVER_HOME_MASKS, options);
@@ -183,7 +183,7 @@ async function recordOverHome(page, file, theme, options = {}) {
 
 // Everything below the first screen, a screen at a time with an overlap, so
 // no part of a tall page is in no capture: <name>-2, <name>-3, ... and the
-// last one <name>-end, scrolled to the end. Hopper found Callsigns' middle (the
+// last one <name>-end, scrolled to the end. Review found Callsigns' middle (the
 // credential fields) in neither the top capture nor the end one.
 const OVERLAP = 60;
 async function recordScreens(page, name, theme, capture, pane = '.page-main') {
@@ -270,7 +270,7 @@ async function record(page, file, theme, masks = VOLATILE, { scroll = 'top', pan
 }
 
 try {
-  // Every extension starts off (KI7MT, 2026-10-23). The screens are of an
+  // Every extension starts off. The screens are of an
   // operator who has turned on the launch row, pinned in that order, so the
   // built-in extensions' pages are in the captures.
   await mkdir(join(directory, 'chromium'), { recursive: true });
@@ -415,7 +415,7 @@ try {
       if (name !== 'Settings') await recordScreens(page, name.toLowerCase(), theme, record);
     }
 
-    // Conditions' page, opened from its pin (KI7MT, 2026-10-22): the data
+    // Conditions' page, opened from its pin: the data
     // that used to be on Home, drawn by the core from the Conditions extension's answer.
     await rail('Home').click();
     await page.locator('.pin-tile', { hasText: 'Conditions' }).click();
@@ -474,7 +474,7 @@ try {
   const save = station => page.evaluate(draft => window.storage.request({ type: 'save-station', station: draft }), station);
   // The fixture's callsign is W1AW, so its default is W1AW's own station:
   // the Hiram Percy Maxim Memorial Station at ARRL headquarters in Newington,
-  // Connecticut (KI7MT, 2026-10-22). No street address: the screens need none.
+  // Connecticut. No street address: the screens need none.
   const HQ = 'Hiram Percy Maxim Memorial Station';
   const home = await save({ name: HQ, kind: 'Home', place: {
     MY_GRIDSQUARE: 'FN31pr', MY_DXCC: '291', MY_STATE: 'CT',

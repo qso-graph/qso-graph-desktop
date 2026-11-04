@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  The top of Home: ours, as the top of a GitHub profile is its owner's
-  (KI7MT, 2026-10-22). It says what QSO Graph Desktop is, and every part of
+  The top of Home: ours, as the top of a GitHub profile is its owner's.
+  It says what QSO Graph Desktop is, and every part of
   it does something: each point opens the place it speaks of, the release
   line opens what is new, and a new install gets four steps that disappear
   once done. Static words and what the window already knows; nothing is
@@ -31,7 +31,7 @@
   const { platform, steps, onGo, onCustomize, onWhatsNew, onDownloads, onContributing, onSite }: Props = $props();
 
   const POINTS = $derived([
-    // Each icon in its place's hue; the pill stays plain (Watson, 2026-10-22).
+    // Each icon in its place's hue; the pill stays plain.
     { id: 'welcome-logins', icon: 'callsigns', hue: 'callsigns', text: forStore('Logins in your Keychain', platform), go: () => onGo('callsigns') },
     { id: 'welcome-locations', icon: 'stations', hue: 'locations', text: 'Locations ready for LoTW, POTA and SOTA', go: () => onGo('stations') },
     { id: 'welcome-pins', icon: 'extension', hue: 'general', text: 'Pin what you use', go: onCustomize }
@@ -55,7 +55,7 @@
       </li>
     {/each}
   </ul>
-  <!-- The selling points (KI7MT, 2026-10-22), each a heading and then its
+  <!-- The selling points, each a heading and then its
        message, and each with a link that does something. Said as it is:
        IOTA is next, other authors' extensions arrive with their sandbox, and
        a login's secret, not its username, is what never touches a file. -->

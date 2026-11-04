@@ -2,7 +2,7 @@
 // Every register main reads from the application's own directory ships in
 // the package. build.files is an allowlist, so a register read and not
 // listed is a file an installed application does not have: Integrations'
-// limits were that (Codex review, 2026-10-29), and an adapter turned on in an
+// limits were that (found in review), and an adapter turned on in an
 // installed copy would never have opened its port. Derived from main's own
 // source, so a register added later is held to it too.
 import { readFile } from 'node:fs/promises';

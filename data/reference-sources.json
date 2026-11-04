@@ -25,7 +25,7 @@
       "size": "about 25 MB"
     }
   ],
-  "resourcesNote": "What the operator loads and updates, one control each (KI7MT, 2026-10-11): nothing is fetched at start, and someone who never uses a resource never downloads it. A resource names the data a person cares about, not a URL; ADIF's archive is one resource, and POTA's three lists are one. Adding one (EME, meteor scatter) is a row here and its loader, not a new screen.",
+  "resourcesNote": "What the operator loads and updates, one control each: nothing is fetched at start, and someone who never uses a resource never downloads it. A resource names the data a person cares about, not a URL; ADIF's archive is one resource, and POTA's three lists are one. Adding one (EME, meteor scatter) is a row here and its loader, not a new screen.",
   "adif": {
     "version": "3.1.7",
     "source": {
@@ -289,7 +289,7 @@
     }
   },
   "politeness": {
-    "note": "#79, KI7MT 2026-10-26: no source is asked more often than this, whatever Update asks. The credential core enforces it (this file is compiled into it); an activations URL is one floor per park list asked for. Where a provider states a limit, that limit; where none is stated, our judgement and the reason.",
+    "note": "#79: no source is asked more often than this, whatever Update asks. The credential core enforces it (this file is compiled into it); an activations URL is one floor per park list asked for. Where a provider states a limit, that limit; where none is stated, our judgement and the reason.",
     "adif": {
       "minSeconds": 86400,
       "stated": null,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // QGD-PRT-0100: the core loads in Node and round-trips a credential through the
-// macOS Keychain. Rust only — Python is out of P0 (KI7MT, 2026-10-07).
+// macOS Keychain. Rust only — Python is out of P0.
 //
 // Every operation here is performed by the process that wrote the entry, so no
 // cross-application authorization is involved and the suite runs unattended.
@@ -100,7 +100,7 @@ try {
     check(!legacy.kindsKnown, 'A legacy entry reports that its kinds are unknown');
     check(!legacy.hasPassword && !legacy.hasApiKey, 'A legacy entry claims neither kind');
     // And the username is gone from the file, kept only as "a username is
-    // saved" (KI7MT, 2026-10-23: nothing that is not public on disk).
+    // saved" (nothing that is not public on disk).
     check(legacy.hasUsername, 'A legacy entry still says a username is saved');
     check(!(await readFile(join(directory, 'callsigns.json'), 'utf8')).includes('"username"'), 'No username is left in the file');
 

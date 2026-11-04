@@ -21,7 +21,7 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
     expect(validateHomeCommand({ type: 'pin', pins: ['on-the-air/conditions'] })).toBe(true);
     expect(validateHomeCommand({ type: 'refresh', key: 'on-the-air/parks' })).toBe(true);
     expect(validateHomeCommand({ type: 'connection', online: false })).toBe(true);
-    // Eight pins: two rows of four (KI7MT, 2026-10-22).
+    // Eight pins: two rows of four.
     expect(validateHomeCommand({ type: 'pin', pins: Array.from({ length: 8 }, (_, i) => `a-x/c-${i}`) })).toBe(true);
   });
 

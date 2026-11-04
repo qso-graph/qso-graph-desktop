@@ -77,7 +77,7 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
     'packages/main/links-contract.ts',
     // A backup of the Locations, carried whole between QG Storage and the
     // credential core and checked as a backup; nothing of it is turned into
-    // ADIF (KI7MT, 2026-10-23: callsigns and Locations move together).
+    // ADIF (callsigns and Locations move together).
     'packages/main/callsign-broker.ts', 'packages/main/storage-broker.ts'
   ]);
 

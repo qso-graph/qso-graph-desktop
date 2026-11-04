@@ -2,7 +2,7 @@
 
 QSO Graph Desktop's extension for POTA. It ships with the application as an official extension and, like every extension, starts off: turn it on in **Settings → Extensions**. Off, its destination leaves the rail and its pins leave Home, and
 nothing of it runs. It was split from On the Air
-on 2026-10-23 so that its switch turns off POTA and nothing else (KI7MT: "On switch, the lights go out").
+on 2026-10-23 so that its switch turns off POTA and nothing else, all of it at once.
 
 It is one destination on the rail, Parks On the Air, whose area has three tabs (`QGD-HOM-0003`):
 

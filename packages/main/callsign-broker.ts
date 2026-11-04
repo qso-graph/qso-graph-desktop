@@ -195,7 +195,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       if (chosen.canceled || !chosen.filePath) return { ok: false, error: 'Backup cancelled.' };
 
       // The parts ticked (#64). The Locations go in the same file as the
-      // callsigns (KI7MT, 2026-10-23); no login does, and the core reads none
+      // callsigns; no login does, and the core reads none
       // for a backup. Everything in it is public, so it is plain JSON, with no
       // passphrase to lose.
       let locations: string | undefined;
@@ -293,7 +293,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       if (typeof restored === 'string') return { ok: false, error: restored };
       result = { ...result, ...restored };
     }
-    // Each part onto a clean slate (KI7MT, 2026-10-23): the settings replace
+    // Each part onto a clean slate: the settings replace
     // this computer's, all but where the window is and which notes were seen.
     if (chosenParts.includes('settings') && settings) {
       if (!saveSettings(withBackupSettings(loadSettings(), settings))) {
@@ -313,7 +313,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
   // The callsigns and their Locations, onto a clean slate.
   async function restoreCallsigns(replace: boolean, file: Buffer, core: CoreImportPreview, backup: StationsBackup, locationsHere: number):
     Promise<{ callsigns: number; locations: number } | string> {
-    // A clean slate, never a merge (KI7MT, 2026-10-23): with anything here,
+    // A clean slate, never a merge: with anything here,
     // the operator must have said to remove it first.
     if (!replace && (core.here.length > 0 || locationsHere > 0)) {
       return 'This computer already has callsigns or Locations. Choose to remove them first, then restore.';

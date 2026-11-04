@@ -3,8 +3,8 @@
   The status bar. P3-status-bar requires the active callsign to be visible on
   every page, which is why it sits outside the pages rather than in one.
 
-  The callsign and the Location are each a way to its page, to change it
-  (KI7MT, 2026-10-24). The slot for the data an application works in is gone
+  The callsign and the Location are each a way to its page, to change it.
+  The slot for the data an application works in is gone
   until an application holds data (P8): empty, it was in the layout for
   nothing. Storage has no indicator of its own: there is no engine to start
   or stop.
@@ -22,7 +22,7 @@
   interface Props {
     // The active callsign, or empty. The sentence is this component's. Only
     // the callsign: the operator's description beside it read as a second
-    // callsign here (KI7MT, 2026-10-22).
+    // callsign here.
     activeCallsign: string;
     // Where they are operating from: the active station's name, or empty
     // (QGD-STN-0005). Named beside the callsign, as TQSL pairs a certificate
@@ -54,7 +54,7 @@
   }: Props = $props();
   // The line that said when the application goes online is gone: Home's cards
   // made it untrue, and it is said in full under Help → Privacy and Licences
-  // (QGD-FRM-0015, KI7MT 2026-10-22).
+  // (QGD-FRM-0015).
 </script>
 
 <footer>

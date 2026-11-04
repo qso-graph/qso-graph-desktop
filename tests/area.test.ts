@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// My Area's choices and default (KI7MT, 2026-10-23), from POTA's lists as
+// My Area's choices and default, from POTA's lists as
 // QG Storage holds them. The rows are written for the test in POTA's shape;
 // nothing of POTA's files is copied.
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -59,7 +59,7 @@ describe('My Area', () => {
     } finally { store.close(); }
   });
 
-  it('defaults to the Location\'s whole entity, so the parks over the nearest borders are on hand (KI7MT, 2026-10-23)', async () => {
+  it('defaults to the Location\'s whole entity, so the parks over the nearest borders are on hand', async () => {
     const store = await reference();
     try {
       // Idaho: CONUS, not US-ID; Alaska its own entity.

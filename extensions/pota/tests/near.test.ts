@@ -62,7 +62,7 @@ describe('Near Me (QGD-HOM-0013)', () => {
     expect(nearPage([], AT, HERE)).toMatchObject({ ok: true, data: { sections: [{ shape: 'alert' }] } });
   });
 
-  it('Within 25 km leaves out a park 25.4 km off, which rounding to 25 kept (#57, Turing)', () => {
+  it('Within 25 km leaves out a park 25.4 km off, which rounding to 25 kept (#57)', () => {
     const off = park('US-0025', 44.4 + 25.4 / 111.195, -111.4, 'US-ID');
     const shown = table(nearPage([off], AT, HERE));
     expect(filteredGroups(shown, { 2: 'Within 25 km' })).toEqual([]);

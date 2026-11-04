@@ -3,8 +3,8 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import StationsPage from './StationsPage.svelte';
   import type { StationsView } from '../../storage/station-contract.js';
-  // A real station when showcase.local.json is in the checkout (KI7MT,
-  // 2026-10-24; git ignores it); the sample below otherwise.
+  // A real station when showcase.local.json is in the checkout
+  // (git ignores it); the sample below otherwise.
   import { showcaseCallsign, showcaseStations } from '../../../storybook/showcase.js';
 
   const HOME = '0b6f4a2e-1c3d-4e5f-8a9b-0c1d2e3f4a5b';

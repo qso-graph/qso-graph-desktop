@@ -2,7 +2,7 @@
 // A tick-box tree's logic (AreaPicker.svelte): nodes with children, a search
 // over them, and a choice held to a most. Pure, so it is tested without a
 // window. My Area is its first user: POTA's programs, their entities, then
-// their locations, any of which may be ticked (KI7MT, 2026-10-23).
+// their locations, any of which may be ticked.
 
 export interface PickNode { readonly id: string; readonly label: string; readonly children?: readonly PickNode[] }
 

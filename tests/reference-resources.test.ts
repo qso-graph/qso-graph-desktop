@@ -117,7 +117,7 @@ describe('#37: the window checks the versions it is sent', () => {
   // The register as shipped, through the window's own check, in every state
   // Settings can show it in. A size four words too long was refused, so no
   // status reached the window at all: Settings sat on "Reading the reference
-  // data…" and every page waited on storage (KI7MT, 2026-10-23).
+  // data…" and every page waited on storage.
   it('passes every resource the register ships, as the window checks it', () => {
     for (const updating of [undefined, 'pota']) {
       const resources = summarize({ register, held: held(NOW), checks: {}, problems: new Map([['pota', 'Could not be reached. What was loaded before is kept; try again later.']]),

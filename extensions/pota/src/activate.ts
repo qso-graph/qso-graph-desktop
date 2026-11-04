@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Parks Near Me (QGD-HOM-0013, #62; named by KI7MT, 2026-10-23): the parks of My Area with how many
+// Parks Near Me (QGD-HOM-0013, #62): the parks of My Area with how many
 // times POTA has counted each activated, nearest first, for an activator
-// looking for one nobody has worked from (KI7MT, 2026-10-23: "Some in Idaho
-// have never been activated, that would be my target list").
+// looking for one nobody has worked from: a park never activated is the
+// target.
 //
 // Pure: it takes the parks and the active station and returns the page, so it
 // runs under unit tests. The parks come from reference data already on this
@@ -25,7 +25,7 @@ export function distanceKm(from: { latitude: number; longitude: number }, to: { 
 
 // A distance as a table cell: to a tenth of a km, rounded up, so the
 // Distance filter, which compares the cell, never keeps a park beyond its
-// bound (#57, found by Turing: 25.4 km drew as 25 and passed Within 25 km).
+// bound (#57, found in review: 25.4 km drew as 25 and passed Within 25 km).
 export function kmText(km: number): string {
   return (Math.ceil(km * 10 - 1e-9) / 10).toFixed(1);
 }
@@ -55,12 +55,12 @@ const fewerThan = (n: number) => [NONE, ...Array.from({ length: n }, (_, at) => 
 
 // `area` is the POTA locations My Area covers: the Location filter offers
 // those alone, so a trail through sixteen states does not offer all sixteen
-// to an operator whose area is Idaho (KI7MT, 2026-10-23).
+// to an operator whose area is Idaho.
 // `places` names each location's program and entity (pota.places): Program,
 // Entity and Location lead the filters, as POTA's own do, each starting on
 // `home`, where the active Location is, so a park over the nearest border is
-// one choice away (KI7MT, 2026-10-23: "I may be in eastern Idaho … then
-// venture into Montana or Wyoming").
+// one choice away: an activator in eastern Idaho may cross into Montana or
+// Wyoming.
 export function activatePage(parks: readonly ActivationPark[], fetchedAt: string, station: StationBrief | null, area: readonly string[] = [],
   places: readonly PotaPlace[] = [], home?: PotaPlace): PageAnswer {
   const observedAt = fetchedAt;
@@ -115,7 +115,7 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
         ...located.filters,
         { column: location, label: 'Location', options: locationOptions, multiple: true,
           ...(home && locationOptions.includes(home.location) ? { start: home.location } : {}) },
-        // Starts on the never activated: the target list (KI7MT, 2026-10-23).
+        // Starts on the never activated: the target list.
         { column: activations, label: 'Activations', options: fewerThan(10),
           named: [
             { label: 'Never activated', values: fewerThan(1) },
@@ -123,7 +123,7 @@ export function activatePage(parks: readonly ActivationPark[], fetchedAt: string
             { label: 'Fewer than 10', values: fewerThan(10) }
           ],
           start: 'Never activated' },
-        // How far, in km (KI7MT, 2026-10-23): only with a position to measure from.
+        // How far, in km: only with a position to measure from.
         ...(here ? [{ column: 2, label: 'Distance', upTo: WITHIN.map(km => ({ label: `Within ${km} km`, value: km })) }] : [])
       ] }
   ];

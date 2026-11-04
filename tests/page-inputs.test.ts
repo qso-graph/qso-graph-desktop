@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// A page's typed fields (KI7MT, 2026-10-22): each value checked by its kind
+// A page's typed fields: each value checked by its kind
 // before an extension sees it, refused rather than coerced (QGD-SEC-0006).
 import { describe, expect, it } from 'vitest';
 import { inputValue, inputValues, type PageInput } from '../packages/extension-api/inputs.js';

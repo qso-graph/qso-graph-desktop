@@ -30,7 +30,7 @@
   back up and restore, and Storage when QG Sync is built.
 
   Reference data: one row per resource the register lists, each with its own
-  Download, then Update (KI7MT, 2026-10-11 and #37). The first press fetches
+  Download, then Update (#37). The first press fetches
   it from its source, so it is a download; "Load" undersold that and "Sync"
   implies two-way. ADIF offers Update only when this release pins a newer ADIF
   version; POTA, whose lists change daily, always. Nothing is fetched at start,
@@ -63,7 +63,7 @@
   ];
 
   interface Props {
-    // For About (KI7MT, 2026-10-22: moved here from Home).
+    // For About (moved here from Home).
     version?: string;
     themeChoice: Choice;
     onChooseTheme: (choice: Choice) => Promise<boolean>;
@@ -77,7 +77,7 @@
     // Opens one of Help's windows (QGD-FRM-0015).
     // Opens one of the project's documents in the browser (QGD-FRM-0015).
     onOpenDocument?: (name: DocumentName) => void;
-    // Back up and restore (KI7MT, 2026-10-23: a housekeeping action, in
+    // Back up and restore (a housekeeping action, in
     // Settings and Tools, not a destination of its own).
     onBackup?: (parts: BackupPart[]) => Promise<ExportResult | string>;
     onInspectBackup?: () => Promise<ImportPreview | string>;
@@ -94,7 +94,7 @@
     onOpenRelease?: () => void;
     onListVersions?: () => Promise<VersionChoice[]>;
     onInstallVersion?: (version: string) => void;
-    // What's New, from About (KI7MT, 2026-10-24).
+    // What's New, from About.
     onOpenWhatsNew?: () => void;
   }
   const {
@@ -116,7 +116,7 @@
 
   // "Updated today", "yesterday" or "N days ago", from the oldest fetch.
   // When it was last updated, as a date-time group in UTC, as hams give
-  // times (KI7MT, 2026-10-22: "updated today" said too little).
+  // times ("updated today" said too little).
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   function utc(when: string | undefined): string {
     if (!when) return '';
@@ -179,12 +179,12 @@
 </script>
 
 <PageLayout eyebrow="PREFERENCES" title="Settings" hue="settings">
-  <!-- About, first on the page, as macOS has About This Mac (KI7MT,
-       2026-10-22: moved from Home, and at the top of Settings): the version,
+  <!-- About, first on the page, as macOS has About This Mac
+       (moved from Home, and at the top of Settings): the version,
        and what the application sends anywhere, said precisely, because it
        reaches out on its own for reference data and pinned cards
        (QGD-REF-0001, QGD-REF-0009). Help → About and the macOS application
-       menu's About open this card (KI7MT, 2026-10-24), so it carries the
+       menu's About open this card, so it carries the
        attribution CC BY 4.0 requires for the icons (QGD-REP-0005). -->
   <section class="card" aria-labelledby="about-title">
     <h2 id="about-title">About QSO Graph Desktop</h2>
@@ -203,8 +203,8 @@
         <button type="button" class="secondary" id={`open-${name}`} onclick={() => onOpenDocument(name)}>{label}</button>
       {/each}
     </div>
-    <!-- The notes for this version, above the icons' credit (KI7MT,
-         2026-10-24), as Help → What's New opens them. -->
+    <!-- The notes for this version, above the icons' credit,
+         as Help → What's New opens them. -->
     <p class="about-whats-new"><button type="button" class="link-button" id="about-whats-new" onclick={onOpenWhatsNew}>What's New in {versionName(version)}</button></p>
     <p class="hint about-credit" id="about-credit">QSO Graph contributors. GPL-3.0-only.<br>{#each FONT_AWESOME_CREDIT.split('\n') as line, i (i)}{line}<br>{/each}</p>
   </section>

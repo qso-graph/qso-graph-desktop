@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The updater acts on the switch and the track as they are when it acts, not
 // as they were when it started to check (#57); and checking only checks: the
-// download waits for the operator's Download and install (KI7MT, 2026-10-24).
+// download waits for the operator's Download and install.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -54,7 +54,7 @@ async function offered(made: ReturnType<typeof updater>): Promise<void> {
   await checking;
 }
 
-describe('checking only checks (KI7MT, 2026-10-24)', () => {
+describe('checking only checks', () => {
   it('a newer version is offered, and nothing is downloaded until the operator chooses', async () => {
     const made = updater({ updateCheck: true, updateTrack: 'early' });
     await offered(made);
@@ -116,7 +116,7 @@ describe('the updater acts on the settings as they are now (#57)', () => {
     expect(made.download).toHaveBeenCalledOnce();
   });
 
-  it('switched back on while offline: no longer off, and nothing asked (#57, Turing)', async () => {
+  it('switched back on while offline: no longer off, and nothing asked (#57)', async () => {
     const settings = { updateCheck: false, updateTrack: 'early' as const };
     const network = { online: false };
     const { started, feed, states } = updater(settings, network);
@@ -313,8 +313,8 @@ describe('choosing a version, and going back (#77)', () => {
   });
 });
 
-// Restart to update says what happens first, and goes only on OK (#114; KI7MT, 2026-10-27: "a Dialog
-// w/OK, that's a positive ack", "It should have a Cancel on it also").
+// Restart to update says what happens first, and goes only on OK (#114): a dialog
+// with OK is a positive acknowledgement, and it has a Cancel as well.
 describe('restart says first, and waits for OK (#114)', () => {
   it('says what happens, by platform, and what becomes of the data going back', () => {
     expect(restartNotice('win-x64', '0.4.0', false, false)).toEqual({

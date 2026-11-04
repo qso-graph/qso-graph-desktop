@@ -1,6 +1,6 @@
 # extensions
 
-Everything a ham *does* is an extension (D-21, KI7MT 2026-10-07: the core holds
+Everything a ham *does* is an extension (D-21: the core holds
 only what every extension needs and what protects the user). The extensions this
 repository builds live here. Each ships with the application as an **official**
 extension and, like every extension, **starts off** until the operator turns it

@@ -118,7 +118,7 @@ try {
   await page.getByRole('button', { name: 'Make W1AW active', exact: true }).click();
   await expect(page.locator('#active-callsign')).toContainText('Callsign: W1AW');
   // QRZ lookup shows a username and a password; QRZ Logbook its API key alone
-  // (KI7MT, 2026-11-01: a service shows only the fields it takes).
+  // (a service shows only the fields it takes).
   await page.getByLabel('Service', { exact: true }).selectOption('qrz');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const username = page.getByLabel('Username', { exact: true });
@@ -248,7 +248,7 @@ try {
   // the reference build runs on its worker there. Nothing here points at the
   // repository. Its detail is behind Troubleshooting (QGD-LOG-0013).
   await expect(page.locator('#engine-indicator'), 'no database indicator ships').toHaveCount(0);
-  // Nothing is fetched at start (KI7MT, 2026-10-11): ADIF's definitions are
+  // Nothing is fetched at start: ADIF's definitions are
   // loaded from Settings, as an operator does, from the archive put in the
   // cache before launch.
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Settings', exact: true }).click();

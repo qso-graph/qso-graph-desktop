@@ -10,7 +10,7 @@
 // Kept: the code, association, region, name, height in metres, position and
 // the dates it is valid between. Left out: the points, which are SOTA's
 // scoring, and the activation count, date and callsign, which change daily
-// and name other operators (KI7MT, 2026-10-22: never a source of other
+// and name other operators (never a source of other
 // people's data).
 import { ShapeError, parseCsv } from './pota.js';
 

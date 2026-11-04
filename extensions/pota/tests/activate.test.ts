@@ -102,7 +102,7 @@ describe('Parks Near Me (QGD-HOM-0013)', () => {
     expect(filter(['US-ID'])).toEqual(['US-ID']);
   });
 
-  it('leads with Location at the active Location, and Program and Entity only where each has two choices (KI7MT, 2026-10-23)', () => {
+  it('leads with Location at the active Location, and Program and Entity only where each has two choices', () => {
     const places = [
       { location: 'US-ID', program: 'United States of America', entity: 'United States of America' },
       { location: 'US-OR', program: 'United States of America', entity: 'United States of America' }

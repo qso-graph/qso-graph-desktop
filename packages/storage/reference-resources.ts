@@ -92,7 +92,7 @@ export function summarize(inputs: SummaryInputs): ResourceSummary[] {
     const problem = problems.get(id);
     // ADIF's definitions change only with a new ADIF release, which reaches the
     // app when a release pins it, so Update is offered only then; an Update of
-    // the pinned version would fetch nothing new (KI7MT, 2026-10-12, #37).
+    // the pinned version would fetch nothing new (#37).
     // POTA's and SOTA's lists change daily, so they are worth an Update once
     // their day is up or the last attempt failed, and not before: their
     // sources are asked once a day at most (#79). Activations always, since

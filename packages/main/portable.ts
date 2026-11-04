@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Portable mode (KI7MT, 2026-10-23): a folder named qso-graph-data beside the
+// Portable mode: a folder named qso-graph-data beside the
 // application holds everything the application keeps, so it runs from a USB
 // stick, or any folder, with its data beside it. Started with --portable, the
 // folder is made. Without it, the platform's own places are used, as always.

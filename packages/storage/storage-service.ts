@@ -166,7 +166,7 @@ function usCounties(): Promise<Counties | undefined> {
 }
 
 // The lists a station's references are checked against, where they are on
-// this computer (KI7MT, 2026-10-20).
+// this computer.
 async function referenceLists(): Promise<ReferenceLists> {
   const reader = reference?.reader();
   const pota: ReferenceLists = reader && referenceStatus?.pota.parks.state === 'loaded'
@@ -292,7 +292,7 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       // An entity or a program stands for its locations (area.ts).
       const locations = await areaLocations(reader, area);
       // Where the active Location is, by POTA's three levels: where Near me
-      // starts its Program, Entity and Location (KI7MT, 2026-10-23).
+      // starts its Program, Entity and Location.
       const active = stations?.list.find(entry => entry.id === stations?.active);
       const here = await homeLocation(reader, active?.place.MY_DXCC, active?.place.MY_STATE);
       const home = here ? (await placesOf(reader, [here]))[0] : undefined;
@@ -377,7 +377,7 @@ const problems = new Map<string, string>();
 // again every hour so a window left open says so when it becomes true.
 setInterval(() => { if (state && !failed) publish(); }, 3_600_000).unref?.();
 
-// Reference data is fetched only when the operator asks (KI7MT, 2026-10-11):
+// Reference data is fetched only when the operator asks:
 // a start fetches nothing, so it is never slowed by a download or a build.
 // A request that fails is said so, and is asked again when they ask again.
 async function refresh(resource: ReferenceResource, chosen: readonly string[] = []): Promise<void> {

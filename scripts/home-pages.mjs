@@ -2,7 +2,7 @@
 // P8 in the running application: Home's pins as tiles from Conditions'
 // manifest, its page drawn from the data its code answers in the QG Extensions
 // process and nowhere else, Home asking for nothing, and Conditions turned off
-// and on (KI7MT, 2026-10-22: a pin opens a page; Home is not a dashboard).
+// and on (a pin opens a page; Home is not a dashboard).
 //
 //   P8-window      the window is ready with nothing pinned, and no extension
 //                  host starts (QGD-APP-0023); with a pin, Home still asks
@@ -93,7 +93,7 @@ try {
 
   // P8-built-in, first half: a new profile has every extension off, so Home,
   // Callsigns, Locations and Settings alone, nothing pinned and no
-  // destination on the rail (KI7MT, 2026-10-23), and the welcome's "Choose
+  // destination on the rail, and the welcome's "Choose
   // what to add" step leads to Settings' Extensions. Turned on there, each
   // extension's destination is pinned, in the order turned on: the launch row
   // (QGD-HOM-0004), drawn as tiles from the manifests alone. Turning one on
@@ -120,7 +120,7 @@ try {
   await expect(page.locator('#welcome-step-extensions')).toHaveAttribute('aria-label', 'Choose what to add: done');
   console.log('P8-built-in: a new profile has every extension off and the welcome leads to them; turned on, each is pinned in turn: PASS');
   // The Internet lamp on the clock's panel, from the operating system's own
-  // reading (KI7MT, 2026-10-23).
+  // reading.
   await expect(page.locator('#net-lamp')).toHaveAttribute('aria-label', 'Internet: online');
   await expect(page.locator('#net-lamp')).toHaveAttribute('data-lamp', 'on');
   // The welcome above the pins (QGD-FRM-0011): what this is, and on a new
@@ -161,9 +161,9 @@ try {
   await openPin(page, 'Astro');
   await expect(body(page)).toContainText('Astro needs a Location', { timeout: 30_000 });
   await expect(page.locator('#page-input-dx')).toBeVisible();
-  // An empty field says what it wants, under the box (KI7MT, 2026-10-23).
+  // An empty field says what it wants, under the box.
   // Under the section's own heading, Grey line DX check, so it does not say
-  // the grey line again (KI7MT, 2026-10-24).
+  // the grey line again.
   await expect(page.locator('#page-input-dx-hint')).toHaveText('The station you want to work, as IO91.');
   // A grid its kind refuses is said so as it is typed, and not asked with.
   await page.locator('#page-input-dx').fill('ZZ99');
@@ -217,8 +217,8 @@ try {
   expect((await settings()).extensionsOn).toEqual(['astro', 'pota', 'adif-lookup']);
   await rail(page, 'Home').click();
   await expect(tile(page, 'Conditions')).toHaveCount(0, { timeout: 30_000 });
-  // Conditions alone: Parks On the Air is its own extension (KI7MT,
-  // 2026-10-23: "On switch, the lights go out"), and stays.
+  // Conditions alone: Parks On the Air is its own extension, with its own
+  // switch, and stays.
   await expect(tiles(page)).toHaveCount(3);
   await page.locator('#customize-pins').click();
   const dialog = page.getByRole('dialog', { name: 'Customize your pins' });
@@ -285,13 +285,13 @@ try {
     expect((await settings()).extensionsOn).toContain('conditions');
   }
   // Help → Troubleshooting… opens the same panel as the status bar's
-  // button (QGD-LOG-0013, KI7MT 2026-10-22).
+  // button (QGD-LOG-0013).
   await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById('troubleshooting')?.click());
   await expect(page.locator('#troubleshooting')).toBeVisible({ timeout: 30_000 });
   await page.locator('#close-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toHaveCount(0);
   console.log('Help menu: Troubleshooting… opened the Troubleshooting panel: PASS');
-  // The Setup menu (KI7MT, 2026-10-22): the welcome's places, from the menu.
+  // The Setup menu: the welcome's places, from the menu.
   const setup = id => application.evaluate(({ Menu }, item) => Menu.getApplicationMenu()?.getMenuItemById(item)?.click(), id);
   // Which page is on screen, by the rail's current item: the callsign this
   // run made earlier is selected on Callsigns, so its heading is not fixed.
@@ -299,7 +299,7 @@ try {
   await expect(rail(page, 'Callsigns')).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   await setup('setup-locations');
   await expect(rail(page, 'Locations')).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
-  // Setup → My Area… lands on Locations' My Area card (KI7MT, 2026-10-23).
+  // Setup → My Area… lands on Locations' My Area card.
   await setup('setup-area');
   await expect(page.locator('#area-title')).toBeInViewport({ timeout: 10_000 });
   await setup('setup-pins');
@@ -308,18 +308,18 @@ try {
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById('setup-iota')?.enabled),
     'IOTA is named and greyed out until it exists').toBe(false);
   console.log('Setup menu: Callsigns, Locations and Customize your pins opened, IOTA shown greyed out: PASS');
-  // Tools (KI7MT, 2026-10-23): Back Up and Restore, from the menu, land in
+  // Tools: Back Up and Restore, from the menu, land in
   // Settings' Back up and restore at the button each needs.
   await setup('setup-export-callsigns');
   await expect(page.locator('#backup-export')).toBeFocused({ timeout: 10_000 });
   await setup('setup-import-callsigns');
   await expect(page.locator('#backup-import')).toBeFocused({ timeout: 10_000 });
-  // No Window menu: the title bar has Minimize and Close (KI7MT, 2026-10-23).
+  // No Window menu: the title bar has Minimize and Close.
   expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(item => item.label)))
     .toEqual(process.platform === 'darwin' ? ['QSO Graph Desktop', 'Edit', 'View', 'Setup', 'Tools', 'Help'] : ['File', 'Edit', 'View', 'Setup', 'Tools', 'Help']);
   console.log('Tools menu: Back Up and Restore land in Settings at their buttons; the menu bar has no Window menu: PASS');
 
-  // Where each platform keeps a thing (KI7MT, 2026-10-24): Settings and
+  // Where each platform keeps a thing: Settings and
   // Check for Updates in macOS's application menu, else in Setup and Help;
   // About in Help on Windows and Linux alone; Save Diagnostics in Help.
   const mac = process.platform === 'darwin';
