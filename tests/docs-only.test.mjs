@@ -23,8 +23,18 @@ describe('a documentation-only change (#95)', () => {
     expect(documentationOnly(['', '  '])).toBe(false);
   });
 
-  it('is not the spec or the CHANGELOG, which the build reads', () => {
-    expect(documentationOnly(['spec/QGD-SPEC-001.md'])).toBe(false);
+  it('is the spec and its RVM, which the citations job checks', () => {
+    expect(documentationOnly(['spec/QGD-SPEC-001.md'])).toBe(true);
+    expect(documentationOnly(['spec/QGD-SPEC-001.md', 'rvm/QGD-RVM-001.md'])).toBe(true);
+  });
+
+  it('is not the CHANGELOG, which ships as What\'s New', () => {
     expect(documentationOnly(['CHANGELOG.md'])).toBe(false);
+    expect(documentationOnly(['spec/QGD-SPEC-001.md', 'CHANGELOG.md'])).toBe(false);
+  });
+
+  it('is not a spec-looking path anywhere else', () => {
+    expect(documentationOnly(['packages/spec/index.ts'])).toBe(false);
+    expect(documentationOnly(['spec'])).toBe(false);
   });
 });

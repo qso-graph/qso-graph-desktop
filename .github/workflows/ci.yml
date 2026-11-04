@@ -215,9 +215,10 @@ jobs:
           { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "candidate=$candidate"; echo "daily=$daily"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
           echo "event=$EVENT ref=${ref:-$REF} sign=$sign candidate=$candidate daily=$daily run=$run pr=${pr:-none}"
 
-  # Every requirement ID a Markdown file cites exists in the spec (#95). It
-  # runs on every change, documentation-only ones included, because those
-  # build nothing else.
+  # Every requirement ID a Markdown file cites exists in the spec (#95), and
+  # the RVM is the one the spec generates (QGD-TST-0004). Both run on every
+  # change, documentation-only ones included, because those build nothing
+  # else: a change to the spec alone is checked here and nowhere else.
   citations:
     name: citations
     runs-on: ubuntu-latest
@@ -227,6 +228,7 @@ jobs:
         with:
           persist-credentials: false
       - run: node scripts/check-citations.mjs
+      - run: node scripts/gen-rvm.mjs --check
 
   check:
     name: check (${{ matrix.os }})
@@ -1009,12 +1011,14 @@ jobs:
 
   # CodeQL, from source alone (no build), for each language the repository
   # holds. A job here rather than GitHub's default setup, which scans a merge
-  # into main again after its pull request's scan: like the dependency audit,
-  # it runs on the pull request and at night, never for a merge.
+  # into main again after its pull request's scan.
   codeql:
     name: Analyze (${{ matrix.language }})
     needs: [plan]
-    if: ${{ needs.plan.outputs.docs_only != 'true' && !inputs.mac_only && github.event_name != 'push' }}
+    # Only when there is code to scan that has not been scanned: a pull
+    # request's own change, or main at night when the plan builds it. A night
+    # with main unchanged, a merge and a documentation-only change scan nothing.
+    if: ${{ needs.plan.outputs.run == 'true' && needs.plan.outputs.docs_only != 'true' && !inputs.mac_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
