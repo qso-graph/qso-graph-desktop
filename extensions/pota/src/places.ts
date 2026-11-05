@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Program and Entity, the two filters POTA's own park list starts with
-// (KI7MT, 2026-10-23: "They know this data better than we do"). Each row's
+// (POTA knows this data better than we do). Each row's
 // POTA locations are named by their program and entity from reference data
 // (pota.places), carried in two columns the core does not draw (hidden).
 import type { PotaPlace } from '../../../packages/extension-api/api-contract.js';
@@ -30,13 +30,13 @@ export const placesBy = (places: readonly PotaPlace[]) => new Map(places.map(pla
 
 // The rows with Program and Entity cells added after `rows`' own, each only
 // where it offers two choices or more, and its filter, which comes first: a
-// filter of one choice says nothing (KI7MT, 2026-10-23: "hide them when
-// there's only one choice"). In CONUS both are hidden; near the Canadian
+// filter of one choice says nothing, so it is hidden. In CONUS both are
+// hidden; near the Canadian
 // border both show; in Scotland near England, Entity alone. A column the
 // core does not draw is only there for its filter. `start`, where each
 // starts when it offers that choice. `offered`, which of the two a page
-// wants: Spots has Entity alone, the DXCC entity a chaser counts (KI7MT,
-// 2026-10-23), since its programs and entities are nearly the same list.
+// wants: Spots has Entity alone, the DXCC entity a chaser counts,
+// since its programs and entities are nearly the same list.
 export function withPlaces(rows: readonly (readonly string[])[], cells: readonly Placed[], start: Partial<Placed> = {},
   offered: readonly (keyof Placed)[] = ['program', 'entity']):
   { rows: string[][]; columns: string[]; hidden?: number; filters: TableFilter[] } {

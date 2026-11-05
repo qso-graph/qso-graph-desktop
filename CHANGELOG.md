@@ -313,7 +313,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Updates switched back on while offline** no longer go on saying checking is off.
 - **What's New after updating from a preview** shows that release's notes, not develop's.
 
-Twenty of these were found by Turing (OpenAI Codex), one of the AI agents QSO Graph Desktop is
+Twenty of these were found in review by an AI reviewer, one of the AI agents QSO Graph Desktop is
 built with, in a security review and a correctness review: eight and twelve findings, every one
 confirmed against the code and fixed with a test that failed first.
 

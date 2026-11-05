@@ -128,7 +128,7 @@ try {
       whatFipsReportsMean: 'fips() is the library reporting the build configuration it was compiled with. It is not a statement that this is a supported FIPS build on this platform — see fipsBuildOnThisPlatform.'
     },
     transport: {
-      versions: 'TLS 1.3 only for credentials, but eQSL\'s login, whose server offers only TLS 1.2 (KI7MT, 2026-11-01, held by validation.rs::tests::only_eqsl_s_login_may_use_tls_1_2); TLS 1.3 or 1.2 (FIPS-approved ECDHE + AES-GCM) for public reference data and eQSL\'s login',
+      versions: 'TLS 1.3 only for credentials, but eQSL\'s login, whose server offers only TLS 1.2 (held by validation.rs::tests::only_eqsl_s_login_may_use_tls_1_2); TLS 1.3 or 1.2 (FIPS-approved ECDHE + AES-GCM) for public reference data and eQSL\'s login',
       referenceTransportAssertedBy: 'packages/callsign-core/src/reference.rs::tests::the_reference_client_is_fips_and_offers_only_approved_suites',
       httpsOnly: true, proxies: false, redirects: false,
       destinations: ['https://xmldata.qrz.com/xml/current/', 'https://logbook.qrz.com/api'],

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Every requirement ID a Markdown file cites exists in the spec (#95; Watson's
+// Every requirement ID a Markdown file cites exists in the spec (#95; found in
 // review of the 0.2.1 milestone: documentation builds nothing, so a citation
 // to an ID the spec doesn't have would otherwise go unchecked, as sixteen
 // QGD-AST-* IDs did on 2026-10-23). Seconds, so it runs on every change,

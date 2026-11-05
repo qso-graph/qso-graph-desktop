@@ -2,8 +2,8 @@
 // My Area's choices, as QG Storage answers them (area.ts). Apart from the
 // queries so the window's contract can name them without reaching the store.
 //
-// My Area follows POTA's own three levels (KI7MT, 2026-10-23: "They know this
-// data better than we do"): a program (IT, Italy), an entity, which is a DXCC
+// My Area follows POTA's own three levels (POTA knows this data better than
+// we do): a program (IT, Italy), an entity, which is a DXCC
 // entity by POTA's numbering (291, the United States; 6, Alaska), and a
 // location (US-ID, Idaho). Any of them may be chosen, and each is downloaded
 // with one request.

@@ -10,13 +10,13 @@ on:
   # check ("ci-all-green", at the end, the name every qso-graph repo uses;
   # #102) always reports (#95). The plan decides what
   # a change needs: a documentation-only change runs the citation check alone,
-  # in about a minute, and builds nothing (KI7MT, 2026-10-24: "I am not going
-  # through this build process for docs and readme updates").
+  # in about a minute, and builds nothing: a change to documentation alone
+  # does not go through the build.
   # main is the one working branch (docs/RELEASES.md, #94): a milestone's
   # branch reaches it by a pull request. The pull request's run is the one
-  # check and build of a change: merging builds nothing and publishes nothing
-  # (KI7MT, 2026-11-02: "we should be able to merge a PR if it can pass checks
-  # and build"). Publishing is the Release workflow, release.yml, and what it
+  # check and build of a change: merging builds nothing and publishes nothing,
+  # so a pull request can be merged once it passes its checks and builds.
+  # Publishing is the Release workflow, release.yml, and what it
   # publishes is the pull request's own build, once it is proved to be of
   # exactly the files main holds. A released version's fix branch, x.y.x
   # (0.2.x), works the same way.
@@ -24,7 +24,7 @@ on:
     branches: [main, '[0-9]*.[0-9]*.x']
   pull_request:
     branches: [main, '[0-9]*.[0-9]*.x']
-  # Once a day (KI7MT, 2026-11-01, #157): the Daily, a signed build of main
+  # Once a day (#157): the Daily, a signed build of main
   # with its own version, on a day main has changed; a day it has not builds
   # nothing. GitHub runs a schedule from the default branch.
   schedule:
@@ -118,7 +118,7 @@ jobs:
           }
           # GitHub lists at most 3,000 files of a pull request and 300 of a
           # comparison; a list that may be partial is never documentation-only
-          # (found by Codex, #94), so an empty one is passed on and builds all.
+          # (found in review, #94), so an empty one is passed on and builds all.
           files=""
           case "$EVENT" in
             pull_request)
@@ -545,7 +545,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       # electron-builder signs each executable, the native core and every DLL
       # (signExts in package.json: a list, which -c on the command line cannot
-      # give; #84, found by Turing; DLLs for the Microsoft Store, #86) and the installer with Microsoft's TrustedSigning
+      # give; #84, found in review; DLLs for the Microsoft Store, #86) and the installer with Microsoft's TrustedSigning
       # module, which uses the sign-in above. The account, profile and endpoint are names, not
       # secrets; the publisher is the certificate's, as Windows shows it.
       - name: Installers, signed (Windows)
@@ -884,14 +884,14 @@ jobs:
 
   # The Daily (#157, docs/RELEASES.md): the day's green build of main, on a day
   # main has changed, every installer its own download on the Releases page
-  # under its own tag (KI7MT, 2026-10-23: an artifact is zipped by GitHub and
+  # under its own tag (an artifact is zipped by GitHub and
   # buried in a run, where nobody finds it). GitHub only: never in the update
   # feed, so the app never offers one; whoever wants it downloads it. The last
-  # 7 days are kept and older ones deleted, tag and all (KI7MT, 2026-11-01).
+  # 7 days are kept and older ones deleted, tag and all.
   # This repository's own token, so no other credential is held here.
   daily:
     name: daily release
-    # Not past a failed dependency audit (#102; found by Codex): the Daily is
+    # Not past a failed dependency audit (#102; found in review): the Daily is
     # published, so it waits for the audit as Release waits for ci-all-green.
     needs: [plan, package, audit]
     if: ${{ !cancelled() && needs.plan.outputs.daily == 'true' && needs.package.result == 'success' && needs.audit.result == 'success' }}
@@ -921,7 +921,7 @@ jobs:
           done
       - name: SHA256SUMS.txt
         run: (cd daily && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
-      # Made here, so its provenance is this job's (found by Codex, #83).
+      # Made here, so its provenance is this job's (found in review, #83).
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: daily/SHA256SUMS.txt
@@ -945,7 +945,7 @@ jobs:
           # (docs/RELEASES.md, step 2) had not reached main. Refused before
           # anything is published or deleted.
           # --exit-code: 0 the tag exists, 2 it does not. Anything else is a
-          # lookup that failed, and is not "not released" (found by Codex).
+          # lookup that failed, and is not "not released" (found in review).
           status=0; git ls-remote --exit-code "https://github.com/${REPO}.git" "refs/tags/v${next}" >/dev/null || status=$?
           if [ "$status" -eq 0 ]; then
             echo "::error::main says ${next}, and v${next} is released. Set the next version on the milestone's branch first (docs/RELEASES.md, step 2)."
@@ -1056,7 +1056,7 @@ jobs:
     needs: [plan, citations, check, window, package, pr-build, audit, codeql]
     # Not for a macOS-only run by hand: it skips the test suites, so its
     # ci-all-green would vouch for a commit nothing tested, and a later
-    # documentation-only push would trust it (found by Codex, #101).
+    # documentation-only push would trust it (found in review, #101).
     if: ${{ always() && !inputs.mac_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

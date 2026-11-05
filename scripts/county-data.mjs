@@ -4,7 +4,7 @@
 // the real files and on small cases; scripts/build-counties.mjs strings them
 // together. Nothing here reaches the network.
 //
-// The rule (KI7MT, 2026-10-22, qso-graph-desktop#45): LoTW first. A county
+// The rule (qso-graph-desktop#45): LoTW first. A county
 // is named the way TQSL's US_COUNTY list names it, except in Alaska, where
 // ADIF's own list governs because ADIF is the core and TQSL still uses names
 // Alaska has retired.

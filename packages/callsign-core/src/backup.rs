@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Moving callsigns and Locations between computers, as a plain file.
 //
-// QGD-PSN-0007 to QGD-PSN-0011. KI7MT, 2026-10-23: "we don't store anything
-// that's not publicly available", and a login never moves. What this file
+// QGD-PSN-0007 to QGD-PSN-0011. Nothing is stored that is not publicly
+// available, and a login never moves. What this file
 // holds is public: each callsign (its licensing authority publishes it), the
 // services each one uses with nothing of its login, its preferences, and the
 // Locations, whose places are no closer than a grid square and whose notes
@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub const FORMAT: &str = "qso-graph-desktop-backup";
-// 2 adds which callsign is active (KI7MT, 2026-10-24: it did not come over).
+// 2 adds which callsign is active (it did not come over).
 // A version 1 file is still read; a build that knows only 1 says a version 2
 // file is from a different version rather than calling it broken.
 // 3 adds the parts, and the settings (#64).

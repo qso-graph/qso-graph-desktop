@@ -32,7 +32,7 @@ describe('a table\'s filters', () => {
   });
 });
 
-describe('a sortable table (KI7MT, 2026-10-23)', () => {
+describe('a sortable table', () => {
   const spots: Table = { shape: 'table', sortable: true, columns: ['Activator', 'MHz', 'Band', 'UTC'], rows: [
     ['KI7MT', '14.062', '20m', '18:52'], ['N0CALL', '7.186', '40m', '18:40'], ['KI7MT/P', '1.840', '160m', '18:45'], ['AB1C', '28.074', '10m', '18:40']
   ], filters: [{ column: 2, label: 'Band', options: ['160m', '40m', '20m', '10m'] }] };
@@ -58,7 +58,7 @@ describe('a sortable table (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('a table sent in order of a column (KI7MT, 2026-10-23)', () => {
+describe('a table sent in order of a column', () => {
   // Newest first, across midnight UTC: as text, 00:05 would sort below 23:50.
   const spots: Table = { shape: 'table', sortable: true, sortedBy: { column: 1, direction: 'descending' }, columns: ['Activator', 'UTC'], rows: [
     ['KI7MT', '00:05'], ['N0CALL', '23:50'], ['AB1C', '23:40']
@@ -72,7 +72,7 @@ describe('a table sent in order of a column (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('the page\'s contents line (KI7MT, 2026-10-23)', () => {
+describe('the page\'s contents line', () => {
   const note = (heading?: string, contents?: false): Section => ({ shape: 'alert', level: 'info', text: 'x', ...(heading ? { heading } : {}), ...(contents === false ? { contents } : {}) });
   it('lists headings and table groups in order, each with where it goes, leaving out what is left out', () => {
     const grouped: Section = { shape: 'table', columns: ['Event', 'UTC'], groups: [{ heading: 'Sun', rows: [] }, { heading: 'Moon', rows: [] }] };
@@ -85,7 +85,7 @@ describe('the page\'s contents line (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('a choice the table no longer offers (Codex review, 2026-10-23)', () => {
+describe('a choice the table no longer offers (found in review)', () => {
   it('is not applied: a refreshed table without that filter shows all its rows', () => {
     const refreshed: Table = { shape: 'table', columns: ['Mode', 'Count'], rows: [['CW', '3'], ['SSB', '5']] };
     // Column 0 was set to 20m while it was a Band filter; now it is Mode, unfiltered.
@@ -93,7 +93,7 @@ describe('a choice the table no longer offers (Codex review, 2026-10-23)', () =>
   });
 });
 
-describe('groups that share a heading (Codex review, 2026-10-23)', () => {
+describe('groups that share a heading (found in review)', () => {
   it('keep their own places, so each contents link reaches its own group', () => {
     const repeated: Table = { shape: 'table', columns: ['Event', 'Time'], groups: [
       { heading: 'Repeated', rows: [['a', '1']] }, { heading: 'Repeated', rows: [['b', '2']] }, { heading: 'Other', rows: [['c', '3']] }
@@ -103,7 +103,7 @@ describe('groups that share a heading (Codex review, 2026-10-23)', () => {
   });
 });
 
-describe('a filter over cells with several values (KI7MT, 2026-10-23)', () => {
+describe('a filter over cells with several values', () => {
   const parks: Table = { shape: 'table', columns: ['Park', 'Location'], rows: [
     ['JP-0011', 'JP-FS, JP-GM, JP-NI, JP-TC'], ['JP-1874', 'JP-FS'], ['GB-0612', 'GB-ENG']
   ], filters: [{ column: 1, label: 'Location', multiple: true }] };
@@ -114,7 +114,7 @@ describe('a filter over cells with several values (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('a named choice and where a filter starts (KI7MT, 2026-10-23)', () => {
+describe('a named choice and where a filter starts', () => {
   const parks: Table = { shape: 'table', columns: ['Park', 'Location'], rows: [
     ['JP-0011', 'JP-FS, JP-GM'], ['US-0001', 'US-ID'], ['US-0002', 'US-MT'], ['GB-0612', 'GB-ENG']
   ], filters: [{ column: 1, label: 'Location', multiple: true, named: [{ label: 'My area', values: ['US-ID', 'US-MT'] }], start: 'My area' }] };
@@ -125,7 +125,7 @@ describe('a named choice and where a filter starts (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('an up-to choice over a column of numbers (KI7MT, 2026-10-23)', () => {
+describe('an up-to choice over a column of numbers', () => {
   const section = { shape: 'table' as const, columns: ['Park', 'km'], rows: [['A', '9'], ['B', '50'], ['C', '51'], ['D', '—']],
     filters: [{ column: 1, label: 'Distance', upTo: [{ label: 'Within 50 km', value: 50 }] }] };
   it('keeps the rows whose number is at most the bound, a cell that is not a number never', () => {
@@ -137,7 +137,7 @@ describe('an up-to choice over a column of numbers (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('sorting a column of counts with a filter over some of them (KI7MT, 2026-10-23)', () => {
+describe('sorting a column of counts with a filter over some of them', () => {
   // Parks Near Me: activations, a null shown as none, and a filter whose
   // options are only none and 0 to 9.
   const section = { shape: 'table' as const, columns: ['Park', 'Activations'], sortable: true as const,
@@ -156,7 +156,7 @@ describe('sorting a column of counts with a filter over some of them (KI7MT, 202
   });
 });
 
-describe('each filter offers what the others leave (KI7MT, 2026-10-23)', () => {
+describe('each filter offers what the others leave', () => {
   // Spotted now's Program and Entity: United States should leave the United
   // States' entities, and Location its locations.
   const section = { shape: 'table' as const, columns: ['Call', 'Location', 'Program', 'Entity'], hidden: 2,
@@ -191,7 +191,7 @@ describe('each filter offers what the others leave (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('a long list drawn short (KI7MT, 2026-10-23)', () => {
+describe('a long list drawn short', () => {
   it('draws three values and how many more, and leaves a short list as it is', () => {
     expect(shortList('US-IA, US-ID, US-IL, US-IN, US-KS')).toBe('US-IA, US-ID, US-IL +2 more');
     expect(shortList('US-ID, US-MT, US-OR')).toBeUndefined();

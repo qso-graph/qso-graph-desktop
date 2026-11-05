@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// One search over ADIF's own definitions (KI7MT, 2026-10-22: ADIF Lookup):
+// One search over ADIF's own definitions (ADIF Lookup):
 // its fields and every enumeration's values, as the ADIF Development Group
 // publishes them in reference.sqlite. What comes back is ADIF's text, column
 // by column, and nothing of ours: no description is added, and an empty
@@ -37,7 +37,7 @@ export async function searchAdif(reference: Store<typeof referenceSchema>, query
   return reference.unit(async (db) => {
     // Ranked in the query, before its limit: an unordered limit could keep
     // 160 entries that only mention the search and drop the one whose name
-    // it is (Codex review, 2026-10-23). Exact first, then by name, then the
+    // it is (found in review). Exact first, then by name, then the
     // rest; LIKE is case-insensitive for ASCII, as ADIF's names are.
     const exact = q.toUpperCase();
     const fields = await db.select().from(field)

@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
   An extension's page in the main pane, opened from its pin on Home or its
-  item in the rail (KI7MT, 2026-10-22). The core draws it from the data the
+  item in the rail. The core draws it from the data the
   extension answers with; no extension code or markup runs in the window.
   Back to Home is the rail's Home.
 
   An area whose extension has settings of its own carries a Settings tab,
-  last, drawn by the core (KI7MT, 2026-10-24): what governs that extension
+  last, drawn by the core: what governs that extension
   alone is there, and Settings is the application's.
 
   A page that asks for fields (a DX grid, a search) has them drawn here, by
@@ -56,13 +56,13 @@
 
   // Why a field's value is refused, by its kind, said as it is typed.
   const REASON = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: 'Plain text, a little shorter.' } as const;
-  // What a field is for, said under it before anything is typed (KI7MT,
-  // 2026-10-23): the extension's own words where its manifest gives them,
+  // What a field is for, said under it before anything is typed:
+  // the extension's own words where its manifest gives them,
   // otherwise what the kind wants. A value it refuses says why in the same
   // place.
   const HINT = { grid: 'A grid locator, as IO91 or IO91wm.', callsign: 'A callsign, as W1AW or W1AW/P.', text: '' } as const;
   // A text field's own line, where its manifest gives none: how long it may
-  // be (QGD-HOM-0002; Codex review, 2026-10-23).
+  // be (QGD-HOM-0002; found in review).
   const hintOf = (input: { kind: keyof typeof HINT; hint?: string; max?: number }) =>
     input.hint ?? (input.kind === 'text' ? `Up to ${input.max ?? 64} characters.` : HINT[input.kind]);
   // What is being typed, per field, until it is asked with.
@@ -103,7 +103,7 @@
 
 <!-- The page's fields, drawn by the core: at the top, or where the page's
      own data places them (a fields section), so an answer can sit just under
-     its question (KI7MT, 2026-10-23: Astro's grey line, below its map). -->
+     its question (Astro's grey line, below its map). -->
 {#snippet fieldsForm()}
   {#if page && page.inputs.length > 0}
     <form class="card page-inputs" id="page-inputs" onsubmit={ask}>
@@ -142,7 +142,7 @@
 {#if page}
   <PageLayout title={page.areaName} eyebrow={extensionName.toUpperCase()} width="full"
     hue={page.hue === 'callsigns' || page.hue === 'locations' || page.hue === 'settings' ? page.hue : 'general'}>
-    <!-- An area's pages, as tabs (KI7MT, 2026-10-23): each its own page,
+    <!-- An area's pages, as tabs: each its own page,
          asked for only while it is the one shown (QGD-HOM-0005). -->
     {#if page.tabs.length > 1 || views.length > 0 || settings}
       <nav class="page-tabs" aria-label="{page.areaName} pages">

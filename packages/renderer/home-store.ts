@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Home's state in the window (QGD-HOM-0001 to QGD-HOM-0006): the pages on
 // offer, the pins drawn as tiles, and what the open page last said. Home
-// itself fetches nothing (KI7MT, 2026-10-22).
+// itself fetches nothing.
 //
 // Everything arriving here is checked before it is kept (QGD-SEC-0006): the
 // state against the Home contract, and each pushed page against the page
@@ -28,8 +28,8 @@ export interface Tile {
 
 export interface HomeModel {
   readonly available: readonly AvailablePage[];
-  // What can be pinned: each area once, by its first page (KI7MT,
-  // 2026-10-23: a pin opens an area, and its pages are tabs).
+  // What can be pinned: each area once, by its first page
+  // (a pin opens an area, and its pages are tabs).
   readonly areas: readonly AvailablePage[];
   readonly pins: readonly string[];
   // The pinned pages some extension offers, in pin order.
@@ -58,7 +58,7 @@ export interface HomeModel {
   } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
-  // On a network, as the operating system says (KI7MT, 2026-10-23).
+  // On a network, as the operating system says.
   readonly online: boolean;
   // Whether the last request a page made reached its source; null when none
   // has since the network came up. The Internet lamp's yellow.
@@ -107,7 +107,7 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
       const page = offered.get(key);
       return page ? [{ key, name: page.name, description: page.description, icon: page.icon }] : [];
     }),
-    // In the pins' order (KI7MT, 2026-10-23: the rail matches the pins), the
+    // In the pins' order (the rail matches the pins), the
     // unpinned after them in the order their extensions offer them.
     railPages: areas.filter(page => page.rail).map((page, at) => ({ page, at, pin: pinned.indexOf(page.key) }))
       .sort((a, b) => (a.pin < 0 ? Infinity : a.pin) - (b.pin < 0 ? Infinity : b.pin) || a.at - b.at)
@@ -148,7 +148,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   const pushedAt = new Map<string, number>();
   // The latest notice. Pushes are counted, and a reply only carries the notice
   // when no push has arrived since its request was sent: a reply composed
-  // before a newer stop must not hide it (Turing, review of this change).
+  // before a newer stop must not hide it (found in review of this change).
   let notice: HostNotice | null = state.notice;
   let noticePushes = 0;
 

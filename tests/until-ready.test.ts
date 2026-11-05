@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // A request that meets a service still starting waits for it, a bounded
-// while (KI7MT, 2026-10-22: Conditions said NOAA could not be reached at
+// while (Conditions said NOAA could not be reached at
 // every start, because the credential core was not up yet).
 import { describe, expect, it } from 'vitest';
 import { untilReady } from '../packages/main/until-ready.js';

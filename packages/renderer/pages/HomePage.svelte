@@ -1,7 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  What the application opens on: two things, laid out as a GitHub profile is
-  (KI7MT, 2026-10-22).
+  What the application opens on: two things, laid out as a GitHub profile is.
 
   - At the top, ours: a welcome that says what QSO Graph Desktop is, every
     part of it a way somewhere (HomeWelcome.svelte).

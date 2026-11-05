@@ -6,7 +6,7 @@
 // counties a state has.
 //
 // A county is named as LoTW names it (TQSL's US_COUNTY list), and in Alaska
-// as ADIF's own list does (KI7MT, 2026-10-22, qso-graph-desktop#45). The value
+// as ADIF's own list does (qso-graph-desktop#45). The value
 // is ADIF's MY_CNTY form, "ID,Ada".
 
 export interface CountyData {
@@ -131,7 +131,7 @@ export function countiesFrom(parsed: unknown): Counties {
     at,
     inGrid(south, west, north, east) {
       // Exact: every county whose area overlaps the square's, however thin
-      // the sliver (#57, found by Turing; a 9 by 9 lattice missed slivers).
+      // the sliver (#57, found in review; a 9 by 9 lattice missed slivers).
       // A county that only touches the square along its edge is included,
       // which is why the answer is a set of choices for the operator and not
       // a value filled in for them.

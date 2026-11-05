@@ -4,7 +4,7 @@
 //
 // The broker decides when a page refreshes; an extension never polls on its
 // own. A page is asked for only while it is open on screen and its interval
-// has passed (KI7MT, 2026-10-22: Home is tiles, and asks for nothing).
+// has passed (Home is tiles, and asks for nothing).
 // Leaving the page cancels what is in flight, and an answer that arrives
 // after the callsign changed is dropped.
 //
@@ -58,8 +58,8 @@ export interface PageSchedulerDeps {
   inputs?(key: string): Readonly<Record<string, string>>;
   publish(view: PageView): void;
   now(): number;
-  // Whether the computer is on a network, as the operating system says
-  // (KI7MT, 2026-10-23). Absent, online.
+  // Whether the computer is on a network, as the operating system says.
+  // Absent, online.
   online?(): boolean;
 }
 
@@ -80,8 +80,8 @@ interface Tracked {
   changed?: boolean;
 }
 
-// The least time between two questions the operator asks for with Refresh
-// (KI7MT, 2026-10-23). The operator is not throttled: a press inside it is
+// The least time between two questions the operator asks for with Refresh.
+// The operator is not throttled: a press inside it is
 // answered by what was fetched moments ago. It keeps a button held down, or
 // pressed in a hurry, from becoming a burst at somebody else's service.
 export const REFRESH_FLOOR_MS = 10_000;
@@ -108,8 +108,8 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
   const kept = new Map<string, { view: PageView; inputs: string | undefined }>();
   // The pages with a question in flight, held apart from the tracked entries:
   // a page left and opened again while asking gets a new entry, and must not
-  // be asked a second time until the first question settles (Codex review,
-  // 2026-10-23).
+  // be asked a second time until the first question settles (found
+  // in review).
   const busy = new Set<string>();
   const inputsOf = (key: string) => JSON.stringify(deps.inputs?.(key) ?? {});
 
@@ -123,7 +123,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
   // comes, is for an older generation and is dropped.
   // A question cancelled before it had any answer leaves nothing to show,
   // so it does not count against the interval: the page is asked again when
-  // it next shows, not a whole interval later (Codex review, 2026-10-23).
+  // it next shows, not a whole interval later (found in review).
   function halt(entry: Tracked, key?: string): void {
     if (entry.timer) { clearTimeout(entry.timer); entry.timer = undefined; }
     entry.generation += 1;
@@ -138,7 +138,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
 
   // A page that needs the internet, while the computer has none: asked
   // nothing, and no timer is left running for it, so an offline laptop is not
-  // woken to try (KI7MT, 2026-10-23: low power off the grid). What it showed
+  // woken to try (low power off the grid). What it showed
   // stays; with nothing to show, it says why.
   const offline = (page: CataloguePage) => page.network && deps.online?.() === false;
 
@@ -254,7 +254,7 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
     // question, asked now rather than when the interval allows. What is shown
     // stays until the answer replaces it, as with Refresh: dropping it first
     // emptied the page while it was asked, and the page, collapsed, sent the
-    // operator back to its top (KI7MT, 2026-10-23).
+    // operator back to its top.
     inputsChanged(key: string): void {
       const entry = tracked.get(key);
       if (entry) halt(entry);

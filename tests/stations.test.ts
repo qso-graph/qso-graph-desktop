@@ -165,7 +165,7 @@ describe('P9-record and P9-optional (QGD-STN-0001, QGD-STN-0003)', () => {
     } finally { state.close(); }
   });
 
-  it('holds nothing that is not public or past a grid square: no address, latitude, longitude or grid extension (KI7MT, 2026-10-23)', async () => {
+  it('holds nothing that is not public or past a grid square: no address, latitude, longitude or grid extension', async () => {
     expect(REMOVED_FIELDS).toEqual(['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON', 'MY_GRIDSQUARE_EXT']);
     for (const field of REMOVED_FIELDS) {
       expect((STATION_FIELDS as readonly string[]).includes(field), field).toBe(false);
@@ -295,7 +295,7 @@ describe('P9-active: defaults and the active station (QGD-STN-0005, QGD-STN-0001
     } finally { state.close(); }
   });
 
-  it('removes a callsign\'s default with the callsign, and leaves the station and the others (KI7MT, 2026-10-22)', async () => {
+  it('removes a callsign\'s default with the callsign, and leaves the station and the others', async () => {
     const state = await open();
     try {
       const home = await saveStation(state, draft({ MY_GRIDSQUARE: 'DN13' }), ruleset);
@@ -496,7 +496,7 @@ describe('P9-contract: off-shape stations are refused at the boundary (QGD-SEC-0
   });
 });
 
-describe('the editor\'s pick lists are ADIF\'s own (QGD-STN-0002, KI7MT 2026-10-20)', () => {
+describe('the editor\'s pick lists are ADIF\'s own (QGD-STN-0002)', () => {
   it('lists the DXCC entities ADIF has not deleted, without "no entity"', () => {
     const { entities } = stationChoices(ruleset, null);
     expect(entities.length).toBeGreaterThan(300);
@@ -540,7 +540,7 @@ describe('the editor\'s pick lists are ADIF\'s own (QGD-STN-0002, KI7MT 2026-10-
   });
 });
 
-describe('references are checked against their lists where the list is here (KI7MT 2026-10-20)', () => {
+describe('references are checked against their lists where the list is here', () => {
   const lists = {
     parks: async (wanted: string[]) => wanted.filter(code => code === 'US-0001').map(code => ({ code, name: 'Example Park' })),
     locations: async (park: string) => (park === 'US-0001' ? ['US-ID', 'US-WY'] : [])
@@ -698,7 +698,7 @@ describe('US counties: LoTW\'s list, filled and checked (QGD-STN-0010)', () => {
   });
 });
 
-describe('the Locations backed up and restored onto a clean slate (KI7MT, 2026-10-23)', () => {
+describe('the Locations backed up and restored onto a clean slate', () => {
   const CALLSIGN = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
   it('carries every Location with its id, each callsign\'s default and the active one', async () => {
     const from = await open();

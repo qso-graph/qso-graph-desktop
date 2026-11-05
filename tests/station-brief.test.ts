@@ -20,7 +20,7 @@ describe('the active station for an extension', () => {
     expect(JSON.stringify(brief)).not.toMatch(/4417/);
   });
 
-  it('takes the position from the grid\'s centre, the only position a Location holds (KI7MT, 2026-10-23)', () => {
+  it('takes the position from the grid\'s centre, the only position a Location holds', () => {
     expect(activeStationBrief(view({ MY_GRIDSQUARE: 'DN13' }))).toEqual({ name: 'Home', grid: 'DN13', latitude: 43.5, longitude: -117 });
   });
 
@@ -74,7 +74,7 @@ describe('Maidenhead and ADIF\'s Location', () => {
   });
 });
 
-describe('the grid from a position (KI7MT, 2026-10-22)', () => {
+describe('the grid from a position', () => {
   it.each([
     // W1AW, Newington CT; Boise; Sydney; the four corners and the poles.
     [41.7148, -72.7272, 6, 'FN31pr'], [43.6458, -116.375, 6, 'DN13tp'], [-33.8688, 151.2093, 6, 'QF56od'],

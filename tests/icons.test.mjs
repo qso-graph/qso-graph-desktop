@@ -31,7 +31,7 @@ describe('the vendored Font Awesome icons', () => {
   });
 
   it('offers extensions a set of icons, and every icon a shipped extension names is in it', async () => {
-    // A tile and a rail item are drawn by the core (KI7MT, 2026-10-22), so an
+    // A tile and a rail item are drawn by the core, so an
     // extension names one of these rather than shipping artwork.
     const offered = new Set(ICONS.filter(entry => entry.forExtensions).map(entry => entry.key));
     expect(offered.has('extension'), 'the fallback for a name not in the set').toBe(true);
@@ -58,7 +58,7 @@ describe('QGD-REP-0005: third-party material carries its attribution', () => {
   it('puts it in a surface the user can reach', async () => {
     // QGD-REP-0005: NOTICE is the record, and a file in the repository is not
     // somewhere a user can be expected to look. Settings' About is, and Help →
-    // About opens it (KI7MT, 2026-10-24).
+    // About opens it.
     const settings = await readFile('packages/renderer/pages/SettingsPage.svelte', 'utf8');
     expect(settings).toContain('FONT_AWESOME_CREDIT');
     expect(settings).toContain('id="about-credit"');

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// My Area (KI7MT, 2026-10-23): POTA's programs, their entities and their
+// My Area: POTA's programs, their entities and their
 // locations the operator chooses from, the area a Location is in, and the
 // locations an area covers, from POTA's own lists already downloaded
 // (QGD-REF-0009). Read-only.
@@ -46,8 +46,8 @@ export async function areaChoices(reference: Store<typeof referenceSchema>): Pro
 // My Area when the operator has chosen none: the Location's whole entity, or
 // its program where that is the program's only entity,
 // where POTA numbers it as ADIF does (DXCC 291, the lower 48 and DC), so the
-// parks across the nearest borders are on hand offline (KI7MT, 2026-10-23: "I
-// may be in eastern Idaho … then venture into Montana or Wyoming"); else the
+// parks across the nearest borders are on hand offline (an activator in
+// eastern Idaho may cross into Montana or Wyoming); else the
 // program whose parks carry the entity. Nothing is guessed from a position.
 export async function areaDefault(reference: Store<typeof referenceSchema>, dxcc: string | undefined): Promise<string | undefined> {
   const entity = Number(dxcc);
@@ -100,8 +100,8 @@ export async function areaLocations(reference: Store<typeof referenceSchema>, en
 }
 
 // Each location's program and entity by name, as POTA names them: for the
-// Program and Entity filters POTA's own park list starts with (KI7MT,
-// 2026-10-23). A code POTA's lists do not hold is left out.
+// Program and Entity filters POTA's own park list starts with.
+// A code POTA's lists do not hold is left out.
 export async function placesOf(reference: Store<typeof referenceSchema>, codes: readonly string[]): Promise<AreaPlace[]> {
   const wanted = [...new Set(codes.filter(code => areaKind(code) === 'location'))].slice(0, AREA_LOCATIONS);
   if (wanted.length === 0) return [];

@@ -83,8 +83,8 @@ export function decode(file) {
 // `tolerance` is per channel. Zero is the default, and is right for one
 // session drawing the same page twice (stableShot's settling check).
 //
-// Against a baseline the screenshots allow RENDER_TOLERANCE (KI7MT,
-// 2026-10-22). The same Mac drew drop shadows one shade apart over ssh and in a
+// Against a baseline the screenshots allow RENDER_TOLERANCE.
+// The same Mac drew drop shadows one shade apart over ssh and in a
 // logged-in session, and macOS updates, displays and machines move them too:
 // variables without end, none of them the product. Two shades absorbs that and
 // nothing a person would call a change: moved or edited text, a new colour or
@@ -165,7 +165,7 @@ export function describeDiff(a, b) {
 // How many distinct colours an image holds, capped so a large image costs no
 // more than a small one to judge.
 //
-// This exists because of how the windows were hidden (KI7MT, 2026-10-10).
+// This exists because of how the windows were hidden.
 // A window that never appears can still hand back an empty frame on macOS,
 // and `stableShot` cannot tell: a blank capture is perfectly stable, so it
 // would compare equal to itself and be written as the baseline. All eight

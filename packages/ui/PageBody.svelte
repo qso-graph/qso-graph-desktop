@@ -1,7 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  An extension's page, drawn by the core from data (KI7MT, 2026-10-22;
-  QGD-HOM-0002): the page a pin or a rail item opens.
+  An extension's page, drawn by the core from data (QGD-HOM-0002): the page a pin or a rail item opens.
 
   Text only: every string here is an expression in the template, which Svelte
   escapes, and nothing is inserted as raw HTML. An extension decides what its
@@ -50,7 +49,7 @@
   };
   $effect(() => { remember(rememberAs, { chosen, sorts }); });
   const anyChosen = (section: number) => Object.values(choicesOf(section)).some(value => value !== '');
-  // Every filter of a table back to All (KI7MT, 2026-10-23).
+  // Every filter of a table back to All.
   const clearFilters = (section: number) => { chosen = { ...chosen, [section]: {} }; };
 
   // How each sortable table is sorted, by section: none until a heading is
@@ -75,7 +74,7 @@
     target.focus({ preventScroll: true });
   }
 
-  // Refresh says what it is doing (KI7MT, 2026-10-24: it said Refreshed the
+  // Refresh says what it is doing (it said Refreshed the
   // moment it was pressed): Refreshing… until the page's new answer arrives,
   // then Refreshed for a few seconds, since the core asks at most once in ten
   // (page-scheduler.ts) and a button that seems to do nothing when pressed

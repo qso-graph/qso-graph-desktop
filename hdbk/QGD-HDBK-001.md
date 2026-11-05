@@ -313,11 +313,11 @@ So the message boundary is not a style preference deferred to taste: it is the d
 has to be right before the first extension exists, because the second one cannot be written
 against a different shape without discarding the first.
 
-**Where extension code runs, and what that commits to** (KI7MT, 2026-10-11). Extension code runs
+**Where extension code runs, and what that commits to**. Extension code runs
 in an extension host process, as VS Code's does, and never in the window or in main
 (`QGD-APP-0015`). Podman Desktop runs its extensions in Electron's main process; here main is the
 broker that enforces grants, and code that is checked should not live beside the checker. A
-second opinion (Codex, 2026-10-11) agreed, and sharpened three things that are now requirements.
+second opinion (an independent review, 2026-10-11) agreed, and sharpened three things that are now requirements.
 First, a host process is not a sandbox: it has Node's file and network access, so official
 extensions are accepted as trusted code, and an OS-enforced sandbox is the precondition for any
 other tier (`QGD-APP-0016`). Second, trust and identity come from the core, never from what an
@@ -401,8 +401,8 @@ have made it a migration rather than a decision.
 
 ## 14. Core and extensions: the words developers already know
 
-Until 2026-10-10 this product called its layers the **frame** and its **applications**. KI7MT
-found that confusing, and said that others would too. The structure was the one the open-source
+Until 2026-10-10 this product called its layers the **frame** and its **applications**. That
+was confusing, and would be to others too. The structure was the one the open-source
 desktop applications use, but it was described in words of its own, which needed a translation
 table. The rule since: **model the layers, and name them, the way the reference projects do,
 unless there is a very good reason not to.**

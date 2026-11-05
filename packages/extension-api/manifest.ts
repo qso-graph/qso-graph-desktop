@@ -13,7 +13,7 @@
 // decision. The alternative is a release that runs third-party code with the
 // core's privileges, which is exactly what D-2 was decided to prevent.
 
-// D-2, KI7MT 2026-10-05. Named here because the API's shape depends on there
+// D-2. Named here because the API's shape depends on there
 // being more than one tier, even while only the first can be loaded.
 export const TIERS = ['official', 'contributed', 'unofficial'] as const;
 export type Tier = (typeof TIERS)[number];
@@ -40,13 +40,13 @@ export const API_VERSION = '1.1.0';
 // an event nobody defined would be a trigger nothing checks.
 export const ACTIVATION_EVENTS = ['onStartupFinished'] as const;
 
-// A page an extension offers (KI7MT, 2026-10-22): the core draws it from the
+// A page an extension offers: the core draws it from the
 // data the extension answers with, and no extension code or markup runs in
 // the window. It can be pinned to Home, where it is a tile drawn from this
 // entry alone, its name, description and icon, the same shape for every
 // extension; clicking the tile opens the page. A page under no other is a
-// destination, on the rail whenever its extension is on (KI7MT, 2026-10-23:
-// "enable in settings, add to the rail"), so a manifest does not say so. Its
+// destination, on the rail whenever its extension is on (turned on in
+// Settings, it is added to the rail), so a manifest does not say so. Its
 // identifier, once published, never changes, because a pin names it
 // (QGD-APP-0019).
 export interface PageContribution {
@@ -62,18 +62,18 @@ export interface PageContribution {
   // The fields the page asks the operator for, drawn and checked by the core
   // (inputs.ts).
   readonly inputs?: readonly PageInput[];
-  // Whether the page needs the internet (KI7MT, 2026-10-23): a page that does
+  // Whether the page needs the internet: a page that does
   // not keeps working offline, though its extension may fetch for another
   // page. Absent, the core works it out from the extension's grants.
   readonly network?: boolean;
-  // An area of pages (KI7MT, 2026-10-23: "Open POTA, see all the things you
-  // can do there"): a page `under` another of the same extension is a tab in
+  // An area of pages (open POTA, and see everything that can be done
+  // there): a page `under` another of the same extension is a tab in
   // that page's area, reached from its pin or rail item and not pinned or
   // railed on its own. `tab` is the short name on its tab; absent, its name.
   readonly under?: string;
   readonly tab?: string;
-  // Its destination's colour on the rail, one of the core's own by name
-  // (KI7MT, 2026-10-23): never a colour of the extension's own, so every
+  // Its destination's colour on the rail, one of the core's own by name:
+  // never a colour of the extension's own, so every
   // theme draws it. Absent, blue.
   readonly hue?: PageHue;
   // A live page (QGD-INT-0023) says when what it shows has changed, and the
@@ -223,8 +223,8 @@ function validSettings(value: unknown, page: string, id: string): PageSetting[] 
 export const TAB_MAX = 24;
 const INPUT_FIELDS = ['id', 'label', 'kind', 'max', 'hint'];
 const MAX_PAGES = 16;
-// A tile shows the name on one line and the description on two (KI7MT,
-// 2026-10-22: every extension conforms to one tile).
+// A tile shows the name on one line and the description on two
+// (every extension conforms to one tile).
 export const PAGE_NAME_MAX = 40;
 export const PAGE_DESCRIPTION_MAX = 120;
 
@@ -261,8 +261,8 @@ export function satisfiesApi(range: unknown, api: string = API_VERSION): boolean
 }
 
 // Whether a page needs the internet: its own word where it gives one, or
-// else whether its extension may fetch at all, from its grants (KI7MT,
-// 2026-10-23). A page that does not is asked while offline.
+// else whether its extension may fetch at all, from its grants.
+// A page that does not is asked while offline.
 export function pageNeedsNetwork(manifest: Pick<ExtensionManifest, 'grants'>, page: Pick<PageContribution, 'network'>): boolean {
   return page.network ?? manifest.grants.some(grant => grant.startsWith('source:') || grant.startsWith('service:'));
 }

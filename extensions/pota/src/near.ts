@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Near Me (QGD-HOM-0013): the parks nearest the active Location, from POTA's
 // park list alone, for an activator in the field with or without internet
-// (KI7MT, 2026-10-23: "Near Me can't rely on internet, and must be stand
-// alone, and we already have that data"). Pure: it takes the parks and the
+// (it cannot rely on the internet, stands alone, and the data is already on
+// this computer). Pure: it takes the parks and the
 // station and returns the page.
 import type { NearPark, PotaPlace, StationBrief } from '../../../packages/extension-api/api-contract.js';
 import type { PageAnswer, Section } from '../../../packages/extension-api/pages.js';

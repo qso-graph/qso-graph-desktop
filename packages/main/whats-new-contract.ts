@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// What's new (QGD-FRM-0016, KI7MT 2026-10-24): the notes are CHANGELOG.md,
+// What's new (QGD-FRM-0016): the notes are CHANGELOG.md,
 // which ships with the application, read here into plain blocks the window
 // draws as text. No HTML is made from it anywhere, so nothing in a note can
 // become markup. Pure, so it runs under unit tests.
@@ -26,8 +26,8 @@ export function isPreview(version: string): boolean {
   return version.includes('-');
 }
 
-// What a version is, in a ham's words, for Home's "Updated to" line (#157,
-// KI7MT 2026-11-02: it said "a new preview" of every build with a suffix,
+// What a version is, in a ham's words, for Home's "Updated to" line (#157:
+// it said "a new preview" of every build with a suffix,
 // a Beta's included). A Beta keeps its own version, which is short and is
 // what its release page is called; the others are long, so are named by the
 // release they lead to.
@@ -120,7 +120,7 @@ export function notesFor(sections: NotesSection[], version: string, since: strin
   }
   const from = since ? releaseOf(since) : undefined;
   // A preview comes before its release, so the release it was a preview of
-  // is still new (#57, found by Turing: 0.1.1 after its preview showed
+  // is still new (#57, found in review: 0.1.1 after its preview showed
   // Unreleased).
   const after = since !== null && isPreview(since) ? 0 : 1;
   const chosen = sections.filter(entry => RELEASE.test(entry.version)
@@ -155,7 +155,7 @@ export interface UpdateLine { from: string | null; back: boolean }
 
 // At start: what to record, and whether Home shows its line. An update is a
 // change from the version last run, A, to this one, B, whatever notes were
-// last closed (KI7MT, 2026-10-27: 0.3.0 → 0.3.1 showed every release back to
+// last closed (0.3.0 → 0.3.1 showed every release back to
 // 0.1.3, because the line had not been closed since then). The line stays
 // until it is closed for this version.
 export function versionAtStart(record: VersionRecord, running: string): { write: Partial<VersionRecord>; line: UpdateLine | null } {

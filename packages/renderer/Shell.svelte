@@ -56,7 +56,7 @@
     onOpenWhatsNew: () => void;
     onCloseWhatsNew: () => void;
     onStationFromSummit: (reference: string) => Promise<ParkDraft | string>;
-    // My Area (KI7MT, 2026-10-23).
+    // My Area.
     onAreaChoices: () => Promise<readonly AreaProgram[] | string>;
     onAreaDefault: () => Promise<string | undefined>;
     onSaveArea: (area: readonly string[]) => Promise<boolean>;
@@ -139,12 +139,12 @@
     else if (id.startsWith('ext:')) openPage(id.slice(4));
   }
   // The tab last open in each area, for the session: a pin or rail item opens
-  // its area where the operator left it (KI7MT, 2026-10-23).
+  // its area where the operator left it.
   // Read only when a pin or rail item is pressed, so it need not be reactive.
   const lastTab: Record<string, string> = {};
   $effect(() => { const page = homeModel.page; if (page) lastTab[page.area] = page.key; });
   // From a pin or the rail: the area, on its last tab, or else its first
-  // tab in the manifest's order (KI7MT, 2026-10-23: Parks On the Air opens
+  // tab in the manifest's order (Parks On the Air opens
   // on Near Me). From a tab: that page.
   function openPage(key: string): void {
     const page = homeModel.available.find(entry => entry.key === key);
@@ -161,7 +161,7 @@
   // The extension whose area is open, for its Settings tab.
   const openArea = $derived(homeModel.page?.area.split('/')[0]);
   // The rail: the core's pages, then the extension pages that ask for a rail
-  // item, then Settings at the foot (KI7MT, 2026-10-22).
+  // item, then Settings at the foot.
   const railPages = $derived.by(() => {
     const core = visiblePages();
     const extensions = homeModel.railPages.map(page => ({
@@ -178,7 +178,7 @@
     return stations?.list.find(station => station.id === stations.active);
   });
   // The status bar names the location and its grid, which the retired Your
-  // station card was the only place to show (KI7MT, 2026-10-22).
+  // station card was the only place to show.
   const activeStationName = $derived.by(() => {
     if (!activeStation) return '';
     const grid = activeStation.place.MY_GRIDSQUARE ?? activeStation.place.MY_VUCC_GRIDS;
@@ -188,7 +188,7 @@
 </script>
 
 <header>
-  <!-- A heads-up bar, not a title (KI7MT, 2026-10-22): the window's own title
+  <!-- A heads-up bar, not a title: the window's own title
        bar already names the application. The clock at the left, as it is
        always there; the right is kept for what extensions add, as a rig's
        frequency and mode (#43). -->
@@ -245,7 +245,7 @@
            underneath is the one P1 built and P3 was signed off with.
 
            Three things this structure is load-bearing for, all found on a
-           clean account by KI7MT:
+           clean account:
 
            1. .page is a ROW. An offer placed as a sibling of CallsignsPage
               became a third column and crushed the callsign form to a sliver.
@@ -304,8 +304,8 @@
     </div>
   </main>
 </div>
-<!-- An extension's own settings, on its area's Settings tab (KI7MT,
-     2026-10-24: Settings is the application's; an extension's settings are
+<!-- An extension's own settings, on its area's Settings tab
+     (Settings is the application's; an extension's settings are
      in its area). Parks On the Air's: its Focus Area. -->
 {#snippet potaSettings()}
   <AreaCard area={shell.area} most={MAX_AREA} parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}

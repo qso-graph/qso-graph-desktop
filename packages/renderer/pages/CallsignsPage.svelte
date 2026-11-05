@@ -22,7 +22,7 @@
 <script lang="ts">
   import { caseAsTyped } from '../../ui/typed-case.js';
   // app.ts owns this screen and finds its elements by id, by design. The
-  // backup that was here is in Settings (KI7MT, 2026-10-23).
+  // backup that was here is in Settings.
   import { credentialStoreTitle, findInStore, forStore } from '../../callsigns/credential-store.js';
   // The store this platform has; the preload says which. A gallery story has
   // no preload, and shows macOS.
@@ -31,7 +31,7 @@
 
 <div class="page-main">
   <div class="page-title"><div><p class="eyebrow" data-hue="callsigns">YOUR CALLSIGNS</p><h1>Callsigns</h1></div></div>
-  <!-- The list, as Locations has it (#70, KI7MT 2026-10-24): a row each, the
+  <!-- The list, as Locations has it (#70): a row each, the
        active one first with its badge, Make active and Edit on each row.
        app.ts draws the rows. -->
   <section class="card" aria-labelledby="callsigns-title">
@@ -56,8 +56,8 @@
     <label for="provider">Service</label><select id="provider"><option value="qrz">QRZ lookup</option><option value="qrz_logbook">QRZ logbook</option><option value="eqsl">eQSL</option><option value="lotw">LoTW website</option><option value="hamqth">HamQTH</option><option value="clublog">Club Log</option></select>
     <p id="credential-status" class="credential-status" role="status">Checking saved credentials…</p>
     <!-- This callsign's id, which names its entries in the credential store
-         (QGD-CRD-0003), so the operator can find them there (KI7MT,
-         2026-10-22). Selectable rather than copied by a button: the window is
+         (QGD-CRD-0003), so the operator can find them there.
+         Selectable rather than copied by a button: the window is
          granted no clipboard permission, and Edit → Copy needs none. -->
     <p class="hint keychain-id">{forStore('Keychain ID', platform)}: <code id="keychain-id"></code><br>
       {findInStore(platform)}</p>
@@ -69,7 +69,7 @@
         <div id="api-key-field"><label>API key<input id="api-key" type="password" name="apiKey" maxlength="4096" autocomplete="new-password" aria-describedby="api-key-saved"></label><p id="api-key-saved" class="saved-indicator" hidden>{forStore('API key saved in Keychain', platform)}</p><button id="remove-api-key" class="danger field-remove" type="button" hidden>Remove API key</button></div>
       </div>
       <!-- Only for a service whose register entry takes both a password and an
-           API key (KI7MT, 2026-11-01). A service that takes one of them uses
+           API key. A service that takes one of them uses
            it, with nothing to choose. -->
       <div id="preference-field" hidden><label for="credential-preference">Preferred credential</label><select id="credential-preference" disabled><option value="service">Service default</option><option value="password">Password</option><option value="api_key">API key</option></select>
       <p id="credential-effective" class="hint"></p></div>

@@ -3,7 +3,7 @@
   A tick-box tree: nodes with children, a search over them, and a choice held
   to a most (tree-pick.ts). My Area is its first user: POTA's programs, their
   entities and their locations, any of which may be ticked, as POTA's own park
-  list narrows by Program, Entity and Location (KI7MT, 2026-10-23). It owns no
+  list narrows by Program, Entity and Location. It owns no
   state but what is being searched; the choice is the caller's, told by
   onChange.
 -->

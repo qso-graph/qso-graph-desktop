@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The getting-started steps on Home's welcome (KI7MT, 2026-10-22): each one
+// The getting-started steps on Home's welcome: each one
 // a place to go, ticked when done. The reference data in the order it is
 // needed: ADIF's definitions, which every location is checked against, then
 // POTA's parks and SOTA's summits, which only those who chase or activate
@@ -18,7 +18,7 @@ export interface WelcomeStep {
 
 // Undefined until storage has answered, so a list is never drawn and then
 // withdrawn a moment later.
-// `anyExtensionOn`: every extension starts off (KI7MT, 2026-10-23), so
+// `anyExtensionOn`: every extension starts off, so
 // choosing what to add is a step of its own, done once one is on.
 export function welcomeSteps(hasCallsign: boolean, storage: StorageStatus | undefined, anyExtensionOn = false): WelcomeStep[] | undefined {
   if (!storage?.stations || !storage.reference) return undefined;

@@ -12,7 +12,7 @@
 //                (QGD-STN-0001)
 //   P9-your-station  the status bar names the active location and its grid,
 //                and follows a change of location (QGD-FRM-0014). Sunrise and
-//                sunset wait for the Astro extension (KI7MT, 2026-10-22)
+//                sunset wait for the Astro extension
 //   P9-stays-local  a station's street, city and postal code appear in no log
 //                line (QGD-STN-0003)
 //
@@ -44,7 +44,7 @@ await cp(archive, join(referenceCache, `adif-${register.adif.version}.zip`))
   .catch(() => { throw new Error(`${archive} is not there. Fetch it with: make setup`); });
 
 // A value only an operator would type, so a log line carrying one is found.
-// A Location holds no address (KI7MT, 2026-10-23); its notes are the one
+// A Location holds no address; its notes are the one
 // private thing on it.
 const NOTES = 'QG notes 4f1c9a: north lot';
 
@@ -111,7 +111,7 @@ try {
   await page.locator('#station-name').fill('Home');
   // The entity, state and zones are picked from ADIF's own lists, which follow
   // one another: Idaho is CQ 3 and ITU 6 in ADIF's subdivision list, so
-  // choosing it fills both (KI7MT, 2026-10-20).
+  // choosing it fills both.
   await expect(field(page, 'MY_DXCC').locator('option[value="291"]')).toHaveCount(1, { timeout: 30_000 });
   await field(page, 'MY_DXCC').selectOption('291');
   await expect(field(page, 'MY_STATE').locator('option[value="ID"]')).toHaveCount(1, { timeout: 30_000 });
@@ -120,7 +120,7 @@ try {
   await expect(field(page, 'MY_ITU_ZONE')).toHaveValue('6');
   // The grid is typed, and one ADIF refuses is refused beside it.
   await field(page, 'MY_GRIDSQUARE').fill('DN1');
-  // No address, latitude or longitude is offered (KI7MT, 2026-10-23).
+  // No address, latitude or longitude is offered.
   for (const gone of ['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON']) await expect(field(page, gone)).toHaveCount(0);
   await page.locator('#station-notes').fill(NOTES);
   await page.locator('#station-default').check();
@@ -157,8 +157,8 @@ try {
     MY_GRIDSQUARE: 'DN13', MY_CNTY: 'ID,Ada', MY_ARRL_SECT: 'ID' });
   for (const gone of ['MY_STREET', 'MY_CITY', 'MY_POSTAL_CODE', 'MY_LAT', 'MY_LON', 'MY_GRIDSQUARE_EXT']) expect(saved.place[gone], gone).toBeUndefined();
   // Opening a station and saving it unchanged changes nothing: a station
-  // holding an 8-character locator and a grid-line list keeps both (found by
-  // Turing in review: the one Grid box shows one of them).
+  // holding an 8-character locator and a grid-line list keeps both (found in
+  // review: the one Grid box shows one of them).
   const both = { MY_GRIDSQUARE: 'DN13sm46', MY_VUCC_GRIDS: 'DN13,DN14' };
   expect(await page.evaluate(place => window.storage.request({ type: 'save-station', station: { name: 'Both grids', place } }), both))
     .toMatchObject({ ok: true });
@@ -195,8 +195,8 @@ try {
 
   // ---- P9-your-station ------------------------------------------------
   // The status bar names the active location and its grid, and follows a
-  // change of location. Sunrise and sunset there were Your station's, retired
-  // (KI7MT, 2026-10-22); they wait for the Astro extension's page.
+  // change of location. Sunrise and sunset there were Your station's, retired;
+  // they wait for the Astro extension's page.
   await expect(page.locator('#active-station')).toHaveText('Location: Home · DN13', { timeout: 30_000 });
   await rail(page, 'Locations').click();
   await row(page, 'Car').getByRole('button', { name: 'Make Car active' }).click();

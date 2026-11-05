@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// ADIF Lookup's page (KI7MT, 2026-10-22: the fourth launch pin): ADIF's own
+// ADIF Lookup's page (the fourth launch pin): ADIF's own
 // definitions, searched. Every field, and every value of every enumeration,
 // as the ADIF Development Group publishes them and the core loaded them.
 //
@@ -15,7 +15,7 @@ const plain = (text: string, limit: number) => text.replace(/[<>]/g, '').slice(0
 
 // Each match as a group of its own, headed by its name, with a row for each
 // of ADIF's columns: the list, ADIF's name for the column, and its value
-// whole (KI7MT, 2026-10-23). Nothing is joined, reworded or cut.
+// whole. Nothing is joined, reworded or cut.
 export function adifRows(entry: AdifEntry): string[][] {
   const list = plain(entry.list, 1000) || '—';
   if (entry.columns.length === 0) return [[list, '—', '—']];

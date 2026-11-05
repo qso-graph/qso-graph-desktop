@@ -644,7 +644,7 @@ withData('P5-answers-during-build: QG Storage keeps answering (QGD-ENG-0015)', (
   }, 60_000);
 });
 
-describe('each resource loaded by its own control (KI7MT, 2026-10-11)', () => {
+describe('each resource loaded by its own control', () => {
   it('loading POTA fetches nothing of ADIF', async () => {
     let archives = 0;
     const { ref, done } = await reference({ fetchArchive: async () => { archives++; return archive; } });
@@ -797,7 +797,7 @@ describe('POTA activations, a list for each location of My Area (QGD-REF-0019)',
     } finally { done(); }
   });
 
-  it('a park in two locations takes its count from the list fetched later (#57, Turing)', async () => {
+  it('a park in two locations takes its count from the list fetched later (#57)', async () => {
     // US-OR fetched first, US-ID an hour later and newer: US-ID's count
     // stands, though US-OR sorts after it.
     const lists = { ...LISTS, [urlOf('US-ID')]: JSON.stringify([park('US-0009', 6, 'US-ID,US-OR')]) };
@@ -842,7 +842,7 @@ describe('POTA activations, a list for each location of My Area (QGD-REF-0019)',
     } finally { done(); }
   });
 
-  it('fetches a whole entity or program from its own list, one request each (KI7MT, 2026-10-23)', async () => {
+  it('fetches a whole entity or program from its own list, one request each', async () => {
     const calls: string[] = [];
     const lists = { ...LISTS, [urlFor('entity', '6')]: JSON.stringify([park('US-0020', 0, 'US-AK')]),
       [urlFor('program', 'IT')]: JSON.stringify([park('IT-0001', null, 'IT-LZ'), park('IT-0002', 5, 'IT-LM')]) };
@@ -942,7 +942,7 @@ describe('the parks to activate, read from reference.sqlite (QGD-REF-0019, QGD-H
   const placed = (reference: string, latitude: number, longitude: number) =>
     `"${reference}","Park ${reference}","1","291","US-ID","${latitude}","${longitude}","DN13"`;
 
-  it('finds a park just inside the circle at the equator, far north and near a pole (#57, Turing)', async () => {
+  it('finds a park just inside the circle at the equator, far north and near a pole (#57)', async () => {
     const target = join(root, 'reference.sqlite');
     const body = [header, placed('US-0001', 2.6979, 0), placed('US-0002', 60.1, 5.397), placed('US-0003', 88.5, 60)].join('\n') + '\n';
     await buildReference(target, DDL, { register, pota: { parks: input('parks', body) } });
@@ -956,7 +956,7 @@ describe('the parks to activate, read from reference.sqlite (QGD-REF-0019, QGD-H
     } finally { store.close(); }
   });
 
-  it('ranks every park of the area, not the first 20,000 by reference (#57, Turing)', async () => {
+  it('ranks every park of the area, not the first 20,000 by reference (#57)', async () => {
     const target = join(root, 'reference.sqlite');
     // 20,001 parks, the last by reference the nearest and the one never activated.
     const many = Array.from({ length: 20_001 }, (_, at) => `US-${String(at).padStart(5, '0')}`);

@@ -30,8 +30,8 @@ export const PAGES = [
   },
   {
     id: 'callsigns',
-    // Named as hams see them in LoTW, QRZ, eQSL and their loggers (KI7MT,
-    // 2026-10-22): the code keeps 'callsigns' and 'stations' as its own names.
+    // Named as hams see them in LoTW, QRZ, eQSL and their loggers:
+    // the code keeps 'callsigns' and 'stations' as its own names.
     label: 'Callsigns',
     icon: 'callsigns',
     hue: 'callsigns',
@@ -84,14 +84,14 @@ export interface ShellState {
   // A core page, or 'extension' for an extension's page, named below.
   page: PageId | 'extension';
   // The extension page on screen ("extension/page"), when page is
-  // 'extension' (KI7MT, 2026-10-22); null otherwise.
+  // 'extension'; null otherwise.
   extensionPage: string | null;
-  // The area's own Settings tab is showing, rather than the page (KI7MT,
-  // 2026-10-24: an extension's settings are in its area).
+  // The area's own Settings tab is showing, rather than the page
+  // (an extension's settings are in its area).
   extensionSettings: boolean;
   // The active callsign's call alone, which is all the status bar names: the
   // description is the operator's own label and read as a second callsign
-  // there (KI7MT, 2026-10-22). Empty when there is none.
+  // there. Empty when there is none.
   activeCallsign: string;
   // Its id, which is how a callsign is keyed, so a station can be made its
   // default (QGD-STN-0005). Empty when there is none.

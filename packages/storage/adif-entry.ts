@@ -7,13 +7,13 @@ export const ADIF_RESULTS = 40;
 export const ADIF_COLUMNS = 12;
 // Above any text ADIF publishes (3.1.7's longest is 634 characters, the
 // description of MY_GRIDSQUARE_EXT): a bound on what the store sends, never
-// a cut of ADIF's text (Codex review, 2026-10-23).
+// a cut of ADIF's text (found in review).
 export const ADIF_TEXT = 1000;
 export const ADIF_QUERY = 64;
 
 // One of ADIF's bands, with its edges as ADIF gives them (Band enumeration),
 // so an extension names a frequency's band by ADIF and never by a table of
-// its own (KI7MT: ADIF definitions, never home-made).
+// its own (ADIF's definitions, never home-made).
 export interface AdifBand {
   readonly band: string;
   readonly lowerMHz: number;

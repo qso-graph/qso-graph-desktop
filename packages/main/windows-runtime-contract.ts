@@ -2,8 +2,8 @@
 // Microsoft's Visual C++ runtime on Windows (#91, QGD-SCP-0010). The credential core and
 // its FIPS crypto module import VCRUNTIME140.dll, which a freshly installed
 // Windows 11 does not have; without it the core cannot start, and nothing
-// that goes online works. We do not ship Microsoft's DLL (KI7MT,
-// 2026-10-25): the installer runs Microsoft's own installer (a Microsoft Store copy
+// that goes online works. We do not ship Microsoft's DLL:
+// the installer runs Microsoft's own installer (a Microsoft Store copy
 // is the same installer, #86), and this is what catches the rest
 // (the portable zip, or an install made offline): a plain message with
 // Microsoft's page, never a silent failure.

@@ -3,7 +3,7 @@
 // is on and the computer is online, downloaded and checked by the credential
 // core, and applied only when the operator restarts or quits. Never forced.
 //
-// No electron-updater (KI7MT, 2026-10-23): it installs only what it downloaded
+// No electron-updater: it installs only what it downloaded
 // itself, over Electron's networking (Squirrel.Mac, on macOS, its own), and
 // handing it a file the core fetched would need a local server, which this
 // product does not have. What it does at the end is small and done here: the
@@ -65,8 +65,8 @@ export interface UpdaterOptions {
   snapshots: Snapshots;
 }
 
-// What Restart to update (or to go back) says first, and waits for OK on (KI7MT, 2026-10-27: "a
-// Dialog w/OK, that's a positive ack rather than another flash on a screen"). Without it the window
+// What Restart to update (or to go back) says first, and waits for OK on: a
+// dialog with OK is a positive acknowledgement, not another flash on a screen. Without it the window
 // closed and, on Windows, nothing was on screen for the minute the installer ran (#114).
 export interface RestartNotice { message: string; detail: string }
 
@@ -230,15 +230,15 @@ export function startUpdater(options: UpdaterOptions): Updater {
     return resolve(path).startsWith(folder) && UPDATE_FILE_NAME.test(basename(path)) && existsSync(path);
   };
 
-  // Checking only checks (KI7MT, 2026-10-24): a scheduled or asked check stops at 'available'. The
+  // Checking only checks: a scheduled or asked check stops at 'available'. The
   // download, its checks and 'ready' happen only when the operator chooses Download and install,
   // which asks the feed again, so what is installed is what the feed offers now.
   async function run(fetch: boolean, chosen?: string): Promise<void> {
     if (!options.asks) { publish(notAsking()); return; }
     if (!options.settings().updateCheck) { publish({ kind: 'off', why: 'switch' }); return; }
     // Nothing is tried offline (QGD-FRM-0019); asked again when it is due.
-    // Switched back on while offline, it is no longer off (#57, found by
-    // Turing: the card went on saying checking was off).
+    // Switched back on while offline, it is no longer off (#57, found in
+    // review: the card went on saying checking was off).
     if (!options.online()) { if (state.kind === 'off') publish({ kind: 'idle' }); return; }
     lastAsked = now();
     publish({ kind: 'checking' });

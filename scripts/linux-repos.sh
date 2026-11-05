@@ -14,7 +14,7 @@
 #   qso-graph-desktop.gpg       the same key, binary, for apt's signed-by=
 #   qso-graph-desktop.repo      the file dnf users put in /etc/yum.repos.d/
 #
-# Signed with the release key (KI7MT, 2026-10-27), and only that key: SIGNING_KEY is its fingerprint,
+# Signed with the release key, and only that key: SIGNING_KEY is its fingerprint,
 # and the run stops unless the keyring in GNUPGHOME holds a secret key with exactly that fingerprint.
 # PASSPHRASE_FILE holds its passphrase. The key itself is the caller's to import; nothing here prints it.
 set -euo pipefail

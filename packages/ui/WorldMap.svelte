@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
   A flat world map with the night greyed out and the terminator drawn (page
-  data version 6; KI7MT, 2026-10-22). The extension says where the sun is
+  data version 6). The extension says where the sun is
   overhead and which places to mark; the coastlines and the night are the
   core's, so no extension draws a picture. Every colour is a theme token.
 -->
@@ -46,7 +46,6 @@
     {/each}
   </svg>
   <!-- Natural Earth's own words for a credit, under every map the core draws
-       from its data: not required by its public-domain terms, given gladly
-       (KI7MT, 2026-10-23). -->
+       from its data: not required by its public-domain terms, given gladly. -->
   <figcaption class="map-credit">Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.</figcaption>
 </figure>

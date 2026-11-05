@@ -215,7 +215,7 @@ describe('colourCount', () => {
   it('is 1 for a blank frame, which is what it exists to catch', () => {
     // The failure it guards: a window hidden for a suite run hands back an
     // empty frame, `stableShot` finds it perfectly stable, and it becomes the
-    // baseline KI7MT approves (KI7MT, 2026-10-10).
+    // baseline KI7MT approves.
     expect(colourCount(image(Array(64).fill([0, 0, 0, 255])))).toBe(1);
     expect(colourCount(image(Array(64).fill([255, 255, 255, 255])))).toBe(1);
     // Fully transparent is blank too, and differs from black only in alpha.

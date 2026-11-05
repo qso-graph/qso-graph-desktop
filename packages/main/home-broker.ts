@@ -67,7 +67,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
       [setting.id, Object.hasOwn(chosen, setting.id) && setting.choices.includes(chosen[setting.id]) ? chosen[setting.id] : setting.default]));
   };
 
-  // The page on screen, if any. Only it is asked for (KI7MT, 2026-10-22).
+  // The page on screen, if any. Only it is asked for.
   let open: string | null = null;
   // On a network, as the operating system last said: the window tells
   // (connection), at its start and on every change.

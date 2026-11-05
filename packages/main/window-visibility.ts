@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Whether a window may appear on screen.
 //
-// KI7MT, 2026-10-10: the endless window flashing during test runs stops. He
-// called it "like endless loops" — ten suites launch the real application, and
-// each one put a window on his desktop while he was working.
+// No window flashes on screen during test runs: ten suites launch the real
+// application, and each one used to put a window on the desktop of whoever
+// was working at it.
 //
 // A suite run is told apart by `QG_DESKTOP_USER_DATA_DIR`. That is not a flag
 // invented for this: a suite has to redirect userData or it writes into the

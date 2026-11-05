@@ -2,8 +2,8 @@
 // Turning an extension off and on (QGD-HOM-0007).
 //
 // On is recorded in settings.json, so it holds across restarts; an extension
-// not recorded as on is off, which is how a new install starts (KI7MT,
-// 2026-10-23). Off is told to the supervisor, which deactivates the extension
+// not recorded as on is off, which is how a new install starts.
+// Off is told to the supervisor, which deactivates the extension
 // and starts it no more. Home listens and drops its cards; turned on again,
 // its cards come back to the pins they held, which were kept
 // (settings-contract.ts), and one turned on for the first time is pinned

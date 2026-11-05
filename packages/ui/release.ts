@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The release in one line, for Home's welcome (KI7MT, 2026-10-22). Written
+// The release in one line, for Home's welcome. Written
 // per release, in plain words for the operator; What's new has the rest,
 // from CHANGELOG.md (QGD-FRM-0016).
 export const HIGHLIGHT = 'Test credential for every service: QRZ, QRZ Logbook, Club Log, eQSL, HamQTH and LoTW; and updates on Release or Beta, your choice.';
 
-// The window's title, with the version (KI7MT, 2026-10-24): "QSO Graph
+// The window's title, with the version: "QSO Graph
 // Desktop v0.1.0". A Beta by its own version, "v0.6.0-beta.1" (#157). A Daily
 // and a lab build, whose versions name their time and commit and are too long
 // for a title bar, by the release they lead to and what they are: "v0.6.0
-// Daily", "v0.6.0 lab build" (KI7MT, 2026-11-02: the title said "preview" for
-// all of them). A pull request's validation build keeps its whole version
+// Daily", "v0.6.0 lab build" (the title said "preview" for all of them).
+// A pull request's validation build keeps its whole version
 // (#92), short enough and the point of it: "v0.2.1-pr96.c0b8250" says which
 // build is being tested.
 //

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Portable mode (KI7MT, 2026-10-23): a qso-graph-data folder beside the
+// Portable mode: a qso-graph-data folder beside the
 // application holds everything it keeps but logins.
 import { describe, expect, it } from 'vitest';
 import { applicationFolder, portableFolder, PORTABLE_FOLDER } from '../packages/main/portable.js';

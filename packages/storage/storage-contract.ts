@@ -4,7 +4,7 @@
 //
 // The renderer asks for status, or for the reference data to be loaded or
 // updated, and nothing else: there is no engine to start or stop. Reference
-// data is fetched only when asked (KI7MT, 2026-10-11: startup must be fast). Status also arrives unasked, pushed by the broker whenever it
+// data is fetched only when asked (startup must be fast). Status also arrives unasked, pushed by the broker whenever it
 // changes, so the screen is never polling and never stale (QGD-ENG-0006).
 // QGD-SEC-0006 applies as at every boundary: checked on arrival, refused rather
 // than coerced.
@@ -46,7 +46,7 @@ export interface ReferenceSummary {
 }
 
 // One resource, as Settings lists it. Nothing is fetched until the operator
-// asks (KI7MT, 2026-10-11).
+// asks.
 export interface ResourceSummary {
   id: string;
   name: string;
@@ -294,7 +294,7 @@ export function isStorageReply(value: unknown): value is StorageReply {
   if (value.ok === true) {
     // adif and bands were missing here, so every ADIF search and band list
     // QG Storage answered was refused as malformed; each layer's own tests
-    // passed (found by KI7MT, 2026-10-23: Parks On the Air showed no bands).
+    // passed (found in use: Parks On the Air showed no bands).
     return only(value, ['ok', 'status', 'saved', 'park', 'choices', 'named', 'counties', 'sections', 'adif', 'bands', 'areaChoices', 'areaDefault', 'toActivate', 'areaLocations', 'places', 'near', 'adifList', 'backup', 'restored']) && isStorageStatus(value.status)
       && (value.backup === undefined || isStationsBackup(value.backup))
       && (value.restored === undefined || (Number.isInteger(value.restored) && (value.restored as number) >= 0))

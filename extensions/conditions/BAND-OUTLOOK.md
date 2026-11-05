@@ -15,7 +15,7 @@ one place to another. HamQSL's banner (N0NBH) rates four band groups Good, Fair 
 background radiation, day/night conditions" and "both propagation and noise", and gives a general
 reference table, but not the calculation itself.
 
-So the words are defined here, by this project (KI7MT, 2026-10-22), and the thresholds below are
+So the words are defined here, by this project, and the thresholds below are
 **rules of thumb, not a propagation model**. They take today's solar flux and planetary K index and
 nothing about where the operator is or where they are trying to reach.
 

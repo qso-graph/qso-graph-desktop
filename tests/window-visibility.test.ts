@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // No suite run puts a window on the operator's screen.
 //
-// KI7MT, 2026-10-10, as an urgent decision: ten suites launch the real
-// application and each one showed a window while he was working — "like
-// endless loops". This is the rule that stops it, tested here because the
+// Ten suites launch the real application, and each one used to show a
+// window on the desktop of whoever was working at it. This is the rule that
+// stops it, tested here because the
 // alternative is testing it by watching a screen.
 //
 // The defect this replaced is worth naming, because `show: false` looked like

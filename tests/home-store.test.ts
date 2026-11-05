@@ -125,7 +125,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
   });
 });
 
-describe('an area of pages, reached from one pin (KI7MT, 2026-10-23)', () => {
+describe('an area of pages, reached from one pin', () => {
   const page = (key: string, name: string, area: string, tab: string, rail = false) =>
     ({ key, name, description: 'd', extensionName: 'On the Air', icon: 'tree', rail, inputs: [], network: false, area, tab, hue: 'general', settings: [] });
   const STATE_AREA = {
@@ -162,7 +162,7 @@ describe('an area of pages, reached from one pin (KI7MT, 2026-10-23)', () => {
   });
 });
 
-describe('the rail in the pins\' order (KI7MT, 2026-10-23)', () => {
+describe('the rail in the pins\' order', () => {
   const page = (key: string, rail = true) =>
     ({ key, name: key, description: 'd', extensionName: 'e', icon: 'tree', rail, inputs: [], network: false, area: key, tab: key, hue: 'general', settings: [] });
   const make = async (pins: string[]) => {

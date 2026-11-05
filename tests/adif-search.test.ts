@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// ADIF Lookup's search (KI7MT, 2026-10-22): ADIF's own fields and
+// ADIF Lookup's search: ADIF's own fields and
 // enumeration values, ranked as a ham would look for them, shown as ADIF has
 // them and nothing added. The rows here are written for the test, shaped as
 // ADIF's are; nothing of ADIF's files is copied.
@@ -97,7 +97,7 @@ describe('ADIF\'s bands (adif.bands)', () => {
 // What QG Storage answers must pass the main process's check of its replies,
 // or the main process refuses it and the extension gets nothing: both the
 // search's and the bands' fields were missing from that check, and every
-// test above passed (KI7MT, 2026-10-23: Parks On the Air showed no bands).
+// test above passed (Parks On the Air showed no bands).
 describe('QG Storage\'s ADIF replies pass the main process\'s check', () => {
   const status = { state: 'ready' };
   it('passes a real search and a real band list, end to end', async () => {
@@ -116,7 +116,7 @@ describe('QG Storage\'s ADIF replies pass the main process\'s check', () => {
   });
 });
 
-describe('an exact match is never cut by the search\'s own limit (Codex review, 2026-10-23)', () => {
+describe('an exact match is never cut by the search\'s own limit (found in review)', () => {
   it('finds Mode AM first, though 161 other values mention AM and come before it', async () => {
     const store = await reference();
     try {

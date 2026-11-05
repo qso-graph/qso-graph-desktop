@@ -14,8 +14,8 @@ export const UPDATES_STATE_CHANNEL = 'updates:state';
 export const SELF_UPDATING = ['win-x64', 'linux-x86_64', 'linux-arm64', 'mac-arm64'] as const;
 export type UpdatePlatform = typeof SELF_UPDATING[number];
 
-// Who owns this copy's install, and so who updates it (#157, KI7MT
-// 2026-11-01). Only a copy that updates itself is offered Betas: the
+// Who owns this copy's install, and so who updates it (#157).
+// Only a copy that updates itself is offered Betas: the
 // Microsoft Store, apt and dnf, and Homebrew offer Releases only, and update
 // it themselves; a portable copy is told, and updated by hand.
 export const INSTALL_SOURCES = ['self', 'store', 'homebrew', 'package', 'portable', 'development'] as const;
@@ -47,7 +47,7 @@ export function isReleaseVersion(value: unknown): value is string {
   return typeof value === 'string' && RELEASE.test(value);
 }
 
-// A Beta's version (#157, KI7MT 2026-11-01): the release it leads to and its
+// A Beta's version (#157): the release it leads to and its
 // number, 0.6.0-beta.1, beta.2 … Plain semantic versioning, so it sorts after
 // the last release and before the one it leads to.
 const BETA = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})-beta\.([1-9]\d{0,2})$/;
@@ -63,7 +63,7 @@ export function isDailyVersion(value: unknown): value is string {
   return typeof value === 'string' && DAILY.test(value);
 }
 // A version the feed may offer: a release, or a Beta (#157).
-// A lab build's version (qso-graph-devel builds/): the release it leads to,
+// A lab build's version (an internal, unsigned build): the release it leads to,
 // -local, the build's UTC time to the second, and the commit. It is never in
 // the feed; a lab build reads the feed as a Preview does, so it can go back to
 // a release (#121).
@@ -175,7 +175,7 @@ export function choose(feed: Feed, track: UpdateTrack, running: string): FeedEnt
 }
 
 // What Choose a version… lists (#77, QGD-FRM-0020): forward, what the track
-// allows; back, Stable releases only (KI7MT, 2026-10-26). `snapshot`: going
+// allows; back, Stable releases only. `snapshot`: going
 // back to it puts back the data kept when it was left.
 export interface VersionChoice {
   version: string;
@@ -203,13 +203,13 @@ export function versionChoices(feed: Feed, track: UpdateTrack, running: string, 
 // `source`, who owns this install (#157), for what Settings can offer.
 export type UpdateState = { stable?: string; source?: InstallSource } & (
   // Not checking, and why: the switch is off, or this is a development
-  // build, which never checks (KI7MT, 2026-10-24: say which).
+  // build, which never checks (say which).
   | { kind: 'off'; why: 'switch' | 'development' }
   | { kind: 'idle' }                              // not asked yet this session
   | { kind: 'checking' }
   | { kind: 'current'; checkedAt: number }        // nothing newer
   // Newer. installable: this build can download and install it, and does so only when the operator
-  // chooses (KI7MT, 2026-10-24: Check only checks); otherwise What's new links to it.
+  // chooses (Check only checks); otherwise What's new links to it.
   | { kind: 'available'; version: string; checkedAt: number; installable: boolean }
   // back: an older version (#77), whose install puts back the data kept when it was left.
   | { kind: 'downloading'; version: string; back?: boolean }

@@ -30,7 +30,7 @@ export interface Conditions {
   readonly scaleText: { readonly R: string; readonly S: string; readonly G: string };
   // The newest of the times below: when the page last changed.
   readonly observedAt: string;
-  // Each reading's own time (KI7MT, 2026-10-22): NOAA measures the flux once
+  // Each reading's own time: NOAA measures the flux once
   // a day, at 20:00 UTC, and the K index every three hours, so one time for
   // both would make one of them look a day old or a day new.
   readonly sfiAt?: string;
@@ -106,8 +106,8 @@ function level(raw: unknown, letter: 'R' | 'S' | 'G'): string {
 function parseScales(data: unknown): Pick<Conditions, 'scales' | 'scaleText' | 'scalesAt'> {
   const current = (typeof data === 'object' && data !== null ? (data as Record<string, unknown>)['0'] : undefined) as
     Record<string, { Scale?: unknown; Text?: unknown } | undefined> | undefined;
-  // When NOAA observed them, as each other reading is dated (#57, found by
-  // Turing: the scales had no time, and the page's took no account of them).
+  // When NOAA observed them, as each other reading is dated (#57, found in
+  // review: the scales had no time, and the page's took no account of them).
   const stamp = current as Record<string, unknown> | undefined;
   const scalesAt = typeof stamp?.DateStamp === 'string' && typeof stamp.TimeStamp === 'string'
     ? isoUtc(`${stamp.DateStamp}T${stamp.TimeStamp}`) : undefined;
@@ -138,8 +138,8 @@ export function bandOutlook(sfi: number, kp: number): Record<string, string> {
   return bands;
 }
 
-// The scale every band is graded on, defined in BAND-OUTLOOK.md (KI7MT,
-// 2026-10-22). A status is always one of these.
+// The scale every band is graded on, defined in BAND-OUTLOOK.md.
+// A status is always one of these.
 export const BAND_STATUSES = ['Excellent', 'Good', 'Fair', 'Poor', 'Sporadic'] as const;
 export type BandStatus = (typeof BAND_STATUSES)[number];
 
@@ -222,18 +222,18 @@ export function conditionsPage(conditions: Conditions): PageAnswer {
     sections.push({ shape: 'alert', level: worst >= 3 ? 'severe' : 'warning', text: `${text}.` });
   }
   sections.push({ shape: 'figures', figures: [
-    // No unit after the flux: hams read the number alone (KI7MT, 2026-10-22).
+    // No unit after the flux: hams read the number alone.
     conditions.sfi !== undefined ? { label: 'Solar flux', value: String(conditions.sfi), ...at(conditions.sfiAt) } : { label: 'Solar flux', value: 'not read' },
     conditions.kp !== undefined ? { label: 'K index', value: String(conditions.kp), ...at(conditions.kpAt) } : { label: 'K index', value: 'not read' },
     // The A index is from the K index's row, so it has the K index's time.
     conditions.a !== undefined ? { label: 'A index', value: String(conditions.a), ...at(conditions.kpAt) } : { label: 'A index', value: 'not read' },
     { label: 'NOAA scales', value: `${conditions.scales.R} ${conditions.scales.S} ${conditions.scales.G}`, ...at(conditions.scalesAt) }
   ] });
-  // What the three letters are, said once under the figures (KI7MT,
-  // 2026-10-24: "I'm not sure what R0 S0 G0 is").
+  // What the three letters are, said once under the figures: R0 S0 G0 means
+  // nothing to someone who has not met NOAA's scales.
   sections.push({ shape: 'text', text: 'NOAA scales, 0 (none) to 5 (extreme): R radio blackouts, fading HF by day; S solar radiation storms, absorbing HF at the poles; G geomagnetic storms, disturbing HF and bringing aurora.' });
-  // Band | Status | Comment, the status on the scale in BAND-OUTLOOK.md
-  // (KI7MT, 2026-10-22). A table, so page data version 2.
+  // Band | Status | Comment, the status on the scale in BAND-OUTLOOK.md.
+  // A table, so page data version 2.
   if (conditions.bands) {
     sections.push({ shape: 'table', columns: ['Band', 'Status', 'Comment'],
       rows: outlookRows(conditions.bands).map(row => [row.band, row.status, row.comment]) });

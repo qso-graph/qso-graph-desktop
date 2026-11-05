@@ -24,7 +24,7 @@ function harness(options: { on?: string[]; write?: boolean } = {}) {
 }
 
 describe('P8-built-in: turning an extension on and off (QGD-HOM-0007)', () => {
-  it('is off by default, as a new profile has it (KI7MT, 2026-10-23)', () => {
+  it('is off by default, as a new profile has it', () => {
     expect(harness().enablement.isOn('pota')).toBe(false);
     expect(readSettings({}).extensionsOn).toEqual([]);
   });
@@ -177,7 +177,7 @@ describe('P8-built-in: Home follows the switch (QGD-HOM-0007)', () => {
   });
 });
 
-describe('a refusal that quotes markup (Codex review, 2026-10-23)', () => {
+describe('a refusal that quotes markup (found in review)', () => {
   it('does not cost Settings the whole inventory', async () => {
     const { buildInventory } = await import('../packages/main/extension-serve.js');
     const register = JSON.parse((await import('node:fs')).readFileSync('data/extension-grants.json', 'utf8'));

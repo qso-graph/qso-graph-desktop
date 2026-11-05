@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  One line at the top of Home after an update (QGD-FRM-0016, KI7MT
-  2026-10-24: the pop-up got in the way). It says the version, offers the
+  One line at the top of Home after an update (QGD-FRM-0016:
+  the pop-up got in the way). It says the version, offers the
   notes, and × hides it until the next update. Nothing else ever shows it.
   After going back to an older version it says so, and offers no notes: nothing
   in it is new (#119).

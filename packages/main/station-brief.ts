@@ -4,7 +4,7 @@
 // Built field by field rather than passed through, as personaBriefs is: an
 // extension is given the name, the grid, and a position in decimal degrees,
 // the centre of the grid square, which is all the position a Location holds
-// (KI7MT, 2026-10-23: "a grid square is enough").
+// (a grid square is enough).
 //
 // Pure, so every case is a unit test.
 import type { StationBrief } from '../extension-api/api-contract.js';

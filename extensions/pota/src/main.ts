@@ -2,7 +2,7 @@
 // Parks On the Air: QSO Graph Desktop's built-in extension for POTA, one
 // destination with three tabs (QGD-HOM-0003): Near Me, Spots and Most Wanted.
 // Its own extension, so its switch in Settings turns off POTA and nothing
-// else (KI7MT, 2026-10-23: "On switch, the lights go out").
+// else, all of it at once.
 //
 // It runs in the extension host (QGD-APP-0015) and reaches the core only
 // through `context` (QGD-APP-0002): POTA's spots are fetched by the core from
@@ -40,8 +40,8 @@ export function activate(context: ExtensionContext): void {
     // ADIF's bands name each spot's band; without them the page still shows
     // the spots, and says how to get the bands.
     const reply = await context.request({ kind: 'adif.bands' }, { signal });
-    // My Area, so the page starts on the operator's own locations (KI7MT,
-    // 2026-10-23). Without it, the page starts on All, as before.
+    // My Area, so the page starts on the operator's own locations.
+    // Without it, the page starts on All, as before.
     const area = await context.request({ kind: 'area.get' }, { signal });
     // Program and Entity by name, from POTA's lists when they are
     // downloaded; without them the page has no such filters.

@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
   Moving callsigns and Locations to another computer (QGD-PSN-0007 to
-  QGD-PSN-0011). KI7MT, 2026-10-23: "we don't store anything that's not
-  publicly available"; logins never move.
+  QGD-PSN-0011). Nothing is stored that is not publicly available; logins
+  never move.
 
   What the file holds is public: each callsign, the services it uses with
   nothing of its login, and the Locations, their places no closer than a grid
@@ -138,7 +138,7 @@
         {/if}
       </fieldset>
       {#if hasHere}
-        <!-- A clean slate, never a merge (KI7MT, 2026-10-23). -->
+        <!-- A clean slate, never a merge. -->
         <p class="overwrite">
           This computer already has
           {#if preview.here.length}{preview.here.length} callsign{preview.here.length === 1 ? '' : 's'} ({preview.here.join(', ')}){/if}{#if preview.here.length && preview.locationsHere} and {/if}{#if preview.locationsHere}{preview.locationsHere} Location{preview.locationsHere === 1 ? '' : 's'}{/if}.

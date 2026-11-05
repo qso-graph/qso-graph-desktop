@@ -40,7 +40,7 @@ describe('Astro\'s page', () => {
     expect(found.filter(section => section.shape === 'table').map(section => section.heading)).toEqual(['Sun', 'Twilight', 'Moon', 'Radio depths']);
   });
 
-  it('gives twilight and the moon for the same five days on this computer\'s clock (KI7MT, 2026-10-23)', () => {
+  it('gives twilight and the moon for the same five days on this computer\'s clock', () => {
     const found = sections(astroPage(BOISE, NOW, {}, MOUNTAIN));
     const twilight = found.find(section => section.heading === 'Twilight');
     const moon = found.find(section => section.heading === 'Moon');
@@ -61,7 +61,7 @@ describe('Astro\'s page', () => {
     expect(moon.rows.every(row => /^(\d\d:\d\d|—)$/.test(row[2]!) && /^(\d\d:\d\d|—)$/.test(row[3]!))).toBe(true);
   });
 
-  it('gives the sun for today and the next four days, every time on this computer\'s clock (KI7MT, 2026-10-23)', () => {
+  it('gives the sun for today and the next four days, every time on this computer\'s clock', () => {
     const sun = sections(astroPage(BOISE, NOW, {}, MOUNTAIN)).find(section => section.heading === 'Sun');
     if (!sun || sun.shape !== 'table' || !('rows' in sun)) throw new Error('no sun');
     expect(sun.columns).toEqual(['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day']);
@@ -80,14 +80,14 @@ describe('Astro\'s page', () => {
     expect(rows[0]![1]).not.toEqual(rows[4]![1]);
   });
 
-  it('gives the radio depths on this computer\'s clock alone: they are the Location\'s (KI7MT, 2026-10-23)', () => {
+  it('gives the radio depths on this computer\'s clock alone: they are the Location\'s', () => {
     const table = today(astroPage(BOISE, NOW, {}, MOUNTAIN));
     expect(table.columns).toEqual(['Event', 'Date', 'Time']);
     const dawn = table.rows.find(row => row[0]!.startsWith('Dawn: the absorbing'));
     expect(dawn).toEqual([expect.any(String), expect.stringMatching(/^\d{1,2} Oct 2026$/), expect.stringMatching(/^\d\d:\d\d$/)]);
   });
 
-  it('gives today\'s and tomorrow\'s radio depths on this computer\'s days, not the Location\'s solar days (#57, Turing)', () => {
+  it('gives today\'s and tomorrow\'s radio depths on this computer\'s days, not the Location\'s solar days (#57)', () => {
     // On a UTC clock at 18:00 on the 22nd, Boise's evening dusks fall after
     // 00:00 UTC: today's are the 22nd's, tomorrow's the 23rd's.
     const rows = today(astroPage(BOISE, NOW, {}, UTC_CLOCK)).rows;
@@ -176,7 +176,7 @@ describe('Astro\'s page', () => {
     expect(apart(new Date('2026-11-09T07:02:00Z'))).toBeLessThan(8);
   });
 
-  it('lists the DX check and the day\'s parts at the top, and not the map or the answer (KI7MT, 2026-10-23)', () => {
+  it('lists the DX check and the day\'s parts at the top, and not the map or the answer', () => {
     const found = sections(astroPage(BOISE, NOW, { dx: 'IO91' }, UTC_CLOCK));
     expect(pageContents(found).map(entry => entry.label)).toEqual(['Grey line DX check', 'Sun', 'Twilight', 'Moon', 'Radio depths']);
   });
@@ -189,7 +189,7 @@ describe('Astro\'s page', () => {
   });
 
   it('gives the times on this computer\'s clock as they are, and never second-guesses its time zone', () => {
-    // The operator sets the clock where they need it (KI7MT, 2026-10-23):
+    // The operator sets the clock where they need it:
     // UTC in the shack, local on the laptop. Astro does not warn about it.
     const found = sections(astroPage({ name: 'London park', latitude: 51.5, longitude: -0.1 }, NOW, {}, MOUNTAIN));
     expect(found.some(section => section.shape === 'alert' && section.level === 'warning')).toBe(false);
@@ -203,7 +203,7 @@ describe('Astro\'s page', () => {
     expect(clockNote(kolkata, NOW)).toBe('Active Location almanac times are based on system clock setting: Asia/Kolkata (UTC+5:30).');
   });
 
-  it('puts every event on the row of its own date on this clock, and starts at this clock\'s today (Codex review, 2026-10-23)', () => {
+  it('puts every event on the row of its own date on this clock, and starts at this clock\'s today (found in review)', () => {
     // A clock whose times carry their dates, so each cell can be checked
     // against its row.
     const dated = (offsetHours: number): Clock => {
@@ -239,7 +239,7 @@ const DENVER: Clock = {
   offset: at => (at.getTime() >= Date.UTC(2026, 2, 8, 9) && at.getTime() < Date.UTC(2026, 10, 1, 8) ? -360 : -420)
 };
 
-describe('the days on this computer\'s clock (#57, Turing)', () => {
+describe('the days on this computer\'s clock (#57)', () => {
   const starts = (from: string) => clockDays(new Date(from), DENVER, 3).map(day => [new Date(day.start).toISOString(), day.minutes]);
 
   it('the spring change: the day of it starts at its own midnight and is 23 hours long', () => {

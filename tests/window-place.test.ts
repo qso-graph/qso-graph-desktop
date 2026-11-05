@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The window opens where it was last (KI7MT, 2026-10-24), unless that place
+// The window opens where it was last, unless that place
 // is no longer on a screen.
 import { describe, expect, it } from 'vitest';
 import { isWindowBounds, placeWindow } from '../packages/main/window-place.js';

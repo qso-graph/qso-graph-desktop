@@ -69,7 +69,7 @@ operational-environment evidence all run under `make verify`. See
 Local evidence on 2026-10-07: Rust unit tests passed (3 tests); the development
 window and the packaged arm64 app both passed create, activate, Keychain save,
 restart, and credential deletion tests using isolated synthetic profiles.
-Python interoperability is out, in any Part (KI7MT, 2026-10-08, `QGD-CRD-0004`).
+Python interoperability is out, in any Part (`QGD-CRD-0004`).
 It was first dropped from P0 on 2026-10-07 because cross-application reads raise a
 macOS authorization dialog that an explicit trusted-application list cannot remove,
 every party being ad-hoc signed. See QGD-HDBK-001 section 5. The Rust round-trip

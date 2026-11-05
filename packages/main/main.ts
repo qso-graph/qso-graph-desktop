@@ -64,7 +64,7 @@ const rendererDirectory = join(distDirectory, 'renderer');
 const log = createLogger('main');
 
 app.setName('QSO Graph Desktop');
-// About is Settings' About card (KI7MT, 2026-10-24), from Help on every
+// About is Settings' About card, from Help on every
 // platform and from the application menu on macOS. It carries the version,
 // the privacy summary, the project's documents and the attribution CC BY 4.0
 // requires for the rail's icons (QGD-REP-0005), so Electron's own About panel
@@ -83,7 +83,7 @@ app.commandLine.appendSwitch('no-pings');
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,AutofillServerCommunication');
 
 function createWindow(): void {
-  // A suite run never puts a window on screen (KI7MT, 2026-10-10).
+  // A suite run never puts a window on screen.
   const visibility = windowVisibility();
   // Where it was when it last closed, if that is still on a screen
   // (window-place.ts); else the default size, centred.
@@ -224,7 +224,7 @@ if (!app.requestSingleInstanceLock()) {
       area: () => load().area
     });
     // The Locations travel with the callsigns in a backup, and come back in a
-    // restore (KI7MT, 2026-10-23); QG Storage holds them.
+    // restore; QG Storage holds them.
     callsigns.connectStations({
       backup: () => storageBroker.backupStations(),
       restore: (backup, replace) => storageBroker.restoreStations(backup, replace),
@@ -270,7 +270,7 @@ if (!app.requestSingleInstanceLock()) {
       writeOn: on => save({ ...load(), extensionsOn: [...on] }),
       // Turned on, its destinations are pinned to Home where there is room
       // and they are not already: every extension starts off, so this is how
-      // one first appears (KI7MT, 2026-10-23). A tab under another page is
+      // one first appears. A tab under another page is
       // reached from its area's pin, so only destinations are pinned.
       onTurnedOn: id => {
         const extension = extensionBroker?.loaded().find(entry => entry.manifest.id === id);
@@ -284,8 +284,8 @@ if (!app.requestSingleInstanceLock()) {
         allowed: () => load().grants,
         // Every request through the callsign service waits for it at a
         // start, as a source fetch does: Your station said nothing was active
-        // at every launch because it asked before the service was up
-        // (KI7MT, 2026-10-22). 10 s, inside the 15 s request deadline.
+        // at every launch because it asked before the service was up.
+        // 10 s, inside the 15 s request deadline.
         callsigns: async () => {
           const briefs = await untilReady(() => callsigns.callsignBriefs(), starting, { withinMs: 10_000 });
           if (typeof briefs === 'string') throw new Error(briefs);
@@ -311,9 +311,9 @@ if (!app.requestSingleInstanceLock()) {
           return found;
         },
         // My Area: the operator's choice, or else the active Location's own
-        // POTA location (station:active; KI7MT, 2026-10-23).
+        // POTA location (station:active).
         // As locations, whatever level it was chosen at: an entity or a
-        // program stands for its locations (KI7MT, 2026-10-23).
+        // program stands for its locations.
         area: async () => storageBroker.areaLocations(),
         // The parks nearest the active Location, from POTA's park list alone
         // (Near Me): it works offline.
@@ -441,7 +441,7 @@ if (!app.requestSingleInstanceLock()) {
     // request's build never asks: its version is neither a release nor a
     // Preview. Nor does a copy from the Microsoft
     // Store, which the Store updates, and whose rules forbid an app updating
-    // itself (KI7MT, 2026-10-24).
+    // itself.
     const updater = startUpdater({
       version: app.getVersion(),
       platform: updatePlatform(),
@@ -484,12 +484,12 @@ if (!app.requestSingleInstanceLock()) {
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
     });
-    // The menu bar (KI7MT, 2026-10-23): the application's own menu on macOS,
+    // The menu bar: the application's own menu on macOS,
     // which Apple requires, and File with Exit elsewhere, where Hide, Hide
     // Others and Show All do nothing; no Window menu, whose Minimize and Close
     // the title bar already has; Tools for what the operator does with their
     // data, such as moving callsigns to another computer. Where each platform
-    // keeps a thing, it is kept there (KI7MT, 2026-10-24): on macOS, Settings
+    // keeps a thing, it is kept there: on macOS, Settings
     // (⌘,) and Check for Updates are in the application menu; elsewhere,
     // Settings is in Setup and Check for Updates in Help.
     const mac = process.platform === 'darwin';
@@ -505,7 +505,7 @@ if (!app.requestSingleInstanceLock()) {
     };
     const settingsItem: Electron.MenuItemConstructorOptions = { ...setupItem('settings', 'Settings…'), accelerator: 'CmdOrCtrl+,' };
     // Built again when an extension is turned on or off, so POTA Focus
-    // Area… is there only while Parks On the Air is on (KI7MT, 2026-10-24).
+    // Area… is there only while Parks On the Air is on.
     const applicationMenu = (): Menu => Menu.buildFromTemplate([
       mac
         ? { label: 'QSO Graph Desktop', submenu: [
@@ -515,7 +515,7 @@ if (!app.requestSingleInstanceLock()) {
         ] }
         : { label: 'File', submenu: [{ role: 'quit', label: 'Exit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
-      // View (KI7MT, 2026-10-24): larger or smaller, within limits
+      // View: larger or smaller, within limits
       // (window-zoom.ts), and full screen. Ctrl or ⌘ with = or + zooms in;
       // the + of a US keyboard needs Shift, which the hidden item catches.
       { label: 'View', submenu: [
@@ -526,7 +526,7 @@ if (!app.requestSingleInstanceLock()) {
         { type: 'separator' },
         { role: 'togglefullscreen' }
       ] },
-      // Setup (KI7MT, 2026-10-22): everything Home's welcome offers, from the
+      // Setup: everything Home's welcome offers, from the
       // menu as well. The window does each; this only says which, by a name
       // from a fixed list (preload.cts, SETUP_ACTIONS). IOTA is shown and
       // greyed out until its reference data exists.
@@ -549,15 +549,15 @@ if (!app.requestSingleInstanceLock()) {
         setupItem('export-callsigns', 'Back Up…'),
         setupItem('import-callsigns', 'Restore…')
       ] },
-      // Help, as every desktop application has (KI7MT, 2026-10-22): the way
+      // Help, as every desktop application has: the way
       // to Troubleshooting from the menu, beside the status bar's button
       // (QGD-LOG-0013). The window opens the panel; this only says so.
       // Above it, the project's documents, opened in the browser from the
-      // repository, which is the one place each is kept (QGD-FRM-0015,
-      // KI7MT 2026-10-22). No ellipsis: nothing more is asked.
+      // repository, which is the one place each is kept (QGD-FRM-0015).
+      // No ellipsis: nothing more is asked.
       { role: 'help', submenu: [
-        // About and What's New first, in a section of their own (KI7MT,
-        // 2026-10-24): About is Settings' About card; on macOS it is in the
+        // About and What's New first, in a section of their own:
+        // About is Settings' About card; on macOS it is in the
         // application menu alone, where Apple puts it. What's New is the
         // notes for this version, from the changelog (QGD-FRM-0016).
         ...(mac ? [] : [setupItem('about', 'About QSO Graph Desktop')]),
@@ -568,7 +568,7 @@ if (!app.requestSingleInstanceLock()) {
           id: name, label, click: () => links.open({ type: 'document', name })
         })),
         { type: 'separator' },
-        // Troubleshooting below the separator (KI7MT, 2026-10-22).
+        // Troubleshooting below the separator.
         {
           id: 'troubleshooting',
           label: 'Troubleshooting…',
@@ -578,7 +578,7 @@ if (!app.requestSingleInstanceLock()) {
           }
         },
         // The redacted diagnostics archive, saved where the operator
-        // chooses, to post themselves (KI7MT, 2026-10-24: nothing is sent
+        // chooses, to post themselves (nothing is sent
         // for them, which would invite abuse). Troubleshooting's own export.
         setupItem('diagnostics', 'Save Diagnostics for Support…')
       ] }

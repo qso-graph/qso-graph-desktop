@@ -315,7 +315,7 @@ describe('station.active (QGD-STN-0003, QGD-HOM-0009)', () => {
   });
 });
 
-describe('adif.search (ADIF Lookup, KI7MT 2026-10-22)', () => {
+describe('adif.search (ADIF Lookup)', () => {
   it('needs reference:read, which the register already says the frame answers on the extension\'s behalf', () => {
     expect(requiredGrant({ kind: 'adif.search', query: 'FT8' })).toBe('reference:read');
     const grant = register.grants.find((entry: { id: string }) => entry.id === 'reference:read');
@@ -331,7 +331,7 @@ describe('adif.search (ADIF Lookup, KI7MT 2026-10-22)', () => {
   });
 });
 
-describe('area.get (My Area, KI7MT 2026-10-23)', () => {
+describe('area.get (My Area)', () => {
   it('needs station:active, since it says roughly where the operator is, and takes nothing but its kind', () => {
     expect(requiredGrant({ kind: 'area.get' })).toBe('station:active');
     expect(validateRequest({ kind: 'area.get' })).toEqual({ kind: 'area.get' });
@@ -339,7 +339,7 @@ describe('area.get (My Area, KI7MT 2026-10-23)', () => {
   });
 });
 
-describe('adif.bands (Parks On the Air\'s band filter, KI7MT 2026-10-23)', () => {
+describe('adif.bands (Parks On the Air\'s band filter)', () => {
   it('needs reference:read, and takes nothing but its kind', () => {
     expect(requiredGrant({ kind: 'adif.bands' })).toBe('reference:read');
     expect(validateRequest({ kind: 'adif.bands' })).toEqual({ kind: 'adif.bands' });

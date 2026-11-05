@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The header clock at the edges of a day: does the UTC date roll over with the
-// time? (KI7MT, 2026-10-22.) It must, at 00:00:00 UTC, not a second later.
+// time? It must, at 00:00:00 UTC, not a second later.
 import { describe, expect, it } from 'vitest';
 import { clockText } from '../packages/ui/clock-text.js';
 

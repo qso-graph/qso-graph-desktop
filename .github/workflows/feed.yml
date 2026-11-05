@@ -66,7 +66,7 @@ jobs:
           stable=$(sed -n 's/^stable=//p' "$work/tracks")
           early=$(sed -n 's/^early=//p' "$work/tracks")
           # Nothing published, or every release withdrawn: a feed that offers
-          # nothing, so a withdrawn release stops being offered (Codex, #94).
+          # nothing, so a withdrawn release stops being offered (found in review, #94).
           [ -n "$early" ] || echo '{"format":"qso-graph-desktop-updates","version":1,"stable":null,"early":null}' > site/desktop.json
           for track in stable early; do
             version=${!track}

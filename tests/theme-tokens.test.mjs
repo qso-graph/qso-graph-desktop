@@ -3,8 +3,8 @@
 // the one that follows a dark system and the one the operator picks. A token
 // left out keeps the light value inside a dark page. --warn was, in the
 // chosen-dark block only, so with Dark the default and the system Light, the
-// Home notice was a near-white box on a near-black page (found by Watson,
-// 2026-10-22). No screenshot could see it: baselines are taken on one system
+// Home notice was a near-white box on a near-black page (found in
+// review). No screenshot could see it: baselines are taken on one system
 // appearance.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -36,7 +36,7 @@ describe('the dark themes redefine every colour the light theme has', () => {
   });
 });
 
-// Watson, 2026-10-22: tokens, never hex. A colour written into a component,
+// Tokens, never hex. A colour written into a component,
 // or anywhere in the stylesheet outside the theme blocks, is a colour the
 // dark themes cannot redefine: the same defect as the --warn token that was
 // missing from one dark block. Black shadows are not hues, and are allowed.

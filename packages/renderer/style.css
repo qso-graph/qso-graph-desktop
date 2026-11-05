@@ -37,7 +37,7 @@
   --warn: #7a4f00;
   --warn-surface: #fbf4e6;
   --warn-border: #e3cfa3;
-  /* A hue per destination (KI7MT and Watson, 2026-10-22): each place in the
+  /* A hue per destination: each place in the
      rail has one, and it is used wherever that place appears. Tokens of their
      own, so --ok still means success and --warn a warning: one meaning per
      token. Hue never carries the meaning alone; a word or an icon is beside it. */
@@ -47,7 +47,7 @@
   --hue-settings: #57667a;
   --accent-surface: #eaf2f8;
   /* The clock's instrument green, on its own black: not a status colour, and
-     kept apart from them so neither moves the other (Watson, 2026-10-22). */
+     kept apart from them so neither moves the other. */
   --clock-ink: #39ff6a;
   --clock-ground: #000000;
   --clock-label: #5fa86f;
@@ -96,7 +96,7 @@
     --hue-settings: #a3b2c4;
     --accent-surface: #0f1d27;
     /* The clock's instrument green, on its own black: not a status colour, and
-       kept apart from them so neither moves the other (Watson, 2026-10-22). */
+       kept apart from them so neither moves the other. */
     --clock-ink: #39ff6a;
     --clock-ground: #000000;
     --clock-label: #5fa86f;
@@ -145,7 +145,7 @@
   --hue-settings: #a3b2c4;
   --accent-surface: #0f1d27;
   /* The clock's instrument green, on its own black: not a status colour, and
-     kept apart from them so neither moves the other (Watson, 2026-10-22). */
+     kept apart from them so neither moves the other. */
   --clock-ink: #39ff6a;
   --clock-ground: #000000;
   --clock-label: #5fa86f;
@@ -172,14 +172,14 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 /* The heads-up bar's boxes: the clock, and later a rig's readout (#43). */
 .header-chips { display: flex; gap: 10px; align-items: center; min-width: 0; }
 /* The clock, first on the heads-up bar: green on black, like a radio's
-   display (KI7MT, 2026-10-22: yellow, like WSJT-X's, was tried first; green
+   display (yellow, like WSJT-X's, was tried first; green
    is "more radio-ish and tech-ish"). The same in both themes, because it is
    read as a display rather than as part of the page, and a rig readout beside
    it later takes the same colours (#43). Green on black is about 15:1. */
 .header-clock { display: flex; gap: 18px; font-size: 13px; padding: 6px 14px; border-radius: 6px;
   background: var(--clock-ground); border: 1px solid var(--border); }
 .clock-label { color: var(--clock-label); font-size: 11px; font-weight: 600; margin-right: 4px; }
-/* The Internet lamp on the clock's panel (KI7MT, 2026-10-23). */
+/* The Internet lamp on the clock's panel. */
 .net-light { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: 0; background: var(--lamp-off); box-shadow: 0 0 6px var(--lamp-off); }
 .net-lamp[data-lamp="on"] .net-light { background: var(--lamp-on); box-shadow: 0 0 6px var(--lamp-on); }
 .net-lamp[data-lamp="trouble"] .net-light { background: var(--lamp-trouble); box-shadow: 0 0 6px var(--lamp-trouble); }
@@ -195,8 +195,7 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 /* Settings sits at the bottom of the rail, pushed there rather than placed. */
 .rail-end { margin-top: auto; }
 /* More destinations than the window is tall: the upper group scrolls and
-   Settings stays at the foot (KI7MT, 2026-10-23: "what happens when we have
-   more than 8 extensions"). */
+   Settings stays at the foot, however many extensions there are. */
 .rail { min-height: 0; }
 .rail-group:not(.rail-end) { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .rail-end { flex-shrink: 0; }
@@ -228,14 +227,14 @@ main { flex: 1; min-height: 0; display: flex; }
 .page-main { flex: 1; padding: 30px 36px 40px; overflow-y: auto; }
 /* The page's own width, which is what a layout inside it should answer to:
    the rail and the callsign list take some of the window, so a query on the
-   window switches too early (Watson, 2026-10-22). Named, so a card's own
+   window switches too early. Named, so a card's own
    container queries still bind to the card. */
 .page-main { container: page / inline-size; }
 .page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: 1.4px; margin: 0 0 6px; color: var(--ink-muted); }
 /* A page's eyebrow in its destination's hue, as on the rail: Callsigns,
    Locations and Settings, and an extension's in the colour its manifest
-   names (KI7MT, 2026-10-23: the eyebrow matches the rail). */
+   names (the eyebrow matches the rail). */
 .eyebrow[data-hue="general"] { color: var(--hue-general); }
 .eyebrow[data-hue="callsigns"] { color: var(--hue-callsigns); }
 .eyebrow[data-hue="locations"] { color: var(--hue-locations); }
@@ -319,7 +318,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 /* Home's cards (QGD-HOM-0002): drawn by the core from data. */
 /* A page that fills the window: cards are not held to the reading width. */
 .page-full .card { max-width: none; }
-/* Home, laid out as a GitHub profile is (KI7MT, 2026-10-22): our welcome at
+/* Home, laid out as a GitHub profile is: our welcome at
    the top, then the operator's pins under a "Pinned" heading. The welcome is
    reserved and draws nothing while it is empty. */
 .home-welcome { max-width: 1088px; margin: 0 0 28px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
@@ -337,17 +336,17 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .welcome-steps { margin: 0 0 14px; }
 .welcome-steps h3 { margin: 0 0 6px; font-size: 13px; }
 .welcome-steps ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
-/* A step done shows its tick, and nothing more (KI7MT, 2026-10-22: no
+/* A step done shows its tick, and nothing more (no
    strike-through). */
 .welcome-box { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border: 1px solid var(--border-strong); border-radius: 3px; font-size: 11px; line-height: 13px; text-align: center; vertical-align: -2px; }
 /* Waiting: amber, the colour that asks for attention. Done: green, with the
-   tick (KI7MT, 2026-10-22). Not the places' hues: a waiting Locations step in
+   tick. Not the places' hues: a waiting Locations step in
    its green read as done. */
 .welcome-steps li .link-button { color: var(--warn); }
 .welcome-steps li .welcome-box { border-color: var(--warn-border); background: var(--warn-surface); }
 .welcome-steps li.done .link-button { color: var(--ok); }
 .welcome-steps li.done .welcome-box { border-color: var(--ok); color: var(--ok); background: var(--ok-surface); }
-/* The selling points: a heading, then its message (KI7MT, 2026-10-22), two
+/* The selling points: a heading, then its message, two
    to a row where the page has room and one where it has not. */
 .welcome-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 28px; margin: 4px 0 16px; }
 @container page (min-width: 760px) { .welcome-features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -365,7 +364,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
    as two rows of four. A tile is comfortable at 260 px, so four of them and
    three gaps, 1088 px, is the most Home is ever as wide; on a larger monitor
    the rest is a margin on the right, left-aligned as every other page is.
-   Four on a 14-15" laptop's full screen, the target (KI7MT, 2026-10-22);
+   Four on a 14-15" laptop's full screen, the target;
    three, two and one as the page narrows. The breakpoints are the page's
    width, not the window's: the rail and the callsign list take some of it. */
 .home-pins { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1088px; }
@@ -391,7 +390,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .page-section-heading { margin: 18px 0 8px; font-size: 15px; }
 .page-body > .page-section-heading:first-of-type { margin-top: 4px; }
 /* A page's fields, drawn by the core (inputs.ts), above its data. */
-/* An area's pages as tabs (KI7MT, 2026-10-23): a pin opens the area, and its
+/* An area's pages as tabs: a pin opens the area, and its
    pages are one click apart. Underlined, as a page's own sections are, not
    buttons in a row. */
 .page-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 16px; flex-wrap: wrap; }
@@ -407,7 +406,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
    a card of their own within it. */
 .page-body .page-inputs { border: 0; padding: 0; margin: 4px 0 8px; background: none; box-shadow: none; }
 /* A field as wide as what it takes, with Show beside it rather than across
-   the page (KI7MT, 2026-10-23): a grid is at most eight characters. */
+   the page: a grid is at most eight characters. */
 .page-inputs .fields { flex: 0 1 auto; display: flex; flex-wrap: wrap; gap: 16px; }
 .page-inputs .page-input-grid { width: 10ch; }
 .page-inputs .page-input-callsign { width: 12ch; }
@@ -423,7 +422,7 @@ footer { flex-shrink: 0; min-height: 34px; background: var(--surface); border-to
 .page-head h2 { margin: 0; }
 .page-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
 /* Each figure as wide as it reads, packed to the left, never stretched
-   across a wide page (KI7MT, 2026-10-24: Conditions' four were spread
+   across a wide page (Conditions' four were spread
    the width of the card). */
 .page-figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 160px)); justify-content: start; gap: 12px 24px; margin: 0 0 12px; }
 .page-figures dt { font-size: 11px; color: var(--ink-muted); font-weight: 600; }
@@ -459,13 +458,13 @@ dialog.pins h2 { margin: 0 0 6px; }
 /* Anchored at top and left (QGD-FRM-0022). Without them an absolute box sits
    where it would have been, and one deep in a long page's scrolled content
    made the whole window scroll: Settings' backup legend and Home's pin hints,
-   up to 1,700 px past the bottom (KI7MT, 2026-10-30). */
+   up to 1,700 px past the bottom. */
 .visually-hidden { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Settings: one switch per extension (QGD-HOM-0007). */
 .extension-list { list-style: none; margin: 0; padding: 0; }
 .extension-row + .extension-row { border-top: 1px solid var(--border); }
-/* An extension's own settings, on its area's Settings tab (KI7MT, 2026-10-24). */
+/* An extension's own settings, on its area's Settings tab. */
 .extension-setting h3 { margin: 0 0 6px; font-size: 15px; }
 .extension-switch { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 10px 0; font-size: 13px; font-weight: 400; cursor: pointer; }
 .extension-text { display: flex; flex-direction: column; min-width: 0; }
@@ -522,7 +521,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-table-box { max-width: 100%; overflow-x: auto; }
 .page-table-box > .page-table { max-width: none; }
 /* As wide as what it holds, with a steady gap between columns, rather than
-   stretched to the page and its columns pushed apart (KI7MT, 2026-10-23). */
+   stretched to the page and its columns pushed apart. */
 .page-table th, .page-table td { text-align: left; padding: 6px 28px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
 .page-table th:last-child, .page-table td:last-child { padding-right: 0; }
 .page-table thead th { border-top: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
@@ -533,11 +532,11 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-table .page-table-group th { padding-top: 18px; font-size: 15px; font-weight: 600; border-top: 0; }
 .page-table tbody:first-of-type .page-table-group th { padding-top: 6px; }
 /* A group's rows sit in under its name, so the name reads as the heading
-   of what follows (KI7MT, 2026-10-23). */
+   of what follows. */
 .page-table tbody:has(.page-table-group) th[scope="row"] { padding-left: 16px; }
 .page-table td[colspan] { color: inherit; white-space: normal; }
 /* A long cell wraps within a readable width rather than widening the table:
-   a park's whole name, a park in ten locations (KI7MT, 2026-10-23). */
+   a park's whole name, a park in ten locations. */
 .page-table td.wrap, .page-table td.wrap:not(:last-child) { white-space: normal; min-width: 14em; max-width: 30em; }
 .page-offline { color: var(--warn); font-weight: 600; }
 .page-text { margin: 0 0 12px; color: var(--ink-muted); font-size: 13px; }
@@ -557,7 +556,7 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-sort:hover { color: var(--ink); text-decoration: underline; }
 .page-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
 /* The world map fills the page's width at its own 2:1 shape. */
-/* No wider than reads well (KI7MT, 2026-10-24: at full screen it spanned
+/* No wider than reads well (at full screen it spanned
    the window); narrower windows shrink it. */
 .world-map { margin: 4px 0 14px; max-width: 720px; }
 .world-map svg { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
@@ -572,8 +571,8 @@ dialog.pins h2 { margin: 0 0 6px; }
 .map-sun { fill: var(--map-sun); }
 .map-mark { fill: var(--map-mark); }
 .map-label { fill: var(--ink); font-size: 6px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 1.5px; }
-/* The table follows its card's own width, not the window's (KI7MT,
-   2026-10-20): a card can be about 300 px wide, and three columns there wrap
+/* The table follows its card's own width, not the window's:
+   a card can be about 300 px wide, and three columns there wrap
    the comment one word to a line. When the card is narrow, each row keeps its
    band and status on one line and the comment drops to its own line beneath. */
 .page-body { container-type: inline-size; }
@@ -588,8 +587,8 @@ dialog.pins h2 { margin: 0 0 6px; }
 }
 /* Four figures (Your station's UTC, local, sunrise and sunset; Conditions'
    flux, K, A and scales) sit evenly: four in a row when the card has room,
-   otherwise two by two, never three and one left alone on a line (KI7MT,
-   2026-10-22). */
+   otherwise two by two, never three and one left alone on a line.
+   */
 .page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 160px)); }
 @container (min-width: 460px) {
   .page-figures:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 160px)); }

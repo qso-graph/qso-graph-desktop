@@ -272,7 +272,7 @@ export async function buildReference(
 // Each location's activations read and checked, then joined: a park in two
 // locations of My Area is one row. Both lists are POTA's, so where they were
 // fetched at different times and disagree, the count fetched later stands
-// (#57, found by Turing: it was the location later in the alphabet).
+// (#57, found in review: it was the location later in the alphabet).
 interface ReadActivations { rows: Activation[]; byLocation: Map<string, number> }
 function readAllActivations(inputs: BuildInputs['activations']): ReadActivations {
   const parks = new Map<string, Activation>();

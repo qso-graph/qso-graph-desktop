@@ -45,7 +45,7 @@ describe('sunrise and sunset at a station', () => {
   // The evening the midnight sun ends at Longyearbyen: the sun goes below the
   // horizon late in the day and does not come back up until after midnight. A
   // method that decides from one moment of the day calls this a day the sun
-  // never sets (found by Turing in review; astral 3.2 and PyEphem both do).
+  // never sets (found in review; astral 3.2 and PyEphem both do).
   it('finds a sunset with no sunrise on the evening the midnight sun ends', () => {
     const day = sunDay(new Date('2026-08-24T10:57Z'), 78.2232, 15.6267);
     expect(day.sunrise).toBeUndefined();

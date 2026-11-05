@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// A real station for the gallery, when there is one (KI7MT, 2026-10-24).
+// A real station for the gallery, when there is one.
 //
 // A backup file (Settings → Back up and restore) saved as showcase.local.json
 // at the root of the checkout is read here; git ignores it, so it is never

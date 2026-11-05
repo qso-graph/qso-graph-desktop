@@ -15,9 +15,9 @@ export type StationKind = (typeof STATION_KINDS)[number];
 
 // The ADIF fields a station holds (QGD-STN-0002), in the order the editor
 // shows them: the place, then the activity references. Only what is public
-// or no closer than a grid square (KI7MT, 2026-10-23: "we don't store
-// anything that's not publicly available"; "a grid square is enough for
-// POTA, SOTA, DX, whatever"): no street, city or postal code, no latitude or
+// or no closer than a grid square (nothing is stored that is not publicly
+// available, and a grid square is enough for POTA, SOTA and DX alike): no
+// street, city or postal code, no latitude or
 // longitude, and no grid past ADIF's 8 characters (MY_GRIDSQUARE_EXT would
 // place a home to some 20 metres). REMOVED_FIELDS are taken out of what an
 // earlier build kept (state migration 0005).
@@ -37,7 +37,7 @@ export interface Station {
   kind?: StationKind;
   place: Place;
   lotwPark?: string;
-  // The operator's own notes about the place (KI7MT, 2026-10-22).
+  // The operator's own notes about the place.
   notes?: string;
 }
 
@@ -48,7 +48,7 @@ export interface StationDraft {
   kind?: StationKind;
   place: Place;
   lotwPark?: string;
-  // The operator's own notes about the place (KI7MT, 2026-10-22).
+  // The operator's own notes about the place.
   notes?: string;
 }
 
@@ -337,8 +337,8 @@ export function gridPosition(grid: string | undefined): { latitude: number; long
   return { latitude: known.reduce((sum, centre) => sum + centre.latitude, 0) / known.length, longitude };
 }
 
-// The Maidenhead grid holding a position, 2, 4, 6 or 8 characters (KI7MT,
-// 2026-10-22: the grid from latitude and longitude, as well as the other way
+// The Maidenhead grid holding a position, 2, 4, 6 or 8 characters
+// (the grid from latitude and longitude, as well as the other way
 // round). Letters for the field and subsquare are written as hams write
 // them: the field upper case, the subsquare lower. Undefined outside the
 // world's bounds.
@@ -363,7 +363,7 @@ export function gridOf(latitude: number, longitude: number, length: 2 | 4 | 6 | 
 }
 
 // Every Location, each callsign's default and the active one, as a restore
-// carries them (KI7MT, 2026-10-23: callsigns and Locations move from one
+// carries them (callsigns and Locations move from one
 // computer to another; logins do not). Ids are kept, so each callsign's
 // default, which names a callsign's id and a Location's, still holds.
 export interface StationsBackup {

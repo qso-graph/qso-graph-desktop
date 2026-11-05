@@ -274,8 +274,7 @@ describe('the grants the operator has allowed', () => {
 
 describe('P8-pins: pins in settings.json (QGD-HOM-0003, QGD-HOM-0004)', () => {
   it('starts a new install with the day-one cards pinned, in order', () => {
-    // Nothing: every extension starts off, and turning one on pins it
-    // (KI7MT, 2026-10-23).
+    // Nothing: every extension starts off, and turning one on pins it.
     expect(readSettings({})).toMatchObject({ pins: [], extensionsOn: [] });
     expect(DAY_ONE_PINS).toEqual([]);
   });
@@ -338,7 +337,7 @@ describe('QGD-FRM-0016: the version whose notes were seen', () => {
 });
 
 
-describe('My Area (KI7MT, 2026-10-23)', () => {
+describe('My Area', () => {
   it('keeps up to ten POTA locations, and refuses anything else', async () => {
     const { isArea, MAX_AREA } = await import('../packages/main/settings-contract.js');
     expect(readSettings({ area: ['US-ID', 'US-MT', 'JP-TK'] }).area).toEqual(['US-ID', 'US-MT', 'JP-TK']);

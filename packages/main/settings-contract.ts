@@ -32,8 +32,8 @@ export interface Settings {
   pins: readonly string[];
   // The extensions the operator has turned on, by id (QGD-HOM-0007). Absent
   // or empty means none is: a new install starts with Home, Callsigns,
-  // Locations and Settings alone, and the operator adds what they use (KI7MT,
-  // 2026-10-23). An extension a later release brings arrives off too.
+  // Locations and Settings alone, and the operator adds what they use.
+  // An extension a later release brings arrives off too.
   extensionsOn: readonly string[];
   // What's new (QGD-FRM-0016, #119), each a version or empty:
   // the version Home's line was last closed for (empty on a new install);
@@ -43,21 +43,21 @@ export interface Settings {
   lastRunVersion: string;
   // and the version the last update came from, for the notes (empty when not known).
   updatedFrom: string;
-  // My Area (KI7MT, 2026-10-23): the parts of POTA the operator works in, at
+  // My Area: the parts of POTA the operator works in, at
   // POTA's own three levels, a program (IT), an entity (291) or a location
   // (US-ID), at most MAX_AREA. Chosen before anything is fetched for them,
   // so nothing outside it is. Empty means the active Location's own.
   area: readonly string[];
   // Updates (QGD-FRM-0019): whether to ask, once a day, if there is a newer
   // release, and which track. Asking is going online, so it is a switch, on
-  // by default, and Privacy names it. Two tracks (#157, KI7MT 2026-11-01):
+  // by default, and Privacy names it. Two tracks (#157):
   // Release ('stable'), and Beta ('early'), which offers the next release's
   // Betas as well. The names on disk are kept so every copy reads them.
   // 'preview', a track until 0.6.0, is read as Beta.
   updateCheck: boolean;
   updateTrack: UpdateTrack;
-  // Where the window was when the application last closed (KI7MT,
-  // 2026-10-24), or null. Main's alone: written as the window closes, never
+  // Where the window was when the application last closed,
+  // or null. Main's alone: written as the window closes, never
   // through the settings channel.
   windowBounds: WindowBounds | null;
   // Each adapter's port, as the operator set it on Integrations' page
@@ -120,7 +120,7 @@ function isBoolean(value: unknown): value is boolean {
 }
 
 // Enough for a home location, its neighbours and a trip's, and never the
-// world (KI7MT, 2026-10-23).
+// world.
 export const MAX_AREA = 10;
 
 export function isArea(value: unknown): value is readonly string[] {
@@ -134,16 +134,16 @@ export function isArea(value: unknown): value is readonly string[] {
   return true;
 }
 
-// Two rows of four on Home (KI7MT, 2026-10-22; was six).
+// Two rows of four on Home (was six).
 export const MAX_PINS = 8;
 // The day-one pages (QGD-HOM-0004): what a new install starts with. Your
-// station was the second until it was retired (KI7MT, 2026-10-22); a pin for
+// station was the second until it was retired; a pin for
 // it in an older settings.json names no page, and Home skips it.
-// Astro joined it (KI7MT, 2026-10-22). None since 2026-10-23 (KI7MT): every
+// Astro joined it. None since 2026-10-23 (KI7MT): every
 // extension starts off, and turning one on pins its destinations.
 export const DAY_ONE_PINS: readonly string[] = [];
 
-// Dark by default (KI7MT, 2026-10-22): rig control and SDR software is dark,
+// Dark by default: rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
 export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', lastRunVersion: '', updatedFrom: '', area: [],
   updateCheck: true, updateTrack: 'stable', windowBounds: null, integrations: {}, pageSettings: {} };

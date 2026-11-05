@@ -41,7 +41,7 @@ export const localClock: Clock = {
 };
 
 // What the page says about its times: the zone the system clock is set to,
-// so "sunrise was two hours off" answers itself (KI7MT, 2026-10-23).
+// so "sunrise was two hours off" answers itself.
 export function clockNote(clock: Clock, at: Date): string {
   const { name, short } = clock.zone(at);
   if (name === 'UTC' || name === 'Etc/UTC') return 'Active Location almanac times are based on system clock setting: UTC.';
@@ -57,7 +57,7 @@ export function clockNote(clock: Clock, at: Date): string {
 // The days the almanac is in: today and the four after it, each a day on
 // this computer's clock, from its midnight to the next, so every event is on
 // the row of its own date on that clock and the table starts on the clock's
-// today (Codex review, 2026-10-23: a day was the Location's solar day, so on
+// today (found in review: a day was the Location's solar day, so on
 // a UTC clock Boise's 00:50 sunset sat under the day before, and just after
 // local midnight the table still began yesterday). A day with a change of
 // summer time is 23 or 25 hours long.
@@ -67,7 +67,7 @@ export interface ClockDay { readonly start: number; readonly minutes: number; re
 export function clockDays(now: Date, clock: Clock, count = SUN_DAYS): ClockDay[] {
   const midnight = (at: number) => {
     // The offset in force at that midnight decides it, not the one now nor
-    // the one at midday (#57, found by Turing: on the day summer time began
+    // the one at midday (#57, found in review: on the day summer time began
     // or ended, the day started an hour out). Taken again at each candidate
     // midnight until it holds; twice is enough, a third pass is a guard.
     let offset = clock.offset(new Date(at)) * 60_000;
@@ -93,7 +93,7 @@ export function clockDays(now: Date, clock: Clock, count = SUN_DAYS): ClockDay[]
 // The sun for those days: Date, Sunrise, Solar noon, Sunset, and the length
 // of the daylight around that day's solar noon, on this computer's clock,
 // which is the operator's to set: local in Idaho, UTC in a shack kept on UTC
-// (KI7MT, 2026-10-23: a sunrise in UTC means nothing in Idaho).
+// (a sunrise in UTC means nothing in Idaho).
 export function sunWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
   return clockDays(now, clock).map(({ start, minutes, noon: middle }) => {
     const found = sunCrossingsOver(start, minutes, latitude, longitude, HORIZON);
@@ -118,7 +118,7 @@ export function sunWeek(now: Date, latitude: number, longitude: number, clock: C
 const timeOr = (clock: Clock, at: Date | undefined) => (at ? clock.time(at) : '—');
 
 // Twilight for the same five days: each depth's dawn and dusk, on this
-// computer's clock (KI7MT, 2026-10-23). A depth the sun does not reach that
+// computer's clock. A depth the sun does not reach that
 // day, or does not leave, is a dash.
 export function twilightWeek(now: Date, latitude: number, longitude: number, clock: Clock): string[][] {
   return clockDays(now, clock).map(({ start, minutes, noon }) => {
@@ -142,7 +142,7 @@ export function moonWeek(now: Date, latitude: number, longitude: number, clock: 
     const jd = julian(noon.getTime());
     const phase = moonPhase(jd);
     const position = moonAt(jd);
-    // The date and the phase first, then the rest (KI7MT, 2026-10-23).
+    // The date and the phase first, then the rest.
     return [
       clock.date(noon),
       phase.name,
@@ -163,7 +163,7 @@ type Row = [label: string, at: Date | string];
 // A group of the one table. A time is given on each clock; a sentence or a
 // span has no clock, so it is given once, across both (page data version 5).
 // The radio depths' rows: each event's date and time on this computer's
-// clock, which is the Location's rule (KI7MT, 2026-10-23: logs are UTC,
+// clock, which is the Location's rule (logs are UTC,
 // Locations are local). A sentence where there is no event, once, across.
 function radioRows(rows: Row[], clock: Clock): string[][] {
   return rows.map(([label, at]) => (typeof at === 'string' ? [label, at] : [label, clock.date(at), clock.time(at)]));
@@ -209,14 +209,14 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
   const phase = moonPhase(at);
   // The DX question (QGD-AST-0041): when both ends are inside the same depth.
   // Drawn under the figures, just below the field it answers, not after the
-  // day's whole table (KI7MT, 2026-10-22).
+  // day's whole table.
   const dx = inputs.dx ? gridCentre(inputs.dx) : undefined;
   const greyLineSection: Section[] = [];
   if (inputs.dx && dx) {
     const heading = `Grey line with ${inputs.dx}, the next 24 hours`.slice(0, 60);
     const found = greyLine(now, position, dx);
     // The depth, the date, and the start and end in UTC, each its own
-    // column (KI7MT, 2026-10-23). An end on the next day carries its date;
+    // column. An end on the next day carries its date;
     // a depth with no window says so once, across the columns.
     const rows: string[][] = [];
     const dateOf = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]}`;
@@ -237,7 +237,7 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       : { shape: 'table', heading, contents: false, columns: ['Both ends within', 'Date (UTC)', 'Start', 'End'], rows });
   }
 
-  // The grey line on the map (KI7MT, 2026-10-22): the night greyed out, the
+  // The grey line on the map: the night greyed out, the
   // twilight to the D and E layers' depth lighter, which is the band the
   // windows below are worked out for, the moon where it is overhead, the
   // Location marked, and the DX grid when there is one.
@@ -251,33 +251,33 @@ export function astroPage(station: StationBrief | null, now: Date, inputs: Input
       { label: 'Location', value: station!.name.slice(0, 32) },
       ...(station!.grid ? [{ label: 'Grid', value: station!.grid }] : []),
       // Signed, so up and down read at a glance: +23.9° above the horizon,
-      // −5.2° below it, as the radio depths are written (KI7MT, 2026-10-22).
+      // −5.2° below it, as the radio depths are written.
       { label: 'Sun now', value: signed(sunAltitude(at, latitude, longitude)) },
       { label: 'Moon', value: `${Math.round(phase.fraction * 100)}%` }
     ] },
     map,
     // The DX field here, under the map, with its answer just below it
-    // (KI7MT, 2026-10-23: above the map, it seemed to do nothing).
+    // (above the map, it seemed to do nothing).
     { shape: 'fields', heading: 'Grey line DX check' },
     ...greyLineSection,
     // The day's times under a heading of their own, set apart from the grey
-    // line above (KI7MT, 2026-10-23). Not in the contents line, which lists
+    // line above. Not in the contents line, which lists
     // Sun, Twilight, Moon and Radio depths below it.
     { shape: 'text', heading: `Almanac for ${station!.name}`.slice(0, 60), contents: false, text: clockNote(clock, now) },
-    // The sun, five days of it, on this computer's clock (KI7MT, 2026-10-23).
+    // The sun, five days of it, on this computer's clock.
     { shape: 'table', heading: 'Sun', columns: ['Date', 'Sunrise', 'Solar noon', 'Sunset', 'Length of day'], rows: sunWeek(now, latitude, longitude, clock) },
-    // Twilight and the moon for the same five days, likewise (KI7MT, 2026-10-23).
+    // Twilight and the moon for the same five days, likewise.
     { shape: 'table', heading: 'Twilight', columns: ['Date', 'Civil dawn', 'Civil dusk', 'Nautical dawn', 'Nautical dusk', 'Astro dawn', 'Astro dusk'], rows: twilightWeek(now, latitude, longitude, clock) },
     { shape: 'table', heading: 'Moon', columns: ['Date', 'Phase', 'Moonrise', 'Moonset', 'Lit', 'Declination', 'Distance'], rows: moonWeek(now, latitude, longitude, clock) },
     // A table headed Radio depths as the other three are: a table of one
-    // group drew its column headings above its title (KI7MT, 2026-10-23).
+    // group drew its column headings above its title.
     { shape: 'table', heading: 'Radio depths', columns: ['Event', 'Date', 'Time'], rows: radioRows(
     // What each depth means for radio, said beside it (QGD-AST-0022). Last:
-    // the most specialised, after what everyone reads (KI7MT, 2026-10-23).
-    // Today and tomorrow, as it was laid out (KI7MT, 2026-10-23): the date in
+    // the most specialised, after what everyone reads.
+    // Today and tomorrow, as it was laid out: the date in
     // each time tells the two days apart. Days on this computer's clock, as
-    // the tables above are, not the Location's solar days (#57, found by
-    // Turing: on a UTC clock "today" held tomorrow's dusk).
+    // the tables above are, not the Location's solar days (#57, found in
+    // review: on a UTC clock "today" held tomorrow's dusk).
     clockDays(now, clock, 2).flatMap(({ start, minutes }, day) => {
       const when = day === 0 ? 'today' : 'tomorrow';
       return [

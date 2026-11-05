@@ -38,13 +38,13 @@ export interface Checked {
 export function checkStation(draft: StationDraft, definitions: Definitions, counties?: Counties): Checked {
   const problems: FieldProblem[] = [];
   if (draft.name.trim().length === 0) problems.push({ field: 'name', reason: 'A location needs a name.' });
-  // The grid is always required (KI7MT, 2026-10-20): one grid, or the grids
+  // The grid is always required: one grid, or the grids
   // of a line or corner (QGD-STN-0003).
   if (!draft.place.MY_GRIDSQUARE?.trim() && !draft.place.MY_VUCC_GRIDS?.trim()) {
     problems.push({ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' });
   }
-  // A US county is checked against the list LoTW accepts (QGD-STN-0010,
-  // KI7MT 2026-10-22: LoTW first), written with its state first as ADIF has
+  // A US county is checked against the list LoTW accepts (QGD-STN-0010:
+  // LoTW first), written with its state first as ADIF has
   // it. Refused with the reason, never altered to fit. The list ships with the
   // application, so this holds whether or not ADIF's definitions are here.
   const { MY_DXCC: countyEntity, MY_STATE: countyState } = draft.place;
@@ -84,7 +84,7 @@ export function checkStation(draft: StationDraft, definitions: Definitions, coun
   }
   // A zone must be one of the state's own where ADIF lists the state's
   // zones: Idaho is CQ 3 and ITU 6 in ADIF's subdivision list, so Idaho in
-  // CQ 40 is refused (KI7MT, 2026-10-20: what can be checked must be right).
+  // CQ 40 is refused (what can be checked must be right).
   const { MY_DXCC: entity, MY_STATE: state } = draft.place;
   if (entity && state) {
     const choices = stationChoices(definitions, entity, state);
@@ -167,7 +167,7 @@ export async function lookUpParks(reference: Store<typeof referenceSchema>, refe
 }
 
 // How a station's references are checked against their lists where the list
-// is on this computer (KI7MT, 2026-10-20): undefined where it is not, and the
+// is on this computer: undefined where it is not, and the
 // reference is then checked for its form only.
 export interface ReferenceLists {
   parks?: (references: string[]) => Promise<Choice[]>;
@@ -261,7 +261,7 @@ export async function deleteStation(state: StateStore, id: string): Promise<bool
 // Each of these is one unit of work: the check that the station exists and
 // the write happen together, so a callsign made active while the operator picks
 // another station cannot interleave between them and leave the wrong one
-// active (found by Turing in review).
+// active (found in review).
 export async function setDefaultStation(state: StateStore, callsign: string, id: string | null): Promise<boolean> {
   return state.unit(async (db) => {
     if (id === null) {
@@ -284,7 +284,7 @@ export async function setActiveStation(state: StateStore, id: string | null): Pr
   });
 }
 
-// A callsign that is gone has no default (KI7MT, 2026-10-22): its row goes
+// A callsign that is gone has no default: its row goes
 // with it, so a default never outlives the callsign it was for.
 export async function callsignRemoved(state: StateStore, callsign: string): Promise<boolean> {
   return state.unit(async (db) => {
@@ -322,8 +322,8 @@ export async function draftFromPark(
   const place: Place = { MY_POTA_REF: park.reference };
   if (park.adifEntity !== null) place.MY_DXCC = String(park.adifEntity);
   let note: string | undefined;
-  // The grid alone: a Location holds no latitude or longitude (KI7MT,
-  // 2026-10-23: "a grid square is enough").
+  // The grid alone: a Location holds no latitude or longitude (a grid square
+  // is enough).
   if (park.coordinatesUsable && park.latitude !== null && park.longitude !== null) {
     if (park.grid) place.MY_GRIDSQUARE = park.grid;
   } else {
@@ -437,8 +437,8 @@ export function stationChoices(
   };
 }
 
-// Every Location, each callsign's default and the active one, for a backup
-// (KI7MT, 2026-10-23). The notes stay on this computer: they are the
+// Every Location, each callsign's default and the active one, for a backup.
+// The notes stay on this computer: they are the
 // operator's own words, which may hold a gate code or a telephone number, and
 // a backup holds only what is public.
 export async function backupStations(state: StateStore): Promise<StationsBackup> {
@@ -451,8 +451,8 @@ export async function backupStations(state: StateStore): Promise<StationsBackup>
   return { stations, defaults: view.defaults, active: view.active };
 }
 
-// A restore onto a clean slate (KI7MT, 2026-10-23: "clean up the new first,
-// then it's a clean import"): the Locations here are removed first when the
+// A restore onto a clean slate (the new computer is cleared first, so the
+// import is clean): the Locations here are removed first when the
 // operator says so, and refused otherwise, so nothing is merged. All of it in
 // one unit of work, so a failure leaves the Locations as they were. Each
 // Location keeps its id, so a callsign's default still names it.

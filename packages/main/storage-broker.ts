@@ -56,8 +56,8 @@ export interface StorageBroker {
   adifSearch: (query: string) => Promise<AdifEntry[] | string>;
   // A whole enumeration by name, null when ADIF has none of that name (#58).
   adifList: (name: string) => Promise<AdifList | null | string>;
-  // The Locations, for a backup, and a restore onto a clean slate
-  // (KI7MT, 2026-10-23); how many are here now.
+  // The Locations, for a backup, and a restore onto a clean slate;
+  // how many are here now.
   backupStations: () => Promise<StationsBackup | string>;
   restoreStations: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
   // A restore's Locations checked, changing nothing: a reason, or undefined.
@@ -78,7 +78,7 @@ export interface StorageBroker {
   // The callsign made active, whose default station QG Storage makes active
   // (QGD-STN-0005). Main's to say, never a window's: there is no command for it.
   callsignActivated: (id: string) => void;
-  // A callsign removed, whose default goes with it (KI7MT, 2026-10-22).
+  // A callsign removed, whose default goes with it.
   callsignRemoved: (id: string) => void;
 }
 
@@ -108,7 +108,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       const said = JSON.stringify(brief);
       // Every change is told, the first included: Home may already have asked
       // while storage was still opening and been answered with no station
-      // (found by Turing in review).
+      // (found in review).
       if (said !== activeSaid) {
         activeStation = brief;
         activeSaid = said;

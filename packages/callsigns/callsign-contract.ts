@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type { ServiceSummary } from './service-contract.js';
-// One of the operator's callsigns (KI7MT, 2026-10-22: "persona" is retired).
+// One of the operator's callsigns ("persona" is retired).
 // `id` is permanent and is what everything keys on; the call and the
 // description are the operator's and may change.
 export interface Callsign {
@@ -10,7 +10,7 @@ export interface Callsign {
   start?: string | null;
   end?: string | null;
   // Which services it uses: whether a username and a secret are saved, never
-  // what (KI7MT, 2026-10-23).
+  // what.
   providers: Record<string, { hasUsername: boolean; hasPassword: boolean; hasApiKey: boolean; savedAt?: string | null }>;
 }
 // `active` is the active callsign's id.
@@ -51,7 +51,7 @@ export interface FetchedReference {
 // What an export did, for the operator to read. The path is shown because the
 // operator chose it; nothing else about the file is.
 export interface ExportResult { written: string; bytes: number }
-// What a restore would do, or did (KI7MT, 2026-10-23: callsigns and
+// What a restore would do, or did (callsigns and
 // Locations move, logins do not). Counts and names, never a value: the
 // window is told which callsigns and Locations the file holds and which are
 // here to be removed first, and nothing of a Location but its name.

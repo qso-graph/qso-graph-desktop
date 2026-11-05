@@ -73,13 +73,13 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
-// The version in the window's title bar (KI7MT, 2026-10-24).
+// The version in the window's title bar.
 document.title = windowTitle(__QG_VERSION__);
 // Home's pins and the open page: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
 home.start();
 // Offline or online, as the operating system says, with no polling: the
-// events fire only when it changes (KI7MT, 2026-10-23).
+// events fire only when it changes.
 home.setConnection(navigator.onLine);
 window.addEventListener('online', () => home.setConnection(true));
 window.addEventListener('offline', () => home.setConnection(false));
@@ -176,8 +176,8 @@ let selected: string | null = null;
 // autofill, a paste that lands late while focus is moving: each of those
 // writes a secret the operator did not supply.
 //
-// KI7MT, 2026-10-09, after packaged-launch stored a password into an entry
-// whose field the suite had just emptied: treat it as a security bug, not a
+// After packaged-launch stored a password into an entry whose field the
+// suite had just emptied, this was treated as a security bug, not a
 // record entry. It has not been reproduced in twelve runs since, eight of them
 // under load, so this does not fix a known mechanism — it removes the product's
 // dependence on that field being right, which is what every candidate
@@ -234,7 +234,7 @@ async function request(command: CallsignCommand) {
   return reply.data;
 }
 function current(): Callsign | undefined { return snapshot.callsigns.find(entry => entry.id === selected); }
-// The list as Locations draws its own (#70, KI7MT 2026-10-24): a row for
+// The list as Locations draws its own (#70): a row for
 // each, active first, then by start date, newest first; the call, its
 // description and dates, an Active or Expired mark, and Make active (not on
 // an expired one) and Edit. The row being edited is marked.
@@ -263,8 +263,8 @@ function list() {
     const dates = callsignDates(callsign.start, callsign.end);
     if (dates) text.append(span('hint', dates));
     const actions = span('station-actions', '');
-    // An expired callsign can be edited and not made active (KI7MT,
-    // 2026-10-24): it is no longer one to operate under.
+    // An expired callsign can be edited and not made active:
+    // it is no longer one to operate under.
     if (callsign.id !== snapshot.active && !isExpired(callsign, today)) {
       actions.append(action('Make active', `Make ${callsign.call} active`, () => void makeActive(callsign.id)));
     }
@@ -288,7 +288,7 @@ function list() {
   });
 }
 // The register, read once the core answers (below). The Callsigns page shows a
-// service only the fields its entry takes (KI7MT, 2026-11-01: eQSL, LoTW and
+// service only the fields its entry takes (eQSL, LoTW and
 // HamQTH have no API key, and Club Log and QRZ Logbook take no username or
 // password), and the Preferred credential choice only where it takes both a
 // password and an API key. Before the register is read, or if it could not
@@ -375,7 +375,7 @@ function select(id: string | null) {
   selected = id; const callsign = current(); list(); message('');
   element('page-title').textContent = callsign ? callsign.call : 'Add a callsign';
   // Both the description and the call can be changed: the id is what is
-  // kept (KI7MT, 2026-10-22).
+  // kept.
   input('callsign-description').value = callsign?.description ?? '';
   input('callsign').value = callsign?.call ?? '';
   input('start-date').value = callsign?.start ?? new Date().toISOString().slice(0, 10);
@@ -701,7 +701,7 @@ export async function exportDiagnostics(): Promise<string> {
   const size = megabytes >= 0.1 ? `${megabytes.toFixed(1)} MB` : `${Math.max(1, Math.round(reply.bytes / 1024))} KB`;
   const files = reply.files === 1 ? '1 log file' : `${reply.files} log files`;
   // Not "passwords and keys were removed": the logs never hold any, so
-  // there were none to remove (KI7MT, 2026-10-24).
+  // there were none to remove.
   return `Saved ${files} (${size}).`;
 }
 
@@ -786,7 +786,7 @@ window.addEventListener('pagehide', () => { stopListening(); }, { once: true });
 void window.storage.request({ type: 'status' }).then(reply => { if (reply.ok && !pushed) takeStatus(reply.status); });
 
 // Loading or updating the reference data, when the operator asks for it: a
-// start fetches nothing (KI7MT, 2026-10-11). The reply says it is running; the
+// start fetches nothing. The reply says it is running; the
 // finished status arrives pushed, like every other change.
 // Undefined when it started; otherwise the reason, in words, to show.
 export async function updateReference(resource: string): Promise<string | undefined> {
@@ -805,7 +805,7 @@ export async function updateReference(resource: string): Promise<string | undefi
 //
 // A reply's status is not taken: QG Storage pushes the changed list after
 // every change, and a reply composed before a newer push would put an older
-// list back on screen (found by Turing in review). And a reply from a storage
+// list back on screen (found in review). And a reply from a storage
 // process that is not ready, which the broker gives when it is restarting or
 // did not answer in time, is a failure, never a success.
 async function stationRequest(command: StorageCommand): Promise<StorageReply> {
@@ -876,7 +876,7 @@ export async function stationFromPark(reference: string): Promise<ParkDraft | st
 }
 
 // ADIF's pick lists for the station editor, for an entity and a state.
-// My Area (KI7MT, 2026-10-23): its choices and the Location's own, from QG
+// My Area: its choices and the Location's own, from QG
 // Storage, and the choice saved in the settings.
 export async function areaChoices(): Promise<readonly AreaProgram[] | string> {
   const reply = await stationRequest({ type: 'area-choices' });
@@ -937,24 +937,24 @@ export function closeWhatsNew(): void {
 
 // Help → Troubleshooting… opens the same panel as the status bar's button.
 window.menu?.onTroubleshooting(() => { shell.set({ troubleshooting: true }); });
-// The Setup menu (KI7MT, 2026-10-22): the places, the reference data, and
+// The Setup menu: the places, the reference data, and
 // the pins. A reference download starts, and Settings shows it going.
 window.menu?.onSetup?.(action => {
   if (action === 'whats-new') { openWhatsNew(); return; }
-  // About (KI7MT, 2026-10-24): Settings' About card.
+  // About: Settings' About card.
   if (action === 'about') {
     shell.set({ page: 'settings', extensionPage: null });
     requestAnimationFrame(() => document.getElementById('about-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
-  // Check for Updates… (KI7MT, 2026-10-24): main has started the check;
+  // Check for Updates…: main has started the check;
   // Settings' Updates card shows it.
   if (action === 'updates') {
     shell.set({ page: 'settings', extensionPage: null });
     requestAnimationFrame(() => document.getElementById('updates-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
-  // Save Diagnostics for Support… (KI7MT, 2026-10-24): Troubleshooting's
+  // Save Diagnostics for Support…: Troubleshooting's
   // export, the same save dialog and the same redacted archive.
   if (action === 'diagnostics') {
     shell.set({ troubleshooting: true });
@@ -964,11 +964,11 @@ window.menu?.onSetup?.(action => {
   if (action === 'callsigns') shell.set({ page: 'callsigns', extensionPage: null });
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   // The Focus Area is Parks On the Air's own setting, on its area's
-  // Settings tab (KI7MT, 2026-10-24).
+  // Settings tab.
   else if (action === 'area') shell.set({ page: 'extension', extensionPage: 'pota/parks', extensionSettings: true });
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
-  // Tools (KI7MT, 2026-10-23): Settings' Back up and restore, at the button
+  // Tools: Settings' Back up and restore, at the button
   // the step needs.
   else if (action === 'export-callsigns' || action === 'import-callsigns') {
     shell.set({ page: 'settings', extensionPage: null });

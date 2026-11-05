@@ -16,7 +16,7 @@
 #
 # Needs, as repository secrets: LINUX_PACKAGE_SIGNING_KEY_PRIVATE and
 # LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE; and for R2, three secrets named after what Cloudflare's token
-# page calls them (KI7MT, 2026-10-28): R2_ACCESS_KEY_ID (Access Key ID), R2_SECRET_ACCESS_KEY (Secret
+# page calls them: R2_ACCESS_KEY_ID (Access Key ID), R2_SECRET_ACCESS_KEY (Secret
 # Access Key) and R2_ENDPOINT (the S3 endpoint, https://<account>.r2.cloudflarestorage.com), from an
 # Account API token with Object Read & Write on the bucket R2_BUCKET (a repository variable) only. A run
 # without them stops and says which is missing.

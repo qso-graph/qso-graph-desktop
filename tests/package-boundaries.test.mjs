@@ -108,7 +108,7 @@ describe('the real tree', () => {
     // undecided, so the set is compared directly.
     // A folder holding only build output is not a package: an old checkout's
     // packages/persona-core/target, left behind by the callsign rename,
-    // failed this on the M3 while develop was right (Watson, 2026-10-23).
+    // failed this on one machine while develop was right.
     const BUILD_OUTPUT = new Set(['target', 'node_modules']);
     const onDisk = [];
     for (const entry of await readdir('packages', { withFileTypes: true })) {

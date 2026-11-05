@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  Focus Area, on Parks On the Air's Settings tab (KI7MT, 2026-10-24: POTA's
+  Focus Area, on Parks On the Air's Settings tab (POTA's
   alone, so in POTA's area; it was a card on Locations): the parts of POTA the
   operator works in, chosen before anything is fetched for them, at POTA's
   own three levels: Program, Entity and Location. Built from POTA's lists
@@ -31,7 +31,7 @@
   let saved = $state('');
   // Unset until the first load: '' is the saved area when it is the
   // Location's own, and starting from '' skipped that first load (#57, found
-  // by Turing: the picker showed no choices).
+  // in review: the picker showed no choices).
   let loadedFor: string | undefined;
 
   $effect(() => {
@@ -62,8 +62,8 @@
 </script>
 
 <section class="extension-setting" aria-labelledby="area-title" id="my-area">
-  <!-- Named for what it is for (KI7MT, 2026-10-23: "I had no idea what it
-       was for"); "Focus Area" under Parks On the Air (KI7MT, 2026-10-24). -->
+  <!-- Named for what it is for, which "My Area" did not say; "Focus Area"
+       under Parks On the Air. -->
   <h3 id="area-title">Focus Area</h3>
   <p class="hint">
     The part of POTA you activate and chase in: a whole program, an entity, or locations, as

@@ -6,7 +6,7 @@
 
   A station is a name, a kind (a label: Home, Portable, Mobile, Remote) and
   ADIF's own MY_* fields. It needs a name and a grid; every other field is
-  optional (KI7MT, 2026-10-20). What a value
+  optional. What a value
   may be is ADIF's to say: QG Storage checks it against the definitions and
   the reason it gives is shown beside the field, never rewritten here.
 
@@ -59,7 +59,7 @@
     onOpenPage = () => {}
   }: Props = $props();
 
-  // ---- references checked against their lists (KI7MT, 2026-10-20) ---------
+  // ---- references checked against their lists ---------
   // One rule for every reference: checked against its list where the list is
   // on this computer, and said so; otherwise checked for its form, and said
   // so. POTA's is checked here as it is typed, and again when it is saved.
@@ -78,7 +78,7 @@
     return parks.found.map(park => `${park.code}: ${park.name}`).join(' · ');
   });
 
-  // ---- pick lists (KI7MT, 2026-10-20) ------------------------------------
+  // ---- pick lists ------------------------------------
   // DXCC entity, state, county where ADIF lists them, ARRL section and the
   // zones are chosen, not typed: the lists are ADIF's own, from reference
   // data, and follow the entity and state chosen. Where a list is empty the
@@ -114,7 +114,7 @@
   }
   // Nothing chosen is cleared by choosing something else: a value that no
   // longer fits is refused on save with ADIF's reason, never wiped unseen
-  // (found by Turing in review). The lists that follow are reloaded, and
+  // (found in review). The lists that follow are reloaded, and
   // held still while they load, so a choice is never made from a stale one.
   function pick(field: StationField, value: string) {
     place[field] = value;
@@ -130,8 +130,8 @@
     {
       title: 'Where it is',
       fields: [
-        // One box for the grid, as an operator thinks of it (KI7MT,
-        // 2026-10-20). What is typed is filed under ADIF's own fields when it
+        // One box for the grid, as an operator thinks of it.
+        // What is typed is filed under ADIF's own fields when it
         // is saved: see gridFields below.
         { field: 'MY_GRIDSQUARE', label: 'Grid', hint: 'Required. Your Maidenhead grid, as DN13 or DN13sm, up to 8 characters; on a grid line or corner, give them all: DN13,DN14.' },
         { field: 'MY_DXCC', label: 'DXCC entity' },
@@ -140,9 +140,9 @@
         { field: 'MY_CQ_ZONE', label: 'CQ zone', hint: 'The state\'s own zones where ADIF gives them.' },
         { field: 'MY_ITU_ZONE', label: 'ITU zone' },
         { field: 'MY_ARRL_SECT', label: 'ARRL section' },
-        // No latitude, longitude or address (KI7MT, 2026-10-23: "we don't
-        // store anything that's not publicly available"; "a grid square is
-        // enough"). The grid is the position.
+        // No latitude, longitude or address: nothing is stored that is not
+        // publicly available, and a grid square is enough. The grid is the
+        // position.
         { field: 'MY_ALTITUDE', label: 'Elevation', hint: 'Metres above sea level, as on a map.' }
       ]
     },
@@ -165,8 +165,7 @@
   let lotwPark = $state('');
   let notes = $state('');
   // A second or third park, for a two-fer or three-fer: added to the one
-  // POTA field ADIF defines as a list, never a separate "primary" (KI7MT,
-  // 2026-10-22).
+  // POTA field ADIF defines as a list, never a separate "primary".
   let anotherPark = $state('');
   function addPark() {
     const park = anotherPark.trim().toUpperCase();
@@ -203,8 +202,8 @@
   // The one Grid box, filed under the field ADIF defines for it: two or four
   // grids on a line or corner are MY_VUCC_GRIDS; anything else is
   // MY_GRIDSQUARE, up to its 8 characters. Ten, which ADIF's extension would
-  // take, would place a home to some 20 metres, and is not held (KI7MT,
-  // 2026-10-23). Nothing is corrected: whatever is typed is ADIF's to accept
+  // take, would place a home to some 20 metres, and is not held.
+  // Nothing is corrected: whatever is typed is ADIF's to accept
   // or refuse, and a refusal is shown on the Grid box.
   const GRID_FIELDS = ['MY_GRIDSQUARE', 'MY_VUCC_GRIDS'];
   let gridShown = '';
@@ -232,7 +231,7 @@
     if (grid) place.MY_GRIDSQUARE = grid;
     // What the Grid box showed, and the fields it came from: saved back as
     // they were unless the box is changed, so opening and saving a station
-    // never rewrites its grid (found by Turing in review).
+    // never rewrites its grid (found in review).
     gridShown = grid;
     gridStored = Object.fromEntries(GRID_FIELDS.flatMap(field => draft?.place[field as StationField] ? [[field, draft.place[field as StationField]]] : []));
     parks = undefined;
@@ -305,8 +304,8 @@
   }
 
   // The place from the first park in the POTA field, for a location being
-  // edited, as "Fill in from the park" does for a new one (KI7MT,
-  // 2026-10-22): grid, state and DXCC from POTA's list.
+  // edited, as "Fill in from the park" does for a new one:
+  // grid, state and DXCC from POTA's list.
   // The parks themselves are left as they are.
   let parkFillNote = $state('');
   const firstPark = $derived(((place.MY_POTA_REF ?? '').split(',')[0] ?? '').split('@')[0].trim().toUpperCase());
@@ -337,7 +336,7 @@
   let countyChoices = $state<string[]>([]);
   let countySections: Record<string, string> = {};
   const countyGrid = $derived((place.MY_GRIDSQUARE ?? '').split(',')[0].trim());
-  // The county, from LoTW's list (QGD-STN-0010, KI7MT 2026-10-22): the
+  // The county, from LoTW's list (QGD-STN-0010): the
   // counties the grid's square reaches, and only one is filled in; where the
   // square crosses a county line the operator picks, or gives a longer grid.
   // A state already set is never changed.
@@ -379,8 +378,8 @@
     }
   }
 
-  // One park, or a two-fer or three-fer as "US-0001,US-0002" (KI7MT,
-  // 2026-10-22): the first park gives the grid and state, and
+  // One park, or a two-fer or three-fer as "US-0001,US-0002":
+  // the first park gives the grid and state, and
   // every park goes into the POTA field, each checked when it is saved. The
   // editor opens so the place can be checked before it is: where parks
   // meet, the grid may be either's.

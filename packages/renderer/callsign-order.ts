@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The order the Callsigns page lists them in (#70, KI7MT 2026-10-24): the
+// The order the Callsigns page lists them in (#70): the
 // active callsign first, then the rest by start date, newest first, so an
 // earlier call falls to the bottom; a tie, or a callsign with no start date,
 // by call. The core keeps them by their random ids, so left alone the list

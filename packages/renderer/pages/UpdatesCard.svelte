@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!--
-  Updates, in Settings (QGD-FRM-0019, KI7MT 2026-10-23: "an easy update is a
-  must"). The switch, on by default because asking is going online and
+  Updates, in Settings (QGD-FRM-0019: an easy update is a must). The
+  switch, on by default because asking is going online and
   Privacy names it; the track, Release for hams who want it to just work and
-  Beta for those who want the next release early (#157, KI7MT 2026-11-01);
+  Beta for those who want the next release early (#157);
   and what the last check found. Nothing restarts from here without the
   operator pressing Restart.
 
@@ -12,7 +12,7 @@
   there Beta is shown off, with why, and how to get one.
 
   Choose a version… (#77, QGD-FRM-0020): what the feed lists, forward as
-  the track allows and back to Releases only (KI7MT, 2026-10-26).
+  the track allows and back to Releases only.
   Going back says first what is lost, in a confirmation.
 -->
 <script lang="ts">
@@ -128,7 +128,7 @@
   }
 </script>
 
-<!-- Two lines (KI7MT, 2026-10-24: it was bigger than Reference data for
+<!-- Two lines (it was bigger than Reference data for
      what it does): the switch, then the track, what the last check found and
      what can be done about it. The detail is in the guide. -->
 <section class="card" aria-labelledby="updates-title">
