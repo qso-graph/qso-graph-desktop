@@ -189,14 +189,15 @@ version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
    - **A Beta:** a pre-release, `vx.y.z-beta.N`, titled *(Beta)*. The feed is
      updated, so the Beta track offers it. The milestone stays open.
    - **A Release:** a release, `vx.y.z`, **Latest**. The feed is updated, so
-     every copy is offered it; the milestone is closed; apt and dnf on
-     `packages.qso-graph.net` are rebuilt, and the Windows installer is put at
-     its versioned address for the Microsoft Store (`packages.yml`). All of this
-     was Promote's until 0.6.0, and there is no promoting now.
+     every copy is offered it; the milestone is closed. All of this was
+     Promote's until 0.6.0, and there is no promoting now. Within the hour,
+     `qso-graph/qso-graph-packages` rebuilds apt and dnf on `packages.qso-graph.net`
+     from the published Releases, and puts the Windows installer at its
+     versioned address for the Microsoft Store.
 
    **If it fails after it was published**, run Release again with the same
    version (#118). It finishes instead of refusing: it uploads only the files
-   it lacks, then the milestone, the feed and the packages, all safe to repeat.
+   it lacks, then the milestone and the feed, all safe to repeat.
    It stops, and says what it found, if the release holds a file that isn't
    this build's, if the tag is on another commit, or if there is a tag with no
    release behind it; those are put right by hand.
@@ -204,8 +205,9 @@ version `main` says. A Beta is `x.y.z-beta.N` and a Release `x.y.z`.
    `qso-graph/tap` is bumped to the new version (`qg-tap-bump`, from KI7MT's
    release tool). Never for a Beta or a Daily.
 
-   **Then the Microsoft Store, after a Release only** (#86). Release has put the release's signed Windows installer on
-   `packages.qso-graph.net` at a versioned address, and its run summary gives it. In Partner Center,
+   **Then the Microsoft Store, after a Release only** (#86). Within the hour of the Release,
+   `qso-graph/qso-graph-packages`'s Packages run puts its signed Windows installer on
+   `packages.qso-graph.net` at a versioned address, and that run's summary gives it. In Partner Center,
    on QSO Graph Desktop (an *EXE or MSI* product): **Start update** → **Packages** → the package →
    **Package URL** `https://packages.qso-graph.net/windows/x.y.z/qso-graph-desktop-x.y.z-win-x64.exe`,
    **Installer parameters** `/S`, **Architecture** x64, **Language** en-us → **Save** → **Submit
