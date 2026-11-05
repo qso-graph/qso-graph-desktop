@@ -8,9 +8,12 @@
 # Two kinds: a Beta, MAJOR.MINOR.PATCH-beta.N, published
 # as a pre-release and offered on the Beta track; or a Release,
 # MAJOR.MINOR.PATCH, published as Latest and offered to everyone. A Release
-# also closes its milestone and rebuilds apt and dnf (packages.yml), which
-# Promote did until #157: there is no promoting now. A Beta becomes a Release
-# by a pull request setting main's version to the release, and a Release run.
+# also closes its milestone, which Promote did until #157: there is no
+# promoting now. apt and dnf, and the Windows installer's address for the
+# Microsoft Store, are built from the published Releases by
+# qso-graph/qso-graph-packages, within the hour, for every QSO Graph product.
+# A Beta becomes a Release by a pull request setting main's version to the
+# release, and a Release run.
 #
 # Nothing is rebuilt here. What is published is the signed build CI made in
 # the pull request that brought main its version, passed as ci-all-green, and
@@ -351,16 +354,3 @@ jobs:
     secrets:
       LINUX_PACKAGE_SIGNING_KEY_PRIVATE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PRIVATE }}
       LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE: ${{ secrets.LINUX_PACKAGE_SIGNING_KEY_PASSPHRASE }}
-
-  # A Release only (#157): apt and dnf, and the Windows installer at its
-  # versioned address for the Microsoft Store, all of which take Releases only.
-  # Promote did this until 0.6.0. Homebrew's cask is bumped after it, by
-  # KI7MT's release tool, Releases only.
-  packages:
-    name: packages.qso-graph.net
-    needs: [checks, publish]
-    if: needs.checks.outputs.kind == 'release'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/packages.yml
-    secrets: inherit

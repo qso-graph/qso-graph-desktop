@@ -162,13 +162,16 @@ describe('Release publishes a Beta or a Release, and there is no Promote (#157)'
     expect(release).toContain('kind=beta');
     expect(release).toContain('-beta\\.[1-9][0-9]{0,2}$');
   });
-  it('a Beta is a pre-release; a Release is Latest, closes its milestone and builds apt and dnf', () => {
+  it('a Beta is a pre-release; a Release is Latest and closes its milestone', () => {
     expect(release).toMatch(/kind=\(--prerelease\)/);
     expect(release).toMatch(/kind=\(--latest\)/);
     expect(release.split('- name: Close the milestone')[1].split('\n')[1]).toContain("kind == 'release'");
-    const packages = release.split('\n  packages:\n')[1];
-    expect(packages).toContain("if: needs.checks.outputs.kind == 'release'");
-    expect(packages).toContain('packages.yml');
+  });
+  it('builds no packages repository: qso-graph-packages does, from the published Releases', () => {
+    expect(release).not.toContain('\n  packages:\n');
+    expect(release).not.toContain('packages.yml');
+    expect(release).toContain('qso-graph/qso-graph-packages');
+    expect(() => readFileSync('.github/workflows/packages.yml', 'utf8')).toThrow();
   });
   it('promote.yml is gone', () => {
     expect(() => readFileSync('.github/workflows/promote.yml', 'utf8')).toThrow();
@@ -178,7 +181,6 @@ describe('Release publishes a Beta or a Release, and there is no Promote (#157)'
 describe('one check and one build per change', () => {
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
   const release = readFileSync('.github/workflows/release.yml', 'utf8');
-  const packages = readFileSync('.github/workflows/packages.yml', 'utf8');
   const plan = ci.split('- id: plan')[1].split('\n  # Every requirement ID')[0];
 
   it('a merge builds nothing, and does not audit again', () => {
@@ -214,14 +216,6 @@ describe('one check and one build per change', () => {
     expect(ready).toContain('qso-graph-desktop-${VERSION}-win-x64.exe');
     // A fork's run is never a candidate.
     expect(ready).toContain('.head_repository.full_name == \\"${REPO}\\"');
-  });
-
-  it('uploads to packages.qso-graph.net send each file in one request', () => {
-    // 0.6.0: R2 lost a part of a multipart upload (InvalidPart) and the run stopped.
-    const upload = packages.split('- name: Uploaded to packages.qso-graph.net')[1];
-    const set = upload.indexOf('multipart_threshold 4GB');
-    expect(set).toBeGreaterThan(0);
-    expect(set).toBeLessThan(upload.indexOf('sync . "s3://'));
   });
 });
 
