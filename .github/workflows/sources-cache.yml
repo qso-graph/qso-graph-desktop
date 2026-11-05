@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# ADIF's archive and the US county sources, cached on main once a week for every pull request to
+# use. A pull request's own cache is its alone, and a merge builds nothing (#168), so without this
+# every pull request fetched them again from adif.org.uk and the Internet Archive, and failed
+# whenever one runner could not reach them. Each operating system keeps its own cache, as CI's jobs
+# restore them, and GitHub drops a cache unused for 7 days, so this runs weekly. It fetches and
+# checks the sources (each pinned by SHA-256) and nothing else: no build, no test.
+name: Sources cache
+
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sources:
+    name: sources (${{ matrix.os }})
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      # The same path and key as ci.yml's, so its jobs find what this saves.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor/.cache
+          key: sources-${{ hashFiles('data/reference-sources.json', 'data/county-sources.json') }}
+      - run: node scripts/fetch-adif.mjs
+      - run: node scripts/fetch-counties.mjs
