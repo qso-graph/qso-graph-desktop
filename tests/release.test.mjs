@@ -399,3 +399,29 @@ describe('#118: what an existing release still needs', () => {
     expect(() => resumePlan('', '')).toThrow(/lists no files/);
   });
 });
+
+describe('the sources cache every pull request uses', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const weekly = readFileSync('.github/workflows/sources-cache.yml', 'utf8');
+  const keys = text => [...text.matchAll(/key: (sources-\$\{\{ hashFiles\([^)]*\) \}\})/g)].map(m => m[1]);
+
+  it("is saved on main weekly under the very key and path CI's jobs restore, on each of their systems", () => {
+    expect(keys(ci).length).toBeGreaterThan(0);
+    expect(new Set([...keys(ci), ...keys(weekly)]).size).toBe(1);
+    const path = text => [...text.matchAll(/\n\s+path: (\S+)\n\s+key: sources-/g)].map(m => m[1]);
+    expect(path(ci).length).toBeGreaterThan(0);
+    expect(new Set([...path(ci), ...path(weekly)])).toEqual(new Set(['vendor/.cache']));
+    expect(weekly).toMatch(/cron: '[^']+'/);
+    expect(weekly).toContain("github.ref == 'refs/heads/main'");
+    for (const os of ['ubuntu-latest', 'ubuntu-24.04-arm', 'macos-latest', 'windows-latest']) {
+      expect(ci).toContain(os);
+      expect(weekly).toContain(os);
+    }
+  });
+
+  it('fetches and checks the sources, and builds and tests nothing', () => {
+    expect(weekly).toContain('node scripts/fetch-adif.mjs');
+    expect(weekly).toContain('node scripts/fetch-counties.mjs');
+    expect(weekly).not.toMatch(/npm (ci|run|test)|make /);
+  });
+});

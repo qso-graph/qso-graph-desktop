@@ -35,14 +35,17 @@ if (already?.ok && !process.argv.includes('--force')) {
       console.log(`Using the cached ADIF ${release.version} download.`);
     } else {
       console.log(`Fetching ADIF ${release.version} …`);
-      // Three tries, a pause between: a volunteer-run site can drop a
-      // connection, and one dropped connection should not fail a setup.
+      // Five tries, waiting 15, 30, 60 and 120 seconds between them, as the county
+      // sources are fetched: a volunteer-run site can be out of reach for a minute,
+      // and asking again at once would only add to its load.
       let response;
+      const attempts = 5;
       for (let attempt = 1; ; attempt++) {
         try { response = await fetch(release.source.url); break; } catch (error) {
-          if (attempt === 3) throw error;
-          console.log(`Could not reach ${new URL(release.source.url).host}; trying again.`);
-          await new Promise(settle => setTimeout(settle, 5_000 * attempt));
+          if (attempt === attempts) throw error;
+          const wait = 15_000 * 2 ** (attempt - 1);
+          console.log(`Could not reach ${new URL(release.source.url).host}; trying again in ${wait / 1000} s.`);
+          await new Promise(settle => setTimeout(settle, wait));
         }
       }
       if (!response.ok) throw new Error(`${release.source.url} answered ${response.status}`);
