@@ -3,6 +3,15 @@
 // allow it for themselves, which is why this is deny and not forbid.
 #![deny(unsafe_code)]
 
+/// QG Callsigns wipes what Rust frees (QGD-LTW-0006): every block freed in this
+/// process is overwritten, whichever crate allocated it, so a LoTW key QG
+/// Trust's library read to sign is not left behind in freed memory. It covers
+/// Rust's memory only, not V8's heap. The form is the one QG Trust's
+/// `cargo xtask consumer` requires: at the top level, no `cfg`.
+#[global_allocator]
+static ALLOCATOR: ::zeroizing_alloc::ZeroAlloc<::std::alloc::System> =
+    ::zeroizing_alloc::ZeroAlloc(::std::alloc::System);
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
