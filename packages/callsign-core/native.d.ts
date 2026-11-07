@@ -96,9 +96,35 @@ export interface NativeLookupResult {
   fields: NativeLookupField[];
 }
 
+export interface NativeLotwCertificate {
+  id: string;
+  call: string;
+  dxcc: number;
+  dxccName: string | null;
+  qsoFirst: string;
+  qsoLast: string;
+  validFrom: string;
+  validTo: string;
+  serial: string;
+  hasKey: boolean;
+}
+
+export interface NativeLotwTrustedRoot {
+  kind: 'root' | 'ca';
+  subject: string;
+  serial: string;
+  validFrom: string;
+  validTo: string;
+  fingerprint: string;
+  source: string;
+  acceptedAt: string | null;
+}
+
 export declare class CallsignCore {
   constructor(directory: string);
   list(): NativeCallsign[];
+  lotwCertificates(): NativeLotwCertificate[];
+  lotwTrustedRoots(): NativeLotwTrustedRoot[];
   create(call: string, description: string, start?: string, end?: string): NativeCallsign;
   update(id: string, call: string, description: string, start?: string, end?: string): NativeCallsign;
   setActive(id: string): void;
