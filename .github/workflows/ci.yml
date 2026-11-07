@@ -1009,6 +1009,57 @@ jobs:
           cargo audit --file packages/callsign-core/Cargo.lock
           cargo audit --file packages/integrations-core/Cargo.lock
 
+  # QG Trust in the credential core (#174, QGD-LTW-0001, QGD-LTW-0006): QG
+  # Trust's own checks, from the release the core pins, against what the core
+  # builds. The core's lock file resolves the library's dependencies itself, so
+  # this holds it to the release's tag and commit, the versions that release was
+  # reviewed with, no C but AWS-LC's (the FIPS build only as the core's own), and
+  # the wiping allocator installed. Reads the lock file; builds QG Trust's
+  # checks, not the core.
+  qg-trust:
+    name: QG Trust in the core
+    needs: [plan]
+    if: ${{ needs.plan.outputs.run == 'true' && needs.plan.outputs.docs_only != 'true' && !inputs.mac_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.plan.outputs.ref != '' && needs.plan.outputs.sha || '' }}
+      - name: The release the core pins
+        id: pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          lock=packages/callsign-core/Cargo.lock
+          # The lock file's source for the library: the tag and the commit it resolved to.
+          source=$(awk '/^name = "qso-graph-trust"$/ { found = 1 } found && /^source = / { print; exit }' "$lock" \
+            | sed -E 's/^source = "(.*)"$/\1/')
+          [[ $source =~ ^git\+https://github\.com/qso-graph/qso-graph-trust\?tag=(v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?)#([0-9a-f]{40})$ ]] \
+            || { echo "The core does not take QG Trust from a release tag: ${source:-nothing}" >&2; exit 1; }
+          echo "tag=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "commit=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
+          echo "The core pins QG Trust ${BASH_REMATCH[1]} at ${BASH_REMATCH[3]}."
+      - name: QG Trust at that release
+        shell: bash
+        env:
+          TAG: ${{ steps.pin.outputs.tag }}
+          COMMIT: ${{ steps.pin.outputs.commit }}
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 --branch "$TAG" https://github.com/qso-graph/qso-graph-trust "$RUNNER_TEMP/qso-graph-trust"
+          # The tag must still be the commit the lock file recorded: a tag is never moved.
+          got=$(git -C "$RUNNER_TEMP/qso-graph-trust" rev-parse HEAD)
+          [ "$got" = "$COMMIT" ] || { echo "$TAG is $got, but the core's lock file records $COMMIT" >&2; exit 1; }
+      - name: QG Trust's checks against the core
+        shell: bash
+        working-directory: ${{ runner.temp }}/qso-graph-trust
+        run: |
+          set -euo pipefail
+          rustup show active-toolchain || rustup toolchain install
+          cargo xtask consumer "$GITHUB_WORKSPACE/packages/callsign-core/Cargo.toml"
+
   # CodeQL, from source alone (no build), for each language the repository
   # holds. A job here rather than GitHub's default setup, which scans a merge
   # into main again after its pull request's scan.
@@ -1053,7 +1104,7 @@ jobs:
     # The org-wide name for the one required check (#102): every qso-graph
     # repo rolls its jobs up into a check called exactly ci-all-green.
     name: ci-all-green
-    needs: [plan, citations, check, window, package, pr-build, audit, codeql]
+    needs: [plan, citations, check, window, package, pr-build, audit, codeql, qg-trust]
     # Not for a macOS-only run by hand: it skips the test suites, so its
     # ci-all-green would vouch for a commit nothing tested, and a later
     # documentation-only push would trust it (found in review, #101).

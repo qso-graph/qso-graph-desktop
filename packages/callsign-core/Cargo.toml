@@ -28,6 +28,12 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 rustls = { version = "0.23", default-features = false, features = ["std", "fips"] }
 webpki-roots = "1"
 roxmltree = "0.21"
+# QG Trust's library, from its repository at a release tag; Cargo.lock records
+# the tag's commit (QGD-LTW-0001). Never from crates.io or a branch.
+qso-graph-trust = { git = "https://github.com/qso-graph/qso-graph-trust", tag = "v0.1.0" }
+# The wiping global allocator QG Trust's AGENTS.md names, at its exact version
+# (QGD-LTW-0006).
+zeroizing-alloc = { version = "=0.1.1", default-features = false }
 napi = { version = "=3.14.0", default-features = false, features = ["napi8"], optional = true }
 napi-derive = { version = "3", optional = true }
 
