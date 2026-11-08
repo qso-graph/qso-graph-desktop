@@ -36,7 +36,12 @@ pub enum Drop {
 }
 
 impl Drop {
-    pub const ALL: [Drop; 4] = [Drop::NotAllowed, Drop::TooLarge, Drop::OverRate, Drop::QueueFull];
+    pub const ALL: [Drop; 4] = [
+        Drop::NotAllowed,
+        Drop::TooLarge,
+        Drop::OverRate,
+        Drop::QueueFull,
+    ];
 
     pub fn word(self) -> &'static str {
         match self {
@@ -71,7 +76,12 @@ impl Gate {
         let mut list: Vec<IpAddr> = allow.iter().map(|address| canonical(*address)).collect();
         list.sort();
         list.dedup();
-        Gate { limits, allow: list, buckets: HashMap::new(), counts: HashMap::new() }
+        Gate {
+            limits,
+            allow: list,
+            buckets: HashMap::new(),
+            counts: HashMap::new(),
+        }
     }
 
     pub fn limits(&self) -> Limits {
@@ -101,8 +111,13 @@ impl Gate {
         }
         // Only a sender on the list has a bucket, so the map is no longer
         // than the list, whatever arrives.
-        let Limits { per_second, burst, .. } = self.limits;
-        let bucket = self.buckets.entry(sender).or_insert(Bucket { tokens: burst, at: now });
+        let Limits {
+            per_second, burst, ..
+        } = self.limits;
+        let bucket = self.buckets.entry(sender).or_insert(Bucket {
+            tokens: burst,
+            at: now,
+        });
         let elapsed = now.saturating_duration_since(bucket.at).as_secs_f64();
         bucket.tokens = (bucket.tokens + elapsed * per_second).min(burst);
         bucket.at = now;
@@ -127,7 +142,13 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    const LIMITS: Limits = Limits { max_bytes: 100, per_second: 2.0, burst: 3.0, queue: 8, replies_per_minute: 6 };
+    const LIMITS: Limits = Limits {
+        max_bytes: 100,
+        per_second: 2.0,
+        burst: 3.0,
+        queue: 8,
+        replies_per_minute: 6,
+    };
 
     fn ip(text: &str) -> IpAddr {
         text.parse().unwrap()
@@ -137,10 +158,16 @@ mod tests {
     fn a_sender_not_on_the_list_is_dropped_whatever_it_sends() {
         let mut gate = Gate::new(LIMITS, &[ip("127.0.0.1")]);
         let now = Instant::now();
-        assert_eq!(gate.admit(ip("192.168.1.9"), 10, now), Err(Drop::NotAllowed));
+        assert_eq!(
+            gate.admit(ip("192.168.1.9"), 10, now),
+            Err(Drop::NotAllowed)
+        );
         // Not-allowed is decided first: an oversized datagram from a stranger
         // is a stranger's, and is not looked at for its size.
-        assert_eq!(gate.admit(ip("192.168.1.9"), 10_000, now), Err(Drop::NotAllowed));
+        assert_eq!(
+            gate.admit(ip("192.168.1.9"), 10_000, now),
+            Err(Drop::NotAllowed)
+        );
         assert_eq!(gate.dropped(Drop::NotAllowed), 2);
         assert_eq!(gate.dropped(Drop::TooLarge), 0);
     }
@@ -148,7 +175,10 @@ mod tests {
     #[test]
     fn an_ipv4_sender_on_an_ipv6_socket_is_the_same_sender() {
         let mut gate = Gate::new(LIMITS, &[ip("127.0.0.1")]);
-        assert!(gate.admit(ip("::ffff:127.0.0.1"), 10, Instant::now()).is_ok());
+        assert!(
+            gate.admit(ip("::ffff:127.0.0.1"), 10, Instant::now())
+                .is_ok()
+        );
         let mapped = Gate::new(LIMITS, &[ip("::ffff:10.0.0.5")]);
         assert!(mapped.allows(ip("10.0.0.5")));
     }
@@ -157,8 +187,14 @@ mod tests {
     fn there_is_no_anyone_entry() {
         // An unspecified address on the list is an address, not a wildcard.
         let mut gate = Gate::new(LIMITS, &[ip("0.0.0.0"), ip("::")]);
-        assert_eq!(gate.admit(ip("10.0.0.5"), 10, Instant::now()), Err(Drop::NotAllowed));
-        assert_eq!(gate.admit(ip("127.0.0.1"), 10, Instant::now()), Err(Drop::NotAllowed));
+        assert_eq!(
+            gate.admit(ip("10.0.0.5"), 10, Instant::now()),
+            Err(Drop::NotAllowed)
+        );
+        assert_eq!(
+            gate.admit(ip("127.0.0.1"), 10, Instant::now()),
+            Err(Drop::NotAllowed)
+        );
     }
 
     #[test]

@@ -15,7 +15,7 @@ pub mod gate;
 pub mod listener;
 
 #[cfg(feature = "addon")]
-mod addon {
+pub mod addon {
     use crate::gate::Limits;
     use crate::listener::{Config, Datagram, Listener, OpenError};
     use napi::bindgen_prelude::{AsyncTask, Buffer};
@@ -81,11 +81,23 @@ mod addon {
     pub fn open(options: OpenOptions) -> Result<NativeListener> {
         let port = u16::try_from(options.port).map_err(|_| refuse("port"))?;
         let finite = |value: f64| value.is_finite() && value > 0.0;
-        if options.max_bytes == 0 || options.queue == 0 || !finite(options.per_second) || !finite(options.burst) {
+        if options.max_bytes == 0
+            || options.queue == 0
+            || !finite(options.per_second)
+            || !finite(options.burst)
+        {
             return Err(refuse("limits"));
         }
-        let addresses = options.addresses.iter().map(|text| address(text)).collect::<Result<Vec<_>>>()?;
-        let allow = options.allow.iter().map(|text| address(text)).collect::<Result<Vec<_>>>()?;
+        let addresses = options
+            .addresses
+            .iter()
+            .map(|text| address(text))
+            .collect::<Result<Vec<_>>>()?;
+        let allow = options
+            .allow
+            .iter()
+            .map(|text| address(text))
+            .collect::<Result<Vec<_>>>()?;
         let limits = Limits {
             max_bytes: options.max_bytes as usize,
             per_second: options.per_second,
@@ -93,8 +105,15 @@ mod addon {
             queue: options.queue as usize,
             replies_per_minute: options.replies_per_minute,
         };
-        match Listener::open(Config { port, addresses, allow, limits }) {
-            Ok(listener) => Ok(NativeListener { inner: Arc::new(listener) }),
+        match Listener::open(Config {
+            port,
+            addresses,
+            allow,
+            limits,
+        }) {
+            Ok(listener) => Ok(NativeListener {
+                inner: Arc::new(listener),
+            }),
             Err(OpenError::NoAddress) => Err(refuse("no-address")),
             Err(OpenError::NotBound) => Err(refuse("not-bound")),
         }
@@ -115,7 +134,13 @@ mod addon {
         }
 
         fn resolve(&mut self, _: Env, output: Self::Output) -> Result<Self::JsValue> {
-            Ok(output.into_iter().map(|datagram| NativeDatagram { from: datagram.from.to_string(), bytes: datagram.bytes.into() }).collect())
+            Ok(output
+                .into_iter()
+                .map(|datagram| NativeDatagram {
+                    from: datagram.from.to_string(),
+                    bytes: datagram.bytes.into(),
+                })
+                .collect())
         }
     }
 
@@ -124,7 +149,11 @@ mod addon {
         // The addresses and port actually bound.
         #[napi(getter)]
         pub fn bound(&self) -> Vec<String> {
-            self.inner.bound().iter().map(|address| address.to_string()).collect()
+            self.inner
+                .bound()
+                .iter()
+                .map(|address| address.to_string())
+                .collect()
         }
 
         // Up to `max` datagrams, waiting at most `timeout_ms` for the first;
@@ -141,7 +170,9 @@ mod addon {
         #[napi]
         pub fn reply(&self, to: String, bytes: Buffer) -> Result<()> {
             let to: SocketAddr = to.parse().map_err(|_| refuse("address"))?;
-            self.inner.reply(to, &bytes).map_err(|error| refuse(error.word()))
+            self.inner
+                .reply(to, &bytes)
+                .map_err(|error| refuse(error.word()))
         }
 
         #[napi]
@@ -149,8 +180,22 @@ mod addon {
             let stats = self.inner.stats();
             NativeStats {
                 received: stats.received as f64,
-                dropped: stats.dropped.into_iter().map(|(reason, count)| NativeDrop { reason: reason.to_string(), count: count as f64 }).collect(),
-                heard: stats.heard.into_iter().map(|(address, at)| NativeHeard { address, at: at as f64 }).collect(),
+                dropped: stats
+                    .dropped
+                    .into_iter()
+                    .map(|(reason, count)| NativeDrop {
+                        reason: reason.to_string(),
+                        count: count as f64,
+                    })
+                    .collect(),
+                heard: stats
+                    .heard
+                    .into_iter()
+                    .map(|(address, at)| NativeHeard {
+                        address,
+                        at: at as f64,
+                    })
+                    .collect(),
             }
         }
 

@@ -104,7 +104,9 @@ impl ReplyError {
 }
 
 fn ms(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH).map(|elapsed| elapsed.as_millis() as u64).unwrap_or(0)
+    time.duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 impl Listener {
@@ -130,11 +132,15 @@ impl Listener {
         for address in &config.addresses {
             // An address that will not bind (IPv6 turned off, for ::1) is
             // left out; the page says which were bound.
-            let Ok(socket) = UdpSocket::bind(SocketAddr::new(*address, port)) else { continue };
+            let Ok(socket) = UdpSocket::bind(SocketAddr::new(*address, port)) else {
+                continue;
+            };
             if socket.set_read_timeout(Some(POLL)).is_err() {
                 continue;
             }
-            let Ok(local) = socket.local_addr() else { continue };
+            let Ok(local) = socket.local_addr() else {
+                continue;
+            };
             port = local.port();
             bound.push(local);
             sockets.push(Arc::new(socket));
@@ -148,7 +154,12 @@ impl Listener {
             let shared = Arc::clone(&shared);
             threads.push(std::thread::spawn(move || read(index, &socket, &shared)));
         }
-        Ok(Listener { shared, sockets: Mutex::new(sockets), bound, threads: Mutex::new(threads) })
+        Ok(Listener {
+            shared,
+            sockets: Mutex::new(sockets),
+            bound,
+            threads: Mutex::new(threads),
+        })
     }
 
     pub fn bound(&self) -> &[SocketAddr] {
@@ -165,7 +176,12 @@ impl Listener {
             if now >= deadline {
                 break;
             }
-            queue = self.shared.ready.wait_timeout(queue, deadline - now).unwrap().0;
+            queue = self
+                .shared
+                .ready
+                .wait_timeout(queue, deadline - now)
+                .unwrap()
+                .0;
         }
         let take = queue.len().min(max);
         queue.drain(..take).collect()
@@ -193,9 +209,15 @@ impl Listener {
         {
             let mut replies = self.shared.replies.lock().unwrap();
             let now = Instant::now();
-            let entry = replies.entry(to).or_insert(Replies { count: 0, window: now });
+            let entry = replies.entry(to).or_insert(Replies {
+                count: 0,
+                window: now,
+            });
             if now.duration_since(entry.window) >= Duration::from_secs(60) {
-                *entry = Replies { count: 0, window: now };
+                *entry = Replies {
+                    count: 0,
+                    window: now,
+                };
             }
             if entry.count >= limits.replies_per_minute {
                 return Err(ReplyError::OverRate);
@@ -206,21 +228,41 @@ impl Listener {
         // that socket knows it by.
         let local = self.bound[socket];
         let sockets = self.sockets.lock().unwrap();
-        let Some(socket) = sockets.get(socket) else { return Err(ReplyError::Closed) };
+        let Some(socket) = sockets.get(socket) else {
+            return Err(ReplyError::Closed);
+        };
         let destination = match to.ip() {
-            IpAddr::V4(v4) if local.is_ipv6() => SocketAddr::new(IpAddr::V6(v4.to_ipv6_mapped()), to.port()),
+            IpAddr::V4(v4) if local.is_ipv6() => {
+                SocketAddr::new(IpAddr::V6(v4.to_ipv6_mapped()), to.port())
+            }
             _ => to,
         };
-        socket.send_to(bytes, destination).map(|_| ()).map_err(|_| ReplyError::Failed)
+        socket
+            .send_to(bytes, destination)
+            .map(|_| ())
+            .map_err(|_| ReplyError::Failed)
     }
 
     pub fn stats(&self) -> Stats {
         let gate = self.shared.gate.lock().unwrap();
-        let dropped = Drop::ALL.iter().map(|reason| (reason.word(), gate.dropped(*reason))).collect();
-        let mut heard: Vec<(String, u64)> =
-            self.shared.last.lock().unwrap().iter().map(|(address, at)| (address.to_string(), ms(*at))).collect();
+        let dropped = Drop::ALL
+            .iter()
+            .map(|reason| (reason.word(), gate.dropped(*reason)))
+            .collect();
+        let mut heard: Vec<(String, u64)> = self
+            .shared
+            .last
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(address, at)| (address.to_string(), ms(*at)))
+            .collect();
         heard.sort();
-        Stats { received: self.shared.received.load(Ordering::SeqCst), dropped, heard }
+        Stats {
+            received: self.shared.received.load(Ordering::SeqCst),
+            dropped,
+            heard,
+        }
     }
 
     // Stops reading and closes every socket. Waiting `next` calls return.
@@ -254,7 +296,10 @@ fn read(index: usize, socket: &UdpSocket, shared: &Shared) {
                     // port-unreachable left by a reply to a program that has
                     // gone, which a read reports and which is not this
                     // socket's failure.
-                    ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::ConnectionReset | ErrorKind::Interrupted => {}
+                    ErrorKind::WouldBlock
+                    | ErrorKind::TimedOut
+                    | ErrorKind::ConnectionReset
+                    | ErrorKind::Interrupted => {}
                     _ => std::thread::sleep(POLL),
                 }
                 continue;
@@ -263,7 +308,13 @@ fn read(index: usize, socket: &UdpSocket, shared: &Shared) {
         let now = Instant::now();
         // The gate decides before anything of the datagram is looked at but
         // its sender and its length (QGD-INT-0006).
-        if shared.gate.lock().unwrap().admit(from.ip(), length, now).is_err() {
+        if shared
+            .gate
+            .lock()
+            .unwrap()
+            .admit(from.ip(), length, now)
+            .is_err()
+        {
             continue;
         }
         let from = SocketAddr::new(canonical(from.ip()), from.port());
@@ -275,11 +326,24 @@ fn read(index: usize, socket: &UdpSocket, shared: &Shared) {
                 shared.gate.lock().unwrap().count(Drop::QueueFull);
                 continue;
             }
-            queue.push_back(Datagram { from, bytes: buffer[..length].to_vec() });
+            queue.push_back(Datagram {
+                from,
+                bytes: buffer[..length].to_vec(),
+            });
         }
         shared.received.fetch_add(1, Ordering::SeqCst);
-        shared.heard.lock().unwrap().insert(from, Heard { socket: index, at: now });
-        shared.last.lock().unwrap().insert(from.ip(), SystemTime::now());
+        shared.heard.lock().unwrap().insert(
+            from,
+            Heard {
+                socket: index,
+                at: now,
+            },
+        );
+        shared
+            .last
+            .lock()
+            .unwrap()
+            .insert(from.ip(), SystemTime::now());
         shared.ready.notify_one();
     }
 }
@@ -288,7 +352,13 @@ fn read(index: usize, socket: &UdpSocket, shared: &Shared) {
 mod tests {
     use super::*;
 
-    const LIMITS: Limits = Limits { max_bytes: 64, per_second: 1000.0, burst: 1000.0, queue: 4, replies_per_minute: 2 };
+    const LIMITS: Limits = Limits {
+        max_bytes: 64,
+        per_second: 1000.0,
+        burst: 1000.0,
+        queue: 4,
+        replies_per_minute: 2,
+    };
 
     fn loopback(allow: &[&str]) -> Listener {
         Listener::open(Config {
@@ -368,7 +438,10 @@ mod tests {
         let out = sender();
         out.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
         let stranger = sender();
-        assert_eq!(listener.reply(stranger.local_addr().unwrap(), b"x"), Err(ReplyError::NotHeard));
+        assert_eq!(
+            listener.reply(stranger.local_addr().unwrap(), b"x"),
+            Err(ReplyError::NotHeard)
+        );
         out.send_to(b"hello", listener.bound()[0]).unwrap();
         wait_for(&listener, 1);
         let to = out.local_addr().unwrap();

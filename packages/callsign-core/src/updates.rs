@@ -36,8 +36,11 @@ struct Sources {
 }
 
 fn sources() -> CoreResult<Sources> {
-    let sources: Sources = serde_json::from_str(SOURCES).map_err(|_| "The update register could not be read.")?;
-    if !sources.feed.starts_with("https://") || sources.feed_signature != format!("{}.asc", sources.feed) {
+    let sources: Sources =
+        serde_json::from_str(SOURCES).map_err(|_| "The update register could not be read.")?;
+    if !sources.feed.starts_with("https://")
+        || sources.feed_signature != format!("{}.asc", sources.feed)
+    {
         return Err("The update register could not be read.");
     }
     Ok(sources)
@@ -47,41 +50,64 @@ fn sources() -> CoreResult<Sources> {
 // the domain itself. Compared lower-cased, as DNS does.
 pub(crate) fn host_allowed(host: &str, patterns: &[String]) -> bool {
     let host = host.to_ascii_lowercase();
-    if host.is_empty() || host.ends_with('.') { return false; }
-    patterns.iter().any(|pattern| match pattern.strip_prefix("*.") {
-        Some(domain) => host.len() > domain.len() + 1 && host.ends_with(&format!(".{domain}")),
-        None => host == *pattern,
-    })
+    if host.is_empty() || host.ends_with('.') {
+        return false;
+    }
+    patterns
+        .iter()
+        .any(|pattern| match pattern.strip_prefix("*.") {
+            Some(domain) => host.len() > domain.len() + 1 && host.ends_with(&format!(".{domain}")),
+            None => host == *pattern,
+        })
 }
 
 fn allowed_url(url: &reqwest::Url, patterns: &[String]) -> bool {
     url.scheme() == "https"
-        && url.username().is_empty() && url.password().is_none()
+        && url.username().is_empty()
+        && url.password().is_none()
         && url.port().is_none()
-        && url.host_str().is_some_and(|host| host_allowed(host, patterns))
+        && url
+            .host_str()
+            .is_some_and(|host| host_allowed(host, patterns))
 }
 
 // The file name main asks for, in the release's own form: it names the
 // version and the platform, and it is never a path.
 pub(crate) fn valid_name(name: &str) -> bool {
-    let Some(rest) = name.strip_prefix("qso-graph-desktop-") else { return false };
+    let Some(rest) = name.strip_prefix("qso-graph-desktop-") else {
+        return false;
+    };
     name.len() <= 120
-        && (rest.ends_with(".exe") || rest.ends_with(".AppImage") || rest.ends_with("-mac-arm64.zip"))
-        && rest.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
+        && (rest.ends_with(".exe")
+            || rest.ends_with(".AppImage")
+            || rest.ends_with("-mac-arm64.zip"))
+        && rest
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
         && !rest.contains("..")
 }
 
 pub(crate) fn valid_sum(sum: &str) -> bool {
-    sum.len() == 64 && sum.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+    sum.len() == 64
+        && sum
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
 }
 
-fn client(redirect: reqwest::redirect::Policy, timeout: Duration) -> CoreResult<reqwest::blocking::Client> {
+fn client(
+    redirect: reqwest::redirect::Policy,
+    timeout: Duration,
+) -> CoreResult<reqwest::blocking::Client> {
     reqwest::blocking::Client::builder()
         .use_preconfigured_tls(reference_tls_config()?)
-        .https_only(true).no_proxy().redirect(redirect)
-        .connect_timeout(Duration::from_secs(10)).timeout(timeout)
+        .https_only(true)
+        .no_proxy()
+        .redirect(redirect)
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(timeout)
         .user_agent(crate::AGENT)
-        .build().map_err(|_| "Secure client is unavailable.")
+        .build()
+        .map_err(|_| "Secure client is unavailable.")
 }
 
 // The feed is two requests, one after the other (the feed, then its
@@ -95,15 +121,30 @@ const _: () = assert!(FEED_TIMEOUT_SECS * FEED_REQUESTS < 75);
 
 // One small file from one address, never redirected, no larger than `limit`.
 fn fetch_small(url: &str, limit: u64) -> CoreResult<Vec<u8>> {
-    let response = client(reqwest::redirect::Policy::none(), Duration::from_secs(FEED_TIMEOUT_SECS))?
-        .get(url).send().map_err(|_| "The update feed could not be reached.")?;
-    if !response.status().is_success() { return Err("The update feed refused the request."); }
-    if response.content_length().is_some_and(|length| length > limit) {
+    let response = client(
+        reqwest::redirect::Policy::none(),
+        Duration::from_secs(FEED_TIMEOUT_SECS),
+    )?
+    .get(url)
+    .send()
+    .map_err(|_| "The update feed could not be reached.")?;
+    if !response.status().is_success() {
+        return Err("The update feed refused the request.");
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit)
+    {
         return Err("The update feed is larger than this product will read.");
     }
     let mut body = Vec::new();
-    response.take(limit + 1).read_to_end(&mut body).map_err(|_| "The update feed could not be read.")?;
-    if body.len() as u64 > limit { return Err("The update feed is larger than this product will read."); }
+    response
+        .take(limit + 1)
+        .read_to_end(&mut body)
+        .map_err(|_| "The update feed could not be read.")?;
+    if body.len() as u64 > limit {
+        return Err("The update feed is larger than this product will read.");
+    }
     Ok(body)
 }
 
@@ -118,14 +159,19 @@ pub(crate) const FEED_SEEN: &str = "feed-signed.txt";
 
 pub(crate) fn accept_signed_at(directory: &Path, signed: i64) -> CoreResult<()> {
     let path = directory.join(FEED_SEEN);
-    let seen = fs::read_to_string(&path).ok().and_then(|text| text.trim().parse::<i64>().ok());
+    let seen = fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| text.trim().parse::<i64>().ok());
     if seen.is_some_and(|seen| signed < seen) {
-        return Err("The update feed is older than one this copy has already seen, so it was not used.");
+        return Err(
+            "The update feed is older than one this copy has already seen, so it was not used.",
+        );
     }
     if seen != Some(signed) {
         fs::create_dir_all(directory).map_err(|_| "The update feed could not be recorded.")?;
         let partial = directory.join(format!("{FEED_SEEN}.part"));
-        fs::write(&partial, signed.to_string()).map_err(|_| "The update feed could not be recorded.")?;
+        fs::write(&partial, signed.to_string())
+            .map_err(|_| "The update feed could not be recorded.")?;
         fs::rename(&partial, &path).map_err(|_| "The update feed could not be recorded.")?;
     }
     Ok(())
@@ -136,8 +182,9 @@ pub(crate) fn accept_signed_at(directory: &Path, signed: i64) -> CoreResult<()> 
 pub fn fetch_feed(directory: &Path) -> CoreResult<Vec<u8>> {
     let sources = sources()?;
     let body = fetch_small(&sources.feed, sources.max_feed_bytes)?;
-    let signature = fetch_small(&sources.feed_signature, sources.max_signature_bytes)
-        .map_err(|_| "The update feed has no signature that could be fetched, so it was not used.")?;
+    let signature = fetch_small(&sources.feed_signature, sources.max_signature_bytes).map_err(
+        |_| "The update feed has no signature that could be fetched, so it was not used.",
+    )?;
     let signed = crate::feed_signature::verify(&body, &signature, &sources.feed_key)?;
     accept_signed_at(directory, signed)?;
     Ok(body)
@@ -148,23 +195,42 @@ pub fn fetch_feed(directory: &Path) -> CoreResult<Vec<u8>> {
 /// first: one update is kept at a time.
 pub fn download(directory: &Path, url: &str, sum: &str, name: &str) -> CoreResult<PathBuf> {
     let sources = sources()?;
-    if !valid_name(name) { return Err("That is not an update file name."); }
-    if !valid_sum(sum) { return Err("That is not an update checksum."); }
+    if !valid_name(name) {
+        return Err("That is not an update file name.");
+    }
+    if !valid_sum(sum) {
+        return Err("That is not an update checksum.");
+    }
     let parsed = reqwest::Url::parse(url).map_err(|_| "That is not an update address.")?;
-    if !allowed_url(&parsed, &sources.download_hosts) { return Err("Updates are downloaded only from the hosts this product names."); }
+    if !allowed_url(&parsed, &sources.download_hosts) {
+        return Err("Updates are downloaded only from the hosts this product names.");
+    }
 
     let hosts = sources.download_hosts.clone();
     let redirect = reqwest::redirect::Policy::custom(move |attempt| {
-        if attempt.previous().len() >= 5 { attempt.error("too many redirects") }
-        else if allowed_url(attempt.url(), &hosts) { attempt.follow() }
-        else { attempt.stop() }
+        if attempt.previous().len() >= 5 {
+            attempt.error("too many redirects")
+        } else if allowed_url(attempt.url(), &hosts) {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
     });
     // Two hours: 400 MB on a slow line, which a ham at a park may have.
     let mut response = client(redirect, Duration::from_secs(2 * 60 * 60))?
-        .get(parsed).send().map_err(|_| "The update could not be reached.")?;
-    if response.status().is_redirection() { return Err("Updates are downloaded only from the hosts this product names."); }
-    if !response.status().is_success() { return Err("The update download was refused."); }
-    if response.content_length().is_some_and(|length| length > sources.max_download_bytes) {
+        .get(parsed)
+        .send()
+        .map_err(|_| "The update could not be reached.")?;
+    if response.status().is_redirection() {
+        return Err("Updates are downloaded only from the hosts this product names.");
+    }
+    if !response.status().is_success() {
+        return Err("The update download was refused.");
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length > sources.max_download_bytes)
+    {
         return Err("The update is larger than this product will download.");
     }
 
@@ -179,20 +245,37 @@ pub fn download(directory: &Path, url: &str, sum: &str, name: &str) -> CoreResul
         let mut buffer = vec![0u8; 64 * 1024];
         let mut total: u64 = 0;
         loop {
-            let read = response.read(&mut buffer).map_err(|_| "The update download was interrupted.")?;
-            if read == 0 { break; }
+            let read = response
+                .read(&mut buffer)
+                .map_err(|_| "The update download was interrupted.")?;
+            if read == 0 {
+                break;
+            }
             total += read as u64;
-            if total > sources.max_download_bytes { return Err("The update is larger than this product will download."); }
+            if total > sources.max_download_bytes {
+                return Err("The update is larger than this product will download.");
+            }
             digest.update(&buffer[..read]);
-            file.write_all(&buffer[..read]).map_err(|_| "The update could not be saved.")?;
+            file.write_all(&buffer[..read])
+                .map_err(|_| "The update could not be saved.")?;
         }
-        file.sync_all().map_err(|_| "The update could not be saved.")?;
-        let got: String = digest.finish().as_ref().iter().map(|byte| format!("{byte:02x}")).collect();
-        if got != sum { return Err("The update did not match its checksum, so it was not kept."); }
+        file.sync_all()
+            .map_err(|_| "The update could not be saved.")?;
+        let got: String = digest
+            .finish()
+            .as_ref()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        if got != sum {
+            return Err("The update did not match its checksum, so it was not kept.");
+        }
         fs::rename(&partial, &finished).map_err(|_| "The update could not be saved.")?;
         Ok(finished.clone())
     })();
-    if result.is_err() { let _ = fs::remove_file(&partial); }
+    if result.is_err() {
+        let _ = fs::remove_file(&partial);
+    }
     result
 }
 
@@ -200,16 +283,27 @@ pub fn download(directory: &Path, url: &str, sum: &str, name: &str) -> CoreResul
 mod tests {
     use super::*;
 
-    fn patterns() -> Vec<String> { sources().unwrap().download_hosts }
+    fn patterns() -> Vec<String> {
+        sources().unwrap().download_hosts
+    }
 
     #[test]
     fn the_register_names_the_release_key_and_its_numbers_are_that_key() {
         let sources = sources().unwrap();
-        assert_eq!(sources.feed_key.fingerprint, "E4EC9751F1AA66AB2BA508EF041096B9A6EBD256");
-        assert_eq!(sources.feed_signature, "https://updates.qso-graph.io/desktop.json.asc");
+        assert_eq!(
+            sources.feed_key.fingerprint,
+            "E4EC9751F1AA66AB2BA508EF041096B9A6EBD256"
+        );
+        assert_eq!(
+            sources.feed_signature,
+            "https://updates.qso-graph.io/desktop.json.asc"
+        );
         // The built-in numbers are that key's: they reproduce its fingerprint.
         let key = &sources.feed_key;
-        assert_eq!(crate::feed_signature::fingerprint_of(key), crate::feed_signature::hex(&key.fingerprint));
+        assert_eq!(
+            crate::feed_signature::fingerprint_of(key),
+            crate::feed_signature::hex(&key.fingerprint)
+        );
     }
 
     #[test]
@@ -219,9 +313,11 @@ mod tests {
         accept_signed_at(dir.path(), 1_800_000_000).unwrap(); // the same feed again
         accept_signed_at(dir.path(), 1_800_000_100).unwrap(); // a newer one
         assert!(accept_signed_at(dir.path(), 1_800_000_050).is_err());
-        assert_eq!(fs::read_to_string(dir.path().join(FEED_SEEN)).unwrap(), "1800000100");
+        assert_eq!(
+            fs::read_to_string(dir.path().join(FEED_SEEN)).unwrap(),
+            "1800000100"
+        );
     }
-
 
     #[test]
     fn the_register_builds_in_and_names_an_https_feed() {
@@ -233,12 +329,29 @@ mod tests {
     #[test]
     fn only_the_named_hosts_are_allowed() {
         let patterns = patterns();
-        for host in ["github.com", "GitHub.com", "release-assets.githubusercontent.com", "dl.qso-graph.io",
-                     "dl.qso-graph.com", "mirror.qso-graph.org", "downloads.sourceforge.net", "netix.dl.sourceforge.net"] {
+        for host in [
+            "github.com",
+            "GitHub.com",
+            "release-assets.githubusercontent.com",
+            "dl.qso-graph.io",
+            "dl.qso-graph.com",
+            "mirror.qso-graph.org",
+            "downloads.sourceforge.net",
+            "netix.dl.sourceforge.net",
+        ] {
             assert!(host_allowed(host, &patterns), "{host} should be allowed");
         }
-        for host in ["qso-graph.io", "evilqso-graph.io", "github.com.evil.example", "api.github.com.",
-                     "gist.github.com", "dl.qso-graph.net", "dl.sourceforge.net", "example.com", ""] {
+        for host in [
+            "qso-graph.io",
+            "evilqso-graph.io",
+            "github.com.evil.example",
+            "api.github.com.",
+            "gist.github.com",
+            "dl.qso-graph.net",
+            "dl.sourceforge.net",
+            "example.com",
+            "",
+        ] {
             assert!(!host_allowed(host, &patterns), "{host} should be refused");
         }
     }
@@ -247,7 +360,9 @@ mod tests {
     fn a_url_must_be_https_with_no_login_or_port() {
         let patterns = patterns();
         let ok = |url: &str| allowed_url(&reqwest::Url::parse(url).unwrap(), &patterns);
-        assert!(ok("https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.1.0/x.exe"));
+        assert!(ok(
+            "https://github.com/qso-graph/qso-graph-desktop/releases/download/v0.1.0/x.exe"
+        ));
         assert!(!ok("http://github.com/x.exe"));
         assert!(!ok("https://user:pass@github.com/x.exe"));
         assert!(!ok("https://github.com:8443/x.exe"));
@@ -258,16 +373,36 @@ mod tests {
         assert!(valid_name("qso-graph-desktop-0.1.1-win-x64.exe"));
         assert!(valid_name("qso-graph-desktop-0.1.1-linux-x86_64.AppImage"));
         assert!(valid_name("qso-graph-desktop-0.1.1-mac-arm64.zip"));
-        for name in ["../qso-graph-desktop-0.1.1-win-x64.exe", "qso-graph-desktop-../../x.exe",
-                     "qso-graph-desktop-0.1.1-linux-x64.zip", "other-0.1.1.exe", "qso-graph-desktop-0.1.1/x.exe"] {
+        for name in [
+            "../qso-graph-desktop-0.1.1-win-x64.exe",
+            "qso-graph-desktop-../../x.exe",
+            "qso-graph-desktop-0.1.1-linux-x64.zip",
+            "other-0.1.1.exe",
+            "qso-graph-desktop-0.1.1/x.exe",
+        ] {
             assert!(!valid_name(name), "{name} should be refused");
         }
         assert!(valid_sum(&"a".repeat(64)));
         assert!(!valid_sum(&"A".repeat(64)) && !valid_sum("abc"));
         let directory = std::env::temp_dir();
         let sum = "0".repeat(64);
-        assert!(download(&directory, "https://example.com/qso-graph-desktop-0.1.1-win-x64.exe", &sum,
-                         "qso-graph-desktop-0.1.1-win-x64.exe").is_err());
-        assert!(download(&directory, "https://github.com/x", "nope", "qso-graph-desktop-0.1.1-win-x64.exe").is_err());
+        assert!(
+            download(
+                &directory,
+                "https://example.com/qso-graph-desktop-0.1.1-win-x64.exe",
+                &sum,
+                "qso-graph-desktop-0.1.1-win-x64.exe"
+            )
+            .is_err()
+        );
+        assert!(
+            download(
+                &directory,
+                "https://github.com/x",
+                "nope",
+                "qso-graph-desktop-0.1.1-win-x64.exe"
+            )
+            .is_err()
+        );
     }
 }

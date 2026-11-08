@@ -51,7 +51,8 @@ export const SUITE_TIMEOUT_MS = {
   // nothing when the build used a prebuilt core (CI's Linux jobs, which build
   // it against glibc 2.28 in a container). Minutes on a two-core runner; it
   // was killed at the flat 120 s and reported as a failure.
-  'rust-unit': 900_000
+  'rust-unit': 900_000,
+  'rust-lint': 900_000
 };
 
 export function suiteTimeout(name) {
@@ -79,6 +80,7 @@ export function suiteCommands(npmCli) {
   ['extension-tests', ['node_modules/vitest/vitest.mjs', 'run', 'extensions/']],
   ['reference-build', ['node_modules/vitest/vitest.mjs', 'run', 'tests/reference-build.test.ts']],
   ['rust-unit', ['scripts/rust-unit.mjs']],
+  ['rust-lint', ['scripts/rust-lint.mjs']],
   ['security-lint', ['scripts/lint.mjs']],
   ['crypto-evidence', ['scripts/crypto-evidence.mjs']],
   ['keychain-roundtrip', ['scripts/keychain-roundtrip.mjs']],

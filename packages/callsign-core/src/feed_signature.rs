@@ -19,7 +19,8 @@ use aws_lc_rs::signature::{self, RsaPublicKeyComponents};
 
 type CoreResult<T> = std::result::Result<T, &'static str>;
 
-const REFUSED: &str = "The update feed's signature is not the release key's, so the feed was not used.";
+const REFUSED: &str =
+    "The update feed's signature is not the release key's, so the feed was not used.";
 
 /// The public half of the key the feed must be signed by.
 #[derive(serde::Deserialize, Clone)]
@@ -67,15 +68,23 @@ pub(crate) fn verify(data: &[u8], armored: &[u8], key: &FeedKey) -> CoreResult<i
     let body = signature_packet(&packet).ok_or(REFUSED)?;
     let parsed = parse(body).ok_or(REFUSED)?;
 
-    let wanted = hex(&key.fingerprint).filter(|f| f.len() == 20).ok_or("The update register could not be read.")?;
-    if fingerprint_of(key).as_deref() != Some(&wanted[..]) { return Err("The update register could not be read."); }
-    if parsed.issuer.as_deref() != Some(&wanted[..]) { return Err(REFUSED); }
+    let wanted = hex(&key.fingerprint)
+        .filter(|f| f.len() == 20)
+        .ok_or("The update register could not be read.")?;
+    if fingerprint_of(key).as_deref() != Some(&wanted[..]) {
+        return Err("The update register could not be read.");
+    }
+    if parsed.issuer.as_deref() != Some(&wanted[..]) {
+        return Err(REFUSED);
+    }
     let created = parsed.created.ok_or(REFUSED)?;
 
     let n = hex(&key.n).ok_or("The update register could not be read.")?;
     let e = hex(&key.e).ok_or("The update register could not be read.")?;
     // An MPI drops leading zero bytes; RSA verification wants the modulus' length.
-    if parsed.signature.len() > n.len() { return Err(REFUSED); }
+    if parsed.signature.len() > n.len() {
+        return Err(REFUSED);
+    }
     let mut sig = vec![0u8; n.len() - parsed.signature.len()];
     sig.extend_from_slice(parsed.signature);
 
@@ -92,9 +101,12 @@ pub(crate) fn verify(data: &[u8], armored: &[u8], key: &FeedKey) -> CoreResult<i
         10 => &signature::RSA_PKCS1_2048_8192_SHA512,
         _ => return Err(REFUSED),
     };
-    RsaPublicKeyComponents { n: &n[..], e: &e[..] }
-        .verify(algorithm, &message, &sig)
-        .map_err(|_| REFUSED)?;
+    RsaPublicKeyComponents {
+        n: &n[..],
+        e: &e[..],
+    }
+    .verify(algorithm, &message, &sig)
+    .map_err(|_| REFUSED)?;
     Ok(created)
 }
 
@@ -110,20 +122,31 @@ struct Parsed<'a> {
 // (RSA), then the hashed subpackets, the unhashed ones, the hash's left 16
 // bits and the signature as one MPI.
 fn parse(body: &[u8]) -> Option<Parsed<'_>> {
-    if body.len() < 6 || body[0] != 4 || body[1] != 0x00 || body[2] != 1 { return None; }
+    if body.len() < 6 || body[0] != 4 || body[1] != 0x00 || body[2] != 1 {
+        return None;
+    }
     let hash = body[3];
     let hashed_len = u16::from_be_bytes([body[4], body[5]]) as usize;
     let hashed_end = 6usize.checked_add(hashed_len)?;
     let hashed = body.get(..hashed_end)?;
     let (created, issuer) = subpackets(body.get(6..hashed_end)?)?;
-    let unhashed_len = u16::from_be_bytes([*body.get(hashed_end)?, *body.get(hashed_end + 1)?]) as usize;
+    let unhashed_len =
+        u16::from_be_bytes([*body.get(hashed_end)?, *body.get(hashed_end + 1)?]) as usize;
     let mut at = hashed_end + 2 + unhashed_len;
     at += 2; // the hash's left 16 bits, which the verification itself settles
     let bits = u16::from_be_bytes([*body.get(at)?, *body.get(at + 1)?]) as usize;
     let len = bits.div_ceil(8);
     let signature = body.get(at + 2..at + 2 + len)?;
-    if at + 2 + len != body.len() { return None; }
-    Some(Parsed { hashed, hash, created, issuer, signature })
+    if at + 2 + len != body.len() {
+        return None;
+    }
+    Some(Parsed {
+        hashed,
+        hash,
+        created,
+        issuer,
+        signature,
+    })
 }
 
 // The hashed subpackets: the creation time (2) and the issuer's fingerprint
@@ -134,15 +157,29 @@ fn subpackets(mut area: &[u8]) -> Option<(Option<i64>, Option<Vec<u8>>)> {
     while !area.is_empty() {
         let (len, skip): (usize, usize) = match area[0] {
             l @ 0..=191 => (l as usize, 1),
-            l @ 192..=254 => ((((l as usize) - 192) << 8) + *area.get(1)? as usize + 192, 2),
-            255 => (u32::from_be_bytes(area.get(1..5)?.try_into().ok()?) as usize, 5),
+            l @ 192..=254 => (
+                (((l as usize) - 192) << 8) + *area.get(1)? as usize + 192,
+                2,
+            ),
+            255 => (
+                u32::from_be_bytes(area.get(1..5)?.try_into().ok()?) as usize,
+                5,
+            ),
         };
         let packet = area.get(skip..skip.checked_add(len)?)?;
         let (&kind, value) = packet.split_first()?;
         match kind & 0x7F {
             2 => created = Some(u32::from_be_bytes(value.try_into().ok()?) as i64),
-            33 => { if value.first() == Some(&4) { issuer = Some(value.get(1..)?.to_vec()); } }
-            other => if kind & 0x80 != 0 && !matches!(other, 3 | 16 | 20 | 27) { return None; },
+            33 => {
+                if value.first() == Some(&4) {
+                    issuer = Some(value.get(1..)?.to_vec());
+                }
+            }
+            other => {
+                if kind & 0x80 != 0 && !matches!(other, 3 | 16 | 20 | 27) {
+                    return None;
+                }
+            }
         }
         area = &area[skip + len..];
     }
@@ -153,28 +190,46 @@ fn subpackets(mut area: &[u8]) -> Option<(Option<i64>, Option<Vec<u8>>)> {
 // it must be the only thing there.
 fn signature_packet(data: &[u8]) -> Option<&[u8]> {
     let first = *data.first()?;
-    if first & 0x80 == 0 { return None; }
+    if first & 0x80 == 0 {
+        return None;
+    }
     let (tag, len, start): (u8, usize, usize) = if first & 0x40 != 0 {
         let tag = first & 0x3F;
         let l = *data.get(1)? as usize;
         match l {
             0..=191 => (tag, l, 2),
             192..=223 => (tag, ((l - 192) << 8) + *data.get(2)? as usize + 192, 3),
-            255 => (tag, u32::from_be_bytes(data.get(2..6)?.try_into().ok()?) as usize, 6),
+            255 => (
+                tag,
+                u32::from_be_bytes(data.get(2..6)?.try_into().ok()?) as usize,
+                6,
+            ),
             _ => return None, // partial lengths are not a detached signature
         }
     } else {
         let tag = (first >> 2) & 0x0F;
         match first & 3 {
             0 => (tag, *data.get(1)? as usize, 2),
-            1 => (tag, u16::from_be_bytes(data.get(1..3)?.try_into().ok()?) as usize, 3),
-            2 => (tag, u32::from_be_bytes(data.get(1..5)?.try_into().ok()?) as usize, 5),
+            1 => (
+                tag,
+                u16::from_be_bytes(data.get(1..3)?.try_into().ok()?) as usize,
+                3,
+            ),
+            2 => (
+                tag,
+                u32::from_be_bytes(data.get(1..5)?.try_into().ok()?) as usize,
+                5,
+            ),
             _ => return None,
         }
     };
-    if tag != 2 { return None; }
+    if tag != 2 {
+        return None;
+    }
     let body = data.get(start..start.checked_add(len)?)?;
-    if start + len != data.len() { return None; }
+    if start + len != data.len() {
+        return None;
+    }
     Some(body)
 }
 
@@ -184,13 +239,27 @@ fn signature_packet(data: &[u8]) -> Option<&[u8]> {
 fn dearmor(armored: &[u8]) -> Option<Vec<u8>> {
     let text = std::str::from_utf8(armored).ok()?;
     let mut lines = text.lines().map(str::trim_end);
-    lines.by_ref().find(|line| *line == "-----BEGIN PGP SIGNATURE-----")?;
+    lines
+        .by_ref()
+        .find(|line| *line == "-----BEGIN PGP SIGNATURE-----")?;
     let mut body = String::new();
     let mut in_headers = true;
     for line in lines {
-        if line == "-----END PGP SIGNATURE-----" { return base64(&body); }
-        if in_headers { if line.is_empty() { in_headers = false; } else if !line.contains(": ") { in_headers = false; body.push_str(line); } continue; }
-        if line.starts_with('=') { continue; }
+        if line == "-----END PGP SIGNATURE-----" {
+            return base64(&body);
+        }
+        if in_headers {
+            if line.is_empty() {
+                in_headers = false;
+            } else if !line.contains(": ") {
+                in_headers = false;
+                body.push_str(line);
+            }
+            continue;
+        }
+        if line.starts_with('=') {
+            continue;
+        }
         body.push_str(line);
     }
     None
@@ -211,14 +280,23 @@ fn base64(text: &str) -> Option<Vec<u8>> {
         } as u32;
         acc = (acc << 6) | v;
         bits += 6;
-        if bits >= 8 { bits -= 8; out.push((acc >> bits) as u8); acc &= (1 << bits) - 1; }
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
     }
     Some(out)
 }
 
 pub(crate) fn hex(text: &str) -> Option<Vec<u8>> {
-    if text.len() % 2 != 0 { return None; }
-    (0..text.len()).step_by(2).map(|i| u8::from_str_radix(text.get(i..i + 2)?, 16).ok()).collect()
+    if !text.len().is_multiple_of(2) {
+        return None;
+    }
+    (0..text.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(text.get(i..i + 2)?, 16).ok())
+        .collect()
 }
 
 #[cfg(test)]
@@ -232,7 +310,9 @@ mod tests {
     const OTHER_KEY: &[u8] = include_bytes!("testdata/feed/other-key.asc");
     const TEST_KEY: &str = include_str!("testdata/feed/test-key.json");
 
-    fn test_key() -> FeedKey { serde_json::from_str(TEST_KEY).unwrap() }
+    fn test_key() -> FeedKey {
+        serde_json::from_str(TEST_KEY).unwrap()
+    }
 
     #[test]
     fn a_signature_by_the_key_is_accepted_and_says_when_it_was_made() {
@@ -250,7 +330,11 @@ mod tests {
     fn one_changed_byte_in_the_feed_is_refused() {
         let mut changed = FEED.to_vec();
         let at = changed.iter().position(|b| b.is_ascii_digit()).unwrap();
-        changed[at] = if changed[at] == b'9' { b'8' } else { changed[at] + 1 };
+        changed[at] = if changed[at] == b'9' {
+            b'8'
+        } else {
+            changed[at] + 1
+        };
         assert_eq!(verify(&changed, SIGNED, &test_key()), Err(REFUSED));
     }
 
@@ -261,9 +345,18 @@ mod tests {
 
     #[test]
     fn nothing_that_is_not_a_signature_is_accepted() {
-        for junk in [&b""[..], b"not armour", b"-----BEGIN PGP SIGNATURE-----\n\n!!!!\n-----END PGP SIGNATURE-----\n",
-                     b"-----BEGIN PGP SIGNATURE-----\n\nAAAA\n-----END PGP SIGNATURE-----\n"] {
-            assert_eq!(verify(FEED, junk, &test_key()), Err(REFUSED), "{:?}", String::from_utf8_lossy(junk));
+        for junk in [
+            &b""[..],
+            b"not armour",
+            b"-----BEGIN PGP SIGNATURE-----\n\n!!!!\n-----END PGP SIGNATURE-----\n",
+            b"-----BEGIN PGP SIGNATURE-----\n\nAAAA\n-----END PGP SIGNATURE-----\n",
+        ] {
+            assert_eq!(
+                verify(FEED, junk, &test_key()),
+                Err(REFUSED),
+                "{:?}",
+                String::from_utf8_lossy(junk)
+            );
         }
         // A truncated signature.
         let cut = &SIGNED[..SIGNED.len() / 2];
@@ -273,10 +366,16 @@ mod tests {
     #[test]
     fn the_fingerprint_is_computed_from_the_key_s_own_numbers() {
         let key = test_key();
-        assert_eq!(fingerprint_of(&key).unwrap(), hex(&key.fingerprint).unwrap());
+        assert_eq!(
+            fingerprint_of(&key).unwrap(),
+            hex(&key.fingerprint).unwrap()
+        );
         let mut wrong = key.clone();
         wrong.created += 1;
-        assert_eq!(verify(FEED, SIGNED, &wrong), Err("The update register could not be read."));
+        assert_eq!(
+            verify(FEED, SIGNED, &wrong),
+            Err("The update register could not be read.")
+        );
     }
 
     #[test]

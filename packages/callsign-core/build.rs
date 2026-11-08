@@ -13,7 +13,10 @@ fn main() {
         .and_then(|rest| rest.split('"').next())
         .expect("package.json names a version");
     assert!(
-        !version.is_empty() && version.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+')),
+        !version.is_empty()
+            && version
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+')),
         "package.json's version is not a version: {version}"
     );
     println!("cargo:rustc-env=QGD_VERSION={version}");
