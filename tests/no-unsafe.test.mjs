@@ -41,6 +41,17 @@ describe('our Rust code uses no unsafe (QGD-SEC-0022)', () => {
     });
   }
 
+  // CodeQL's rust/access-invalid-pointer is excluded because of the deny above: in Rust an invalid
+  // pointer can be dereferenced only in unsafe code, and ours has none (.github/codeql/codeql-config.yml).
+  // The exclusion must stay exactly that one rule, so it can never quietly widen.
+  it('CodeQL excludes only rust/access-invalid-pointer, and only because unsafe is denied', () => {
+    const config = readFileSync(join('.github', 'codeql', 'codeql-config.yml'), 'utf8');
+    const excluded = [...config.matchAll(/^\s*id:\s*(\S+)\s*$/gm)].map(m => m[1]);
+    expect(excluded).toEqual(['rust/access-invalid-pointer']);
+    expect(config).not.toMatch(/paths-ignore|^\s*paths:/m);
+    expect(found.length).toBeGreaterThan(0);
+  });
+
   it('would catch unsafe allowed back', () => {
     expect(allowsUnsafe('#[allow(unsafe_code)]\nfn f() {}')).toBe(true);
     expect(allowsUnsafe('#![allow(dead_code, unsafe_code)]')).toBe(true);

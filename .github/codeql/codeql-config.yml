@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CodeQL configuration for QSO Graph Desktop.
+#
+# One rule is excluded, and only one. rust/access-invalid-pointer finds a dereference of an invalid
+# pointer, which Rust allows only inside `unsafe`. Our Rust crates deny unsafe_code at their roots
+# (QGD-SEC-0022), so the compiler refuses any of our own; the only unsafe there is what napi-derive
+# generates for #[napi] structs, and the rule flagged exactly that (alerts #13 and #28, reviewed as
+# false positives). It came back whenever the code around it moved. The exclusion holds only while
+# tests/no-unsafe.test.mjs passes: it finds every crate in the tree, requires the deny at each root,
+# refuses any allow back, and checks that this file excludes this rule and nothing else.
+name: QSO Graph Desktop
+query-filters:
+  - exclude:
+      id: rust/access-invalid-pointer

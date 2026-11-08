@@ -9,6 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- CodeQL excludes one rule, `rust/access-invalid-pointer`, which only ever flagged napi-derive's generated code (alerts #13 and #28, false positives that returned whenever the code moved): our Rust denies `unsafe_code` (QGD-SEC-0022), so the compiler already refuses what the rule looks for. `tests/no-unsafe.test.mjs` checks the exclusion stays exactly that one rule.
 - Updated QG Trust to 0.1.5 and enforce Rust formatting and Clippy in verification and CI.
 
 
