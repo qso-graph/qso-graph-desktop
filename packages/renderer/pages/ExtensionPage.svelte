@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   An extension's page in the main pane, opened from its pin on Home or its
   item in the rail. The core draws it from the data the

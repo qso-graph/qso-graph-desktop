@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Astro's page (QGD-AST-*): the sun, the moon and the grey line at the
 // active Location, as the core's page shapes. Pure: a position, a moment and
 // what the operator typed in, a page answer out. Nothing here fetches, and

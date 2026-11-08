@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P3-screenshots (QGD-PRT-0103): a baseline per page per theme, captured for
 // KI7MT's approval. Approval is his; this produces them and fails when one
 // changes unexpectedly.

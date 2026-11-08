@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // System, Light and Dark — QGD-FRM-0002, with System the default.
 //
 // Here rather than in the settings contract, where it was, because these are

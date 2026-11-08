@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Getting ADIF's published archive, at run time, and proving it is the one
 // that was pinned.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Opens a page in the operator's browser (QGD-SEC-0009): Help's documents and
 // a park's or summit's page (QGD-FRM-0015, QGD-STN-0011). The window names
 // the page; the URL is built from data/links.json. The browser is the

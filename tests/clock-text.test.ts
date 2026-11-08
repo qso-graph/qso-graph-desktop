@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The header clock at the edges of a day: does the UTC date roll over with the
 // time? It must, at 00:00:00 UTC, not a second later.
 import { describe, expect, it } from 'vitest';

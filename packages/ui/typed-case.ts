@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The case of what is typed, set as it is typed (QGD-CNV-0016):
 // `ki7mt` becomes `KI7MT` in the box. Only case: nothing else is
 // changed, and what is typed is still checked and refused with the reason if

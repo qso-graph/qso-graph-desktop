@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // An extension declares itself in data (QGD-APP-0001), and this is what a
 // declaration has to be for the core to accept it.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { contextBridge, ipcRenderer } from 'electron';
 // QGD-SEC-0007: named functions only. Never ipcRenderer, never a generic send,
 // never anything that forwards a channel the caller chooses.

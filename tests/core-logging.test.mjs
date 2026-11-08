@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-LOG-0004: the credential core never hands a secret to a logger.
 //
 // Redaction in the node logger is the second line of defence. This is the

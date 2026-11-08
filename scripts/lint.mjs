@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-SEC-0013: the ESLint security rules, svelte/no-at-html-tags and the
 // sql.raw ban, run over the product.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { colourCount, compare, decode, describeDiff, RENDER_TOLERANCE } from '../scripts/png.mjs';

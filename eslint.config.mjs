@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-SEC-0013: the ESLint half of the security gates.
 //
 // The TypeScript source is linted directly, with type information. That became

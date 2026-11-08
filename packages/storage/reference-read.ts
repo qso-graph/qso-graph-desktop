@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading what reference.sqlite holds, for the core's own use and, through
 // the API, an application's (QGD-APP-0009).
 //

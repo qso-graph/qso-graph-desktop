@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // integrations-sim stops the simulator's whole tree on Windows: killing uvx
 // alone left its child holding the suite's stderr (scripts/stop-process-tree.mjs).
 import { describe, expect, it, vi } from 'vitest';

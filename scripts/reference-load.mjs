@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P5-archive, P5-structure, P5-provenance, P5-zones and P5-loads: ADIF's
 // definitions are in reference.sqlite, built by the core from the pinned
 // archive, counted against the archive rather than against a list kept here

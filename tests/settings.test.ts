@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS, isThemeChoice, readSettings, validateSettingsCommand, DAY_ONE_PINS, isPins, MAX_PINS } from '../packages/main/settings-contract.js';

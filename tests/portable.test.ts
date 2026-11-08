@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Portable mode: a qso-graph-data folder beside the
 // application holds everything it keeps but logins.
 import { describe, expect, it } from 'vitest';

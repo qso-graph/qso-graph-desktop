@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // My Area: POTA's programs, their entities and their
 // locations the operator chooses from, the area a Location is in, and the
 // locations an area covers, from POTA's own lists already downloaded

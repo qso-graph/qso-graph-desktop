@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The suites `make verify` runs, in order.
 //
 // Here rather than in verify.mjs because two things need to agree about it:

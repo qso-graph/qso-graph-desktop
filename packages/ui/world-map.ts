@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The night on a flat world map (page data version 6), from where the sun is
 // overhead. Pure, so it is tested without a window.
 //

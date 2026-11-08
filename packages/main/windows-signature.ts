@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Who signed a Windows file, asked of Windows itself (#81). An update is run
 // only when its installer is validly signed by the same publisher as the copy
 // of QSO Graph Desktop that is running (by us, when that copy is unsigned:

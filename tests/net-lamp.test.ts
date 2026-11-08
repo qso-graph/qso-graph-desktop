@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Internet lamp (QGD-HOM-0005): it never
 // looks more certain than what it knows.
 import { describe, expect, it } from 'vitest';

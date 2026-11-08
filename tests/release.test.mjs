@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The release steps that are text (scripts/release.mjs, docs/RELEASES.md):
 // the notes a release publishes are its CHANGELOG section, and main builds a
 // release only when that section is there.

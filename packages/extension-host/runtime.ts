@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The extension host's runtime (QGD-APP-0015, QGD-APP-0020): what runs
 // inside QG Extensions, written with no Electron in it so that every path
 // through it can be tested in process. host.ts is the Electron wiring.

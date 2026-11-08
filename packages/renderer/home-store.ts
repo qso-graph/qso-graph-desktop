@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Home's state in the window (QGD-HOM-0001 to QGD-HOM-0006): the pages on
 // offer, the pins drawn as tiles, and what the open page last said. Home
 // itself fetches nothing.

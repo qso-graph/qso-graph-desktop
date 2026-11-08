@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The grants an extension may ask for (QGD-APP-0006).
 //
 // The set is closed and it is data: data/extension-grants.json. This module reads

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-or-later
 # ADIF's archive and the US county sources, cached on main once a week for every pull request to
 # use. A pull request's own cache is its alone, and a merge builds nothing (#168), so without this
 # every pull request fetched them again from adif.org.uk and the Internet Archive, and failed

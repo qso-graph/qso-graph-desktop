@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_LEVEL, MAX_AGE_MS, RAISED_LEVEL_MS, REDACTED_FIELDS,

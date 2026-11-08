@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Whether a window may appear on screen.
 //
 // No window flashes on screen during test runs: ten suites launch the real

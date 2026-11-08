@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The getting-started steps on Home's welcome: each one
 // a place to go, ticked when done. The reference data in the order it is
 // needed: ADIF's definitions, which every location is checked against, then

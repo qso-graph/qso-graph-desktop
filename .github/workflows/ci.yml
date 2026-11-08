@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-or-later
 # On all three platforms: the development pass (make check), then the suites
 # that open a window or use the credential store.
 # GitHub-hosted runners only: this repository is public, and a self-hosted

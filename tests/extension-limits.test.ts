@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-messages, in part: the limits come from data/extension-limits.json and
 // are checked whole (QGD-APP-0021, QGD-APP-0022).
 import { readFileSync } from 'node:fs';

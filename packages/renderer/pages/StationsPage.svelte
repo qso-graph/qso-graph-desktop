@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Stations (QGD-STN-*): where the operator is operating from, beside the
   callsign that says who they are, as TQSL keeps station locations beside the

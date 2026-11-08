@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P6-persona-owns-credential, P6-export-public, P6-export-round-trip,
 // P6-import-all-or-none and P6-export-goes-nowhere (QGD-PSN-0001,
 // QGD-PSN-0007 to QGD-PSN-0011).

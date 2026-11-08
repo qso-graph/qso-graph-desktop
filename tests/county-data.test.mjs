@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What builds the US county data (QGD-STN-0010), run on the real files
 // scripts/fetch-counties.mjs fetched, and on small cases.
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What ADIF Lookup's search answers with, and its bounds (adif-search.ts).
 // Apart from the search so the window's contract can name it without
 // reaching the store, which runs only in QG Storage.

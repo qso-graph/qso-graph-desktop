@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Parks Near Me (QGD-HOM-0013): My Area's parks, nearest first, starting
 // on the never activated. Made-up parks: nothing of POTA's is committed.
 import { describe, expect, it } from 'vitest';

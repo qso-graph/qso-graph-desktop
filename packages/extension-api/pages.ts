@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What an extension answers when the core asks for a page's data, and the
 // check it passes before Home draws it (QGD-HOM-0002).
 //

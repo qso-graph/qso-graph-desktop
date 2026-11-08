@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Release (#94, #157, docs/RELEASES.md): the only way anything is published.
 # Run by hand when KI7MT says so: Actions → Release → Run workflow, from main
 # (or a released version's fix branch, 0.2.x), with the version main says.

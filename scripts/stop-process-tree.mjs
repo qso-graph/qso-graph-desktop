@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Stops a child and what it started. uvx runs the simulator as a child of its
 // own, and on Windows killing uvx leaves that child running, holding the
 // stderr it inherited from the suite: the runner waited on the pipe until

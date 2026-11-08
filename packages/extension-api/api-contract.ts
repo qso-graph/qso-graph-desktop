@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The extension API itself (QGD-APP-0003): what an extension may send, what comes
 // back, and which grant each request needs.
 //

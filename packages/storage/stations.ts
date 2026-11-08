@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Stations in state.sqlite (QGD-STN-0001–0009), kept by QG Storage.
 //
 // A value is checked against ADIF's definitions as loaded, by the same

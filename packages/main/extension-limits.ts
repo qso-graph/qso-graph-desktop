@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The extension limits (QGD-APP-0021, QGD-APP-0022), read from
 // data/extension-limits.json and checked whole. A limit that is missing,
 // not a whole number or outside a sane range refuses the file, rather than

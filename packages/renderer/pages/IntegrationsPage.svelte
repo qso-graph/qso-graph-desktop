@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Integrations' page (QGD-INT-0010): what is listening, always visible.
 

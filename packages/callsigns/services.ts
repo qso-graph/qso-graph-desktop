@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading the register of services a callsign can hold a credential for.
 //
 // QGD-PSN-0002: what a service needs is data, not branches. This reads

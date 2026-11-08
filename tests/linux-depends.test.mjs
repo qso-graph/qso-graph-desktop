@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Linux packages name their own dependencies. Left to electron-builder,
 // the rpm requires libXScrnSaver, which Electron has not linked for years
 // (it is not among the electron binary's NEEDED libraries) and which Rocky

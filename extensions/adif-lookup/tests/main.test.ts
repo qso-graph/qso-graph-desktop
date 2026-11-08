@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ADIF Lookup end to end against a stand-in context: it registers its page,
 // asks the core to search only when something is typed, and passes on what the
 // core says when it cannot.

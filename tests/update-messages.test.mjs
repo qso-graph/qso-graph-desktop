@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every reason the credential core gives for refusing an update reaches the
 // operator in its own words (#128). The callsign service passes on only the
 // sentences on its list, so a refusal missing from it would be shown as "The

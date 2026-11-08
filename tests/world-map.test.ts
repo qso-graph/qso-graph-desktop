@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The night on the world map (page data version 6): checked against the
 // sun's own altitude, which is what the terminator is.
 import { describe, expect, it } from 'vitest';

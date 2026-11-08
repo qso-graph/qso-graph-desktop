@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Logs page's channel: read the level, change it, export diagnostics.
 //
 // QGD-LOG-0012 is the rule the export obeys — one redacted archive, and nothing

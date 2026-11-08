@@ -4,7 +4,7 @@ doc_type: specification
 status: draft
 version: v0.1.0
 date: 2026-10-07
-license: GPL-3.0-only
+license: GPL-3.0-or-later
 copyright: "Copyright (c) 2026 Agentics Labs LLC"
 authors:
   - "Gregory A. Beam (KI7MT)"

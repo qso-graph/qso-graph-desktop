@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0006 and QGD-FRM-0008: every component has a story, and the gallery
 // builds. A story that no longer builds fails the run rather than waiting for
 // somebody to open it.

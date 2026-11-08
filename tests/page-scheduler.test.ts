@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-fetch and P8-failure: the broker decides when each page is asked for
 // (QGD-HOM-0005), and one page failing leaves the others alone (QGD-HOM-0006).
 // Time is the test's: fake timers, and `now` read from the same fake clock.

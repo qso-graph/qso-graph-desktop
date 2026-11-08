@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Troubleshooting, reached from the status bar (`QGD-LOG-0013`,
   `QGD-FRM-0012`).

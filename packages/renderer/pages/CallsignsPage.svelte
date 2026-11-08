@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   The Callsign screen signed off at P1, moved into a component without a change
   to its markup: the same ids, labels, roles and order. app.ts still owns its

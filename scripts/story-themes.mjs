@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0007 (P3-stories-themes): every story renders in light and in dark,
 // so a component is seen in each before it is accepted.
 //

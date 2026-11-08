@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading ADIF's published definitions into the shapes the tables hold.
 //
 // QGD-REF-0004: what is loaded is ADIF's own structure — every data type,

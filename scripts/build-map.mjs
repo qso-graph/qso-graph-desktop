@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Builds packages/ui/generated/world-land.ts, the world map's coastlines as
 // one SVG outline, from Natural Earth's land in data/map/, checked against
 // its SHA-256 first.
@@ -46,7 +46,7 @@ if (rings.length < 100 || points < 4000) {
   process.exit(1);
 }
 await mkdir(dirname(OUT), { recursive: true });
-await writeFile(OUT, `// SPDX-License-Identifier: GPL-3.0-only
+await writeFile(OUT, `// SPDX-License-Identifier: GPL-3.0-or-later
 // Written by scripts/build-map.mjs from Natural Earth ${land.edition} (public
 // domain; data/map-sources.json). Not in the repository: built, never edited.
 export const WORLD_LAND = ${JSON.stringify(path)};

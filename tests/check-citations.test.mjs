@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every QGD-* ID a Markdown file cites exists in the spec (#95). The check is
 // proved to catch a bad citation, then run on the repository.
 import { readFileSync } from 'node:fs';

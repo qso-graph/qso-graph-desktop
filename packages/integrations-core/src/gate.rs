@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What may come in, decided before anything of a datagram is read
 // (QGD-INT-0006, QGD-INT-0007). No socket here, and the clock is passed in,
 // so every rule runs under unit tests with time the test controls.

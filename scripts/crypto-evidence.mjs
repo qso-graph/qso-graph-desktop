@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Issue #3, item 4: record the crypto module version and operational-environment
 // evidence, and keep compliance claims absent until they are supported.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The shape of an address and of a sender as Integrations names them
 // (QGD-INT-0006): IPv4 dotted, or IPv6 in hex and colons; a sender is one of
 // those with its port, the IPv6 one in brackets. Shape only: the listener

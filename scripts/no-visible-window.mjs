@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The check behind KI7MT's decision of 2026-10-10: no suite shows a window.
 //
 // `packages/main/window-visibility.ts` is where the rule lives and

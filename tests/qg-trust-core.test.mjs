@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QG Trust's library in the credential core (#174). QGD-LTW-0001: it is a
 // dependency of callsign.node, from QG Trust's repository at a release tag, and
 // the lock file records the tag's commit; never crates.io or a branch.

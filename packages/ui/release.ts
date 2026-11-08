@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The release in one line, for Home's welcome. Written
 // per release, in plain words for the operator; What's new has the rest,
 // from CHANGELOG.md (QGD-FRM-0016).

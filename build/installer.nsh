@@ -1,4 +1,4 @@
-; SPDX-License-Identifier: GPL-3.0-only
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; The Windows installer's own step (#91): Microsoft's Visual C++ runtime,
 ; which a freshly installed Windows 11 lacks and the credential core needs.
 ; build/vc-runtime.ps1 does the work: present, nothing happens; missing, it

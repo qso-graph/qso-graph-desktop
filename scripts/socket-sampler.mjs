@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reads one process's internet sockets over and over, and prints what it saw.
 //
 // A separate process because the thing being watched blocks: the credential

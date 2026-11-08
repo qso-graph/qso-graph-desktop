@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Builds dist/reference/us-counties.json, the US county data that ships with
 // the application (QGD-STN-0010), from the files scripts/fetch-counties.mjs
 // fetched and checked. Run by `npm run build`, after tsc, because it reads

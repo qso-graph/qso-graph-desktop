@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The store a credential is kept in is named for the platform the operator is
 // on, and macOS's own wording is left exactly as it was.
 import { describe, expect, it } from 'vitest';

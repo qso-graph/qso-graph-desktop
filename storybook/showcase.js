@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A real station for the gallery, when there is one.
 //
 // A backup file (Settings → Back up and restore) saved as showcase.local.json

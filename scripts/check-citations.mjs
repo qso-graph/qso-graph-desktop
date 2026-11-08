@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every requirement ID a Markdown file cites exists in the spec (#95; found in
 // review of the 0.2.1 milestone: documentation builds nothing, so a citation
 // to an ID the spec doesn't have would otherwise go unchecked, as sixteen

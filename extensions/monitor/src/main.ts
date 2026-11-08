@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Monitor (QGD-INT-0023): an official extension, starting off. It holds
 // one grant, integration:events, and receives the events the adapters that
 // are on decode; it never sees a byte, and sends nothing to any program

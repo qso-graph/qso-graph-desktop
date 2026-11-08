@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The one place an error caught in storage or reference code is turned into
 // something that may be used: in an outcome, a reason, a log entry or a reply.
 //

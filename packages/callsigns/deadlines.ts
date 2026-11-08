@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // How long the callsign service is given to answer one command, and what the
 // operator is told when the time runs out.
 //

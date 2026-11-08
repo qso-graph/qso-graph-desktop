@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The pages the application may open in the operator's browser (QGD-SEC-0009),
 // from data/links.json and nowhere else. Pure, so the allowlist runs under unit
 // tests: the window names a page, never a URL, and the URL is built here from

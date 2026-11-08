@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Linux package and command are named what a user sees on every download (#145). The apt and dnf
 // repositories that serve them are built in qso-graph/qso-graph-packages, with their own tests.
 import { readFileSync } from 'node:fs';

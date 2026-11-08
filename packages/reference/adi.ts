@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading an ADI file.
 //
 // Needed by QGD-REF-0008: the validation has to answer ADIF's own test QSOs,

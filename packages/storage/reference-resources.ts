@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What Settings is told about each reference resource (QGD-REF-0017): pure, so
 // the words and the "out of date" rule run under unit tests.
 //

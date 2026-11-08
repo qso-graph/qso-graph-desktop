@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The storage package on its own, with no window and no process around it:
 // P4-layout, P4-adapter, P4-one-writer, P4-units-of-work, P4-errors,
 // P4-app-folder and P4-sorting (docs/P4.md). Each check that could pass by

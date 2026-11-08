@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Updates, fetched by the credential core (QGD-FRM-0019, QGD-SEC-0020).
 //
 // Two requests and no others. The feed, from the one address the register

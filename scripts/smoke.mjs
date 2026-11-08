@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { _electron as electron, expect } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';

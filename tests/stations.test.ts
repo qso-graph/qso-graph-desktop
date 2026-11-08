@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P9 (docs/P9.md): stations in state.sqlite, checked against ADIF's own
 // definitions. P9-record, P9-adif, P9-optional, P9-kind, P9-active, P9-pota,
 // P9-tqsl and P9-contract, as far as the storage package reaches them.

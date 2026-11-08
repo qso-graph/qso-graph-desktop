@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-built-in (QGD-HOM-0007): an extension turned off stays off across a
 // restart, is stopped, and offers no pages; turned on, its pages come back to
 // the pins they held.

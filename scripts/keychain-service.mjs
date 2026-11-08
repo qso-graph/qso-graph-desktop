@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Keychain service names this product owns, for the suites to assert
 // against and to sweep.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-ENG-0002. drizzle-kit generates state.sqlite's migrations from
 // packages/storage/schema.ts into drizzle/state/. The application never reads
 // this file, and no path to a database lives in it.

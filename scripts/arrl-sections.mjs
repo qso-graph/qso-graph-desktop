@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Compares ARRL's live Section Boundaries page with the copy the build is
 // pinned to (data/county-sources.json, an Internet Archive snapshot, because
 // ARRL's own page varies from one request to the next). Says which sections

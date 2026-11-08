@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0006 to QGD-FRM-0009: the component gallery.
 //
 // Development-only. electron-builder packages dist/, package.json and LICENSE

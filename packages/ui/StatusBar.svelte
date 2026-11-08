@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   The status bar. P3-status-bar requires the active callsign to be visible on
   every page, which is why it sits outside the pages rather than in one.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The WSJT-X adapter (QGD-INT-0022): an official extension, starting off.
 // Turned on, Integrations opens its port (QGD-INT-0020); what WSJT-X sends
 // arrives here as bytes and the sender's address, and goes on to the

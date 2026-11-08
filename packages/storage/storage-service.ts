@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QG Storage: the one process that opens a SQLite store (QGD-ENG-0006,
 // QGD-PRC-0004).
 //

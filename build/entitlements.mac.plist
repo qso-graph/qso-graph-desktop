@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  SPDX-License-Identifier: GPL-3.0-only
+  SPDX-License-Identifier: GPL-3.0-or-later
   The hardened runtime's exceptions for the signed macOS build (docs/RELEASES.md,
   Signing). One: V8 compiles JavaScript as it runs, which needs JIT memory.
   Nothing else is asked for. Library validation stays on, because the

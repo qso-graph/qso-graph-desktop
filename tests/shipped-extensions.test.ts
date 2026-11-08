@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every extension that ships loads, through the core's own loader, with none
 // refused. ADIF Lookup's tests passed while its manifest was refused at load
 // for a field id one character short, and it simply was not there:

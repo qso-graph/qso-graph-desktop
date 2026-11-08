@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-conditions: Conditions reports what solar-mcp reports for the same
 // recorded NOAA responses (QGD-HOM-0008). tests/fixtures/noaa/README.md says
 // where the files and the expected answers came from.

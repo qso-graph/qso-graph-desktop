@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The extension API's channel (QGD-APP-0002, QGD-APP-0003).
 //
 // The fourth broker, on the same shape as callsigns, engine and logs: one

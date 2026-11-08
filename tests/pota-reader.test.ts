@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The pure half of the POTA load: the CSV reader, the shape checks, and what
 // this product is allowed to say about a row it thinks is wrong
 // (QGD-REF-0010, QGD-REF-0011, QGD-REF-0013).

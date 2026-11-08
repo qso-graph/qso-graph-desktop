@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What an adapter tells the core it decoded, and what a consumer receives
 // (QGD-INT-0008, QGD-INT-0021).
 //

@@ -3,6 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "description": "QSO Graph Desktop's WSJT-X adapter: what WSJT-X sends over UDP, turned into events for the Monitor.",
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "type": "module"
 }

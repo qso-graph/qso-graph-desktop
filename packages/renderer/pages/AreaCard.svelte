@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Focus Area, on Parks On the Air's Settings tab (POTA's
   alone, so in POTA's area; it was a card on Locations): the parts of POTA the

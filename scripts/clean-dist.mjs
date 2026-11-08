@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The build starts from an empty dist/. The compiler only ever adds files, so
 // a module whose source was deleted stays in dist/ from an earlier build, and
 // `build.files` packages all of dist/. That is how the removed PostgreSQL

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Astro: the sun, the moon and the grey line at the active Location
 // (QGD-AST-*). An official extension, built in and on by default, which the
 // operator can turn off (QGD-AST-0001). It reaches the core only through

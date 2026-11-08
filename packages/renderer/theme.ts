@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0001 and QGD-FRM-0002: the theme follows the operating system by
 // default, changes with it while running, and can be overridden.
 //

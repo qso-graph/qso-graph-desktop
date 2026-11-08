@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-LOG-0012: exporting diagnostics produces one redacted archive for the
 // user to send. Nothing leaves the machine unless the user sends it.
 //

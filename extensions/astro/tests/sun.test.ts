@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Sunrise and sunset, against an independent calculation. For the Astro extension.
 //
 // The expected times are PyEphem's (4.2), with its refraction off and the

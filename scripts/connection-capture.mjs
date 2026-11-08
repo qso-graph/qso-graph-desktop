@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-CRD-0007: the renderer never holds a credential and never opens a network
 // connection. QGD-PRC-0002: the renderer holds screens only. QGD-PRC-0006:
 // outbound fetch from the renderer is refused.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Internet lamp's state (QGD-HOM-0005). It says what
 // is known and no more: the operating system's word that there is no network
 // is certain, but its word that there is one means only a link, so green

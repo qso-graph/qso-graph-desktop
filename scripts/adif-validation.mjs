@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P5-validation-is-data, P5-unsupplied-enumeration and P5-adif-cases — the
 // exit gate (QGD-PRT-0105, QGD-REF-0005, QGD-REF-0006, QGD-REF-0008,
 // QGD-REF-0016).

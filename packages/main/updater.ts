@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Updates (QGD-FRM-0019, docs/RELEASES.md): asked once a day while the switch
 // is on and the computer is online, downloaded and checked by the credential
 // core, and applied only when the operator restarts or quits. Never forced.

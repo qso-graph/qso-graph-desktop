@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The messages between the broker and Integrations' process (QGD-INT-0001).
 //
 // The broker says, whole, which ports should be open: one entry per adapter

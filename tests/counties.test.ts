@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-STN-0010: the US county data built from Census boundaries and named as
 // LoTW names counties (Alaska as ADIF does). Read from what the build wrote,
 // dist/reference/us-counties.json, so this tests what ships.

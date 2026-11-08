@@ -3,6 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "description": "QSO Graph Desktop's Monitor: WSJT-X's decodes, read-only, from the adapters that are on.",
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "type": "module"
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every DLL our own Windows native files import is part of Windows, part of
 // Microsoft's Visual C++ runtime, or shipped beside them (#91). The Visual
 // C++ runtime is missing on a freshly installed Windows 11, which is how the

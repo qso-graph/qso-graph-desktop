@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Keeping reference.sqlite current, as QG Storage does at start and on refresh
 // (QGD-ENG-0015, QGD-ENG-0015.1, QGD-REF-0010, QGD-REF-0014).
 //

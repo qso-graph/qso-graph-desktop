@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Integrations' process (QGD-INT-0001, QGD-PRC-0004): Electron wiring only;
 // what it does is integrations.ts, tested in process.
 //

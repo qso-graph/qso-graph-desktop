@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   An extension's page, drawn by the core from data (QGD-HOM-0002): the page a pin or a rail item opens.
 

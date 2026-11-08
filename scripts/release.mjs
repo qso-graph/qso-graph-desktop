@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The release steps that are text, not builds (docs/RELEASES.md).
 //
 //   node scripts/release.mjs prepare            the milestone's branch, once its

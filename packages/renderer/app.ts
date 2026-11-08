@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import {
   callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
   type BackupPart, type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The static gates P9 registered: P9-tqsl's field list against TQSL's own,
 // P9-grid-typed's field list, P9-kind's "no code path writes the kind into
 // ADIF", and P9-not-tqsl's "no code reads, writes or names TQSL's station data

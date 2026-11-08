@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-SEC-0009: a page is opened in the browser only from data/links.json, by
 // a name or a reference in its list's form. QGD-FRM-0015: Help's documents
 // are the repository's own files, one place each.

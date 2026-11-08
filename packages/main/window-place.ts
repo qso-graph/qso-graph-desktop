@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Where the window opens: where it was when the
 // application last closed, its size and whether it was maximized, as long as
 // that place is still on a screen. A monitor unplugged, or a laptop away from

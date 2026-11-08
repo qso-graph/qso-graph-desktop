@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The active station as an extension may see it (QGD-HOM-0009, QGD-STN-0003).
 //
 // Built field by field rather than passed through, as personaBriefs is: an

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-CRD-0007 is Static as well as Test: the product's TypeScript must hold no
 // outbound-network API, so the Rust credential core is the only component that
 // can open a connection.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The renderer's build. Vite and Svelte (QGD-FRM-0005) for the screens; the
 // main and utility processes stay on tsc, because they are Node and have no
 // bundling to do.

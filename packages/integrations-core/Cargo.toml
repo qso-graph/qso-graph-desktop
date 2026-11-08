@@ -2,7 +2,7 @@
 name = "qg-integrations-core"
 version = "0.1.0"
 edition = "2024"
-license = "GPL-3.0-only"
+license = "GPL-3.0-or-later"
 
 # Integrations, the one way in (QGD-INT-0001). Its own crate, and not a module
 # of the credential core, so the process that listens links no keyring, no TLS

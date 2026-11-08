@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ADIF Lookup's page (the fourth launch pin): ADIF's own
 // definitions, searched. Every field, and every value of every enumeration,
 // as the ADIF Development Group publishes them and the core loaded them.

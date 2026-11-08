@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Applying a store's migrations, whole or not at all (QGD-ENG-0013).
 //
 // Drizzle's sqlite-proxy migrator collects every pending statement, plus its

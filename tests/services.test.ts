@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P6-services-are-data, P6-one-list and P6-expiry (QGD-PSN-0002,
 // QGD-PSN-0003, QGD-PSN-0005, QGD-PSN-0006).
 //

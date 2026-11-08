@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P6-setup-callsign-only (QGD-PSN-0004), walked in the real application.
 //
 // The exit gate is KI7MT walking setup on a clean machine, so this walks it on

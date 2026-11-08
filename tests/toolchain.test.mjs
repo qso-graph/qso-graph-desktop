@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-SEC-0019 and QGD-SEC-0012: the pin, and that it is a pin.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';

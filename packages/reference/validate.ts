@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Validating a QSO against what was loaded, not against what was written here.
 //
 // QGD-REF-0005: a field is checked against the data type and the enumeration

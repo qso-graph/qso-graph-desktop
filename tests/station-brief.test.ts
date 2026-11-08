@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The active station as an extension sees it (QGD-HOM-0009, QGD-STN-0003):
 // name, grid and position, never the address.
 import { describe, expect, it } from 'vitest';

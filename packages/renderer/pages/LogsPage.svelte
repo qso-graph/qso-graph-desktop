@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   QGD-LOG-0013: the Logs page Settings carries. It drives behaviour that
   already exists — QGD-LOG-0009 to QGD-LOG-0012 — and implements none of it.

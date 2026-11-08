@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ADIF Lookup: ADIF's own definitions, searched. An
 // official extension, built in and on by default, which the operator can
 // turn off. It holds one grant, reference:read, and the core answers its

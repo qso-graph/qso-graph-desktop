@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The shell's state, and the only channel between the Callsign screen's
 // imperative code and the Svelte components that draw it.
 //

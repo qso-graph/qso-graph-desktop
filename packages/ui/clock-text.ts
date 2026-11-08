@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the header clock says for one instant. Every part is read from the same
 // Date, so the UTC date and the UTC time change together: at 00:00:00 UTC the
 // date is already the new day. Pure, so it is tested

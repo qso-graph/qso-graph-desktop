@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Re-reads TQSL's published config.xml and says whether its station location
 // fields are still the ones data/tqsl-station-fields.json gives a home. P9-tqsl
 // (QGD-STN-0009).

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0016: What's new is CHANGELOG.md, read into text, never markup, and
 // the notes are this version's, or every version's since the one updated from.
 import { readFileSync } from 'node:fs';

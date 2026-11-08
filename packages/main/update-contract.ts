@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Updates (QGD-FRM-0019, docs/RELEASES.md): what the feed may say, which
 // update a build takes from it, and what the window is told. Pure, so the
 // choice runs under unit tests; packages/main/updater.ts does the asking,

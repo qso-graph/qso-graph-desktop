@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Application logging, QGD-LOG-0001 through QGD-LOG-0012.
 //
 // The decisions — what to rotate, what to remove, which level is in force — are

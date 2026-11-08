@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Astro end to end against a stand-in context: it registers its page and asks
 // the core for the active Location and nothing else (QGD-AST-0003,
 // QGD-AST-0004).

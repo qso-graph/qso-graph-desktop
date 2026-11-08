@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Monitor (QGD-INT-0023): its window, and its page as the core checks it.
 import { describe, expect, it } from 'vitest';
 import { createWindow, placeTime, MAX_CYCLES } from '../src/window.js';

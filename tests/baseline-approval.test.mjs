@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-PRT-0103: "screenshot baselines approved by KI7MT".
 //
 // A baseline is what the product is supposed to look like, so approving one

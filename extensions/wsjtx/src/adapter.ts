@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The WSJT-X adapter's work (QGD-INT-0022): datagrams in, events out, and
 // the one reply. No context here, so all of it runs under unit tests.
 //

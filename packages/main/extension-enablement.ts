@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Turning an extension off and on (QGD-HOM-0007).
 //
 // On is recorded in settings.json, so it holds across restarts; an extension

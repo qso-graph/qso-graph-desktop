@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Building the US county data a Location is checked and filled from
 // (QGD-STN-0010). Pure functions, so tests/county-data.test.mjs runs them on
 // the real files and on small cases; scripts/build-counties.mjs strings them

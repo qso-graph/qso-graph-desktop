@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import type { ServiceSummary } from './service-contract.js';
 // One of the operator's callsigns ("persona" is retired).
 // `id` is permanent and is what everything keys on; the call and the

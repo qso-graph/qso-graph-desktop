@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Says so when Microsoft's Visual C++ runtime is missing on Windows (#91);
 // the check and the words are windows-runtime-contract.ts.
 import { dialog, type BrowserWindow } from 'electron';

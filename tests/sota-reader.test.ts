@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading SOTA's summits list (QGD-REF-0018), on made-up summits in SOTA's
 // format: nothing of SOTA's is in this repository (QGD-INV-0011).
 import { describe, expect, it } from 'vitest';

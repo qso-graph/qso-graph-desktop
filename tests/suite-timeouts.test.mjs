@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A suite's outer bound must clear the waits inside it.
 //
 // The defect this is a control on: `make verify` killed every suite at a flat

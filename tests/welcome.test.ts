@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Home's welcome: the getting-started steps, each ticked
 // when done and all of them gone once every one is.
 import { describe, expect, it } from 'vitest';

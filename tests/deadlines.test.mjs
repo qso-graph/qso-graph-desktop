@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The broker's deadline must outlast the core's, and must not speak of the
 // Keychain about a thing that never touches it.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What counts as a documentation-only change (#95), with the planted defects
 // that must make it build: code among the files, code renamed into docs/
 // (#92), and no files read at all.

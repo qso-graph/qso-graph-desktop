@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Where ADIF's published archive is unpacked, and whether what is there is it.
 //
 // Shared by the fetch script, the suite and the loader, so there is one answer

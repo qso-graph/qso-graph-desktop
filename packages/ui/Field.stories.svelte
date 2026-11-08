@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- QGD-FRM-0010 pattern: form-validation -->
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Windows installer's artwork (direction A, "Night"), drawn once in
 // build/installer-art.html from build/icon.png and written as the two bitmaps NSIS takes:
 //   build/installerSidebar.bmp  164 x 314  the Welcome and Finish pages (the uninstaller's too)

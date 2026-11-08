@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The filesystem and pino layer behind packages/logging/logging.ts, which holds the
 // decisions. QGD-LOG-0001 through QGD-LOG-0011.
 //

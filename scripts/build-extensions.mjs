@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The built-in extensions, into the package (QGD-APP-0017, QGD-REP-0001).
 //
 // Each extensions/<id>/ becomes dist/extensions/<id>/: its manifest, its

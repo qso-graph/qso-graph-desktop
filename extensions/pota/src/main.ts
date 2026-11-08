@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Parks On the Air: QSO Graph Desktop's built-in extension for POTA, one
 // destination with three tabs (QGD-HOM-0003): Near Me, Spots and Most Wanted.
 // Its own extension, so its switch in Settings turns off POTA and nothing

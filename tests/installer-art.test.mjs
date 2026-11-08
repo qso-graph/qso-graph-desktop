@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The installer's artwork (#122): the bitmaps NSIS loads are 24-bit BMPs at its sizes, and the
 // writer that makes them puts each pixel where Windows reads it (bottom-up rows, BGR, rows padded
 // to four bytes). A wrong order shows as wrong colours with no error anywhere, so it is pinned here.

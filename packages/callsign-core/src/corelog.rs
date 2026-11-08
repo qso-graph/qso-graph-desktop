@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-LOG-0001: the core's `tracing` output reaches the same stream as every
 // other process's records.
 //

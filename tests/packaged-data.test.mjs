@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every register main reads from the application's own directory ships in
 // the package. build.files is an allowlist, so a register read and not
 // listed is a file an installed application does not have: Integrations'

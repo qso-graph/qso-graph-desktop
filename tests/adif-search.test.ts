@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ADIF Lookup's search: ADIF's own fields and
 // enumeration values, ranked as a ham would look for them, shown as ADIF has
 // them and nothing added. The rows here are written for the test, shaped as

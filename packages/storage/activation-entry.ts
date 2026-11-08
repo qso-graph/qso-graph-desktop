@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A park to activate, as QG Storage answers them (activations.ts): apart from
 // the query so the window's contract can name it without reaching the store.
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ADIF Lookup's page, checked by the core's own validator. The entries here
 // are written for the test in the shape the core answers with; nothing of
 // ADIF's files is copied.

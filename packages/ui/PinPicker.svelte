@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Customize your pins (QGD-HOM-0003), as a GitHub profile does it: every page
   any extension offers, with its name and a line saying what it is, up to eight

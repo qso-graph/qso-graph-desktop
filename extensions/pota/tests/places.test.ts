@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Program and Entity, the filters POTA's own park list starts with,
 // carried in columns the core does not draw.
 import { describe, expect, it } from 'vitest';

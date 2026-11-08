@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // state.sqlite: what the core keeps (QGD-ENG-0001). The migrations in
 // drizzle/state/ are generated from this file (QGD-ENG-0002).
 //
