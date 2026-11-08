@@ -128,7 +128,7 @@ export type CallsignReply =
       ok: true;
       data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
         | SealedExport | FetchedReference | UpdateFeed | UpdateFile | ExportResult | ImportPreview | ImportResult | CoreImportPreview | CoreImportResult
-          | LookupAnswer | null;
+          | LookupAnswer | unknown[] | null;
     }
   | { ok: false; error: string };
 
@@ -222,6 +222,10 @@ export type ServiceCommand =
   // it. Not CallsignCommands, for fetch-reference's reason.
   | { type: 'update-feed' }
   | { type: 'update-download'; url: string; sum: string; name: string }
+  // LoTW's public listing (QGD-LTW-0002), for an extension holding lotw:read.
+  // Not CallsignCommands: the renderer has no LoTW grant to hold.
+  | { type: 'lotw-certificates' }
+  | { type: 'lotw-roots' }
   // Acting with a stored credential on an application's behalf, and returning
   // the answer (QGD-APP-0007). Not a CallsignCommand either, and for the same
   // reason: a renderer may not ask this product to use a credential directly.
@@ -247,6 +251,7 @@ function noUserinfo(url: string): boolean {
 
 export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
   if (!record(value)) return false;
+  if (value.type === 'lotw-certificates' || value.type === 'lotw-roots') return keys(value, ['type']);
   if (value.type === 'service-lookup') {
     if (!keys(value, ['type', 'service', 'id', 'operation', 'parameters'])) return false;
     // The service must be one the register holds, the same set every other

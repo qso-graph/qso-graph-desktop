@@ -184,6 +184,8 @@ describe('the decision', () => {
     // four gates in this project have gone quiet (QGD-SEC-0021).
     const sample: Record<string, ExtensionRequest> = {
       'extension.info': { kind: 'extension.info' },
+      'lotw.certificates': { kind: 'lotw.certificates' },
+      'lotw.roots': { kind: 'lotw.roots' },
       'callsign.list': { kind: 'callsign.list' },
       'callsign.active': { kind: 'callsign.active' },
       'station.active': { kind: 'station.active' },

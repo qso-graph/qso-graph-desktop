@@ -98,3 +98,13 @@ describe('backup parts (#64)', () => {
     expect(ask({ settings: {} })).toBe(false);
   });
 });
+
+describe('LoTW service commands', () => {
+  it('accepts only parameterless reads', async () => {
+    const { validateServiceCommand } = await import('../packages/callsigns/callsign-contract.js');
+    for (const type of ['lotw-certificates', 'lotw-roots']) {
+      expect(validateServiceCommand({ type }, services)).toBe(true);
+      expect(validateServiceCommand({ type, path: 'x' }, services)).toBe(false);
+    }
+  });
+});

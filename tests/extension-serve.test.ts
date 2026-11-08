@@ -28,6 +28,7 @@ const WSJTX = { id: 'wsjtx', name: 'WSJT-X', manifestVersion: 1, tier: 'official
   contributes: { integration: { program: 'WSJT-X', transport: 'udp', port: 2237 } } };
 const MONITOR = { id: 'monitor', name: 'Monitor', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.1.0' }, grants: ['integration:events'], main: 'main.js',
   contributes: { pages: [{ id: 'monitor', name: 'Monitor', description: 'Decodes.', refreshSeconds: 60, live: true, views: true }, { id: 'still', name: 'Still', description: 'Not live.', refreshSeconds: 60 }] } };
+const LOTW = { id: 'lotw-reader', name: 'LoTW reader', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['lotw:read'], page: 'Lotw.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Every port records what it was asked and by whom, so "nothing was touched"
@@ -50,6 +51,8 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     activeCallsign: async () => { calls.push('activeCallsign'); return { id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', call: 'W1AW', description: 'Home station' }; },
     activeStation: async () => { calls.push('activeStation'); return { name: 'Home', grid: 'DN13sm', latitude: 43.6, longitude: -116.2 }; },
     fetchSource: async url => { calls.push(`fetchSource:${url}`); return { body: 'sfi 150', fresh: true }; },
+    lotwCertificates: async () => { calls.push('lotwCertificates'); return []; },
+    lotwRoots: async () => { calls.push('lotwRoots'); return []; },
     callService: async (service, callsign, operation, parameters) => {
       calls.push(`callService:${service}/${callsign}/${operation}/${JSON.stringify(parameters)}`);
       return { outcome: 'success', call: 'W1AW' };
@@ -65,7 +68,7 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     ports,
     log: { warn: (_fields, message) => warnings.push(message) },
     extensions: [...loadExtensions(
-      [SOLAR, QRZ, BARE, WSJTX, MONITOR].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value, shipped: true })),
+      [SOLAR, QRZ, BARE, WSJTX, MONITOR, LOTW].map((value, at) => ({ source: `extensions/${at}/manifest.json`, value, shipped: true })),
       register, allowed
     ).loaded],
     refused: []
@@ -270,5 +273,51 @@ describe('Integrations\' requests (QGD-INT-0008, QGD-INT-0009, QGD-HOM-0015)', (
     expect((await serve('monitor', { kind: 'page.changed', page: 'still' })).ok).toBe(false);
     expect((await serve('wsjtx', { kind: 'page.changed', page: 'monitor' })).ok).toBe(false);
     expect(calls).toEqual(['pageChanged:monitor/monitor']);
+  });
+});
+
+describe('LoTW read grant (QGD-LTW-0002)', () => {
+  const certificate = { id: 'id', call: 'TEST', dxcc: 1, dxccName: null, qsoFirst: 'a', qsoLast: 'b', validFrom: 'c', validTo: 'd', serial: '1', hasKey: true };
+  const root = { kind: 'root' as const, subject: 'subject', serial: '1', validFrom: 'a', validTo: 'b', fingerprint: 'fp', source: 'source', acceptedAt: null };
+  it('loads the grant and refuses both requests before the port, including after withdrawal', async () => {
+    const t = recorder();
+    for (const kind of ['lotw.certificates', 'lotw.roots'] as const) {
+      expect(await t.serve('bare', { kind })).toMatchObject({ ok: false, refused: 'lotw:read' });
+      expect((await t.serve('lotw-reader', { kind })).ok).toBe(true);
+    }
+    t.calls.length = 0;
+    t.setAllowed({ 'lotw-reader': [] });
+    for (const kind of ['lotw.certificates', 'lotw.roots'] as const) {
+      expect(await t.serve('lotw-reader', { kind })).toMatchObject({ ok: false, refused: 'lotw:read' });
+    }
+    expect(t.calls).toEqual([]);
+  });
+  it('returns only valid lists and refuses extra fields, wrong types and errors', async () => {
+    const t = recorder();
+    t.deps.ports.lotwCertificates = async () => [certificate];
+    t.deps.ports.lotwRoots = async () => [root];
+    expect(await t.serve('lotw-reader', { kind: 'lotw.certificates' })).toEqual({ ok: true, kind: 'lotw.certificates', certificates: [certificate] });
+    expect(await t.serve('lotw-reader', { kind: 'lotw.roots' })).toEqual({ ok: true, kind: 'lotw.roots', roots: [root] });
+    t.deps.ports.lotwCertificates = async () => [{ ...certificate, keyName: 'secret' }];
+    expect((await t.serve('lotw-reader', { kind: 'lotw.certificates' })).ok).toBe(false);
+    t.deps.ports.lotwCertificates = async () => [{ ...certificate, hasKey: 'yes' }] as never;
+    expect((await t.serve('lotw-reader', { kind: 'lotw.certificates' })).ok).toBe(false);
+    t.deps.ports.lotwRoots = async () => [{ ...root, acceptedAt: 1 }] as never;
+    expect((await t.serve('lotw-reader', { kind: 'lotw.roots' })).ok).toBe(false);
+    t.deps.ports.lotwRoots = async () => { throw new Error('/home/private'); };
+    expect(JSON.stringify(await t.serve('lotw-reader', { kind: 'lotw.roots' }))).not.toContain('/home/private');
+  });
+});
+
+describe('LoTW replies at the extension host (QGD-SEC-0006)', () => {
+  const certificate = { id: 'id', call: 'TEST', dxcc: 1, dxccName: null, qsoFirst: 'a', qsoLast: 'b', validFrom: 'c', validTo: 'd', serial: '1', hasKey: false };
+  it('passes an exact reply and a refusal, and nothing else', async () => {
+    const { isLotwReply } = await import('../packages/extension-api/api-contract.js');
+    expect(isLotwReply({ ok: true, kind: 'lotw.certificates', certificates: [certificate] }, 'lotw.certificates')).toBe(true);
+    expect(isLotwReply({ ok: false, error: 'No.', refused: 'lotw:read' }, 'lotw.roots')).toBe(true);
+    expect(isLotwReply({ ok: true, kind: 'lotw.certificates', certificates: [{ ...certificate, keyName: 'key:x' }] }, 'lotw.certificates')).toBe(false);
+    expect(isLotwReply({ ok: true, kind: 'lotw.certificates', certificates: [certificate], path: '/x' }, 'lotw.certificates')).toBe(false);
+    expect(isLotwReply({ ok: true, kind: 'lotw.roots', roots: [] }, 'lotw.certificates')).toBe(false);
+    expect(isLotwReply({ ok: false, error: 'No.', stack: 'at /home' }, 'lotw.roots')).toBe(false);
   });
 });

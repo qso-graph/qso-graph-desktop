@@ -14,6 +14,7 @@ import { readServices, serviceIds } from '../callsigns/services.js';
 import { deadlineFor } from '../callsigns/deadlines.js';
 import { forStore } from '../callsigns/credential-store.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
+import { isLotwCertificates, isLotwRoots, type LotwCertificate, type LotwTrustedRoot } from '../extension-api/api-contract.js';
 
 const log = createLogger('broker');
 
@@ -73,6 +74,10 @@ export interface CallsignBroker {
   serviceLookup: (
     service: string, id: string, operation: string, parameters: Readonly<Record<string, string>>
   ) => Promise<Readonly<Record<string, string>> | string>;
+  // LoTW's public listing (QGD-LTW-0002), checked field by field here, where
+  // it arrives from QG Callsigns. A sentence when it cannot be had.
+  lotwCertificates: () => Promise<LotwCertificate[] | string>;
+  lotwRoots: () => Promise<LotwTrustedRoot[] | string>;
 }
 
 // The commands after which the callsigns, or which one is active, may differ.
@@ -365,6 +370,16 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       if (typeof briefs === 'string') return briefs;
       const active = (reply.data as { active?: unknown }).active;
       return briefs.find(brief => brief.id === active) ?? null;
+    },
+    async lotwCertificates() {
+      const reply = await ask({ type: 'lotw-certificates' });
+      if (!reply.ok) return reply.error;
+      return isLotwCertificates(reply.data) ? reply.data : 'LoTW certificates could not be read.';
+    },
+    async lotwRoots() {
+      const reply = await ask({ type: 'lotw-roots' });
+      if (!reply.ok) return reply.error;
+      return isLotwRoots(reply.data) ? reply.data : 'LoTW trusted roots could not be read.';
     },
     async serviceLookup(service, id, operation, parameters) {
       const reply = await ask({ type: 'service-lookup', service, id, operation, parameters: { ...parameters } });

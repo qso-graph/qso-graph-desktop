@@ -106,6 +106,7 @@ describe('what crosses when an extension calls', () => {
     // stayed empty (found 2026-10-29 by integrations-sim). Derived from the
     // contract's own list, so a kind added later is held to it too.
     const sample = {
+      'lotw.certificates': { kind: 'lotw.certificates' }, 'lotw.roots': { kind: 'lotw.roots' },
       'extension.info': { kind: 'extension.info' }, 'callsign.list': { kind: 'callsign.list' }, 'callsign.active': { kind: 'callsign.active' },
       'station.active': { kind: 'station.active' }, 'adif.search': { kind: 'adif.search', query: 'FT8' }, 'adif.bands': { kind: 'adif.bands' },
       'adif.list': { kind: 'adif.list', name: 'Band' }, 'area.get': { kind: 'area.get' }, 'pota.activations': { kind: 'pota.activations' },

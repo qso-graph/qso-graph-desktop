@@ -95,7 +95,11 @@ function toTest(native: NativeCredentialTest): CredentialTest {
   return { outcome };
 }
 function refuse(command: ServiceCommand, error: unknown): CallsignReply {
-  const message = error instanceof Error && MESSAGES.includes(error.message) ? error.message : 'The callsign request could not be completed.';
+  // A LoTW read's error is never passed on: QG Trust's errors can name a
+  // path under the operator's home (QGD-LTW-0005).
+  const lotw = command.type === 'lotw-certificates' || command.type === 'lotw-roots';
+  const message = !lotw && error instanceof Error && MESSAGES.includes(error.message)
+    ? error.message : 'The callsign request could not be completed.';
   log.warn({ command: command.type, reason: message }, 'callsign operation failed');
   // Named for the store this platform has (Keychain, Credential Manager,
   // the keyring); the sentence is still one of the fixed ones below.
@@ -105,6 +109,8 @@ function refuse(command: ServiceCommand, error: unknown): CallsignReply {
 function execute(command: ServiceCommand): CallsignReply | Promise<CallsignReply> {
   try {
     switch (command.type) {
+      case 'lotw-certificates': return { ok: true, data: core.lotwCertificates() };
+      case 'lotw-roots': return { ok: true, data: core.lotwTrustedRoots() };
       case 'list': return { ok: true, data: snapshot() };
       // An empty list rather than an error: a register that could not be read
       // is already said once in the log, and a screen that gets nothing shows
