@@ -1534,8 +1534,8 @@ dependencies = [
 
 [[package]]
 name = "qso-graph-trust"
-version = "0.1.1"
-source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.1.1#41e2b9e8c8dcbde0c8149249a9a91a2437b35a7b"
+version = "0.1.4"
+source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.1.4#ced237f6a751f39ef50962181f507248d9b25f09"
 dependencies = [
  "base64ct",
  "keyring",
@@ -1551,8 +1551,8 @@ dependencies = [
 
 [[package]]
 name = "qso-graph-trust-awslc"
-version = "0.1.1"
-source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.1.1#41e2b9e8c8dcbde0c8149249a9a91a2437b35a7b"
+version = "0.1.4"
+source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.1.4#ced237f6a751f39ef50962181f507248d9b25f09"
 dependencies = [
  "aws-lc-rs",
  "aws-lc-sys",

@@ -12,6 +12,9 @@
 static ALLOCATOR: ::zeroizing_alloc::ZeroAlloc<::std::alloc::System> =
     ::zeroizing_alloc::ZeroAlloc(::std::alloc::System);
 
+#[cfg(feature = "addon")]
+mod lotw;
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -983,6 +986,14 @@ mod addon {
                     Ok(LookupResult { outcome: reason.into(), fields: Vec::new() })
                 }
             }
+        }
+        #[napi]
+        pub fn lotw_certificates(&self) -> Result<Vec<crate::lotw::LotwCertificate>> {
+            crate::lotw::certificates(crate::lotw::default_dir().as_deref()).map_err(error)
+        }
+        #[napi]
+        pub fn lotw_trusted_roots(&self) -> Result<Vec<crate::lotw::LotwTrustedRoot>> {
+            crate::lotw::trusted_roots(crate::lotw::default_dir().as_deref()).map_err(error)
         }
         #[napi]
         pub fn list(&self) -> Result<Vec<Callsign>> { Ok(self.store.load().map_err(error)?.callsigns.into_values().collect()) }
