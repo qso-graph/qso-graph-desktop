@@ -141,7 +141,33 @@ mod tests {
                     .starts_with("qso-graph-trust-")
             })
             .expect("trust checkout");
-        std::fs::read(repo.join("ced237f/tests/corpus").join(name)).expect("test corpus")
+        std::fs::read(
+            repo.join(pinned_trust_commit())
+                .join("tests/corpus")
+                .join(name),
+        )
+        .expect("test corpus")
+    }
+
+    /// Cargo unpacks a git dependency under its commit's first seven characters. Read the commit
+    /// QG Trust is pinned to from Cargo.lock, so the test corpus follows the pin: a name written
+    /// here went stale at the next release, and passed wherever the old checkout was still cached.
+    fn pinned_trust_commit() -> String {
+        let lock = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.lock"),
+        )
+        .expect("Cargo.lock");
+        let source = lock
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix("source = \"git+https://github.com/qso-graph/qso-graph-trust?")
+            })
+            .expect("QG Trust's source in Cargo.lock");
+        let commit = source
+            .split_once('#')
+            .map(|(_, c)| c.trim_end_matches('"'))
+            .expect("pinned commit");
+        commit[..7].to_string()
     }
 
     fn trust() -> Trust {
