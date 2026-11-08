@@ -75,7 +75,7 @@ your station. [docs/RELEASES.md](docs/RELEASES.md) explains them.
   your POTA, SOTA, WWFF and IOTA references. Start one from a park or a summit in a click.
 - **Parks On the Air**: the parks near you, even with no internet; who is on the air from a park
   right now; and the parks in your area that have been activated least.
-- **Astro**: sunrise, sunset, twilight, the moon, and the grey line on a world map.
+- **Astro**: sunrise, sunset, twilight, the moon, and the gray line on a world map.
 - **Conditions**: solar flux, the K and A indices, NOAA's space weather and a band-by-band outlook.
 - **ADIF Lookup**: every ADIF field and list value, in ADIF's own words.
 - **Back up and restore** your callsigns and Locations, and run it **portable** from a USB stick.
@@ -112,7 +112,7 @@ You need the Node version in `.node-version`, Rust, CMake and Go. Then `make set
 `make start`. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest: building, testing, the specification
 and how changes are made.
 
-## Licence
+## License
 
-[GPL-3.0-only](LICENSE). Third-party material and its licences are in [NOTICE](NOTICE). Thanks to
+[GPL-3.0-only](LICENSE). Third-party material and its licenses are in [NOTICE](NOTICE). Thanks to
 everyone in [CONTRIBUTORS.md](CONTRIBUTORS.md).
