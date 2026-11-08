@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   The navigation rail. Buttons, not links: QGD-PRC-0006 allows exactly one
   bundled page, so a page here is a section of it and the browser's history is

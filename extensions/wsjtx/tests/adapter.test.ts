@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The WSJT-X adapter's work: events out, and Replay once per copy heard
 // (QGD-INT-0011, QGD-INT-0022).
 import { describe, expect, it } from 'vitest';

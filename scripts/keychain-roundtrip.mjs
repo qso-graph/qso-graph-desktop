@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-PRT-0100: the core loads in Node and round-trips a credential through the
 // macOS Keychain. Rust only — Python is out of P0.
 //

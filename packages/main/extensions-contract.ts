@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What Settings is told about the extensions that loaded (QGD-APP-0012).
 //
 // A contract of its own, beside logs-contract.ts and on the same pattern: the

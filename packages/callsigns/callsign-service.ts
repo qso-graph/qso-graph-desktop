@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { LOOKUP_OUTCOMES, type LookupOutcome } from './callsign-contract.js';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';

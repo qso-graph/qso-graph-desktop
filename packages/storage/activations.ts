@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The parks of My Area with how many times each has been activated
 // (QGD-REF-0019), for an activator looking for one nobody has worked from.
 // Read-only, from reference.sqlite, so it answers with no network at all.

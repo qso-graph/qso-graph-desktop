@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-contract and P8-contribution: manifest version 1 (QGD-APP-0019,
 // QGD-HOM-0001). Each refusal names what it refused, so the operator, or the
 // person writing the extension, can act on it.

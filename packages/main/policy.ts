@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P0 serves only these bundled files. No directories or external URLs.
 export function resourceName(url: string): 'index.html' | 'style.css' | 'app.js' | undefined {
   try {

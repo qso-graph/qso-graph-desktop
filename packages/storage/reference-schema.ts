@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // reference.sqlite's tables (QGD-REF-0001, QGD-ENG-0015).
 //
 // Mapped to SQLite's types: a boolean is an integer in boolean mode, a list

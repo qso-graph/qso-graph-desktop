@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The parts of the app runtime that read disk, and the bridge's one job.
 //
 // Separate from tests/extension-runtime.test.ts, which covers the decision. These

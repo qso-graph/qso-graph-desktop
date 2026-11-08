@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Applies portable mode (portable.ts) before anything else in the main
 // process runs: main.ts imports this first, so the data folder and the log
 // folder are set before any module opens a store or a log. The utility

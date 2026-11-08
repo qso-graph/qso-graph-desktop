@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Home in the window: the pins as tiles, what the open page's view means on
 // screen, and that nothing off the contract is kept (QGD-HOM-0002,
 // QGD-HOM-0006, QGD-SEC-0006).

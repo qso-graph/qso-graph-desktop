@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-CNV-0016: the case of what is typed, set as it is typed.
 import { describe, expect, it } from 'vitest';
 import { typedCase } from '../packages/ui/typed-case.js';

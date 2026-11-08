@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Parks On the Air (QGD-HOM-0011): who is activating a POTA park now, from
 // POTA's own spot list. The activator, the park with its name, the frequency,
 // its band, the mode, and when they were last spotted, newest first, with

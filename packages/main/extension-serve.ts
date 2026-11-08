@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Serving one application request, and answering what loaded.
 //
 // Split out of extension-broker.ts, which imports Electron's `ipcMain` at module

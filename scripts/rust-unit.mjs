@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-TST-0001: make verify runs every check. The credential core's own unit
 // tests — including the simulated Keychain refusal and retry — were previously
 // run by hand and recorded in docs/PERSONA-CORE.md, which left the one command

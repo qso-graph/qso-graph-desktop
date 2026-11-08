@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the suites ask of the operating system about processes, answered by
 // each platform's own tool: ps and lsof on macOS and Linux; PowerShell and
 // netstat on Windows. A suite that called ps or sent SIGSTOP directly ran

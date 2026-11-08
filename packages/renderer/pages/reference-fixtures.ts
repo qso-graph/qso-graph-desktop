@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The register's resources as stories show them (data/reference-sources.json).
 import type { ResourceSummary } from '../../storage/storage-contract.js';
 

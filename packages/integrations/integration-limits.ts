@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The integration limits (QGD-INT-0007, QGD-INT-0009), read from
 // data/integration-limits.json and checked whole. A limit that is missing,
 // not a whole number or outside a sane range refuses the file, rather than

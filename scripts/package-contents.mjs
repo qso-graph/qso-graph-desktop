@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-APP-0014.1: the packaged application is built from a list of the paths
 // that ship, and that list is asserted on the artifact.
 //

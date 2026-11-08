@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What's new (QGD-FRM-0016): the notes are CHANGELOG.md,
 // which ships with the application, read here into plain blocks the window
 // draws as text. No HTML is made from it anywhere, so nothing in a note can

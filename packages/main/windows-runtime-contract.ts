@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Microsoft's Visual C++ runtime on Windows (#91, QGD-SCP-0010). The credential core and
 // its FIPS crypto module import VCRUNTIME140.dll, which a freshly installed
 // Windows 11 does not have; without it the core cannot start, and nothing

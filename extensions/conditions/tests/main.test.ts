@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Conditions end to end against a stand-in context: it registers its page,
 // asks the core for NOAA's sources by name, and says so in words when it
 // cannot (QGD-HOM-0006, QGD-HOM-0008, QGD-APP-0008).

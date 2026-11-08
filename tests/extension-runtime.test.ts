@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P7-manifest-is-data, P7-no-grant-no-capability, P7-grant-withdrawn, and the
 // gate of QGD-APP-0014 in the part that does not need a window.
 //

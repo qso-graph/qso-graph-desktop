@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0019: what the update feed may say, and which update a build takes
 // from it. A feed that cannot say a track properly offers nothing on it.
 import { readFileSync } from 'node:fs';

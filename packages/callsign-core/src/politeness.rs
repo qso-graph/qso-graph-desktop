@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // How often each source may be asked (#79), enforced here.
 //
 // Every reference and extension request goes through this process (D-18,

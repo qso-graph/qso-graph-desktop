@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0005 brings Svelte; svelte-check is what type-checks inside a
 // component, where tsc cannot look.
 //

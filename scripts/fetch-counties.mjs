@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Fetches what the US county data is built from (data/county-sources.json):
 // two Census boundary files, TQSL's configuration and ARRL's section
 // boundaries. Each is checked against

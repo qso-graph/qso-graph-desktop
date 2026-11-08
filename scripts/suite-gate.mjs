@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-TST-0007: which suites a failure stops, and which still run.
 //
 // The line is drawn at the dependency, not at the point of failure: a suite is

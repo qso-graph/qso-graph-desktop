@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   What's new (QGD-FRM-0016), opened only when asked for: from the strip Home
   shows after an update, Help → What's New, or Home's welcome. It replaced the

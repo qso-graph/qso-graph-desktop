@@ -3,6 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "description": "QSO Graph Desktop's built-in Parks On the Air extension: Near Me, Spots and Most Wanted.",
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "type": "module"
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Integrations, against the real native listener (QGD-INT-0001 to
 // QGD-INT-0010): the addon build-native.mjs puts in dist/native, driven by
 // real UDP from this process.

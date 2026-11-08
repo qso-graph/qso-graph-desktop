@@ -1,7 +1,7 @@
 # Contributing to QSO Graph Desktop
 
 Thanks for your interest. QSO Graph Desktop is a free, open-source desktop application for amateur
-radio operators, licensed GPL-3.0-only. This page explains how work gets done here.
+radio operators, licensed GPL-3.0-or-later. This page explains how work gets done here.
 
 ## Writing an extension
 

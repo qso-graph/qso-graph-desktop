@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Fetches POTA's three lists and checks their shape. P5-pota-sources.
 //
 // QGD-REF-0009: fetched from POTA at run time and never redistributed. Run by

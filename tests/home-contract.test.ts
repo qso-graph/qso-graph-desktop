@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Home's channel, checked both ways (QGD-HOM-0002, QGD-HOM-0003, QGD-SEC-0006):
 // what the window may ask, and what it accepts as an answer or a pushed page.
 import { describe, expect, it } from 'vitest';

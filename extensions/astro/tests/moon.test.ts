@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The moon against an independent reference (QGD-AST-0005, QGD-AST-0006):
 // PyEphem 4.2, a high-precision ephemeris sharing no code with moon.ts, asked
 // for each place's own day with refraction off and the horizon at -0°34′ on

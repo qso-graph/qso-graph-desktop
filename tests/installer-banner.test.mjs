@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The banner Windows shows while an update installs (#116) is the NSIS Banner
 // plugin's own window, a fixed size: a longer line is cut off, not wrapped
 // (#135: "It opens again by itself when it's done." lost "done."). Each line is

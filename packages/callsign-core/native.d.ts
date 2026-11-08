@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The shape of the Rust credential core as napi-rs exposes it.
 //
 // Without this the addon arrives through createRequire as `any`, and every call

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The last good lists of each resource that is a set of lists, POTA's and
 // SOTA's, kept as files (QGD-REF-0010, QGD-REF-0018).
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The WSJT-X adapter and the Monitor together (QGD-INT-0022, QGD-INT-0023):
 // a session captured from qso-graph-sim, read by the adapter, checked as the
 // core checks events, held by the Monitor, and drawn as the core accepts a

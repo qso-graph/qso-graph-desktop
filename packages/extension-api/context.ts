@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What an extension's code is given when it is activated, and what it must
 // export (QGD-APP-0020). This is the whole of what an extension can reach.
 //

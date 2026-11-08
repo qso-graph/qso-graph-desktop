@@ -114,5 +114,5 @@ and how changes are made.
 
 ## License
 
-[GPL-3.0-only](LICENSE). Third-party material and its licenses are in [NOTICE](NOTICE). Thanks to
+[GPL-3.0-or-later](LICENSE). Third-party material and its licenses are in [NOTICE](NOTICE). Thanks to
 everyone in [CONTRIBUTORS.md](CONTRIBUTORS.md).

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // One Svelte configuration, read by both the application build (vite.config.mjs)
 // and the gallery (.storybook/main.js). Two copies would be two chances for the
 // gallery to render a component differently from the way the shell does, which

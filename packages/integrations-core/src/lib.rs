@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Integrations' native listener (QGD-INT-0001): what the Integrations
 // utility process opens a port with. It knows no program's protocol
 // (QGD-INT-0002); it passes bytes and the sender's address on, and nothing

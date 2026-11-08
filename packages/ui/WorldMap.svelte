@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   A flat world map with the night greyed out and the terminator drawn (page
   data version 6). The extension says where the sun is

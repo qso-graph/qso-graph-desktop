@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Fetching reference data, from the credential core.
 //
 // It is here because KI7MT decided it is (D-18, D-31): **all of the app's

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-REP-0006's guarantee: the boundary gate fails when a wrong-direction
 // import is there to be found.
 //

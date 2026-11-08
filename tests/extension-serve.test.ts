@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the proof extensions used to prove, proven here instead.
 //
 // Three of the thirteen checks in the retired app-proofs suite were about the

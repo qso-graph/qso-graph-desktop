@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // WSJT-X's protocol as this adapter reads it (QGD-INT-0008, QGD-INT-0022).
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';

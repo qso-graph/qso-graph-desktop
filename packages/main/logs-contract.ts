@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the Logs page may ask for, and what a valid request looks like.
 //
 // QGD-LOG-0013 puts the surface in Settings; the behaviour it drives is

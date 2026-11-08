@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   One line at the top of Home after an update (QGD-FRM-0016:
   the pop-up got in the way). It says the version, offers the

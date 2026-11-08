@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-supervision, the screen (QGD-APP-0022, QGD-APP-0013): when the extension
 // host stops, Home names the extensions it affected until dismissed.
 import { describe, expect, it } from 'vitest';

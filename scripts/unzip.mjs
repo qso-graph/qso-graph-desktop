@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reads back what packages/main/diagnostics.ts writes, so a suite can look inside an
 // exported archive rather than at its bytes.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-SEC-0014: the packaged application's Electron security, checked by this
 // project rather than by Electronegativity (#42, #158). Electronegativity's last
 // release was in 2021, and it brought in eslint 7 and the oldest minimatch and

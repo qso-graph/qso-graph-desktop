@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Windows import check (#91), on a synthetic executable built here: its
 // imports and delay-loaded imports are read, and an import that is neither
 // Windows, the Visual C++ runtime nor shipped is caught.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The settings a user can change, and what a valid value is.
 //
 // QGD-ENG-0003 puts these in a file rather than the database, so the

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // One adapter's port: the sockets it listens on, and the queue to the adapter
 // (QGD-INT-0004 to QGD-INT-0007, QGD-INT-0009).
 //

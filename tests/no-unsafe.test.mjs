@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-SEC-0022 (#136): the Rust components' own code uses no `unsafe`. Each
 // crate denies it at its root, so the compiler refuses an `unsafe` block, and
 // no source file allows it back. The crates are found from the tree

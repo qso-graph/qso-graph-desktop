@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // WSJT-X's UDP protocol, as `Network/NetworkMessage.hpp` defines it
 // (QGD-INT-0022): schema 3, big-endian QDataStream.
 //

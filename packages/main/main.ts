@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // First, before anything opens a store or a log: portable mode decides
 // where they are (portable.ts).
 import './portable-start.js';

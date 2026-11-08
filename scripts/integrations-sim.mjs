@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P13 in the running application (QGD-INT-0024): qso-graph-sim plays its
 // sample of 20 m FT8 as WSJT-X's own messages into QSO Graph Desktop, and the
 // Monitor shows them.

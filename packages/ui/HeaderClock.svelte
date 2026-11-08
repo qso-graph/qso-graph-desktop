@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   UTC and local time in the header, every second, on every page.
   UTC first, because ham radio is talked about in UTC; seconds,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Conditions: QSO Graph Desktop's built-in extension for solar flux, the K
 // and A indices, NOAA's space weather scales and the band outlook
 // (QGD-HOM-0008). Its own extension, so its switch in Settings turns off

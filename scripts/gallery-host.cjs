@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A window for scripts/story-themes.mjs to load the built gallery into.
 //
 // Development only, and never packaged: electron-builder ships dist/,

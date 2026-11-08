@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The pure half of the reference load: reading a zip, and reading ADIF's
 // definitions out of it. The reference-load suite proves the whole path against a
 // running database; these are the cases that are awkward to reach from there

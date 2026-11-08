@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Fetches ADIF's published resources archive, and verifies it.
 //
 // QGD-REF-0003. Run by `make setup`. The hash is checked against

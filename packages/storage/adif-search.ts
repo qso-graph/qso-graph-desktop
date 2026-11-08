@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // One search over ADIF's own definitions (ADIF Lookup):
 // its fields and every enumeration's values, as the ADIF Development Group
 // publishes them in reference.sqlite. What comes back is ADIF's text, column

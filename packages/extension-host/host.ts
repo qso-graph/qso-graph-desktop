@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QG Extensions: the extension host process (QGD-APP-0015). Electron wiring
 // only; the runtime is runtime.ts, tested in process.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The window scripts/gen-installer-art.mjs draws the installer's artwork in: Electron, the
 // browser npm ci installs (tests/toolchain.test.mjs), hidden. A fresh profile every run, and the
 // zoom pinned at 1: Electron remembers a page's zoom in its profile, and a remembered zoom drew

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The sun at a position, calculated on the computer with no network
 // (QGD-AST-0004): sunrise and sunset, solar noon, the three twilights and the
 // two radio depths (QGD-AST-0020 to QGD-AST-0022). It was the core's, for the

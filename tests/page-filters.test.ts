@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A table's filters as the core applies them (page data version 6): at once,
 // in the window, with no new question asked.
 import { describe, expect, it } from 'vitest';

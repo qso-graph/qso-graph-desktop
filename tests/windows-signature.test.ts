@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // An update's Windows installer runs only when it is signed by the same
 // publisher as the running copy (#81), or by us when it is unsigned (#121). The rules on every platform; a real
 // signature read where there is Windows to ask.

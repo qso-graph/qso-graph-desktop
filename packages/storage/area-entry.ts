@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // My Area's choices, as QG Storage answers them (area.ts). Apart from the
 // queries so the window's contract can name them without reaching the store.
 //

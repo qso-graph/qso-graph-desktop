@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The extension host's notice, in words (QGD-APP-0022). The core sends what
 // happened and the affected extensions' names (packages/main/home-notice.ts);
 // this writes the sentence, so every affected extension is named however

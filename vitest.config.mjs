@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Separate from vite.config.mjs, which sets root to src/renderer for the
 // renderer's own build. Without this, vitest inherits that root and looks for
 // the suites inside the renderer, where there are none.

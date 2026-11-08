@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8 in the running application: Home's pins as tiles from Conditions'
 // manifest, its page drawn from the data its code answers in the QG Extensions
 // process and nowhere else, Home asking for nothing, and Conditions turned off

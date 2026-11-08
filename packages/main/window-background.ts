@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The colour the window is painted with before the renderer has drawn anything.
 //
 // QGD-FRM-0001 is about the shell following the operating system, and the first

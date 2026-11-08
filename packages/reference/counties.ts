@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The US counties a Location's MY_CNTY is checked against and filled from
 // (QGD-STN-0010). The data is built by scripts/build-counties.mjs and ships
 // with the application; this reads it and answers three questions: which

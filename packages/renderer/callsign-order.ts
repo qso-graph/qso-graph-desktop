@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The order the Callsigns page lists them in (#70): the
 // active callsign first, then the rest by start date, newest first, so an
 // earlier call falls to the bottom; a tie, or a callsign with no start date,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-shapes: page data is checked before Home draws any of it (QGD-HOM-0002,
 // QGD-SEC-0006). Good data in each shape is accepted as given; anything off
 // the shape is refused with a reason, never coerced.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { spawnSync } from 'node:child_process';
 import { access, mkdir, copyFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';

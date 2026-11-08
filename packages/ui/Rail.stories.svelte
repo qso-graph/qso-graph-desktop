@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Rail from './Rail.svelte';

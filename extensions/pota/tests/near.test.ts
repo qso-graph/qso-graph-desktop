@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Near Me (QGD-HOM-0013): the parks nearest the active Location, from POTA's
 // park list alone. Made-up parks: nothing of POTA's is committed.
 import { describe, expect, it } from 'vitest';

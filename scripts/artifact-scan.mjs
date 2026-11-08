@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-CRD-0006: a credential never appears in a log, an error message, an IPC
 // payload rendered to a screen, or a report. QGD-PII-0003 says the same of
 // roster field values. Issue #3 item 3 is the scan; item 4's second half — that

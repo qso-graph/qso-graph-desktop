@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // View → Zoom: larger or smaller, as every desktop
 // application offers, but not without end: from 80% to 150% in the steps a
 // browser uses. Ctrl (⌘ on a Mac) and the mouse wheel move by the same

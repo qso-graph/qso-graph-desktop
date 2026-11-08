@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The update feed's signature (#128, QGD-SCP-0003, QGD-FRM-0019).
 //
 // The feed says which file is an update and what its SHA-256 is, so whoever

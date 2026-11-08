@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Moving callsigns and Locations to another computer (QGD-PSN-0007 to
   QGD-PSN-0011). Nothing is stored that is not publicly available; logins

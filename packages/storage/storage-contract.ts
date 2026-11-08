@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the renderer may ask about storage, and what it is told (QGD-ENG-0006,
 // QGD-FRM-0012).
 //

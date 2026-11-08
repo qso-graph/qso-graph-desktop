@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A request rebuilt as a plain value before it is sent. Used by the extension
 // host's context.request (QGD-APP-0003): what crosses a message channel is
 // structured-cloned, and a value an extension built from Svelte state is a

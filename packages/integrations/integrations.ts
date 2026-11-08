@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Integrations: the one way in (QGD-INT-0001 to QGD-INT-0010).
 //
 // What runs in Integrations' process, with the native listener and the way

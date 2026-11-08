@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What's new (QGD-FRM-0016): the window asks for this version's notes, or
 // those since the version it last saw, and gets them from the CHANGELOG.md
 // the application ships. Read once, at start; nothing is fetched.

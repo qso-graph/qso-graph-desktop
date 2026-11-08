@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Microsoft's Visual C++ runtime on Windows (#91): missing is said, present
 // is silent, and other platforms never ask.
 import { join } from 'node:path';

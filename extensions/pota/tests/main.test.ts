@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Parks On the Air end to end against a stand-in context: it registers Near
 // Me, Spots and Most Wanted, asks the core for POTA's spots by name and for
 // the rest by request, and says so in words when it cannot (QGD-HOM-0006,

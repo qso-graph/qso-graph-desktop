@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Where cargo is, resolved rather than assumed.
 //
 // build-native.mjs and rust-unit.mjs both hardcoded `~/.cargo/bin/cargo`,

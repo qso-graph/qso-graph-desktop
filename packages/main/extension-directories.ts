@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Where extensions are read from (QGD-APP-0017).
 //
 // The package's own directory is the only one whose extensions may be

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QG Storage's channel, and the process that owns the stores (QGD-ENG-0006).
 //
 // Nothing here is on the path to a window appearing: the storage process is

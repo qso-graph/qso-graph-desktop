@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The shape of Integrations' native listener as napi-rs exposes it
 // (packages/integrations-core/src/lib.rs). Without this the addon arrives as
 // `any`, and the one process that listens would call into it unchecked.

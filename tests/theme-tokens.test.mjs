@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Every colour the light theme defines is defined again by both dark blocks:
 // the one that follows a dark system and the one the operator picks. A token
 // left out keeps the light value inside a dark page. --warn was, in the

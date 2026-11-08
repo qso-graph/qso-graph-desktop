@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Whether the operating system is set to dark, told to the renderer by the main
 // process rather than read in the renderer.
 //

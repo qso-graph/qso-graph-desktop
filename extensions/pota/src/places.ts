@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Program and Entity, the two filters POTA's own park list starts with
 // (POTA knows this data better than we do). Each row's
 // POTA locations are named by their program and entity from reference data

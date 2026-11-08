@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Stations as they cross a process boundary (QGD-STN-*, QGD-SEC-0006).
 //
 // A station is a name, a kind, ADIF's own MY_* fields under ADIF's names, and

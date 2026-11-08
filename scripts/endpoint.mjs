@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Deciding whether a socket represents a connection leaving this machine.
 //
 // Extracted and tested because the first version got it wrong in a way that

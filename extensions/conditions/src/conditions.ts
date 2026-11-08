@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Conditions (QGD-HOM-0008): solar flux, the planetary K and A indices, NOAA's
 // space weather scales and the band outlook, from NOAA SWPC.
 //

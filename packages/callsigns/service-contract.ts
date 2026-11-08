@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What a service profile is, with nothing that reads a file.
 //
 // Separate from packages/callsigns/services.ts because the renderer is told about services

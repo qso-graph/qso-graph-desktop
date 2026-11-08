@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   A tick-box tree: nodes with children, a search over them, and a choice held
   to a most (tree-pick.ts). My Area is its first user: POTA's programs, their

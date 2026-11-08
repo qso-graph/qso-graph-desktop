@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Where the stores are, and how each comes to exist (QGD-ENG-0001, QGD-ENG-0007).
 //
 // Everything is under one root, the application's own directory

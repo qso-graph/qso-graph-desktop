@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Electron audit (#42, #158) catches what it is for: each mistake planted
 // in this project's own code, as main.ts and index.html have it, is refused.
 // The packaged run is the electron-audit suite; this holds its rules.

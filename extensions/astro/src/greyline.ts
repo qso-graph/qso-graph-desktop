@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The grey line between two stations (QGD-AST-0040, QGD-AST-0041): the
 // windows in which both ends are inside the same radio depth at once, the
 // sun below the horizon at each but not yet below that depth, so the layer

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Generates rvm/QGD-RVM-001.md from the Verify columns of spec/QGD-SPEC-001.md.
 //
 // QGD-TST-0004: a hand-edited RVM fails `make verify`.

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   The top of Home: ours, as the top of a GitHub profile is its owner's.
   It says what QSO Graph Desktop is, and every part of

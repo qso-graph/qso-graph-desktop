@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P3-axe (QGD-PRT-0103): no accessibility violation on any page, in both
 // themes. Measured by axe-core rather than judged, which is also what makes
 // QGD-FRM-0003's contrast claim a measurement — the colour-contrast rule reads

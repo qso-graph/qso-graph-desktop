@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Extension pages: which are available, and when the open one is refreshed
 // (QGD-HOM-0001, QGD-HOM-0005, QGD-HOM-0006).
 //

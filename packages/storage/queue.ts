@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // One unit of work at a time on a connection (QGD-ENG-0020).
 //
 // node:sqlite is synchronous, but Drizzle's sqlite-proxy is not. Its

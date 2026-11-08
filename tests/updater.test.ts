@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The updater acts on the switch and the track as they are when it acts, not
 // as they were when it started to check (#57); and checking only checks: the
 // download waits for the operator's Download and install.

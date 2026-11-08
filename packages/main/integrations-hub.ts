@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The broker's side of Integrations (QGD-INT-0004 to QGD-INT-0011,
 // QGD-INT-0020, QGD-INT-0021).
 //

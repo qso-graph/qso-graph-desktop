@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Our own code uses no `unsafe` (QGD-SEC-0022): napi-rs's generated bindings
 // allow it for themselves, which is why this is deny and not forbid.
 #![deny(unsafe_code)]

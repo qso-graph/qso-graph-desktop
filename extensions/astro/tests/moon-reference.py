@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Makes moon-reference.json: uv run --with ephem==4.2 python extensions/astro/tests/moon-reference.py > extensions/astro/tests/moon-reference.json
 # Reference values for Astro's moon, from PyEphem 4.2: an independent
 # ephemeris sharing no code with moon.ts. Rise and set with refraction off and

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Storage, in Troubleshooting (`QGD-FRM-0012`, `QGD-ENG-0001`).
 

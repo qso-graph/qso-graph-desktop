@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Loading extensions and deciding what they may do (QGD-APP-0001,
 // QGD-APP-0004, QGD-APP-0005, QGD-APP-0006, QGD-APP-0011).
 //

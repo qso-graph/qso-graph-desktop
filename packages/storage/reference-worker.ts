@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The reference build, on a worker thread inside QG Storage (QGD-ENG-0015).
 //
 // node:sqlite is synchronous, and a build fills about 100,000 rows. On the

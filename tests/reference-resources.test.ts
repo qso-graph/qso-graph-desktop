@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-REF-0017: what Settings says about each reference resource.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

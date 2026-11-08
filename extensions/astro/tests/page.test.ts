@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Astro's page (QGD-AST-*), as the core's page shapes, checked by the core's
 // own validator.
 import { describe, expect, it } from 'vitest';

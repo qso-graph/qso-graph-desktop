@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What Home says when the extension host stops (QGD-APP-0022, QGD-APP-0013):
 // which extensions it affected, by name, until the operator dismisses it. As
 // VS Code says "Extension host terminated unexpectedly" and keeps saying it.

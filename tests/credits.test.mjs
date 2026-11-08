@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0015, QGD-REP-0005: every source of data the application downloads
 // or ships is credited in NOTICE, which Help → Attributions opens. Held to the
 // registers that name the sources, so a new source cannot be added without its

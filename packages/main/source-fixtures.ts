@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Recorded responses in place of the network, for the suites only.
 //
 // Home's cards draw live data, so a screenshot of Home or a check of what a

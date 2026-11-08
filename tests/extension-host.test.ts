@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P8-identity, P8-lifecycle, P8-messages, P8-supervision and P8-window, in
 // process: the broker's supervisor and the real host runtime, connected over
 // real MessageChannels, with timers the test controls (QGD-APP-0018,

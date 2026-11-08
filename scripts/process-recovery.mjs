@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-PRC-0001: a crash in one process never takes the application down.
 // QGD-PRC-0005: IPC is a typed contract; malformed messages are rejected, not coerced.
 // QGD-PRT-0102's exit gate: killing a utility process leaves the window running

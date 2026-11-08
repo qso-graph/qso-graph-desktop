@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // `make setup` must build before anything it runs needs the build.
 //
 // scripts/fetch-pota.mjs imports the POTA reader from dist/, and setup ran it

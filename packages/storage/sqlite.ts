@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The adapter between Drizzle and node:sqlite (QGD-ENG-0002).
 //
 // Drizzle 0.45 has no driver for node:sqlite, so the core uses its generic

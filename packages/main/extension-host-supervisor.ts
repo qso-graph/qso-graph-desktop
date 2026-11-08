@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The broker's side of the extension host (QGD-APP-0015, QGD-APP-0018,
 // QGD-APP-0020 to QGD-APP-0023).
 //

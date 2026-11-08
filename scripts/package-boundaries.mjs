@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-REP-0006: the dependency direction between packages, checked over the
 // imports themselves.
 //

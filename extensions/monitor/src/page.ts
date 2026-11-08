@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The Monitor's page (QGD-INT-0023): All, then one view per source, which
 // the core draws as tabs (pages.ts views). Each shows its source's status
 // line above its decodes, grouped by cycle, newest first; low-confidence and

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A request that meets a service still starting waits for it, a bounded
 // while (Conditions said NOAA could not be reached at
 // every start, because the credential core was not up yet).

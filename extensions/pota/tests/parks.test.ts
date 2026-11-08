@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Parks On the Air (QGD-HOM-0011), against a made-up spot list in POTA's
 // shape (tests/fixtures/pota), checked by the core's own validator.
 import { readFileSync } from 'node:fs';

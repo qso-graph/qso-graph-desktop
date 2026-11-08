@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading one named file out of a zip archive.
 //
 // The core fetches ADIF's published archive at run time (QGD-REF-0001: a

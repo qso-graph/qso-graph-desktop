@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-CRD-0003: the credential core owns its OS credential-store entry names
 // and sets them explicitly. This is the test that requirement needed and did
 // not have.

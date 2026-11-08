@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Types for showcase.js, which the stories import.
 import type { StationsView } from '../packages/storage/station-contract.js';
 import type { ImportPreview } from '../packages/callsigns/callsign-contract.js';

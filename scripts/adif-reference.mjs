@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P5-archive and P5-provenance: the ADIF release is the one that was pinned,
 // and every list it carries records who owns it separately from where this
 // copy came from (QGD-REF-0002, QGD-REF-0003).

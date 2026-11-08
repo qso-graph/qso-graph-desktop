@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the window may ask about Home, and what it is told (QGD-HOM-0001 to
 // QGD-HOM-0006). Checked on both sides, refused rather than coerced
 // (QGD-SEC-0006).

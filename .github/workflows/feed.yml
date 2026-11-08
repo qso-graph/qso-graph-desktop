@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-or-later
 # The update feed, https://updates.qso-graph.io/desktop.json (QGD-FRM-0019,
 # docs/RELEASES.md), published from this repository's own GitHub Pages (#94),
 # so no other repository and no stored credential is involved.

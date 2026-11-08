@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Parks Near Me (QGD-HOM-0013, #62): the parks of My Area with how many
 // times POTA has counted each activated, nearest first, for an activator
 // looking for one nobody has worked from: a park never activated is the

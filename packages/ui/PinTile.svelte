@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   A pinned page on Home, as GitHub draws a pinned repository:
   the icon, the name on one line and the description on two,

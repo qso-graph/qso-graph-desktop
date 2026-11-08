@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The moon at a position, calculated on the computer (QGD-AST-0004):
 // moonrise and moonset, phase and illuminated fraction, declination and
 // distance (QGD-AST-0030, QGD-AST-0031). A method of its own, not the sun's,

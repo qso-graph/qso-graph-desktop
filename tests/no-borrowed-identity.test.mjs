@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P6-no-borrowed-identity (QGD-PSN-0012).
 //
 // An OAuth or Cognito client identifier names the **application**, not the

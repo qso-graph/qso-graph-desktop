@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Home's channel (QGD-HOM-0001 to QGD-HOM-0006). Electron wiring only: which
 // pages exist and when each is asked for is home-pages.ts; how an extension is
 // asked is the extension host's supervisor.

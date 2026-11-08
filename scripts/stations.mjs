@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P9 in the running application (docs/P9.md): stations made, checked, made
 // active and deleted from the Stations page, as an operator does.
 //

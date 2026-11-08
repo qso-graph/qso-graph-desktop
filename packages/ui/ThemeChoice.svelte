@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   QGD-FRM-0002: System, Light and Dark, with System the default. What is
   selected is whatever was last stored, never the attempt — so a save that

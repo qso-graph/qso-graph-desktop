@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The messages between the broker and the extension host, and on each
 // extension's own channel (QGD-APP-0015, QGD-APP-0018, QGD-APP-0021).
 //

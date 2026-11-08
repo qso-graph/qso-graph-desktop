@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What a page's tables were filtered and sorted by, kept for the session by
 // the page's key, so leaving a page and coming back finds it as it was.
 // In memory only: a new start begins from each filter's

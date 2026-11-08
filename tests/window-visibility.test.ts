@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // No suite run puts a window on the operator's screen.
 //
 // Ten suites launch the real application, and each one used to show a

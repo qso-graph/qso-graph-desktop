@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-ENG-0003: simple settings live in a file, not the database, so the
 // application starts before the engine is up.
 //

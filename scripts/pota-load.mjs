@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P5-pota-sources, P5-pota-freshness, P5-pota-unaltered, P5-pota-entities and
 // P5-pota-locations (QGD-REF-0009 to QGD-REF-0013).
 //

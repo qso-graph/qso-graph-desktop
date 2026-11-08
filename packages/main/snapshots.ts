@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The profile kept before an install, and put back when going back (#77,
 // QGD-FRM-0020). An older version opens a newer store without refusing it,
 // so going back without its data is not safe: the snapshot is not optional.

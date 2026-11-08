@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // View → Zoom moves in fixed steps, from 80% to 150% and no further (#57).
 import { describe, expect, it } from 'vitest';
 import { ZOOM_STEPS, nextZoom } from '../packages/main/window-zoom.js';

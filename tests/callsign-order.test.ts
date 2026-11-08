@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // #70: the Callsigns page lists the active callsign first, then the rest by
 // start date, newest first.
 import { describe, expect, it } from 'vitest';

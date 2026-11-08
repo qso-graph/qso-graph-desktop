@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The grey line between two stations (QGD-AST-0040, QGD-AST-0041).
 import { describe, expect, it } from 'vitest';
 import { greyLine, gridCentre } from '../src/greyline.js';

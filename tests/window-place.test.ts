@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The window opens where it was last, unless that place
 // is no longer on a screen.
 import { describe, expect, it } from 'vitest';

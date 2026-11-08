@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // reference.sqlite: built, checked, swapped and refreshed (docs/P5.md,
 // re-registered 2026-10-10). P5-loads, P5-not-loaded, P5-partial,
 // P5-build-checks, P5-build-fails-safe, P5-swap, P5-reconcile,

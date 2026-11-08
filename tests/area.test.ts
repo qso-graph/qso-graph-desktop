@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // My Area's choices and default, from POTA's lists as
 // QG Storage holds them. The rows are written for the test in POTA's shape;
 // nothing of POTA's files is copied.

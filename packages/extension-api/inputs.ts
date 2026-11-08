@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The typed fields a page may ask the operator for: a
 // grid, a callsign or a short text, at most four to a page. The core draws
 // each field and checks what is typed, by its kind, before the extension is

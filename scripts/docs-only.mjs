@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Whether a change is documentation only (#95), so CI runs the citation check
 // alone and builds nothing. The changed files come one per line on standard
 // input, a renamed file by its old name as well as its new one (moving code

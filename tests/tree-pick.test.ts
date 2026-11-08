@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The tick-box tree's logic (My Area): POTA's programs,
 // their entities and their locations, any of them chosen.
 import { describe, expect, it } from 'vitest';

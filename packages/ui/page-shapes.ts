@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The shapes a Home page is drawn from (QGD-HOM-0002), as the ui package sees
 // them. Declared here rather than imported: ui depends on nothing
 // (QGD-REP-0006), and these are checked against the extension API's own

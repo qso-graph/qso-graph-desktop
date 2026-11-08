@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-ENG-0015. drizzle-kit renders reference.sqlite's DDL from
 // packages/storage/reference-schema.ts into drizzle/reference/. The file is
 // derived and never migrated, so there is only ever one rendering: a change to

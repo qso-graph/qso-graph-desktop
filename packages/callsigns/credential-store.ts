@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the operating system calls the store credentials are kept in, so every
 // message names the store the operator actually has: Keychain on macOS,
 // Credential Manager on Windows, the keyring (the Secret Service) on Linux.

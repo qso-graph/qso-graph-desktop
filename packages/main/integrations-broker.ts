@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Integrations' channel, and the process that listens (QGD-INT-0001,
 // QGD-INT-0010). Electron wiring only: what is decided is
 // integrations-hub.ts, tested in process.

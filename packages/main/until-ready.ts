@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Asking a service that may still be starting.
 //
 // Every outbound request goes through the credential core (QGD-SEC-0020), and

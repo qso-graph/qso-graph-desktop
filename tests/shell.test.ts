@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { INITIAL_SHELL, PAGES, createShellStore, isPageId, type ShellState, visiblePages } from '../packages/renderer/shell-store.js';

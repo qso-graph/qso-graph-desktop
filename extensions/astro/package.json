@@ -3,6 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "description": "QSO Graph Desktop's built-in Astro extension: the sun, the moon and the grey line at the operator's location.",
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "type": "module"
 }

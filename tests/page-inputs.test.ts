@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // A page's typed fields: each value checked by its kind
 // before an extension sees it, refused rather than coerced (QGD-SEC-0006).
 import { describe, expect, it } from 'vitest';

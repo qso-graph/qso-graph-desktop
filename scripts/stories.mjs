@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QGD-FRM-0006: every component in the shell and in `ui` has a story.
 //
 // Pure, so the rule can be tested without a component tree. With no components

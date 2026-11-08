@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Builds the credential core and Integrations' listener against glibc 2.28, inside a
 # manylinux_2_28 container: $1 is where the credential core goes, $2 the listener.
 set -euo pipefail

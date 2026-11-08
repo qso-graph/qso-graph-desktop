@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // P4-migrations (QGD-ENG-0013): the migrations apply when a store is opened,
 // what has been applied is recorded in the file, and a run that fails part way
 // rolls back whole. Drizzle's proxy migrator does not open a transaction of its

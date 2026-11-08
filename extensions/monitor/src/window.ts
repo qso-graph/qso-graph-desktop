@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // What the Monitor holds (QGD-INT-0023): for each source, what its program
 // last said it was doing, and its decodes grouped by cycle, in a window of
 // bounded length. No context here, so it runs under unit tests with time the

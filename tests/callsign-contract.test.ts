@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { allowsSender, RENDERER_URL, validateCommand as check } from '../packages/callsigns/callsign-contract.js';

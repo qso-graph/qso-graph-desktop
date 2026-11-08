@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Reading SOTA's summits list (QGD-REF-0018).
 //
 // One CSV, published daily: a title line ("SOTA Summits List (Date=…)"), then

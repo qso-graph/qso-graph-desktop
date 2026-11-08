@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Building reference.sqlite from verified inputs (QGD-ENG-0015).
 //
 // A build writes a complete new file at a path it is given, which is never the
