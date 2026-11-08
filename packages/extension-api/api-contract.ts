@@ -31,6 +31,12 @@ export type ExtensionRequest =
   // Which callsign is active, or none. Under the same grant as the list,
   // because it is the same information (QGD-CRD-0010).
   | { readonly kind: 'callsign.active' }
+  // LoTW's certificates and their public details, and the roots and CAs QG
+  // Trust trusts, under lotw:read (QGD-LTW-0002). Whether a certificate has a
+  // key is a boolean; no key, key name, path or file crosses (QGD-LTW-0004,
+  // QGD-LTW-0005).
+  | { readonly kind: 'lotw.certificates' }
+  | { readonly kind: 'lotw.roots' }
   // Where the operator is operating from: the active station's name, grid and
   // position, or none (QGD-STN-0005; Astro is its first reader). Never its street, city or
   // postal code, which stay on this machine and out of every extension
@@ -167,7 +173,20 @@ export interface StationBrief {
   readonly longitude?: number;
 }
 
+export interface LotwCertificate {
+  readonly id: string; readonly call: string; readonly dxcc: number; readonly dxccName: string | null;
+  readonly qsoFirst: string; readonly qsoLast: string; readonly validFrom: string; readonly validTo: string;
+  readonly serial: string; readonly hasKey: boolean;
+}
+export interface LotwTrustedRoot {
+  readonly kind: 'root' | 'ca'; readonly subject: string; readonly serial: string;
+  readonly validFrom: string; readonly validTo: string; readonly fingerprint: string;
+  readonly source: string; readonly acceptedAt: string | null;
+}
+
 export type ExtensionReply =
+  | { readonly ok: true; readonly kind: 'lotw.certificates'; readonly certificates: readonly LotwCertificate[] }
+  | { readonly ok: true; readonly kind: 'lotw.roots'; readonly roots: readonly LotwTrustedRoot[] }
   | { readonly ok: true; readonly kind: 'extension.info'; readonly info: ExtensionInfo }
   | { readonly ok: true; readonly kind: 'callsign.list'; readonly callsigns: readonly CallsignBrief[] }
   | { readonly ok: true; readonly kind: 'callsign.active'; readonly callsign: CallsignBrief | null }
@@ -217,6 +236,8 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     // Knowing what you hold needs nothing (QGD-APP-0005: an extension with
     // no grants can still draw its page and read its own standing).
     case 'extension.info': return undefined;
+    case 'lotw.certificates':
+    case 'lotw.roots': return 'lotw:read';
     case 'callsign.list': return 'callsign:list';
     case 'callsign.active': return 'callsign:list';
     case 'station.active': return 'station:active';
@@ -241,7 +262,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'];
+  ['extension.info', 'lotw.certificates', 'lotw.roots', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -288,6 +309,8 @@ function parameters(value: unknown): Record<string, string> {
 // Each kind's fields, and nothing else.
 const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'extension.info': ['kind'],
+  'lotw.certificates': ['kind'],
+  'lotw.roots': ['kind'],
   'callsign.list': ['kind'],
   'callsign.active': ['kind'],
   'station.active': ['kind'],
@@ -324,6 +347,8 @@ export function validateRequest(value: unknown): ExtensionRequest {
   const bare = () => ({ kind }) as ExtensionRequest;
   switch (kind) {
     case 'extension.info':
+    case 'lotw.certificates':
+    case 'lotw.roots':
     case 'callsign.list':
     case 'callsign.active':
     case 'station.active':
@@ -405,4 +430,37 @@ export function validateRequest(value: unknown): ExtensionRequest {
       // sentence rather than silence.
       throw new RequestError(`"${kind}" is not a request this product serves`, 'kind');
   }
+}
+
+// LoTW replies are checked at both process boundaries (QGD-SEC-0006).
+// Exactly these fields and no other, each of its type: a field the core adds
+// later, a key name above all, is refused until this list names it.
+function exactly(value: unknown, fields: readonly string[]): value is Record<string, unknown> {
+  return isRecord(value) && Object.keys(value).length === fields.length && fields.every(key => Object.hasOwn(value, key));
+}
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNullableString = (value: unknown): boolean => value === null || typeof value === 'string';
+
+const CERTIFICATE_FIELDS = ['id', 'call', 'dxcc', 'dxccName', 'qsoFirst', 'qsoLast', 'validFrom', 'validTo', 'serial', 'hasKey'];
+export function isLotwCertificates(value: unknown): value is LotwCertificate[] {
+  return Array.isArray(value) && value.every(entry => exactly(entry, CERTIFICATE_FIELDS)
+    && [entry.id, entry.call, entry.qsoFirst, entry.qsoLast, entry.validFrom, entry.validTo, entry.serial].every(isString)
+    && typeof entry.dxcc === 'number' && Number.isInteger(entry.dxcc)
+    && isNullableString(entry.dxccName)
+    && typeof entry.hasKey === 'boolean');
+}
+
+const ROOT_FIELDS = ['kind', 'subject', 'serial', 'validFrom', 'validTo', 'fingerprint', 'source', 'acceptedAt'];
+export function isLotwRoots(value: unknown): value is LotwTrustedRoot[] {
+  return Array.isArray(value) && value.every(entry => exactly(entry, ROOT_FIELDS)
+    && (entry.kind === 'root' || entry.kind === 'ca')
+    && [entry.subject, entry.serial, entry.validFrom, entry.validTo, entry.fingerprint, entry.source].every(isString)
+    && isNullableString(entry.acceptedAt));
+}
+export function isLotwReply(value: unknown, kind: 'lotw.certificates' | 'lotw.roots'): value is ExtensionReply {
+  if (!isRecord(value)) return false;
+  if (value.ok === false) return Object.keys(value).every(k => ['ok', 'error', 'refused'].includes(k))
+    && typeof value.error === 'string' && (value.refused === undefined || typeof value.refused === 'string');
+  return value.ok === true && value.kind === kind && Object.keys(value).length === 3
+    && (kind === 'lotw.certificates' ? isLotwCertificates(value.certificates) : isLotwRoots(value.roots));
 }

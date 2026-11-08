@@ -7,7 +7,7 @@
 // guarantees is the lifecycle and the channel discipline, not containment:
 // each extension speaks on its own channel, which the broker bound to it, and
 // the host never relays one extension's message on another's channel.
-import type { ExtensionReply, ExtensionRequest } from '../extension-api/api-contract.js';
+import { isLotwReply, type ExtensionReply, type ExtensionRequest } from '../extension-api/api-contract.js';
 import type { PageAnswer } from '../extension-api/pages.js';
 import type { PageProvider, Disposable, ExtensionContext, ExtensionModule, Datagram } from '../extension-api/context.js';
 import { validateDelivered, validateEvent, type DeliveredEvent, type IntegrationEvent } from '../extension-api/integration-events.js';
@@ -78,7 +78,12 @@ export function createHostRuntime(options: HostRuntimeOptions) {
           // reply is dropped. For a read that is all cancellation means.
           const onAbort = () => { if (extension.waiting.delete(cid)) reject(new Error('The request was cancelled.')); };
           extension.waiting.set(cid, {
-            resolve: reply => { signal?.removeEventListener('abort', onAbort); resolve(reply); },
+            resolve: reply => {
+              signal?.removeEventListener('abort', onAbort);
+              if ((request.kind === 'lotw.certificates' || request.kind === 'lotw.roots') && !isLotwReply(reply, request.kind)) {
+                resolve({ ok: false, error: 'LoTW information could not be read.' });
+              } else resolve(reply);
+            },
             reject: error => { signal?.removeEventListener('abort', onAbort); reject(error); }
           });
           signal?.addEventListener('abort', onAbort, { once: true });

@@ -18,7 +18,7 @@
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type AdifList, type CallsignBrief, type StationBrief
+  RequestError, validateRequest, isLotwCertificates, isLotwRoots, type LotwCertificate, type LotwTrustedRoot, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type AdifList, type CallsignBrief, type StationBrief
 } from '../extension-api/api-contract.js';
 import {
   extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
@@ -61,6 +61,10 @@ export interface ExtensionBrokerPorts {
   callService: (
     service: string, callsign: string, operation: string, parameters: Readonly<Record<string, string>>
   ) => Promise<Readonly<Record<string, string>>>;
+  // LoTW's certificates and trusted roots, public details only
+  // (QGD-LTW-0002). Checked again here before an extension sees them.
+  lotwCertificates: () => Promise<readonly LotwCertificate[]>;
+  lotwRoots: () => Promise<readonly LotwTrustedRoot[]>;
   // An adapter's events, checked, for the consumers that are on; how many
   // they went to (QGD-INT-0021). The adapter's id is the channel's, never
   // the extension's word.
@@ -123,6 +127,14 @@ export function createServe(deps: ServeDeps) {
 
     try {
       switch (request.kind) {
+        case 'lotw.certificates': {
+          const certificates = await deps.ports.lotwCertificates();
+          return isLotwCertificates(certificates) ? { ok: true, kind: request.kind, certificates } : refusal('LoTW certificates could not be read.');
+        }
+        case 'lotw.roots': {
+          const roots = await deps.ports.lotwRoots();
+          return isLotwRoots(roots) ? { ok: true, kind: request.kind, roots } : refusal('LoTW trusted roots could not be read.');
+        }
         case 'extension.info':
           return { ok: true, kind: 'extension.info', info: extensionInfo(extension) };
         case 'callsign.list':
@@ -180,7 +192,8 @@ export function createServe(deps: ServeDeps) {
     } catch (error) {
       // The message only. A thrown error from a service call is the one place
       // a secret could ride out in a stack (QGD-CRD-0006).
-      const why = error instanceof Error ? error.message : 'That could not be done.';
+      const why = request.kind === 'lotw.certificates' || request.kind === 'lotw.roots'
+        ? 'LoTW information could not be read.' : error instanceof Error ? error.message : 'That could not be done.';
       deps.log.warn({ extension: id, kind: request.kind }, why);
       return refusal(why);
     }

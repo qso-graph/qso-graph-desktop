@@ -377,6 +377,18 @@ if (!app.requestSingleInstanceLock()) {
           if (fetched.fresh) lastSourceBody.set(url, body);
           return { body: fetched.fresh ? body : (lastSourceBody.get(url) ?? body), fresh: fetched.fresh };
         },
+        // LoTW's public listing (QGD-LTW-0002): the broker has checked lotw:read
+        // already, and a refusal is a fixed sentence, never QG Trust's text.
+        lotwCertificates: async () => {
+          const result = await untilReady(() => callsigns.lotwCertificates(), starting, { withinMs: 10_000 });
+          if (typeof result === 'string') throw new Error('LoTW certificates could not be read.');
+          return result;
+        },
+        lotwRoots: async () => {
+          const result = await untilReady(() => callsigns.lotwRoots(), starting, { withinMs: 10_000 });
+          if (typeof result === 'string') throw new Error('LoTW trusted roots could not be read.');
+          return result;
+        },
         callService: async (service, callsign, operation, parameters) => {
           const answer = await untilReady(() => callsigns.serviceLookup(service, callsign, operation, parameters),
             starting, { withinMs: 10_000 });

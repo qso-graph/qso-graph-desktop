@@ -27,6 +27,12 @@
       "needsOperator": true
     },
     {
+      "id": "lotw:read",
+      "what": "List LoTW certificates and their public details, and the roots and CAs trusted.",
+      "notWhat": "No key, key credential name, path or file crosses the API (QGD-LTW-0004, QGD-LTW-0005).",
+      "needsOperator": true
+    },
+    {
       "id": "service:qrz",
       "what": "Ask the frame to act with the operator's QRZ credential and return the answer.",
       "notWhat": "The secret itself never crosses the API (QGD-APP-0007).",
