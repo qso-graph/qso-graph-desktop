@@ -35,27 +35,31 @@ struct Sink;
 
 impl Write for Sink {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        if let Ok(text) = std::str::from_utf8(bytes) {
-            if let Ok(mut held) = buffer().lock() {
-                for line in text.split('\n').filter(|line| !line.trim().is_empty()) {
-                    if held.lines.len() >= MAX_BUFFERED {
-                        held.lines.remove(0);
-                        held.dropped += 1;
-                    }
-                    held.lines.push(line.to_owned());
+        if let Ok(text) = std::str::from_utf8(bytes)
+            && let Ok(mut held) = buffer().lock()
+        {
+            for line in text.split('\n').filter(|line| !line.trim().is_empty()) {
+                if held.lines.len() >= MAX_BUFFERED {
+                    held.lines.remove(0);
+                    held.dropped += 1;
                 }
+                held.lines.push(line.to_owned());
             }
         }
         Ok(bytes.len())
     }
-    fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 struct Maker;
 
 impl<'a> MakeWriter<'a> for Maker {
     type Writer = Sink;
-    fn make_writer(&'a self) -> Self::Writer { Sink }
+    fn make_writer(&'a self) -> Self::Writer {
+        Sink
+    }
 }
 
 /// Installs the subscriber once. A second call is a no-op rather than an error:
@@ -73,13 +77,19 @@ pub fn init() {
     // trace, about connections and keyring calls; a URL with a password in its
     // query string (eQSL, LoTW: #9, #12) is exactly what one could carry. The
     // core's events name a provider and an outcome, never a value (LOG-0004).
-    let ours = tracing_subscriber::filter::filter_fn(|meta| meta.target().starts_with(env!("CARGO_CRATE_NAME")));
-    let _ = tracing_subscriber::registry().with(layer.with_filter(ours)).try_init();
+    let ours = tracing_subscriber::filter::filter_fn(|meta| {
+        meta.target().starts_with(env!("CARGO_CRATE_NAME"))
+    });
+    let _ = tracing_subscriber::registry()
+        .with(layer.with_filter(ours))
+        .try_init();
 }
 
 /// Takes everything buffered so far. The caller hands these to the logger.
 pub fn drain() -> Vec<String> {
-    let Ok(mut held) = buffer().lock() else { return Vec::new() };
+    let Ok(mut held) = buffer().lock() else {
+        return Vec::new();
+    };
     let dropped = std::mem::take(&mut held.dropped);
     let mut lines = std::mem::take(&mut held.lines);
     if dropped > 0 {
@@ -110,7 +120,9 @@ mod tests {
 
     #[test]
     fn events_are_buffered_as_lines_and_drained_once() {
-        let _serialised = TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _serialised = TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         reset();
         init();
         tracing::info!(provider = "qrz_logbook", "credential saved");
@@ -127,20 +139,31 @@ mod tests {
         // level down to trace, about connections and keyring calls. None of
         // that is ours to log, and with eQSL's and LoTW's passwords in a
         // query string (#9, #12) none of it may reach a log at all.
-        let _serialised = TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _serialised = TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         reset();
         init();
         tracing::trace!(target: "hyper_util::client::legacy", uri = "https://lotw.arrl.org/lotwuser/lotwreport.adi?login=w1aw&password=planted-secret", "connecting");
         tracing::debug!(target: "zbus::connection", "planted-secret in a message");
         tracing::info!(provider = "lotw", "credential tested");
         let drained = drain();
-        assert!(drained.iter().all(|line| !line.contains("planted-secret")), "{drained:?}");
-        assert!(drained.iter().any(|line| line.contains("credential tested")));
+        assert!(
+            drained.iter().all(|line| !line.contains("planted-secret")),
+            "{drained:?}"
+        );
+        assert!(
+            drained
+                .iter()
+                .any(|line| line.contains("credential tested"))
+        );
     }
 
     #[test]
     fn the_buffer_is_bounded_and_says_what_it_dropped() {
-        let _serialised = TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _serialised = TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         reset();
         init();
         {
@@ -155,7 +178,12 @@ mod tests {
         }
         let drained = drain();
         assert_eq!(drained.len(), MAX_BUFFERED + 1);
-        assert!(drained.last().unwrap().contains("core log buffer overflowed"));
+        assert!(
+            drained
+                .last()
+                .unwrap()
+                .contains("core log buffer overflowed")
+        );
         assert!(drained.last().unwrap().contains("\"dropped\":5"));
     }
 }

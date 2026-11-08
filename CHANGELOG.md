@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Updated QG Trust to 0.1.5 and enforce Rust formatting and Clippy in verification and CI.
+
 
 
 - Licensed GPL-3.0-or-later, the same as every QSO Graph project.

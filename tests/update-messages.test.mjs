@@ -13,7 +13,7 @@ const list = service.slice(service.indexOf('const MESSAGES = ['), service.indexO
 function refusals(file) {
   const source = readFileSync(file, 'utf8').split('#[cfg(test)]')[0];
   const found = new Set();
-  for (const pattern of [/Err\("([^"]+)"\)/g, /ok_or\("([^"]+)"\)/g, /map_err\(\|_\| "([^"]+)"\)/g, /const REFUSED: &str = "([^"]+)";/g]) {
+  for (const pattern of [/Err\(\s*"([^"]+)"\s*,?\s*\)/g, /ok_or\(\s*"([^"]+)"\s*,?\s*\)/g, /map_err\(\s*\|_\|\s*"([^"]+)"\s*,?\s*\)/g, /const REFUSED: &str =\s*"([^"]+)";/g]) {
     for (const match of source.matchAll(pattern)) found.add(match[1]);
   }
   return [...found];

@@ -65,7 +65,9 @@ pub struct Backup {
 }
 
 impl Backup {
-    pub fn holds(&self, part: &str) -> bool { self.parts.iter().any(|held| held == part) }
+    pub fn holds(&self, part: &str) -> bool {
+        self.parts.iter().any(|held| held == part)
+    }
 }
 
 pub fn write(backup: &Backup) -> Result<String, &'static str> {
@@ -73,31 +75,55 @@ pub fn write(backup: &Backup) -> Result<String, &'static str> {
 }
 
 pub fn read(text: &str) -> Result<Backup, &'static str> {
-    if text.len() > MAX_FILE { return Err("That file is larger than a backup this product writes."); }
+    if text.len() > MAX_FILE {
+        return Err("That file is larger than a backup this product writes.");
+    }
     // An encrypted file from a build before 2026-10-23 starts with its name,
     // not with JSON: said as such rather than as a broken file.
     if text.starts_with("QGD-CALLSIGN-EXPORT") {
-        return Err("That is an encrypted export from an earlier build, which this one does not read. Back up again from that computer.");
+        return Err(
+            "That is an encrypted export from an earlier build, which this one does not read. Back up again from that computer.",
+        );
     }
-    let backup: Backup = serde_json::from_str(text).map_err(|_| "That file is not a backup this product wrote.")?;
-    if backup.format != FORMAT { return Err("That file is not a backup this product wrote."); }
-    if !READS.contains(&backup.version) { return Err("That backup was written by a different version of QSO Graph Desktop."); }
-    if !(backup.locations.is_null() || backup.locations.is_object()) { return Err("That file's Locations are not the shape a backup has."); }
+    let backup: Backup =
+        serde_json::from_str(text).map_err(|_| "That file is not a backup this product wrote.")?;
+    if backup.format != FORMAT {
+        return Err("That file is not a backup this product wrote.");
+    }
+    if !READS.contains(&backup.version) {
+        return Err("That backup was written by a different version of QSO Graph Desktop.");
+    }
+    if !(backup.locations.is_null() || backup.locations.is_object()) {
+        return Err("That file's Locations are not the shape a backup has.");
+    }
     let mut backup = backup;
     const SHAPE: &str = "That file is not a backup this product wrote.";
     if backup.version < 3 {
-        if !backup.parts.is_empty() || !backup.settings.is_null() { return Err(SHAPE); }
+        if !backup.parts.is_empty() || !backup.settings.is_null() {
+            return Err(SHAPE);
+        }
         backup.parts = vec![CALLSIGNS.into()];
     }
     // Each part named once, only the parts there are, and the file holding
     // what it says and nothing it does not.
     let mut seen = std::collections::BTreeSet::new();
-    if backup.parts.is_empty() || !backup.parts.iter().all(|part| (part == CALLSIGNS || part == SETTINGS) && seen.insert(part.clone())) {
+    if backup.parts.is_empty()
+        || !backup
+            .parts
+            .iter()
+            .all(|part| (part == CALLSIGNS || part == SETTINGS) && seen.insert(part.clone()))
+    {
         return Err(SHAPE);
     }
-    if backup.holds(SETTINGS) != backup.settings.is_object() { return Err(SHAPE); }
+    if backup.holds(SETTINGS) != backup.settings.is_object() {
+        return Err(SHAPE);
+    }
     if !backup.holds(CALLSIGNS)
-        && (!backup.callsigns.is_empty() || !backup.preferences.is_empty() || !backup.locations.is_null() || backup.active.is_some()) {
+        && (!backup.callsigns.is_empty()
+            || !backup.preferences.is_empty()
+            || !backup.locations.is_null()
+            || backup.active.is_some())
+    {
         return Err(SHAPE);
     }
     Ok(backup)
@@ -111,10 +137,16 @@ mod tests {
 
     fn backup() -> Backup {
         Backup {
-            format: FORMAT.into(), version: VERSION, created: "2026-10-23T00:00:00Z".into(),
+            format: FORMAT.into(),
+            version: VERSION,
+            created: "2026-10-23T00:00:00Z".into(),
             callsigns: vec![crate::Callsign {
-                id: ID.into(), call: "W1AW".into(), description: "Home".into(),
-                start: Some("2026-01-01".into()), end: None, providers: Default::default(),
+                id: ID.into(),
+                call: "W1AW".into(),
+                description: "Home".into(),
+                start: Some("2026-01-01".into()),
+                end: None,
+                providers: Default::default(),
             }],
             preferences: Default::default(),
             locations: serde_json::json!({ "stations": [{ "name": "Camp", "place": { "MY_GRIDSQUARE": "DN13" } }], "defaults": {}, "active": null }),
@@ -127,11 +159,18 @@ mod tests {
     #[test]
     fn round_trips_as_plain_json() {
         let text = write(&backup()).unwrap();
-        assert!(text.contains("\"W1AW\"") && text.contains("\"DN13\""), "a backup is readable");
+        assert!(
+            text.contains("\"W1AW\"") && text.contains("\"DN13\""),
+            "a backup is readable"
+        );
         let read = read(&text).unwrap();
         assert_eq!(read.callsigns[0].call, "W1AW");
         assert_eq!(read.locations["stations"][0]["name"], "Camp");
-        assert_eq!(read.active.as_deref(), Some(ID), "which callsign is active comes back");
+        assert_eq!(
+            read.active.as_deref(),
+            Some(ID),
+            "which callsign is active comes back"
+        );
     }
 
     #[test]
@@ -144,7 +183,11 @@ mod tests {
         let read = read(&write(&first).unwrap()).unwrap();
         assert_eq!(read.version, 1);
         assert!(read.active.is_none());
-        assert_eq!(read.parts, vec![CALLSIGNS.to_string()], "an older file holds the callsigns");
+        assert_eq!(
+            read.parts,
+            vec![CALLSIGNS.to_string()],
+            "an older file holds the callsigns"
+        );
     }
 
     #[test]
@@ -160,7 +203,10 @@ mod tests {
         alone.active = None;
         assert!(read_ok(&alone));
         let text = write(&alone).unwrap();
-        assert!(!text.contains("\"locations\"") && !text.contains("\"active\""), "a settings-only file names no Locations");
+        assert!(
+            !text.contains("\"locations\"") && !text.contains("\"active\""),
+            "a settings-only file names no Locations"
+        );
         // Saying it holds the settings without them, or holding them unsaid.
         let mut missing = backup();
         missing.settings = serde_json::Value::Null;
@@ -180,16 +226,39 @@ mod tests {
         }
     }
 
-    fn read_ok(backup: &Backup) -> bool { read(&write(backup).unwrap()).is_ok() }
+    fn read_ok(backup: &Backup) -> bool {
+        read(&write(backup).unwrap()).is_ok()
+    }
 
     #[test]
     fn refuses_what_it_did_not_write() {
         assert!(read("hello").is_err());
         assert!(read(&write(&backup()).unwrap().replace(FORMAT, "something-else")).is_err());
-        assert!(read(&write(&backup()).unwrap().replace("\"version\": 3", "\"version\": 4")).err().unwrap().contains("different version"));
+        assert!(
+            read(
+                &write(&backup())
+                    .unwrap()
+                    .replace("\"version\": 3", "\"version\": 4")
+            )
+            .err()
+            .unwrap()
+            .contains("different version")
+        );
         // A field it does not know: a secret could not ride in on one.
-        assert!(read(&write(&backup()).unwrap().replacen("{", "{\"credentials\":{},", 1)).is_err());
-        assert!(read("QGD-CALLSIGN-EXPORT\n{}").err().unwrap().contains("earlier build"));
+        assert!(
+            read(
+                &write(&backup())
+                    .unwrap()
+                    .replacen("{", "{\"credentials\":{},", 1)
+            )
+            .is_err()
+        );
+        assert!(
+            read("QGD-CALLSIGN-EXPORT\n{}")
+                .err()
+                .unwrap()
+                .contains("earlier build")
+        );
         assert!(read(&"x".repeat(MAX_FILE + 1)).is_err());
     }
 }

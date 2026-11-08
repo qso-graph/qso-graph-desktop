@@ -296,6 +296,8 @@ jobs:
       - run: node scripts/fetch-counties.mjs
       - run: npm run build
       - run: node scripts/fetch-pota.mjs
+      - name: Rust formatting and Clippy
+        run: node scripts/rust-lint.mjs
       - run: npm run check
 
   window:

@@ -49,10 +49,14 @@ const TEST_SERVICE: &str = "io.qso-graph.desktop.test";
 // A variable that supplied the service would be a way to point the core back
 // at "adif-mcp", or at any other product's namespace, from outside.
 fn service() -> &'static str {
-    if std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() { TEST_SERVICE } else { SERVICE }
+    if std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() {
+        TEST_SERVICE
+    } else {
+        SERVICE
+    }
 }
-mod corelog;
 mod backup;
+mod corelog;
 mod politeness;
 mod reference;
 // What this product tells every service it connects to: its name and its
@@ -63,7 +67,11 @@ pub(crate) const AGENT: &str = concat!("QGDesktop/", env!("QGD_VERSION"));
 // requires "a HTTP agent which can be uniquely mapped to the owner of the code
 // by their product name or callsign", and bans one that is not (#11). AGENT
 // stays the bare name for the `agent` field QRZ's form asks for.
-pub(crate) const HTTP_AGENT: &str = concat!("QGDesktop/", env!("QGD_VERSION"), " (+https://qso-graph.io)");
+pub(crate) const HTTP_AGENT: &str = concat!(
+    "QGDesktop/",
+    env!("QGD_VERSION"),
+    " (+https://qso-graph.io)"
+);
 
 mod feed_signature;
 mod updates;
@@ -177,7 +185,11 @@ struct Preferences {
 
 fn identifier(value: &str) -> CoreResult<String> {
     let value = value.trim();
-    if value.is_empty() || value.len() > 128 || value.contains(':') || value.chars().any(char::is_control) {
+    if value.is_empty()
+        || value.len() > 128
+        || value.contains(':')
+        || value.chars().any(char::is_control)
+    {
         return Err("Use a non-empty name without colons or control characters.");
     }
     Ok(value.to_lowercase())
@@ -188,10 +200,20 @@ fn identifier(value: &str) -> CoreResult<String> {
 fn callsign_id(value: &str) -> CoreResult<String> {
     let bytes = value.as_bytes();
     let shaped = bytes.len() == 36
-        && bytes.iter().enumerate().all(|(at, &b)| if [8, 13, 18, 23].contains(&at) { b == b'-' } else { b.is_ascii_digit() || (b'a'..=b'f').contains(&b) })
+        && bytes.iter().enumerate().all(|(at, &b)| {
+            if [8, 13, 18, 23].contains(&at) {
+                b == b'-'
+            } else {
+                b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
+            }
+        })
         && bytes[14] == b'4'
         && matches!(bytes[19], b'8' | b'9' | b'a' | b'b');
-    if shaped { Ok(value.to_owned()) } else { Err("Callsign not found.") }
+    if shaped {
+        Ok(value.to_owned())
+    } else {
+        Err("Callsign not found.")
+    }
 }
 
 // A new id: 122 random bits from the FIPS module's generator, which TLS already
@@ -204,14 +226,24 @@ fn new_callsign_id() -> CoreResult<String> {
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
-    Ok(format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32]))
+    Ok(format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    ))
 }
 
 // The call letters, as the operator types them, in capitals. A portable or
 // maritime suffix is part of the call (W1AW/P).
 fn call_letters(value: &str) -> CoreResult<String> {
     let call = value.trim().to_uppercase();
-    if call.is_empty() || call.len() > 32 || !call.chars().all(|c| c.is_ascii_alphanumeric() || c == '/') {
+    if call.is_empty()
+        || call.len() > 32
+        || !call.chars().all(|c| c.is_ascii_alphanumeric() || c == '/')
+    {
         return Err("Enter a callsign: letters, digits and /.");
     }
     Ok(call)
@@ -234,29 +266,48 @@ fn subject(id: &str, provider: &str) -> CoreResult<String> {
 fn atomic_write(path: &Path, bytes: &[u8]) -> CoreResult<()> {
     let parent = path.parent().ok_or("Profile directory is unavailable.")?;
     fs::create_dir_all(parent).map_err(|_| "Profile directory could not be created.")?;
-    let temp = parent.join(format!(".qg-{}-{}.tmp", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|_| "System clock is unavailable.")?.as_nanos()));
+    let temp = parent.join(format!(
+        ".qg-{}-{}.tmp",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| "System clock is unavailable.")?
+            .as_nanos()
+    ));
     let result = (|| {
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
-        #[cfg(unix)] {
+        #[cfg(unix)]
+        {
             use std::os::unix::fs::OpenOptionsExt;
             options.mode(0o600);
         }
-        let mut file = options.open(&temp).map_err(|_| "Profile could not be saved.")?;
-        file.write_all(bytes).map_err(|_| "Profile could not be saved.")?;
+        let mut file = options
+            .open(&temp)
+            .map_err(|_| "Profile could not be saved.")?;
+        file.write_all(bytes)
+            .map_err(|_| "Profile could not be saved.")?;
         file.sync_all().map_err(|_| "Profile could not be saved.")?;
         fs::rename(&temp, path).map_err(|_| "Profile could not be saved.")?;
         Ok(())
     })();
-    if result.is_err() { let _ = fs::remove_file(temp); }
+    if result.is_err() {
+        let _ = fs::remove_file(temp);
+    }
     result
 }
 
-struct Store { directory: PathBuf }
+struct Store {
+    directory: PathBuf,
+}
 
 // A callsign as the operator knows it: the call, and its description.
 fn label(callsign: &Callsign) -> String {
-    if callsign.description.is_empty() { callsign.call.clone() } else { format!("{} · {}", callsign.call, callsign.description) }
+    if callsign.description.is_empty() {
+        callsign.call.clone()
+    } else {
+        format!("{} · {}", callsign.call, callsign.description)
+    }
 }
 
 impl Store {
@@ -268,26 +319,45 @@ impl Store {
         let path = self.directory.join("callsigns.json");
         match fs::read(path) {
             Ok(bytes) if bytes.len() <= 4_000_000 => {
-                let index: Index = serde_json::from_slice(&bytes).map_err(|_| "The list of callsigns could not be read. It has not been changed.")?;
+                let index: Index = serde_json::from_slice(&bytes).map_err(
+                    |_| "The list of callsigns could not be read. It has not been changed.",
+                )?;
                 // An earlier build kept each service's username in this file.
                 // Read again, it is gone, with only whether there was one
                 // kept: the file is written again at once so it is not left.
                 if let Ok(raw) = serde_json::from_slice::<serde_json::Value>(&bytes) {
                     let mut index = index;
                     let mut scrubbed = false;
-                    if let Some(callsigns) = raw.get("callsigns").and_then(|value| value.as_object()) {
+                    if let Some(callsigns) =
+                        raw.get("callsigns").and_then(|value| value.as_object())
+                    {
                         for (id, callsign) in callsigns {
-                            let Some(providers) = callsign.get("providers").and_then(|value| value.as_object()) else { continue; };
+                            let Some(providers) = callsign
+                                .get("providers")
+                                .and_then(|value| value.as_object())
+                            else {
+                                continue;
+                            };
                             for (provider, reference) in providers {
-                                let Some(name) = reference.get("username").and_then(|value| value.as_str()) else { continue; };
+                                let Some(name) =
+                                    reference.get("username").and_then(|value| value.as_str())
+                                else {
+                                    continue;
+                                };
                                 scrubbed = true;
-                                if let Some(entry) = index.callsigns.get_mut(id).and_then(|c| c.providers.get_mut(provider)) {
+                                if let Some(entry) = index
+                                    .callsigns
+                                    .get_mut(id)
+                                    .and_then(|c| c.providers.get_mut(provider))
+                                {
                                     entry.has_username = entry.has_username || !name.is_empty();
                                 }
                             }
                         }
                     }
-                    if scrubbed { self.save(&index)?; }
+                    if scrubbed {
+                        self.save(&index)?;
+                    }
                     return Ok(index);
                 }
                 Ok(index)
@@ -303,30 +373,61 @@ impl Store {
     }
     fn lookup(&self, id: &str) -> CoreResult<Callsign> {
         let id = callsign_id(id)?;
-        self.load()?.callsigns.remove(&id).ok_or("Callsign not found.")
+        self.load()?
+            .callsigns
+            .remove(&id)
+            .ok_or("Callsign not found.")
     }
     fn parse_dates(start: &Option<String>, end: &Option<String>) -> CoreResult<()> {
         let parse = |value: &Option<String>| -> CoreResult<Option<NaiveDate>> {
-            value.as_ref().map(|value| NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| "Use YYYY-MM-DD for dates.")).transpose()
+            value
+                .as_ref()
+                .map(|value| {
+                    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+                        .map_err(|_| "Use YYYY-MM-DD for dates.")
+                })
+                .transpose()
         };
         let (first, last) = (parse(start)?, parse(end)?);
-        if matches!((first, last), (Some(a), Some(b)) if b < a) { return Err("End date must not precede start date."); }
+        if matches!((first, last), (Some(a), Some(b)) if b < a) {
+            return Err("End date must not precede start date.");
+        }
         Ok(())
     }
     // A new callsign, with a new id.
-    fn create(&self, call: &str, description: &str, start: Option<String>, end: Option<String>) -> CoreResult<Callsign> {
+    fn create(
+        &self,
+        call: &str,
+        description: &str,
+        start: Option<String>,
+        end: Option<String>,
+    ) -> CoreResult<Callsign> {
         let (call, description) = (call_letters(call)?, description_text(description)?);
         Self::parse_dates(&start, &end)?;
         let mut index = self.load()?;
         let id = new_callsign_id()?;
-        let callsign = Callsign { id: id.clone(), call, description, start, end, providers: BTreeMap::new() };
+        let callsign = Callsign {
+            id: id.clone(),
+            call,
+            description,
+            start,
+            end,
+            providers: BTreeMap::new(),
+        };
         index.callsigns.insert(id, callsign.clone());
         self.save(&index)?;
         Ok(callsign)
     }
     // The call, the description and the dates may all change; the id, and so
     // every credential under it, does not.
-    fn update(&self, id: &str, call: &str, description: &str, start: Option<String>, end: Option<String>) -> CoreResult<Callsign> {
+    fn update(
+        &self,
+        id: &str,
+        call: &str,
+        description: &str,
+        start: Option<String>,
+        end: Option<String>,
+    ) -> CoreResult<Callsign> {
         let id = callsign_id(id)?;
         let (call, description) = (call_letters(call)?, description_text(description)?);
         Self::parse_dates(&start, &end)?;
@@ -342,7 +443,8 @@ impl Store {
     }
     fn entry(&self, id: &str, provider: &str) -> CoreResult<keyring::Entry> {
         self.lookup(id)?;
-        keyring::Entry::new(service(), &subject(id, provider)?).map_err(|_| "Keychain is unavailable.")
+        keyring::Entry::new(service(), &subject(id, provider)?)
+            .map_err(|_| "Keychain is unavailable.")
     }
     // Does the Keychain hold an entry for this, without reading it?
     //
@@ -383,7 +485,10 @@ impl Store {
         let unavailable = "Keychain could not be asked about this credential.";
         let ss = SecretService::connect(EncryptionType::Dh).map_err(|_| unavailable)?;
         let found = ss
-            .search_items(std::collections::HashMap::from([("service", service()), ("username", account.as_str())]))
+            .search_items(std::collections::HashMap::from([
+                ("service", service()),
+                ("username", account.as_str()),
+            ]))
             .map_err(|_| unavailable)?;
         Ok(!found.unlocked.is_empty() || !found.locked.is_empty())
     }
@@ -406,7 +511,10 @@ impl Store {
         let provider = identifier(provider)?;
         let mut index = self.load()?;
         let profile = index.callsigns.get_mut(&id).ok_or("Callsign not found.")?;
-        let reference = profile.providers.entry(provider).or_insert_with(ProviderRef::default);
+        let reference = profile
+            .providers
+            .entry(provider)
+            .or_insert_with(ProviderRef::default);
         reference.has_username = creds.username.as_ref().is_some_and(|s| !s.is_empty());
         reference.has_password = creds.password.as_ref().is_some_and(|s| !s.is_empty());
         reference.has_api_key = creds.api_key.as_ref().is_some_and(|s| !s.is_empty());
@@ -415,8 +523,12 @@ impl Store {
     }
 
     fn forget_kinds(&self, id: &str, provider: &str) -> CoreResult<()> {
-        let Ok(id) = callsign_id(id) else { return Ok(()); };
-        let Ok(provider) = identifier(provider) else { return Ok(()); };
+        let Ok(id) = callsign_id(id) else {
+            return Ok(());
+        };
+        let Ok(provider) = identifier(provider) else {
+            return Ok(());
+        };
         let mut index = self.load()?;
         if let Some(profile) = index.callsigns.get_mut(&id) {
             profile.providers.remove(&provider);
@@ -437,8 +549,9 @@ impl Store {
                 // fact, never the value (QGD-LOG-0004).
                 tracing::info!(provider = %provider, "credential secret read");
                 let raw = Zeroizing::new(raw);
-                let creds: Credentials = serde_json::from_str(&raw)
-                    .map_err(|_| "Stored credential has an unsupported format. It has not been changed.")?;
+                let creds: Credentials = serde_json::from_str(&raw).map_err(
+                    |_| "Stored credential has an unsupported format. It has not been changed.",
+                )?;
                 // Self-healing: an entry written before the index recorded
                 // kinds gets them recorded here, the first time something with
                 // a reason to decrypt it does. Nothing decrypts anything in
@@ -450,52 +563,101 @@ impl Store {
             Err(_) => Err("Keychain could not read this credential."),
         }
     }
-    fn save_credentials(&self, id: &str, provider: &str, credentials: Credentials) -> CoreResult<()> {
-        if credentials.username.as_ref().is_some_and(|s| s.len() > 4096) || credentials.password.as_ref().is_some_and(|s| s.len() > 4096) || credentials.api_key.as_ref().is_some_and(|s| s.len() > 4096) { return Err("Credential exceeds the supported size."); }
-        if credentials.password.as_ref().is_none_or(String::is_empty) && credentials.api_key.as_ref().is_none_or(String::is_empty) { return Err("Enter a password or API key."); }
+    fn save_credentials(
+        &self,
+        id: &str,
+        provider: &str,
+        credentials: Credentials,
+    ) -> CoreResult<()> {
+        if credentials
+            .username
+            .as_ref()
+            .is_some_and(|s| s.len() > 4096)
+            || credentials
+                .password
+                .as_ref()
+                .is_some_and(|s| s.len() > 4096)
+            || credentials.api_key.as_ref().is_some_and(|s| s.len() > 4096)
+        {
+            return Err("Credential exceeds the supported size.");
+        }
+        if credentials.password.as_ref().is_none_or(String::is_empty)
+            && credentials.api_key.as_ref().is_none_or(String::is_empty)
+        {
+            return Err("Enter a password or API key.");
+        }
         let id = callsign_id(id)?;
         let provider = identifier(provider)?;
         let mut merged = self.read_credentials(&id, &provider)?.unwrap_or_default();
-        if let Some(value) = credentials.username.as_ref() { merged.username = Some(value.clone()); }
-        if let Some(value) = credentials.password.as_ref() { merged.password = Some(value.clone()); }
-        if let Some(value) = credentials.api_key.as_ref() { merged.api_key = Some(value.clone()); }
+        if let Some(value) = credentials.username.as_ref() {
+            merged.username = Some(value.clone());
+        }
+        if let Some(value) = credentials.password.as_ref() {
+            merged.password = Some(value.clone());
+        }
+        if let Some(value) = credentials.api_key.as_ref() {
+            merged.api_key = Some(value.clone());
+        }
         // Register a non-secret provider ref. Credentials
         // remain exclusively in Keychain; its payload never enters the index.
         let mut index = self.load()?;
         let profile = index.callsigns.get_mut(&id).ok_or("Callsign not found.")?;
         profile.providers.entry(provider.clone()).or_default();
         self.save(&index)?;
-        let raw = Zeroizing::new(serde_json::to_string(&merged).map_err(|_| "Credential could not be encoded.")?);
-        let result = self.entry(&id, &provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.");
+        let raw = Zeroizing::new(
+            serde_json::to_string(&merged).map_err(|_| "Credential could not be encoded.")?,
+        );
+        let result = self
+            .entry(&id, &provider)?
+            .set_password(&raw)
+            .map_err(|_| "Keychain could not save this credential.");
         // Recorded only once the Keychain has it, so the index never claims a
         // credential that was not written (QGD-CRD-0010).
-        if result.is_ok() { self.record_kinds(&id, &provider, &merged)?; }
+        if result.is_ok() {
+            self.record_kinds(&id, &provider, &merged)?;
+        }
         // QGD-LOG-0004: the provider and the outcome. Never the value, never
         // the callsign or its description.
         match &result {
             Ok(()) => tracing::info!(provider = %provider, "credential saved"),
-            Err(reason) => tracing::warn!(provider = %provider, reason = %reason, "credential could not be saved"),
+            Err(reason) => {
+                tracing::warn!(provider = %provider, reason = %reason, "credential could not be saved")
+            }
         }
         result
     }
     fn preferences(&self) -> CoreResult<Preferences> {
         match fs::read(self.directory.join("desktop-preferences.json")) {
-            Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes).map_err(|_| "Credential preferences could not be read."),
+            Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes)
+                .map_err(|_| "Credential preferences could not be read."),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Preferences::default()),
             _ => Err("Credential preferences could not be read."),
         }
     }
     fn preference(&self, id: &str, provider: &str) -> CoreResult<String> {
         let prefs = self.preferences()?;
-        let preference = prefs.callsigns.get(&callsign_id(id)?).and_then(|p| p.get(&identifier(provider).ok()?)).cloned().unwrap_or_else(|| "service".into());
-        if !["service", "password", "api_key"].contains(&preference.as_str()) { return Err("Credential preference is invalid."); }
+        let preference = prefs
+            .callsigns
+            .get(&callsign_id(id)?)
+            .and_then(|p| p.get(&identifier(provider).ok()?))
+            .cloned()
+            .unwrap_or_else(|| "service".into());
+        if !["service", "password", "api_key"].contains(&preference.as_str()) {
+            return Err("Credential preference is invalid.");
+        }
         Ok(preference)
     }
     fn set_preference(&self, id: &str, provider: &str, preference: &str) -> CoreResult<()> {
         self.lookup(id)?;
-        if !["service", "password", "api_key"].contains(&preference) { return Err("Credential preference is invalid."); }
+        if !["service", "password", "api_key"].contains(&preference) {
+            return Err("Credential preference is invalid.");
+        }
         let mut prefs = self.preferences()?;
-        prefs.callsigns.entry(callsign_id(id)?).or_default().insert(identifier(provider)?, preference.into());
+        prefs
+            .callsigns
+            .entry(callsign_id(id)?)
+            .or_default()
+            .insert(identifier(provider)?, preference.into());
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)
     }
@@ -510,29 +672,62 @@ impl Store {
     // on the other computer is true until the operator enters it.
     // The parts the operator ticked (#64): the callsigns with their Locations
     // when `locations` is given, the settings when `settings` is.
-    fn gather_without_secrets(&self, locations: Option<serde_json::Value>, settings: Option<serde_json::Value>) -> CoreResult<backup::Backup> {
+    fn gather_without_secrets(
+        &self,
+        locations: Option<serde_json::Value>,
+        settings: Option<serde_json::Value>,
+    ) -> CoreResult<backup::Backup> {
         let mut parts = Vec::new();
-        if locations.is_some() { parts.push(backup::CALLSIGNS.to_string()); }
-        if settings.is_some() { parts.push(backup::SETTINGS.to_string()); }
-        if parts.is_empty() { return Err("Choose something to back up."); }
+        if locations.is_some() {
+            parts.push(backup::CALLSIGNS.to_string());
+        }
+        if settings.is_some() {
+            parts.push(backup::SETTINGS.to_string());
+        }
+        if parts.is_empty() {
+            return Err("Choose something to back up.");
+        }
         let settings = settings.unwrap_or(serde_json::Value::Null);
         let Some(locations) = locations else {
-            return Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(),
-                callsigns: Vec::new(), preferences: Default::default(), locations: serde_json::Value::Null, active: None, parts, settings });
+            return Ok(backup::Backup {
+                format: backup::FORMAT.into(),
+                version: backup::VERSION,
+                created: now_utc(),
+                callsigns: Vec::new(),
+                preferences: Default::default(),
+                locations: serde_json::Value::Null,
+                active: None,
+                parts,
+                settings,
+            });
         };
         let index = self.load()?;
         let preferences = self.preferences()?.callsigns;
-        let callsigns = index.callsigns.into_values().map(|mut callsign| {
-            for reference in callsign.providers.values_mut() {
-                reference.has_username = false;
-                reference.has_password = false;
-                reference.has_api_key = false;
-                reference.saved_at = None;
-            }
-            callsign
-        }).collect();
+        let callsigns = index
+            .callsigns
+            .into_values()
+            .map(|mut callsign| {
+                for reference in callsign.providers.values_mut() {
+                    reference.has_username = false;
+                    reference.has_password = false;
+                    reference.has_api_key = false;
+                    reference.saved_at = None;
+                }
+                callsign
+            })
+            .collect();
         let active = self.active_id()?;
-        Ok(backup::Backup { format: backup::FORMAT.into(), version: backup::VERSION, created: now_utc(), callsigns, preferences, locations, active, parts, settings })
+        Ok(backup::Backup {
+            format: backup::FORMAT.into(),
+            version: backup::VERSION,
+            created: now_utc(),
+            callsigns,
+            preferences,
+            locations,
+            active,
+            parts,
+            settings,
+        })
     }
 
     // The callsigns on this computer, as the operator knows them, which a
@@ -563,11 +758,15 @@ impl Store {
             call_letters(&callsign.call)?;
             description_text(&callsign.description)?;
             Self::parse_dates(&callsign.start, &callsign.end)?;
-            if !seen.insert(id) { return Err("That file is not a backup this product wrote."); }
+            if !seen.insert(id) {
+                return Err("That file is not a backup this product wrote.");
+            }
         }
         if let Some(active) = bundle.active.as_deref() {
             let id = callsign_id(active)?;
-            if !seen.contains(&id) { return Err("That file is not a backup this product wrote."); }
+            if !seen.contains(&id) {
+                return Err("That file is not a backup this product wrote.");
+            }
         }
         Ok(())
     }
@@ -588,8 +787,14 @@ impl Store {
         Self::check_bundle(bundle)?;
         let here: Vec<String> = self.load()?.callsigns.keys().cloned().collect();
         if !here.is_empty() {
-            if !replace { return Err("This computer already has callsigns. Remove them first, then restore."); }
-            for id in &here { self.remove_callsign(id)?; }
+            if !replace {
+                return Err(
+                    "This computer already has callsigns. Remove them first, then restore.",
+                );
+            }
+            for id in &here {
+                self.remove_callsign(id)?;
+            }
         }
         let mut index = self.load()?;
         for callsign in &bundle.callsigns {
@@ -612,14 +817,21 @@ impl Store {
 
         let mut prefs = self.preferences()?;
         for (id, services) in &bundle.preferences {
-            prefs.callsigns.entry(callsign_id(id)?).or_default().extend(services.clone());
+            prefs
+                .callsigns
+                .entry(callsign_id(id)?)
+                .or_default()
+                .extend(services.clone());
         }
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
         // The callsign that was active (check_bundle has made sure it is one
         // the backup holds).
         if let Some(active) = bundle.active.as_deref() {
-            atomic_write(&self.directory.join("current.txt"), callsign_id(active)?.as_bytes())?;
+            atomic_write(
+                &self.directory.join("current.txt"),
+                callsign_id(active)?.as_bytes(),
+            )?;
         }
         Ok(bundle.callsigns.len())
     }
@@ -636,14 +848,20 @@ impl Store {
     fn delete_credentials(&self, id: &str, provider: &str) -> CoreResult<bool> {
         self.lookup(id)?;
         #[cfg(target_os = "macos")]
-        match security_framework::passwords::delete_generic_password(service(), &subject(id, provider)?) {
+        match security_framework::passwords::delete_generic_password(
+            service(),
+            &subject(id, provider)?,
+        ) {
             Ok(()) => {
                 tracing::info!(provider = %provider, "credential removed");
                 // The index must not go on describing an entry that is gone.
                 self.forget_kinds(id, provider)?;
                 Ok(true)
             }
-            Err(e) if e.code() == -25300 => { self.forget_kinds(id, provider)?; Ok(false) }
+            Err(e) if e.code() == -25300 => {
+                self.forget_kinds(id, provider)?;
+                Ok(false)
+            }
             Err(_) => {
                 tracing::warn!(provider = %provider, "keychain refused to remove a credential");
                 Err("Keychain could not remove this credential.")
@@ -658,7 +876,10 @@ impl Store {
                 self.forget_kinds(id, provider)?;
                 Ok(true)
             }
-            Err(keyring::Error::NoEntry) => { self.forget_kinds(id, provider)?; Ok(false) }
+            Err(keyring::Error::NoEntry) => {
+                self.forget_kinds(id, provider)?;
+                Ok(false)
+            }
             Err(_) => {
                 tracing::warn!(provider = %provider, "keychain refused to remove a credential");
                 Err("Keychain could not remove this credential.")
@@ -666,15 +887,29 @@ impl Store {
         }
     }
     fn remove_secret(&self, id: &str, provider: &str, field: &str) -> CoreResult<()> {
-        if !["password", "api_key"].contains(&field) { return Err("Secret field is invalid."); }
-        let Some(mut creds) = self.read_credentials(id, provider)? else { return Ok(()); };
-        let removed = if field == "password" { creds.password.take() } else { creds.api_key.take() };
+        if !["password", "api_key"].contains(&field) {
+            return Err("Secret field is invalid.");
+        }
+        let Some(mut creds) = self.read_credentials(id, provider)? else {
+            return Ok(());
+        };
+        let removed = if field == "password" {
+            creds.password.take()
+        } else {
+            creds.api_key.take()
+        };
         let _removed = Zeroizing::new(removed);
-        if creds.password.as_ref().is_none_or(String::is_empty) && creds.api_key.as_ref().is_none_or(String::is_empty) {
+        if creds.password.as_ref().is_none_or(String::is_empty)
+            && creds.api_key.as_ref().is_none_or(String::is_empty)
+        {
             self.delete_credentials(id, provider)?;
         } else {
-            let raw = Zeroizing::new(serde_json::to_string(&creds).map_err(|_| "Credential could not be encoded.")?);
-            self.entry(id, provider)?.set_password(&raw).map_err(|_| "Keychain could not save this credential.")?;
+            let raw = Zeroizing::new(
+                serde_json::to_string(&creds).map_err(|_| "Credential could not be encoded.")?,
+            );
+            self.entry(id, provider)?
+                .set_password(&raw)
+                .map_err(|_| "Keychain could not save this credential.")?;
             self.record_kinds(id, provider, &creds)?;
         }
         Ok(())
@@ -686,19 +921,27 @@ impl Store {
         self.remove_callsign_using(id, |id, provider| self.delete_credentials(id, provider))
     }
     fn remove_callsign_using<F>(&self, id: &str, mut delete: F) -> CoreResult<()>
-    where F: FnMut(&str, &str) -> CoreResult<bool> {
+    where
+        F: FnMut(&str, &str) -> CoreResult<bool>,
+    {
         let id = callsign_id(id)?;
         let profile = self.lookup(&id)?;
         let mut index = self.load()?;
         let mut prefs = self.preferences()?;
         let mut providers = std::collections::BTreeSet::new();
-        for provider in profile.providers.keys().chain(prefs.callsigns.get(&id).into_iter().flat_map(|p| p.keys())) {
+        for provider in profile
+            .providers
+            .keys()
+            .chain(prefs.callsigns.get(&id).into_iter().flat_map(|p| p.keys()))
+        {
             providers.insert(identifier(provider)?);
         }
         // Every supported service as well, so an entry whose record was lost
         // is not left behind in the Keychain. Every account is scoped to this
         // callsign's id.
-        for provider in ["qrz", "qrz_logbook", "eqsl", "lotw", "hamqth", "clublog"] { providers.insert(provider.into()); }
+        for provider in ["qrz", "qrz_logbook", "eqsl", "lotw", "hamqth", "clublog"] {
+            providers.insert(provider.into());
+        }
         let current_path = self.directory.join("current.txt");
         let current = match fs::read_to_string(&current_path) {
             Ok(value) => Some(value),
@@ -712,7 +955,8 @@ impl Store {
         let bytes = serde_json::to_vec_pretty(&prefs).map_err(|_| "Profile could not be saved.")?;
         atomic_write(&self.directory.join("desktop-preferences.json"), &bytes)?;
         if current.as_ref().is_some_and(|value| value.trim() == id) {
-            fs::remove_file(current_path).map_err(|_| "The active callsign could not be cleared.")?;
+            fs::remove_file(current_path)
+                .map_err(|_| "The active callsign could not be cleared.")?;
         }
         index.callsigns.remove(&id);
         self.save(&index)
@@ -740,8 +984,16 @@ impl Store {
         let known = reference.as_ref().is_some_and(|r| r.saved_at.is_some());
         let has_password = exists && known && reference.as_ref().is_some_and(|r| r.has_password);
         let has_api_key = exists && known && reference.as_ref().is_some_and(|r| r.has_api_key);
-        let effective = effective_field(&provider, has_password, has_api_key,
-            if preferred == "service" { None } else { Some(&preferred) });
+        let effective = effective_field(
+            &provider,
+            has_password,
+            has_api_key,
+            if preferred == "service" {
+                None
+            } else {
+                Some(&preferred)
+            },
+        );
 
         Ok(CredentialStatus {
             testable: validation::supported(&provider),
@@ -775,7 +1027,9 @@ fn now_utc() -> String {
 // The services whose own credential is a key: QRZ Logbook's API key, and Club
 // Log's token (#11), which replaced its email and password. A profile an
 // earlier build saved with a Club Log password as well is tested with the token.
-pub(crate) fn key_first(provider: &str) -> bool { matches!(provider.to_lowercase().as_str(), "qrz_logbook" | "clublog") }
+pub(crate) fn key_first(provider: &str) -> bool {
+    matches!(provider.to_lowercase().as_str(), "qrz_logbook" | "clublog")
+}
 
 // Whether what is saved is enough to test. A username only where the service
 // signs in with one: guided setup saves QRZ Logbook and Club Log with their key
@@ -785,32 +1039,64 @@ pub(crate) fn key_first(provider: &str) -> bool { matches!(provider.to_lowercase
 // And the service's own kind of secret saved: a Club Log entry holding only a
 // password an earlier build kept has nothing Club Log takes (#11).
 fn testable_with(provider: &str, creds: &Credentials) -> bool {
-    (!validation::needs_username(provider) || creds.username.as_ref().is_some_and(|s| !s.is_empty()))
+    (!validation::needs_username(provider)
+        || creds.username.as_ref().is_some_and(|s| !s.is_empty()))
         && validation::service_secret(provider, creds).is_some()
 }
 
-fn effective_field(provider: &str, has_password: bool, has_api_key: bool, prefer: Option<&str>) -> Option<String> {
-    let preferred = prefer.unwrap_or(if key_first(provider) { "api_key" } else { "password" });
+fn effective_field(
+    provider: &str,
+    has_password: bool,
+    has_api_key: bool,
+    prefer: Option<&str>,
+) -> Option<String> {
+    let preferred = prefer.unwrap_or(if key_first(provider) {
+        "api_key"
+    } else {
+        "password"
+    });
     let (first, second, first_name, second_name) = match preferred {
         "api_key" => (has_api_key, has_password, "api_key", "password"),
         "password" => (has_password, has_api_key, "password", "api_key"),
         _ => return None,
     };
-    if first { Some(first_name.to_owned()) } else if second { Some(second_name.to_owned()) } else { None }
+    if first {
+        Some(first_name.to_owned())
+    } else if second {
+        Some(second_name.to_owned())
+    } else {
+        None
+    }
 }
 
-fn selected_field(provider: &str, creds: &Credentials, prefer: Option<&str>) -> CoreResult<&'static str> {
-    let preferred = prefer.unwrap_or(if key_first(provider) { "api_key" } else { "password" });
+fn selected_field(
+    provider: &str,
+    creds: &Credentials,
+    prefer: Option<&str>,
+) -> CoreResult<&'static str> {
+    let preferred = prefer.unwrap_or(if key_first(provider) {
+        "api_key"
+    } else {
+        "password"
+    });
     let (first, second, first_name, second_name) = match preferred {
         "api_key" => (&creds.api_key, &creds.password, "api_key", "password"),
         "password" => (&creds.password, &creds.api_key, "password", "api_key"),
         _ => return Err("Secret preference must be password or api_key."),
     };
-    if first.as_ref().is_some_and(|s| !s.is_empty()) { Ok(first_name) }
-    else if second.as_ref().is_some_and(|s| !s.is_empty()) { Ok(second_name) }
-    else { Err("No password or API key is stored.") }
+    if first.as_ref().is_some_and(|s| !s.is_empty()) {
+        Ok(first_name)
+    } else if second.as_ref().is_some_and(|s| !s.is_empty()) {
+        Ok(second_name)
+    } else {
+        Err("No password or API key is stored.")
+    }
 }
-fn selected_secret<'a>(provider: &str, creds: &'a Credentials, prefer: Option<&str>) -> CoreResult<&'a str> {
+fn selected_secret<'a>(
+    provider: &str,
+    creds: &'a Credentials,
+    prefer: Option<&str>,
+) -> CoreResult<&'a str> {
     match selected_field(provider, creds, prefer)? {
         "api_key" => creds.api_key.as_deref().ok_or("No API key is stored."),
         _ => creds.password.as_deref().ok_or("No password is stored."),
@@ -818,13 +1104,15 @@ fn selected_secret<'a>(provider: &str, creds: &'a Credentials, prefer: Option<&s
 }
 
 #[cfg(feature = "addon")]
-mod addon {
+pub mod addon {
     use super::*;
-    use napi::{Error, Result};
     use napi::bindgen_prelude::{AsyncTask, Buffer};
     use napi::{Env, Task};
+    use napi::{Error, Result};
     use napi_derive::napi;
-    fn error(reason: &'static str) -> Error { Error::from_reason(reason) }
+    fn error(reason: &'static str) -> Error {
+        Error::from_reason(reason)
+    }
 
     // The JS transfer object is distinct from the Rust-owned, zeroized secret.
     // Neither type implements Debug; no renderer can call the read operation.
@@ -838,18 +1126,26 @@ mod addon {
     /// QGD-LOG-0001: install the core's subscriber. Idempotent, because a
     /// utility process that restarts must not fail on logging already being up.
     #[napi]
-    pub fn init_core_logging() { crate::corelog::init(); }
+    pub fn init_core_logging() {
+        crate::corelog::init();
+    }
 
     /// Hand over everything the core has raised since the last call. The node
     /// side passes these through its own redacting logger.
     #[napi]
-    pub fn drain_core_logs() -> Vec<String> { crate::corelog::drain() }
+    pub fn drain_core_logs() -> Vec<String> {
+        crate::corelog::drain()
+    }
 
     #[napi]
-    pub struct CallsignCore { store: Store }
+    pub struct CallsignCore {
+        store: Store,
+    }
 
     #[napi(object)]
-    pub struct CredentialTest { pub outcome: String }
+    pub struct CredentialTest {
+        pub outcome: String,
+    }
 
     /// What is in an export and what importing it would change. No secret: it
     /// counts them and names the callsigns, which is what an operator needs to
@@ -882,13 +1178,22 @@ mod addon {
         type Output = String;
         type JsValue = String;
         fn compute(&mut self) -> Result<String> {
-            let path = crate::updates::download(&self.directory, &self.url, &self.sum, &self.name).map_err(error)?;
+            let path = crate::updates::download(&self.directory, &self.url, &self.sum, &self.name)
+                .map_err(error)?;
             // The host and the name, never the path or the sum.
             let host = self.url.split('/').nth(2).unwrap_or("").to_string();
-            tracing::info!(host, name = self.name.as_str(), "update downloaded and checked");
-            path.into_os_string().into_string().map_err(|_| error("The update could not be saved."))
+            tracing::info!(
+                host,
+                name = self.name.as_str(),
+                "update downloaded and checked"
+            );
+            path.into_os_string()
+                .into_string()
+                .map_err(|_| error("The update could not be saved."))
         }
-        fn resolve(&mut self, _env: Env, output: String) -> Result<String> { Ok(output) }
+        fn resolve(&mut self, _env: Env, output: String) -> Result<String> {
+            Ok(output)
+        }
     }
 
     #[napi(object)]
@@ -912,7 +1217,11 @@ mod addon {
     #[napi]
     impl CallsignCore {
         #[napi(constructor)]
-        pub fn new(directory: String) -> Result<Self> { Ok(Self { store: Store::new(directory.into()).map_err(error)? }) }
+        pub fn new(directory: String) -> Result<Self> {
+            Ok(Self {
+                store: Store::new(directory.into()).map_err(error)?,
+            })
+        }
         /// Tests the saved credential, every time it is asked.
         ///
         /// This product does not limit the operator. It held a cooldown of its
@@ -932,8 +1241,9 @@ mod addon {
         pub fn test_credential(&mut self, id: String, provider: String) -> Result<CredentialTest> {
             self.store.lookup(&id).map_err(error)?;
             let provider = identifier(&provider).map_err(error)?;
-            let outcome = if !validation::supported(&provider) { "unsupported" }
-            else {
+            let outcome = if !validation::supported(&provider) {
+                "unsupported"
+            } else {
                 let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
                 match creds {
                     Some(creds) if testable_with(&provider, &creds) => {
@@ -944,7 +1254,9 @@ mod addon {
                     _ => "missing",
                 }
             };
-            Ok(CredentialTest { outcome: outcome.into() })
+            Ok(CredentialTest {
+                outcome: outcome.into(),
+            })
         }
         // QGD-APP-0007: the frame acts with the credential and returns the
         // answer. Never the secret, and never a log line carrying the result —
@@ -952,7 +1264,11 @@ mod addon {
         // and a log is keeping it. Only the outcome word is logged.
         #[napi]
         pub fn service_lookup(
-            &mut self, id: String, provider: String, operation: String, callsign: String
+            &mut self,
+            id: String,
+            provider: String,
+            operation: String,
+            callsign: String,
         ) -> Result<LookupResult> {
             // Refused before a secret is read.
             //
@@ -963,27 +1279,44 @@ mod addon {
             // and the first version of this read the Keychain first and then
             // threw the answer away. Found in review.
             if !validation::known_operation(&provider, &operation) {
-                return Ok(LookupResult { outcome: "unsupported".into(), fields: Vec::new() });
+                return Ok(LookupResult {
+                    outcome: "unsupported".into(),
+                    fields: Vec::new(),
+                });
             }
             if !validation::plain_callsign(&callsign) {
-                return Ok(LookupResult { outcome: "invalid-request".into(), fields: Vec::new() });
+                return Ok(LookupResult {
+                    outcome: "invalid-request".into(),
+                    fields: Vec::new(),
+                });
             }
             let creds = self.store.read_credentials(&id, &provider).map_err(error)?;
-            let Some(creds) = creds.filter(|c| c.username.as_ref().is_some_and(|s| !s.is_empty())) else {
-                return Ok(LookupResult { outcome: "missing".into(), fields: Vec::new() });
+            let Some(creds) = creds.filter(|c| c.username.as_ref().is_some_and(|s| !s.is_empty()))
+            else {
+                return Ok(LookupResult {
+                    outcome: "missing".into(),
+                    fields: Vec::new(),
+                });
             };
-            let looked = validation::lookup(&provider, &creds, &operation, &callsign).map_err(error)?;
+            let looked =
+                validation::lookup(&provider, &creds, &operation, &callsign).map_err(error)?;
             match looked {
                 validation::Looked::Found(fields) => {
                     tracing::info!(provider = %provider, operation = %operation, fields = fields.len(), "service lookup answered");
                     Ok(LookupResult {
                         outcome: "success".into(),
-                        fields: fields.into_iter().map(|(name, value)| LookupField { name, value }).collect(),
+                        fields: fields
+                            .into_iter()
+                            .map(|(name, value)| LookupField { name, value })
+                            .collect(),
                     })
                 }
                 validation::Looked::Nothing(reason) => {
                     tracing::info!(provider = %provider, operation = %operation, outcome = %reason, "service lookup answered");
-                    Ok(LookupResult { outcome: reason.into(), fields: Vec::new() })
+                    Ok(LookupResult {
+                        outcome: reason.into(),
+                        fields: Vec::new(),
+                    })
                 }
             }
         }
@@ -996,19 +1329,48 @@ mod addon {
             crate::lotw::trusted_roots(crate::lotw::default_dir().as_deref()).map_err(error)
         }
         #[napi]
-        pub fn list(&self) -> Result<Vec<Callsign>> { Ok(self.store.load().map_err(error)?.callsigns.into_values().collect()) }
-        #[napi]
-        pub fn create(&self, call: String, description: String, start: Option<String>, end: Option<String>) -> Result<Callsign> {
-            self.store.create(&call, &description, start, end).map_err(error)
+        pub fn list(&self) -> Result<Vec<Callsign>> {
+            Ok(self
+                .store
+                .load()
+                .map_err(error)?
+                .callsigns
+                .into_values()
+                .collect())
         }
         #[napi]
-        pub fn update(&self, id: String, call: String, description: String, start: Option<String>, end: Option<String>) -> Result<Callsign> {
-            self.store.update(&id, &call, &description, start, end).map_err(error)
+        pub fn create(
+            &self,
+            call: String,
+            description: String,
+            start: Option<String>,
+            end: Option<String>,
+        ) -> Result<Callsign> {
+            self.store
+                .create(&call, &description, start, end)
+                .map_err(error)
+        }
+        #[napi]
+        pub fn update(
+            &self,
+            id: String,
+            call: String,
+            description: String,
+            start: Option<String>,
+            end: Option<String>,
+        ) -> Result<Callsign> {
+            self.store
+                .update(&id, &call, &description, start, end)
+                .map_err(error)
         }
         #[napi]
         pub fn set_active(&self, id: String) -> Result<()> {
             let callsign = self.store.lookup(&id).map_err(error)?;
-            atomic_write(&self.store.directory.join("current.txt"), callsign.id.as_bytes()).map_err(error)
+            atomic_write(
+                &self.store.directory.join("current.txt"),
+                callsign.id.as_bytes(),
+            )
+            .map_err(error)
         }
         // The active callsign's id, or none. A file naming one that is gone
         // reads as none.
@@ -1017,27 +1379,45 @@ mod addon {
             self.store.active_id().map_err(error)
         }
         #[napi]
-        pub fn save_credentials(&self, id: String, provider: String, credentials: CredentialInput) -> Result<()> {
+        pub fn save_credentials(
+            &self,
+            id: String,
+            provider: String,
+            credentials: CredentialInput,
+        ) -> Result<()> {
             let credentials = Credentials {
                 username: credentials.username.filter(|s| !s.is_empty()),
                 password: credentials.password.filter(|s| !s.is_empty()),
                 api_key: credentials.api_key.filter(|s| !s.is_empty()),
             };
-            self.store.save_credentials(&id, &provider, credentials).map_err(error)
+            self.store
+                .save_credentials(&id, &provider, credentials)
+                .map_err(error)
         }
         #[napi]
-        pub fn credential_status(&self, id: String, provider: String) -> Result<CredentialStatus> { self.store.status(&id, &provider).map_err(error) }
+        pub fn credential_status(&self, id: String, provider: String) -> Result<CredentialStatus> {
+            self.store.status(&id, &provider).map_err(error)
+        }
         #[napi]
         pub fn delete_credentials(&self, id: String, provider: String) -> Result<bool> {
             self.store.delete_credentials(&id, &provider).map_err(error)
         }
         #[napi]
         pub fn remove_secret(&self, id: String, provider: String, field: String) -> Result<()> {
-            self.store.remove_secret(&id, &provider, &field).map_err(error)
+            self.store
+                .remove_secret(&id, &provider, &field)
+                .map_err(error)
         }
         #[napi]
-        pub fn set_preference(&self, id: String, provider: String, preference: String) -> Result<()> {
-            self.store.set_preference(&id, &provider, &preference).map_err(error)
+        pub fn set_preference(
+            &self,
+            id: String,
+            provider: String,
+            preference: String,
+        ) -> Result<()> {
+            self.store
+                .set_preference(&id, &provider, &preference)
+                .map_err(error)
         }
         #[napi]
         pub fn remove_callsign(&self, id: String) -> Result<()> {
@@ -1066,7 +1446,13 @@ mod addon {
             // The host, so a run can be read back later; never the path, which
             // is longer and says no more about where this went.
             let host = url.split('/').nth(2).unwrap_or("").to_string();
-            tracing::info!(host, fresh = fetched.fresh, bytes = fetched.body.len(), resting = fetched.resting_until.is_some(), "reference fetched");
+            tracing::info!(
+                host,
+                fresh = fetched.fresh,
+                bytes = fetched.body.len(),
+                resting = fetched.resting_until.is_some(),
+                "reference fetched"
+            );
             Ok(FetchedReference {
                 fresh: fetched.fresh,
                 body: fetched.body.into(),
@@ -1090,31 +1476,58 @@ mod addon {
         }
 
         #[napi(ts_return_type = "Promise<string>")]
-        pub fn download_update(&self, url: String, sum: String, name: String) -> AsyncTask<UpdateDownload> {
-            AsyncTask::new(UpdateDownload { directory: self.store.directory.clone(), url, sum, name })
+        pub fn download_update(
+            &self,
+            url: String,
+            sum: String,
+            name: String,
+        ) -> AsyncTask<UpdateDownload> {
+            AsyncTask::new(UpdateDownload {
+                directory: self.store.directory.clone(),
+                url,
+                sum,
+                name,
+            })
         }
 
         /// A plain backup of the callsigns and the Locations it is handed,
         /// with nothing of any login (QGD-PSN-0007).
         #[napi]
-        pub fn export_backup(&self, locations: Option<String>, settings: Option<String>) -> Result<Buffer> {
+        pub fn export_backup(
+            &self,
+            locations: Option<String>,
+            settings: Option<String>,
+        ) -> Result<Buffer> {
             let locations = match locations {
                 Some(text) => {
-                    if text.len() > 2 * 1024 * 1024 { return Err(error("The Locations are too large to back up.")); }
-                    Some(serde_json::from_str::<serde_json::Value>(&text).map_err(|_| error("The Locations could not be backed up."))?)
+                    if text.len() > 2 * 1024 * 1024 {
+                        return Err(error("The Locations are too large to back up."));
+                    }
+                    Some(
+                        serde_json::from_str::<serde_json::Value>(&text)
+                            .map_err(|_| error("The Locations could not be backed up."))?,
+                    )
                 }
                 None => None,
             };
             let settings = match settings {
                 Some(text) => {
-                    if text.len() > 256 * 1024 { return Err(error("The settings could not be backed up.")); }
-                    let value: serde_json::Value = serde_json::from_str(&text).map_err(|_| error("The settings could not be backed up."))?;
-                    if !value.is_object() { return Err(error("The settings could not be backed up.")); }
+                    if text.len() > 256 * 1024 {
+                        return Err(error("The settings could not be backed up."));
+                    }
+                    let value: serde_json::Value = serde_json::from_str(&text)
+                        .map_err(|_| error("The settings could not be backed up."))?;
+                    if !value.is_object() {
+                        return Err(error("The settings could not be backed up."));
+                    }
                     Some(value)
                 }
                 None => None,
             };
-            let bundle = self.store.gather_without_secrets(locations, settings).map_err(error)?;
+            let bundle = self
+                .store
+                .gather_without_secrets(locations, settings)
+                .map_err(error)?;
             let text = crate::backup::write(&bundle).map_err(error)?;
             tracing::info!(callsigns = bundle.callsigns.len(), "callsigns backed up");
             Ok(text.into_bytes().into())
@@ -1123,7 +1536,8 @@ mod addon {
         /// What a restore would do, without doing it (QGD-PSN-0009).
         #[napi]
         pub fn inspect_backup(&self, file: Buffer) -> Result<ImportPreview> {
-            let text = std::str::from_utf8(file.as_ref()).map_err(|_| error("That file is not a backup this product wrote."))?;
+            let text = std::str::from_utf8(file.as_ref())
+                .map_err(|_| error("That file is not a backup this product wrote."))?;
             let bundle = crate::backup::read(text).map_err(error)?;
             let arriving = self.store.preview(&bundle).map_err(error)?;
             Ok(ImportPreview {
@@ -1131,33 +1545,75 @@ mod addon {
                 callsigns: bundle.callsigns.len() as u32,
                 arriving,
                 here: self.store.labels().map_err(error)?,
-                locations: if bundle.locations.is_null() { String::new() } else { bundle.locations.to_string() },
+                locations: if bundle.locations.is_null() {
+                    String::new()
+                } else {
+                    bundle.locations.to_string()
+                },
                 parts: bundle.parts.clone(),
-                settings: if bundle.settings.is_null() { String::new() } else { bundle.settings.to_string() },
+                settings: if bundle.settings.is_null() {
+                    String::new()
+                } else {
+                    bundle.settings.to_string()
+                },
             })
         }
 
         #[napi]
         pub fn apply_backup(&self, file: Buffer, replace: bool) -> Result<ImportSummary> {
-            let text = std::str::from_utf8(file.as_ref()).map_err(|_| error("That file is not a backup this product wrote."))?;
+            let text = std::str::from_utf8(file.as_ref())
+                .map_err(|_| error("That file is not a backup this product wrote."))?;
             let bundle = crate::backup::read(text).map_err(error)?;
-            if !bundle.holds(crate::backup::CALLSIGNS) { return Err(error("That backup holds no callsigns.")); }
+            if !bundle.holds(crate::backup::CALLSIGNS) {
+                return Err(error("That backup holds no callsigns."));
+            }
             let callsigns = self.store.absorb(&bundle, replace).map_err(error)?;
             tracing::info!(callsigns, "callsigns restored");
-            Ok(ImportSummary { callsigns: callsigns as u32, locations: if bundle.locations.is_null() { String::new() } else { bundle.locations.to_string() } })
+            Ok(ImportSummary {
+                callsigns: callsigns as u32,
+                locations: if bundle.locations.is_null() {
+                    String::new()
+                } else {
+                    bundle.locations.to_string()
+                },
+            })
         }
         // Available to the trusted native owner for future grant enforcement and
         // interop proof. The app's broker never exposes this method to renderers.
         #[napi]
-        pub fn require_credential(&self, id: String, provider: String, prefer: Option<String>) -> Result<CredentialInput> {
+        pub fn require_credential(
+            &self,
+            id: String,
+            provider: String,
+            prefer: Option<String>,
+        ) -> Result<CredentialInput> {
             let profile = self.store.lookup(&id).map_err(error)?;
-            if !profile.providers.contains_key(&identifier(&provider).map_err(error)?) { return Err(error("This callsign has no profile for this service.")); }
-            let creds = self.store.read_credentials(&id, &provider).map_err(error)?.ok_or_else(|| error("No credential is stored."))?;
-            if creds.username.as_ref().is_none_or(String::is_empty) { return Err(error("No username is stored.")); }
+            if !profile
+                .providers
+                .contains_key(&identifier(&provider).map_err(error)?)
+            {
+                return Err(error("This callsign has no profile for this service."));
+            }
+            let creds = self
+                .store
+                .read_credentials(&id, &provider)
+                .map_err(error)?
+                .ok_or_else(|| error("No credential is stored."))?;
+            if creds.username.as_ref().is_none_or(String::is_empty) {
+                return Err(error("No username is stored."));
+            }
             let saved_preference = self.store.preference(&id, &provider).map_err(error)?;
-            let preference = prefer.as_deref().or(if saved_preference == "service" { None } else { Some(&saved_preference) });
+            let preference = prefer.as_deref().or(if saved_preference == "service" {
+                None
+            } else {
+                Some(&saved_preference)
+            });
             let selected = selected_secret(&provider, &creds, preference).map_err(error)?;
-            Ok(CredentialInput { username: creds.username.clone(), password: Some(selected.to_owned()), api_key: None })
+            Ok(CredentialInput {
+                username: creds.username.clone(),
+                password: Some(selected.to_owned()),
+                api_key: None,
+            })
         }
     }
 }
@@ -1181,11 +1637,19 @@ mod tests {
         // Neither is any other product's. adif-mcp is written out here, in a
         // test, because this is the one place naming it is the point.
         for name in [SERVICE, TEST_SERVICE] {
-            assert_ne!(name, "adif-mcp", "the core is using the MCP servers' namespace");
-            assert!(name.starts_with("io.qso-graph.desktop"),
-                "a service this core writes must be plainly this product's: {name}");
+            assert_ne!(
+                name, "adif-mcp",
+                "the core is using the MCP servers' namespace"
+            );
+            assert!(
+                name.starts_with("io.qso-graph.desktop"),
+                "a service this core writes must be plainly this product's: {name}"
+            );
         }
-        assert_ne!(SERVICE, TEST_SERVICE, "fixtures would land beside real credentials");
+        assert_ne!(
+            SERVICE, TEST_SERVICE,
+            "fixtures would land beside real credentials"
+        );
     }
 
     #[test]
@@ -1199,10 +1663,14 @@ mod tests {
             .lines()
             .find(|line| line.contains("QG_DESKTOP_TEST_KEYCHAIN"))
             .expect("the test-mode selector must exist");
-        assert!(selector.contains("var_os"),
-            "the selector must test for presence, not read a value: {selector}");
-        assert!(!selector.contains("unwrap_or") && !selector.contains("var("),
-            "the service name must not come from the environment: {selector}");
+        assert!(
+            selector.contains("var_os"),
+            "the selector must test for presence, not read a value: {selector}"
+        );
+        assert!(
+            !selector.contains("unwrap_or") && !selector.contains("var("),
+            "the service name must not come from the environment: {selector}"
+        );
     }
 
     use super::*;
@@ -1210,40 +1678,94 @@ mod tests {
     fn a_callsign_has_a_permanent_random_id_and_its_call_and_description_change() {
         let temp = tempfile::tempdir().unwrap();
         let store = Store::new(temp.path().into()).unwrap();
-        let home = store.create(" w1aw ", " Home ", Some("2026-01-01".into()), None).unwrap();
-        assert_eq!((home.call.as_str(), home.description.as_str()), ("W1AW", "Home"));
-        assert!(callsign_id(&home.id).is_ok(), "{} is a version 4 UUID", home.id);
+        let home = store
+            .create(" w1aw ", " Home ", Some("2026-01-01".into()), None)
+            .unwrap();
+        assert_eq!(
+            (home.call.as_str(), home.description.as_str()),
+            ("W1AW", "Home")
+        );
+        assert!(
+            callsign_id(&home.id).is_ok(),
+            "{} is a version 4 UUID",
+            home.id
+        );
         // The same call twice is two callsigns, with two ids.
         let portable = store.create("W1AW/P", "", None, None).unwrap();
         assert_ne!(home.id, portable.id);
         // Both the call and the description change; the id does not.
-        let changed = store.update(&home.id, "K1ABC", "Home station", None, None).unwrap();
-        assert_eq!((changed.id.as_str(), changed.call.as_str(), changed.description.as_str()), (home.id.as_str(), "K1ABC", "Home station"));
+        let changed = store
+            .update(&home.id, "K1ABC", "Home station", None, None)
+            .unwrap();
+        assert_eq!(
+            (
+                changed.id.as_str(),
+                changed.call.as_str(),
+                changed.description.as_str()
+            ),
+            (home.id.as_str(), "K1ABC", "Home station")
+        );
         assert_eq!(store.lookup(&home.id).unwrap().call, "K1ABC");
-        let value: serde_json::Value = serde_json::from_slice(&fs::read(temp.path().join("callsigns.json")).unwrap()).unwrap();
+        let value: serde_json::Value =
+            serde_json::from_slice(&fs::read(temp.path().join("callsigns.json")).unwrap()).unwrap();
         assert_eq!(value["callsigns"][&home.id]["description"], "Home station");
         assert_eq!(store.load().unwrap().callsigns.len(), 2);
         // Refused: dates out of order, a call that is not one, a description
         // on two lines, an id that is not one.
-        assert!(store.update(&home.id, "K1ABC", "", Some("2026-02-01".into()), Some("2026-01-01".into())).is_err());
+        assert!(
+            store
+                .update(
+                    &home.id,
+                    "K1ABC",
+                    "",
+                    Some("2026-02-01".into()),
+                    Some("2026-01-01".into())
+                )
+                .is_err()
+        );
         assert!(store.create("W1 AW", "", None, None).is_err());
         assert!(store.create("W1AW", "a\nb", None, None).is_err());
         assert!(store.lookup("home").is_err());
-        assert!(store.update("00000000-0000-1000-8000-000000000000", "W1AW", "", None, None).is_err());
+        assert!(
+            store
+                .update(
+                    "00000000-0000-1000-8000-000000000000",
+                    "W1AW",
+                    "",
+                    None,
+                    None
+                )
+                .is_err()
+        );
     }
     #[test]
     fn ids_are_version_4_uuids_and_do_not_repeat() {
-        let ids: std::collections::BTreeSet<String> = (0..1000).map(|_| new_callsign_id().unwrap()).collect();
+        let ids: std::collections::BTreeSet<String> =
+            (0..1000).map(|_| new_callsign_id().unwrap()).collect();
         assert_eq!(ids.len(), 1000);
-        for id in &ids { assert_eq!(callsign_id(id).unwrap(), *id); }
-        assert!(callsign_id("6F9619FF-8B86-4D11-B42D-00C04FC964FF").is_err(), "uppercase is not how this core writes one");
-        assert!(callsign_id("6f9619ff-8b86-1d11-b42d-00c04fc964ff").is_err(), "version 1 embeds the machine and the time");
+        for id in &ids {
+            assert_eq!(callsign_id(id).unwrap(), *id);
+        }
+        assert!(
+            callsign_id("6F9619FF-8B86-4D11-B42D-00C04FC964FF").is_err(),
+            "uppercase is not how this core writes one"
+        );
+        assert!(
+            callsign_id("6f9619ff-8b86-1d11-b42d-00c04fc964ff").is_err(),
+            "version 1 embeds the machine and the time"
+        );
     }
     #[test]
     fn credential_selection_matches_auth() {
-        let creds = Credentials { username: Some("W1AW".into()), password: Some("fixture-password".into()), api_key: Some("fixture-key".into()) };
+        let creds = Credentials {
+            username: Some("W1AW".into()),
+            password: Some("fixture-password".into()),
+            api_key: Some("fixture-key".into()),
+        };
         assert!(selected_secret("QRZ_LOGBOOK", &creds, None).unwrap() == "fixture-key");
-        for provider in ["qrz", "eqsl", "lotw", "hamqth"] { assert!(selected_secret(provider, &creds, None).unwrap() == "fixture-password"); }
+        for provider in ["qrz", "eqsl", "lotw", "hamqth"] {
+            assert!(selected_secret(provider, &creds, None).unwrap() == "fixture-password");
+        }
         assert!(selected_secret("qrz", &creds, Some("api_key")).unwrap() == "fixture-key");
         assert!(selected_secret("qrz", &creds, Some("invalid")).is_err());
     }
@@ -1252,7 +1774,10 @@ mod tests {
         // An entry's name is the callsign's id and the service: nothing the
         // operator typed.
         let id = new_callsign_id().unwrap();
-        assert_eq!(subject(&id, "QRZ_LOGBOOK").unwrap(), format!("{id}:qrz_logbook"));
+        assert_eq!(
+            subject(&id, "QRZ_LOGBOOK").unwrap(),
+            format!("{id}:qrz_logbook")
+        );
         assert!(subject("home", "qrz").is_err());
         assert!(subject(&format!("{id}:qrz"), "qrz").is_err());
         assert!(subject("", "qrz").is_err());
@@ -1264,16 +1789,32 @@ mod tests {
     fn a_backup_carries_which_callsign_is_active_and_a_restore_brings_it_back() {
         let from = tempfile::tempdir().unwrap();
         let store = Store::new(from.path().into()).unwrap();
-        let old = store.create("KE1HA", "Previous", Some("1995-01-01".into()), Some("2001-01-01".into())).unwrap().id;
-        let current = store.create("KI7MT", "Current", Some("2015-01-01".into()), None).unwrap().id;
+        let old = store
+            .create(
+                "KE1HA",
+                "Previous",
+                Some("1995-01-01".into()),
+                Some("2001-01-01".into()),
+            )
+            .unwrap()
+            .id;
+        let current = store
+            .create("KI7MT", "Current", Some("2015-01-01".into()), None)
+            .unwrap()
+            .id;
         atomic_write(&from.path().join("current.txt"), current.as_bytes()).unwrap();
-        let bundle = store.gather_without_secrets(Some(serde_json::Value::Null), None).unwrap();
+        let bundle = store
+            .gather_without_secrets(Some(serde_json::Value::Null), None)
+            .unwrap();
         assert_eq!(bundle.active.as_deref(), Some(current.as_str()));
 
         let to = tempfile::tempdir().unwrap();
         let restored = Store::new(to.path().into()).unwrap();
         assert_eq!(restored.absorb(&bundle, false).unwrap(), 2);
-        assert_eq!(restored.active_id().unwrap().as_deref(), Some(current.as_str()));
+        assert_eq!(
+            restored.active_id().unwrap().as_deref(),
+            Some(current.as_str())
+        );
         assert!(restored.lookup(&old).is_ok());
 
         // A backup naming a callsign it does not hold is refused whole.
@@ -1290,8 +1831,13 @@ mod tests {
         // here and then refused itself.
         let here = tempfile::tempdir().unwrap();
         let store = Store::new(here.path().into()).unwrap();
-        let kept = store.create("KI7MT", "Current", Some("2015-01-01".into()), None).unwrap().id;
-        let mut bad = store.gather_without_secrets(Some(serde_json::Value::Null), None).unwrap();
+        let kept = store
+            .create("KI7MT", "Current", Some("2015-01-01".into()), None)
+            .unwrap()
+            .id;
+        let mut bad = store
+            .gather_without_secrets(Some(serde_json::Value::Null), None)
+            .unwrap();
         let mut second = bad.callsigns[0].clone();
         second.id = "11111111-1111-4111-8111-111111111111".into();
         second.call = "W1 AW".into();
@@ -1300,33 +1846,70 @@ mod tests {
         // Refused for what the file holds, before any removal is tried: had
         // removal come first, the error would be the credential store's (and
         // on a machine with one, what was here would be gone).
-        assert_eq!(store.absorb(&bad, true).err(), Some("Enter a callsign: letters, digits and /."));
-        assert!(store.lookup(&kept).is_ok(), "and what was here is still here");
+        assert_eq!(
+            store.absorb(&bad, true).err(),
+            Some("Enter a callsign: letters, digits and /.")
+        );
+        assert!(
+            store.lookup(&kept).is_ok(),
+            "and what was here is still here"
+        );
     }
 
     #[test]
     fn a_key_saved_alone_is_tested_rather_than_called_missing() {
         // #11: guided setup saves QRZ Logbook and Club Log with the key and no
         // username, and the test answered "missing" to both.
-        let key = Credentials { username: None, password: None, api_key: Some("fixture-key".into()) };
+        let key = Credentials {
+            username: None,
+            password: None,
+            api_key: Some("fixture-key".into()),
+        };
         assert!(testable_with("qrz_logbook", &key));
         assert!(testable_with("clublog", &key));
         // QRZ's lookup signs in with a username, so without one there is nothing to test.
-        let password = Credentials { username: None, password: Some("fixture-password".into()), api_key: None };
+        let password = Credentials {
+            username: None,
+            password: Some("fixture-password".into()),
+            api_key: None,
+        };
         assert!(!testable_with("qrz", &password));
         // A Club Log profile an earlier build saved with a password too is tested with the token.
-        let both = Credentials { username: None, password: Some("fixture-password".into()), api_key: Some("fixture-key".into()) };
+        let both = Credentials {
+            username: None,
+            password: Some("fixture-password".into()),
+            api_key: Some("fixture-key".into()),
+        };
         assert_eq!(selected_field("clublog", &both, None).unwrap(), "api_key");
-        assert_eq!(effective_field("clublog", true, true, None).as_deref(), Some("api_key"));
+        assert_eq!(
+            effective_field("clublog", true, true, None).as_deref(),
+            Some("api_key")
+        );
         // KI7MT's test, 2026-11-01: with Password preferred, Club Log's test
         // sent a password saved before #149 as the token, and Club Log refused
         // it. A service that takes one kind of secret is tested with that kind,
         // whatever preference is saved.
-        assert_eq!(validation::service_secret("clublog", &both), Some("fixture-key"));
-        assert_eq!(validation::service_secret("qrz_logbook", &both), Some("fixture-key"));
-        for provider in ["qrz", "eqsl", "lotw", "hamqth"] { assert_eq!(validation::service_secret(provider, &both), Some("fixture-password"), "{provider}"); }
+        assert_eq!(
+            validation::service_secret("clublog", &both),
+            Some("fixture-key")
+        );
+        assert_eq!(
+            validation::service_secret("qrz_logbook", &both),
+            Some("fixture-key")
+        );
+        for provider in ["qrz", "eqsl", "lotw", "hamqth"] {
+            assert_eq!(
+                validation::service_secret(provider, &both),
+                Some("fixture-password"),
+                "{provider}"
+            );
+        }
         // A Club Log entry holding only that old password has nothing to test.
-        let old = Credentials { username: Some("W1AW".into()), password: Some("fixture-password".into()), api_key: None };
+        let old = Credentials {
+            username: Some("W1AW".into()),
+            password: Some("fixture-password".into()),
+            api_key: None,
+        };
         assert!(!testable_with("clublog", &old));
     }
 
@@ -1334,14 +1917,22 @@ mod tests {
     fn a_username_an_earlier_build_kept_is_taken_out_of_the_file() {
         let temp = tempfile::tempdir().unwrap();
         let id = "3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b";
-        let old = format!(r#"{{"callsigns":{{"{id}":{{"id":"{id}","call":"W1AW","description":"Home","start":null,"end":null,"providers":{{"clublog":{{"username":"qg_fake_person@example.invalid","has_password":true,"has_api_key":false,"saved_at":"2026-10-22T00:00:00Z"}}}}}}}}}}"#);
+        let old = format!(
+            r#"{{"callsigns":{{"{id}":{{"id":"{id}","call":"W1AW","description":"Home","start":null,"end":null,"providers":{{"clublog":{{"username":"qg_fake_person@example.invalid","has_password":true,"has_api_key":false,"saved_at":"2026-10-22T00:00:00Z"}}}}}}}}}}"#
+        );
         fs::write(temp.path().join("callsigns.json"), old).unwrap();
         let store = Store::new(temp.path().into()).unwrap();
         let index = store.load().unwrap();
         assert!(index.callsigns[id].providers["clublog"].has_username);
         let written = fs::read_to_string(temp.path().join("callsigns.json")).unwrap();
-        assert!(!written.contains("qg_fake_person"), "the username is still in the file");
-        assert!(!written.contains("\"username\""), "the field is still in the file");
+        assert!(
+            !written.contains("qg_fake_person"),
+            "the username is still in the file"
+        );
+        assert!(
+            !written.contains("\"username\""),
+            "the field is still in the file"
+        );
         assert!(written.contains("has_username"));
     }
 
@@ -1359,13 +1950,28 @@ mod tests {
         let result = store.remove_callsign_using(&portable, |id, _provider| {
             assert_eq!(id, portable);
             calls += 1;
-            if calls == 2 { Err("Synthetic Keychain refusal.") } else { Ok(true) }
+            if calls == 2 {
+                Err("Synthetic Keychain refusal.")
+            } else {
+                Ok(true)
+            }
         });
         assert!(result.is_err());
-        assert_eq!(fs::read(temp.path().join("callsigns.json")).unwrap(), before);
-        assert_eq!(fs::read(temp.path().join("desktop-preferences.json")).unwrap(), prefs_before);
-        assert_eq!(fs::read_to_string(temp.path().join("current.txt")).unwrap(), portable);
-        store.remove_callsign_using(&portable, |_id, _provider| Ok(false)).unwrap();
+        assert_eq!(
+            fs::read(temp.path().join("callsigns.json")).unwrap(),
+            before
+        );
+        assert_eq!(
+            fs::read(temp.path().join("desktop-preferences.json")).unwrap(),
+            prefs_before
+        );
+        assert_eq!(
+            fs::read_to_string(temp.path().join("current.txt")).unwrap(),
+            portable
+        );
+        store
+            .remove_callsign_using(&portable, |_id, _provider| Ok(false))
+            .unwrap();
         assert!(store.lookup(&portable).is_err());
         assert!(store.lookup(&home).is_ok());
         assert!(!temp.path().join("current.txt").exists());
