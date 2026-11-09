@@ -361,7 +361,9 @@ try {
   const lotw = page.getByRole('switch', { name: /^LoTW/ });
   await expect(lotw).not.toBeChecked();
   await lotw.click();
-  await rail(page, 'Certificates').click();
+  await expect(lotw).toBeChecked({ timeout: 30_000 });
+  // Turned on in Settings, its page is on the rail at once, without a visit to Home.
+  await rail(page, 'Certificates').click({ timeout: 30_000 });
   await expect(body(page)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
   await application.evaluate(({ BrowserWindow, dialog }) => {
     const original = dialog.showOpenDialog;

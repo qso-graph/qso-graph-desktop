@@ -644,7 +644,12 @@ function takeExtensions(reply: unknown): boolean {
 
 export async function setExtensionEnabled(id: string, enabled: boolean): Promise<boolean> {
   try {
-    return takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+    const done = takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+    // Turned on, its pages join the rail at once; turned off, they leave it
+    // (QGD-HOM-0004, QGD-HOM-0007). The rail is drawn from Home's state, which was read
+    // only when Home came on screen, so it is read again here.
+    if (done) home.refresh();
+    return done;
   } catch {
     return false;
   }

@@ -161,7 +161,8 @@ try {
     await rail('Settings').click();
     const lotw = page.getByRole('switch', { name: /^LoTW/ });
     if (!(await lotw.isChecked())) await lotw.click();
-    await rail('Certificates').click();
+    await expect(lotw).toBeChecked({ timeout: 30_000 });
+    await rail('Certificates').click({ timeout: 30_000 });
     await expect(page.locator('section.page-body')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('home:page', {
       key: 'lotw/certificates', state: 'ready', fetchedAt: '2026-11-09T12:00:00Z', answer: { ok: true, data: {
