@@ -21,7 +21,7 @@ describe('a grid, a callsign and a text, each by its kind', () => {
 
   it('bounds a text, and refuses markup and control characters', () => {
     expect(inputValue(TEXT, ' FT4 ')).toBe('FT4');
-    for (const bad of ['x'.repeat(21), '<script>', 'a\u0000b', 7]) expect(inputValue(TEXT, bad), String(bad)).toBeUndefined();
+    for (const bad of ['x'.repeat(21), '<script>', 'a\u0000b', 'a\u0085b', 'a\u009bb', 7]) expect(inputValue(TEXT, bad), String(bad)).toBeUndefined();
   });
 });
 

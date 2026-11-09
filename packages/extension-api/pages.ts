@@ -49,8 +49,12 @@
 // one per source, which the core draws as the page's tabs and asks with the
 // one chosen (manifest.ts views). The answer names its views and the one it
 // answered; a page asked with a view it no longer has answers its first.
-export const PAGE_DATA_VERSION = 7;
-export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
+import { hasControlCharacters } from './text.js';
+import { actionText, ROW_KEY_MAX } from './actions.js';
+
+// Version 8 adds keyed table rows; older array rows are unchanged.
+export const PAGE_DATA_VERSION = 8;
+export const PAGE_DATA_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 // A view's id, as the core asks with it, and its name on its tab.
 export const VIEW_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -139,7 +143,7 @@ export type Section = (
   | { readonly shape: 'text'; readonly text: string }
 ) & { readonly heading?: string; readonly contents?: false };
 
-export type Row = readonly string[];
+export type Row = readonly string[] | { readonly cells: readonly string[]; readonly key?: string };
 
 // The order the extension sent a sortable table's rows in: by this column,
 // this way. The core shows it as the table's sort from the start, and sorts
@@ -233,6 +237,7 @@ function text(value: unknown, limit: number, where: string): string {
     throw new PageError(`${where} is not text of at most ${limit} characters.`);
   }
   if (/[<>]/.test(value)) throw new PageError(`${where} holds markup, which a page does not draw.`);
+  if (hasControlCharacters(value)) throw new PageError(`${where} holds control characters.`);
   return value;
 }
 
@@ -489,9 +494,18 @@ function shape(value: Record<string, unknown>, where: string, version: number): 
         // put a value under the wrong heading. From version 5 a row of two
         // cells in a wider table is its name and one value across the rest,
         // which is said, not guessed: no other width is drawn.
+        let key: string | undefined;
+        if (isRecord(row)) {
+          if (version < 8) throw new PageError(at + ' uses a keyed row before version 8.');
+          only(row, ['key', 'cells'], at);
+          if (Object.hasOwn(row, 'key') && !actionText(row.key, ROW_KEY_MAX)) throw new PageError(at + ' has no bounded plain key.');
+          key = row.key as string | undefined;
+          row = row.cells;
+        }
         const spans = version >= 5 && columns.length > 2 && Array.isArray(row) && row.length === 2;
         if (!Array.isArray(row) || (row.length !== columns.length && !spans)) throw new PageError(`${at} does not have ${columns.length} cells.`);
-        return each(row, at, (cell: unknown, c: number) => text(cell, PAGE_LIMITS.cell, `${at}, cell ${c + 1}`));
+        const cells = each(row, at, (cell: unknown, c: number) => text(cell, PAGE_LIMITS.cell, `${at}, cell ${c + 1}`));
+        return key === undefined ? cells : { key, cells };
       });
     };
     if (!grouped) return { shape: 'table', columns, rows: rowsOf(value.rows, where, PAGE_LIMITS.rows), ...withFilters };
@@ -574,6 +588,8 @@ export function validatePageAnswer(value: unknown): PageAnswer {
     throw new PageError(`Page data has no sections, or more than ${PAGE_LIMITS.sections}.`);
   }
   const sections = each(data.sections, 'Page data', (entry, i) => section(entry, i, version));
+  const keys = sections.flatMap(entry => entry.shape === 'table' ? ('rows' in entry ? entry.rows : entry.groups.flatMap(group => group.rows)).flatMap(row => 'cells' in row && row.key !== undefined ? [row.key] : []) : []);
+  if (new Set(keys).size !== keys.length) throw new PageError('Page data repeats a row key.');
   if (sections.filter(entry => entry.shape === 'fields').length > 1) throw new PageError('Page data places the page\'s fields more than once.');
   // Views and the view answered, both or neither, from version 7.
   if ((data.views === undefined) !== (data.view === undefined)) throw new PageError('Page data names its views without the one it is, or the other way round.');

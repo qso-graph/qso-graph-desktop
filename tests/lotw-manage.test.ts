@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, it, expect, vi } from 'vitest';
 import { createLotwManage, type LotwManagePorts } from '../packages/main/lotw-manage.js';
-import { isLotwCommand, isLotwPreview } from '../packages/callsigns/lotw-contract.js';
+import { isLotwCommand, isLotwPreview, isLotwSummary } from '../packages/callsigns/lotw-contract.js';
 import { validateServiceCommand, validateCommand } from '../packages/callsigns/callsign-contract.js';
-import { isLotwManageReply, validateRequest } from '../packages/extension-api/api-contract.js';
+import { isLotwManageReply, isLotwManageResult, validateRequest } from '../packages/extension-api/api-contract.js';
 import { plainRequest } from '../packages/extension-api/plain.js';
 import type { NativeLotwPreview } from '../packages/callsign-core/native.js';
 import { validateRendererStorageCommand, validateStorageCommand } from '../packages/storage/storage-contract.js';
@@ -28,6 +28,21 @@ function harness() {
   return { p, ports, run: createLotwManage(ports) };
 }
 describe('lotw:manage boundary (QGD-LTW-0002/0004/0005, QGD-INV-0001/0004/0017)', () => {
+  it('takes a conflict only as the core\'s structured result, carrying nothing else, and validates it at each boundary', async () => {
+    const conflict = { status: 'conflict', certificates: [], roots: 0, signedQsos: 0, deleted: 0 };
+    expect(isLotwSummary(conflict)).toBe(true);
+    for (const patch of [{ deleted: 1 }, { roots: 1 }, { signedQsos: 1 }, { certificates: [{}] }, { error: 'arbitrary' }, { status: 'refused' }]) {
+      expect(isLotwSummary({ ...conflict, ...patch }), JSON.stringify(patch)).toBe(false);
+    }
+    const h = harness();
+    const result = { ...await h.run({ kind: 'lotw.import' }), status: 'conflict', certificates: [], signedQsos: 0 };
+    expect(isLotwManageResult(result)).toBe(true);
+    expect(isLotwManageReply({ ok: true, kind: 'lotw.delete', result }, 'lotw.delete')).toBe(true);
+    for (const patch of [{ status: 'unknown' }, { error: 'arbitrary' }, { deleted: 1 }, { locations: 1 }]) {
+      expect(isLotwManageResult({ ...result, ...patch })).toBe(false);
+      expect(isLotwManageReply({ ok: true, kind: 'lotw.delete', result: { ...result, ...patch } }, 'lotw.delete')).toBe(false);
+    }
+  });
   it('accepts only exact request fields, including through plain reconstruction', () => {
     for (const request of [{ kind: 'lotw.import' }, { kind: 'lotw.restore' }, { kind: 'lotw.delete', certificate: 'cert:' + token }]) {
       expect(validateRequest(request)).toEqual(request);

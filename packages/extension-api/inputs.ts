@@ -8,6 +8,8 @@
 //
 // No dependencies: this package depends on nothing (QGD-REP-0006).
 
+import { hasControlCharacters } from './text.js';
+
 export const INPUT_KINDS = ['grid', 'callsign', 'text'] as const;
 export type InputKind = (typeof INPUT_KINDS)[number];
 
@@ -58,10 +60,7 @@ export function inputValue(input: Pick<PageInput, 'kind' | 'max'>, value: unknow
   if (input.kind === 'callsign') return CALLSIGN.test(trimmed) ? trimmed.toUpperCase() : undefined;
   const max = Math.min(input.max ?? TEXT_MAX, TEXT_MAX);
   if (trimmed.length > max || /[<>]/.test(trimmed)) return undefined;
-  for (let at = 0; at < trimmed.length; at += 1) {
-    const code = trimmed.charCodeAt(at);
-    if (code < 0x20 || code === 0x7f) return undefined;
-  }
+  if (hasControlCharacters(trimmed)) return undefined;
   return trimmed;
 }
 

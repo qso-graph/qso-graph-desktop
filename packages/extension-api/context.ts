@@ -10,6 +10,7 @@
 // extension's own channel, which the broker has bound to this extension alone
 // (QGD-APP-0018), so there is no identifier to claim.
 import type { ExtensionReply, ExtensionRequest } from './api-contract.js';
+import type { PageActionEvent } from './actions.js';
 import type { PageAnswer } from './pages.js';
 import type { DeliveredEvent, IntegrationEvent } from './integration-events.js';
 
@@ -36,6 +37,8 @@ export type PageProvider = (request: {
   readonly settings: Readonly<Record<string, string>>
 }) => Promise<PageAnswer> | PageAnswer;
 
+export type PageActionHandler = (event: PageActionEvent) => void | string | Promise<void | string>;
+
 export interface ExtensionContext {
   readonly extensionId: string;
   // One request to the core. Every request has a deadline; the reply is an
@@ -44,6 +47,7 @@ export interface ExtensionContext {
   readonly pages: {
     // Only a page the manifest contributes can be registered.
     register(pageId: string, provider: PageProvider): Disposable;
+    onAction(pageId: string, handler: PageActionHandler): Disposable;
     // A live page's data changed (manifest.ts `live`): the core asks it
     // again if it is open. Said as often as it likes; the core decides.
     changed(pageId: string): void;

@@ -23,6 +23,7 @@ Help → User Guide opens it.
 - [Parks On the Air](parks-on-the-air.md): Near Me, Spots and Most Wanted.
 - [Astro](astro.md): the sun, the moon and the grey line.
 - [Conditions](conditions.md): solar flux, the K index and the bands.
+- [LoTW certificates](lotw.md): load certificates, restore TQSL backups and manage trusted roots.
 - [ADIF Lookup](adif-lookup.md): ADIF's fields and lists.
 
 ## Looking after it

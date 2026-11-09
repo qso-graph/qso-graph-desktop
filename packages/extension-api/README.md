@@ -49,3 +49,27 @@ no file path, bytes, password or confirmation answer. A backup offers Desktop Lo
 that confirmation; resulting names include any ` (TQSL)` collision suffix. A Location storage failure
 can leave LoTW work completed with Locations skipped; the result says which Locations were skipped.
 An extension must not automatically retry a write whose outcome is unknown after a deadline or crash.
+
+A page can declare `actions` and `rowActions` in its manifest, each `{ id, label, hint? }`.
+See `QGD-HOM-0018` through `QGD-HOM-0020` for the bounds and lifecycle. The core draws
+the buttons and delivers an operator press to `context.pages.onAction(pageId, handler)`
+as a `page.action` event: `{ page, action, row? }`. The handler returns nothing or a
+short status string. Every completion refreshes the page. An action is neither a
+grant nor a confirmation; requests made by a handler use the normal grant checks
+and dialogs. An action whose outcome is unknown must never be retried automatically.
+
+Page data version 8 adds `{ cells: string[], key?: string }` table rows alongside
+the existing array rows. Only keyed rows have row buttons; the key is opaque and
+never displayed. Main accepts only keys from the answer currently shown. For example:
+
+```ts
+context.subscriptions.push(context.pages.onAction('certificates', async event => {
+  if (event.action === 'delete' && event.row !== undefined) {
+    await context.request({ kind: 'lotw.delete', certificate: event.row });
+  }
+}));
+```
+
+The event and status validators are in `actions.ts`. Action declarations add no
+new request kind to `api-contract.ts`: `page.action` flows from the operator to the
+extension, while that contract describes the extension's requests to the core.

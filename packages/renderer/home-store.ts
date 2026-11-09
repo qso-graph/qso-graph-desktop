@@ -7,12 +7,14 @@
 // state against the Home contract, and each pushed page against the page
 // shapes. Plain TypeScript, as shell-store.ts is, so a story can make one
 // with no window behind it.
-import { isPageView, isHomeReply, isHostNotice, type AvailablePage, type PageView, type HomeState, type HostNotice } from '../main/home-contract.js';
+import { isPageActionState, isPageView, isHomeReply, isHostNotice, type AvailablePage, type PageView, type HomeState, type HostNotice } from '../main/home-contract.js';
 import type { PageShown } from '../ui/page-shapes.js';
+import type { PageActionState } from '../main/page-actions.js';
 import type { ViewTab } from '../extension-api/pages.js';
 
 export interface HomeApi {
   request(command: unknown): Promise<unknown>;
+  onAction?(listener: (state: unknown) => void): () => void;
   onPage(listener: (page: unknown) => void): () => void;
   onNotice?(listener: (notice: unknown) => void): () => void;
   onReached?(listener: (reached: unknown) => void): () => void;
@@ -55,6 +57,10 @@ export interface HomeModel {
     readonly view?: string;
     // Its own settings, drawn as its Settings tab (QGD-HOM-0017).
     readonly settings: AvailablePage['settings'];
+    readonly actions?: AvailablePage['actions'];
+    readonly rowActions?: AvailablePage['rowActions'];
+    readonly actionRunning?: boolean;
+    readonly actionStatus?: string;
   } | null;
   // Which extensions a stopped extension host affected (QGD-APP-0022).
   readonly notice: HostNotice | null;
@@ -114,7 +120,9 @@ function model(state: HomeState, views: ReadonlyMap<string, PageView>, notice: H
       .map(entry => entry.page),
     page: opened && head ? {
       key: opened.key, name: opened.name, shown: shownOf(views.get(opened.key) ?? { key: opened.key, state: 'waiting' }),
-      network: opened.network, inputs: opened.inputs, values,
+      network: opened.network, inputs: opened.inputs, values, actions: opened.actions, rowActions: opened.rowActions,
+      actionRunning: state.action?.key === opened.key && state.action.running,
+      actionStatus: state.action?.key === opened.key ? state.action.status : undefined,
       area: head.key, areaName: head.name, hue: head.hue,
       tabs: inArea.length > 1 ? inArea.map(page => ({ key: page.key, label: page.tab })) : [],
       settings: opened.settings,
@@ -152,7 +160,14 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
   let notice: HostNotice | null = state.notice;
   let noticePushes = 0;
 
-  const current = () => model(state, views, notice, open, values, online ?? true, reached, error);
+  // Local work is independent of snapshots: a delayed read or another
+  // page's completion cannot unlock a handler that is still running.
+  const localActions = new Map<string, PageActionState>();
+  const pendingActions = new Set<string>();
+  const current = () => {
+    const action = open === null ? undefined : localActions.get(open) ?? (state.action?.key === open ? state.action : undefined);
+    return model({ ...state, action }, views, notice, open, values, online ?? true, reached, error);
+  };
   const changed = () => { const value = current(); for (const listener of listeners) listener(value); };
 
   // `asked` is how many pushes had arrived when the request was sent: a page
@@ -188,6 +203,10 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
         views.set(page.key, page);
         changed();
       });
+      const stopActions = api.onAction?.(pushed => {
+        if (!isPageActionState(pushed) || pendingActions.has(pushed.key)) return;
+        localActions.set(pushed.key, pushed); changed();
+      });
       const stopNotices = api.onNotice?.(pushed => {
         if (!isHostNotice(pushed)) return;
         notice = pushed;
@@ -200,7 +219,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
         reachPushes += 1;
         changed();
       });
-      const stop = () => { stopPages(); stopNotices?.(); stopReached?.(); };
+      const stop = () => { stopActions?.(); stopPages(); stopNotices?.(); stopReached?.(); };
       const asked = pushes;
       const askedNotice = noticePushes;
       void api.request({ type: 'read' }).then(reply => take(reply, 'Home could not be read.', asked, askedNotice), () => take(undefined, 'Home could not be read.', asked, askedNotice));
@@ -241,6 +260,25 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       const asked = pushes;
       const askedNotice = noticePushes;
       void api.request({ type: 'connection', online: next }).then(reply => take(reply, 'Home could not be told the network changed.', asked, askedNotice), () => undefined);
+    },
+    async pressAction(key: string, action: string, row?: string): Promise<void> {
+      if (!api || key !== open || (localActions.get(key)?.running ?? (state.action?.key === key && state.action.running))) return;
+      pendingActions.add(key);
+      localActions.set(key, { key, running: true }); changed();
+      const asked = pushes; const askedNotice = noticePushes;
+      try {
+        const reply = await api.request({ type: 'page.action', key, event: { page: key.split('/')[1], action, ...(row !== undefined ? { row } : {}) } });
+        if (isHomeReply(reply) && reply.ok) {
+          const completion = reply.action ?? reply.state.action;
+          const status = completion?.key === key ? completion.status : undefined;
+          localActions.set(key, { key, running: false, ...(status ? { status } : {}) });
+          take(reply, 'The action could not finish.', asked, askedNotice);
+        }
+        else {
+          localActions.set(key, { key, running: false, status: isHomeReply(reply) && !reply.ok ? reply.error : 'The action could not finish. Read the page before trying again.' }); changed();
+        }
+      } catch { localActions.set(key, { key, running: false, status: 'The action could not finish. Read the page before trying again.' }); changed(); }
+      finally { pendingActions.delete(key); }
     },
     // Ask the open page again now (Refresh).
     refreshPage(key: string): void {

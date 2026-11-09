@@ -1,0 +1,36 @@
+{
+  "manifestVersion": 1,
+  "id": "lotw",
+  "name": "LoTW",
+  "tier": "official",
+  "version": "1.0.0",
+  "engines": { "qgd": "^1.2.0" },
+  "grants": ["lotw:read", "lotw:manage"],
+  "main": "main.js",
+  "contributes": {
+    "pages": [
+      {
+        "id": "certificates",
+        "name": "Certificates",
+        "description": "Manage ARRL Logbook of The World certificates through QG Trust.",
+        "refreshSeconds": 60,
+        "network": false,
+        "icon": "extension",
+        "actions": [
+          { "id": "load", "label": "Load certificate…", "hint": "Choose a .tq6 or .p12 file to inspect and confirm." },
+          { "id": "restore", "label": "Restore TQSL backup…", "hint": "Choose a .tbk file to inspect and confirm." }
+        ],
+        "rowActions": [{ "id": "delete", "label": "Delete…", "hint": "Review and confirm removal of this certificate and its key." }]
+      },
+      {
+        "id": "roots",
+        "name": "Trusted roots",
+        "description": "The certificate authorities QG Trust trusts for LoTW.",
+        "refreshSeconds": 60,
+        "network": false,
+        "under": "certificates",
+        "tab": "Trusted roots"
+      }
+    ]
+  }
+}

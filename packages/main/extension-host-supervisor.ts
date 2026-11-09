@@ -18,6 +18,7 @@
 // - supervision: a heartbeat watchdog, restarts that back off and stop at a
 //   budget, and generations, so nothing from a replaced host is believed
 //   (QGD-APP-0022).
+import { isPageActionEvent, isPageActionAnswer, permitsPageAction, type PageActions, type PageActionEvent, type PageActionAnswer } from '../extension-api/actions.js';
 import type { ExtensionReply } from '../extension-api/api-contract.js';
 import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
 import { parseFromExtension, parseFromHost, type Port, type ToExtension, type ToHost } from '../extension-host/protocol.js';
@@ -43,7 +44,7 @@ export interface SupervisorDeps {
   channel(): ChannelPair;
   // What the core knows about an extension it may run: built from the package
   // and the validated manifest, never from the extension (QGD-APP-0017).
-  describe(id: string): { readonly entry: string; readonly pages: readonly string[] } | undefined;
+  describe(id: string): { readonly entry: string; readonly pages: readonly string[]; readonly pageActions?: Readonly<Record<string, PageActions>> } | undefined;
   // The request, served by the grant-checked path (extension-serve.ts) under
   // the identity this file bound to the channel.
   serve(id: string, request: unknown, signal?: AbortSignal): Promise<ExtensionReply>;
@@ -93,6 +94,9 @@ interface Generation {
   readonly activations: Map<number, { id: string; settle: (ok: boolean) => void; timer: ReturnType<typeof setTimeout> }>;
   readonly deactivations: Map<number, { settle: () => void; timer: ReturnType<typeof setTimeout> }>;
   readonly pages: Map<string, { settle: (outcome: PageOutcome) => void; timer: ReturnType<typeof setTimeout> }>;
+  readonly actions: Map<string, { page: string; settle: (answer: PageActionAnswer) => void; timer: ReturnType<typeof setTimeout> }>;
+  readonly issued: Map<string, { page: string; answer: PageAnswer }>;
+  readonly openPages: Map<string, string>;
   readonly inFlight: Map<string, number>;
   readonly requests: Map<string, Set<AbortController>>;
   missed: number;
@@ -129,7 +133,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     const link = deps.spawn();
     const generation: Generation = {
       n: ++generations, link, channels: new Map(), activations: new Map(), deactivations: new Map(),
-      pages: new Map(), inFlight: new Map(), requests: new Map(), missed: 0, ping: 0, dead: false
+      pages: new Map(), actions: new Map(), issued: new Map(), openPages: new Map(), inFlight: new Map(), requests: new Map(), missed: 0, ping: 0, dead: false
     };
     link.onMessage(raw => onHost(generation, raw));
     link.onExit(() => { if (!generation.dead) lost(generation, SAID.stopped); });
@@ -185,7 +189,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     const pair = deps.channel();
     generation.channels.set(id, pair.broker);
     pair.broker.onMessage(raw => onChannel(generation, id, pair.broker, raw));
-    generation.link.post({ type: 'load', id, entry: description.entry, pages: [...description.pages] }, pair.transfer);
+    generation.link.post({ type: 'load', id, entry: description.entry, pages: [...description.pages], ...(description.pageActions ? { pageActions: description.pageActions } : {}) }, pair.transfer);
     return pair.broker;
   }
 
@@ -193,6 +197,14 @@ export function createSupervisor(deps: SupervisorDeps) {
     if (generation.dead || generation !== current) return;
     const message = parseFromExtension(raw);
     if (!message) return;
+    if (message.type === 'page-action-answer') {
+      const key = `${id}#${message.cid}`;
+      const waiting = generation.actions.get(key);
+      if (!waiting) return;
+      generation.actions.delete(key); clearTimeout(waiting.timer);
+      waiting.settle(isPageActionAnswer(message.answer) ? message.answer : { ok: false, error: 'The action returned a status that could not be read.' });
+      return;
+    }
     if (message.type === 'request') {
       const reply = (value: ExtensionReply) => { if (!generation.dead) port.post({ type: 'reply', cid: message.cid, reply: value }); };
       let size: number;
@@ -222,6 +234,7 @@ export function createSupervisor(deps: SupervisorDeps) {
         () => { clearTimeout(timer); release(); if (!replied) { replied = true; reply({ ok: false, error: 'That could not be done.' }); } });
       return;
     }
+    if (message.type !== 'page-answer' && message.type !== 'page-cancelled') return;
     // A page answer or a confirmed cancellation. One per request: the first
     // settles it, and anything after is discarded (QGD-APP-0021).
     const key = `${id}#${message.cid}`;
@@ -252,6 +265,8 @@ export function createSupervisor(deps: SupervisorDeps) {
     for (const waiting of generation.activations.values()) { clearTimeout(waiting.timer); waiting.settle(false); }
     for (const waiting of generation.deactivations.values()) { clearTimeout(waiting.timer); waiting.settle(); }
     for (const waiting of generation.pages.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
+    for (const waiting of generation.actions.values()) { clearTimeout(waiting.timer); waiting.settle({ ok: false, error: 'The extension host stopped. The action outcome is unknown; read the page before trying again.' }); }
+    generation.actions.clear(); generation.issued.clear(); generation.openPages.clear();
     generation.activations.clear(); generation.deactivations.clear(); generation.pages.clear();
     affected = [...new Set([...active, ...starting])].sort();
     stops += 1;
@@ -352,11 +367,16 @@ export function createSupervisor(deps: SupervisorDeps) {
     if (!generation || !port) return { outcome: 'unknown', reason: SAID.stopped };
     const cid = ++pageCid;
     const key = `${id}#${cid}`;
+    generation.openPages.set(id, pageId);
     return new Promise<PageOutcome>(resolve => {
       const onAbort = () => { if (generation.pages.has(key)) port.post({ type: 'page-cancel', cid }); };
       // The listener goes when the page settles, so a long-lived signal does
       // not collect one per page.
-      const settle = (outcome: PageOutcome) => { signal?.removeEventListener('abort', onAbort); resolve(outcome); };
+      const settle = (outcome: PageOutcome) => {
+        const accepted = !signal?.aborted && generation.openPages.get(id) === pageId && outcome.outcome === 'completed';
+        if (accepted) generation.issued.set(id + '/' + pageId, { page: pageId, answer: outcome.answer });
+        if (!generation.dead) port.post({ type: 'page-settled', cid, accepted });
+        signal?.removeEventListener('abort', onAbort); resolve(outcome); };
       const timer = setTimeout(() => {
         // Past its deadline the answer is unknown, and a reply that comes
         // later is discarded because the key is gone (QGD-APP-0021).
@@ -367,6 +387,37 @@ export function createSupervisor(deps: SupervisorDeps) {
       generation.pages.set(key, { settle, timer });
       signal?.addEventListener('abort', onAbort, { once: true });
       port.post({ type: 'page', cid, pageId, inputs: { ...inputs }, settings: { ...settings } });
+    });
+  }
+
+  function showPage(id: string, page: string): void {
+    current?.openPages.set(id, page);
+    current?.channels.get(id)?.post({ type: 'page-open', page });
+  }
+  function closePage(id: string, page: string): void {
+    // Keep the accepted answer for a cached reopen within the read interval.
+    if (current?.openPages.get(id) === page) current.openPages.delete(id);
+    current?.channels.get(id)?.post({ type: 'page-close', page });
+  }
+
+  async function action(id: string, event: PageActionEvent): Promise<PageActionAnswer> {
+    if (!isPageActionEvent(event)) return { ok: false, error: 'That is not a page action.' };
+    const generation = current;
+    const issued = generation?.issued.get(id + '/' + event.page);
+    const page = deps.describe(id)?.pageActions?.[event.page];
+    const port = generation?.channels.get(id);
+    if (!isPageActionEvent(event) || !generation || !port || !active.has(id) || disabled.has(id) || !page
+      || generation.openPages.get(id) !== event.page || issued?.page !== event.page || !permitsPageAction(page, event, issued.answer)) {
+      return { ok: false, error: 'That action is not available on the open page.' };
+    }
+    if ([...generation.actions.values()].some(waiting => waiting.page === id + '/' + event.page)) return { ok: false, error: 'An action is already running on this page.' };
+    const cid = ++pageCid;
+    return new Promise(resolve => {
+      // A timed-out handler must be stopped before another press can run.
+      // In particular an operator dialog may last much longer than a read.
+      const timer = setTimeout(() => lost(generation, 'page action deadline'), limits.operatorDeadlineMs + limits.requestDeadlineMs);
+      generation.actions.set(id + '#' + cid, { page: id + '/' + event.page, settle: resolve, timer });
+      port.post({ type: 'page.action', cid, event: { ...event } });
     });
   }
 
@@ -390,7 +441,7 @@ export function createSupervisor(deps: SupervisorDeps) {
 
   return {
     ensureActive,
-    page,
+    page, action, closePage, showPage,
     deliver,
     async setEnabled(id: string, enabled: boolean): Promise<void> {
       if (enabled) { disabled.delete(id); failed.delete(id); changed(); return; }
@@ -418,6 +469,8 @@ export function createSupervisor(deps: SupervisorDeps) {
         for (const requests of generation.requests.values()) for (const request of requests) request.abort();
         if (generation.heartbeat) clearInterval(generation.heartbeat);
         for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
+        for (const waiting of generation.actions.values()) { clearTimeout(waiting.timer); waiting.settle({ ok: false, error: 'The extension host stopped.' }); }
+        generation.actions.clear();
         for (const waiting of generation.pages.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }
         try { generation.link.kill(); } catch { /* gone */ }
         current = undefined;

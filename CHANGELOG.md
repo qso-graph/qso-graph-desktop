@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Extension pages can offer buttons (extension API 1.2.0): page actions and row actions, declared in the manifest and drawn by the core. A press is accepted only for the open page, a declared action and a row on screen, one at a time per page, and the page refreshes when it finishes.
+- The LoTW extension, off until turned on in Settings → Extensions: the installed certificates with their call, DXCC, serial, QSO dates, validity and whether the key is installed; Load certificate…, Restore TQSL backup… and Delete…; and the trusted roots. If the store changes after a confirmation, it says that nothing was imported or deleted.
 - `lotw:manage`: load LoTW certificates, restore TQSL backups and delete certificates through core-owned file, password and confirmation dialogs. An import or a delete commits exactly what the confirmation showed; if the store changed in between, nothing is changed and Desktop says to look again. A backup whose keys have different passwords asks for each, naming its call and serial. Backup locations can become Desktop Locations: a name already taken, compared without case, gets a ` (TQSL)` suffix and existing Locations are never overwritten, and creating them is unchecked by default. A pending operation is cancelled when its deadline passes or the extension host exits, and a late dialog answer is ignored.
 - `make verify` audits every packaged Electron window and its content security policy, the password window included.
 

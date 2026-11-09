@@ -31,6 +31,11 @@ export function isLotwPreview(v: unknown): v is NativeLotwPreview {
     && Array.isArray(v.locations) && v.locations.length <= 4096 && v.locations.every(l => exact(l, ['name', 'fields']) && string(l.name)
       && Array.isArray(l.fields) && l.fields.length <= 32 && l.fields.every(f => exact(f, ['name', 'value']) && string(f.name) && string(f.value)));
 }
+// "conflict": the store changed after the operator confirmed, and the
+// credential core committed nothing. It is a result the core returns, never
+// error text, and it carries nothing but its status.
 export function isLotwSummary(v: unknown): v is NativeLotwSummary {
-  return exact(v, ['status', 'certificates', 'roots', 'signedQsos', 'deleted']) && v.status === 'completed' && entries(v.certificates) && [v.roots, v.signedQsos, v.deleted].every(count);
+  if (!exact(v, ['status', 'certificates', 'roots', 'signedQsos', 'deleted'])) return false;
+  if (v.status === 'conflict') return Array.isArray(v.certificates) && v.certificates.length === 0 && v.roots === 0 && v.signedQsos === 0 && v.deleted === 0;
+  return v.status === 'completed' && entries(v.certificates) && [v.roots, v.signedQsos, v.deleted].every(count);
 }

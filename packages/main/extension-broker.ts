@@ -144,7 +144,8 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
     describe: id => {
       const extension = deps.extensions.find(entry => entry.manifest.id === id);
       if (!extension?.manifest.main) return undefined;
-      return { entry: join(dirname(extension.source), extension.manifest.main), pages: extension.manifest.contributes.pages.map(page => page.id) };
+      return { entry: join(dirname(extension.source), extension.manifest.main), pages: extension.manifest.contributes.pages.map(page => page.id),
+        pageActions: Object.fromEntries(extension.manifest.contributes.pages.map(page => [page.id, { actions: page.actions ?? [], rowActions: page.rowActions ?? [] }])) };
     },
     serve: (id, request, signal) => serve(id, request, signal),
     log

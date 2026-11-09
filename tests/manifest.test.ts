@@ -14,6 +14,23 @@ const BASE = {
 };
 
 describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
+  it('refuses C1 controls in every plain manifest text field', () => {
+    const bad = 'Text\u0085More';
+    const page = (extra: Record<string, unknown>) => ({ ...BASE, contributes: { pages: [{ ...PAGE, ...extra }] } });
+    const cases = [
+      { ...BASE, name: bad }, page({ name: bad }), page({ description: bad }), page({ tab: bad }),
+      page({ inputs: [{ id: 'search', label: bad, kind: 'text' }] }),
+      page({ inputs: [{ id: 'search', label: 'Search', kind: 'text', hint: bad }] }),
+      page({ settings: [{ id: 'display', label: bad, choices: ['One', 'Two'], default: 'One' }] }),
+      page({ settings: [{ id: 'display', label: 'Display', choices: ['One', bad], default: 'One' }] }),
+      page({ settings: [{ id: 'display', label: 'Display', choices: ['One', 'Two'], default: 'One', hint: bad }] }),
+      page({ actions: [{ id: 'load', label: bad }] }), page({ rowActions: [{ id: 'delete', label: 'Delete', hint: bad }] })
+    ];
+    for (const value of cases) expect(() => validateManifest(value, known)).toThrow();
+    const integration = (program: string) => ({ ...BASE, grants: ['integration:receive'], contributes: { integration: { program, transport: 'udp', port: 2237 } } });
+    expect(() => validateManifest(integration('Test program'), new Set(['integration:receive']))).not.toThrow();
+    expect(() => validateManifest(integration(bad), new Set(['integration:receive']))).toThrow();
+  });
   it('accepts a well-formed manifest with pages and no webview', () => {
     const manifest = validateManifest(BASE, known);
     expect(manifest.contributes.pages).toEqual([PAGE]);
@@ -39,7 +56,7 @@ describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
   });
 
   it('refuses an engines.qgd range the core does not satisfy, naming the version it needs', () => {
-    expect(() => validateManifest({ ...BASE, engines: { qgd: '^2.0.0' } }, known)).toThrowError(/needs extension API \^2\.0\.0; this core serves 1\.1\.0/);
+    expect(() => validateManifest({ ...BASE, engines: { qgd: '^2.0.0' } }, known)).toThrowError(/needs extension API \^2\.0\.0; this core serves 1\.2\.0/);
     expect(() => validateManifest({ ...BASE, engines: { qgd: '>=1.0.0' } }, known)).toThrowError(/needs extension API >=1\.0\.0/);
     expect(() => validateManifest({ ...BASE, engines: {} }, known)).toThrowError(/needs extension API undefined/);
     const { engines: _gone, ...noEngines } = BASE;
@@ -47,8 +64,9 @@ describe('P8-contract: manifest version 1 (QGD-APP-0019)', () => {
   });
 
   it('reads caret ranges against the API version, and nothing else', () => {
-    expect(API_VERSION).toBe('1.1.0');
-    // An extension written for 1.0.0 still loads under 1.1.0.
+    expect(API_VERSION).toBe('1.2.0');
+    // Extensions written for 1.0.0 and 1.1.0 still load under 1.2.0.
+    expect(satisfiesApi('^1.1.0', API_VERSION)).toBe(true);
     expect(satisfiesApi('^1.0.0', API_VERSION)).toBe(true);
     expect(satisfiesApi('^1.0.0', '1.0.0')).toBe(true);
     expect(satisfiesApi('^1.0.0', '1.4.2')).toBe(true);

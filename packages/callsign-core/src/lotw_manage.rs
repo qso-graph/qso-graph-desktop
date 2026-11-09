@@ -2,6 +2,7 @@
 // QGD-LTW-0003–0005: only this module retains inspected files and pending keys.
 use qso_graph_trust::{
     certificate::Trust,
+    import::ImportError,
     store::{
         ImportChoices, ImportDisposition, KeyBackend, PendingDelete, PendingImport, Store,
         StoreError,
@@ -344,8 +345,18 @@ fn inspect_delete(store: &Store, certificate: &str) -> crate::CoreResult<Plan> {
     Ok(Plan::Delete(Box::new(pending), vec![entry]))
 }
 
-const DELETE_CONFLICT: &str =
-    "The LoTW store changed since you confirmed. Nothing was deleted. Look at the store again.";
+// The store changed after the operator confirmed, and QG Trust committed
+// nothing. A result, not an error, so the outcome crosses every boundary as a
+// value (status "conflict"), never as error text to be matched.
+fn conflict() -> Summary {
+    Summary {
+        status: "conflict".into(),
+        certificates: vec![],
+        roots: 0,
+        signed_qsos: 0,
+        deleted: 0,
+    }
+}
 
 fn commit_plan(store: &Store, plan: Plan) -> crate::CoreResult<Summary> {
     let mut summary = Summary {
@@ -365,24 +376,33 @@ fn commit_plan(store: &Store, plan: Plan) -> crate::CoreResult<Summary> {
                 .map(|r| r.fingerprint.clone())
                 .collect();
             let accepted: Vec<&str> = roots.iter().map(String::as_str).collect();
-            let report = store
-                .commit(
-                    *p,
-                    ImportChoices {
-                        accept_roots: &accepted,
-                        store_locations: false,
-                        skip_refused: true,
-                    },
-                )
-                .map_err(|_| "The LoTW outcome is unknown. Read the store before trying again.")?;
+            let report = match store.commit(
+                *p,
+                ImportChoices {
+                    accept_roots: &accepted,
+                    store_locations: false,
+                    skip_refused: true,
+                },
+            ) {
+                Ok(report) => report,
+                Err(ImportError::Conflict) => return Ok(conflict()),
+                Err(_) => {
+                    return Err("The LoTW outcome is unknown. Read the store before trying again.");
+                }
+            };
             summary.roots = report.roots.len() as u32;
             summary.signed_qsos = report.signed_qsos_added as u32;
         }
         Plan::Delete(pending, entries) => {
-            store.commit_delete(*pending).map_err(|error| match error {
-                StoreError::Conflict => DELETE_CONFLICT,
-                _ => "The certificate could not be completely deleted. Read the LoTW store again.",
-            })?;
+            match store.commit_delete(*pending) {
+                Ok(()) => {}
+                Err(StoreError::Conflict) => return Ok(conflict()),
+                Err(_) => {
+                    return Err(
+                        "The certificate could not be completely deleted. Read the LoTW store again.",
+                    );
+                }
+            }
             summary.certificates = entries;
             summary.deleted = 1;
         }
@@ -652,7 +672,9 @@ mod tests {
             .import_tq6(&corpus("tqsl/1024/QG0TEST.tq6"), &trust, None)
             .unwrap();
         let before = public_bytes(&dir);
-        assert!(run(&mut m, Command::Commit { token: token(&p) }, &dir, &trust).is_err());
+        let result = run(&mut m, Command::Commit { token: token(&p) }, &dir, &trust).unwrap();
+        assert_eq!(result["status"], "conflict");
+        assert_eq!(result["certificates"], serde_json::json!([]));
         assert_eq!(public_bytes(&dir), before);
         assert!(m.session.is_none());
     }
@@ -740,10 +762,9 @@ mod tests {
             .unwrap();
         let before = public_bytes(&dir);
         assert_ne!(before, before_attach);
-        assert_eq!(
-            run(&mut m, Command::Commit { token: token(&p) }, &dir, &trust).err(),
-            Some(DELETE_CONFLICT)
-        );
+        let result = run(&mut m, Command::Commit { token: token(&p) }, &dir, &trust).unwrap();
+        assert_eq!(result["status"], "conflict");
+        assert_eq!(result["deleted"], 0);
         assert_eq!(public_bytes(&dir), before);
         assert_eq!(other.certificates().unwrap().len(), 1);
         other.with_key(&id, |_| ()).unwrap();
@@ -778,10 +799,9 @@ mod tests {
         .unwrap();
         other.add_location("test-only", &station).unwrap();
         let before = public_bytes(&dir);
-        assert_eq!(
-            run(&mut m, Command::Commit { token: token(&p) }, &dir, &trust).err(),
-            Some(DELETE_CONFLICT)
-        );
+        let result = run(&mut m, Command::Commit { token: token(&p) }, &dir, &trust).unwrap();
+        assert_eq!(result["status"], "conflict");
+        assert_eq!(result["deleted"], 0);
         assert_eq!(public_bytes(&dir), before);
         assert_eq!(other.certificates().unwrap()[0].id, id);
     }

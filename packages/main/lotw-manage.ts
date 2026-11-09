@@ -95,6 +95,7 @@ export function createLotwManage(ports: LotwManagePorts) {
       token = undefined;
       if (!isLotwSummary(result)) throw refused();
       submitted = false;
+      if (result.status === 'conflict') return { ...cancelled(), status: 'conflict' };
       let locations = 0;
       if (decision.locations && checked.length) {
         let added: number | string;

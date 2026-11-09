@@ -9,12 +9,15 @@
 -->
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte';
-  import { answerMark, filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
+  import { rowCells, rowKey, answerMark, filteredGroups, offeredOptions, shortList, pageContents, sortedGroups, startingChoices, utc, type PageShown, type TableSort } from './page-shapes.js';
   import WorldMap from './WorldMap.svelte';
   import { recall, remember } from './page-memory.js';
 
   interface Props {
     shown: PageShown;
+    rowActions?: readonly { readonly id: string; readonly label: string; readonly hint?: string }[];
+    actionRunning?: boolean;
+    onAction?: ((action: string, row: string) => void) | undefined;
     // Ask the page again now; absent, no Refresh is drawn.
     onRefresh?: (() => void) | undefined;
     // The page's fields, drawn where a fields section places them.
@@ -29,7 +32,7 @@
     // links (#59). The core builds the URL from its register.
     onOpenReference?: ((kind: 'pota' | 'sota', reference: string) => void) | undefined;
   }
-  const { shown, onRefresh, fields, offline = false, rememberAs, onOpenReference }: Props = $props();
+  const { shown, rowActions = [], actionRunning = false, onAction, onRefresh, fields, offline = false, rememberAs, onOpenReference }: Props = $props();
 
   // What each table's filters are set to, by section and column; '' is All.
   // Kept across a refresh, so a band chosen stays chosen as spots update,
@@ -181,15 +184,15 @@
                 <button type="button" class="page-sort" onclick={() => sortBy(at, c, section.sortedBy)}>{column}<span class="page-sort-mark" aria-hidden="true">{sort?.column === c ? (sort.direction === 'ascending' ? ' ▲' : ' ▼') : ''}</span></button>
               </th>
             {:else}<th scope="col">{column}</th>{/if}
-          {/each}</tr></thead>
+          {/each}{#if rowActions.length > 0}<th scope="col">Actions</th>{/if}</tr></thead>
           <!-- One table, its groups as row groups, so every group's columns line
                up with every other's. A two-cell row in a wider table gives
                its one value across the columns after the first (version 5). -->
           {#each groups as group, g (g)}
             <tbody>
-              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={drawn}>{group.heading}</th></tr>{/if}
+              {#if group.heading}<tr class="page-table-group" id="page-part-{at}-{group.at}" tabindex="-1"><th scope="rowgroup" colspan={drawn + (rowActions.length > 0 ? 1 : 0)}>{group.heading}</th></tr>{/if}
               {#each group.rows as row, r (r)}
-                <tr>{#each row.slice(0, drawn) as cell, c (c)}{@const kind = row.length === section.columns.length && onOpenReference ? linked.get(c) : undefined}{#if c === 0}<th scope="row">{#if kind}{@render reference(kind, cell)}{:else}{cell}{/if}</th>{:else}{@const short = lists.has(c) && row.length === section.columns.length ? shortList(cell) : undefined}<td class:wrap={short === undefined && cell.length > 48} title={short === undefined ? undefined : cell} colspan={row.length < section.columns.length ? drawn - 1 : undefined}>{#if kind}{@render reference(kind, cell)}{:else}{short ?? cell}{/if}</td>{/if}{/each}</tr>
+                <tr>{#each rowCells(row).slice(0, drawn) as cell, c (c)}{@const kind = rowCells(row).length === section.columns.length && onOpenReference ? linked.get(c) : undefined}{#if c === 0}<th scope="row">{#if kind}{@render reference(kind, cell)}{:else}{cell}{/if}</th>{:else}{@const short = lists.has(c) && rowCells(row).length === section.columns.length ? shortList(cell) : undefined}<td class:wrap={short === undefined && cell.length > 48} title={short === undefined ? undefined : cell} colspan={rowCells(row).length < section.columns.length ? drawn - 1 : undefined}>{#if kind}{@render reference(kind, cell)}{:else}{short ?? cell}{/if}</td>{/if}{/each}{#if rowActions.length > 0}<td>{#if rowKey(row) !== undefined}{#each rowActions as action (action.id)}<button type="button" class="secondary" title={action.hint} disabled={actionRunning || !onAction} aria-label={action.label + ' ' + (rowCells(row)[0] ?? '')} onclick={() => { const key = rowKey(row); if (key !== undefined && !actionRunning) onAction?.(action.id, key); }}>{action.label}</button>{/each}{/if}</td>{/if}</tr>
               {/each}
             </tbody>
           {/each}

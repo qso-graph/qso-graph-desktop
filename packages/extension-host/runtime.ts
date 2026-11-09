@@ -8,8 +8,9 @@
 // each extension speaks on its own channel, which the broker bound to it, and
 // the host never relays one extension's message on another's channel.
 import { isLotwManageReply, isLotwReply, type ExtensionReply, type ExtensionRequest } from '../extension-api/api-contract.js';
-import type { PageAnswer } from '../extension-api/pages.js';
-import type { PageProvider, Disposable, ExtensionContext, ExtensionModule, Datagram } from '../extension-api/context.js';
+import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
+import { isPageActionEvent, isPageActionAnswer, permitsPageAction, isPageAction, MAX_ACTIONS, MAX_ROW_ACTIONS, type PageActions } from '../extension-api/actions.js';
+import type { PageActionHandler, PageProvider, Disposable, ExtensionContext, ExtensionModule, Datagram } from '../extension-api/context.js';
 import { validateDelivered, validateEvent, type DeliveredEvent, type IntegrationEvent } from '../extension-api/integration-events.js';
 import type { FromHost, Port, ToExtension } from './protocol.js';
 import { plainRequest } from '../extension-api/plain.js';
@@ -23,6 +24,12 @@ interface Loaded {
   active: boolean;
   subscriptions: Disposable[];
   readonly providers: Map<string, PageProvider>;
+  readonly pageActions: Readonly<Record<string, PageActions>>;
+  readonly actionHandlers: Map<string, PageActionHandler>;
+  readonly actionWork: Set<string>;
+  openPage?: string;
+  readonly answers: Map<string, PageAnswer>;
+  readonly pendingAnswers: Map<number, { page: string; answer: PageAnswer }>;
   // Integrations' listeners, registered through the context (QGD-INT-0020,
   // QGD-INT-0021), and gone with its subscriptions.
   readonly datagramListeners: Set<(datagrams: readonly Datagram[]) => void>;
@@ -100,6 +107,11 @@ export function createHostRuntime(options: HostRuntimeOptions) {
           extension.providers.set(pageId, provider);
           return { dispose: () => { if (extension.providers.get(pageId) === provider) extension.providers.delete(pageId); } };
         },
+        onAction(pageId: string, handler: PageActionHandler): Disposable {
+          if (!extension.pages.has(pageId) || typeof handler !== 'function') throw new Error('An action handler needs a contributed page and a function.');
+          extension.actionHandlers.set(pageId, handler);
+          return { dispose: () => { if (extension.actionHandlers.get(pageId) === handler) extension.actionHandlers.delete(pageId); } };
+        },
         changed(pageId: string): void {
           if (!extension.pages.has(pageId)) throw new Error(`"${pageId}" is not a page this extension contributes.`);
           // Said and not waited on: the core decides whether to ask.
@@ -128,9 +140,12 @@ export function createHostRuntime(options: HostRuntimeOptions) {
   }
 
   async function providePage(extension: Loaded, cid: number, pageId: string, inputs: Readonly<Record<string, string>>, settings: Readonly<Record<string, string>> = {}): Promise<void> {
+    extension.openPage = pageId;
     const provider = extension.active ? extension.providers.get(pageId) : undefined;
     if (!provider) {
-      extension.port.post({ type: 'page-answer', cid, answer: { ok: false, reason: NOT_PROVIDED } satisfies PageAnswer });
+      const answer: PageAnswer = { ok: false, reason: NOT_PROVIDED };
+      extension.pendingAnswers.set(cid, { page: pageId, answer });
+      extension.port.post({ type: 'page-answer', cid, answer });
       return;
     }
     const work = new AbortController();
@@ -148,13 +163,52 @@ export function createHostRuntime(options: HostRuntimeOptions) {
     // effect (QGD-APP-0021). An answer that arrives anyway is still sent;
     // the broker decides whether it is wanted.
     if (answer === undefined && work.signal.aborted) extension.port.post({ type: 'page-cancelled', cid });
-    else extension.port.post({ type: 'page-answer', cid, answer });
+    else {
+      // Producing an answer does not mean main will display it.
+      if (!work.signal.aborted) {
+        try { extension.pendingAnswers.set(cid, { page: pageId, answer: validatePageAnswer(answer) }); }
+        catch { extension.pendingAnswers.set(cid, { page: pageId, answer: { ok: false, reason: PROVIDER_FAILED } }); }
+      }
+      extension.port.post({ type: 'page-answer', cid, answer });
+    }
+  }
+
+  async function act(extension: Loaded, cid: number, event: import('../extension-api/actions.js').PageActionEvent): Promise<void> {
+    const reply = (answer: unknown) => extension.port.post({ type: 'page-action-answer', cid, answer });
+    const declaration = extension.pageActions[event.page];
+    const handler = extension.actionHandlers.get(event.page);
+    if (!extension.active || extension.openPage !== event.page || !declaration || !handler
+      || !permitsPageAction(declaration, event, extension.answers.get(event.page)) || extension.actionWork.has(event.page)) {
+      reply({ ok: false, error: 'That action is not available on the open page.' }); return;
+    }
+    extension.actionWork.add(event.page);
+    try {
+      const status = await handler(Object.freeze({ ...event }));
+      const answer = status === undefined ? { ok: true } : { ok: true, status };
+      reply(isPageActionAnswer(answer) ? answer : { ok: false, error: 'The action returned a status that could not be read.' });
+    } catch { reply({ ok: false, error: 'The action could not finish. Read the page before trying again.' }); }
+    finally { extension.actionWork.delete(event.page); }
   }
 
   function onChannel(extension: Loaded, raw: unknown): void {
     const message = raw as ToExtension;
     if (typeof message !== 'object' || message === null) return;
-    if (message.type === 'reply') {
+    if (message.type === 'page.action') {
+      if (Object.keys(message).sort().join(',') !== 'cid,event,type' || !Number.isSafeInteger(message.cid) || message.cid <= 0 || !isPageActionEvent(message.event)) return;
+      void act(extension, message.cid, message.event);
+    } else if (message.type === 'page-settled') {
+      if (Object.keys(message).sort().join(',') !== 'accepted,cid,type' || !Number.isSafeInteger(message.cid) || message.cid <= 0 || typeof message.accepted !== 'boolean') return;
+      const pending = extension.pendingAnswers.get(message.cid);
+      if (!pending) return;
+      extension.pendingAnswers.delete(message.cid);
+      if (message.accepted) extension.answers.set(pending.page, pending.answer);
+    } else if (message.type === 'page-open') {
+      if (Object.keys(message).sort().join(',') !== 'page,type' || typeof message.page !== 'string' || !extension.pages.has(message.page)) return;
+      extension.openPage = message.page;
+    } else if (message.type === 'page-close') {
+      if (Object.keys(message).sort().join(',') !== 'page,type' || typeof message.page !== 'string') return;
+      if (extension.openPage === message.page) extension.openPage = undefined;
+    } else if (message.type === 'reply') {
       const waiting = extension.waiting.get(message.cid);
       if (!waiting) return;
       extension.waiting.delete(message.cid);
@@ -171,6 +225,7 @@ export function createHostRuntime(options: HostRuntimeOptions) {
       void providePage(extension, message.cid, message.pageId, inputs, settings);
     } else if (message.type === 'page-cancel') {
       extension.pageWork.get(message.cid)?.abort();
+      extension.pendingAnswers.delete(message.cid);
     } else if (message.type === 'datagrams' && extension.active && Array.isArray(message.datagrams)) {
       const datagrams = (message.datagrams as readonly unknown[]).filter((entry): entry is Datagram => {
         const candidate = entry as { from?: unknown; bytes?: unknown } | null;
@@ -191,6 +246,10 @@ export function createHostRuntime(options: HostRuntimeOptions) {
       try { subscription.dispose(); } catch { /* the rest are still disposed */ }
     }
     extension.providers.clear();
+    extension.actionHandlers.clear();
+    extension.answers.clear();
+    extension.pendingAnswers.clear();
+    extension.openPage = undefined;
     extension.datagramListeners.clear();
     extension.eventListeners.clear();
   }
@@ -237,17 +296,33 @@ export function createHostRuntime(options: HostRuntimeOptions) {
   return {
     // A message from the broker, with the extension's channel when it is a load.
     receive(raw: unknown, port?: Port): void {
-      const message = raw as { type?: unknown; id?: unknown; seq?: unknown; n?: unknown; entry?: unknown; pages?: unknown };
+      const message = raw as { type?: unknown; id?: unknown; seq?: unknown; n?: unknown; entry?: unknown; pages?: unknown; pageActions?: unknown };
       if (typeof message !== 'object' || message === null) return;
       if (message.type === 'ping' && Number.isSafeInteger(message.n)) {
         options.toBroker({ type: 'pong', n: message.n as number });
       } else if (message.type === 'load' && typeof message.id === 'string' && typeof message.entry === 'string'
           && Array.isArray(message.pages) && port) {
         if (extensions.has(message.id)) return;
+        const pageActions: Record<string, PageActions> = {};
+        if (message.pageActions !== undefined) {
+          if (typeof message.pageActions !== 'object' || message.pageActions === null || Array.isArray(message.pageActions)) return;
+          for (const [page, raw] of Object.entries(message.pageActions)) {
+            if (!isPageActionEvent({ page, action: 'check' }) || !message.pages.includes(page) || typeof raw !== 'object' || raw === null || Array.isArray(raw)) return;
+            const entry = raw as PageActions;
+            if (Object.keys(entry).some(key => !['actions', 'rowActions'].includes(key))) return;
+            const ids = new Set<string>();
+            for (const [list, max] of [[entry.actions, MAX_ACTIONS], [entry.rowActions, MAX_ROW_ACTIONS]] as const) {
+              if (list === undefined) continue;
+              if (!Array.isArray(list) || list.length > max) return;
+              for (const action of Array.from(list)) { if (!isPageAction(action) || ids.has(action.id)) return; ids.add(action.id); }
+            }
+            pageActions[page] = entry;
+          }
+        }
         const extension: Loaded = {
           id: message.id, entry: message.entry, pages: new Set(message.pages.filter((c): c is string => typeof c === 'string')),
           port, active: false, subscriptions: [], providers: new Map(), datagramListeners: new Set(), eventListeners: new Set(),
-          waiting: new Map(), pageWork: new Map(), nextCid: 1, lifecycle: Promise.resolve()
+          pageActions, actionHandlers: new Map(), actionWork: new Set(), answers: new Map(), pendingAnswers: new Map(), waiting: new Map(), pageWork: new Map(), nextCid: 1, lifecycle: Promise.resolve()
         };
         extensions.set(message.id, extension);
         port.onMessage(value => onChannel(extension, value));

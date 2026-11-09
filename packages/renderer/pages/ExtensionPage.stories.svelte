@@ -54,6 +54,16 @@
     }
   };
 
+  const certificates = {
+    ...base, key: 'lotw/certificates', name: 'Certificates', areaName: 'Certificates', network: false,
+    actions: [{ id: 'load', label: 'Load certificate…' }, { id: 'restore', label: 'Restore TQSL backup…' }],
+    rowActions: [{ id: 'delete', label: 'Delete…' }],
+    shown: { state: 'ready' as const, observedAt: '2026-11-09T12:00:00Z', sections: [{
+      shape: 'table' as const, columns: ['Call', 'DXCC', 'Serial', 'QSO dates first–last', 'Valid from–to', 'Key'],
+      rows: [{ key: 'opaque-not-drawn', cells: ['QG0TEST', '291', 'AB12', '2020-01-01 – 2030-01-01', '2020-01-01 – 2030-01-01', 'Key: installed'] }, ['QG1TEST', '291', 'AB13', '2020-01-01 – 2030-01-01', '2020-01-01 – 2030-01-01', 'Key: not installed']]
+    }] }
+  };
+
   const { Story } = defineMeta({
     title: 'pages/ExtensionPage',
     component: ExtensionPage,
@@ -67,3 +77,7 @@
 <Story name="Offline" args={{ page: { ...base, shown: { state: 'waiting' } }, offline: true }} />
 <Story name="In views" args={{ page: monitor, extensionName: 'Monitor' }} />
 <Story name="Its own settings" args={{ page: monitor, extensionName: 'Monitor', showingSettings: true }} />
+
+<Story name="Page and row actions" args={{ page: certificates, extensionName: 'LoTW', onAction: () => {} }} />
+<Story name="Action running" args={{ page: { ...certificates, actionRunning: true }, extensionName: 'LoTW', onAction: () => {} }} />
+<Story name="Action status" args={{ page: { ...certificates, actionStatus: 'Deleted 1 certificate(s).' }, extensionName: 'LoTW', onAction: () => {} }} />

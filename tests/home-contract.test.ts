@@ -38,6 +38,10 @@ describe('what the window may ask (QGD-HOM-0003)', () => {
 });
 
 describe('what the window accepts (QGD-HOM-0002)', () => {
+  it('refuses C1 controls in plain failure text', () => {
+    expect(isPageView({ key: READY.key, state: 'failed', reason: 'Failed\u0085Try again' })).toBe(false);
+    expect(isHomeReply({ ok: false, error: 'Failed\u009bTry again' })).toBe(false);
+  });
   it('accepts each page state, and the whole state', () => {
     expect(isPageView(READY)).toBe(true);
     expect(isPageView({ key: 'on-the-air/conditions', state: 'waiting' })).toBe(true);

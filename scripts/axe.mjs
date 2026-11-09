@@ -156,6 +156,23 @@ try {
       if (over) failures.push(`${name} in ${theme}: the window scrolls, ${over} px taller than it (QGD-FRM-0022)`);
     }
 
+    // The real action controls, including a keyed and an unkeyed row, in
+    // both themes. This fixture is sent on the normal validated page channel.
+    await rail('Settings').click();
+    const lotw = page.getByRole('switch', { name: /^LoTW/ });
+    if (!(await lotw.isChecked())) await lotw.click();
+    await rail('Certificates').click();
+    await expect(page.locator('section.page-body')).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('home:page', {
+      key: 'lotw/certificates', state: 'ready', fetchedAt: '2026-11-09T12:00:00Z', answer: { ok: true, data: {
+        version: 8, observedAt: '2026-11-09T12:00:00Z', sections: [{ shape: 'table', columns: ['Call', 'Key'], rows: [
+          { key: 'qg-test-row-action', cells: ['QG0TEST', 'Key: installed'] }, ['QG1TEST', 'Key: not installed']
+        ] }]
+      } }
+    }));
+    await expect(page.getByRole('button', { name: 'Delete… QG0TEST', exact: true })).toBeVisible();
+    await run(page, `LoTW page and row actions in ${theme}`);
+
     // Troubleshooting is a surface with controls on it — a level switch, a
     // save, start and stop — so it is scanned like a page even though it is
     // not one (QGD-LOG-0013, QGD-FRM-0012). Scanned open, because closed it is

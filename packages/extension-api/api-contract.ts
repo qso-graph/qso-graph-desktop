@@ -189,7 +189,7 @@ export interface LotwTrustedRoot {
 
 export type LotwManageKind = 'lotw.import' | 'lotw.restore' | 'lotw.delete';
 export interface LotwManageResult {
-  readonly status: 'completed' | 'cancelled';
+  readonly status: 'completed' | 'cancelled' | 'conflict';
   readonly certificates: readonly { readonly call: string; readonly serial: string; readonly disposition: 'new' | 'present' | 'refused' | 'delete'; readonly reason: string }[];
   readonly roots: number; readonly signedQsos: number; readonly deleted: number;
   readonly locations: number; readonly skippedLocations: readonly { readonly name: string; readonly reason: string }[];
@@ -490,7 +490,9 @@ export function isLotwReply(value: unknown, kind: 'lotw.certificates' | 'lotw.ro
 export function isLotwManageResult(value: unknown): value is LotwManageResult {
   const count = (n: unknown) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
   return exactly(value, ['status', 'certificates', 'roots', 'signedQsos', 'deleted', 'locations', 'skippedLocations'])
-    && ['completed', 'cancelled'].includes(value.status as string)
+    && ['completed', 'cancelled', 'conflict'].includes(value.status as string)
+    && (value.status !== 'conflict' || (value.roots === 0 && value.signedQsos === 0 && value.deleted === 0 && value.locations === 0
+      && Array.isArray(value.certificates) && value.certificates.length === 0 && Array.isArray(value.skippedLocations) && value.skippedLocations.length === 0))
     && [value.roots, value.signedQsos, value.deleted, value.locations].every(count)
     && Array.isArray(value.certificates) && value.certificates.every(c => exactly(c, ['call', 'serial', 'disposition', 'reason'])
       && [c.call, c.serial, c.reason].every(isString) && ['new', 'present', 'refused', 'delete'].includes(c.disposition as string))

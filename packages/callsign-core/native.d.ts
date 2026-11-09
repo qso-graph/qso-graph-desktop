@@ -183,5 +183,5 @@ export interface NativeLotwPreview {
   signedQsos: number; signedQsoBytes: number;
 }
 export interface NativeLotwSummary {
-  status: 'completed'; certificates: NativeLotwEntry[]; roots: number; signedQsos: number; deleted: number;
+  status: 'completed' | 'conflict'; certificates: NativeLotwEntry[]; roots: number; signedQsos: number; deleted: number;
 }

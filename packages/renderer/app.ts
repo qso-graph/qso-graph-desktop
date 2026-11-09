@@ -31,6 +31,7 @@ declare global {
     logs: { request(command: LogsCommand): Promise<LogsReply> };
     home?: {
       request(command: unknown): Promise<unknown>;
+      onAction?(listener: (state: unknown) => void): () => void;
       onPage(listener: (page: unknown) => void): () => void;
       onNotice(listener: (notice: unknown) => void): () => void;
     };

@@ -10,6 +10,7 @@
 //
 // No Electron here, and the clock and the supervisor are passed in, so all of
 // it runs under unit tests with time the test controls.
+import type { PageActions } from '../extension-api/actions.js';
 import type { PageInput } from '../extension-api/inputs.js';
 import type { PageView } from './home-contract.js';
 import type { PageOutcome } from './extension-host-supervisor.js';
@@ -18,7 +19,7 @@ import type { PageSetting } from '../extension-api/manifest.js';
 
 // A page some loaded, enabled extension offers. `key` is "extension/page",
 // which is what a pin names.
-export interface CataloguePage {
+export interface CataloguePage extends PageActions {
   readonly key: string;
   readonly extension: string;
   readonly extensionName: string;
@@ -260,6 +261,13 @@ export function createPageScheduler(deps: PageSchedulerDeps) {
       if (entry) halt(entry);
       lastAsked.delete(key);
       kept.delete(key);
+      reconcile();
+    },
+    // Actions change local data: invalidate even inside Refresh's floor.
+    actionCompleted(key: string): void {
+      lastAsked.delete(key); kept.delete(key);
+      const entry = tracked.get(key);
+      if (entry) { halt(entry); if (entry.work) entry.changed = true; }
       reconcile();
     },
     // The operator pressed Refresh: ask now rather than when the interval
