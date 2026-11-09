@@ -647,7 +647,7 @@ that one rule.
 ## 4.8 Integrations
 
 `QGD-PRT-0113`. **The one way in**. The programs a station runs share what they
-do by sending it: WSJT-X, JTDX, MSHV, JS8Call and N1MM Logger+ send UDP to a listener, and have no
+do by sending it: WSJT-X, JS8Call and N1MM Logger+ send UDP to a listener, and have no
 way to be asked. Integrations is that listener, and the only one, held to rules that are written once
 and tested once. It is core, as Callsigns and Locations are, and always on the rail; it hears nothing
 until the operator turns an adapter on.
