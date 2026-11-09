@@ -26,7 +26,7 @@ import { problemOf, summarize } from './reference-resources.js';
 import { readReferenceRuleset } from './reference-read.js';
 import { isCallsignId, type StationsView } from './station-contract.js';
 import {
-  backupStations, checkBackup, deleteStation, draftFromPark, restoreStations, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
+  addLotwStations, backupStations, checkBackup, deleteStation, draftFromPark, restoreStations, draftFromSummit, summitOf, lookUpParks, parkLocations, parksIn, callsignActivated, callsignRemoved, stationChoices, type ReferenceLists, saveStation, setActiveStation, setDefaultStation, viewStations,
   type Definitions
 } from './stations.js';
 import type { Store } from './sqlite.js';
@@ -247,6 +247,13 @@ async function stationCommand(command: Exclude<StorageCommand, { type: 'status' 
       if (!state) return { ok: false, error: 'Storage is not open yet.' };
       const problem = checkBackup(command.backup, await currentDefinitions(), await usCounties());
       return problem ? { ok: false, error: `A Location in that backup cannot be restored. ${problem}` } : { ok: true, status: status() };
+    }
+    case 'stations-add-lotw': {
+      if (!state) return { ok: false, error: 'Storage is not open yet.' };
+      const restored = await addLotwStations(state, command.backup, command.expectedNames, await currentDefinitions(), await usCounties());
+      if (typeof restored === 'object') return { ok: false, error: 'Those Locations could not be added. Restore the backup again.' };
+      await reloadStations(); publish();
+      return { ok: true, status: status(), restored };
     }
     case 'stations-restore': {
       if (!state) return { ok: false, error: 'Storage is not open yet.' };

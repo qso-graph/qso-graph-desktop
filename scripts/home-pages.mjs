@@ -354,6 +354,45 @@ try {
   await page.locator('#close-whats-new').click();
   await expect(page.locator('#whats-new')).toHaveCount(0);
   console.log('Help -> What\'s New opens the changelog\'s notes; nothing opens by itself: PASS');
+  // Core-drawn actions: keyboard activation, all buttons disabled during a
+  // pending operator dialog, and cancellation. Only the native file dialog
+  // is mocked; the press takes the real Home, supervisor and host path.
+  await rail(page, 'Settings').click();
+  const lotw = page.getByRole('switch', { name: /^LoTW/ });
+  await expect(lotw).not.toBeChecked();
+  await lotw.click();
+  await expect(lotw).toBeChecked({ timeout: 30_000 });
+  // Turned on in Settings, its page is on the rail at once, without a visit to Home.
+  await rail(page, 'Certificates').click({ timeout: 30_000 });
+  await expect(body(page)).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
+  await application.evaluate(({ BrowserWindow, dialog }) => {
+    const original = dialog.showOpenDialog;
+    globalThis.__qgTestRestoreDialog = () => { dialog.showOpenDialog = original; };
+    dialog.showOpenDialog = () => new Promise(resolve => { globalThis.__qgTestCancelDialog = () => resolve({ canceled: true, filePaths: [] }); });
+    // A renderer fixture tests row controls too; it never changes the store.
+    BrowserWindow.getAllWindows()[0].webContents.send('home:page', { key: 'lotw/certificates', state: 'ready', fetchedAt: '2026-11-09T12:00:00Z', answer: { ok: true, data: { version: 8, observedAt: '2026-11-09T12:00:00Z', sections: [{ shape: 'table', columns: ['Call', 'Key'], rows: [{ key: 'qg-test-row-action', cells: ['QG0TEST', 'Key: installed'] }, ['QG1TEST', 'Key: not installed']] }] } } });
+  });
+  const load = page.getByRole('button', { name: 'Load certificate…', exact: true });
+  const restore = page.getByRole('button', { name: 'Restore TQSL backup…', exact: true });
+  const remove = page.getByRole('button', { name: 'Delete… QG0TEST', exact: true });
+  await expect(remove).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete… QG1TEST', exact: true })).toHaveCount(0);
+  await expect(body(page)).not.toContainText('qg-test-row-action');
+  await load.focus();
+  await page.keyboard.press('Tab');
+  await expect(restore).toBeFocused();
+  await load.focus();
+  await page.keyboard.press('Enter');
+  await expect(load).toBeDisabled();
+  await expect(restore).toBeDisabled();
+  await expect(remove).toBeDisabled();
+  await expect.poll(() => application.evaluate(() => typeof globalThis.__qgTestCancelDialog)).toBe('function');
+  await application.evaluate(() => { globalThis.__qgTestCancelDialog(); globalThis.__qgTestRestoreDialog(); delete globalThis.__qgTestCancelDialog; delete globalThis.__qgTestRestoreDialog; });
+  await expect(page.getByRole('status').filter({ hasText: 'Cancelled. No changes were made.' })).toBeVisible({ timeout: 30_000 });
+  await expect(load).toBeEnabled();
+  await expect(restore).toBeEnabled();
+  console.log('Page actions: manifest buttons and keyed rows, keyboard activation, disabled while running, core dialog cancellation and refreshed status: PASS');
+
   console.log('P8-built-in: Conditions is on by default; off, its tiles leave Home and the list and stay gone across a restart; on, they return to their pins at once; a failed save leaves the switch as recorded: PASS');
 } catch (error) {
   console.error('P8 Home pins suite failed.');

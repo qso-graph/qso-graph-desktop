@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { hasControlCharacters } from './text.js';
 // An extension declares itself in data (QGD-APP-0001), and this is what a
 // declaration has to be for the core to accept it.
 //
@@ -27,13 +28,17 @@ export const LOADABLE_TIERS: readonly Tier[] = ['official'];
 // serves (QGD-APP-0019). A manifest states both, so a manifest written for a
 // later core is refused with the version it needs rather than half-understood.
 import { HINT_MAX, INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from './inputs.js';
+import { isPageAction, MAX_ACTIONS, MAX_ROW_ACTIONS, type PageAction } from './actions.js';
 import { deliveryGrant } from './api-contract.js';
 
 export const MANIFEST_VERSION = 1;
 // 1.1.0 added Integrations (QGD-INT-0020, QGD-INT-0021): an adapter's
 // declaration, the datagrams and events, live pages and a page's views. An
 // extension written for 1.0.0 still loads.
-export const API_VERSION = '1.1.0';
+// 1.2.0 added LoTW management (lotw:manage: lotw.import, lotw.restore,
+// lotw.delete), page actions and row actions, row keys and the page.action
+// event (QGD-HOM-0018 to 0020). An extension written for 1.0.0 or 1.1.0 still loads.
+export const API_VERSION = '1.2.0';
 
 // Activation reasons beyond the extension's contributions, which activate it
 // on their own (a pinned card, QGD-APP-0020). Closed, like the grant register:
@@ -62,6 +67,8 @@ export interface PageContribution {
   // The fields the page asks the operator for, drawn and checked by the core
   // (inputs.ts).
   readonly inputs?: readonly PageInput[];
+  readonly actions?: readonly PageAction[];
+  readonly rowActions?: readonly PageAction[];
   // Whether the page needs the internet: a page that does
   // not keeps working offline, though its extension may fetch for another
   // page. Absent, the core works it out from the extension's grants.
@@ -185,10 +192,10 @@ export function isTier(value: unknown): value is Tier {
 // the extension thinks it made and the core never read.
 const FIELDS = ['manifestVersion', 'id', 'name', 'tier', 'version', 'engines', 'grants',
   'main', 'contributes', 'activationEvents', 'page'];
-const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'inputs', 'network', 'under', 'tab', 'hue', 'live', 'views', 'settings'];
+const PAGE_FIELDS = ['id', 'name', 'description', 'refreshSeconds', 'icon', 'inputs', 'network', 'under', 'tab', 'hue', 'live', 'views', 'settings', 'actions', 'rowActions'];
 const SETTING_FIELDS = ['id', 'label', 'choices', 'default', 'hint'];
 const plainText = (value: unknown, max: number): value is string =>
-  typeof value === 'string' && value.trim() !== '' && value.length <= max && !/[<>]/.test(value);
+  typeof value === 'string' && value.trim() !== '' && value.length <= max && !/[<>]/.test(value) && !hasControlCharacters(value);
 
 // A page's settings: at most four, each a short list of plain choices with
 // one of them its default (QGD-HOM-0017).
@@ -270,7 +277,7 @@ export function pageNeedsNetwork(manifest: Pick<ExtensionManifest, 'grants'>, pa
 function validPage(value: unknown, id: string, seen: Set<string>): PageContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" offers a page that is not an object.`, id);
   onlyKnown(value, PAGE_FIELDS, `A page in "${id}"`, id);
-  const { id: page, name, description, refreshSeconds, icon, inputs, network, under, tab, hue, live, views, settings } = value;
+  const { id: page, name, description, refreshSeconds, icon, inputs, network, under, tab, hue, live, views, settings, actions, rowActions } = value;
   if (typeof page !== 'string' || !APP_ID.test(page)) throw new ManifestError(`"${id}" offers a page with no well-formed id.`, id);
   if (seen.has(page)) throw new ManifestError(`"${id}" offers the page "${page}" twice.`, page);
   seen.add(page);
@@ -286,6 +293,7 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (/[<>]/.test(name) || /[<>]/.test(description)) {
     throw new ManifestError(`The page "${page}" in "${id}" has markup in its name or description.`, page);
   }
+  if (hasControlCharacters(name) || hasControlCharacters(description)) throw new ManifestError('A page name or description has control characters.', page);
   if (!Number.isInteger(refreshSeconds) || (refreshSeconds as number) < 60 || (refreshSeconds as number) > 86_400) {
     throw new ManifestError(`The page "${page}" in "${id}" has no refresh interval between a minute and a day.`, page);
   }
@@ -298,7 +306,7 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   if (under !== undefined && (typeof under !== 'string' || !APP_ID.test(under) || under === page)) {
     throw new ManifestError(`The page "${page}" in "${id}" is under something that is not another page's id.`, page);
   }
-  if (tab !== undefined && (typeof tab !== 'string' || tab.trim() === '' || tab.length > TAB_MAX || /[<>]/.test(tab))) {
+  if (tab !== undefined && (typeof tab !== 'string' || tab.trim() === '' || tab.length > TAB_MAX || (/[<>]/.test(tab) || hasControlCharacters(tab)))) {
     throw new ManifestError(`The page "${page}" in "${id}" has a tab name that is not plain text of at most ${TAB_MAX} characters.`, page);
   }
   if (hue !== undefined && (typeof hue !== 'string' || !Object.hasOwn(PAGE_HUES, hue))) {
@@ -307,12 +315,25 @@ function validPage(value: unknown, id: string, seen: Set<string>): PageContribut
   // Present only as true: a page that is not live or in views says nothing.
   if (live !== undefined && live !== true) throw new ManifestError(`The page "${page}" in "${id}" says it is live with something other than true.`, page);
   if (views !== undefined && views !== true) throw new ManifestError(`The page "${page}" in "${id}" says it has views with something other than true.`, page);
+  const actionIds = new Set<string>();
+  const buttons = (list: unknown, max: number): PageAction[] | undefined => {
+    if (list === undefined) return undefined;
+    if (!Array.isArray(list) || list.length > max) throw new ManifestError('A page has too many actions or no action list.', page);
+    return Array.from(list, (entry: unknown) => {
+      if (!isPageAction(entry) || actionIds.has(entry.id)) throw new ManifestError('A page action needs a unique slug, plain label and only known fields.', page);
+      actionIds.add(entry.id);
+      return { id: entry.id, label: entry.label, ...(entry.hint !== undefined ? { hint: entry.hint } : {}) };
+    });
+  };
+  const pageButtons = buttons(actions, MAX_ACTIONS);
+  const rowButtons = buttons(rowActions, MAX_ROW_ACTIONS);
   const fields = validInputs(inputs, page, id);
   const looks = validSettings(settings, page, id);
   // Its views are its tabs, so it asks for no fields of its own: the core
   // asks it with the view.
   if (views === true && fields.length > 0) throw new ManifestError(`The page "${page}" in "${id}" has views and fields; a page with views has none.`, page);
   return {
+    ...(pageButtons ? { actions: pageButtons } : {}), ...(rowButtons ? { rowActions: rowButtons } : {}),
     id: page, name, description, refreshSeconds: refreshSeconds as number,
     ...(icon !== undefined ? { icon: icon as string } : {}),
     ...(fields.length > 0 ? { inputs: fields } : {}),
@@ -331,7 +352,7 @@ function validIntegration(value: unknown, id: string): IntegrationContribution {
   if (!isRecord(value)) throw new ManifestError(`"${id}" declares an integration that is not an object.`, id);
   onlyKnown(value, INTEGRATION_FIELDS, `"${id}" integration`, id);
   const { program, transport, port } = value;
-  if (typeof program !== 'string' || program.trim() === '' || program.length > 40 || /[<>]/.test(program)) {
+  if (typeof program !== 'string' || program.trim() === '' || program.length > 40 || (/[<>]/.test(program) || hasControlCharacters(program))) {
     throw new ManifestError(`"${id}" does not name the program it adapts in plain text of at most 40 characters.`, id);
   }
   // The closed list (QGD-INT-0003): a transport is added by a decision, as
@@ -361,7 +382,7 @@ function validInputs(value: unknown, page: string, id: string): PageInput[] {
       throw new ManifestError(`The page "${page}" in "${id}" has a field with no well-formed, unique id.`, page);
     }
     seen.add(field);
-    if (typeof label !== 'string' || label.trim() === '' || label.length > 32 || /[<>]/.test(label)) {
+    if (typeof label !== 'string' || label.trim() === '' || label.length > 32 || (/[<>]/.test(label) || hasControlCharacters(label))) {
       throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" has no plain label of at most 32 characters.`, field);
     }
     if (!(INPUT_KINDS as readonly unknown[]).includes(kind)) {
@@ -370,7 +391,7 @@ function validInputs(value: unknown, page: string, id: string): PageInput[] {
     if (max !== undefined && (kind !== 'text' || !Number.isInteger(max) || (max as number) < 1 || (max as number) > TEXT_MAX)) {
       throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" gives a longest value that is not a whole number from 1 to ${TEXT_MAX}, or is not a text.`, field);
     }
-    if (hint !== undefined && (typeof hint !== 'string' || hint.trim() === '' || hint.length > HINT_MAX || /[<>]/.test(hint))) {
+    if (hint !== undefined && (typeof hint !== 'string' || hint.trim() === '' || hint.length > HINT_MAX || (/[<>]/.test(hint) || hasControlCharacters(hint)))) {
       throw new ManifestError(`The field "${field}" on the page "${page}" in "${id}" has a hint that is not plain text of at most ${HINT_MAX} characters.`, field);
     }
     return { id: field, label, kind: kind as PageInput['kind'], ...(max !== undefined ? { max: max as number } : {}), ...(hint !== undefined ? { hint: hint as string } : {}) };
@@ -394,7 +415,7 @@ export function validateManifest(value: unknown, known: ReadonlySet<string>): Ex
   if (manifestVersion !== MANIFEST_VERSION) {
     throw new ManifestError(`"${id}" is written for manifest version ${String(manifestVersion)}; this core reads version ${MANIFEST_VERSION}.`, id);
   }
-  if (typeof name !== 'string' || name.trim() === '' || name.length > 64 || /[<>]/.test(name)) {
+  if (typeof name !== 'string' || name.trim() === '' || name.length > 64 || (/[<>]/.test(name) || hasControlCharacters(name))) {
     throw new ManifestError(`"${id}" has no name to show.`, id);
   }
   if (!isTier(tier)) {

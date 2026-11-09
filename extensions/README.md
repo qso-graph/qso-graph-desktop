@@ -13,13 +13,14 @@ Every extension holds to the spec's invariants and conventions (`QGD-SPEC-001` Â
 for example, no connection of its own, no credential, and every value written the way the core
 writes it.
 
-The six that ship today:
+The seven that ship today:
 
 | Extension | What |
 |---|---|
 | [`pota`](pota/README.md) | Parks On the Air: Near Me, Spots and Most Wanted |
 | [`conditions`](conditions/README.md) | Conditions: solar flux, the K and A indices, NOAA's scales and the band outlook |
 | [`astro`](astro/README.md) | Astro: the grey line, the sun, the twilights and the moon at your Location |
+| [`lotw`](lotw/README.md) | LoTW: certificates and trusted roots managed through QG Trust |
 | [`adif-lookup`](adif-lookup/README.md) | ADIF Lookup: every ADIF field and enumeration value, in ADIF's own words |
 | [`wsjtx`](wsjtx/README.md) | WSJT-X: the adapter that turns what WSJT-X sends into events (`QGD-INT-0022`) |
 | [`monitor`](monitor/README.md) | Monitor: WSJT-X's decodes as they arrive, read-only (`QGD-INT-0023`) |

@@ -6,12 +6,15 @@
 // observedAt: when this figure was observed, where it differs from the page (page data version 3).
 export interface Figure { readonly label: string; readonly value: string; readonly unit?: string; readonly observedAt?: string }
 export interface Item { readonly title: string; readonly detail?: string }
+export type Row = readonly string[] | { readonly cells: readonly string[]; readonly key?: string };
+export function rowCells(row: Row): readonly string[] { return 'cells' in row ? row.cells : row; }
+export function rowKey(row: Row): string | undefined { return 'cells' in row ? row.key : undefined; }
 // Any section may carry a heading (page data version 4).
 export type Section = (
   | { readonly shape: 'figures'; readonly figures: readonly Figure[] }
   | { readonly shape: 'items'; readonly items: readonly Item[] }
   | { readonly shape: 'alert'; readonly level: 'info' | 'warning' | 'severe'; readonly text: string }
-  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
+  | { readonly shape: 'table'; readonly columns: readonly string[]; readonly rows: readonly Row[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   // In named groups, and a two-cell row across a wider table (version 5).
   | { readonly shape: 'table'; readonly columns: readonly string[]; readonly groups: readonly TableGroup[]; readonly filters?: readonly TableFilter[]; readonly sortable?: boolean; readonly sortedBy?: TableSort; readonly hidden?: number; readonly links?: readonly TableLink[] }
   // The world with the night greyed out, and places marked (version 6).
@@ -50,7 +53,7 @@ export interface TableFilter {
 }
 // A column of references the core links to their pages (version 6).
 export interface TableLink { readonly column: number; readonly kind: 'pota' | 'sota' }
-export interface TableGroup { readonly heading: string; readonly rows: readonly (readonly string[])[] }
+export interface TableGroup { readonly heading: string; readonly rows: readonly Row[] }
 
 // What a filter offers: the extension's options, or else the column's own
 // values in the order they first appear.
@@ -59,8 +62,8 @@ export function filterOptions(section: Extract<Section, { shape: 'table' }>, fil
   if (filter.options) return filter.options;
   const seen = new Set<string>();
   for (const group of tableGroups(section)) for (const row of group.rows) {
-    const cell = row[filter.column];
-    if (cell === undefined || row.length !== section.columns.length) continue;
+    const cell = rowCells(row)[filter.column];
+    if (cell === undefined || rowCells(row).length !== section.columns.length) continue;
     for (const value of filter.multiple ? valuesOf(cell) : [cell]) seen.add(value);
   }
   return [...seen];
@@ -79,7 +82,7 @@ export function offeredOptions(
   if (all.length === 0 || Object.values(others).every(value => value === '')) return all;
   const present = new Set<string>();
   for (const group of filteredGroups(section, others)) for (const row of group.rows) {
-    const cell = row[filter.column];
+    const cell = rowCells(row)[filter.column];
     if (cell === undefined) continue;
     for (const value of filter.multiple ? valuesOf(cell) : [cell]) present.add(value);
   }
@@ -123,9 +126,9 @@ export function filteredGroups(section: Extract<Section, { shape: 'table' }>, ch
   const placed = tableGroups(section).map((group, at) => ({ ...group, at }));
   if (active.length === 0) return placed;
   return placed
-    .map(group => ({ ...group, rows: group.rows.filter(row => row.length === section.columns.length
+    .map(group => ({ ...group, rows: group.rows.filter(row => rowCells(row).length === section.columns.length
       && active.every(([column, value]) => {
-        const cell = row[Number(column)] ?? '';
+        const cell = rowCells(row)[Number(column)] ?? '';
         const most = bound(Number(column), value);
         if (most !== undefined) return isNumber(cell) && Number(cell) <= most;
         const values = several.has(Number(column)) ? valuesOf(cell) : [cell];
@@ -152,7 +155,7 @@ const words = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
 // "160m"); a column of numbers sorts as numbers; any other as text, with the
 // numbers in it compared as numbers. Equal rows keep the extension's order,
 // and a row that spans its columns stays at the end of its group.
-export function sortedGroups<G extends { readonly rows: readonly (readonly string[])[] }>(
+export function sortedGroups<G extends { readonly rows: readonly Row[] }>(
   section: Extract<Section, { shape: 'table' }>, groups: readonly G[], sort: TableSort | undefined
 ): readonly G[] {
   if (!sort) return groups;
@@ -162,15 +165,15 @@ export function sortedGroups<G extends { readonly rows: readonly (readonly strin
   if (sent && sent.column === sort.column) {
     return sort.direction === sent.direction ? groups : groups.map(group => ({
       ...group,
-      rows: [...group.rows.filter(row => row.length === section.columns.length).reverse(), ...group.rows.filter(row => row.length !== section.columns.length)]
+      rows: [...group.rows.filter(row => rowCells(row).length === section.columns.length).reverse(), ...group.rows.filter(row => rowCells(row).length !== section.columns.length)]
     }));
   }
   const options = section.filters?.find(filter => filter.column === sort.column)?.options;
   const sign = sort.direction === 'ascending' ? 1 : -1;
   return groups.map(group => {
-    const full = group.rows.filter(row => row.length === section.columns.length);
-    const spanning = group.rows.filter(row => row.length !== section.columns.length);
-    const cells = full.map(row => row[sort.column] ?? '');
+    const full = group.rows.filter(row => rowCells(row).length === section.columns.length);
+    const spanning = group.rows.filter(row => rowCells(row).length !== section.columns.length);
+    const cells = full.map(row => rowCells(row)[sort.column] ?? '');
     // The options' order only when every cell is one of them: a filter that
     // offers some values (Parks Near Me's "fewer than 10") must not tie every
     // other one (activations would not sort).
@@ -178,9 +181,9 @@ export function sortedGroups<G extends { readonly rows: readonly (readonly strin
     // A column of numbers with a few words in it ("none", "—") sorts the
     // numbers as numbers, the words before them.
     const numeric = cells.some(isNumber);
-    const compare = (a: readonly string[], b: readonly string[]) => {
-      const x = a[sort.column] ?? '';
-      const y = b[sort.column] ?? '';
+    const compare = (a: Row, b: Row) => {
+      const x = rowCells(a)[sort.column] ?? '';
+      const y = rowCells(b)[sort.column] ?? '';
       if (rank) return ((rank.get(x) ?? Infinity) - (rank.get(y) ?? Infinity) || 0) * sign;
       if (numeric) {
         const xn = isNumber(x);
@@ -196,7 +199,7 @@ export function sortedGroups<G extends { readonly rows: readonly (readonly strin
 }
 
 // A table's rows as groups: an ungrouped table is one group with no heading.
-export function tableGroups(section: Extract<Section, { shape: 'table' }>): readonly { readonly heading?: string; readonly rows: readonly (readonly string[])[] }[] {
+export function tableGroups(section: Extract<Section, { shape: 'table' }>): readonly { readonly heading?: string; readonly rows: readonly Row[] }[] {
   return 'groups' in section ? section.groups : [{ rows: section.rows }];
 }
 

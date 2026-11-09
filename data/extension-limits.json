@@ -1,6 +1,7 @@
 {
   "register": "Extension limits",
   "note": "QGD-APP-0021 and QGD-APP-0022. The numbers the extension host and the broker hold every extension to, kept here rather than as constants in code so each one is visible and testable. Times are milliseconds.",
+  "operatorDeadlineMs": 600000,
   "requestDeadlineMs": 15000,
   "sourceFetchDeadlineMs": 135000,
   "activateDeadlineMs": 10000,

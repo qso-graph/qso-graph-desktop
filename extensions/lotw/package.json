@@ -1,0 +1,8 @@
+{
+  "name": "@qso-graph/lotw",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Manage ARRL Logbook of The World certificates through QG Trust.",
+  "license": "GPL-3.0-or-later",
+  "type": "module"
+}

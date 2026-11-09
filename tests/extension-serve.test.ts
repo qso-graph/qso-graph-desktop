@@ -28,7 +28,7 @@ const WSJTX = { id: 'wsjtx', name: 'WSJT-X', manifestVersion: 1, tier: 'official
   contributes: { integration: { program: 'WSJT-X', transport: 'udp', port: 2237 } } };
 const MONITOR = { id: 'monitor', name: 'Monitor', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.1.0' }, grants: ['integration:events'], main: 'main.js',
   contributes: { pages: [{ id: 'monitor', name: 'Monitor', description: 'Decodes.', refreshSeconds: 60, live: true, views: true }, { id: 'still', name: 'Still', description: 'Not live.', refreshSeconds: 60 }] } };
-const LOTW = { id: 'lotw-reader', name: 'LoTW reader', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['lotw:read'], page: 'Lotw.svelte' };
+const LOTW = { id: 'lotw-reader', name: 'LoTW reader', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['lotw:read', 'lotw:manage'], page: 'Lotw.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Every port records what it was asked and by whom, so "nothing was touched"
@@ -51,6 +51,7 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     activeCallsign: async () => { calls.push('activeCallsign'); return { id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', call: 'W1AW', description: 'Home station' }; },
     activeStation: async () => { calls.push('activeStation'); return { name: 'Home', grid: 'DN13sm', latitude: 43.6, longitude: -116.2 }; },
     fetchSource: async url => { calls.push(`fetchSource:${url}`); return { body: 'sfi 150', fresh: true }; },
+    lotwManage: async () => { calls.push('lotwManage'); return { status: 'cancelled', certificates: [], roots: 0, signedQsos: 0, deleted: 0, locations: 0, skippedLocations: [] }; },
     lotwCertificates: async () => { calls.push('lotwCertificates'); return []; },
     lotwRoots: async () => { calls.push('lotwRoots'); return []; },
     callService: async (service, callsign, operation, parameters) => {
@@ -320,4 +321,35 @@ describe('LoTW replies at the extension host (QGD-SEC-0006)', () => {
     expect(isLotwReply({ ok: true, kind: 'lotw.roots', roots: [] }, 'lotw.certificates')).toBe(false);
     expect(isLotwReply({ ok: false, error: 'No.', stack: 'at /home' }, 'lotw.roots')).toBe(false);
   });
+});
+
+it('QGD-LTW-0002/0004/0012: manage requires its own grant and refuses extension paths and replies carrying secrets', async () => {
+  const t = recorder();
+  for (const kind of ['lotw.import', 'lotw.restore', 'lotw.delete'] as const) {
+    const request = { kind, ...(kind === 'lotw.delete' ? { certificate: 'cert:3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b' } : {}) };
+    expect(await t.serve('bare', request)).toMatchObject({ ok: false, refused: 'lotw:manage' });
+    expect(await t.serve('lotw-reader', { ...request, path: '/planted/test-only.p12' })).toMatchObject({ ok: false });
+    expect(t.calls).toEqual([]);
+    expect(await t.serve('lotw-reader', request)).toMatchObject({ ok: true, result: { status: 'cancelled' } });
+    t.calls.length = 0;
+  }
+  const good = await t.deps.ports.lotwManage({ kind: 'lotw.import' });
+  for (const field of ['key', 'password', 'email', 'bytes', 'path']) {
+    t.deps.ports.lotwManage = async () => ({ ...good, [field]: 'planted-private' });
+    const reply = await t.serve('lotw-reader', { kind: 'lotw.import' });
+    expect(reply.ok).toBe(false);
+    expect(JSON.stringify(reply)).not.toContain('planted-private');
+  }
+  t.deps.ports.lotwManage = async () => { throw new Error('planted-private'); };
+  expect(JSON.stringify(await t.serve('lotw-reader', { kind: 'lotw.restore' }))).not.toContain('planted-private');
+});
+
+it('forwards the supervisor cancellation signal through the grant-checked manage path', async () => {
+  const t = recorder(); const stop = new AbortController();
+  const result = await t.deps.ports.lotwManage({ kind: 'lotw.import' });
+  let received: AbortSignal | undefined;
+  t.deps.ports.lotwManage = async (_request, signal) => { received = signal; return result; };
+  expect((await t.serve('lotw-reader', { kind: 'lotw.import' }, stop.signal)).ok).toBe(true);
+  expect(received).toBe(stop.signal);
+  stop.abort(); expect(received?.aborted).toBe(true);
 });

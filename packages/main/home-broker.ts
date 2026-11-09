@@ -2,6 +2,7 @@
 // Home's channel (QGD-HOM-0001 to QGD-HOM-0006). Electron wiring only: which
 // pages exist and when each is asked for is home-pages.ts; how an extension is
 // asked is the extension host's supervisor.
+import { createPageActions } from './page-actions.js';
 import { BrowserWindow, ipcMain } from 'electron';
 import { allowsSender } from '../callsigns/callsign-contract.js';
 import { createLogger } from '../logging/logger.js';
@@ -9,7 +10,7 @@ import type { LoadedExtension } from './extension-runtime.js';
 import type { Supervisor } from './extension-host-supervisor.js';
 import type { Enablement } from './extension-enablement.js';
 import { createPageScheduler, keepHidden, type CataloguePage } from './page-scheduler.js';
-import { HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, HOME_REACH_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
+import { HOME_ACTION_CHANNEL, HOME_CARD_CHANNEL, HOME_CHANNEL, HOME_NOTICE_CHANNEL, HOME_REACH_CHANNEL, validateHomeCommand, type HomeReply, type HomeState } from './home-contract.js';
 import { dismiss, hostNotice } from './home-notice.js';
 import { load, save } from './settings.js';
 import { isExtensionIcon } from '../ui/icons.js';
@@ -51,7 +52,7 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
       key: `${extension.manifest.id}/${page.id}`, extension: extension.manifest.id, extensionName: extension.manifest.name,
       page: page.id, name: page.name, description: page.description, refreshSeconds: page.refreshSeconds,
       icon: page.icon !== undefined && isExtensionIcon(page.icon) ? page.icon : 'extension', rail: page.under === undefined,
-      inputs: page.inputs ?? [],
+      inputs: page.inputs ?? [], actions: page.actions ?? [], rowActions: page.rowActions ?? [],
       // The page's own word, or else its extension's grants (manifest.ts).
       network: pageNeedsNetwork(extension.manifest, page),
       area: `${extension.manifest.id}/${page.under ?? page.id}`, tab: page.tab ?? page.name,
@@ -91,17 +92,46 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
     now: () => Date.now(),
     online: () => online
   });
+  const actions = createPageActions({
+    current: () => {
+      const page = catalogue().find(entry => entry.key === open);
+      if (!page) return undefined;
+      const view = scheduler.views().find(entry => entry.key === open);
+      return { key: page.key, page, ...(view?.state === 'ready' ? { answer: view.answer } : {}) };
+    },
+    run: (id, event) => options.supervisor.action(id, event),
+    refresh: key => scheduler.actionCompleted(key),
+    publish: state => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send(HOME_ACTION_CHANNEL, state);
+      }
+    }
+  });
   options.onCallsignsChanged(() => scheduler.callsignsChanged());
   // Turned off, its pages go and what they had in flight is cancelled; on
   // again, they come back to the pins they held.
-  const stopListening = options.enablement.onChange(() => scheduler.changed());
+  const actionPages = () => options.loaded().flatMap(extension => extension.manifest.contributes.pages
+    .filter(page => (page.actions?.length ?? 0) + (page.rowActions?.length ?? 0) > 0)
+    .map(page => ({ key: extension.manifest.id + '/' + page.id, extension: extension.manifest.id })));
+  const stopListening = options.enablement.onChange(() => {
+    scheduler.changed();
+    // A deactivated host discards its handlers and issued answers. Reopening
+    // an actionable page must ask it again, even inside its normal interval.
+    for (const page of actionPages()) if (!options.enablement.isOn(page.extension)) scheduler.actionCompleted(page.key);
+  });
 
   // The extension host's notice (QGD-APP-0022): which extensions a stop
   // affected, by name, until dismissed. Dismissing hides that stop only.
   let dismissed = 0;
   const nameOf = (id: string) => options.loaded().find(extension => extension.manifest.id === id)?.manifest.name ?? id;
   const notice = () => hostNotice(options.supervisor.status(), nameOf, dismissed);
+  let actionHostStops = 0;
   const pushNotice = () => {
+    const status = options.supervisor.status();
+    if (status.host === 'running' && status.stops > actionHostStops) {
+      actionHostStops = status.stops;
+      for (const page of actionPages()) scheduler.actionCompleted(page.key);
+    }
     const now = notice();
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.webContents.send(HOME_NOTICE_CHANNEL, now);
@@ -121,10 +151,11 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   };
 
   const state = (): HomeState => ({
+    ...(open !== null && actions.state(open) ? { action: actions.state(open) } : {}),
     available: catalogue().map(page => {
-      const { key, name, description, extensionName, icon, rail, inputs, network, area, tab, hue } = page;
+      const { key, name, description, extensionName, icon, rail, inputs, network, area, tab, hue, actions, rowActions } = page;
       const values = settingsOf(page);
-      return { key, name, description, extensionName, icon, rail, inputs, network, area: area ?? key, tab: tab ?? name, hue: hue ?? 'general',
+      return { key, name, description, extensionName, icon, rail, inputs, actions, rowActions, network, area: area ?? key, tab: tab ?? name, hue: hue ?? 'general',
         settings: (page.settings ?? []).map(setting => ({ id: setting.id, label: setting.label, choices: [...setting.choices], value: values[setting.id],
           ...(setting.hint !== undefined ? { hint: setting.hint } : {}) })) };
     }),
@@ -140,15 +171,19 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
   const watch = (contents: Electron.WebContents) => {
     if (watched.has(contents)) return;
     watched.add(contents);
-    contents.once('destroyed', () => scheduler.setVisible(false));
+    contents.once('destroyed', () => { if (open) { const [id, page] = open.split('/'); options.supervisor.closePage(id, page); } open = null; scheduler.setVisible(false); });
   };
 
-  ipcMain.handle(HOME_CHANNEL, (event, command: unknown): HomeReply => {
+  ipcMain.handle(HOME_CHANNEL, async (event, command: unknown): Promise<HomeReply> => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) || !validateHomeCommand(command)) {
       log.warn({ accepted: false }, 'home request refused');
       return { ok: false, error: 'That is not a request Home serves.' };
     }
     switch (command.type) {
+      case 'page.action': {
+        const answer = await actions.press(command.key, command.event);
+        return answer.ok ? { ok: true, state: state(), action: actions.state(command.key) } : { ok: false, error: answer.error };
+      }
       case 'read':
         return { ok: true, state: state() };
       case 'open': {
@@ -160,7 +195,9 @@ export function startHomeBroker(options: HomeBrokerOptions): { stop: () => void;
         if (inputs === undefined) return { ok: false, error: 'That is not something this page can look up.' };
         const sameInputs = JSON.stringify(inputs) === JSON.stringify(openInputs);
         const samePage = command.key === open;
+        if (!samePage && open) { const [id, page] = open.split('/'); options.supervisor.closePage(id, page); }
         open = command.key;
+        if (page) options.supervisor.showPage(page.extension, page.page);
         openInputs = inputs;
         scheduler.changed();
         scheduler.setVisible(open !== null);

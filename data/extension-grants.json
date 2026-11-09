@@ -33,6 +33,12 @@
       "needsOperator": true
     },
     {
+      "id": "lotw:manage",
+      "what": "Load LoTW certificates, restore a TQSL backup, or delete a certificate, after your confirmation.",
+      "notWhat": "The core chooses the file and confirms each request (QGD-LTW-0003, QGD-LTW-0004). No key, password or file contents reach an extension.",
+      "needsOperator": true
+    },
+    {
       "id": "service:qrz",
       "what": "Ask the frame to act with the operator's QRZ credential and return the answer.",
       "notWhat": "The secret itself never crosses the API (QGD-APP-0007).",

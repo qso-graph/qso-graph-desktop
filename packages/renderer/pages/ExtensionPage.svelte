@@ -28,6 +28,7 @@
     onAsk?: (values: Record<string, string>) => void;
     // Ask the page again now (Refresh).
     onRefresh?: () => void;
+    onAction?: (action: string, row?: string) => void;
     // The page needs the internet and the computer has none.
     offline?: boolean;
     // Open another page of the same area, from its tab.
@@ -42,7 +43,7 @@
     // One of the page's own declared settings chosen (QGD-HOM-0017).
     onSetting?: (id: string, value: string) => void;
   }
-  const { page, extensionName, onAsk = () => {}, onRefresh, offline = false, onTab = () => {}, onOpenReference,
+  const { page, extensionName, onAsk = () => {}, onRefresh, onAction, offline = false, onTab = () => {}, onOpenReference,
     settings: ownSettings, showingSettings = false, onSettings = () => {}, onSetting = () => {} }: Props = $props();
   // The page's Settings tab: the core's own drawing of the settings its
   // manifest declares, or the shell's for an area that has core settings
@@ -163,10 +164,19 @@
     {#if onSettingsTab && settings}
       <section class="card extension-settings" id="extension-settings">{@render settings()}</section>
     {:else}
+    {#if (page.actions ?? []).length > 0}
+      <div class="page-actions" aria-label="Page actions">
+        {#each page.actions ?? [] as action (action.id)}
+          <button type="button" class="secondary" title={action.hint} disabled={page.actionRunning || !onAction}
+            onclick={() => { if (!page.actionRunning) onAction?.(action.id); }}>{action.label}</button>
+        {/each}
+      </div>
+    {/if}
+    {#if page.actionRunning}<p class="page-action-status" role="status">Working…</p>{:else if page.actionStatus}<p class="page-action-status" role="status">{page.actionStatus}</p>{/if}
     {#if !placed}{@render fieldsForm()}{/if}
     <!-- A page of its own each: what one page's filters were set to is not
          carried to another. -->
-    {#key page.key}<PageBody shown={page.shown} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} rememberAs={page.key} {onOpenReference} />{/key}
+    {#key page.key}<PageBody shown={page.shown} rowActions={page.rowActions} actionRunning={page.actionRunning} {onAction} onRefresh={offline ? undefined : onRefresh} {offline} fields={placed ? fieldsForm : undefined} rememberAs={page.key} {onOpenReference} />{/key}
     <!-- Placed by the page, and the page between answers: kept below what
          it says rather than jumping to the top and back. -->
     {#if placed && page.shown.state !== 'ready'}{@render fieldsForm()}{/if}

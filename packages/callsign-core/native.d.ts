@@ -123,6 +123,7 @@ export interface NativeLotwTrustedRoot {
 export declare class CallsignCore {
   constructor(directory: string);
   list(): NativeCallsign[];
+  lotwManage(command: string): string;
   lotwCertificates(): NativeLotwCertificate[];
   lotwTrustedRoots(): NativeLotwTrustedRoot[];
   create(call: string, description: string, start?: string, end?: string): NativeCallsign;
@@ -162,4 +163,25 @@ export interface NativeModule {
   CallsignCore: typeof CallsignCore;
   initCoreLogging(): void;
   drainCoreLogs(): string[];
+}
+
+export type NativeLotwCommand =
+  | { op: 'discard' }
+  | { op: 'inspect'; path: string; format: 'certificate' | 'backup' }
+  | { op: 'inspectDelete'; certificate: string }
+  | { op: 'unlock'; token: string; index: number; password: string }
+  | { op: 'commit' | 'cancel'; token: string };
+export interface NativeLotwEntry {
+  call: string; serial: string; disposition: 'new' | 'present' | 'refused' | 'delete'; reason: string;
+  fileHasKey: boolean; keyPresent: boolean; needsPassword: boolean;
+  dxcc: number; qsoFirst: string; qsoLast: string; validFrom: string; validTo: string;
+}
+export interface NativeLotwPreview {
+  token: string; needsPassword: boolean; certificates: NativeLotwEntry[];
+  roots: { fingerprint: string }[];
+  locations: { name: string; fields: { name: string; value: string }[] }[];
+  signedQsos: number; signedQsoBytes: number;
+}
+export interface NativeLotwSummary {
+  status: 'completed' | 'conflict'; certificates: NativeLotwEntry[]; roots: number; signedQsos: number; deleted: number;
 }

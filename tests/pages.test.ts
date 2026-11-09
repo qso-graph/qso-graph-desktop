@@ -13,6 +13,12 @@ const ITEMS = { shape: 'items', items: [{ title: '20 m', detail: 'Good by day' }
 const ALERT = { shape: 'alert', level: 'warning', text: 'G1 geomagnetic storm watch' };
 
 describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
+  it('refuses C0 and C1 controls in drawn text and failure reasons', () => {
+    for (const control of ['\u0000', '\u007f', '\u0085', '\u009b']) {
+      expect(() => validatePageAnswer(answer([{ ...ALERT, text: `Completed${control}Try again` }]))).toThrow();
+      expect(() => validatePageAnswer({ ok: false, reason: `Failed${control}Try again` })).toThrow();
+    }
+  });
   it('accepts each shape, and up to three sections, exactly as sent', () => {
     expect(validatePageAnswer(answer([ALERT, FIGURES, ITEMS]))).toEqual(answer([ALERT, FIGURES, ITEMS]));
     expect(validatePageAnswer({ ok: false, reason: 'NOAA did not answer.' })).toEqual({ ok: false, reason: 'NOAA did not answer.' });
@@ -40,7 +46,7 @@ describe('P8-shapes: the page shapes (QGD-HOM-0002)', () => {
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11 18:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: '2026-10-11T18:00:00+02:00' }))).toThrowError(/ISO 8601 UTC/);
     expect(() => validatePageAnswer(answer([FIGURES], { observedAt: undefined }))).toThrowError(/ISO 8601 UTC/);
-    expect(() => validatePageAnswer(answer([FIGURES], { version: 8 }))).toThrowError(/version 8; this core draws versions 1, 2, 3, 4, 5, 6 and 7/);
+    expect(() => validatePageAnswer(answer([FIGURES], { version: 9 }))).toThrowError(/version 9; this core draws versions 1, 2, 3, 4, 5, 6, 7 and 8/);
     // A time that matches the pattern and does not exist: Date.parse alone
     // would roll it over to 2 March.
     for (const impossible of ['2026-02-30T00:00:00Z', '2026-13-01T00:00Z', '2026-10-11T25:00:00Z', '2026-10-11T18:60:00Z']) {

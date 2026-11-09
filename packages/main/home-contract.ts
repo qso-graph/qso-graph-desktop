@@ -7,6 +7,9 @@
 // the pins. Home itself shows tiles drawn from the manifests and fetches
 // nothing; the open page's data arrives unasked, pushed as
 // the broker gets it, so the window never polls.
+import { hasControlCharacters } from '../extension-api/text.js';
+import { isPageAction, isPageActionEvent, actionText, MAX_ACTIONS, MAX_ROW_ACTIONS, ACTION_STATUS_MAX, type PageAction, type PageActionEvent } from '../extension-api/actions.js';
+import type { PageActionState } from './page-actions.js';
 import { HINT_MAX, INPUT_KINDS, MAX_INPUTS, TEXT_MAX, type PageInput } from '../extension-api/inputs.js';
 import { validatePageAnswer, type PageAnswer } from '../extension-api/pages.js';
 import { isPins } from './settings-contract.js';
@@ -18,6 +21,7 @@ export const HOME_NOTICE_CHANNEL = 'home:notice';
 // Whether the last request a page made reached its source, pushed when it
 // changes: the Internet lamp's yellow (QGD-HOM-0005).
 export const HOME_REACH_CHANNEL = 'home:reach';
+export const HOME_ACTION_CHANNEL = 'home:action';
 
 // Which extensions a stopped extension host affected, until the operator
 // dismisses it (home-notice.ts); the window words it (renderer/host-notice.ts).
@@ -37,6 +41,8 @@ export interface AvailablePage {
   readonly rail: boolean;
   // The fields the page asks for, which the window draws (inputs.ts).
   readonly inputs: readonly PageInput[];
+  readonly actions?: readonly PageAction[];
+  readonly rowActions?: readonly PageAction[];
   // Whether it needs the internet, so the window can say it is offline.
   readonly network: boolean;
   // Its area: the key of the area's first page, its own when it is under
@@ -65,6 +71,7 @@ export type PageView =
   | { readonly key: string; readonly state: 'failed'; readonly reason: string };
 
 export interface HomeState {
+  readonly action?: PageActionState;
   readonly available: readonly AvailablePage[];
   readonly pins: readonly string[];
   // What the open page last said, if a page is open: at most one.
@@ -78,6 +85,7 @@ export interface HomeState {
 
 export type HomeCommand =
   | { readonly type: 'read' }
+  | { readonly type: 'page.action'; readonly key: string; readonly event: PageActionEvent }
   // The extension page now on screen, or null when none is, and what is in
   // its fields: checked by kind against the page's own fields by the broker.
   | { readonly type: 'open'; readonly key: string | null; readonly inputs?: Readonly<Record<string, string>> }
@@ -93,7 +101,7 @@ export type HomeCommand =
   // checked by the broker against the page's own choices.
   | { readonly type: 'page-setting'; readonly key: string; readonly id: string; readonly value: string };
 
-export type HomeReply = { readonly ok: true; readonly state: HomeState } | { readonly ok: false; readonly error: string };
+export type HomeReply = { readonly ok: true; readonly state: HomeState; readonly action?: PageActionState } | { readonly ok: false; readonly error: string };
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -102,10 +110,11 @@ const exactly = (value: Record<string, unknown>, keys: readonly string[]) =>
   Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
 
 const KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
-const plainText = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit && !/[<>]/.test(value);
+const plainText = (value: unknown, limit: number) => typeof value === 'string' && value.length > 0 && value.length <= limit && !/[<>]/.test(value) && !hasControlCharacters(value);
 
 export function validateHomeCommand(value: unknown): value is HomeCommand {
   if (!record(value)) return false;
+  if (value.type === 'page.action') return exactly(value, ['type', 'key', 'event']) && typeof value.key === 'string' && KEY.test(value.key) && isPageActionEvent(value.event);
   if (value.type === 'read') return exactly(value, ['type']);
   if (value.type === 'open') {
     const shape = exactly(value, ['type', 'key']) || exactly(value, ['type', 'key', 'inputs']);
@@ -123,6 +132,12 @@ export function validateHomeCommand(value: unknown): value is HomeCommand {
   if (value.type === 'page-setting') return exactly(value, ['type', 'key', 'id', 'value']) && typeof value.key === 'string' && KEY.test(value.key)
     && typeof value.id === 'string' && /^[a-z][a-z0-9-]{1,30}$/.test(value.id) && plainText(value.value, 16);
   return false;
+}
+
+export function isPageActionState(value: unknown): value is PageActionState {
+  return record(value) && exactly(value, ['key', 'running', ...(Object.hasOwn(value, 'status') ? ['status'] : [])])
+    && typeof value.key === 'string' && KEY.test(value.key) && typeof value.running === 'boolean'
+    && (value.status === undefined || actionText(value.status, ACTION_STATUS_MAX));
 }
 
 // Each name bounded as a manifest name is (64, no markup), and as many as
@@ -161,7 +176,10 @@ function isInput(value: unknown): boolean {
 }
 
 function isAvailable(value: unknown): value is AvailablePage {
-  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab', 'hue', 'settings'])
+  const optional = record(value) ? ['actions', 'rowActions'].filter(key => Object.hasOwn(value, key)) : [];
+  return record(value) && exactly(value, ['key', 'name', 'description', 'extensionName', 'icon', 'rail', 'inputs', 'network', 'area', 'tab', 'hue', 'settings', ...optional])
+    && (value.actions === undefined || (everyIndex(value.actions, isPageAction) && (value.actions as unknown[]).length <= MAX_ACTIONS))
+    && (value.rowActions === undefined || (everyIndex(value.rowActions, isPageAction) && (value.rowActions as unknown[]).length <= MAX_ROW_ACTIONS))
     && everyIndex(value.settings, isSettingView) && (value.settings as unknown[]).length <= 4
     && typeof value.hue === 'string' && ['general', 'callsigns', 'locations', 'settings'].includes(value.hue)
     && typeof value.area === 'string' && KEY.test(value.area) && plainText(value.tab, 40)
@@ -194,10 +212,12 @@ function everyIndex(list: unknown, check: (value: unknown) => boolean): boolean 
 
 export function isHomeReply(value: unknown): value is HomeReply {
   if (!record(value)) return false;
-  if (value.ok === false) return exactly(value, ['ok', 'error']) && typeof value.error === 'string';
-  if (value.ok !== true || !exactly(value, ['ok', 'state']) || !record(value.state)) return false;
+  if (value.ok === false) return exactly(value, ['ok', 'error']) && typeof value.error === 'string' && !hasControlCharacters(value.error);
+  if (value.ok !== true || !exactly(value, ['ok', 'state', ...(Object.hasOwn(value, 'action') ? ['action'] : [])]) || !record(value.state)
+    || (Object.hasOwn(value, 'action') && !isPageActionState(value.action))) return false;
   const state = value.state;
-  return exactly(state, ['available', 'pins', 'pages', 'notice', 'reached'])
+  return exactly(state, ['available', 'pins', 'pages', 'notice', 'reached', ...(Object.hasOwn(state, 'action') ? ['action'] : [])])
+    && (state.action === undefined || isPageActionState(state.action))
     && (state.reached === null || typeof state.reached === 'boolean')
     && isHostNotice(state.notice)
     && everyIndex(state.available, isAvailable)

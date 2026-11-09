@@ -7,11 +7,13 @@
 // extension's requests and the core's page requests, and nothing else, so
 // what arrives on it is that extension's and no one else's.
 
+import type { PageActions, PageActionEvent } from '../extension-api/actions.js';
+
 // Broker to host.
 export type ToHost =
   // `entry` is a path the core built from the package and a validated
   // manifest, never one an extension supplied. The channel arrives with it.
-  | { readonly type: 'load'; readonly id: string; readonly entry: string; readonly pages: readonly string[] }
+  | { readonly type: 'load'; readonly id: string; readonly entry: string; readonly pages: readonly string[]; readonly pageActions?: Readonly<Record<string, PageActions>> }
   | { readonly type: 'activate'; readonly id: string; readonly seq: number }
   | { readonly type: 'deactivate'; readonly id: string; readonly seq: number }
   | { readonly type: 'ping'; readonly n: number };
@@ -29,10 +31,16 @@ export type FromExtension =
   | { readonly type: 'page-answer'; readonly cid: number; readonly answer: unknown }
   // The provider stopped without answering: confirmed not to have taken
   // effect (QGD-APP-0021).
-  | { readonly type: 'page-cancelled'; readonly cid: number };
+  | { readonly type: 'page-cancelled'; readonly cid: number }
+  | { readonly type: 'page-action-answer'; readonly cid: number; readonly answer: unknown };
 
 // On an extension's channel, broker to extension.
 export type ToExtension =
+  | { readonly type: 'page.action'; readonly cid: number; readonly event: PageActionEvent }
+  // Main decides whether an answer survived cancellation and is displayed.
+  | { readonly type: 'page-settled'; readonly cid: number; readonly accepted: boolean }
+  | { readonly type: 'page-open'; readonly page: string }
+  | { readonly type: 'page-close'; readonly page: string }
   | { readonly type: 'reply'; readonly cid: number; readonly reply: unknown }
   // `inputs` are the page's fields as the core checked them (inputs.ts).
   // `settings` are the page's own, as chosen or by default (QGD-HOM-0017).
@@ -65,6 +73,7 @@ export function parseFromExtension(value: unknown): FromExtension | undefined {
   if (!isRecord(value) || !isCid(value.cid)) return undefined;
   const keys = Object.keys(value).sort().join(',');
   if (value.type === 'request' && keys === 'cid,request,type') return value as FromExtension;
+  if (value.type === 'page-action-answer' && keys === 'answer,cid,type') return value as FromExtension;
   if (value.type === 'page-answer' && keys === 'answer,cid,type') return value as FromExtension;
   if (value.type === 'page-cancelled' && keys === 'cid,type') return value as FromExtension;
   return undefined;

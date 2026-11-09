@@ -226,6 +226,7 @@
     <div class="page" hidden={shell.page !== 'extension'}>
       <ExtensionPage page={homeModel.page} extensionName={openExtension?.extensionName ?? ''} onTab={openTab}
         onOpenReference={(kind, reference) => onOpenPage({ type: 'reference', kind, reference })}
+        onAction={(action, row) => { if (shell.extensionPage) void home.pressAction(shell.extensionPage, action, row); }}
         onAsk={values => { if (shell.extensionPage) home.openPage(shell.extensionPage, values); }}
         onRefresh={() => { if (shell.extensionPage) home.refreshPage(shell.extensionPage); }}
         offline={!homeModel.online && homeModel.page?.network === true}

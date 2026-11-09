@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { isLotwCommand } from './lotw-contract.js';
 import type { ServiceSummary } from './service-contract.js';
 // One of the operator's callsigns ("persona" is retired).
 // `id` is permanent and is what everything keys on; the call and the
@@ -126,7 +127,7 @@ export interface LookupAnswer {
 export type CallsignReply =
   | {
       ok: true;
-      data: Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
+      data: { lotw: string } | Snapshot | CredentialStatus | CredentialTest | ServiceSummary[]
         | SealedExport | FetchedReference | UpdateFeed | UpdateFile | ExportResult | ImportPreview | ImportResult | CoreImportPreview | CoreImportResult
           | LookupAnswer | unknown[] | null;
     }
@@ -226,6 +227,7 @@ export type ServiceCommand =
   // Not CallsignCommands: the renderer has no LoTW grant to hold.
   | { type: 'lotw-certificates' }
   | { type: 'lotw-roots' }
+  | { type: 'lotw-manage'; command: import('../callsign-core/native.js').NativeLotwCommand }
   // Acting with a stored credential on an application's behalf, and returning
   // the answer (QGD-APP-0007). Not a CallsignCommand either, and for the same
   // reason: a renderer may not ask this product to use a credential directly.
@@ -251,6 +253,7 @@ function noUserinfo(url: string): boolean {
 
 export function validateServiceCommand(value: unknown, providers: Services): value is ServiceCommand {
   if (!record(value)) return false;
+  if (value.type === 'lotw-manage') return keys(value, ['type', 'command']) && isLotwCommand(value.command);
   if (value.type === 'lotw-certificates' || value.type === 'lotw-roots') return keys(value, ['type']);
   if (value.type === 'service-lookup') {
     if (!keys(value, ['type', 'service', 'id', 'operation', 'parameters'])) return false;

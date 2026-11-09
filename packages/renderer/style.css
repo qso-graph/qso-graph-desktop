@@ -546,6 +546,8 @@ dialog.pins h2 { margin: 0 0 6px; }
 .page-contents-gap { color: var(--ink-muted); }
 .page-section-heading:focus, .page-table-group:focus { outline: none; }
 /* A table's filters, above it, in a row that wraps on a narrow page. */
+.page-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.page-table td > button + button { margin-left: 8px; }
 .page-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 10px; }
 .page-filters label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .page-filter-empty { margin: 0 0 12px; }
@@ -600,3 +602,5 @@ textarea { width: 100%; font: inherit; color: var(--ink); border: 1px solid var(
 /* A callsign's id, selected whole with one click, to search the credential
    store for (QGD-CRD-0003). */
 .keychain-id code { user-select: all; font-size: 12px; }
+
+.page-action-status { overflow-wrap: anywhere; }

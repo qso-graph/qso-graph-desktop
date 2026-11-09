@@ -14,7 +14,7 @@ import { createSupervisor, type HostLink, type SupervisorDeps } from '../package
 import type { ExtensionLimits } from '../packages/main/extension-limits.js';
 
 const LIMITS: ExtensionLimits = {
-  requestDeadlineMs: 1_000, sourceFetchDeadlineMs: 130_000, activateDeadlineMs: 1_000, deactivateDeadlineMs: 500,
+  operatorDeadlineMs: 600_000, requestDeadlineMs: 1_000, sourceFetchDeadlineMs: 130_000, activateDeadlineMs: 1_000, deactivateDeadlineMs: 500,
   messageBytes: 2_000, inFlight: 2, heartbeatMs: 1_000, heartbeatMisses: 2, restartBudget: 2, restartWindowMs: 600_000
 };
 const AT = '2026-10-11T18:00:00Z';
@@ -457,4 +457,71 @@ describe('P13: what an adapter and a consumer receive (QGD-INT-0008, QGD-INT-002
     expect(datagrams).toEqual([]);
     sup.stop();
   });
+});
+
+it('QGD-LTW-0002/0004/0012: runtime preserves injected paths for refusal and settles malformed manage replies', async () => {
+  const replies: unknown[] = [];
+  const requests: unknown[] = [];
+  const { sup } = supervisor({ '/pkg/a/main.js': () => ({ activate: context => {
+    void context.request({ kind: 'lotw.import', path: '/test-only/planted.p12' } as never).then(r => replies.push(r));
+    void context.request({ kind: 'lotw.restore' }).then(r => replies.push(r));
+  } }) }, { serve: async (_id, request) => { requests.push(request); return { ok: true, kind: 'lotw.restore', result: { password: 'planted-private' } } as never; } });
+  await sup.ensureActive('a'); await flush();
+  expect(requests).toContainEqual({ kind: 'lotw.import', path: '/test-only/planted.p12' });
+  expect(replies).toHaveLength(2);
+  expect(replies).toEqual([{ ok: false, error: 'The LoTW reply was refused.' }, { ok: false, error: 'The LoTW reply was refused.' }]);
+  expect(JSON.stringify(replies)).not.toContain('planted-private');
+  sup.stop();
+});
+it('QGD-APP-0021, QGD-LTW-0003: operator prompts get the registered deadline and a late write is unknown', async () => {
+  const replies: unknown[] = []; let release: () => void = () => {};
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const { sup } = supervisor({ '/pkg/a/main.js': () => ({ activate: context => { void context.request({ kind: 'lotw.import' }).then(r => replies.push(r)); } }) }, {
+    serve: async () => { await held; return { ok: false, error: 'Late reply' }; }, limits: { ...LIMITS, heartbeatMisses: 1000 }
+  });
+  await sup.ensureActive('a'); await flush();
+  await vi.advanceTimersByTimeAsync(LIMITS.requestDeadlineMs + 10); expect(replies).toEqual([]);
+  await vi.advanceTimersByTimeAsync(LIMITS.operatorDeadlineMs); await flush();
+  expect(replies).toEqual([{ ok: false, error: 'The outcome of the LoTW operation is unknown. Read the store before trying again.' }]);
+  release(); await flush(); expect(replies).toHaveLength(1); sup.stop();
+});
+
+// Keep the dialog unresolved through cancellation, then answer it after a new
+// request. This catches a reply-only timeout and work surviving a dead host.
+it.each(['deadline', 'host exit'] as const)('LoTW %s cancels the plan, ignores the dialog answer and accepts another request', async cause => {
+  const { createLotwManage } = await import('../packages/main/lotw-manage.js');
+  const token = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
+  const preview = { token, needsPassword: false, certificates: [], roots: [], locations: [], signedQsos: 0, signedQsoBytes: 0 };
+  const core = vi.fn(async (command: { op: string }) => command.op === 'inspect' ? { ...preview, needsPassword: true } : command.op === 'unlock' ? preview : null);
+  let answer: (value: { accepted: boolean; locations: boolean }) => void = () => {};
+  const confirm = vi.fn(() => new Promise<{ accepted: boolean; locations: boolean }>(resolve => { answer = resolve; }));
+  const run = createLotwManage({ core, choose: async () => '/test-only/input.tbk', password: async () => 'test-only-password', confirm,
+    existing: async () => ({ stations: [], defaults: {}, active: null }), check: async () => undefined, add: async () => 0 });
+  const replies: unknown[] = [];
+  let ctx: Parameters<ExtensionModule['activate']>[0] | undefined;
+  const { sup, harness } = supervisor({ '/pkg/a/main.js': () => ({ activate: context => { ctx = context; } }) }, {
+    limits: { ...LIMITS, operatorDeadlineMs: 100, heartbeatMisses: 1000 },
+    serve: async (_id, request, signal) => ({ ok: true, kind: 'lotw.import', result: await run(request as never, signal) })
+  });
+  try {
+    await sup.ensureActive('a');
+    void ctx!.request({ kind: 'lotw.import' }).then(reply => replies.push(reply));
+    await flush(); expect(confirm).toHaveBeenCalledOnce();
+    expect(core).toHaveBeenCalledWith({ op: 'unlock', token, index: 0, password: 'test-only-password' });
+    if (cause === 'deadline') await vi.advanceTimersByTimeAsync(101);
+    else harness.crash();
+    await flush();
+    expect(core).toHaveBeenCalledWith({ op: 'cancel', token });
+    expect(core).not.toHaveBeenCalledWith({ op: 'commit', token });
+    const lateAnswer = answer;
+    if (cause === 'host exit') { await vi.advanceTimersByTimeAsync(501); await flush(); }
+    const next = ctx!.request({ kind: 'lotw.import' });
+    await flush(); expect(confirm).toHaveBeenCalledTimes(2);
+    answer({ accepted: false, locations: false });
+    await expect(next).resolves.toMatchObject({ ok: true, result: { status: 'cancelled' } });
+    lateAnswer({ accepted: true, locations: true }); await flush();
+    expect(core).not.toHaveBeenCalledWith({ op: 'commit', token });
+    expect(core.mock.calls.filter(([c]) => c.op === 'cancel')).toHaveLength(2);
+    if (cause === 'deadline') expect(replies).toHaveLength(1);
+  } finally { sup.stop(); }
 });

@@ -29,3 +29,47 @@ and a component library that could also reach the core would collapse the two.
 
 `scripts/package-boundaries.mjs` holds the direction: an extension depends on
 `extension-api` and `ui`, and on nothing else.
+
+`lotw:manage` requires the operator's grant and serves these requests:
+
+| Request | Fields | Reply |
+|---|---|---|
+| `lotw.import` | `kind` | Load a `.tq6` or `.p12` chosen by the operator |
+| `lotw.restore` | `kind` | Restore a `.tbk` chosen by the operator |
+| `lotw.delete` | `kind`, `certificate` | Delete the opaque `cert:<uuid>` id returned by `lotw.certificates` |
+
+Each success reply is `{ ok: true, kind, result }`. `result.status` is `completed` or
+`cancelled`; cancellation changes no certificates, keys or Locations. Completed results include
+`certificates` (call, serial, disposition and reason), `roots`, `signedQsos`, `deleted`, `locations`
+and `skippedLocations` (name and reason). Certificate dispositions are `new`, `present`, `refused`
+and `delete`. A refused certificate stays unchanged. Counts describe completed changes.
+
+Main chooses the file, obtains any passwords and confirms the inspected plan. An extension supplies
+no file path, bytes, password or confirmation answer. A backup offers Desktop Location creation in
+that confirmation; resulting names include any ` (TQSL)` collision suffix. A Location storage failure
+can leave LoTW work completed with Locations skipped; the result says which Locations were skipped.
+An extension must not automatically retry a write whose outcome is unknown after a deadline or crash.
+
+A page can declare `actions` and `rowActions` in its manifest, each `{ id, label, hint? }`.
+See `QGD-HOM-0018` through `QGD-HOM-0020` for the bounds and lifecycle. The core draws
+the buttons and delivers an operator press to `context.pages.onAction(pageId, handler)`
+as a `page.action` event: `{ page, action, row? }`. The handler returns nothing or a
+short status string. Every completion refreshes the page. An action is neither a
+grant nor a confirmation; requests made by a handler use the normal grant checks
+and dialogs. An action whose outcome is unknown must never be retried automatically.
+
+Page data version 8 adds `{ cells: string[], key?: string }` table rows alongside
+the existing array rows. Only keyed rows have row buttons; the key is opaque and
+never displayed. Main accepts only keys from the answer currently shown. For example:
+
+```ts
+context.subscriptions.push(context.pages.onAction('certificates', async event => {
+  if (event.action === 'delete' && event.row !== undefined) {
+    await context.request({ kind: 'lotw.delete', certificate: event.row });
+  }
+}));
+```
+
+The event and status validators are in `actions.ts`. Action declarations add no
+new request kind to `api-contract.ts`: `page.action` flows from the operator to the
+extension, while that contract describes the extension's requests to the core.

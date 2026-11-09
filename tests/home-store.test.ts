@@ -62,7 +62,7 @@ describe('home-store (QGD-HOM-0002, QGD-HOM-0006)', () => {
     store.start();
     await flush();
     store.openPage('air/conditions');
-    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, network: true, inputs: [], values: {}, area: 'air/conditions', areaName: 'Conditions', hue: 'general', tabs: [], views: [], settings: [] });
+    expect(store.get().page).toEqual({ key: 'air/conditions', name: 'Conditions', shown: { state: 'waiting' }, network: true, inputs: [], values: {}, area: 'air/conditions', areaName: 'Conditions', hue: 'general', tabs: [], views: [], settings: [], actionRunning: false, actionStatus: undefined, actions: undefined, rowActions: undefined });
     push({ key: 'air/conditions', state: 'failed', reason: 'NOAA did not answer.' });
     expect(store.get().page?.shown).toEqual({ state: 'failed', reason: 'NOAA did not answer.' });
   });
@@ -176,4 +176,123 @@ describe('the rail in the pins\' order', () => {
     expect((await make(['c-c/three', 'd-d/four', 'a-a/one'])).get().railPages.map(entry => entry.key)).toEqual(['c-c/three', 'a-a/one', 'b-b/two']);
     expect((await make([])).get().railPages.map(entry => entry.key)).toEqual(['a-a/one', 'b-b/two', 'c-c/three']);
   });
+});
+
+describe('page action state in the renderer', () => {
+  it('draws manifest actions, disables immediately during work, refuses a second press and shows its status', async () => {
+    const state = { ...STATE, available: STATE.available.map(page => ({ ...page, actions: [{ id: 'load', label: 'Load certificate…' }], rowActions: [{ id: 'delete', label: 'Delete…' }] })) };
+    let finish!: (reply: unknown) => void;
+    const sent: unknown[] = [];
+    const store = createHomeStore({
+      request: async command => { sent.push(command); return (command as { type: string }).type === 'page.action'
+        ? new Promise(resolve => { finish = resolve; }) : { ok: true, state }; },
+      onPage: () => () => {}
+    }, { state });
+    store.openPage('air/conditions'); await flush();
+    expect(store.get().page?.actions).toEqual([{ id: 'load', label: 'Load certificate…' }]);
+    expect(store.get().page?.rowActions).toEqual([{ id: 'delete', label: 'Delete…' }]);
+    const press = store.pressAction('air/conditions', 'delete', 'opaque-issued-id');
+    expect(store.get().page?.actionRunning).toBe(true);
+    await store.pressAction('air/conditions', 'delete', 'opaque-issued-id');
+    expect(sent.filter(command => (command as { type: string }).type === 'page.action')).toEqual([
+      { type: 'page.action', key: 'air/conditions', event: { page: 'conditions', action: 'delete', row: 'opaque-issued-id' } }
+    ]);
+    finish({ ok: true, state: { ...state, action: { key: 'air/conditions', running: false, status: 'Deleted.' } } });
+    await press;
+    expect(store.get().page?.actionRunning).toBe(false);
+    expect(store.get().page?.actionStatus).toBe('Deleted.');
+  });
+  it('turns malformed action replies into a failure in words and releases the buttons', async () => {
+    const store = createHomeStore({ request: async () => ({ bad: true }), onPage: () => () => {} }, { state: STATE });
+    store.openPage('air/conditions');
+    await store.pressAction('air/conditions', 'load');
+    expect(store.get().page?.actionRunning).toBe(false);
+    expect(store.get().page?.actionStatus).toMatch(/could not finish/);
+  });
+});
+
+describe('action state survives delayed snapshots and navigation', () => {
+  it('keeps the current page disabled when an old read and another page action complete', async () => {
+    const replies = new Map<string, (reply: unknown) => void>();
+    const value: HomeApi = {
+      request: command => {
+        const c = command as { type: string; key?: string };
+        if (c.type === 'open') return Promise.resolve({ ok: true, state: STATE });
+        return new Promise(resolve => { replies.set(c.type + (c.key ?? ''), resolve); });
+      }, onPage: () => () => {}
+    };
+    const store = createHomeStore(value, { state: STATE });
+    store.openPage('air/conditions'); await flush();
+    store.refresh();
+    const first = store.pressAction('air/conditions', 'load');
+    replies.get('read')!({ ok: true, state: STATE }); await flush();
+    expect(store.get().page?.actionRunning).toBe(true);
+    store.openPage('air/astro'); await flush();
+    const second = store.pressAction('air/astro', 'load');
+    replies.get('page.actionair/conditions')!({ ok: false, error: 'The first action was refused.' });
+    await first;
+    expect(store.get().page?.key).toBe('air/astro');
+    expect(store.get().page?.actionRunning).toBe(true);
+    replies.get('page.actionair/astro')!({ ok: true, state: { ...STATE, action: { key: 'air/astro', running: false, status: 'Imported.' } } });
+    await second;
+    expect(store.get().page?.actionRunning).toBe(false);
+    expect(store.get().page?.actionStatus).toBe('Imported.');
+    store.openPage('air/conditions'); await flush();
+    expect(store.get().page?.actionStatus).toBe('The first action was refused.');
+  });
+});
+
+it('receives authoritative action completion after the invoking window has gone', async () => {
+  let pushed: (state: unknown) => void = () => {};
+  const value: HomeApi = {
+    request: async () => ({ ok: true, state: STATE }), onPage: () => () => {},
+    onAction: listener => { pushed = listener; return () => {}; }
+  };
+  const store = createHomeStore(value, { state: STATE });
+  const stop = store.start();
+  store.openPage('air/conditions'); await flush();
+  pushed({ key: 'air/conditions', running: true });
+  expect(store.get().page?.actionRunning).toBe(true);
+  pushed({ key: 'air/conditions', running: false, status: '<b>bad</b>' });
+  expect(store.get().page?.actionRunning).toBe(true);
+  pushed({ key: 'air/conditions', running: false, status: 'Imported 1 certificate(s).' });
+  expect(store.get().page?.actionRunning).toBe(false);
+  expect(store.get().page?.actionStatus).toBe('Imported 1 certificate(s).');
+  stop();
+});
+
+it('keeps a successful action status for its own page when another page is open', async () => {
+  let finish!: (reply: unknown) => void;
+  const value: HomeApi = { request: async command => (command as { type: string }).type === 'page.action' ? new Promise(resolve => { finish = resolve; }) : { ok: true, state: STATE }, onPage: () => () => {} };
+  const store = createHomeStore(value, { state: STATE });
+  store.openPage('air/conditions'); await flush();
+  const press = store.pressAction('air/conditions', 'load');
+  store.openPage('air/astro'); await flush();
+  finish({ ok: true, state: STATE, action: { key: 'air/conditions', running: false, status: 'Imported.' } });
+  await press;
+  store.openPage('air/conditions'); await flush();
+  expect(store.get().page?.actionStatus).toBe('Imported.');
+});
+
+it('dispatches again after a failed action even if an earlier snapshot said it was running', async () => {
+  let finish!: (reply: unknown) => void;
+  let count = 0;
+  const running = { ...STATE, action: { key: 'air/conditions', running: true } };
+  const value: HomeApi = {
+    request: async command => {
+      const type = (command as { type: string }).type;
+      if (type === 'page.action') { count++; return new Promise(resolve => { finish = resolve; }); }
+      return { ok: true, state: type === 'read' ? running : STATE };
+    }, onPage: () => () => {}
+  };
+  const store = createHomeStore(value, { state: STATE });
+  store.openPage('air/conditions'); await flush();
+  const first = store.pressAction('air/conditions', 'load');
+  store.refresh(); await flush();
+  expect(store.get().page?.actionRunning).toBe(true);
+  finish({ ok: false, error: 'The action was refused.' }); await first;
+  expect(store.get().page?.actionRunning).toBe(false);
+  const second = store.pressAction('air/conditions', 'load');
+  expect(count).toBe(2);
+  finish({ ok: false, error: 'The action was refused.' }); await second;
 });

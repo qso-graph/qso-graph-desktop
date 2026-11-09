@@ -35,6 +35,12 @@ contextBridge.exposeInMainWorld('home', Object.freeze({
     ipcRenderer.on('home:page', handler);
     return () => { ipcRenderer.removeListener('home:page', handler); };
   },
+  onAction: (listener: (state: unknown) => void) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, state: unknown) => listener(state);
+    ipcRenderer.on('home:action', handler);
+    return () => { ipcRenderer.removeListener('home:action', handler); };
+  },
   // The extension host's notice (QGD-APP-0022), checked by the window.
   onNotice: (listener: (notice: unknown) => void) => {
     if (typeof listener !== 'function') return () => undefined;

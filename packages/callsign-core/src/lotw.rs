@@ -35,7 +35,7 @@ pub struct LotwTrustedRoot {
     pub accepted_at: Option<String>,
 }
 
-fn timestamp(time: SystemTime) -> String {
+pub(crate) fn timestamp(time: SystemTime) -> String {
     DateTime::<Utc>::from(time).to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
@@ -117,14 +117,14 @@ pub fn default_dir() -> Option<PathBuf> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use qso_graph_trust::{
         certificate::Trust,
         store::{KeyBackend, Store},
     };
 
-    fn corpus(name: &str) -> Vec<u8> {
+    pub(crate) fn corpus(name: &str) -> Vec<u8> {
         let cargo = std::env::var_os("CARGO_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| {

@@ -4,7 +4,8 @@
 // for a field id one character short, and it simply was not there:
 // the page code was tested, the manifest never was.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { resolve, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadExtensions } from '../packages/main/extension-runtime.js';
 
@@ -19,4 +20,17 @@ describe('the extensions that ship', () => {
     expect(found.refused).toEqual([]);
     expect(found.loaded.map(extension => extension.manifest.id).sort()).toEqual([...ids].sort());
   });
+});
+
+// This runs after build in make check: source imports alone cannot prove a
+// flattened extension's runtime API imports still resolve in the package.
+it('activates the compiled LoTW extension with only the public API context', async () => {
+  const module = await import(pathToFileURL(resolve('dist', 'extensions', 'lotw', 'main.js')).href);
+  const pages: string[] = []; const actions: string[] = [];
+  module.activate({ subscriptions: [], pages: {
+    register: (id: string) => { pages.push(id); return { dispose: () => {} }; },
+    onAction: (id: string) => { actions.push(id); return { dispose: () => {} }; }
+  } });
+  expect(pages).toEqual(['certificates', 'roots']);
+  expect(actions).toEqual(['certificates']);
 });
