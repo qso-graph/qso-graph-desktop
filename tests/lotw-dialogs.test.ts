@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { beforeEach, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { createHash } from 'node:crypto';
@@ -23,7 +24,8 @@ vi.mock('electron', async () => {
 });
 import { lotwDialogs } from '../packages/main/lotw-dialogs.js';
 import type { NativeLotwPreview } from '../packages/callsign-core/native.js';
-beforeEach(() => { electron.windows.length = 0; electron.options.length = 0; vi.clearAllMocks(); });
+// A failed test must not leave its password receiver for the next one to count.
+beforeEach(() => { electron.windows.length = 0; electron.options.length = 0; electron.ipc.removeAllListeners(); vi.clearAllMocks(); });
 it('QGD-LTW-0004: main filters its OS file chooser and cancellation sends no path', async () => {
   const dialogs = lotwDialogs('/dist');
   electron.choose.mockResolvedValue({ canceled: true, filePaths: ['/test-only/unselected.tbk'] });
@@ -50,7 +52,7 @@ it('QGD-LTW-0003/0008: main confirmation names inspected identities, root finger
 it('QGD-LTW-0003/0005, QGD-CRD-0007: only the dedicated main window and frame can send one password', async () => {
   const pending = lotwDialogs('/dist').password('QG0TEST <planted>, serial ABCD');
   const window = electron.windows[0]; const options = electron.options[0];
-  expect(options.webPreferences).toMatchObject({ sandbox: true, contextIsolation: true, nodeIntegration: false, devTools: false, preload: '/dist/preload/lotw-password.cjs' });
+  expect(options.webPreferences).toMatchObject({ sandbox: true, contextIsolation: true, nodeIntegration: false, devTools: false, preload: join('/dist', 'preload', 'lotw-password.cjs') });
   expect(window.loadURL.mock.calls[0][0]).toContain('%26lt%3Bplanted%26gt%3B');
   let done = false; void pending.then(() => { done = true; });
   electron.ipc.emit('lotw:password', { sender: {}, senderFrame: window.webContents.mainFrame }, 'planted-extension-password');
