@@ -146,7 +146,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
       if (!extension?.manifest.main) return undefined;
       return { entry: join(dirname(extension.source), extension.manifest.main), pages: extension.manifest.contributes.pages.map(page => page.id) };
     },
-    serve: (id, request) => serve(id, request),
+    serve: (id, request, signal) => serve(id, request, signal),
     log
   });
 
@@ -181,7 +181,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
   // added to the contract with no branch falls through the switch and returns
   // undefined, which TypeScript catches — this asserts it at run time too, in
   // case the contract is widened without rebuilding this file.
-  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'lotw.certificates', 'lotw.roots', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'].includes(kind));
+  const unserved = REQUEST_KINDS.filter(kind => !['extension.info', 'lotw.import', 'lotw.restore', 'lotw.delete', 'lotw.certificates', 'lotw.roots', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'].includes(kind));
   if (unserved.length > 0) log.error({ unserved }, 'the extension API declares request kinds this broker does not serve');
 
   return {

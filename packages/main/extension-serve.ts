@@ -18,7 +18,7 @@
 // 2026-10-10. They are proven here now, and the end-to-end demonstration is
 // the first application that does ham work (`QGD-APP-0014`).
 import {
-  RequestError, validateRequest, isLotwCertificates, isLotwRoots, type LotwCertificate, type LotwTrustedRoot, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type AdifList, type CallsignBrief, type StationBrief
+  RequestError, validateRequest, isLotwManageResult, type LotwManageResult, type LotwManageKind, isLotwCertificates, isLotwRoots, type LotwCertificate, type LotwTrustedRoot, type ExtensionReply, type ExtensionRequest, type ActivationPark, type NearPark, type PotaPlace, type AdifBand, type AdifEntry, type AdifList, type CallsignBrief, type StationBrief
 } from '../extension-api/api-contract.js';
 import {
   extensionInfo, decide, withGrants, type AllowedGrants, type LoadedExtension
@@ -63,6 +63,7 @@ export interface ExtensionBrokerPorts {
   ) => Promise<Readonly<Record<string, string>>>;
   // LoTW's certificates and trusted roots, public details only
   // (QGD-LTW-0002). Checked again here before an extension sees them.
+  lotwManage: (request: Extract<ExtensionRequest, { kind: LotwManageKind }>, signal?: AbortSignal) => Promise<LotwManageResult>;
   lotwCertificates: () => Promise<readonly LotwCertificate[]>;
   lotwRoots: () => Promise<readonly LotwTrustedRoot[]>;
   // An adapter's events, checked, for the consumers that are on; how many
@@ -99,7 +100,7 @@ export const refusal = (error: string, refused?: string): ExtensionReply =>
   refused === undefined ? { ok: false, error } : { ok: false, error, refused };
 
 export function createServe(deps: ServeDeps) {
-  return async function serve(id: unknown, command: unknown): Promise<ExtensionReply> {
+  return async function serve(id: unknown, command: unknown, signal?: AbortSignal): Promise<ExtensionReply> {
     if (typeof id !== 'string') return refusal('No application was named.');
     // Re-read the allowed grants on every request, so a withdrawal takes
     // effect without a restart (QGD-APP-0012).
@@ -127,6 +128,12 @@ export function createServe(deps: ServeDeps) {
 
     try {
       switch (request.kind) {
+        case 'lotw.import':
+        case 'lotw.restore':
+        case 'lotw.delete': {
+          const result = await deps.ports.lotwManage(request, signal);
+          return isLotwManageResult(result) ? { ok: true, kind: request.kind, result } : refusal('The LoTW result could not be read.');
+        }
         case 'lotw.certificates': {
           const certificates = await deps.ports.lotwCertificates();
           return isLotwCertificates(certificates) ? { ok: true, kind: request.kind, certificates } : refusal('LoTW certificates could not be read.');
@@ -192,8 +199,9 @@ export function createServe(deps: ServeDeps) {
     } catch (error) {
       // The message only. A thrown error from a service call is the one place
       // a secret could ride out in a stack (QGD-CRD-0006).
-      const why = request.kind === 'lotw.certificates' || request.kind === 'lotw.roots'
-        ? 'LoTW information could not be read.' : error instanceof Error ? error.message : 'That could not be done.';
+      const why = request.kind === 'lotw.import' || request.kind === 'lotw.restore' || request.kind === 'lotw.delete'
+        ? 'The LoTW operation was refused or its outcome is unknown. Read the store before trying again.'
+        : request.kind.startsWith('lotw.') ? 'LoTW information could not be read.' : error instanceof Error ? error.message : 'That could not be done.';
       deps.log.warn({ extension: id, kind: request.kind }, why);
       return refusal(why);
     }

@@ -37,6 +37,9 @@ export type ExtensionRequest =
   // QGD-LTW-0005).
   | { readonly kind: 'lotw.certificates' }
   | { readonly kind: 'lotw.roots' }
+  | { readonly kind: 'lotw.import' }
+  | { readonly kind: 'lotw.restore' }
+  | { readonly kind: 'lotw.delete'; readonly certificate: string }
   // Where the operator is operating from: the active station's name, grid and
   // position, or none (QGD-STN-0005; Astro is its first reader). Never its street, city or
   // postal code, which stay on this machine and out of every extension
@@ -184,7 +187,15 @@ export interface LotwTrustedRoot {
   readonly source: string; readonly acceptedAt: string | null;
 }
 
+export type LotwManageKind = 'lotw.import' | 'lotw.restore' | 'lotw.delete';
+export interface LotwManageResult {
+  readonly status: 'completed' | 'cancelled';
+  readonly certificates: readonly { readonly call: string; readonly serial: string; readonly disposition: 'new' | 'present' | 'refused' | 'delete'; readonly reason: string }[];
+  readonly roots: number; readonly signedQsos: number; readonly deleted: number;
+  readonly locations: number; readonly skippedLocations: readonly { readonly name: string; readonly reason: string }[];
+}
 export type ExtensionReply =
+  | { readonly ok: true; readonly kind: LotwManageKind; readonly result: LotwManageResult }
   | { readonly ok: true; readonly kind: 'lotw.certificates'; readonly certificates: readonly LotwCertificate[] }
   | { readonly ok: true; readonly kind: 'lotw.roots'; readonly roots: readonly LotwTrustedRoot[] }
   | { readonly ok: true; readonly kind: 'extension.info'; readonly info: ExtensionInfo }
@@ -236,6 +247,9 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
     // Knowing what you hold needs nothing (QGD-APP-0005: an extension with
     // no grants can still draw its page and read its own standing).
     case 'extension.info': return undefined;
+    case 'lotw.import':
+    case 'lotw.restore':
+    case 'lotw.delete': return 'lotw:manage';
     case 'lotw.certificates':
     case 'lotw.roots': return 'lotw:read';
     case 'callsign.list': return 'callsign:list';
@@ -262,7 +276,7 @@ export function requiredGrant(request: ExtensionRequest): string | undefined {
 // Every kind the contract has, so a test can prove requiredGrant covers all of
 // them rather than the ones somebody thought of.
 export const REQUEST_KINDS: readonly RequestKind[] =
-  ['extension.info', 'lotw.certificates', 'lotw.roots', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'];
+  ['extension.info', 'lotw.import', 'lotw.restore', 'lotw.delete', 'lotw.certificates', 'lotw.roots', 'callsign.list', 'callsign.active', 'station.active', 'adif.search', 'adif.bands', 'adif.list', 'area.get', 'pota.activations', 'pota.near', 'pota.places', 'source.fetch', 'service.request', 'integration.events', 'integration.reply', 'page.changed'];
 
 // ---------------------------------------------------------------------------
 // Validation. QGD-SEC-0006: rejected, never coerced.
@@ -311,6 +325,9 @@ const FIELDS: Readonly<Record<string, readonly string[]>> = {
   'extension.info': ['kind'],
   'lotw.certificates': ['kind'],
   'lotw.roots': ['kind'],
+  'lotw.import': ['kind'],
+  'lotw.restore': ['kind'],
+  'lotw.delete': ['kind', 'certificate'],
   'callsign.list': ['kind'],
   'callsign.active': ['kind'],
   'station.active': ['kind'],
@@ -346,6 +363,11 @@ export function validateRequest(value: unknown): ExtensionRequest {
   }
   const bare = () => ({ kind }) as ExtensionRequest;
   switch (kind) {
+    case 'lotw.delete':
+      if (typeof value.certificate !== 'string' || !/^cert:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.certificate)) throw new RequestError('certificate is not a certificate id', 'certificate');
+      return { kind, certificate: value.certificate };
+    case 'lotw.import':
+    case 'lotw.restore':
     case 'extension.info':
     case 'lotw.certificates':
     case 'lotw.roots':
@@ -463,4 +485,20 @@ export function isLotwReply(value: unknown, kind: 'lotw.certificates' | 'lotw.ro
     && typeof value.error === 'string' && (value.refused === undefined || typeof value.refused === 'string');
   return value.ok === true && value.kind === kind && Object.keys(value).length === 3
     && (kind === 'lotw.certificates' ? isLotwCertificates(value.certificates) : isLotwRoots(value.roots));
+}
+
+export function isLotwManageResult(value: unknown): value is LotwManageResult {
+  const count = (n: unknown) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
+  return exactly(value, ['status', 'certificates', 'roots', 'signedQsos', 'deleted', 'locations', 'skippedLocations'])
+    && ['completed', 'cancelled'].includes(value.status as string)
+    && [value.roots, value.signedQsos, value.deleted, value.locations].every(count)
+    && Array.isArray(value.certificates) && value.certificates.every(c => exactly(c, ['call', 'serial', 'disposition', 'reason'])
+      && [c.call, c.serial, c.reason].every(isString) && ['new', 'present', 'refused', 'delete'].includes(c.disposition as string))
+    && Array.isArray(value.skippedLocations) && value.skippedLocations.every(l => exactly(l, ['name', 'reason']) && [l.name, l.reason].every(isString));
+}
+export function isLotwManageReply(value: unknown, kind: LotwManageKind): value is ExtensionReply {
+  if (!isRecord(value)) return false;
+  if (value.ok === false) return exactly(value, value.refused === undefined ? ['ok', 'error'] : ['ok', 'error', 'refused'])
+    && isString(value.error) && (value.refused === undefined || isString(value.refused));
+  return exactly(value, ['ok', 'kind', 'result']) && value.ok === true && value.kind === kind && isLotwManageResult(value.result);
 }

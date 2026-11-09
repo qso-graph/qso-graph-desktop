@@ -382,3 +382,6 @@ export function isStationsBackup(value: unknown): value is StationsBackup {
   if (!Object.entries(value.defaults).every(([callsign, id]) => isCallsignId(callsign) && isStationId(id) && ids.has(id))) return false;
   return value.active === null || (isStationId(value.active) && ids.has(value.active));
 }
+
+// Location names are unique regardless of case.
+export function sameStationName(a: string, b: string): boolean { return a.toLowerCase() === b.toLowerCase(); }

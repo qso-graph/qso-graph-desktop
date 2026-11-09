@@ -4,7 +4,7 @@
 // structured-cloned, and a value an extension built from Svelte state is a
 // Proxy that cannot be. This was the window bridge's job until extensions
 // left the renderer (QGD-APP-0015, 2026-10-11); the job is the same.
-import type { ExtensionRequest } from './api-contract.js';
+import { validateRequest, type ExtensionRequest } from './api-contract.js';
 
 // Rebuilt as a plain value before it crosses, field by field.
 //
@@ -36,6 +36,11 @@ import type { ExtensionRequest } from './api-contract.js';
 // it has not checked. The core is the validator (QGD-SEC-0006).
 export function plainRequest(request: ExtensionRequest): unknown {
   switch (request.kind) {
+    case 'lotw.import':
+    case 'lotw.restore':
+    case 'lotw.delete':
+      // Refuse injected paths/answers before reconstruction can drop them.
+      return validateRequest(request);
     case 'lotw.certificates':
     case 'lotw.roots':
     case 'extension.info':

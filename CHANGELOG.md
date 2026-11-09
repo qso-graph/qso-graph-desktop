@@ -7,10 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `lotw:manage`: load LoTW certificates, restore TQSL backups and delete certificates through core-owned file, password and confirmation dialogs. An import or a delete commits exactly what the confirmation showed; if the store changed in between, nothing is changed and Desktop says to look again. A backup whose keys have different passwords asks for each, naming its call and serial. Backup locations can become Desktop Locations: a name already taken, compared without case, gets a ` (TQSL)` suffix and existing Locations are never overwritten, and creating them is unchecked by default. A pending operation is cancelled when its deadline passes or the extension host exits, and a late dialog answer is ignored.
+- `make verify` audits every packaged Electron window and its content security policy, the password window included.
+
 ### Changed
 
 - CodeQL excludes one rule, `rust/access-invalid-pointer`, which only ever flagged napi-derive's generated code (alerts #13 and #28, false positives that returned whenever the code moved): our Rust denies `unsafe_code` (QGD-SEC-0022), so the compiler already refuses what the rule looks for. `tests/no-unsafe.test.mjs` checks the exclusion stays exactly that one rule.
-- Updated QG Trust to 0.1.5 and enforce Rust formatting and Clippy in verification and CI.
+- Updated QG Trust to 0.1.7 and enforce Rust formatting and Clippy in verification and CI.
 
 - Licensed GPL-3.0-or-later, the same as every QSO Graph project.
 - AGENTS.md and CLAUDE.md: the organization's shared agent guide, and this repository's own.

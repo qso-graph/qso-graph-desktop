@@ -14,6 +14,8 @@ static ALLOCATOR: ::zeroizing_alloc::ZeroAlloc<::std::alloc::System> =
 
 #[cfg(feature = "addon")]
 mod lotw;
+#[cfg(feature = "addon")]
+mod lotw_manage;
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -1140,6 +1142,7 @@ pub mod addon {
     #[napi]
     pub struct CallsignCore {
         store: Store,
+        lotw: crate::lotw_manage::Manager,
     }
 
     #[napi(object)]
@@ -1220,6 +1223,7 @@ pub mod addon {
         pub fn new(directory: String) -> Result<Self> {
             Ok(Self {
                 store: Store::new(directory.into()).map_err(error)?,
+                lotw: crate::lotw_manage::Manager::default(),
             })
         }
         /// Tests the saved credential, every time it is asked.
@@ -1321,12 +1325,31 @@ pub mod addon {
             }
         }
         #[napi]
+        pub fn lotw_manage(&mut self, command: String) -> Result<String> {
+            let command = zeroize::Zeroizing::new(command);
+            let parsed = serde_json::from_str(&command)
+                .map_err(|_| error("The LoTW request was refused."))?;
+            self.lotw
+                .execute(parsed, &self.store.directory.join("lotw-test"))
+                .map_err(error)
+        }
+        #[napi]
         pub fn lotw_certificates(&self) -> Result<Vec<crate::lotw::LotwCertificate>> {
-            crate::lotw::certificates(crate::lotw::default_dir().as_deref()).map_err(error)
+            let dir = if std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() {
+                Some(self.store.directory.join("lotw-test"))
+            } else {
+                crate::lotw::default_dir()
+            };
+            crate::lotw::certificates(dir.as_deref()).map_err(error)
         }
         #[napi]
         pub fn lotw_trusted_roots(&self) -> Result<Vec<crate::lotw::LotwTrustedRoot>> {
-            crate::lotw::trusted_roots(crate::lotw::default_dir().as_deref()).map_err(error)
+            let dir = if std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() {
+                Some(self.store.directory.join("lotw-test"))
+            } else {
+                crate::lotw::default_dir()
+            };
+            crate::lotw::trusted_roots(dir.as_deref()).map_err(error)
         }
         #[napi]
         pub fn list(&self) -> Result<Vec<Callsign>> {

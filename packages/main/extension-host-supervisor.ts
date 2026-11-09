@@ -46,7 +46,7 @@ export interface SupervisorDeps {
   describe(id: string): { readonly entry: string; readonly pages: readonly string[] } | undefined;
   // The request, served by the grant-checked path (extension-serve.ts) under
   // the identity this file bound to the channel.
-  serve(id: string, request: unknown): Promise<ExtensionReply>;
+  serve(id: string, request: unknown, signal?: AbortSignal): Promise<ExtensionReply>;
   readonly log: {
     info(fields: Record<string, unknown>, message: string): void;
     warn(fields: Record<string, unknown>, message: string): void;
@@ -94,6 +94,7 @@ interface Generation {
   readonly deactivations: Map<number, { settle: () => void; timer: ReturnType<typeof setTimeout> }>;
   readonly pages: Map<string, { settle: (outcome: PageOutcome) => void; timer: ReturnType<typeof setTimeout> }>;
   readonly inFlight: Map<string, number>;
+  readonly requests: Map<string, Set<AbortController>>;
   missed: number;
   ping: number;
   heartbeat?: ReturnType<typeof setInterval>;
@@ -128,7 +129,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     const link = deps.spawn();
     const generation: Generation = {
       n: ++generations, link, channels: new Map(), activations: new Map(), deactivations: new Map(),
-      pages: new Map(), inFlight: new Map(), missed: 0, ping: 0, dead: false
+      pages: new Map(), inFlight: new Map(), requests: new Map(), missed: 0, ping: 0, dead: false
     };
     link.onMessage(raw => onHost(generation, raw));
     link.onExit(() => { if (!generation.dead) lost(generation, SAID.stopped); });
@@ -204,13 +205,19 @@ export function createSupervisor(deps: SupervisorDeps) {
       const kind = (message.request as { kind?: unknown } | null)?.kind;
       // Most Wanted's counts may be fetched from POTA first, so they are
       // given a fetch's deadline.
-      const deadline = kind === 'source.fetch' || kind === 'pota.activations' ? limits.sourceFetchDeadlineMs : limits.requestDeadlineMs;
+      const manage = kind === 'lotw.import' || kind === 'lotw.restore' || kind === 'lotw.delete';
+      const deadline = manage ? limits.operatorDeadlineMs : kind === 'source.fetch' || kind === 'pota.activations' ? limits.sourceFetchDeadlineMs : limits.requestDeadlineMs;
       // The slot is held until the work ends, not until the deadline: a
       // request answered late is still running, and still counts.
       let replied = false;
-      const timer = setTimeout(() => { if (!replied) { replied = true; reply({ ok: false, error: SAID.late }); } }, deadline);
-      const release = () => generation.inFlight.set(id, Math.max(0, (generation.inFlight.get(id) ?? 1) - 1));
-      deps.serve(id, message.request).then(
+      const controller = new AbortController();
+      const requests = generation.requests.get(id) ?? new Set<AbortController>();
+      generation.requests.set(id, requests);
+      requests.add(controller);
+      const timer = setTimeout(() => { if (!replied) { controller.abort(); replied = true; reply({ ok: false, error: manage ? 'The outcome of the LoTW operation is unknown. Read the store before trying again.' : SAID.late }); } }, deadline);
+      controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+      const release = () => { requests.delete(controller); generation.inFlight.set(id, Math.max(0, (generation.inFlight.get(id) ?? 1) - 1)); };
+      deps.serve(id, message.request, controller.signal).then(
         value => { clearTimeout(timer); release(); if (!replied) { replied = true; reply(value); } },
         () => { clearTimeout(timer); release(); if (!replied) { replied = true; reply({ ok: false, error: 'That could not be done.' }); } });
       return;
@@ -235,6 +242,7 @@ export function createSupervisor(deps: SupervisorDeps) {
   function lost(generation: Generation, why: string): void {
     if (generation.dead) return;
     generation.dead = true;
+    for (const requests of generation.requests.values()) for (const request of requests) request.abort();
     if (generation.heartbeat) clearInterval(generation.heartbeat);
     try { generation.link.kill(); } catch { /* already gone */ }
     for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
@@ -387,6 +395,7 @@ export function createSupervisor(deps: SupervisorDeps) {
     async setEnabled(id: string, enabled: boolean): Promise<void> {
       if (enabled) { disabled.delete(id); failed.delete(id); changed(); return; }
       disabled.add(id);
+      for (const request of current?.requests.get(id) ?? []) request.abort();
       // An activation already under way finishes first, sees the extension
       // is off, and deactivates it itself; then this one has nothing to do.
       await activating.get(id);
@@ -406,6 +415,7 @@ export function createSupervisor(deps: SupervisorDeps) {
       if (current) {
         const generation = current;
         generation.dead = true;
+        for (const requests of generation.requests.values()) for (const request of requests) request.abort();
         if (generation.heartbeat) clearInterval(generation.heartbeat);
         for (const port of generation.channels.values()) { try { port.close(); } catch { /* closed */ } }
         for (const waiting of generation.pages.values()) { clearTimeout(waiting.timer); waiting.settle({ outcome: 'unknown', reason: SAID.stopped }); }

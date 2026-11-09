@@ -2,6 +2,8 @@
 // First, before anything opens a store or a log: portable mode decides
 // where they are (portable.ts).
 import './portable-start.js';
+import { createLotwManage } from './lotw-manage.js';
+import { lotwDialogs } from './lotw-dialogs.js';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, session } from 'electron';
 import { MIN_HEIGHT, MIN_WIDTH, placeWindow } from './window-place.js';
 import { nextZoom } from './window-zoom.js';
@@ -225,6 +227,12 @@ if (!app.requestSingleInstanceLock()) {
     });
     // The Locations travel with the callsigns in a backup, and come back in a
     // restore; QG Storage holds them.
+    const lotwManage = createLotwManage({
+      core: callsigns.lotwCommand, ...lotwDialogs(distDirectory),
+      existing: () => storageBroker.backupStations(),
+      check: backup => storageBroker.checkStations(backup),
+      add: (backup, names) => storageBroker.addLotwStations(backup, names)
+    });
     callsigns.connectStations({
       backup: () => storageBroker.backupStations(),
       restore: (backup, replace) => storageBroker.restoreStations(backup, replace),
@@ -379,6 +387,7 @@ if (!app.requestSingleInstanceLock()) {
         },
         // LoTW's public listing (QGD-LTW-0002): the broker has checked lotw:read
         // already, and a refusal is a fixed sentence, never QG Trust's text.
+        lotwManage,
         lotwCertificates: async () => {
           const result = await untilReady(() => callsigns.lotwCertificates(), starting, { withinMs: 10_000 });
           if (typeof result === 'string') throw new Error('LoTW certificates could not be read.');

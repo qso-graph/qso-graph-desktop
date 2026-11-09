@@ -97,7 +97,7 @@ function toTest(native: NativeCredentialTest): CredentialTest {
 function refuse(command: ServiceCommand, error: unknown): CallsignReply {
   // A LoTW read's error is never passed on: QG Trust's errors can name a
   // path under the operator's home (QGD-LTW-0005).
-  const lotw = command.type === 'lotw-certificates' || command.type === 'lotw-roots';
+  const lotw = command.type.startsWith('lotw-');
   const message = !lotw && error instanceof Error && MESSAGES.includes(error.message)
     ? error.message : 'The callsign request could not be completed.';
   log.warn({ command: command.type, reason: message }, 'callsign operation failed');
@@ -109,6 +109,7 @@ function refuse(command: ServiceCommand, error: unknown): CallsignReply {
 function execute(command: ServiceCommand): CallsignReply | Promise<CallsignReply> {
   try {
     switch (command.type) {
+      case 'lotw-manage': return { ok: true, data: { lotw: core.lotwManage(JSON.stringify(command.command)) } };
       case 'lotw-certificates': return { ok: true, data: core.lotwCertificates() };
       case 'lotw-roots': return { ok: true, data: core.lotwTrustedRoots() };
       case 'list': return { ok: true, data: snapshot() };

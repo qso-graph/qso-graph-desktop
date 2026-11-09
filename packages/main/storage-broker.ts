@@ -18,7 +18,7 @@ import { CALLSIGNS_STARTING } from './callsign-broker.js';
 import { createLogger, writeForwarded } from '../logging/logger.js';
 import {
   STORAGE_CHANNEL, STORAGE_STATUS_CHANNEL, type StorageCommand, type StorageReply, type StorageStatus, type ToActivate, type Near,
-  isStorageReply, isStorageStatus, validateStorageCommand
+  isStorageReply, isStorageStatus, validateRendererStorageCommand
 } from '../storage/storage-contract.js';
 
 const log = createLogger('storage-broker');
@@ -62,6 +62,7 @@ export interface StorageBroker {
   restoreStations: (backup: StationsBackup, replace: boolean) => Promise<number | string>;
   // A restore's Locations checked, changing nothing: a reason, or undefined.
   checkStations: (backup: StationsBackup) => Promise<string | undefined>;
+  addLotwStations: (backup: StationsBackup, expectedNames: string[]) => Promise<number | string>;
   stationCount: () => number;
   adifBands: () => Promise<AdifBand[] | string>;
   // My Area's parks with their activations, or why there are none.
@@ -226,7 +227,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
 
   ipcMain.handle(STORAGE_CHANNEL, async (event, command: unknown): Promise<StorageReply> => {
     if (!allowsSender(event.senderFrame, event.sender.mainFrame, event.senderFrame?.url) ||
-        !validateStorageCommand(command)) {
+        !validateRendererStorageCommand(command)) {
       log.warn({ accepted: false }, 'storage request refused');
       return { ok: false, error: 'Invalid storage request.' };
     }
@@ -277,6 +278,10 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
     async checkStations(backup) {
       const reply = await ask({ type: 'stations-check', backup });
       return reply.ok ? undefined : reply.error;
+    },
+    async addLotwStations(backup, expectedNames) {
+      const reply = await ask({ type: 'stations-add-lotw', backup, expectedNames });
+      return reply.ok ? reply.restored ?? 'Locations could not be added.' : reply.error;
     },
     stationCount: () => last.stations?.list.length ?? 0,
     async adifList(name) {

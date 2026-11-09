@@ -69,6 +69,10 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
   // contract is named here; a new one fails until someone has looked at what
   // it does with the kind.
   const readers = new Set([
+    // Plans imported Locations and writes no ADIF kind.
+    'packages/main/lotw-locations.ts',
+    // Reads Location snapshots for confirmation and writes no ADIF kind.
+    'packages/main/lotw-manage.ts',
     'packages/main/station-brief.ts', 'packages/renderer/Shell.svelte', 'packages/renderer/pages/StationsPage.svelte',
     'packages/renderer/app.ts', 'packages/storage/stations.ts', 'packages/storage/storage-contract.ts',
     'packages/storage/storage-service.ts',

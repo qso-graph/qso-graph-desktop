@@ -14,7 +14,7 @@ import { potaPark, potaParkLocation, sotaSummit, type referenceSchema } from './
 import { ACTIVE_STATION_ID, activeStation, station, stationDefault, type stateSchema } from './schema.js';
 import type { Store } from './sqlite.js';
 import {
-  MAX_STATIONS, STATION_FIELDS, isStation, type Choice, type FieldProblem, type StationChoices, type ParkDraft, type Place, type Station, type StationDraft,
+  MAX_STATIONS, STATION_FIELDS, isStation, sameStationName, type Choice, type FieldProblem, type StationChoices, type ParkDraft, type Place, type Station, type StationDraft,
   type StationsBackup, type StationsView
 } from './station-contract.js';
 export { adifLocation } from './station-contract.js';
@@ -226,7 +226,7 @@ export async function saveStation(
     if (!draft.id && others.length >= MAX_STATIONS) {
       return { ok: false, problems: [{ field: 'name', reason: `There are already ${MAX_STATIONS} locations; delete one to add another.` }] };
     }
-    if (others.some(other => other.id !== draft.id && other.name.toLowerCase() === name.toLowerCase())) {
+    if (others.some(other => other.id !== draft.id && sameStationName(other.name, name))) {
       return { ok: false, problems: [{ field: 'name', reason: 'Another location already has this name.' }] };
     }
     const at = now.toISOString();
@@ -500,5 +500,33 @@ export async function restoreStations(
       throw error;
     }
     return backup.stations.length;
+  });
+}
+
+// Add inspected TQSL Locations without replacing any existing row, notes, default or active id.
+// A concurrent name change requires a new confirmation (QGD-LTW-0008).
+export async function addLotwStations(
+  state: StateStore, backup: StationsBackup, expectedNames: string[], definitions: Definitions, counties?: Counties
+): Promise<number | { problem: string }> {
+  const problem = checkBackup(backup, definitions, counties);
+  if (problem) return { problem };
+  return state.unit(async db => {
+    state.connection.exec('BEGIN IMMEDIATE');
+    try {
+      const here = await db.select({ name: station.name }).from(station).all();
+      const names = here.map(s => s.name).sort();
+      if (JSON.stringify(names) !== JSON.stringify([...expectedNames].sort()) || here.length + backup.stations.length > MAX_STATIONS
+        || [...names, ...backup.stations.map(s => s.name)].some((name, i, all) => all.slice(0, i).some(other => sameStationName(other, name)))) {
+        state.connection.exec('ROLLBACK');
+        return { problem: 'Locations changed or the Location limit was reached. Restore the backup again.' };
+      }
+      const at = new Date().toISOString();
+      for (const entry of backup.stations) await db.insert(station).values({
+        id: entry.id, name: entry.name, place: entry.place, lotwPark: entry.lotwPark ?? null,
+        kind: null, notes: null, createdAt: at, updatedAt: at
+      }).run();
+      state.connection.exec('COMMIT');
+      return backup.stations.length;
+    } catch (error) { state.connection.exec('ROLLBACK'); throw error; }
   });
 }

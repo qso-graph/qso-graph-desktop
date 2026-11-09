@@ -4,6 +4,7 @@
 // not a whole number or outside a sane range refuses the file, rather than
 // running an extension host with no limit at all.
 export interface ExtensionLimits {
+  readonly operatorDeadlineMs: number;
   readonly requestDeadlineMs: number;
   // A fetch goes to the credential core, whose own ceiling is 120 s, so its
   // deadline sits past that and the core answers first (as deadlines.ts does).
@@ -19,6 +20,7 @@ export interface ExtensionLimits {
 }
 
 const BOUNDS: Readonly<Record<keyof ExtensionLimits, readonly [number, number]>> = {
+  operatorDeadlineMs: [60_000, 3_600_000],
   requestDeadlineMs: [1_000, 120_000],
   sourceFetchDeadlineMs: [121_000, 300_000],
   activateDeadlineMs: [1_000, 60_000],

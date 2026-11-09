@@ -29,3 +29,23 @@ and a component library that could also reach the core would collapse the two.
 
 `scripts/package-boundaries.mjs` holds the direction: an extension depends on
 `extension-api` and `ui`, and on nothing else.
+
+`lotw:manage` requires the operator's grant and serves these requests:
+
+| Request | Fields | Reply |
+|---|---|---|
+| `lotw.import` | `kind` | Load a `.tq6` or `.p12` chosen by the operator |
+| `lotw.restore` | `kind` | Restore a `.tbk` chosen by the operator |
+| `lotw.delete` | `kind`, `certificate` | Delete the opaque `cert:<uuid>` id returned by `lotw.certificates` |
+
+Each success reply is `{ ok: true, kind, result }`. `result.status` is `completed` or
+`cancelled`; cancellation changes no certificates, keys or Locations. Completed results include
+`certificates` (call, serial, disposition and reason), `roots`, `signedQsos`, `deleted`, `locations`
+and `skippedLocations` (name and reason). Certificate dispositions are `new`, `present`, `refused`
+and `delete`. A refused certificate stays unchanged. Counts describe completed changes.
+
+Main chooses the file, obtains any passwords and confirms the inspected plan. An extension supplies
+no file path, bytes, password or confirmation answer. A backup offers Desktop Location creation in
+that confirmation; resulting names include any ` (TQSL)` collision suffix. A Location storage failure
+can leave LoTW work completed with Locations skipped; the result says which Locations were skipped.
+An extension must not automatically retry a write whose outcome is unknown after a deadline or crash.

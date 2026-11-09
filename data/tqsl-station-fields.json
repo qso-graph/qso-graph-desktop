@@ -22,7 +22,7 @@
     "JA_PREFECTURE": { "home": "MY_STATE" },
     "US_COUNTY": { "home": "MY_CNTY" },
     "JA_CITY_GUN_KU": { "home": "MY_CNTY" },
-    "FI_KUNTA": { "home": "MY_CNTY" },
+    "FI_KUNTA": { "home": "MY_STATE" },
     "US_PARK": { "home": "lotwPark", "why": "TQSL's park list; ADIF has no field for it." },
     "CA_US_PARK": { "home": "lotwPark" },
     "DX_US_PARK": { "home": "lotwPark" },

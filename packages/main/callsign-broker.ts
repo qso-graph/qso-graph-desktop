@@ -76,6 +76,7 @@ export interface CallsignBroker {
   ) => Promise<Readonly<Record<string, string>> | string>;
   // LoTW's public listing (QGD-LTW-0002), checked field by field here, where
   // it arrives from QG Callsigns. A sentence when it cannot be had.
+  lotwCommand: (command: import('../callsign-core/native.js').NativeLotwCommand) => Promise<unknown>;
   lotwCertificates: () => Promise<LotwCertificate[] | string>;
   lotwRoots: () => Promise<LotwTrustedRoot[] | string>;
 }
@@ -370,6 +371,13 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
       if (typeof briefs === 'string') return briefs;
       const active = (reply.data as { active?: unknown }).active;
       return briefs.find(brief => brief.id === active) ?? null;
+    },
+    async lotwCommand(command) {
+      const reply = await ask({ type: 'lotw-manage', command });
+      if (!reply.ok) throw new Error('The LoTW operation was refused.');
+      const data = reply.data as { lotw?: unknown } | undefined;
+      if (typeof data?.lotw !== 'string') throw new Error('The LoTW reply was refused.');
+      try { return JSON.parse(data.lotw) as unknown; } catch { throw new Error('The LoTW reply was refused.'); }
     },
     async lotwCertificates() {
       const reply = await ask({ type: 'lotw-certificates' });
