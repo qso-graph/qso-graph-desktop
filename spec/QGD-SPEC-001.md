@@ -598,8 +598,8 @@ defines Command identifiers, titles and optional arguments. Bitwarden Desktop's
 uses native buttons, accessible labels and disabled bindings for row operations.
 These references support named dispatch and core-owned controls. They do not define
 this product's page-data protocol: binding a press to keys issued in the current
-answer is novel here because extension markup never enters the window. KI7MT chose
-declarative page and row actions for this frame; none of these references is used to
+answer is novel here because extension markup never enters the window. The frame
+uses declarative page and row actions; none of these references is used to
 introduce a command palette or extension-rendered page.
 
 **Retired and never reused:** `QGD-HOM-0009`, Home's Your station card (2026-10-22: everything on it is shown elsewhere). The clock moved to the header and the callsign and location to the status bar (`QGD-FRM-0014`); sunrise and sunset move to the Astro extension's page, to be specified.
