@@ -3,13 +3,15 @@
 // in this project's own code, as main.ts and index.html have it, is refused.
 // The packaged run is the electron-audit suite; this holds its rules.
 import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FuseV1Options } from '@electron/fuses';
 import { auditCsp, auditFuses, auditMain } from '../scripts/electron-audit.mjs';
 
 // The same scope the packaged audit reads, compiled modules included.
+// Keys use '/', as the asar listing does; readdirSync gives '\\' on Windows.
 const scripts = new Map(readdirSync('dist', { recursive: true }).filter(path => /\.(c|m)?js$/.test(path))
-  .map(path => ['dist/' + path, readFileSync('dist/' + path, 'utf8')]));
+  .map(path => ['dist/' + path.replaceAll('\\', '/'), readFileSync(join('dist', path), 'utf8')]));
 const main = scripts.get('dist/main/main.js');
 const html = readFileSync('dist/renderer/index.html', 'utf8');
 const audit = (entry = main, extra = '') => auditMain(entry, new Map([...scripts, ['dist/main/main.js', entry], ['planted.js', extra]]));
