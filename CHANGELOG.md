@@ -16,6 +16,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - CodeQL excludes one rule, `rust/access-invalid-pointer`, which only ever flagged napi-derive's generated code (alerts #13 and #28, false positives that returned whenever the code moved): our Rust denies `unsafe_code` (QGD-SEC-0022), so the compiler already refuses what the rule looks for. `tests/no-unsafe.test.mjs` checks the exclusion stays exactly that one rule.
 - Updated QG Trust to 0.1.7 and enforce Rust formatting and Clippy in verification and CI.
+- Development tooling (eslint, @electron/universal) uses minimatch 11.0.5, through an override limited to the affected range, for GHSA-g3hv-75wg-m249. The packaged application never contained minimatch.
 
 - Licensed GPL-3.0-or-later, the same as every QSO Graph project.
 - AGENTS.md and CLAUDE.md: the organization's shared agent guide, and this repository's own.

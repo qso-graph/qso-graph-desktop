@@ -3,7 +3,7 @@
   "productName": "QSO Graph Desktop",
   "version": "0.7.0",
   "private": true,
-  "description": "QSO Graph Desktop — an extensible desktop platform for amateur radio",
+  "description": "QSO Graph Desktop \u2014 an extensible desktop platform for amateur radio",
   "license": "GPL-3.0-or-later",
   "author": {
     "name": "QSO Graph contributors",
@@ -185,7 +185,8 @@
     },
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
-    }
+    },
+    "minimatch@>=7.0.0 <11.0.1": "11.0.5"
   },
   "homepage": "https://github.com/qso-graph/qso-graph-desktop",
   "allowScripts": {
