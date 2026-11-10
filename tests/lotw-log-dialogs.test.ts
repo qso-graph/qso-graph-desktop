@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { beforeEach, it, expect, vi } from 'vitest';
+import { join } from 'node:path';
 import type { NativeLotwLogPreview } from '../packages/callsign-core/native.js';
 const electron=vi.hoisted(()=>({windows:[] as any[],options:[] as any[],choose:vi.fn(),save:vi.fn(),confirm:vi.fn(),ipc:undefined as any,handlers:new Map<string,Function>()}));
 vi.mock('electron',async()=>{
@@ -27,7 +28,7 @@ it('upload confirmation names the file, every certificate, counts and dates, def
  const options=uploadConfirmation('test.tq8',p());for(const text of ['test.tq8','QG0TEST','AB12','3 QSOs','2026-01-01','2026-11-01'])expect(options.detail).toContain(text);expect(options.defaultId).toBe(0);expect(options.cancelId).toBe(0);
 });
 it('chooses only supported logs, saves beside the input and sends no cancelled path',async()=>{
- const dialogs=lotwLogDialogs('/dist');electron.choose.mockResolvedValue({canceled:true,filePaths:['/test-only/input.adi']});expect(await dialogs.choose(false)).toBeUndefined();expect(electron.choose).toHaveBeenCalledWith(expect.objectContaining({filters:[{name:'Log',extensions:['adi','adx','log']}]}));electron.save.mockResolvedValue({canceled:true,filePath:'/test-only/input.tq8'});expect(await dialogs.save('/test-only/input.adi')).toBeUndefined();expect(electron.save).toHaveBeenCalledWith(expect.objectContaining({defaultPath:'/test-only/input.tq8'}));
+ const dialogs=lotwLogDialogs('/dist');electron.choose.mockResolvedValue({canceled:true,filePaths:['/test-only/input.adi']});expect(await dialogs.choose(false)).toBeUndefined();expect(electron.choose).toHaveBeenCalledWith(expect.objectContaining({filters:[{name:'Log',extensions:['adi','adx','log']}]}));electron.save.mockResolvedValue({canceled:true,filePath:'/test-only/input.tq8'});expect(await dialogs.save('/test-only/input.adi')).toBeUndefined();expect(electron.save).toHaveBeenCalledWith(expect.objectContaining({defaultPath:join('/test-only','input.tq8')}));
 });
 it('escapes log metadata as text and abort removes the sender handlers',async()=>{
  const abort=new AbortController();const result=lotwLogDialogs('/dist').confirmSign('<planted>.adi',p(),context,vi.fn(),abort.signal);const html=decodeURIComponent(electron.windows[0].loadURL.mock.calls[0][0].slice('data:text/html,'.length));expect(html).toContain('&lt;planted&gt;');expect(logPreviewText(p())).toContain('Station fields sent to LoTW:');abort.abort();expect(await result).toBe(false);expect(electron.handlers.size).toBe(0);
