@@ -186,7 +186,7 @@ describe('the decision', () => {
       'extension.info': { kind: 'extension.info' },
       'lotw.certificates': { kind: 'lotw.certificates' },
       'lotw.roots': { kind: 'lotw.roots' },
-      'lotw.import': { kind: 'lotw.import' },
+      'lotw.sign': { kind: 'lotw.sign' }, 'lotw.upload': { kind: 'lotw.upload' }, 'lotw.import': { kind: 'lotw.import' },
       'lotw.restore': { kind: 'lotw.restore' },
       'lotw.delete': { kind: 'lotw.delete', certificate: 'cert:3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b' },
       'callsign.list': { kind: 'callsign.list' },

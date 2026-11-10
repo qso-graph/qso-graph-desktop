@@ -165,7 +165,7 @@ export interface NativeModule {
   drainCoreLogs(): string[];
 }
 
-export type NativeLotwCommand =
+export type NativeLotwCommand = NativeLotwLogCommand
   | { op: 'discard' }
   | { op: 'inspect'; path: string; format: 'certificate' | 'backup' }
   | { op: 'inspectDelete'; certificate: string }
@@ -185,3 +185,23 @@ export interface NativeLotwPreview {
 export interface NativeLotwSummary {
   status: 'completed' | 'conflict'; certificates: NativeLotwEntry[]; roots: number; signedQsos: number; deleted: number;
 }
+
+export interface NativeLotwSelection {
+  call: string; place: Record<string, string>; park: string;
+  certificate: string; from: string; to: string; signAgain: boolean;
+}
+export interface NativeLotwRefusal { record: number; line: number | null; field: string; reason: string }
+export interface NativeLotwLogPreview {
+  token: string; qsos: number; first: string; last: string; calls: string[];
+  refused: NativeLotwRefusal[]; outsideDates: number; alreadySigned: number; toSign: number; signAgainCount: number;
+  fields: Record<string, string>;
+  certificates: { id: string; call: string; serial: string; qsoFirst: string; qsoLast: string }[];
+  certificate: { id: string; call: string; serial: string; qsoFirst: string; qsoLast: string } | null;
+}
+export interface NativeLotwLogOutcome { signed: number; outsideDates: number; alreadySigned: number; signAgainCount: number; refused: NativeLotwRefusal[] }
+export type NativeLotwLogCommand =
+  | { op: 'logPrepare' | 'uploadInspect'; path: string }
+  | { op: 'logPreview'; token: string; selection: NativeLotwSelection }
+  | { op: 'logSign'; token: string; path: string }
+  | { op: 'uploadSend' | 'logCancel'; token: string }
+  | { op: 'logDiscard' };

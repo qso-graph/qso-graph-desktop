@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { isLotwLocationMessage } from './lotw-contract.js';
 import { LOOKUP_OUTCOMES, type LookupOutcome } from './callsign-contract.js';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -95,10 +96,11 @@ function toTest(native: NativeCredentialTest): CredentialTest {
   return { outcome };
 }
 function refuse(command: ServiceCommand, error: unknown): CallsignReply {
-  // A LoTW read's error is never passed on: QG Trust's errors can name a
-  // path under the operator's home (QGD-LTW-0005).
+  // Only fixed Desktop Location guidance can pass through a LoTW failure.
+  // QG Trust errors can contain values or home paths (QGD-LTW-0005).
   const lotw = command.type.startsWith('lotw-');
-  const message = !lotw && error instanceof Error && MESSAGES.includes(error.message)
+  const message = error instanceof Error && ((!lotw && MESSAGES.includes(error.message))
+    || command.type === 'lotw-manage' && command.command.op === 'logPreview' && isLotwLocationMessage(error.message))
     ? error.message : 'The callsign request could not be completed.';
   log.warn({ command: command.type, reason: message }, 'callsign operation failed');
   // Named for the store this platform has (Keychain, Credential Manager,

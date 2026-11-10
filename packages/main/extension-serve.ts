@@ -1,3 +1,4 @@
+import { isLotwLogResult, type LotwLogResult } from '../extension-api/api-contract.js';
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Serving one application request, and answering what loaded.
 //
@@ -63,6 +64,7 @@ export interface ExtensionBrokerPorts {
   ) => Promise<Readonly<Record<string, string>>>;
   // LoTW's certificates and trusted roots, public details only
   // (QGD-LTW-0002). Checked again here before an extension sees them.
+  lotwLog: (kind: 'lotw.sign' | 'lotw.upload', canUpload: () => boolean, signal?: AbortSignal) => Promise<LotwLogResult>;
   lotwManage: (request: Extract<ExtensionRequest, { kind: LotwManageKind }>, signal?: AbortSignal) => Promise<LotwManageResult>;
   lotwCertificates: () => Promise<readonly LotwCertificate[]>;
   lotwRoots: () => Promise<readonly LotwTrustedRoot[]>;
@@ -128,6 +130,12 @@ export function createServe(deps: ServeDeps) {
 
     try {
       switch (request.kind) {
+        case 'lotw.sign':
+        case 'lotw.upload': {
+          const canUpload = () => decide(withGrants(found, deps.register, deps.ports.allowed()), { kind: 'lotw.upload' }, deps.register).allowed;
+          const result = await deps.ports.lotwLog(request.kind, canUpload, signal);
+          return isLotwLogResult(result) ? { ok: true, kind: request.kind, result } : refusal('The LoTW result could not be read.');
+        }
         case 'lotw.import':
         case 'lotw.restore':
         case 'lotw.delete': {

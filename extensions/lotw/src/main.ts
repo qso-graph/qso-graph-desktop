@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import type { ExtensionContext } from '../../../packages/extension-api/context.js';
-import { isLotwManageReply, isLotwReply, type LotwManageResult, type ExtensionRequest } from '../../../packages/extension-api/api-contract.js';
+import { isLotwLogResult, isLotwManageReply, isLotwReply, type LotwManageResult, type ExtensionRequest } from '../../../packages/extension-api/api-contract.js';
 import { certificatesPage, rootsPage } from './page.js';
 
 // Only outcome words and counts reach the status line. No arbitrary error,
@@ -33,6 +33,16 @@ export function activate(context: ExtensionContext): void {
         ? rootsPage(reply.roots) : { ok: false, reason: 'Trusted roots could not be read. Check the LoTW grants in Settings and try again.' };
     }),
     context.pages.onAction('certificates', async event => {
+      if ((event.action === 'sign' || event.action === 'upload') && event.row === undefined) {
+        const kind = event.action === 'sign' ? 'lotw.sign' : 'lotw.upload';
+        const reply = await context.request({ kind });
+        if (reply.ok && reply.kind === kind && 'result' in reply && isLotwLogResult(reply.result)) {
+          const r = reply.result;
+          if (r.status === 'cancelled') return 'Cancelled. Nothing was signed or uploaded.';
+          return r.upload ?? `Signed ${r.signed} QSOs; ${r.alreadySigned} already signed and left out; ${r.signAgainCount} signed again; ${r.refused.length} refused; ${r.outsideDates} outside the dates.`;
+        }
+        return 'The LoTW operation could not finish. Check the output and LoTW before trying again.';
+      }
       let request: Extract<ExtensionRequest, { kind: 'lotw.import' | 'lotw.restore' | 'lotw.delete' }>;
       if (event.action === 'load' && event.row === undefined) request = { kind: 'lotw.import' };
       else if (event.action === 'restore' && event.row === undefined) request = { kind: 'lotw.restore' };

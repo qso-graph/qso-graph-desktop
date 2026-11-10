@@ -39,6 +39,18 @@
       "needsOperator": true
     },
     {
+      "id": "lotw:sign",
+      "what": "Sign a chosen log and save its .tq8 after your confirmation.",
+      "notWhat": "No path, file contents, key, confirmation answer, or endpoint crosses the extension API (QGD-LTW-0003, QGD-LTW-0004, QGD-LTW-0013).",
+      "needsOperator": true
+    },
+    {
+      "id": "lotw:upload",
+      "what": "Upload a chosen signed log to LoTW after a separate confirmation.",
+      "notWhat": "No path, file contents, key, confirmation answer, or endpoint crosses the extension API (QGD-LTW-0003, QGD-LTW-0004, QGD-LTW-0013).",
+      "needsOperator": true
+    },
+    {
       "id": "service:qrz",
       "what": "Ask the frame to act with the operator's QRZ credential and return the answer.",
       "notWhat": "The secret itself never crosses the API (QGD-APP-0007).",

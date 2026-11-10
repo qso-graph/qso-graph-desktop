@@ -28,7 +28,7 @@ const WSJTX = { id: 'wsjtx', name: 'WSJT-X', manifestVersion: 1, tier: 'official
   contributes: { integration: { program: 'WSJT-X', transport: 'udp', port: 2237 } } };
 const MONITOR = { id: 'monitor', name: 'Monitor', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.1.0' }, grants: ['integration:events'], main: 'main.js',
   contributes: { pages: [{ id: 'monitor', name: 'Monitor', description: 'Decodes.', refreshSeconds: 60, live: true, views: true }, { id: 'still', name: 'Still', description: 'Not live.', refreshSeconds: 60 }] } };
-const LOTW = { id: 'lotw-reader', name: 'LoTW reader', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['lotw:read', 'lotw:manage'], page: 'Lotw.svelte' };
+const LOTW = { id: 'lotw-reader', name: 'LoTW reader', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: ['lotw:read', 'lotw:manage', 'lotw:sign', 'lotw:upload'], page: 'Lotw.svelte' };
 const BARE = { id: 'bare', name: 'Nothing at all', manifestVersion: 1, tier: 'official', version: '1.0.0', engines: { qgd: '^1.0.0' }, grants: [], page: 'Bare.svelte' };
 
 // Every port records what it was asked and by whom, so "nothing was touched"
@@ -51,6 +51,7 @@ function recorder(allowed: Record<string, readonly string[]> = {}) {
     activeCallsign: async () => { calls.push('activeCallsign'); return { id: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b', call: 'W1AW', description: 'Home station' }; },
     activeStation: async () => { calls.push('activeStation'); return { name: 'Home', grid: 'DN13sm', latitude: 43.6, longitude: -116.2 }; },
     fetchSource: async url => { calls.push(`fetchSource:${url}`); return { body: 'sfi 150', fresh: true }; },
+    lotwLog: async () => { calls.push('lotwLog'); return {status:'cancelled',signed:0,outsideDates:0,alreadySigned:0,signAgainCount:0,refused:[],upload:null}; },
     lotwManage: async () => { calls.push('lotwManage'); return { status: 'cancelled', certificates: [], roots: 0, signedQsos: 0, deleted: 0, locations: 0, skippedLocations: [] }; },
     lotwCertificates: async () => { calls.push('lotwCertificates'); return []; },
     lotwRoots: async () => { calls.push('lotwRoots'); return []; },
@@ -352,4 +353,17 @@ it('forwards the supervisor cancellation signal through the grant-checked manage
   expect((await t.serve('lotw-reader', { kind: 'lotw.import' }, stop.signal)).ok).toBe(true);
   expect(received).toBe(stop.signal);
   stop.abort(); expect(received?.aborted).toBe(true);
+});
+
+it('refuses signing and upload before reaching dialogs without each grant', async () => {
+  const t = recorder({'lotw-reader': []});
+  for (const kind of ['lotw.sign','lotw.upload']) {
+    const reply = await t.serve('lotw-reader',{kind});
+    expect(reply).toMatchObject({ok:false,refused:kind.replace('.',':')});
+  }
+  expect(t.calls).toEqual([]);
+  t.setAllowed({'lotw-reader':['lotw:sign']});
+  expect((await t.serve('lotw-reader',{kind:'lotw.sign'})).ok).toBe(true);
+  expect((await t.serve('lotw-reader',{kind:'lotw.upload'})).ok).toBe(false);
+  expect(t.calls).toEqual(['lotwLog']);
 });

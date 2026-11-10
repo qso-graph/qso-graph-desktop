@@ -73,3 +73,17 @@ context.subscriptions.push(context.pages.onAction('certificates', async event =>
 The event and status validators are in `actions.ts`. Action declarations add no
 new request kind to `api-contract.ts`: `page.action` flows from the operator to the
 extension, while that contract describes the extension's requests to the core.
+
+`lotw.sign` requires `lotw:sign`; `lotw.upload` requires `lotw:upload`.
+Both requests contain only `kind`. Extra fields, including paths, bytes, tokens
+and confirmation answers, are refused. The Certificates page declares **Sign
+log…** and **Upload signed log…** as page actions. An extension sends the request
+only after its action event; main owns every file and confirmation dialog.
+
+Success replies are `{ ok: true, kind, result }`. `result` contains `status`
+(`completed` or `cancelled`), `signed`, `alreadySigned`, `signAgainCount`, `outsideDates`, `refused`
+(record number, optional physical line, field and reason), and `upload` (plain
+outcome text or `null`). It contains no path or file contents. Main shows the full
+signing result and can offer **Upload to LoTW…** when the upload grant is held.
+That button starts a separately confirmed upload; the grant is checked again
+before sending. See `QGD-LTW-0015` through `QGD-LTW-0019`.

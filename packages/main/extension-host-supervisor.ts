@@ -217,7 +217,7 @@ export function createSupervisor(deps: SupervisorDeps) {
       const kind = (message.request as { kind?: unknown } | null)?.kind;
       // Most Wanted's counts may be fetched from POTA first, so they are
       // given a fetch's deadline.
-      const manage = kind === 'lotw.import' || kind === 'lotw.restore' || kind === 'lotw.delete';
+      const manage = kind === 'lotw.import' || kind === 'lotw.restore' || kind === 'lotw.delete' || kind === 'lotw.sign' || kind === 'lotw.upload';
       const deadline = manage ? limits.operatorDeadlineMs : kind === 'source.fetch' || kind === 'pota.activations' ? limits.sourceFetchDeadlineMs : limits.requestDeadlineMs;
       // The slot is held until the work ends, not until the deadline: a
       // request answered late is still running, and still counts.

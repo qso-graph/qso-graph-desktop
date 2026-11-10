@@ -10,7 +10,7 @@ import { createPageActions } from '../packages/main/page-actions.js';
 import { filteredGroups, sortedGroups, rowKey } from '../packages/ui/page-shapes.js';
 
 const raw = JSON.parse(readFileSync(join('extensions', 'lotw', 'manifest.json'), 'utf8'));
-const known = new Set(['lotw:read', 'lotw:manage']);
+const known = new Set(['lotw:read', 'lotw:manage', 'lotw:sign', 'lotw:upload']);
 const manifest = (page: object) => validateManifest({ ...raw, contributes: { pages: [{ ...raw.contributes.pages[0], ...page }] } }, known);
 const answer = (rows: unknown[], version = 8): unknown => ({ ok: true, data: { version, observedAt: '2026-11-09T12:00:00Z', sections: [{ shape: 'table', columns: ['Call', 'Key'], rows }] } });
 const shown = validatePageAnswer(answer([{ key: 'opaque-issued-id', cells: ['QG0TEST', 'installed'] }, ['QG1TEST', 'not installed']]));
