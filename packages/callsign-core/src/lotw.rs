@@ -125,6 +125,24 @@ pub(crate) mod tests {
     };
 
     pub(crate) fn corpus(name: &str) -> Vec<u8> {
+        // Temporary local QG Trust patch: fixtures must follow the code under test.
+        // Remove with the patch when switching to v0.1.9 before commit.
+        let manifest = include_str!("../Cargo.toml");
+        if let Some(patch) = manifest
+            .split("[patch.\"https://github.com/qso-graph/qso-graph-trust\"]")
+            .nth(1)
+        {
+            let path = patch
+                .lines()
+                .find_map(|line| {
+                    line.strip_prefix("qso-graph-trust = { path = \"")
+                        .and_then(|s| s.split('"').next())
+                })
+                .expect("local QG Trust path");
+            return std::fs::read(Path::new(path).join("../../tests/corpus").join(name))
+                .expect("patched test corpus");
+        }
+
         let cargo = std::env::var_os("CARGO_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| {

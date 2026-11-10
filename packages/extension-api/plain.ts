@@ -36,6 +36,8 @@ import { validateRequest, type ExtensionRequest } from './api-contract.js';
 // it has not checked. The core is the validator (QGD-SEC-0006).
 export function plainRequest(request: ExtensionRequest): unknown {
   switch (request.kind) {
+    case 'lotw.sign':
+    case 'lotw.upload':
     case 'lotw.import':
     case 'lotw.restore':
     case 'lotw.delete':

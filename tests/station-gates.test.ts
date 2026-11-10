@@ -73,6 +73,8 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
     'packages/main/lotw-locations.ts',
     // Reads Location snapshots for confirmation and writes no ADIF kind.
     'packages/main/lotw-manage.ts',
+    // Signs only the Location place fields, never its kind.
+    'packages/main/lotw-log.ts',
     'packages/main/station-brief.ts', 'packages/renderer/Shell.svelte', 'packages/renderer/pages/StationsPage.svelte',
     'packages/renderer/app.ts', 'packages/storage/stations.ts', 'packages/storage/storage-contract.ts',
     'packages/storage/storage-service.ts',

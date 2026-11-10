@@ -3,6 +3,8 @@
 // where they are (portable.ts).
 import './portable-start.js';
 import { createLotwManage } from './lotw-manage.js';
+import { createLotwLog, createLotwDialogGate } from './lotw-log.js';
+import { lotwLogDialogs } from './lotw-log-dialogs.js';
 import { lotwDialogs } from './lotw-dialogs.js';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, session } from 'electron';
 import { MIN_HEIGHT, MIN_WIDTH, placeWindow } from './window-place.js';
@@ -227,12 +229,28 @@ if (!app.requestSingleInstanceLock()) {
     });
     // The Locations travel with the callsigns in a backup, and come back in a
     // restore; QG Storage holds them.
-    const lotwManage = createLotwManage({
-      core: callsigns.lotwCommand, ...lotwDialogs(distDirectory),
+    const lotwGate = createLotwDialogGate();
+    const manageDialogs = lotwDialogs(distDirectory);
+    const logDialogs = lotwLogDialogs(distDirectory);
+    const manageLotw = createLotwManage({
+      core: callsigns.lotwCommand, ...manageDialogs,
+      choose: (...args) => lotwGate.track(() => manageDialogs.choose(...args)),
       existing: () => storageBroker.backupStations(),
       check: backup => storageBroker.checkStations(backup),
       add: (backup, names) => storageBroker.addLotwStations(backup, names)
     });
+    const signLotw = createLotwLog({
+      core: callsigns.lotwCommand, ...logDialogs,
+      choose: (...args) => lotwGate.track(() => logDialogs.choose(...args)),
+      save: (...args) => lotwGate.track(() => logDialogs.save(...args)),
+      async context() {
+        const [calls, active, locations] = await Promise.all([callsigns.callsignBriefs(), callsigns.activeBrief(), storageBroker.backupStations()]);
+        if (typeof calls === 'string' || typeof active === 'string' || typeof locations === 'string') throw new Error('Callsigns and Locations could not be read.');
+        return { calls, activeCall: active?.call ?? '', locations: locations.stations, activeLocation: locations.active };
+      }
+    });
+    const lotwManage: typeof manageLotw = (...args) => lotwGate(() => manageLotw(...args));
+    const lotwLog: typeof signLotw = (...args) => lotwGate(() => signLotw(...args));
     callsigns.connectStations({
       backup: () => storageBroker.backupStations(),
       restore: (backup, replace) => storageBroker.restoreStations(backup, replace),
@@ -387,7 +405,7 @@ if (!app.requestSingleInstanceLock()) {
         },
         // LoTW's public listing (QGD-LTW-0002): the broker has checked lotw:read
         // already, and a refusal is a fixed sentence, never QG Trust's text.
-        lotwManage,
+        lotwManage, lotwLog,
         lotwCertificates: async () => {
           const result = await untilReady(() => callsigns.lotwCertificates(), starting, { withinMs: 10_000 });
           if (typeof result === 'string') throw new Error('LoTW certificates could not be read.');

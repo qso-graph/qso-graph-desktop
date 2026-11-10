@@ -4,8 +4,15 @@
   "name": "LoTW",
   "tier": "official",
   "version": "1.0.0",
-  "engines": { "qgd": "^1.2.0" },
-  "grants": ["lotw:read", "lotw:manage"],
+  "engines": {
+    "qgd": "^1.2.0"
+  },
+  "grants": [
+    "lotw:read",
+    "lotw:manage",
+    "lotw:sign",
+    "lotw:upload"
+  ],
   "main": "main.js",
   "contributes": {
     "pages": [
@@ -17,10 +24,34 @@
         "network": false,
         "icon": "extension",
         "actions": [
-          { "id": "load", "label": "Load certificate…", "hint": "Choose a .tq6 or .p12 file to inspect and confirm." },
-          { "id": "restore", "label": "Restore TQSL backup…", "hint": "Choose a .tbk file to inspect and confirm." }
+          {
+            "id": "load",
+            "label": "Load certificate…",
+            "hint": "Choose a .tq6 or .p12 file to inspect and confirm."
+          },
+          {
+            "id": "restore",
+            "label": "Restore TQSL backup…",
+            "hint": "Choose a .tbk file to inspect and confirm."
+          },
+          {
+            "id": "sign",
+            "label": "Sign log…",
+            "hint": "Inspect a log, choose your callsign and Location, and sign a .tq8."
+          },
+          {
+            "id": "upload",
+            "label": "Upload signed log…",
+            "hint": "Inspect a signed .tq8 and confirm its upload to LoTW."
+          }
         ],
-        "rowActions": [{ "id": "delete", "label": "Delete…", "hint": "Review and confirm removal of this certificate and its key." }]
+        "rowActions": [
+          {
+            "id": "delete",
+            "label": "Delete…",
+            "hint": "Review and confirm removal of this certificate and its key."
+          }
+        ]
       },
       {
         "id": "roots",

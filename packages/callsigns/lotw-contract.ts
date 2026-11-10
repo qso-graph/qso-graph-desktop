@@ -4,10 +4,15 @@ const record = (v: unknown): v is Record<string, unknown> => typeof v === 'objec
 const exact = (v: unknown, fields: string[]): v is Record<string, unknown> => record(v) && Object.keys(v).length === fields.length && fields.every(f => Object.hasOwn(v, f));
 const string = (v: unknown): v is string => typeof v === 'string' && v.length <= 4096;
 const id = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);
-const count = (v: unknown): boolean => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+const count = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 export function isLotwCommand(v: unknown): v is NativeLotwCommand {
   if (!record(v)) return false;
   switch (v.op) {
+    case 'logDiscard': return exact(v, ['op']);
+    case 'logCancel': case 'uploadSend': return exact(v, ['op', 'token']) && id(v.token);
+    case 'logPrepare': case 'uploadInspect': return exact(v, ['op', 'path']) && path(v.path);
+    case 'logSign': return exact(v, ['op', 'path', 'token']) && id(v.token) && path(v.path);
+    case 'logPreview': return exact(v, ['op', 'token', 'selection']) && id(v.token) && isLotwSelection(v.selection);
     case 'discard': return exact(v, ['op']);
     case 'inspect': return exact(v, ['op', 'path', 'format']) && string(v.path) && v.path.length > 0 && !v.path.includes('\0') && ['certificate', 'backup'].includes(v.format as string);
     case 'inspectDelete': return exact(v, ['op', 'certificate']) && typeof v.certificate === 'string' && v.certificate.startsWith('cert:') && id(v.certificate.slice(5));
@@ -38,4 +43,49 @@ export function isLotwSummary(v: unknown): v is NativeLotwSummary {
   if (!exact(v, ['status', 'certificates', 'roots', 'signedQsos', 'deleted'])) return false;
   if (v.status === 'conflict') return Array.isArray(v.certificates) && v.certificates.length === 0 && v.roots === 0 && v.signedQsos === 0 && v.deleted === 0;
   return v.status === 'completed' && entries(v.certificates) && [v.roots, v.signedQsos, v.deleted].every(count);
+}
+
+const path = (v: unknown): v is string => string(v) && v.length > 0 && !v.includes('\0');
+export function isLotwSelection(v: unknown): v is import('../callsign-core/native.js').NativeLotwSelection {
+  return exact(v, ['call','place','park','certificate','from','to','signAgain'])
+    && string(v.call) && /^[A-Z0-9/]{3,20}$/.test(v.call) && record(v.place)
+    && Object.keys(v.place).length <= 32 && Object.entries(v.place).every(([k,x]) => /^MY_[A-Z_]+$/.test(k) && string(x) && x.length <= 100)
+    && [v.park,v.certificate,v.from,v.to].every(string) && typeof v.signAgain === 'boolean';
+}
+const certificate = (v: unknown): boolean => exact(v,['id','call','serial','qsoFirst','qsoLast']) && [v.id,v.call,v.serial,v.qsoFirst,v.qsoLast].every(string);
+export function isLotwRefusals(v: unknown): boolean {
+  return Array.isArray(v) && v.length <= 100010 && v.every(r => exact(r,['record','line','field','reason']) && count(r.record) && r.record > 0 && (r.line === null || count(r.line) && r.line > 0) && string(r.field) && string(r.reason));
+}
+export function isLotwLogPreview(v: unknown): v is import('../callsign-core/native.js').NativeLotwLogPreview {
+  return exact(v,['token','qsos','first','last','calls','refused','outsideDates','alreadySigned','toSign','signAgainCount','fields','certificates','certificate'])
+    && id(v.token) && [v.qsos,v.alreadySigned,v.toSign,v.signAgainCount,v.outsideDates].every(count)
+    && [v.first,v.last].every(string) && Array.isArray(v.calls) && v.calls.length <= 100010 && v.calls.every(string)
+    && isLotwRefusals(v.refused) && record(v.fields) && Object.keys(v.fields).length <= 32 && Object.entries(v.fields).every(([k,x]) => string(k) && string(x))
+    && Array.isArray(v.certificates) && v.certificates.length <= 1024 && v.certificates.every(certificate) && (v.certificate === null || certificate(v.certificate));
+}
+export function isLotwLogOutcome(v: unknown): v is import('../callsign-core/native.js').NativeLotwLogOutcome {
+  return exact(v,['signed','alreadySigned','signAgainCount','refused','outsideDates']) && [v.signed,v.alreadySigned,v.signAgainCount,v.outsideDates].every(count) && isLotwRefusals(v.refused);
+}
+
+// Fixed Desktop guidance only. QG Trust's errors can contain values or paths.
+const LOCATION_MESSAGES = [
+  "The Location has too many fields. Check the Location.",
+  "Check the callsign selected for this Location.",
+  "Check the Location's DXCC entity before signing.",
+  "Check the Location's grid squares before signing.",
+  "Check the Location's state, province or prefecture before signing.",
+  "Check the Location's county before signing.",
+  "Check the Location's CQ zone before signing.",
+  "Check the Location's ITU zone before signing.",
+  "Check the Location's IOTA reference before signing.",
+  "Check the Location's LoTW park before signing.",
+  "The Location's altitude field is not accepted for LoTW signing. Check the Location.",
+  "The Location's ARRL section field is not accepted for LoTW signing. Check the Location.",
+  "The Location's POTA reference field is not accepted for LoTW signing. Check the Location.",
+  "The Location's SOTA reference field is not accepted for LoTW signing. Check the Location.",
+  "The Location's WWFF reference field is not accepted for LoTW signing. Check the Location.",
+  "The Location has a field LoTW does not accept. Check the Location's fields."
+] as const;
+export function isLotwLocationMessage(value: unknown): value is string {
+  return typeof value === 'string' && LOCATION_MESSAGES.some(message => message === value);
 }

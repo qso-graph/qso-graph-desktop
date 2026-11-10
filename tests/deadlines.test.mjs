@@ -40,11 +40,12 @@ describe('the callsign service deadlines', () => {
     // Adding a third request there, or raising one, fails this instead of
     // silently overrunning the broker.
     const source = await readFile('packages/callsign-core/src/validation.rs', 'utf8');
-    const requests = [...source.matchAll(/\.timeout\(Duration::from_secs\((\d+)\)\)/g)]
-      .map(match => Number(match[1]));
-    expect(requests.length, 'validation.rs must still declare its request timeouts')
-      .toBeGreaterThanOrEqual(2);
-    const network = requests.reduce((total, seconds) => total + seconds, 0) * 1000;
+    const timeout = source.match(/fn secure_client[\s\S]*?\.timeout\(Duration::from_secs\((\d+)\)\)/);
+    expect(timeout, 'the shared HTTPS client declares its timeout').not.toBeNull();
+    const lookupSource = source.split('pub fn lookup(')[1].split('\nfn read_bounded(')[0];
+    const requests = [...lookupSource.matchAll(/\.send\(\)/g)];
+    expect(requests).toHaveLength(2);
+    const network = Number(timeout[1]) * requests.length * 1000;
     const lookup = deadlineFor('service-lookup');
     expect(lookup.ms, `${network / 1000}s of requests plus the wait for the operator`)
       .toBeGreaterThanOrEqual(network + KEYCHAIN_DEADLINE.ms);

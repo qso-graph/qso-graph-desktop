@@ -147,16 +147,7 @@ pub fn test(provider: &str, creds: &Credentials) -> CoreResult<&'static str> {
     if needs_username(provider) && username.is_none() {
         return Err("No username is stored.");
     }
-    let client = reqwest::blocking::Client::builder()
-        .use_preconfigured_tls(credential_tls_config(provider)?)
-        .https_only(true)
-        .no_proxy()
-        .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(12))
-        .user_agent(crate::HTTP_AGENT)
-        .build()
-        .map_err(|_| "Secure client is unavailable.")?;
+    let client = secure_client(credential_tls_config(provider)?)?;
     // Fixed destinations. The caller sees a fixed outcome only, never response
     // bodies, session keys, tokens or errors.
     //
@@ -381,16 +372,7 @@ pub fn lookup(
         .as_deref()
         .filter(|s| !s.is_empty())
         .ok_or("No username is stored.")?;
-    let client = reqwest::blocking::Client::builder()
-        .use_preconfigured_tls(tls_config()?)
-        .https_only(true)
-        .no_proxy()
-        .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(12))
-        .user_agent(crate::HTTP_AGENT)
-        .build()
-        .map_err(|_| "Secure client is unavailable.")?;
+    let client = secure_client(tls_config()?)?;
 
     // 1. Sign in. Same fixed destination and POST body as the credential test.
     let login = match client
@@ -739,6 +721,43 @@ fn parse_response(provider: &str, body: &str) -> &'static str {
         },
         _ => "unsupported",
     }
+}
+
+// LoTW uses this credential core's existing FIPS TLS configuration and HTTPS
+// transport policy. QG Trust constructs only the immutable fixed-endpoint request.
+#[cfg(feature = "addon")]
+pub(crate) fn send_lotw(
+    request: &qso_graph_trust::upload::UploadRequest,
+) -> Result<(u16, Vec<u8>), ()> {
+    if cfg!(test) || std::env::var_os("QG_DESKTOP_TEST_KEYCHAIN").is_some() {
+        return Err(());
+    }
+    let client = secure_client(tls_config().map_err(|_| ())?).map_err(|_| ())?;
+    let mut post = client.post(request.url());
+    for (name, value) in request.headers() {
+        post = post.header(*name, value);
+    }
+    let response = post.body(request.body().to_vec()).send().map_err(|_| ())?;
+    let status = response.status().as_u16();
+    let mut body = Vec::new();
+    response
+        .take(qso_graph_trust::upload::MAX_RESPONSE_BYTES as u64 + 1)
+        .read_to_end(&mut body)
+        .map_err(|_| ())?;
+    Ok((status, body))
+}
+
+fn secure_client(config: rustls::ClientConfig) -> CoreResult<reqwest::blocking::Client> {
+    reqwest::blocking::Client::builder()
+        .use_preconfigured_tls(config)
+        .https_only(true)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(12))
+        .user_agent(crate::HTTP_AGENT)
+        .build()
+        .map_err(|_| "Secure client is unavailable.")
 }
 
 #[cfg(test)]

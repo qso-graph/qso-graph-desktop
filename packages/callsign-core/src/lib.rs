@@ -15,6 +15,8 @@ static ALLOCATOR: ::zeroizing_alloc::ZeroAlloc<::std::alloc::System> =
 #[cfg(feature = "addon")]
 mod lotw;
 #[cfg(feature = "addon")]
+mod lotw_log;
+#[cfg(feature = "addon")]
 mod lotw_manage;
 
 use chrono::NaiveDate;
@@ -1143,6 +1145,7 @@ pub mod addon {
     pub struct CallsignCore {
         store: Store,
         lotw: crate::lotw_manage::Manager,
+        lotw_log: crate::lotw_log::Manager,
     }
 
     #[napi(object)]
@@ -1224,6 +1227,7 @@ pub mod addon {
             Ok(Self {
                 store: Store::new(directory.into()).map_err(error)?,
                 lotw: crate::lotw_manage::Manager::default(),
+                lotw_log: crate::lotw_log::Manager::default(),
             })
         }
         /// Tests the saved credential, every time it is asked.
@@ -1327,11 +1331,20 @@ pub mod addon {
         #[napi]
         pub fn lotw_manage(&mut self, command: String) -> Result<String> {
             let command = zeroize::Zeroizing::new(command);
-            let parsed = serde_json::from_str(&command)
+            #[derive(serde::Deserialize)]
+            #[serde(untagged)]
+            enum Operation {
+                Manage(crate::lotw_manage::Command),
+                Log(crate::lotw_log::Command),
+            }
+            let parsed: Operation = serde_json::from_str(&command)
                 .map_err(|_| error("The LoTW request was refused."))?;
-            self.lotw
-                .execute(parsed, &self.store.directory.join("lotw-test"))
-                .map_err(error)
+            let directory = self.store.directory.join("lotw-test");
+            match parsed {
+                Operation::Manage(c) => self.lotw.execute(c, &directory),
+                Operation::Log(c) => self.lotw_log.execute(c, &directory),
+            }
+            .map_err(error)
         }
         #[napi]
         pub fn lotw_certificates(&self) -> Result<Vec<crate::lotw::LotwCertificate>> {
