@@ -131,3 +131,7 @@ contextBridge.exposeInMainWorld('appearance', Object.freeze({
     return () => { ipcRenderer.removeListener('system:appearance-changed', forward); };
   }
 }));
+
+contextBridge.exposeInMainWorld('tqsl', Object.freeze({
+  sync: () => ipcRenderer.invoke('tqsl:sync')
+}));

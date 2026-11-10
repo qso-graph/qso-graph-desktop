@@ -166,6 +166,7 @@ export interface NativeModule {
 }
 
 export type NativeLotwCommand = NativeLotwLogCommand
+  | { op: 'syncInspect'; existing: { name: string; place: Record<string, string>; park: string }[] }
   | { op: 'discard' }
   | { op: 'inspect'; path: string; format: 'certificate' | 'backup' }
   | { op: 'inspectDelete'; certificate: string }
@@ -179,7 +180,7 @@ export interface NativeLotwEntry {
 export interface NativeLotwPreview {
   token: string; needsPassword: boolean; certificates: NativeLotwEntry[];
   roots: { fingerprint: string }[];
-  locations: { name: string; fields: { name: string; value: string }[] }[];
+  locations: NativeTqslLocation[];
   signedQsos: number; signedQsoBytes: number;
 }
 export interface NativeLotwSummary {
@@ -205,3 +206,7 @@ export type NativeLotwLogCommand =
   | { op: 'logSign'; token: string; path: string }
   | { op: 'uploadSend' | 'logCancel'; token: string }
   | { op: 'logDiscard' };
+
+export interface NativeTqslLocation { name: string; place: Record<string, string>; park: string; reason: string }
+export interface NativeTqslEntry extends NativeTqslLocation { status: "new" | "same" | "differs" | "refused"; differences: { field: string; tqsl: string | null; stored: string | null }[] }
+export interface NativeTqslPreview { folder: string; locations: NativeTqslEntry[] }

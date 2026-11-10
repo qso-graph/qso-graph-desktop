@@ -48,6 +48,7 @@
     onSaveStation: (draft: StationDraft, makeDefault: boolean) => Promise<{ error: string; problems?: FieldProblem[] } | undefined>;
     onDeleteStation: (id: string) => Promise<string | undefined>;
     onSetActiveStation: (id: string | null) => Promise<string | undefined>;
+    onSyncTqsl?: () => Promise<string>;
     onStationFromPark: (reference: string) => Promise<ParkDraft | string>;
     onStationChoices: (entity: string | null, state: string | null) => Promise<StationChoices | undefined>;
     onLookUpParks: (references: string) => Promise<NamedReferences | undefined>;
@@ -91,7 +92,7 @@
   }
   const {
     store, home, onChooseTheme, onSetExtension, onUpdateReference, onSetLevel, onExport, onSetIntegration,
-    onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseUpdate, onOpenWhatsNew, onCloseWhatsNew, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
+    onSyncTqsl, onSaveStation, onDeleteStation, onSetActiveStation, onStationFromPark, onStationChoices, onLookUpParks, onCountiesAt, onCloseUpdate, onOpenWhatsNew, onCloseWhatsNew, onStationFromSummit, onOpenPage, onAreaChoices, onAreaDefault, onSaveArea,
     onCreateCallsign, onSaveCredential, onFinishSetup,
     onExportCallsigns, onInspectImport, onApplyImport, version,
     onSetUpdateCheck, onSetUpdateTrack, onCheckUpdates, onInstallUpdate, onRestartToUpdate, onOpenRelease,
@@ -289,6 +290,7 @@
         onSave={onSaveStation}
         onDelete={onDeleteStation}
         onSetActive={onSetActiveStation}
+        onSyncTqsl={onSyncTqsl}
         onFromPark={onStationFromPark}
         onChoices={onStationChoices}
         onLookUpParks={onLookUpParks}

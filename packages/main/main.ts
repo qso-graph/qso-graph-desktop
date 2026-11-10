@@ -2,6 +2,9 @@
 // First, before anything opens a store or a log: portable mode decides
 // where they are (portable.ts).
 import './portable-start.js';
+import { createTqslSync } from './tqsl-sync.js';
+import { tqslSyncDialog } from './tqsl-sync-dialog.js';
+import { startTqslSyncBroker } from './tqsl-sync-broker.js';
 import { createLotwManage } from './lotw-manage.js';
 import { createLotwLog, createLotwDialogGate } from './lotw-log.js';
 import { lotwLogDialogs } from './lotw-log-dialogs.js';
@@ -239,6 +242,14 @@ if (!app.requestSingleInstanceLock()) {
       check: backup => storageBroker.checkStations(backup),
       add: (backup, names) => storageBroker.addLotwStations(backup, names)
     });
+    const syncTqsl = createTqslSync({
+      core: callsigns.lotwCommand,
+      existing: () => storageBroker.backupStations(),
+      check: backup => storageBroker.checkStations(backup),
+      add: (backup, names) => storageBroker.addLotwStations(backup, names),
+      confirm: (plan, signal) => tqslSyncDialog(distDirectory, plan, signal)
+    });
+    const stopTqslSync = startTqslSyncBroker(signal => lotwGate(() => syncTqsl(signal)));
     const signLotw = createLotwLog({
       core: callsigns.lotwCommand, ...logDialogs,
       choose: (...args) => lotwGate.track(() => logDialogs.choose(...args)),
@@ -508,6 +519,7 @@ if (!app.requestSingleInstanceLock()) {
     // for again; the second one is let through.
     let quitting = false;
     app.on('before-quit', event => {
+      stopTqslSync();
       homeBroker?.stop();
       extensionBroker?.stop();
       updater.stop();

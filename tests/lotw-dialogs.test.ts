@@ -121,3 +121,51 @@ it('aborting the password dialog destroys its window and removes its IPC receive
   expect(await pending).toBeUndefined();
   expect(electron.ipc.listenerCount('lotw:password')).toBe(0);
 });
+
+it('QGD-STN-0013: main Sync confirmation shows every status, field, difference and resulting name with correct defaults', async () => {
+  const { tqslSyncDialog } = await import('../packages/main/tqsl-sync-dialog.js');
+  const plan = { folder: '/test-only/tqsl', locations: [
+    { name: 'Test new', resultName: 'Test new', place: { MY_GRIDSQUARE:'EM17' }, park:'NP01', reason:'', status:'new' as const, differences:[], offered:true, checked:true },
+    { name: 'Test clash', resultName: 'Test clash (TQSL) 2', place:{MY_GRIDSQUARE:'EM18'}, park:'', reason:'', status:'differs' as const, differences:[{field:'MY_GRIDSQUARE',tqsl:'EM18',stored:'EM17'}], offered:true, checked:false },
+    { name:'Test same',resultName:'Test same',place:{},park:'',reason:'',status:'same' as const,differences:[],offered:false,checked:false },
+    { name:'Test refused <injected>',resultName:'Test refused',place:{},park:'',reason:'Correct the grid.',status:'refused' as const,differences:[],offered:false,checked:false }
+  ] };
+  const pending = tqslSyncDialog('/dist', plan);
+  const window = electron.windows[0];
+  const html = decodeURIComponent(window.loadURL.mock.calls[0][0].slice('data:text/html,'.length));
+  for (const value of ['New','Differs','Same','Refused','Test clash (TQSL) 2','MY_GRIDSQUARE: EM17','LoTW park: NP01','TQSL EM18; your Location EM17','Correct the grid.','/test-only/tqsl']) expect(html).toContain(value);
+  expect(html).toContain('value="0" checked'); expect(html).toContain('value="1">'); expect(html).not.toContain('value="2"'); expect(html).not.toContain('value="3"');
+  expect(html).toContain('&lt;injected&gt;'); expect(html).not.toContain('<injected>');
+  expect(electron.options[0].webPreferences).toMatchObject({ sandbox:true,contextIsolation:true,nodeIntegration:false,devTools:false,preload:join('/dist','preload','tqsl-sync.cjs') });
+  const csp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)![1];
+  const style = /<style>(.*?)<\/style>/.exec(html)![1];
+  expect(csp).toContain("script-src 'none'"); expect(csp).toContain(`style-src 'sha256-${createHash('sha256').update(style).digest('base64')}'`);
+  let done = false; void pending.then(() => { done = true; });
+  electron.ipc.emit('tqsl:sync-answer',{sender:{},senderFrame:window.webContents.mainFrame},[0]);
+  electron.ipc.emit('tqsl:sync-answer',{sender:window.webContents,senderFrame:{}},[0]);
+  electron.ipc.emit('tqsl:sync-answer',{sender:window.webContents,senderFrame:window.webContents.mainFrame},[2]);
+  await Promise.resolve(); expect(done).toBe(false);
+  electron.ipc.emit('tqsl:sync-answer',{sender:window.webContents,senderFrame:window.webContents.mainFrame},[1]);
+  expect(await pending).toEqual([1]); expect(window.destroyed).toBe(true); expect(electron.ipc.listenerCount('tqsl:sync-answer')).toBe(0);
+});
+it('Sync confirmation abort and close clean up the receiver; missing-file text names the folder', async () => {
+  const { tqslSyncDialog } = await import('../packages/main/tqsl-sync-dialog.js');
+  for (const how of ['abort','close']) {
+    const controller = new AbortController();
+    const pending = tqslSyncDialog('/dist',{folder:'/test-only/empty-tqsl',locations:[]},controller.signal);
+    const window = electron.windows.at(-1);
+    const html = decodeURIComponent(window.loadURL.mock.calls[0][0].slice('data:text/html,'.length));
+    expect(html).toContain('TQSL has no station locations in this folder.'); expect(html).toContain('/test-only/empty-tqsl');
+    if (how === 'abort') controller.abort(); else window.destroy();
+    expect(await pending).toBeUndefined(); expect(electron.ipc.listenerCount('tqsl:sync-answer')).toBe(0); expect(window.destroyed).toBe(true);
+  }
+});
+it('Sync preload sends only checked row indices once', async () => {
+  const handlers = new Map<string, () => void>(); const form = new EventTarget(); const cancel = new EventTarget();
+  const doc = { querySelector: () => form, getElementById: () => cancel, querySelectorAll: () => [{value:'0'},{value:'3'}] };
+  const source = readFileSync('packages/preload/tqsl-sync.cts','utf8');
+  const compiled = ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+  runInNewContext(compiled,{window:{addEventListener:(name:string,handler:()=>void)=>handlers.set(name,handler)},document:doc,exports:{},require:()=>({ipcRenderer:{send:electron.send}})});
+  handlers.get('DOMContentLoaded')!(); form.dispatchEvent(new Event('submit',{cancelable:true})); cancel.dispatchEvent(new Event('click'));
+  expect(electron.send).toHaveBeenCalledOnce(); expect(electron.send).toHaveBeenCalledWith('tqsl:sync-answer',[0,3]);
+});

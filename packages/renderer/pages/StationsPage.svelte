@@ -26,6 +26,7 @@
 
   interface Props {
     stations?: StationsView;
+    onSyncTqsl?: () => Promise<string>;
     // The active callsign's id, and how it is shown; empty when there is none.
     callsignId: string;
     callsignLabel: string;
@@ -50,7 +51,7 @@
     onOpenPage?: (command: LinkCommand) => void;
   }
   const {
-    stations, callsignId, callsignLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
+    onSyncTqsl = () => Promise.resolve('Sync from TQSL is unavailable.'), stations, callsignId, callsignLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
     onChoices = () => Promise.resolve(undefined),
     onLookUpParks = () => Promise.resolve(undefined),
     onCountiesAt = () => Promise.resolve({ counties: [], sections: {} }),
@@ -158,6 +159,14 @@
   ];
 
   // ---- the form being edited -------------------------------------------
+  let syncing = $state(false);
+  let syncNote = $state('');
+  async function syncTqsl() {
+    syncing = true; syncNote = '';
+    try { syncNote = await onSyncTqsl(); }
+    catch { syncNote = 'Sync from TQSL could not be completed. Try again.'; }
+    finally { syncing = false; }
+  }
   let editing = $state(false);
   let editingId = $state<string | undefined>();
   let name = $state('');
@@ -456,8 +465,9 @@
   <section class="card" aria-labelledby="stations-title">
     <div class="section-title">
       <h2 id="stations-title">Your locations</h2>
-      {#if !editing}<button type="button" id="add-station" onclick={() => open()}>Add a location</button>{/if}
+      {#if !editing}<button type="button" id="sync-tqsl" disabled={syncing || stations === undefined} onclick={syncTqsl}>Sync from TQSL…</button><button type="button" id="add-station" onclick={() => open()}>Add a location</button>{/if}
     </div>
+    {#if syncNote}<p role="status">{syncNote}</p>{/if}
     {#if stations === undefined}
       <p class="hint">Reading the locations…</p>
     {:else if list.length === 0}

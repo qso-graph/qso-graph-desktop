@@ -11,7 +11,7 @@ import { lotwLocations } from '../packages/main/lotw-locations.js';
 const token = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
 const entry = { call: 'QG0TEST', serial: 'AB12', disposition: 'new' as const, reason: '', fileHasKey: true, keyPresent: false, needsPassword: false, dxcc: 291, qsoFirst: '2020-01-01', qsoLast: '2030-01-01', validFrom: '2020-01-01T00:00:00Z', validTo: '2030-01-01T00:00:00Z' };
 const preview = (): NativeLotwPreview => ({ token, needsPassword: false, certificates: [{...entry}], roots: [], locations: [], signedQsos: 4, signedQsoBytes: 64 });
-const location = { name: 'Test location', fields: [{ name: 'CALL', value: 'QG0TEST' }, { name: 'DXCC', value: '291' }, { name: 'GRIDSQUARE', value: 'DN13TP' }, { name: 'US_STATE', value: 'ID' }, { name: 'US_COUNTY', value: 'Ada' }, { name: 'US_PARK', value: 'NP33' }] };
+const location = { name: 'Test location', place: { MY_DXCC: '291', MY_GRIDSQUARE: 'DN13tp', MY_STATE: 'ID', MY_CNTY: 'ID,Ada' }, park: 'NP33', reason: '' };
 function harness() {
   const p = preview();
   const ports: LotwManagePorts = {
@@ -163,10 +163,7 @@ it('QGD-LTW-0003: the window cannot bypass confirmation with the additive storag
   expect(validateRendererStorageCommand(command)).toBe(false);
   expect(validateRendererStorageCommand({ type: 'stations-backup' })).toBe(true);
 });
-it.each(['US_PARK', 'CA_US_PARK', 'DX_US_PARK'])('QGD-STN-0009: retains TQSL park alias %s', field => {
-  const { stations } = lotwLocations([{ name: 'Test park', fields: [{ name: 'DXCC', value: '291' }, { name: 'GRIDSQUARE', value: 'DN13' }, { name: field, value: 'NP33' }] }], []);
-  expect(stations[0].lotwPark).toBe('NP33');
-});
+
 
 it('QGD-LTW-0003/0005: a failed inspection without a token queues discard before another request', async () => {
   const h = harness(); const calls: string[] = [];

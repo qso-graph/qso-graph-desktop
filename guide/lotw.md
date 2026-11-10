@@ -8,6 +8,8 @@ Choose **Load certificate…** to open a `.tq6` certificate or a `.p12` file. Ch
 **Restore TQSL backup…** to open a `.tbk` backup. Desktop inspects the file, asks for a
 password when one is needed, and shows the proposed changes for you to confirm.
 A backup can also offer to create Desktop Locations from its station locations.
+To copy locations already in TQSL without loading a backup, use
+[Sync from TQSL on Locations](locations.md).
 
 The table shows each certificate's callsign, DXCC entity, serial number, QSO date
 range, validity and whether its key is installed. A certificate without its key

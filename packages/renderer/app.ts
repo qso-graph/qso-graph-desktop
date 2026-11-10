@@ -26,6 +26,7 @@ declare const __QG_VERSION__: string;
 
 declare global {
   interface Window {
+    tqsl?: { sync(): Promise<unknown> };
     callsigns: { request(command: CallsignCommand): Promise<CallsignReply>; platform?: string };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
     logs: { request(command: LogsCommand): Promise<LogsReply> };
@@ -89,7 +90,7 @@ mount(Shell, {
   target: document.body,
   props: {
     store: shell, home, onChooseTheme: setThemeChoice, onSetExtension: setExtensionEnabled, onUpdateReference: updateReference,
-    onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseUpdate: closeUpdate, onOpenWhatsNew: openWhatsNew, onCloseWhatsNew: closeWhatsNew, onStationFromSummit: stationFromSummit, onOpenPage: openPage, onAreaChoices: areaChoices, onAreaDefault: areaDefault, onSaveArea: saveArea,
+    onSyncTqsl: syncTqsl, onSaveStation: saveStation, onDeleteStation: deleteStation, onSetActiveStation: setActiveStation, onStationFromPark: stationFromPark, onStationChoices: stationChoices, onLookUpParks: lookUpParks, onCountiesAt: countiesAt, onCloseUpdate: closeUpdate, onOpenWhatsNew: openWhatsNew, onCloseWhatsNew: closeWhatsNew, onStationFromSummit: stationFromSummit, onOpenPage: openPage, onAreaChoices: areaChoices, onAreaDefault: areaDefault, onSaveArea: saveArea,
     onSetLevel: setLogLevel, onExport: exportDiagnostics, onSetIntegration: setIntegration,
     onExportCallsigns: exportCallsigns, onInspectImport: inspectImport, onApplyImport: applyImport,
     onCreateCallsign: createCallsign, onSaveCredential: saveSetupCredential,
@@ -990,3 +991,16 @@ window.menu?.onSetup?.(action => {
     void updateReference(action);
   }
 });
+
+async function syncTqsl(): Promise<string> {
+  try {
+    const answer = await window.tqsl?.sync();
+    if (typeof answer !== 'object' || answer === null) return 'Sync from TQSL is unavailable.';
+    const reply = answer as Record<string, unknown>;
+    if (reply.ok !== true) return 'Sync from TQSL could not be completed. Check that TQSL can read its station locations, then try again.';
+    const result = reply.result as { status?: unknown; added?: unknown } | undefined;
+    if (result?.status === 'cancelled') return 'Sync cancelled.';
+    return result?.status === 'completed' && Number.isSafeInteger(result.added) && (result.added as number) >= 0
+      ? 'Created ' + result.added + ' Desktop Locations.' : 'The Sync result could not be read.';
+  } catch { return 'Sync from TQSL could not be completed. Try again.'; }
+}
