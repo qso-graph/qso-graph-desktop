@@ -18,6 +18,8 @@ mod lotw;
 mod lotw_log;
 #[cfg(feature = "addon")]
 mod lotw_manage;
+#[cfg(feature = "addon")]
+mod tqsl_sync;
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -1336,6 +1338,7 @@ pub mod addon {
             enum Operation {
                 Manage(crate::lotw_manage::Command),
                 Log(crate::lotw_log::Command),
+                Sync(crate::tqsl_sync::Command),
             }
             let parsed: Operation = serde_json::from_str(&command)
                 .map_err(|_| error("The LoTW request was refused."))?;
@@ -1343,6 +1346,7 @@ pub mod addon {
             match parsed {
                 Operation::Manage(c) => self.lotw.execute(c, &directory),
                 Operation::Log(c) => self.lotw_log.execute(c, &directory),
+                Operation::Sync(c) => c.execute(),
             }
             .map_err(error)
         }

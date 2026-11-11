@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import type { NativeLotwCommand, NativeLotwPreview, NativeLotwSummary } from '../callsign-core/native.js';
+const STATION_FIELDS = ['MY_GRIDSQUARE','MY_VUCC_GRIDS','MY_ALTITUDE','MY_DXCC','MY_CQ_ZONE','MY_ITU_ZONE','MY_STATE','MY_CNTY','MY_ARRL_SECT','MY_POTA_REF','MY_SOTA_REF','MY_WWFF_REF','MY_IOTA'];
+const printable = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max && !/[<>]/.test(v) && Array.from(v).every(c => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127);
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const exact = (v: unknown, fields: string[]): v is Record<string, unknown> => record(v) && Object.keys(v).length === fields.length && fields.every(f => Object.hasOwn(v, f));
 const string = (v: unknown): v is string => typeof v === 'string' && v.length <= 4096;
@@ -13,6 +15,7 @@ export function isLotwCommand(v: unknown): v is NativeLotwCommand {
     case 'logPrepare': case 'uploadInspect': return exact(v, ['op', 'path']) && path(v.path);
     case 'logSign': return exact(v, ['op', 'path', 'token']) && id(v.token) && path(v.path);
     case 'logPreview': return exact(v, ['op', 'token', 'selection']) && id(v.token) && isLotwSelection(v.selection);
+    case 'syncInspect': return exact(v, ['op', 'existing']) && Array.isArray(v.existing) && v.existing.length <= 500 && v.existing.every(s => exact(s, ['name', 'place', 'park']) && printable(s.name, 64) && s.name.trim().length > 0 && isTqslPlace(s.place) && typeof s.park === 'string' && (s.park === '' || s.park.length <= 40 && s.park.split(',').every(code => /^[A-Z]{2}[0-9]{2}$/.test(code))));
     case 'discard': return exact(v, ['op']);
     case 'inspect': return exact(v, ['op', 'path', 'format']) && string(v.path) && v.path.length > 0 && !v.path.includes('\0') && ['certificate', 'backup'].includes(v.format as string);
     case 'inspectDelete': return exact(v, ['op', 'certificate']) && typeof v.certificate === 'string' && v.certificate.startsWith('cert:') && id(v.certificate.slice(5));
@@ -33,8 +36,7 @@ export function isLotwPreview(v: unknown): v is NativeLotwPreview {
     && id(v.token) && typeof v.needsPassword === 'boolean' && entries(v.certificates)
     && count(v.signedQsos) && count(v.signedQsoBytes)
     && Array.isArray(v.roots) && v.roots.length <= 128 && v.roots.every(r => exact(r, ['fingerprint']) && typeof r.fingerprint === 'string' && r.fingerprint.split(':').length === 32 && r.fingerprint.split(':').every(part => /^[A-F0-9]{2}$/.test(part)))
-    && Array.isArray(v.locations) && v.locations.length <= 4096 && v.locations.every(l => exact(l, ['name', 'fields']) && string(l.name)
-      && Array.isArray(l.fields) && l.fields.length <= 32 && l.fields.every(f => exact(f, ['name', 'value']) && string(f.name) && string(f.value)));
+    && Array.isArray(v.locations) && v.locations.length <= 4096 && v.locations.every(isTqslLocation);
 }
 // "conflict": the store changed after the operator confirmed, and the
 // credential core committed nothing. It is a result the core returns, never
@@ -86,6 +88,27 @@ const LOCATION_MESSAGES = [
   "The Location's WWFF reference field is not accepted for LoTW signing. Check the Location.",
   "The Location has a field LoTW does not accept. Check the Location's fields."
 ] as const;
+// The credential core's one reason Sync gives for unreadable TQSL station locations
+// (packages/callsign-core/src/tqsl_sync.rs REFUSED); tests keep the two identical.
+export const TQSL_READ_REFUSED = "TQSL's station locations could not be read from its folder. The file must be plain or gzip, at most 16 MiB.";
+
 export function isLotwLocationMessage(value: unknown): value is string {
   return typeof value === 'string' && LOCATION_MESSAGES.some(message => message === value);
+}
+
+export function isTqslLocation(v: unknown): v is import('../callsign-core/native.js').NativeTqslLocation {
+  return exact(v, ['name', 'place', 'park', 'reason']) && string(v.name) && string(v.park) && string(v.reason)
+    && isTqslPlace(v.place);
+}
+export function isTqslPreview(v: unknown): v is import('../callsign-core/native.js').NativeTqslPreview {
+  return exact(v, ['folder', 'locations']) && string(v.folder) && Array.isArray(v.locations) && v.locations.length <= 4096
+    && v.locations.every(l => exact(l, ['name','place','park','reason','status','differences'])
+      && isTqslLocation({ name: l.name, place: l.place, park: l.park, reason: l.reason })
+      && ['new','same','differs','refused'].includes(l.status as string)
+      && Array.isArray(l.differences) && l.differences.length <= 14 && l.differences.every(d => exact(d, ['field','tqsl','stored']) && string(d.field) && [d.tqsl,d.stored].every(x => x === null || string(x))));
+}
+
+function isTqslPlace(v: unknown): boolean {
+  return record(v) && Object.keys(v).length <= STATION_FIELDS.length
+    && Object.entries(v).every(([k,x]) => STATION_FIELDS.includes(k) && printable(x, 100) && x.length > 0);
 }

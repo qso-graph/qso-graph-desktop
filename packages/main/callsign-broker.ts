@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { isLotwLocationMessage } from '../callsigns/lotw-contract.js';
+import { isLotwLocationMessage, TQSL_READ_REFUSED } from '../callsigns/lotw-contract.js';
 import { app, BrowserWindow, dialog, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
@@ -375,7 +375,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     },
     async lotwCommand(command) {
       const reply = await ask({ type: 'lotw-manage', command });
-      if (!reply.ok) throw new Error(command.op === 'logPreview' && isLotwLocationMessage(reply.error) ? reply.error : 'The LoTW operation was refused.');
+      if (!reply.ok) throw new Error(command.op === 'logPreview' && isLotwLocationMessage(reply.error) || command.op === 'syncInspect' && reply.error === TQSL_READ_REFUSED ? reply.error : 'The LoTW operation was refused.');
       const data = reply.data as { lotw?: unknown } | undefined;
       if (typeof data?.lotw !== 'string') throw new Error('The LoTW reply was refused.');
       try { return JSON.parse(data.lotw) as unknown; } catch { throw new Error('The LoTW reply was refused.'); }

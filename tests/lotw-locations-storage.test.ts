@@ -58,3 +58,27 @@ it('refuses a case-only collision with an existing Location', async () => {
     expect(await viewStations(state, true)).toEqual(before);
   } finally { state.close(); }
 });
+
+it('QGD-STN-0013: selected Differs appends through Sync and preserves the existing Location byte for byte', async () => {
+  const { createTqslSync } = await import('../packages/main/tqsl-sync.js');
+  const { backupStations, checkBackup } = await import('../packages/storage/stations.js');
+  const state = await openState(layout(root), resolve('drizzle/state'), '0.0.0-test');
+  try {
+    const created = await saveStation(state, draft({}, { name: 'Test clash', notes: 'Test-only existing note' }), 'not loaded');
+    if (!created.ok) throw new Error('Fixture refused');
+    await setActiveStation(state, created.id);
+    await setDefaultStation(state, '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6c', created.id);
+    const before = await backupStations(state);
+    const run = createTqslSync({
+      core: async () => ({ folder: '/test-only/tqsl', locations: [{ name:'Test clash', place:{MY_GRIDSQUARE:'EM18'},park:'',reason:'',status:'differs',differences:[{field:'MY_GRIDSQUARE',tqsl:'EM18',stored:'DN13'}] }] }),
+      existing: () => backupStations(state), check: async b => checkBackup(b, 'not loaded'),
+      add: async (b,names) => { const result = await addLotwStations(state,b,names,'not loaded'); return typeof result === 'number' ? result : result.problem; },
+      confirm: async plan => { expect(plan.locations[0]).toMatchObject({checked:false,resultName:'Test clash (TQSL)'}); return [0]; }
+    });
+    expect((await run()).added).toBe(1);
+    const after = await backupStations(state);
+    expect(after.stations.find(s => s.id === created.id)).toEqual(before.stations[0]);
+    expect(after.stations.find(s => s.id !== created.id)).toMatchObject({name:'Test clash (TQSL)',place:{MY_GRIDSQUARE:'EM18'}});
+    expect(after.defaults).toEqual(before.defaults); expect(after.active).toBe(before.active);
+  } finally { state.close(); }
+});

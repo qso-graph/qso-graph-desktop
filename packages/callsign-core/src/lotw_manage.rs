@@ -57,23 +57,13 @@ pub struct Root {
     pub fingerprint: String,
 }
 #[derive(Serialize)]
-pub struct Location {
-    pub name: String,
-    pub fields: Vec<Field>,
-}
-#[derive(Serialize)]
-pub struct Field {
-    pub name: String,
-    pub value: String,
-}
-#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preview {
     pub token: String,
     pub needs_password: bool,
     pub certificates: Vec<Entry>,
     pub roots: Vec<Root>,
-    pub locations: Vec<Location>,
+    pub locations: Vec<crate::tqsl_sync::Location>,
     pub signed_qsos: u32,
     pub signed_qso_bytes: u32,
 }
@@ -165,17 +155,7 @@ impl Session {
                     .preview()
                     .locations
                     .iter()
-                    .map(|l| Location {
-                        name: l.name.clone(),
-                        fields: l
-                            .station
-                            .fields()
-                            .map(|(n, v)| Field {
-                                name: n.into(),
-                                value: v.into(),
-                            })
-                            .collect(),
-                    })
+                    .map(|l| crate::tqsl_sync::location(&l.name, &l.station))
                     .collect();
                 preview.signed_qsos = p.preview().signed_qsos as u32;
                 preview.signed_qso_bytes = p.preview().signed_qso_bytes as u32;

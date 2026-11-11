@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The static gates P9 registered: P9-tqsl's field list against TQSL's own,
 // P9-grid-typed's field list, P9-kind's "no code path writes the kind into
-// ADIF", and P9-not-tqsl's "no code reads, writes or names TQSL's station data
-// file". Each reads the source or the contract rather than trusting a comment.
+// ADIF", and P9-not-tqsl's single read-only Sync reader (QGD-STN-0013).
+// Each reads the source or the contract rather than trusting a comment.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -75,6 +75,8 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
     'packages/main/lotw-manage.ts',
     // Signs only the Location place fields, never its kind.
     'packages/main/lotw-log.ts',
+    // Sync stages public fields for the additive store; no ADIF export or kind.
+    'packages/main/tqsl-sync.ts',
     'packages/main/station-brief.ts', 'packages/renderer/Shell.svelte', 'packages/renderer/pages/StationsPage.svelte',
     'packages/renderer/app.ts', 'packages/storage/stations.ts', 'packages/storage/storage-contract.ts',
     'packages/storage/storage-service.ts',
@@ -108,13 +110,17 @@ describe('P9-kind: no code path writes the kind into ADIF (QGD-STN-0004)', () =>
 });
 
 describe('P9-not-tqsl: TQSL\'s station data file is TQSL\'s (QGD-STN-0008)', () => {
-  it('is not named anywhere in the product', () => {
+  it('is named only in the credential core Sync reader', () => {
     // TQSL keeps station locations in station_data in its own folder (.tqsl
     // on Linux and macOS, TrustedQSL on Windows). Naming any of them in a
-    // string is the first step to reading it.
+    // string is the first step to reading it. QGD-STN-0013 permits one reader.
     const named = /["'`][^"'`\n]*(station_data|\.tqsl\b|TrustedQSL)[^"'`\n]*["'`]/i;
     const offenders = product.filter(file => named.test(readFileSync(file, 'utf8')));
-    expect(offenders).toEqual([]);
+    expect(offenders).toEqual(['packages/callsign-core/src/tqsl_sync.rs']);
+    const reader = readFileSync(offenders[0], 'utf8').split('#[cfg(test)]')[0];
+    expect(reader).toContain('tqsl_locations::read(folder)');
+    expect(reader).toContain('tqsl_locations::default_folder()');
+    expect(reader).not.toMatch(/\b(?:fs::|File::|OpenOptions|write|create_dir|remove_file|rename)\b/);
   });
 
   it('would be caught if it were', () => {

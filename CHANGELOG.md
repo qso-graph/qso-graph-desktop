@@ -9,6 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Sync from TQSL on Locations: choose station locations to copy once, with field comparisons and new names for clashes. TQSL stays unchanged (#155).
 - LoTW Sign log… previews ADI, ADX and Cabrillo logs, confirms the callsign, certificate, Location and dates, and writes a `.tq8`. Disagreements are refused and already-signed QSOs are omitted unless Sign again is selected. Upload signed log… and the signing result’s Upload to LoTW… use a separate confirmation and the credential core’s TLS.
 
 - Extension pages can offer buttons (extension API 1.2.0): page actions and row actions, declared in the manifest and drawn by the core. A press is accepted only for the open page, a declared action and a row on screen, one at a time per page, and the page refreshes when it finishes.
@@ -24,6 +25,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- TQSL backup restore and Sync share a Rust field conversion checked by rebuilding the exact signing station.
 - CodeQL excludes one rule, `rust/access-invalid-pointer`, which only ever flagged napi-derive's generated code (alerts #13 and #28, false positives that returned whenever the code moved): our Rust denies `unsafe_code` (QGD-SEC-0022), so the compiler already refuses what the rule looks for. `tests/no-unsafe.test.mjs` checks the exclusion stays exactly that one rule.
 - Updated QG Trust to 0.1.8 and enforce Rust formatting and Clippy in verification and CI. 0.1.8 no longer hangs on a certificate file whose PEM body is truncated, which a crafted file could otherwise use to hang an import.
 - Development tooling (eslint, @electron/universal) uses minimatch 11.0.5, through an override limited to the affected range, for GHSA-g3hv-75wg-m249. The packaged application never contained minimatch.

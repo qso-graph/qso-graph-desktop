@@ -20,6 +20,7 @@ Help → User Guide opens it.
 
 ## The pages
 
+- [Locations and Sync from TQSL](locations.md).
 - [Parks On the Air](parks-on-the-air.md): Near Me, Spots and Most Wanted.
 - [Astro](astro.md): the sun, the moon and the grey line.
 - [Conditions](conditions.md): solar flux, the K index and the bands.
