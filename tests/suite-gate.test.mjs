@@ -117,3 +117,40 @@ describe('every test file is run by a suite', () => {
     expect(files.filter(file => !covered(file))).toEqual([]);
   });
 });
+
+// A run without `make setup`'s pinned data stops before any suite and names
+// what to run, instead of skipping some tests and failing others far from the
+// cause. Which suites need it is derived from what their files read, so a new
+// suite that reads vendor/ cannot be left off the list.
+describe('a run without the pinned reference data stops first', () => {
+  it('names every suite whose files read vendor/', async () => {
+    const { readFile, readdir } = await import('node:fs/promises');
+    const { suiteCommands, SUITES_READING_PINNED_DATA } = await import('../scripts/suites.mjs');
+    const reading = [];
+    for (const [name, args] of suiteCommands('npm')) {
+      const files = [];
+      for (const arg of args.filter(arg => /^(tests|scripts|extensions)\//.test(arg))) {
+        if (arg.endsWith('/')) {
+          files.push(...(await readdir(arg, { recursive: true })).filter(file => /\.test\.(ts|mjs|mts)$/.test(file)).map(file => arg + file));
+        } else files.push(arg);
+      }
+      for (const file of files) {
+        if (/vendor\/(\.cache|adif|pota)/.test(await readFile(file, 'utf8'))) { reading.push(name); break; }
+      }
+    }
+    expect(reading.length).toBeGreaterThan(2);
+    expect(reading.filter(name => !SUITES_READING_PINNED_DATA.includes(name))).toEqual([]);
+    expect(SUITES_READING_PINNED_DATA.filter(name => !suiteNames().includes(name))).toEqual([]);
+  });
+
+  it('lists what is missing only when a selected suite reads it', async () => {
+    const { missingPinnedData, pinnedDataPaths } = await import('../scripts/suites.mjs');
+    const register = { adif: { version: '9.9.9', source: { definitions: 'defs.json' } } };
+    const none = () => false;
+    expect(missingPinnedData(['package-contents', 'electron-audit'], register, none)).toEqual([]);
+    expect(missingPinnedData(['unit'], register, none)).toEqual(pinnedDataPaths(register));
+    expect(pinnedDataPaths(register)).toContain('vendor/.cache/adif-9.9.9.zip');
+    expect(missingPinnedData(['reference-build'], register, path => path !== 'vendor/pota/parks.csv'))
+      .toEqual(['vendor/pota/parks.csv']);
+  });
+});

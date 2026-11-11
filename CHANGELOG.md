@@ -19,7 +19,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- LoTW signing uses QG Trust’s station checks, including values filled in by earlier QSOs. Ordinary log fields such as `MY_RIG` and `MY_ANTENNA` do not cause station refusals, and QSOs outside the selected dates are counted separately.
+- LoTW signatures carry exactly the Location shown in the confirmation. A QSO naming a station field the Location leaves empty is refused, and VUCC grid lists must agree on every QSO. Invalid station values refuse that QSO with its field and line or record number instead of stopping the preview. Location details such as POTA, SOTA and WWFF references, altitude and ARRL section no longer prevent signing. Subdivisions without a LoTW field for that entity are left out. Ordinary log fields such as `MY_RIG` and `MY_ANTENNA` do not cause station refusals, and QSOs outside the selected dates are counted separately.
 
 - An extension turned on in Settings is on the rail at once; it used to appear only after a visit to Home.
 

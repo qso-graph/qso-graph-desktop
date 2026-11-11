@@ -182,6 +182,46 @@ fn options() -> SigningOptions {
         qth: QthHandling::Refuse,
         ..SigningOptions::default()
     }
+    .with_exact_station(true)
+}
+fn station_refusal(
+    index: usize,
+    r: &Record,
+    error: &LogError,
+    place: &BTreeMap<String, String>,
+) -> Refusal {
+    let field = error.adif_field().unwrap_or("");
+    // Empty means the selected Location has no ADIF value for the field the QSO names; Desktop
+    // asks its own Location, so no LoTW field names are needed here.
+    let empty = match field {
+        "MY_GRIDSQUARE" | "MY_VUCC_GRIDS" => {
+            !place.contains_key("MY_GRIDSQUARE") && !place.contains_key("MY_VUCC_GRIDS")
+        }
+        "MY_STATE" | "MY_CNTY" | "MY_CQ_ZONE" | "MY_ITU_ZONE" | "MY_IOTA" => {
+            !place.contains_key(field)
+        }
+        _ => false,
+    };
+    // Never format QG Trust's error: it can contain values from the log. `field` is one of
+    // QG Trust's fixed ADIF names.
+    let reason = match error {
+        LogError::Location { .. } => "Value is not accepted by LoTW.",
+        LogError::QsoFromAnotherStation { .. } if empty => {
+            return failure(
+                index,
+                r,
+                field,
+                &format!(
+                    "The Location has no value for {field}. Add it to the Location before signing this QSO."
+                ),
+            );
+        }
+        LogError::QsoFromAnotherStation { .. } => {
+            "Disagrees with the selected Location or callsign."
+        }
+        _ => "LoTW cannot sign this QSO's station fields.",
+    };
+    failure(index, r, field, reason)
 }
 // Only field names are exposed; QG Trust errors can also contain input values.
 fn location_error(error: StationError) -> &'static str {
@@ -334,6 +374,7 @@ impl Manager {
                         &selection
                             .place
                             .iter()
+                            .filter(|(n, _)| super::tqsl_sync::SIGNED_FIELDS.contains(&n.as_str()))
                             .map(|(n, v)| (n.as_str(), v.as_str()))
                             .collect::<Vec<_>>(),
                         Some(&selection.park),
@@ -427,15 +468,12 @@ impl Manager {
                     let refusals = options().station_refusals(&qsos, &station);
                     let mut excluded = vec![false; qsos.len()];
                     for (index, error) in refusals {
-                        let LogError::QsoFromAnotherStation { field, .. } = error else {
-                            return Err(REFUSED);
-                        };
                         let original = indices[index];
-                        preview.refused.push(failure(
+                        preview.refused.push(station_refusal(
                             original,
                             &p.records[original],
-                            field,
-                            "Disagrees with the selected Location or callsign, or an earlier QSO.",
+                            &error,
+                            &selection.place,
                         ));
                         excluded[index] = true;
                     }
@@ -756,8 +794,310 @@ mod tests {
             sign_and_check(dir.path(), &mut m, t, &preview);
         }
     }
+    // Permanent regressions for the verification review's Desktop findings 1, 2, 7 and 8 (QGD-LTW-0016).
     #[test]
-    fn carry_forward_refuses_conflicts_and_preview_matches_signed_list() {
+    fn review_empty_location_field_is_refused_with_field_and_line() {
+        let log = [adif("20261101", "<MY_STATE:2>ID"), adif("20261102", "")].concat();
+        let (dir, mut m, t) = fixture_log(log.as_bytes());
+        let mut selected = selection();
+        selected.place.remove("MY_STATE");
+        let preview = run(
+            &mut m,
+            Command::LogPreview {
+                token: t.clone(),
+                selection: selected,
+            },
+            dir.path(),
+        );
+        assert_eq!(preview["toSign"], 1);
+        assert_eq!(preview["refused"].as_array().unwrap().len(), 1);
+        assert_eq!(preview["refused"][0]["field"], "MY_STATE");
+        assert_eq!(preview["refused"][0]["line"], serde_json::Value::Null);
+        assert_eq!(preview["refused"][0]["record"], 1);
+        assert_eq!(
+            preview["refused"][0]["reason"],
+            "The Location has no value for MY_STATE. Add it to the Location before signing this QSO."
+        );
+        let records = sign_and_check(dir.path(), &mut m, t, &preview);
+        assert!(records.iter().all(|r| r.text("US_STATE").is_none()));
+    }
+    #[test]
+    fn review_single_vucc_disagreement_is_refused() {
+        // Check both the first and a later QSO, against a single grid and an equal-sized list.
+        for vucc in [false, true] {
+            let log = [
+                adif("20261101", "<MY_VUCC_GRIDS:9>EM17,EM18"),
+                adif("20261102", ""),
+                adif("20261103", "<MY_VUCC_GRIDS:9>EM17,EM18"),
+            ]
+            .concat();
+            let (dir, mut m, t) = fixture_log(log.as_bytes());
+            let mut selected = selection();
+            if vucc {
+                selected.place.remove("MY_GRIDSQUARE");
+                selected
+                    .place
+                    .insert("MY_VUCC_GRIDS".into(), "DN13,DN14".into());
+            }
+            let preview = run(
+                &mut m,
+                Command::LogPreview {
+                    token: t.clone(),
+                    selection: selected,
+                },
+                dir.path(),
+            );
+            assert_eq!(preview["toSign"], 1);
+            assert_eq!(preview["refused"].as_array().unwrap().len(), 2);
+            for (i, record) in [1, 3].into_iter().enumerate() {
+                assert_eq!(preview["refused"][i]["field"], "MY_VUCC_GRIDS");
+                assert_eq!(preview["refused"][i]["record"], record);
+                assert_eq!(preview["refused"][i]["line"], serde_json::Value::Null);
+            }
+            sign_and_check(dir.path(), &mut m, t, &preview);
+        }
+    }
+    #[test]
+    fn review_valid_unsigned_location_fields_can_sign() {
+        let (dir, mut m, t) = fixture_log(adif("20261101", "").as_bytes());
+        let mut selected = selection();
+        for (field, value) in [
+            ("MY_POTA_REF", "US-2233"),
+            ("MY_SOTA_REF", "W7I/SI-001"),
+            ("MY_WWFF_REF", "KFF-0001"),
+            ("MY_ALTITUDE", "100"),
+            ("MY_ARRL_SECT", "ID"),
+        ] {
+            selected.place.insert(field.into(), value.into());
+        }
+        let preview = run(
+            &mut m,
+            Command::LogPreview {
+                token: t.clone(),
+                selection: selected,
+            },
+            dir.path(),
+        );
+        assert_eq!(preview["toSign"], 1);
+        assert_eq!(preview["refused"], serde_json::json!([]));
+        sign_and_check(dir.path(), &mut m, t, &preview);
+    }
+    #[test]
+    fn review_station_validation_errors_are_counted() {
+        let log = [adif("20261101", "<MY_STATE:2>ZZ"), adif("20261102", "")].concat();
+        let (dir, mut m, t) = fixture_log(log.as_bytes());
+        let mut selected = selection();
+        selected.place.remove("MY_STATE");
+        let preview = run(
+            &mut m,
+            Command::LogPreview {
+                token: t.clone(),
+                selection: selected,
+            },
+            dir.path(),
+        );
+        assert_eq!(preview["toSign"], 1);
+        assert_eq!(preview["refused"].as_array().unwrap().len(), 1);
+        assert_eq!(preview["refused"][0]["field"], "MY_STATE");
+        assert_eq!(preview["refused"][0]["line"], serde_json::Value::Null);
+        assert_eq!(preview["refused"][0]["record"], 1);
+        assert!(
+            !preview["refused"][0]["reason"]
+                .as_str()
+                .unwrap()
+                .contains("ZZ")
+        );
+        sign_and_check(dir.path(), &mut m, t, &preview);
+    }
+    #[test]
+    fn review_signed_station_equals_confirmation_for_whole_log() {
+        for (grids, complete) in [
+            ("<MY_GRIDSQUARE:4>DN13", false),
+            ("<MY_GRIDSQUARE:4>DN13", true),
+            ("<MY_VUCC_GRIDS:9>DN14,DN13", true),
+        ] {
+            let log = [
+                adif("20261101", "<MY_STATE:2>WA"),
+                adif("20261102", grids),
+                adif("20261103", ""),
+                adif("20261104", grids),
+            ]
+            .concat();
+            let (dir, mut m, t) = fixture_log(log.as_bytes());
+            let mut selected = selection();
+            if complete {
+                selected.place.insert("MY_CNTY".into(), "ID,Ada".into());
+                selected.park = "TR14".into();
+            } else {
+                selected.place.remove("MY_STATE");
+            }
+            selected.place.extend([
+                ("MY_CQ_ZONE".into(), "3".into()),
+                ("MY_ITU_ZONE".into(), "6".into()),
+                ("MY_IOTA".into(), "NA-001".into()),
+            ]);
+            if grids.contains("VUCC") {
+                selected.place.remove("MY_GRIDSQUARE");
+                selected
+                    .place
+                    .insert("MY_VUCC_GRIDS".into(), "DN13,DN14".into());
+            }
+            let preview = run(
+                &mut m,
+                Command::LogPreview {
+                    token: t.clone(),
+                    selection: selected,
+                },
+                dir.path(),
+            );
+            let records = sign_and_check(dir.path(), &mut m, t, &preview);
+            let mut stations = BTreeMap::new();
+            let mut contacts = 0;
+            for record in &records {
+                match record.text("Rec_Type") {
+                    Some("tSTATION") => {
+                        let fields: BTreeMap<String, String> =
+                            qso_graph_trust::station::fields_for(291)
+                                .into_iter()
+                                .filter_map(|n| record.text(n).map(|v| (n.into(), v.into())))
+                                .collect();
+                        assert_eq!(serde_json::to_value(&fields).unwrap(), preview["fields"]);
+                        stations.insert(record.text("STATION_UID").unwrap(), fields);
+                    }
+                    Some("tCONTACT") => {
+                        let fields = stations.get(record.text("STATION_UID").unwrap()).unwrap();
+                        let fields = fields
+                            .iter()
+                            .map(|(n, v)| (n.as_str(), v.as_str()))
+                            .collect::<Vec<_>>();
+                        let station = StationLocation::new(&fields).unwrap();
+                        assert!(
+                            record
+                                .text("SIGNDATA")
+                                .unwrap()
+                                .starts_with(&station.sign_data().to_ascii_uppercase())
+                        );
+                        contacts += 1;
+                    }
+                    _ => {}
+                }
+            }
+            assert!(!stations.is_empty());
+            assert_eq!(contacts, 3);
+            assert_eq!(preview["toSign"], 3);
+            assert_eq!(preview["refused"].as_array().unwrap().len(), 1);
+        }
+    }
+    #[test]
+    fn station_validation_refusals_keep_the_library_field_and_source_line() {
+        let source = records::parse(&corpus("cabrillo/synthetic-03.log")).unwrap();
+        // Exercise Location errors even though exact mode currently reports these as disagreements.
+        for (signed, adif) in [
+            ("US_STATE", "MY_STATE"),
+            ("DXCC", "MY_DXCC"),
+            ("CQZ", "MY_CQ_ZONE"),
+            ("ITUZ", "MY_ITU_ZONE"),
+            ("GRIDSQUARE", "MY_GRIDSQUARE"),
+            ("US_COUNTY", "MY_CNTY"),
+            ("IOTA", "MY_IOTA"),
+        ] {
+            let error = LogError::Location {
+                index: 0,
+                error: StationError::Invalid {
+                    field: signed,
+                    value: "qg-test-untrusted-value".into(),
+                },
+            };
+            let refusal = station_refusal(2, &source[0], &error, &BTreeMap::new());
+            assert_eq!(refusal.field, adif);
+            assert_eq!(refusal.record, 3);
+            assert_eq!(refusal.line, Some(4));
+            assert_eq!(refusal.reason, "Value is not accepted by LoTW.");
+        }
+    }
+    #[test]
+    fn subdivisions_without_a_lotw_field_are_left_out() {
+        let (dir, mut m, t) =
+            fixture_log(adif("20261101", "<MY_STATE:2>ZZ<MY_CNTY:7>ZZ,Test").as_bytes());
+        let mut selected = selection();
+        selected.place = BTreeMap::from([
+            ("MY_DXCC".into(), "223".into()),
+            ("MY_GRIDSQUARE".into(), "IO91".into()),
+        ]);
+        let preview = run(
+            &mut m,
+            Command::LogPreview {
+                token: t,
+                selection: selected,
+            },
+            dir.path(),
+        );
+        assert_eq!(preview["refused"], serde_json::json!([]));
+        assert_eq!(
+            preview["fields"],
+            serde_json::json!({"CALL":"QG0TEST", "DXCC":"223", "GRIDSQUARE":"IO91"})
+        );
+    }
+    #[test]
+    fn review_retained_bytes_and_token_reuse_control() {
+        let (dir, mut m, t) = fixture_log(adif("20261101", "").as_bytes());
+        let preview = run(
+            &mut m,
+            Command::LogPreview {
+                token: t.clone(),
+                selection: selection(),
+            },
+            dir.path(),
+        );
+        std::fs::write(dir.path().join("qg-test-log.adi"), b"changed after prepare").unwrap();
+        sign_and_check(dir.path(), &mut m, t.clone(), &preview);
+        assert!(
+            m.run(
+                Command::LogSign {
+                    token: t,
+                    path: dir.path().join("reuse.tq8").to_str().unwrap().into()
+                },
+                dir.path(),
+                KeyBackend::Memory,
+                &mut |_| panic!("NO NETWORK")
+            )
+            .is_err()
+        );
+        let path = dir.path().join("checked.tq8");
+        let original = std::fs::read(&path).unwrap();
+        let upload = run(
+            &mut m,
+            Command::UploadInspect {
+                path: path.to_str().unwrap().into(),
+            },
+            dir.path(),
+        );
+        std::fs::write(&path, b"changed after inspect").unwrap();
+        let checked = upload::check_signed_log(&original).unwrap();
+        let t = token(&upload);
+        m.run(
+            Command::UploadSend { token: t.clone() },
+            dir.path(),
+            KeyBackend::Memory,
+            &mut |request| {
+                assert_eq!(request.url(), upload::UPLOAD_URL);
+                assert!(request.body().windows(checked.len()).any(|b| b == checked));
+                Ok((200, b"<!-- .UPL. rejected -->".to_vec()))
+            },
+        )
+        .unwrap();
+        assert!(
+            m.run(
+                Command::UploadSend { token: t },
+                dir.path(),
+                KeyBackend::Memory,
+                &mut |_| panic!("NO NETWORK")
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn station_refusals_preserve_original_records_and_signed_list() {
         // A conversion refusal also proves QG Trust indices map back to original records.
         let log = [
             "<QSO_DATE:8>20261101<eor>\n".into(),
@@ -767,8 +1107,7 @@ mod tests {
         ]
         .concat();
         let (dir, mut m, t) = fixture_log(log.as_bytes());
-        let mut selected = selection();
-        selected.place.remove("MY_STATE");
+        let selected = selection();
         let preview = run(
             &mut m,
             Command::LogPreview {
@@ -831,7 +1170,7 @@ mod tests {
         assert_eq!(preview["refused"][0]["field"], "STATION_CALLSIGN");
     }
     #[test]
-    fn outside_dates_are_not_refused_or_used_for_carry_forward() {
+    fn outside_dates_are_not_refused_or_used_for_station_checks() {
         let log = [
             adif("20261101", "<MY_STATE:2>WA"),
             adif("20261102", "<MY_STATE:2>ID"),
@@ -840,7 +1179,6 @@ mod tests {
         .concat();
         let (dir, mut m, t) = fixture_log(log.as_bytes());
         let mut selected = selection();
-        selected.place.remove("MY_STATE");
         selected.from = "2026-11-02".into();
         selected.to = "2026-11-02".into();
         let preview = run(
@@ -1088,7 +1426,6 @@ mod tests {
             ("MY_DXCC", "DXCC entity"),
             ("MY_GRIDSQUARE", "grid squares"),
             ("MY_CQ_ZONE", "CQ zone"),
-            ("MY_SOTA_REF", "SOTA reference"),
         ] {
             let mut selected = selection();
             selected
@@ -1173,7 +1510,15 @@ mod tests {
     #[test]
     fn only_refuse_policy_and_no_extra_fields_are_accepted() {
         assert_eq!(options().qth, QthHandling::Refuse);
-        for extra in ["qth", "ignore", "fromLog", "confirmed"] {
+        assert!(options().exact_station);
+        for extra in [
+            "qth",
+            "ignore",
+            "fromLog",
+            "confirmed",
+            "exactStation",
+            "exact_station",
+        ] {
             let mut value = serde_json::json!({"call":"QG0TEST","place":{},"park":"","certificate":"","from":"","to":"","signAgain":false});
             value[extra] = serde_json::json!("Ignore");
             assert!(serde_json::from_value::<Selection>(value).is_err());
