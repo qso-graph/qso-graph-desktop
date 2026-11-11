@@ -25,12 +25,19 @@ If an outcome is unknown, refresh the page and check the store before trying aga
 Choose **Sign log…** and open an ADI (`.adi`), ADX (`.adx`) or Cabrillo (`.log`)
 file. Review the QSO count, dates, and station calls in the log. Choose your
 **Callsign**, **Certificate**, and **Location**. Desktop starts with your active
-callsign and Location. The station fields shown are the fields LoTW receives.
+callsign and Location. Every signature carries exactly the station fields shown.
 Your Location needs a DXCC entity, and the certificate needs its installed key.
+Other Location details, such as POTA and SOTA references, altitude and ARRL section,
+do not prevent signing. Only the station fields shown, including the LoTW park,
+are used for the signature.
 
 Leave both dates blank for all dates, or enter a **From** or **To** date in UTC.
 Review the counts and refused records. A record that disagrees with your Location
-or callsign is left out; the reason names its field and line or record number.
+or callsign, or has an invalid station value, is left out; the reason names its
+ADIF field and line or record number. If the log names a station field your
+Location leaves empty, add it to the Location before signing that QSO. A state
+or county that LoTW has no field for in that DXCC entity is left out.
+VUCC grid lists must name the same set of grids on every QSO.
 There is no option to replace your Location with the log's station values.
 Already-signed QSOs are left out unless you select **Sign again**.
 

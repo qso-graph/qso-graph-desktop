@@ -60,6 +60,29 @@ export function suiteTimeout(name) {
   return SUITE_TIMEOUT_MS[name] ?? DEFAULT_SUITE_TIMEOUT_MS;
 }
 
+// The pinned reference data `make setup` fetches: ADIF's release and POTA's
+// lists. These suites read it. Without it some of their tests skipped and two
+// failed with errors that pointed nowhere near the cause, so a run that
+// selects one of them now stops first and says what to run.
+export const SUITES_READING_PINNED_DATA = ['unit', 'stations-storage', 'reference-build', 'reference-load', 'pota-load'];
+
+export function pinnedDataPaths(register) {
+  const adif = register.adif;
+  return [
+    `vendor/.cache/adif-${adif.version}.zip`,
+    `vendor/adif/${adif.version}/${adif.source.definitions}`,
+    'vendor/pota/parks.csv',
+    'vendor/pota/programs.json',
+    'vendor/pota/locations.json'
+  ];
+}
+
+// The pinned files missing for the suites named, or none when no named suite reads them.
+export function missingPinnedData(names, register, exists) {
+  if (!names.some(name => SUITES_READING_PINNED_DATA.includes(name))) return [];
+  return pinnedDataPaths(register).filter(path => !exists(path));
+}
+
 export function suiteCommands(npmCli) {
   return [
   ['spec-rvm', ['scripts/gen-rvm.mjs', '--check']],

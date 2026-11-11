@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { markdown, redact } from './report.mjs';
 import { blockedBy } from './suite-gate.mjs';
 import { artifactScan, sentinelsIn } from './artifact-scan.mjs';
-import { fastSuiteCommands, suiteCommands, suiteTimeout } from './suites.mjs';
+import { fastSuiteCommands, missingPinnedData, suiteCommands, suiteTimeout } from './suites.mjs';
 
 await mkdir('report', { recursive: true });
 let previous;
@@ -37,6 +38,13 @@ const fast = process.argv.includes('--fast') || named !== undefined;
 const commands = named
   ? suiteCommands(npmCli).filter(([name]) => named.includes(name))
   : fast ? fastSuiteCommands(npmCli) : suiteCommands(npmCli);
+const missing = missingPinnedData(commands.map(([name]) => name),
+  JSON.parse(await readFile('data/reference-sources.json', 'utf8')), existsSync);
+if (missing.length) {
+  console.error(`The pinned reference data is missing:\n${missing.map(path => `  ${path}`).join('\n')}\n`
+    + 'Run make setup once in this checkout; it fetches and verifies it.');
+  process.exit(2);
+}
 const suites = [];
 for (const [name, args] of commands) {
   // QGD-TST-0007: stop only the suites whose result depends on what failed.

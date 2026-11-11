@@ -21,7 +21,7 @@ const PLACE_FIELDS: &[&str] = &[
 ];
 // The Location fields signing reads (`StationLocation::from_adif`). The rest, such as
 // MY_POTA_REF or MY_ALTITUDE, TQSL cannot hold, so they are never a difference with it.
-const SIGNED_FIELDS: &[&str] = &[
+pub(crate) const SIGNED_FIELDS: &[&str] = &[
     "MY_GRIDSQUARE",
     "MY_VUCC_GRIDS",
     "MY_DXCC",

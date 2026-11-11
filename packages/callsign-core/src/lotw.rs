@@ -126,7 +126,7 @@ pub(crate) mod tests {
 
     pub(crate) fn corpus(name: &str) -> Vec<u8> {
         // Temporary local QG Trust patch: fixtures must follow the code under test.
-        // Remove with the patch when switching to v0.1.9 before commit.
+        // Remove with the patch when switching to v0.2.0 before commit.
         let manifest = include_str!("../Cargo.toml");
         if let Some(patch) = manifest
             .split("[patch.\"https://github.com/qso-graph/qso-graph-trust\"]")
