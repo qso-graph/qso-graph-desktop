@@ -13,8 +13,13 @@ companion_to: ../hdbk/QGD-HDBK-001.md
 
 # QGD-SPEC-001 — QSO Graph Desktop Specification
 
-> **This is the only normative document for QSO Graph Desktop.** It is what gets built and
-> audited against. `QGD-HDBK-001` carries the rationale and **cites these IDs by number; it
+> **This is the only normative document for QSO Graph Desktop's own behaviour.** Where Desktop
+> uses a QSO Graph library (QG Trust, QG Interop), that library's own specification and
+> documentation govern what the library does — what a signature or a station-program event is —
+> and this document governs what Desktop does with it: its policy, its interface and its
+> processes. This document cites a library's rules; it does not restate them.
+>
+> It is what gets built and audited against. `QGD-HDBK-001` carries the rationale and **cites these IDs by number; it
 > never restates them.** `QGD-RVM-001` is **generated** from the Verify column below —
 > hand edits to it fail `make verify`.
 >

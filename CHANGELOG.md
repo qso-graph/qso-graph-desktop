@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The specification governs Desktop's own behaviour; where Desktop uses a QSO Graph library (QG Trust, QG Interop), that library's specification governs what the library does, and Desktop's spec cites it rather than restating it.
+
 ## [0.7.0] - 2026-11-12
 
 ### Added
