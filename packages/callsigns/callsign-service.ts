@@ -219,7 +219,7 @@ const MESSAGES = [
   "The update feed's signature is not the release key's, so the feed was not used.",
   'The update feed has no signature that could be fetched, so it was not used.',
   'The update feed is older than one this copy has already seen, so it was not used.',
-  'The update feed could not be recorded.'
+  'The update feed could not be recorded.', 'The update feed record could not be read.'
 ];
 process.parentPort.on('message', (event: { data?: unknown }) => {
   // The envelope is checked before anything in it is used: the id has to be a

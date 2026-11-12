@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { beforeEach, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { transformSync } from 'esbuild';
 import type { NativeLotwLogPreview } from '../packages/callsign-core/native.js';
 const electron=vi.hoisted(()=>({windows:[] as any[],options:[] as any[],choose:vi.fn(),save:vi.fn(),confirm:vi.fn(),ipc:undefined as any,handlers:new Map<string,Function>()}));
 vi.mock('electron',async()=>{
@@ -12,6 +15,30 @@ vi.mock('electron',async()=>{
 import { lotwLogDialogs, logPreviewText, uploadConfirmation } from '../packages/main/lotw-log-dialogs.js';
 const cert={id:'cert:test',call:'QG0TEST',serial:'AB12',qsoFirst:'2020-01-01',qsoLast:'2099-12-31'};
 const p=():NativeLotwLogPreview=>({token:'test',qsos:3,first:'2026-01-01',last:'2026-11-01',calls:['QG0TEST'],refused:[{record:2,line:8,field:'MY_STATE',reason:'Disagrees with Location.'}],outsideDates:0,alreadySigned:1,toSign:1,signAgainCount:0,fields:{CALL:'QG0TEST',DXCC:'291',US_STATE:'ID'},certificates:[cert],certificate:cert});
+it('formats 100,010 refusals within five seconds with every group and source position intact',()=>{
+ // A child timeout can interrupt synchronous work; a test-runner timeout cannot.
+ const source=readFileSync('packages/main/lotw-log-dialogs.ts','utf8');
+ const begin=source.indexOf('const refusalLines =');
+ const end=source.indexOf('\nexport function logPreviewText',begin);
+ expect(begin).toBeGreaterThanOrEqual(0);expect(end).toBeGreaterThan(begin);
+ const worker=source.slice(begin,end)+`
+ const refused=Array.from({length:100010},(_,i)=>({record:i+1,line:i%2?i+10:null,field:i%2?'MY_STATE':'',reason:'Required field is missing.'}));
+ const started=performance.now();const lines=refusalLines(refused);
+ const expected=[...new Set(refused.map(r=>r.reason))].flatMap(reason=>{const group=refused.filter(r=>r.reason===reason);return ['', 'Refused ('+group.length+'): '+reason,...group.map(r=>'  '+(r.line===null?'Record '+r.record:'Line '+r.line)+(r.field?': '+r.field:''))];});
+ if(JSON.stringify(lines)!==JSON.stringify(expected))throw new Error('grouped refusal output changed');
+ console.log(JSON.stringify({count:refused.length,lines:lines.length,ms:Math.round(performance.now()-started)}));`;
+ const result=spawnSync(process.execPath,['--input-type=module','-e',transformSync(worker,{loader:'ts',format:'esm'}).code],{encoding:'utf8',timeout:5000});
+ expect(result.error).toBeUndefined();expect(result.status,result.stderr).toBe(0);
+ expect(JSON.parse(result.stdout)).toMatchObject({count:100010,lines:100012});
+});
+it('keeps first-seen group order, occurrence order and source labels',()=>{
+ const preview={...p(),refused:[
+  {record:1,line:null,field:'',reason:'First reason.'},
+  {record:2,line:8,field:'MY_STATE',reason:'Second reason.'},
+  {record:3,line:12,field:'MY_CNTY',reason:'First reason.'}
+ ]};
+ expect(logPreviewText(preview)).toContain('\nRefused (2): First reason.\n  Record 1\n  Line 12: MY_CNTY\n\nRefused (1): Second reason.\n  Line 8: MY_STATE\n');
+});
 const context={calls:[{call:'QG0TEST'},{call:'QG1TEST'}],activeCall:'QG0TEST',locations:[{id:'test-location',name:'Test Location',place:{MY_DXCC:'291'}}],activeLocation:'test-location'};
 beforeEach(()=>{electron.windows.length=0;electron.options.length=0;electron.handlers.clear();electron.ipc.removeAllListeners();vi.clearAllMocks();});
 it('shows every required signing choice and preview field in the main-owned confirmation',async()=>{
