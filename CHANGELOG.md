@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-12
+
 ### Changed
 
 - The handbook (`hdbk/QGD-HDBK-001.md`) is GPL-3.0-or-later like the rest of QSO Graph; it had carried CC-BY-4.0 over from the template it was started from. A change to the handbook alone is now documentation and builds nothing.
