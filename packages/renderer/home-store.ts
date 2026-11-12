@@ -178,7 +178,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
       if (noticePushes === askedNotice) notice = reply.state.notice;
       if (reachPushes === 0) reached = reply.state.reached;
       for (const page of reply.state.pages) {
-        if ((pushedAt.get(page.key) ?? 0) <= asked) views.set(page.key, page);
+        if (page.key === open && (pushedAt.get(page.key) ?? 0) <= asked) views.set(page.key, page);
       }
       error = undefined;
     } else {
@@ -198,7 +198,7 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
     start(): () => void {
       if (!api) return () => undefined;
       const stopPages = api.onPage(page => {
-        if (!isPageView(page)) return;
+        if (!isPageView(page) || page.key !== open) return;
         pushedAt.set(page.key, ++pushes);
         views.set(page.key, page);
         changed();
@@ -231,6 +231,9 @@ export function createHomeStore(api: HomeApi | undefined, initial?: { state: Hom
     openPage(key: string | null, inputs?: Readonly<Record<string, string>>): void {
       const next = key === open ? (inputs ?? values) : (inputs ?? {});
       if (open === key && JSON.stringify(next) === JSON.stringify(values)) return;
+      // A snapshot asked before this page was hidden cannot replace its view,
+      // even if it is opened again before that snapshot arrives.
+      if (open !== key && open !== null) pushedAt.set(open, ++pushes);
       open = key;
       values = next;
       changed();

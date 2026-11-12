@@ -3,8 +3,8 @@
 // imperative code and the Svelte components that draw it.
 //
 // Plain TypeScript rather than a rune, so `tsc -p tsconfig.renderer.json`
-// checks it and a test can drive it without a component tree. Shell.svelte is
-// the one subscriber; app.ts is the one writer.
+// checks it and a test can drive it without a component tree. Shell.svelte
+// draws it; navigation and app.ts both write through this store.
 import type { IntegrationsView } from '../main/integrations-page-contract.js';
 import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import type { UpdateState } from '../main/update-contract.js';
@@ -89,6 +89,11 @@ export interface ShellState {
   // The area's own Settings tab is showing, rather than the page
   // (an extension's settings are in its area).
   extensionSettings: boolean;
+  // Destination ids in display order, and most recently shown first.
+  tabs: readonly string[];
+  tabMru: readonly string[];
+  // An area's chosen inner page and Settings tab, kept for this session.
+  extensionTabs: Readonly<Record<string, { readonly page: string; readonly settings: boolean }>>;
   // The active callsign's call alone, which is all the status bar names: the
   // description is the operator's own label and read as a second callsign
   // there. Empty when there is none.
@@ -168,6 +173,9 @@ export const INITIAL_SHELL: ShellState = {
   page: 'home',
   extensionPage: null,
   extensionSettings: false,
+  tabs: ['home'],
+  tabMru: ['home'],
+  extensionTabs: {},
   activeCallsign: '',
   activeCallsignId: '',
   activeCallsignLabel: '',
@@ -196,6 +204,12 @@ export const INITIAL_SHELL: ShellState = {
 export interface ShellStore {
   get(): ShellState;
   set(change: Partial<ShellState>): void;
+  openExtension(key: string, area: string, settings?: boolean): void;
+  showTab(id: string): void;
+  closeTab(id: string): void;
+  closeOtherTabs(id: string): void;
+  closeAllTabs(): void;
+  reorderTab(id: string, target: string): void;
   // Entering and leaving guided setup, which the screens ask for rather than
   // reaching into the store for.
   beginSetup(): void;
@@ -205,22 +219,72 @@ export interface ShellStore {
   subscribe(listener: (state: ShellState) => void): () => void;
 }
 
+export function shownTab(state: ShellState): string {
+  if (state.page !== 'extension') return state.page;
+  return Object.keys(state.extensionTabs).find(id => state.extensionTabs[id]?.page === state.extensionPage)
+    ?? `ext:${state.extensionPage}`;
+}
+
 export function createShellStore(initial: ShellState = INITIAL_SHELL): ShellStore {
   let state: ShellState = { ...initial };
   const listeners = new Set<(state: ShellState) => void>();
+  function publish(next: ShellState): void {
+    // Nothing is published when nothing moved, so re-reporting the same
+    // active callsign on every list refresh does not redraw the shell.
+    if ((Object.keys(next) as (keyof ShellState)[]).every(key => state[key] === next[key])) return;
+    state = next;
+    // A copy, so a listener that unsubscribes while being notified does not
+    // change the set being iterated.
+    for (const listener of [...listeners]) listener(state);
+  }
+  function choose(change: Partial<ShellState>, destination?: string): void {
+    const next = { ...state, ...change };
+    if (next.page !== 'extension') { next.extensionPage = null; next.extensionSettings = false; }
+    const id = destination ?? shownTab(next);
+    if (next.page === 'extension' && next.extensionPage !== null) {
+      const previous = state.extensionTabs[id];
+      if (previous?.page !== next.extensionPage || previous?.settings !== next.extensionSettings) {
+        next.extensionTabs = { ...state.extensionTabs, [id]: { page: next.extensionPage, settings: next.extensionSettings } };
+      }
+    }
+    if (!next.tabs.includes(id)) next.tabs = [...next.tabs, id];
+    if (next.tabMru[0] !== id) next.tabMru = [id, ...next.tabMru.filter(tab => tab !== id)];
+    publish(next);
+  }
+  function selection(id: string): Partial<ShellState> {
+    if (isPageId(id)) return { page: id, extensionPage: null, extensionSettings: false };
+    const saved = state.extensionTabs[id];
+    return { page: 'extension', extensionPage: saved.page, extensionSettings: saved.settings };
+  }
+  function close(remaining: readonly string[]): void {
+    const tabs = remaining.length > 0 ? remaining : ['home'];
+    const recent = state.tabMru.filter(id => tabs.includes(id));
+    const id = tabs.includes(shownTab(state)) ? shownTab(state) : recent[0] ?? tabs[0];
+    choose({ ...selection(id), tabs, tabMru: recent });
+  }
+  choose({});
   return {
     get: () => state,
     beginSetup() { this.set({ setup: true }); },
     endSetup() { this.set({ setup: false }); },
+    openExtension(key, area, settings = false) {
+      choose({ page: 'extension', extensionPage: key, extensionSettings: settings }, `ext:${area}`);
+    },
+    showTab(id) { if (state.tabs.includes(id)) choose(selection(id)); },
+    closeTab(id) { if (state.tabs.includes(id)) close(state.tabs.filter(tab => tab !== id)); },
+    closeOtherTabs(id) { if (state.tabs.includes(id)) close([id]); },
+    closeAllTabs() { close([]); },
+    reorderTab(id, target) {
+      const from = state.tabs.indexOf(id);
+      const to = state.tabs.indexOf(target);
+      if (from < 0 || to < 0 || from === to) return;
+      const tabs = [...state.tabs];
+      tabs.splice(from, 1);
+      tabs.splice(to, 0, id);
+      publish({ ...state, tabs });
+    },
     set(change) {
-      const next: ShellState = { ...state, ...change };
-      // Nothing is published when nothing moved, so re-reporting the same
-      // active callsign on every list refresh does not redraw the shell.
-      if ((Object.keys(change) as (keyof ShellState)[]).every(key => state[key] === next[key])) return;
-      state = next;
-      // A copy, so a listener that unsubscribes while being notified does not
-      // change the set being iterated.
-      for (const listener of [...listeners]) listener(state);
+      choose(change);
     },
     subscribe(listener) {
       listeners.add(listener);

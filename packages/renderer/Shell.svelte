@@ -12,6 +12,7 @@
   import type { AreaProgram } from '../storage/area-entry.js';
   import { untrack } from 'svelte';
   import Rail from '../ui/Rail.svelte';
+  import DestinationTabs from '../ui/DestinationTabs.svelte';
   import StatusBar from '../ui/StatusBar.svelte';
   import HeaderClock from '../ui/HeaderClock.svelte';
   import HomePage from './pages/HomePage.svelte';
@@ -26,7 +27,7 @@
   import { MAX_AREA } from '../main/settings-contract.js';
   import WhatsNewPanel from './pages/WhatsNewPanel.svelte';
   import SetupPage from './pages/SetupPage.svelte';
-  import { PAGES, isPageId, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
+  import { PAGES, isPageId, shownTab, visiblePages, type ShellState, type ShellStore } from './shell-store.js';
   import type { HomeModel, HomeStore } from './home-store.js';
   import type { LinkCommand } from '../main/links-contract.js';
   import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
@@ -139,11 +140,6 @@
     if (isPageId(id)) store.set({ page: id, extensionPage: null });
     else if (id.startsWith('ext:')) openPage(id.slice(4));
   }
-  // The tab last open in each area, for the session: a pin or rail item opens
-  // its area where the operator left it.
-  // Read only when a pin or rail item is pressed, so it need not be reactive.
-  const lastTab: Record<string, string> = {};
-  $effect(() => { const page = homeModel.page; if (page) lastTab[page.area] = page.key; });
   // From a pin or the rail: the area, on its last tab, or else its first
   // tab in the manifest's order (Parks On the Air opens
   // on Near Me). From a tab: that page.
@@ -151,13 +147,14 @@
     const page = homeModel.available.find(entry => entry.key === key);
     if (!page) return;
     const inArea = homeModel.available.filter(entry => entry.area === page.area);
-    const last = Object.hasOwn(lastTab, page.area) ? lastTab[page.area] : undefined;
+    const last = store.get().extensionTabs[`ext:${page.area}`]?.page;
     const first = inArea[0]?.key ?? key;
     const to = page.key !== page.area ? key : last && inArea.some(entry => entry.key === last) ? last : first;
-    store.set({ page: 'extension', extensionPage: to, extensionSettings: false });
+    store.openExtension(to, page.area);
   }
   function openTab(key: string): void {
-    if (homeModel.available.some(page => page.key === key)) store.set({ page: 'extension', extensionPage: key, extensionSettings: false });
+    const page = homeModel.available.find(page => page.key === key);
+    if (page) store.openExtension(key, page.area);
   }
   // The extension whose area is open, for its Settings tab.
   const openArea = $derived(homeModel.page?.area.split('/')[0]);
@@ -172,6 +169,11 @@
   });
   const railCurrent = $derived(shell.page === 'extension' ? `ext:${homeModel.page?.area ?? shell.extensionPage}` : shell.page);
   const openExtension = $derived(homeModel.available.find(page => page.key === shell.extensionPage));
+  const destinationTabs = $derived(shell.tabs.map(id => {
+    const core = PAGES.find(page => page.id === id);
+    const area = homeModel.available.find(page => `ext:${page.key}` === id);
+    return { id, label: core?.label ?? area?.name ?? 'Extension', icon: core?.icon ?? area?.icon };
+  }));
 
   // The active station's name, for the status bar (QGD-STN-0005).
   const activeStation = $derived.by(() => {
@@ -197,6 +199,11 @@
 </header>
 <div class="workspace">
   <Rail pages={railPages} current={railCurrent} onNavigate={navigate} />
+  <div class="destinations">
+    <DestinationTabs tabs={destinationTabs} current={shownTab(shell)}
+      onShow={id => store.showTab(id)} onClose={id => store.closeTab(id)}
+      onCloseOthers={id => store.closeOtherTabs(id)} onCloseAll={() => store.closeAllTabs()}
+      onReorder={(id, target) => store.reorderTab(id, target)} />
   <main>
     <div class="page" hidden={shell.page !== 'home'}>
       <HomePage
@@ -306,6 +313,7 @@
         {onListVersions} {onInstallVersion} />
     </div>
   </main>
+  </div>
 </div>
 <!-- An extension's own settings, on its area's Settings tab
      (Settings is the application's; an extension's settings are

@@ -972,7 +972,10 @@ window.menu?.onSetup?.(action => {
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   // The Focus Area is Parks On the Air's own setting, on its area's
   // Settings tab.
-  else if (action === 'area') shell.set({ page: 'extension', extensionPage: 'pota/parks', extensionSettings: true });
+  else if (action === 'area') {
+    const page = home.get().available.find(page => page.key === 'pota/parks');
+    if (page) shell.openExtension(page.key, page.area, true);
+  }
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
   // Tools: Settings' Back up and restore, at the button
