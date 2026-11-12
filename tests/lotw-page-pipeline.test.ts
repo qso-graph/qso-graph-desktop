@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MessageChannel, type MessagePort } from 'node:worker_threads';
 import { describe, expect, it, vi } from 'vitest';
-import { activate } from '../extensions/lotw/src/main.js';
+import { activate, unreadable } from '../extensions/lotw/src/main.js';
 import { validateGrantRegister } from '../packages/extension-api/grants.js';
 import { pageRowKeys } from '../packages/extension-api/actions.js';
 import { createHostRuntime } from '../packages/extension-host/runtime.js';
@@ -177,6 +177,16 @@ describe('a LoTW row press through the real extension channel', () => {
       expect(await h.actions.press('lotw/certificates', event)).toMatchObject({ ok: true, status: expect.stringContaining('refused') });
       expect(h.dialogs.confirm).toHaveBeenCalledTimes(1);
     } finally { h.stop(); }
+  });
+});
+
+describe('LoTW pages that cannot be read (#200)', () => {
+  it('names the grants only when a grant refused the request', () => {
+    expect(unreadable('Trusted roots', { ok: false, error: 'Not granted.', refused: 'lotw:read' }))
+      .toBe('Trusted roots could not be read. Check the LoTW grants in Settings and try again.');
+    for (const reply of [{ ok: false, error: 'LoTW trusted roots could not be read.' }, { ok: true, kind: 'lotw.roots', roots: [{}] }, undefined]) {
+      expect(unreadable('Trusted roots', reply)).toBe('Trusted roots could not be read. Try again; if it keeps happening, check the output.');
+    }
   });
 });
 
