@@ -28,6 +28,11 @@ describe('a documentation-only change (#95)', () => {
     expect(documentationOnly(['spec/QGD-SPEC-001.md', 'rvm/QGD-RVM-001.md'])).toBe(true);
   });
 
+  it('is the handbook, which ships no more than the spec does', () => {
+    expect(documentationOnly(['hdbk/QGD-HDBK-001.md'])).toBe(true);
+    expect(documentationOnly(['hdbk/QGD-HDBK-001.md', 'packages/main/main.ts'])).toBe(false);
+  });
+
   it('is not the CHANGELOG, which ships as What\'s New', () => {
     expect(documentationOnly(['CHANGELOG.md'])).toBe(false);
     expect(documentationOnly(['spec/QGD-SPEC-001.md', 'CHANGELOG.md'])).toBe(false);
@@ -43,5 +48,6 @@ describe('a documentation-only change (#95)', () => {
   it('is not a spec-looking path anywhere else', () => {
     expect(documentationOnly(['packages/spec/index.ts'])).toBe(false);
     expect(documentationOnly(['spec'])).toBe(false);
+    expect(documentationOnly(['packages/hdbk/index.ts'])).toBe(false);
   });
 });

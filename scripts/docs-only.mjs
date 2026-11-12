@@ -4,8 +4,9 @@
 // input, a renamed file by its old name as well as its new one (moving code
 // into docs/ is not documentation; found in review, #92). Prints true or false.
 //
-// The spec and the RVM generated from it are documentation: the application
-// does not ship them, and the citations job checks both. No files at all is not
+// The spec, its handbook and the RVM generated from it are documentation: the
+// application does not ship them (package-contents.mjs), and the citations job
+// checks the spec and the RVM. No files at all is not
 // documentation only: a run that could not read them builds everything.
 //
 // CHANGELOG.md ships as What's New, so it counts only when asked for
@@ -16,7 +17,7 @@
 // changed after it.
 import { readFileSync } from 'node:fs';
 
-const DOCUMENTATION = /^(README\.md|CONTRIBUTING\.md|SECURITY\.md|PRIVACY\.md|AGENTS\.md|CLAUDE\.md|\.github\/pull_request_template\.md|guide\/.+|docs\/.+|spec\/.+|rvm\/.+)$/;
+const DOCUMENTATION = /^(README\.md|CONTRIBUTING\.md|SECURITY\.md|PRIVACY\.md|AGENTS\.md|CLAUDE\.md|\.github\/pull_request_template\.md|guide\/.+|docs\/.+|spec\/.+|hdbk\/.+|rvm\/.+)$/;
 
 export function documentationOnly(files, { changelog = false } = {}) {
   const names = files.map(name => name.trim()).filter(Boolean);

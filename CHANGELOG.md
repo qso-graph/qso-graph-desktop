@@ -9,6 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The handbook (`hdbk/QGD-HDBK-001.md`) is GPL-3.0-or-later like the rest of QSO Graph; it had carried CC-BY-4.0 over from the template it was started from. A change to the handbook alone is now documentation and builds nothing.
 - The specification governs Desktop's own behaviour; where Desktop uses a QSO Graph library (QG Trust, QG Interop), that library's specification governs what the library does, and Desktop's spec cites it rather than restating it.
 
 ## [0.7.0] - 2026-11-12
