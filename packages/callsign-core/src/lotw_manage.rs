@@ -9,7 +9,7 @@ use qso_graph_trust::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::{io::Read, path::Path};
+use std::path::Path;
 use zeroize::Zeroizing;
 
 #[derive(Deserialize)]
@@ -212,17 +212,10 @@ impl Manager {
                 } else {
                     qso_graph_trust::import::MAX_IMPORT_LEN
                 };
-                let mut bytes = Zeroizing::new(Vec::new());
-                let file = std::fs::File::open(path).map_err(|_| REFUSED)?;
-                if !file.metadata().map_err(|_| REFUSED)?.is_file() {
-                    return Err(REFUSED);
-                }
-                file.take(limit as u64 + 1)
-                    .read_to_end(&mut bytes)
-                    .map_err(|_| REFUSED)?;
-                if bytes.len() > limit {
-                    return Err(REFUSED);
-                }
+                let bytes = Zeroizing::new(
+                    qso_graph_trust::files::read_regular_file(Path::new(&path), limit)
+                        .map_err(|_| REFUSED)?,
+                );
                 let (store, _) = Store::open(dir, backend).map_err(|_| REFUSED)?;
                 let plan = match extension.as_str() {
                     "tq6" => Plan::Import(Box::new(
@@ -822,5 +815,37 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn review_fifo_import_reader() {
+        for (extension, format) in [
+            ("tq6", "certificate"),
+            ("p12", "certificate"),
+            ("tbk", "backup"),
+        ] {
+            crate::file_tests::rejects_special_files(
+                "lotw_manage::tests::review_fifo_import_reader",
+                extension,
+                |path| {
+                    let dir = tempfile::tempdir().unwrap();
+                    let result = Manager::default().run(
+                        Command::Inspect {
+                            path: path.to_str().unwrap().into(),
+                            format: format.into(),
+                        },
+                        dir.path(),
+                        KeyBackend::Memory,
+                        &Trust::lotw(),
+                    );
+                    if path.is_file() && path.extension().unwrap() == "p12" {
+                        assert!(result.is_ok(), "regular p12 reaches the password prompt");
+                    } else {
+                        assert!(result.is_err());
+                    }
+                },
+            );
+        }
     }
 }

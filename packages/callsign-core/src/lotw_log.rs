@@ -11,7 +11,11 @@ use qso_graph_trust::{
     upload::{self, UploadOutcome, UploadRequest},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, io::Read, path::Path, time::SystemTime};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+    time::SystemTime,
+};
 use zeroize::Zeroizing;
 const REFUSED: &str =
     "The log could not be prepared or signed. Inspect it again. No upload was made.";
@@ -117,18 +121,9 @@ fn read(path: &Path, extensions: &[&str]) -> crate::CoreResult<Zeroizing<Vec<u8>
     {
         return Err(REFUSED);
     }
-    let file = std::fs::File::open(path).map_err(|_| REFUSED)?;
-    if !file.metadata().map_err(|_| REFUSED)?.is_file() {
-        return Err(REFUSED);
-    }
-    let mut bytes = Zeroizing::new(Vec::new());
-    file.take(LIMIT as u64 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| REFUSED)?;
-    if bytes.len() > LIMIT {
-        return Err(REFUSED);
-    }
-    Ok(bytes)
+    qso_graph_trust::files::read_regular_file(path, LIMIT)
+        .map(Zeroizing::new)
+        .map_err(|_| REFUSED)
 }
 fn empty(token: &str) -> Preview {
     Preview {
@@ -191,6 +186,8 @@ fn station_refusal(
     place: &BTreeMap<String, String>,
 ) -> Refusal {
     let field = error.adif_field().unwrap_or("");
+    // QG Trust classifies invalid values as Location, even when the selected field is empty.
+    // Only its QsoFromAnotherStation kind can use the missing-field display hint below.
     // Empty means the selected Location has no ADIF value for the field the QSO names; Desktop
     // asks its own Location, so no LoTW field names are needed here.
     let empty = match field {
@@ -333,13 +330,14 @@ impl Manager {
                 let token = crate::new_callsign_id()?;
                 let mut preview = empty(&token);
                 preview.qsos = records.len();
+                let mut seen_calls = BTreeSet::new();
                 for (index, r) in records.iter().enumerate() {
                     match Qso::from_adif_with_options(r, &options()) {
                         Ok(q) => {
                             range(&mut preview, &q);
                             for (field, value) in q.station() {
                                 if field == "STATION_CALLSIGN"
-                                    && !preview.calls.iter().any(|c| c == value)
+                                    && seen_calls.insert(value.to_owned())
                                 {
                                     preview.calls.push(value.into());
                                 }
@@ -1523,5 +1521,177 @@ mod tests {
             value[extra] = serde_json::json!("Ignore");
             assert!(serde_json::from_value::<Selection>(value).is_err());
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn review_fifo_log_reader() {
+        crate::file_tests::rejects_special_files(
+            "lotw_log::tests::review_fifo_log_reader",
+            "adi",
+            |path| {
+                let dir = tempfile::tempdir().unwrap();
+                assert!(
+                    Manager::default()
+                        .run(
+                            Command::LogPrepare {
+                                path: path.to_str().unwrap().into()
+                            },
+                            dir.path(),
+                            KeyBackend::Memory,
+                            &mut |_| panic!("NO NETWORK")
+                        )
+                        .is_err()
+                );
+            },
+        );
+    }
+    #[cfg(unix)]
+    #[test]
+    fn review_fifo_upload_reader() {
+        crate::file_tests::rejects_special_files(
+            "lotw_log::tests::review_fifo_upload_reader",
+            "tq8",
+            |path| {
+                let dir = tempfile::tempdir().unwrap();
+                assert!(
+                    Manager::default()
+                        .run(
+                            Command::UploadInspect {
+                                path: path.to_str().unwrap().into()
+                            },
+                            dir.path(),
+                            KeyBackend::Memory,
+                            &mut |_| panic!("NO NETWORK")
+                        )
+                        .is_err()
+                );
+            },
+        );
+    }
+    #[test]
+    fn review_invalid_value_guidance() {
+        for (state, reason) in [
+            ("ZZ", "Value is not accepted by LoTW."),
+            (
+                "ID",
+                "The Location has no value for MY_STATE. Add it to the Location before signing this QSO.",
+            ),
+        ] {
+            let (dir, mut m, token) =
+                fixture_log(adif("20261101", &format!("<MY_STATE:2>{state}")).as_bytes());
+            let mut selected = selection();
+            selected.place.remove("MY_STATE");
+            let p = run(
+                &mut m,
+                Command::LogPreview {
+                    token: token.clone(),
+                    selection: selected.clone(),
+                },
+                dir.path(),
+            );
+            assert_eq!(p["toSign"], 0);
+            assert_eq!(p["refused"][0]["field"], "MY_STATE");
+            assert_eq!(p["refused"][0]["reason"], reason);
+            selected.place.insert("MY_STATE".into(), "ZZ".into());
+            assert!(
+                m.run(
+                    Command::LogPreview {
+                        token,
+                        selection: selected
+                    },
+                    dir.path(),
+                    KeyBackend::Memory,
+                    &mut |_| panic!("NO NETWORK")
+                )
+                .is_err()
+            );
+        }
+    }
+    #[test]
+    fn review_maximum_refusal_preview() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("qg-test-refusals.adi");
+        std::fs::write(
+            &path,
+            "<QSO_DATE:8>20261101<eor>".repeat(records::MAX_RECORDS),
+        )
+        .unwrap();
+        let p = run(
+            &mut Manager::default(),
+            Command::LogPrepare {
+                path: path.to_str().unwrap().into(),
+            },
+            dir.path(),
+        );
+        let refusals = p["refused"].as_array().unwrap();
+        assert_eq!(refusals.len(), 100_010);
+        for (i, refusal) in refusals.iter().enumerate() {
+            assert_eq!(refusal["record"], i + 1);
+            assert_eq!(refusal["field"], "CALL");
+            assert_eq!(refusal["reason"], "Required field is missing.");
+        }
+    }
+    #[test]
+    fn station_calls_are_distinct_in_first_seen_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("qg-test-repeated-calls.adi");
+        let log: String = ["QG1TEST", "QG0TEST", "QG1TEST"]
+            .iter()
+            .map(|call| adif("20261101", &format!("<STATION_CALLSIGN:7>{call}")))
+            .collect();
+        std::fs::write(&path, log).unwrap();
+        let p = run(
+            &mut Manager::default(),
+            Command::LogPrepare {
+                path: path.to_str().unwrap().into(),
+            },
+            dir.path(),
+        );
+        assert_eq!(p["calls"], serde_json::json!(["QG1TEST", "QG0TEST"]));
+    }
+    #[test]
+    fn review_maximum_distinct_station_calls() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("qg-test-distinct-calls.adi");
+        let calls: Vec<_> = (0..records::MAX_RECORDS)
+            .rev()
+            .map(|i| format!("QG{i:06}"))
+            .collect();
+        let mut log: String = calls
+            .iter()
+            .map(|call| {
+                adif(
+                    "20261101",
+                    &format!("<STATION_CALLSIGN:{}>{call}", call.len()),
+                )
+            })
+            .collect();
+        assert!(log.len() < LIMIT);
+        log.extend(std::iter::repeat_n(' ', LIMIT - log.len()));
+        assert_eq!(log.len(), LIMIT);
+        std::fs::write(&path, &log).unwrap();
+        let started = std::time::Instant::now();
+        let p = run(
+            &mut Manager::default(),
+            Command::LogPrepare {
+                path: path.to_str().unwrap().into(),
+            },
+            dir.path(),
+        );
+        let elapsed = started.elapsed();
+        eprintln!(
+            "distinct station calls: {} records, {} bytes, {:.3}s",
+            calls.len(),
+            log.len(),
+            elapsed.as_secs_f64()
+        );
+        assert_eq!(p["qsos"], records::MAX_RECORDS);
+        assert_eq!(p["refused"], serde_json::json!([]));
+        assert_eq!(p["calls"], serde_json::json!(calls));
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "maximum distinct station calls took {elapsed:?}"
+        );
     }
 }

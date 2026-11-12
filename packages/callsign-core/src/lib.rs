@@ -21,6 +21,9 @@ mod lotw_manage;
 #[cfg(feature = "addon")]
 mod tqsl_sync;
 
+#[cfg(all(test, unix))]
+mod file_tests;
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -303,6 +306,12 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> CoreResult<()> {
     result
 }
 
+// Profile text uses the same ceiling as the profile's JSON files. Preserve UTF-8 errors.
+fn read_profile_text(path: &Path) -> std::io::Result<String> {
+    let bytes = qso_graph_trust::files::read_regular_file(path, 4_000_000)?;
+    String::from_utf8(bytes).map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidData))
+}
+
 struct Store {
     directory: PathBuf,
 }
@@ -323,8 +332,8 @@ impl Store {
     }
     fn load(&self) -> CoreResult<Index> {
         let path = self.directory.join("callsigns.json");
-        match fs::read(path) {
-            Ok(bytes) if bytes.len() <= 4_000_000 => {
+        match qso_graph_trust::files::read_regular_file(&path, 4_000_000) {
+            Ok(bytes) => {
                 let index: Index = serde_json::from_slice(&bytes).map_err(
                     |_| "The list of callsigns could not be read. It has not been changed.",
                 )?;
@@ -368,7 +377,9 @@ impl Store {
                 }
                 Ok(index)
             }
-            Ok(_) => Err("The list of callsigns is larger than this version supports."),
+            Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
+                Err("The list of callsigns is larger than this version supports.")
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Index::default()),
             Err(_) => Err("The list of callsigns could not be read. It has not been changed."),
         }
@@ -633,7 +644,10 @@ impl Store {
         result
     }
     fn preferences(&self) -> CoreResult<Preferences> {
-        match fs::read(self.directory.join("desktop-preferences.json")) {
+        match qso_graph_trust::files::read_regular_file(
+            &self.directory.join("desktop-preferences.json"),
+            4_000_000,
+        ) {
             Ok(bytes) if bytes.len() <= 4_000_000 => serde_json::from_slice(&bytes)
                 .map_err(|_| "Credential preferences could not be read."),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Preferences::default()),
@@ -845,7 +859,7 @@ impl Store {
     // The active callsign's id, or none. A file naming one that is gone reads
     // as none.
     fn active_id(&self) -> CoreResult<Option<String>> {
-        match fs::read_to_string(self.directory.join("current.txt")) {
+        match read_profile_text(&self.directory.join("current.txt")) {
             Ok(id) => Ok(self.lookup(id.trim()).ok().map(|c| c.id)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(_) => Err("The active callsign could not be read."),
@@ -949,7 +963,7 @@ impl Store {
             providers.insert(provider.into());
         }
         let current_path = self.directory.join("current.txt");
-        let current = match fs::read_to_string(&current_path) {
+        let current = match read_profile_text(&current_path) {
             Ok(value) => Some(value),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(_) => return Err("The active callsign could not be read."),
@@ -2015,5 +2029,74 @@ mod tests {
         assert!(store.lookup(&portable).is_err());
         assert!(store.lookup(&home).is_ok());
         assert!(!temp.path().join("current.txt").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn review_fifo_profile_readers() {
+        for name in ["callsigns.json", "desktop-preferences.json", "current.txt"] {
+            crate::file_tests::rejects_special_files(
+                "tests::review_fifo_profile_readers",
+                "json",
+                |path| {
+                    let dir = tempfile::tempdir().unwrap();
+                    std::os::unix::fs::symlink(path, dir.path().join(name)).unwrap();
+                    let store = Store::new(dir.path().into()).unwrap();
+                    match name {
+                        "callsigns.json" => assert!(store.load().is_err()),
+                        "desktop-preferences.json" => assert!(store.preferences().is_err()),
+                        _ => {
+                            if !path.is_file() {
+                                assert!(store.active_id().is_err());
+                            } else {
+                                store.active_id().unwrap();
+                            }
+                        }
+                    }
+                },
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn review_fifo_remove_selection_reader() {
+        crate::file_tests::rejects_special_files(
+            "tests::review_fifo_remove_selection_reader",
+            "txt",
+            |path| {
+                let dir = tempfile::tempdir().unwrap();
+                let store = Store::new(dir.path().into()).unwrap();
+                let id = store
+                    .create("QG0TEST", "qg-test-reader", None, None)
+                    .unwrap()
+                    .id;
+                std::os::unix::fs::symlink(path, dir.path().join("current.txt")).unwrap();
+                let regular = path.is_file();
+                let result = store.remove_callsign_using(&id, |_, _| {
+                    assert!(
+                        regular,
+                        "special files must be refused before deleting credentials"
+                    );
+                    Ok(false)
+                });
+                assert_eq!(result.is_ok(), regular);
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reader_watchdog_refuses_an_empty_test_selection() {
+        assert!(
+            std::panic::catch_unwind(|| {
+                crate::file_tests::rejects_special_files(
+                    "qg_test_missing_reader_probe",
+                    "txt",
+                    |_| unreachable!(),
+                );
+            })
+            .is_err()
+        );
     }
 }

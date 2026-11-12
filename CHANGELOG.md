@@ -19,6 +19,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Updated QG Trust to 0.2.1. An ADX log is recognised after comments without an XML declaration, a county whose state prefix disagrees with the Location is refused, and a Location created from ADIF refuses contradictory repeated station fields, naming the field to correct.
+
+- Opening a log, signed log, certificate or backup no longer hangs on a named pipe. Large logs with many refusals or distinct station callsigns prepare and display promptly. Invalid station values are identified as invalid instead of asking you to add them to a Location.
+
 - LoTW signatures carry exactly the Location shown in the confirmation. A QSO naming a station field the Location leaves empty is refused, and VUCC grid lists must agree on every QSO. Invalid station values refuse that QSO with its field and line or record number instead of stopping the preview. Location details such as POTA, SOTA and WWFF references, altitude and ARRL section no longer prevent signing. Subdivisions without a LoTW field for that entity are left out. Ordinary log fields such as `MY_RIG` and `MY_ANTENNA` do not cause station refusals, and QSOs outside the selected dates are counted separately.
 
 - An extension turned on in Settings is on the rail at once; it used to appear only after a visit to Home.

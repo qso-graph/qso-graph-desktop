@@ -17,7 +17,12 @@ const refusalLines = (refused: NativeLotwLogPreview['refused']) => {
   const groups = new Map<string, string[]>();
   for (const r of refused) {
     const where = `${r.line === null ? `Record ${r.record}` : `Line ${r.line}`}${r.field ? `: ${r.field}` : ''}`;
-    groups.set(r.reason, [...(groups.get(r.reason) ?? []), where]);
+    let lines = groups.get(r.reason);
+    if (!lines) {
+      lines = [];
+      groups.set(r.reason, lines);
+    }
+    lines.push(where);
   }
   return [...groups].flatMap(([reason, lines]) => ['', `Refused (${lines.length}): ${reason}`, ...lines.map(l => `  ${l}`)]);
 };

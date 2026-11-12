@@ -159,9 +159,11 @@ pub(crate) const FEED_SEEN: &str = "feed-signed.txt";
 
 pub(crate) fn accept_signed_at(directory: &Path, signed: i64) -> CoreResult<()> {
     let path = directory.join(FEED_SEEN);
-    let seen = fs::read_to_string(&path)
-        .ok()
-        .and_then(|text| text.trim().parse::<i64>().ok());
+    let seen = match crate::read_profile_text(&path) {
+        Ok(text) => text.trim().parse::<i64>().ok(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => return Err("The update feed record could not be read."),
+    };
     if seen.is_some_and(|seen| signed < seen) {
         return Err(
             "The update feed is older than one this copy has already seen, so it was not used.",
@@ -403,6 +405,25 @@ mod tests {
                 "qso-graph-desktop-0.1.1-win-x64.exe"
             )
             .is_err()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn review_fifo_feed_record_reader() {
+        crate::file_tests::rejects_special_files(
+            "updates::tests::review_fifo_feed_record_reader",
+            "txt",
+            |path| {
+                let dir = tempfile::tempdir().unwrap();
+                std::os::unix::fs::symlink(path, dir.path().join(FEED_SEEN)).unwrap();
+                let result = accept_signed_at(dir.path(), 1_800_000_000);
+                if path.is_file() {
+                    assert!(result.is_ok());
+                } else {
+                    assert!(result.is_err());
+                }
+            },
         );
     }
 }

@@ -624,7 +624,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1534,8 +1534,8 @@ dependencies = [
 
 [[package]]
 name = "qso-graph-trust"
-version = "0.2.0"
-source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.2.0#05013e40cb96c5abc8f38863c765a2eba28a55d8"
+version = "0.2.1"
+source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.2.1#4ee8c3ba20d3f55d592b3e23e0d690ce90556892"
 dependencies = [
  "base64ct",
  "keyring",
@@ -1551,8 +1551,8 @@ dependencies = [
 
 [[package]]
 name = "qso-graph-trust-awslc"
-version = "0.2.0"
-source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.2.0#05013e40cb96c5abc8f38863c765a2eba28a55d8"
+version = "0.2.1"
+source = "git+https://github.com/qso-graph/qso-graph-trust?tag=v0.2.1#4ee8c3ba20d3f55d592b3e23e0d690ce90556892"
 dependencies = [
  "aws-lc-rs",
  "aws-lc-sys",
@@ -1680,7 +1680,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1993,7 +1993,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
