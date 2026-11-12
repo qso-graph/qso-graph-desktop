@@ -67,8 +67,8 @@
   }
 </script>
 
-<div class="destination-bar">
-  <div class="destination-tabs" role="tablist" aria-label="Open destinations" bind:this={list}>
+<div class="destination-bar" role="region" aria-label="Open destinations">
+  <div class="destination-tabs" role="tablist" aria-label="Open tabs" bind:this={list}>
     {#each tabs as tab (tab.id)}
       {@const glyph = tab.icon ? ICONS[tab.icon] ?? ICONS.extension : undefined}
       <div class="destination-item" role="presentation" data-selected={tab.id === current}>
@@ -81,8 +81,11 @@
           {#if glyph}<svg viewBox={glyph.viewBox} aria-hidden="true" fill="currentColor"><path d={glyph.path} /></svg>{/if}
           <span>{tab.label}</span>
         </button>
-        <button type="button" class="destination-close" tabindex="-1"
-          aria-label="Close {tab.label}" title="Close {tab.label}" onclick={() => close(() => onClose(tab.id))}>×</button>
+        <!-- The pointer's way to close. A tab list holds only tabs, so this is
+          hidden from assistive technology; the keyboard closes with Ctrl+W (⌘W)
+          or the Tabs menu (QGD-FRM-0028). -->
+        <button type="button" class="destination-close" tabindex="-1" aria-hidden="true"
+          title="Close {tab.label}" onclick={() => close(() => onClose(tab.id))}>×</button>
       </div>
     {/each}
   </div>

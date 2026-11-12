@@ -252,6 +252,8 @@ try {
   // loaded from Settings, as an operator does, from the archive put in the
   // cache before launch.
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Settings', exact: true }).click();
+  // Reference data is on Settings' Data sources tab (QGD-FRM-0029).
+  await page.getByRole('tab', { name: 'Data sources', exact: true }).click();
   await page.getByRole('button', { name: 'Download ADIF definitions' }).click();
   await page.locator('#open-troubleshooting').click();
   await expect(page.locator('#troubleshooting')).toBeVisible();

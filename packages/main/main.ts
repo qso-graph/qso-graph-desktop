@@ -587,7 +587,6 @@ if (!app.requestSingleInstanceLock()) {
         ] }
         : { label: 'File', submenu: [{ role: 'quit', label: 'Exit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
-      tabMenu(process.platform, sendTabAction),
       // View: larger or smaller, within limits
       // (window-zoom.ts), and full screen. Ctrl or ⌘ with = or + zooms in;
       // the + of a US keyboard needs Shift, which the hidden item catches.
@@ -597,7 +596,10 @@ if (!app.requestSingleInstanceLock()) {
         { id: 'zoom-out', label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: () => zoomWindow(-1) },
         { id: 'zoom-reset', label: 'Actual Size', accelerator: 'CmdOrCtrl+0', click: () => zoomWindow(0) },
         { type: 'separator' },
-        { role: 'togglefullscreen' }
+        { role: 'togglefullscreen' },
+        // The tabs' keys live in View, not a menu of their own (QGD-FRM-0028).
+        { type: 'separator' },
+        ...(tabMenu(process.platform, sendTabAction).submenu as Electron.MenuItemConstructorOptions[])
       ] },
       // Setup: everything Home's welcome offers, from the
       // menu as well. The window does each; this only says which, by a name
