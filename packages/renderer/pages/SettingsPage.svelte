@@ -43,6 +43,8 @@
   held (QGD-HOM-0007). Grants are not shown here (QGD-APP-0012.1).
 -->
 <script lang="ts">
+  import { focusShownTab } from '../../ui/tab-focus.js';
+  import { SETTINGS_TABS, type SettingsTab } from '../../main/settings-contract.js';
   import { versionName } from '../../ui/release.js';
   import { FONT_AWESOME_CREDIT } from '../../main/attribution.js';
   import MoveCallsignsPage from './MoveCallsignsPage.svelte';
@@ -65,6 +67,8 @@
   interface Props {
     // For About (moved here from Home).
     version?: string;
+    tab?: SettingsTab;
+    onShowTab?: (tab: SettingsTab) => void;
     themeChoice: Choice;
     onChooseTheme: (choice: Choice) => Promise<boolean>;
     // Undefined while the main process has not answered.
@@ -97,7 +101,8 @@
     // What's New, from About.
     onOpenWhatsNew?: () => void;
   }
-  const {
+  let {
+    tab = $bindable('general'), onShowTab = () => {},
     version = '', themeChoice, onChooseTheme, extensions, refusedExtensions = [], onSetExtension = () => Promise.resolve(false),
     storage, onUpdateReference = () => Promise.resolve('The update could not be started.'),
     onOpenDocument = () => {},
@@ -109,6 +114,26 @@
     onListVersions, onInstallVersion,
     onOpenWhatsNew = () => {}
   }: Props = $props();
+
+  const tabLabels = { general: 'General', 'data-sources': 'Data sources', extensions: 'Extensions' };
+  let tablist: HTMLDivElement | undefined = $state();
+  function showTab(next: SettingsTab): void {
+    tab = next;
+    onShowTab(next);
+  }
+  function tabKey(event: KeyboardEvent, id: SettingsTab): void {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const index = SETTINGS_TABS.indexOf(id);
+    let next: number;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + SETTINGS_TABS.length - 1) % SETTINGS_TABS.length;
+    else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % SETTINGS_TABS.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = SETTINGS_TABS.length - 1;
+    else return;
+    event.preventDefault();
+    showTab(SETTINGS_TABS[next]);
+    void focusShownTab(tablist);
+  }
 
   const resources = $derived(storage?.state === 'ready' ? storage.reference?.resources : undefined);
   const busy = $derived(storage?.reference?.refreshing === true);
@@ -179,6 +204,14 @@
 </script>
 
 <PageLayout eyebrow="PREFERENCES" title="Settings" hue="settings">
+  <div class="settings-tabs" role="tablist" aria-label="Settings" bind:this={tablist}>
+    {#each SETTINGS_TABS as id (id)}
+      <button type="button" role="tab" id={`settings-tab-${id}`} aria-controls={`settings-panel-${id}`}
+        aria-selected={tab === id} tabindex={tab === id ? 0 : -1}
+        onclick={() => showTab(id)} onkeydown={event => tabKey(event, id)}>{tabLabels[id]}</button>
+    {/each}
+  </div>
+  <div role="tabpanel" id="settings-panel-general" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}>
   <!-- About, first on the page, as macOS has About This Mac
        (moved from Home, and at the top of Settings): the version,
        and what the application sends anywhere, said precisely, because it
@@ -209,15 +242,18 @@
     <p class="hint about-credit" id="about-credit">QSO Graph contributors. GPL-3.0-or-later.<br>{#each FONT_AWESOME_CREDIT.split('\n') as line, i (i)}{line}<br>{/each}</p>
   </section>
 
-  <UpdatesCard {update} check={updateCheck} track={updateTrack}
-    onSetCheck={onSetUpdateCheck} onSetTrack={onSetUpdateTrack} onCheckNow={onCheckUpdates}
-    onInstall={onInstallUpdate} onRestart={onRestartToUpdate} {onOpenRelease} {onListVersions} {onInstallVersion} />
-
   <section class="card" aria-labelledby="appearance-title">
     <h2 id="appearance-title">Appearance</h2>
     <ThemeChoice choice={themeChoice} onChoose={onChooseTheme} />
   </section>
 
+  <UpdatesCard {update} check={updateCheck} track={updateTrack}
+    onSetCheck={onSetUpdateCheck} onSetTrack={onSetUpdateTrack} onCheckNow={onCheckUpdates}
+    onInstall={onInstallUpdate} onRestart={onRestartToUpdate} {onOpenRelease} {onListVersions} {onInstallVersion} />
+
+  <MoveCallsignsPage onExport={onBackup} onInspect={onInspectBackup} onImport={onRestore} />
+  </div>
+  <div role="tabpanel" id="settings-panel-data-sources" aria-labelledby="settings-tab-data-sources" hidden={tab !== 'data-sources'}>
   <section class="card" aria-labelledby="settings-reference-title">
     <h2 id="settings-reference-title">Reference data</h2>
     {#if resources === undefined}
@@ -245,6 +281,8 @@
     {/if}
   </section>
 
+  </div>
+  <div role="tabpanel" id="settings-panel-extensions" aria-labelledby="settings-tab-extensions" hidden={tab !== 'extensions'}>
   <section class="card" aria-labelledby="extensions-title">
     <h2 id="extensions-title">Extensions</h2>
     {#if extensions === undefined}
@@ -280,5 +318,12 @@
     {/if}
   </section>
 
-  <MoveCallsignsPage onExport={onBackup} onInspect={onInspectBackup} onImport={onRestore} />
+  </div>
 </PageLayout>
+
+<style>
+  .settings-tabs { display: flex; overflow-x: auto; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .settings-tabs button { flex-shrink: 0; border: 0; border-radius: 0; border-top: 2px solid var(--border); background: var(--surface-sunken); color: var(--ink-muted); padding: 9px 12px; font-weight: 500; }
+  .settings-tabs button[aria-selected="true"] { border-top-color: var(--accent); background: var(--surface); color: var(--ink); }
+  .settings-tabs button:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+</style>

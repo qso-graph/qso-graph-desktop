@@ -210,6 +210,7 @@ try {
 
   // Turned off in Settings: its tiles leave Home and the list.
   await rail(page, 'Settings').click();
+  await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
   const onTheAir = page.getByRole('switch', { name: /^Conditions/ });
   await expect(onTheAir).toBeChecked({ timeout: 30_000 });
   await onTheAir.click();
@@ -232,6 +233,7 @@ try {
   // On again in the same run: its page shows at once what it last said, not
   // "Getting the latest…" until Conditions' fifteen minutes run out.
   await rail(page, 'Settings').click();
+  await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
   await page.getByRole('switch', { name: /^Conditions/ }).click();
   await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
@@ -241,6 +243,7 @@ try {
 
   // A page open when its extension is turned off goes back to Home.
   await rail(page, 'Settings').click();
+  await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
   await page.getByRole('switch', { name: /^Conditions/ }).click();
   await expect(page.getByRole('switch', { name: /^Conditions/ })).not.toBeChecked({ timeout: 30_000 });
   await page.getByRole('switch', { name: /^Conditions/ }).click();
@@ -249,6 +252,7 @@ try {
 
   // And off again, for the restart below.
   await rail(page, 'Settings').click();
+  await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
   await page.getByRole('switch', { name: /^Conditions/ }).click();
   await expect(page.getByRole('switch', { name: /^Conditions/ })).not.toBeChecked({ timeout: 30_000 });
 
@@ -262,6 +266,7 @@ try {
 
   // Turned on again: the tile back, in its place, and its page answering.
   await rail(page, 'Settings').click();
+  await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
   await page.getByRole('switch', { name: /^Conditions/ }).click();
   await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeChecked({ timeout: 30_000 });
   await rail(page, 'Home').click();
@@ -274,6 +279,7 @@ try {
   // no such mode for a folder, so this part runs on macOS and Linux.
   if (process.platform !== 'win32') {
     await rail(page, 'Settings').click();
+    await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
     await chmod(userData, 0o500);
     try {
       await page.getByRole('switch', { name: /^Conditions/ }).click();
@@ -358,6 +364,7 @@ try {
   // pending operator dialog, and cancellation. Only the native file dialog
   // is mocked; the press takes the real Home, supervisor and host path.
   await rail(page, 'Settings').click();
+  await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
   const lotw = page.getByRole('switch', { name: /^LoTW/ });
   await expect(lotw).not.toBeChecked();
   await lotw.click();

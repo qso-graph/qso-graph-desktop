@@ -22,8 +22,11 @@
 
 <Story name="Default" />
 <Story name="Dark chosen" args={{ themeChoice: 'dark' }} />
-<Story name="Extension off" args={{ extensions: [{ id: 'on-the-air', name: 'On the Air', pages: ['Conditions'], enabled: false }] }} />
-<Story name="Reading extensions" args={{ extensions: undefined }} />
-<Story name="Reference data not loaded" args={{ storage: { state: 'ready', reference: { adif: { state: 'not loaded' }, parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' }, summits: { state: 'not loaded' }, refreshing: false, resources: RESOURCES_NOT_LOADED } } }} />
-<Story name="Reference data loaded" args={{ storage: { state: 'ready', reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'loaded' }, refreshing: false, resources: RESOURCES_LOADED } } }} />
-<Story name="A newer ADIF version is available" args={{ storage: { state: 'ready', reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'loaded' }, refreshing: false, resources: RESOURCES_ADIF_AVAILABLE } } }} />
+<Story name="Extension off" args={{ tab: 'extensions', extensions: [{ id: 'on-the-air', name: 'On the Air', pages: ['Conditions'], enabled: false }] }} />
+<Story name="Reading extensions" args={{ tab: 'extensions', extensions: undefined }} />
+<Story name="Reference data not loaded" args={{ tab: 'data-sources', storage: { state: 'ready', reference: { adif: { state: 'not loaded' }, parks: { state: 'not loaded' }, programs: { state: 'not loaded' }, locations: { state: 'not loaded' }, summits: { state: 'not loaded' }, refreshing: false, resources: RESOURCES_NOT_LOADED } } }} />
+<Story name="Reference data loaded" args={{ tab: 'data-sources', storage: { state: 'ready', reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'loaded' }, refreshing: false, resources: RESOURCES_LOADED } } }} />
+<Story name="A newer ADIF version is available" args={{ tab: 'data-sources', storage: { state: 'ready', reference: { adif: { state: 'loaded' }, parks: { state: 'loaded' }, programs: { state: 'loaded' }, locations: { state: 'loaded' }, summits: { state: 'loaded' }, refreshing: false, resources: RESOURCES_ADIF_AVAILABLE } } }} />
+
+<!-- All states use the gallery light/dark theme decorator. -->
+<Story name="Extensions" args={{ tab: 'extensions', refusedExtensions: [{ folder: 'Test extension', reason: 'Not loaded.' }] }} />

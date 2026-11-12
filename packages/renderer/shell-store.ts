@@ -8,7 +8,7 @@
 import type { PageWork, CloseChoice } from './page-work.js';
 import { isSavedTabs } from '../main/settings-contract.js';
 import type { IntegrationsView } from '../main/integrations-page-contract.js';
-import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
+import type { ThemeChoice, UpdateTrack, SettingsTab } from '../main/settings-contract.js';
 import type { UpdateState } from '../main/update-contract.js';
 import type { UpdateLine, WhatsNewNotes } from '../main/whats-new-contract.js';
 import type { LogsStatus } from '../main/logs-contract.js';
@@ -95,6 +95,7 @@ export interface ShellState {
   extensionSettings: boolean;
   // Destination ids in display order, and most recently shown first.
   tabs: readonly string[];
+  settingsTab: SettingsTab;
   tabMru: readonly string[];
   // An area's chosen inner page and Settings tab, kept for this session.
   extensionTabs: Readonly<Record<string, { readonly page: string; readonly settings: boolean }>>;
@@ -180,6 +181,7 @@ export const INITIAL_SHELL: ShellState = {
   extensionPage: null,
   extensionSettings: false,
   tabs: ['home'],
+  settingsTab: 'general',
   tabMru: ['home'],
   extensionTabs: {},
   activeCallsign: '',

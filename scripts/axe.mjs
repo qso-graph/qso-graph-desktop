@@ -145,12 +145,19 @@ try {
 
   for (const theme of THEMES) {
     await rail('Settings').click();
+    await page.getByRole('tab', { name: 'General', exact: true }).click();
     await page.getByLabel('Theme', { exact: true }).selectOption(theme);
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(theme);
     for (const name of PAGES) {
       await rail(name).click();
       await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
       await run(page, `${name} in ${theme}`);
+      if (name === 'Settings') {
+        for (const tab of ['General', 'Data sources', 'Extensions']) {
+          await page.getByRole('tab', { name: tab, exact: true }).click();
+          await run(page, `Settings ${tab} in ${theme}`);
+        }
+      }
       const over = await windowScrolls(page);
       scrollChecked += 1;
       if (over) failures.push(`${name} in ${theme}: the window scrolls, ${over} px taller than it (QGD-FRM-0022)`);
@@ -159,6 +166,7 @@ try {
     // The real action controls, including a keyed and an unkeyed row, in
     // both themes. This fixture is sent on the normal validated page channel.
     await rail('Settings').click();
+    await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
     const lotw = page.getByRole('switch', { name: /^LoTW/ });
     if (!(await lotw.isChecked())) await lotw.click();
     await expect(lotw).toBeChecked({ timeout: 30_000 });

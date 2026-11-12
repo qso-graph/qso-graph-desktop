@@ -17,6 +17,7 @@ import Shell from './Shell.svelte';
 import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
 import { windowTitle } from '../ui/release.js';
 import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
+import { createSettingsTabSession } from './settings-tab-session.js';
 import { createTabSession } from './tab-session.js';
 import { createTabKeyboard } from './tab-keyboard.js';
 import { focusShownTab } from '../ui/tab-focus.js';
@@ -98,6 +99,7 @@ const tabSession = createTabSession(shell, {
   catalogue: () => home.catalogue(),
   write: tabs => window.settings.request({ type: 'write', key: 'tabs', value: tabs })
 });
+const settingsTabSession = createSettingsTabSession(shell, tab => window.settings.request({ type: 'write', key: 'settingsTab', value: tab }));
 home.subscribe(() => tabSession.catalogueChanged());
 home.start();
 // Offline or online, as the operating system says, with no polling: the
@@ -661,6 +663,7 @@ async function loadTheme(): Promise<void> {
   // What's new (QGD-FRM-0016, #119): a different version from the one last
   // run was an update from it (or going back), and Home says so in one line.
   // A new install records its version and says nothing.
+  settingsTabSession.restore(reply.ok ? reply.data.settingsTab : undefined);
   if (reply.ok) {
     tabSession.restore(reply.data.tabs);
     const start = versionAtStart(reply.data, __QG_VERSION__);
@@ -1018,14 +1021,14 @@ window.menu?.onSetup?.(action => {
   if (action === 'whats-new') { openWhatsNew(); return; }
   // About: Settings' About card.
   if (action === 'about') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'general' });
     requestAnimationFrame(() => document.getElementById('about-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
   // Check for Updates…: main has started the check;
   // Settings' Updates card shows it.
   if (action === 'updates') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'general' });
     requestAnimationFrame(() => document.getElementById('updates-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
@@ -1049,7 +1052,7 @@ window.menu?.onSetup?.(action => {
   // Tools: Settings' Back up and restore, at the button
   // the step needs.
   else if (action === 'export-callsigns' || action === 'import-callsigns') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'general' });
     const field = action === 'export-callsigns' ? 'backup-export' : 'backup-import';
     requestAnimationFrame(() => {
       const input = document.getElementById(field);
@@ -1058,7 +1061,7 @@ window.menu?.onSetup?.(action => {
     });
   }
   else if (action === 'adif' || action === 'pota' || action === 'sota') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'data-sources' });
     void updateReference(action);
   }
 });

@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Settings groups its existing cards into General, Data sources and Extensions tabs, remembers the last tab, and opens the matching tab from menu and welcome links.
+
 - Tab shortcuts switch in order or to the previously shown destination, close through the unsaved-changes question, and move tabs left or right. The Tabs menu shows each platform's shortcuts, including the macOS move chord.
 - Destinations open once in a tab bar above the page. Tabs can be closed, reordered by dragging, and selected with arrow keys, Home and End; closing the shown tab returns to the most recently used destination.
 - The specification describes 0.8.0's frame (`QGD-PRT-0114`, `QGD-PRT-0115`): every destination opens as a tab and the open tabs come back after a restart, a resizable panel beneath holds the live sources' terminals with a list of them on its right, Settings is in tabs by type, and closing the window ends the application on every system, macOS included, so the next start holds no port from the last.

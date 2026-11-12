@@ -229,7 +229,7 @@
         onGo={place => {
           // Choose what to add: Settings, at its Extensions card.
           if (place === 'extensions') {
-            store.set({ page: 'settings', extensionPage: null });
+            store.set({ page: 'settings', extensionPage: null, settingsTab: 'extensions' });
             requestAnimationFrame(() => document.getElementById('extensions-title')?.scrollIntoView({ block: 'start' }));
           } else store.set({ page: place, extensionPage: null });
         }}
@@ -322,7 +322,7 @@
       />
     </div>
     <div class="page" hidden={shell.page !== 'settings'}>
-      <SettingsPage {version} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
+      <SettingsPage {version} tab={shell.settingsTab} onShowTab={settingsTab => store.set({ settingsTab })} themeChoice={shell.themeChoice} {onChooseTheme} extensions={shell.extensions} refusedExtensions={shell.refusedExtensions} {onSetExtension} storage={shell.storage} {onUpdateReference} onOpenDocument={name => onOpenPage({ type: 'document', name })}
         onBackup={onExportCallsigns} onInspectBackup={onInspectImport} onRestore={onApplyImport}
         update={shell.update} updateCheck={shell.updateCheck} updateTrack={shell.updateTrack}
         {onSetUpdateCheck} {onSetUpdateTrack} {onCheckUpdates} {onInstallUpdate} {onRestartToUpdate} {onOpenRelease} {onOpenWhatsNew}
@@ -337,7 +337,7 @@
 {#snippet potaSettings()}
   <AreaCard work={areaWork} area={shell.area} most={MAX_AREA} parksLoaded={shell.storage?.reference?.parks.state === 'loaded'}
     loadChoices={onAreaChoices} loadDefault={onAreaDefault} onSave={onSaveArea}
-    onDownloadParks={() => { store.set({ page: 'settings', extensionPage: null }); void onUpdateReference('pota'); }} />
+    onDownloadParks={() => { store.set({ page: 'settings', extensionPage: null, settingsTab: 'data-sources' }); void onUpdateReference('pota'); }} />
 {/snippet}
 <StatusBar activeCallsign={shell.activeCallsign}
            activeStation={activeStationName}

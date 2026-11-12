@@ -384,6 +384,7 @@ try {
   // at start, so in this run each says "Not downloaded"; that is waited for,
   // and then it is compared like any text.
   await rail('Settings').click();
+  await page.getByRole('tab', { name: 'Data sources', exact: true }).click();
   await expect.poll(() => page.locator('.reference-state').allInnerTexts(),
     { message: 'Settings must say what reference data is downloaded before anything is captured', timeout: 60_000 })
     // One row per resource the register lists, read from it: SOTA's
@@ -392,6 +393,7 @@ try {
 
   for (const theme of THEMES) {
     await rail('Settings').click();
+    await page.getByRole('tab', { name: 'General', exact: true }).click();
     await page.getByLabel('Theme', { exact: true }).selectOption(theme);
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(theme);
     for (const name of PAGES) {
@@ -400,14 +402,10 @@ try {
       // The caret blinks. Nothing else on these pages moves, and a blinking
       // caret in a baseline is a comparison that fails every other run.
       await page.evaluate(() => { const focused = document.activeElement; if (focused && 'blur' in focused) focused.blur(); });
-      // Settings held a section fed over IPC until 2026-10-10, and a capture
-      // taken while it still read "Reading which applications are
-      // installed…" was a different page from the baseline — the failure this
-      // suite had 4 runs in 8. That section is gone (QGD-APP-0012.1), and
-      // with it the precondition. P8 brought two more answers, Home's pins
-      // and Settings' extension switch, and both are waited for below.
+      // Wait for Home's pins before capturing; the Extensions switch is
+      // waited for on its own Settings tab below.
       if (name === 'Home') await expect(page.locator('.pin-tile', { hasText: 'Conditions' })).toBeVisible({ timeout: 30_000 });
-      if (name === 'Settings') await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeVisible({ timeout: 30_000 });
+      if (name === 'Settings') await page.getByRole('tab', { name: 'General', exact: true }).click();
       await record(page, `${name.toLowerCase()}-${theme}.png`, theme);
       // Home and Callsigns run past the first screen; what is below it is
       // captured too (the credentials and
@@ -424,10 +422,10 @@ try {
     await record(page, `conditions-${theme}.png`, theme);
     await recordScreens(page, 'conditions', theme, record);
 
-    // Settings' last card, Extensions, is below the fold: Playwright calls the
-    // switch visible there, but no capture from the top contains it. Captured
-    // scrolled to the end, and the switch proven to be inside the frame.
+    // Extensions has its own inner tab; prove the switch is inside the capture.
     await rail('Settings').click();
+    await page.getByRole('tab', { name: 'Extensions', exact: true }).click();
+    await expect(page.getByRole('switch', { name: /^Conditions/ })).toBeVisible({ timeout: 30_000 });
     await record(page, `settings-extensions-${theme}.png`, theme, VOLATILE, { scroll: 'end' });
     const switchBox = await page.getByRole('switch', { name: /^Conditions/ }).boundingBox();
     expect(switchBox && switchBox.y >= 0 && switchBox.y + switchBox.height <= VIEW.height,
@@ -494,6 +492,7 @@ try {
 
   for (const theme of THEMES) {
     await rail('Settings').click();
+    await page.getByRole('tab', { name: 'General', exact: true }).click();
     await page.getByLabel('Theme', { exact: true }).selectOption(theme);
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(theme);
 
