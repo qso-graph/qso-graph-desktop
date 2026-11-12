@@ -418,9 +418,13 @@ jobs:
   # is unsigned.
   package:
     name: package (${{ matrix.os }})
-    needs: [plan, check, window]
-    # After both test jobs pass; or alone, for a macOS-only run by hand.
-    if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || (needs.check.result == 'success' && needs.window.result == 'success')) }}
+    needs: [plan]
+    # Beside the test jobs, not after them: waiting for both added their ten to
+    # thirteen minutes to every pull request's packaging. ci-all-green still
+    # needs check, window and package all to pass, so nothing merges or is
+    # published that a test failed; a failing run's packages are never used.
+    # Or alone, for a macOS-only run by hand.
+    if: ${{ !cancelled() && needs.plan.outputs.run == 'true' && (inputs.mac_only || needs.plan.outputs.docs_only != 'true') }}
     # The signing secrets reach only a run plan says signs, and the
     # Environment itself releases them only to main and to pull requests
     # (refs/pull/*/merge; a fork's run gets no secrets either way). Windows
@@ -780,8 +784,10 @@ jobs:
   # GitHub sign-in, as every run's files do, and last 14 days.
   pr-build:
     name: pull request build
-    needs: [plan, package]
-    if: ${{ !cancelled() && needs.plan.outputs.pr != '' && needs.package.result == 'success' }}
+    # check and window too: package no longer waits for them, and a build whose
+    # tests failed is not offered for validation.
+    needs: [plan, check, window, package]
+    if: ${{ !cancelled() && needs.plan.outputs.pr != '' && needs.check.result == 'success' && needs.window.result == 'success' && needs.package.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -903,8 +909,10 @@ jobs:
     name: daily release
     # Not past a failed dependency audit (#102; found in review): the Daily is
     # published, so it waits for the audit as Release waits for ci-all-green.
-    needs: [plan, package, audit]
-    if: ${{ !cancelled() && needs.plan.outputs.daily == 'true' && needs.package.result == 'success' && needs.audit.result == 'success' }}
+    # check and window too: package no longer waits for them, and a Daily is
+    # published only from a run whose tests passed.
+    needs: [plan, check, window, package, audit]
+    if: ${{ !cancelled() && needs.plan.outputs.daily == 'true' && needs.check.result == 'success' && needs.window.result == 'success' && needs.package.result == 'success' && needs.audit.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
