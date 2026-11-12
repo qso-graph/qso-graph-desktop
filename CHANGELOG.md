@@ -7,11 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-12
+
 ### Added
 
 - Sync from TQSL on Locations: choose station locations to copy once, with field comparisons and new names for clashes. TQSL stays unchanged (#155).
 - LoTW Sign log… previews ADI, ADX and Cabrillo logs, confirms the callsign, certificate, Location and dates, and writes a `.tq8`. Disagreements are refused and already-signed QSOs are omitted unless Sign again is selected. Upload signed log… and the signing result’s Upload to LoTW… use a separate confirmation and the credential core’s TLS.
-
 - Extension pages can offer buttons (extension API 1.2.0): page actions and row actions, declared in the manifest and drawn by the core. A press is accepted only for the open page, a declared action and a row on screen, one at a time per page, and the page refreshes when it finishes.
 - The LoTW extension, off until turned on in Settings → Extensions: the installed certificates with their call, DXCC, serial, QSO dates, validity and whether the key is installed; Load certificate…, Restore TQSL backup… and Delete…; and the trusted roots. If the store changes after a confirmation, it says that nothing was imported or deleted.
 - `lotw:manage`: load LoTW certificates, restore TQSL backups and delete certificates through core-owned file, password and confirmation dialogs. An import or a delete commits exactly what the confirmation showed; if the store changed in between, nothing is changed and Desktop says to look again. A backup whose keys have different passwords asks for each, naming its call and serial. Backup locations can become Desktop Locations: a name already taken, compared without case, gets a ` (TQSL)` suffix and existing Locations are never overwritten, and creating them is unchecked by default. A pending operation is cancelled when its deadline passes or the extension host exits, and a late dialog answer is ignored.
@@ -19,21 +20,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Updated QG Trust to 0.2.1. An ADX log is recognised after comments without an XML declaration, a county whose state prefix disagrees with the Location is refused, and a Location created from ADIF refuses contradictory repeated station fields, naming the field to correct.
-
+- Updated QG Trust to 0.2.1. A certificate file whose PEM body is truncated no longer hangs an import. An ADX log is recognised after comments without an XML declaration, a county whose state prefix disagrees with the Location is refused, and a Location created from ADIF refuses contradictory repeated station fields, naming the field to correct.
 - Opening a log, signed log, certificate or backup no longer hangs on a named pipe. Large logs with many refusals or distinct station callsigns prepare and display promptly. Invalid station values are identified as invalid instead of asking you to add them to a Location.
-
 - LoTW signatures carry exactly the Location shown in the confirmation. A QSO naming a station field the Location leaves empty is refused, and VUCC grid lists must agree on every QSO. Invalid station values refuse that QSO with its field and line or record number instead of stopping the preview. Location details such as POTA, SOTA and WWFF references, altitude and ARRL section no longer prevent signing. Subdivisions without a LoTW field for that entity are left out. Ordinary log fields such as `MY_RIG` and `MY_ANTENNA` do not cause station refusals, and QSOs outside the selected dates are counted separately.
-
 - An extension turned on in Settings is on the rail at once; it used to appear only after a visit to Home.
 
 ### Changed
 
 - TQSL backup restore and Sync share a Rust field conversion checked by rebuilding the exact signing station.
 - CodeQL excludes one rule, `rust/access-invalid-pointer`, which only ever flagged napi-derive's generated code (alerts #13 and #28, false positives that returned whenever the code moved): our Rust denies `unsafe_code` (QGD-SEC-0022), so the compiler already refuses what the rule looks for. `tests/no-unsafe.test.mjs` checks the exclusion stays exactly that one rule.
-- Updated QG Trust to 0.1.8 and enforce Rust formatting and Clippy in verification and CI. 0.1.8 no longer hangs on a certificate file whose PEM body is truncated, which a crafted file could otherwise use to hang an import.
+- Rust formatting and Clippy are enforced in verification and CI.
 - Development tooling (eslint, @electron/universal) uses minimatch 11.0.5, through an override limited to the affected range, for GHSA-g3hv-75wg-m249. The packaged application never contained minimatch.
-
 - Licensed GPL-3.0-or-later, the same as every QSO Graph project.
 - AGENTS.md and CLAUDE.md: the organization's shared agent guide, and this repository's own.
 - README: American spelling, as the QSO Graph style guide asks.
