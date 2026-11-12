@@ -198,6 +198,18 @@ and no demonstration extension, which is why this repository now has none either
   approval in `data/baseline-approval.json`; an agent never approves one.
 - **Don't loosen an exact assertion** to make an intermittent failure go away. Instrument it and
   find the cause.
+- **Window suites on Linux without a display.** CI's "Window suites (Linux)" step in
+  `.github/workflows/ci.yml` is the recipe: a D-Bus session, an unlocked gnome-keyring, Xvfb and
+  openbox (electron-smoke needs a window manager to raise a window). Run it as an ordinary user, not
+  root: as root Electron refuses to start without `--no-sandbox`, and every window suite then times
+  out. The suites that run on Linux are the `SUITES` list at the top of `ci.yml`. `crypto-evidence`
+  and `electron-audit` check the macOS build and pass only on macOS.
+- **A fresh checkout or worktree needs `make setup` once.** `make check` and `make verify` stop at
+  the start, naming it, when a suite that reads the pinned reference data would otherwise fail
+  partway through.
+- **Nothing calls ARRL.** No test, script or tool signs and uploads to LoTW, requests a certificate,
+  or connects to `lotw.arrl.org`. Upload is tested through a fake transport; the first real upload
+  is the operator's.
 
 ## How work is reviewed: three roles, different models
 
@@ -241,6 +253,13 @@ Versions change, so pick the current ones rather than the names here.
 
 ## Key libraries
 
+**QG Trust** (`qso-graph-trust`) is the LoTW library in the credential core. Desktop takes it from
+its repository at a release tag, and `Cargo.lock` records that tag's commit (`QGD-LTW-0001`). A
+change that needs the library changes the library first: its own pull request, review and release.
+Desktop then moves to the new tag. To build Desktop against an unreleased library branch while both
+are in review, use a `[patch."https://github.com/qso-graph/qso-graph-trust"]` section pointing at a
+local checkout; it is never committed, and the pull request pins the released tag.
+
 - **[Electron](https://www.electronjs.org/):** the application runtime
 - **[Svelte](https://svelte.dev/)** with **[@podman-desktop/ui-svelte](https://www.npmjs.com/package/@podman-desktop/ui-svelte):** screens and components
 - **[Drizzle ORM](https://orm.drizzle.team/)** (its SQLite dialect, through `sqlite-proxy`): the database layer
@@ -272,7 +291,7 @@ Versions change, so pick the current ones rather than the names here.
 ## Essential commands
 
 ```bash
-make check                           # the development pass: 9 suites, ~10 seconds
+make check                           # the development pass: the fast suites only
 make verify                          # the full gate: every suite, and the only thing that reports
 node scripts/gen-rvm.mjs             # regenerate the RVM after a spec change
 node scripts/gen-rvm.mjs --check     # confirm the RVM matches the spec — the whole gate for a prose spec edit
