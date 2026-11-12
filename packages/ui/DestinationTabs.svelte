@@ -2,7 +2,7 @@
 <!-- The shell owns the open destinations and their order; this bar only asks
      it to show, close or move one. An area's own tabs belong inside its page. -->
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { focusShownTab } from './tab-focus.js';
   import { ICONS } from './icons.js';
 
   interface Destination {
@@ -27,10 +27,7 @@
   let dragged: string | undefined;
 
   async function focusShown() {
-    await tick();
-    const shown = list?.querySelector<HTMLButtonElement>('[role="tab"][tabindex="0"]');
-    shown?.focus();
-    shown?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    await focusShownTab(list);
   }
 
   function onKeydown(event: KeyboardEvent, id: string) {

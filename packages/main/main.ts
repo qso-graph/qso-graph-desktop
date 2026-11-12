@@ -12,6 +12,7 @@ import { lotwDialogs } from './lotw-dialogs.js';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, screen, session } from 'electron';
 import { MIN_HEIGHT, MIN_WIDTH, placeWindow } from './window-place.js';
 import { nextZoom } from './window-zoom.js';
+import { tabMenu, type TabAction } from './tab-menu.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +55,14 @@ function setupItem(action: string, label: string): Electron.MenuItemConstructorO
 function zoomWindow(direction: -1 | 0 | 1, window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]): void {
   if (!window || window.isDestroyed()) return;
   window.webContents.setZoomFactor(nextZoom(window.webContents.getZoomFactor(), direction));
+}
+
+function sendTabAction(action: TabAction): void {
+  const window = BrowserWindow.getFocusedWindow();
+  // A password or other utility window must never act on the shell behind it.
+  if (window && !window.isDestroyed() && resourceName(window.webContents.getURL()) === 'index.html') {
+    window.webContents.send('menu:tab', action);
+  }
 }
 
 // Help's documents, in the menu's order.
@@ -566,6 +575,7 @@ if (!app.requestSingleInstanceLock()) {
         ] }
         : { label: 'File', submenu: [{ role: 'quit', label: 'Exit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+      tabMenu(process.platform, sendTabAction),
       // View: larger or smaller, within limits
       // (window-zoom.ts), and full screen. Ctrl or ⌘ with = or + zooms in;
       // the + of a US keyboard needs Shift, which the hidden item catches.

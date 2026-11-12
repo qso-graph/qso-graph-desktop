@@ -18,6 +18,8 @@ import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from 
 import { windowTitle } from '../ui/release.js';
 import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
 import { createTabSession } from './tab-session.js';
+import { createTabKeyboard } from './tab-keyboard.js';
+import { focusShownTab } from '../ui/tab-focus.js';
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
@@ -45,7 +47,7 @@ declare global {
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
-    menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void };
+    menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void; onTab?(listener: (action: string) => void): () => void };
     // What's new (QGD-FRM-0016): the notes, from the changelog that ships.
     whatsNew?: { notes(since: string | null): Promise<unknown> };
     // A page in the browser, built by main from its register (QGD-SEC-0009).
@@ -76,6 +78,16 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
+const tabKeyboard = createTabKeyboard(shell, {
+  platform: PLATFORM,
+  focusShown: () => focusShownTab(document),
+  blocked: () => document.querySelector('dialog[open]') !== null,
+  editing: () => Boolean(document.activeElement?.closest('input, textarea, select, [role="textbox"], [contenteditable]:not([contenteditable="false"])')),
+  now: () => performance.now()
+});
+window.menu?.onTab?.(action => { void tabKeyboard.action(action); });
+window.addEventListener('keydown', tabKeyboard.keydown);
+window.addEventListener('blur', tabKeyboard.reset);
 // Step 5 can ask this before requesting quit; no quit wiring in step 2.
 export const mayCloseWindow = () => shell.mayCloseWindow();
 // The version in the window's title bar.
