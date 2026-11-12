@@ -2,6 +2,10 @@
 // First, before anything opens a store or a log: portable mode decides
 // where they are (portable.ts).
 import './portable-start.js';
+import { startProcessRun } from './process-run.js';
+import { systemProcessTable } from './process-platform.js';
+import { createWindowLifecycle } from './window-lifecycle.js';
+import { startWindowCloseBroker } from './window-close-broker.js';
 import { createTqslSync } from './tqsl-sync.js';
 import { tqslSyncDialog } from './tqsl-sync-dialog.js';
 import { startTqslSyncBroker } from './tqsl-sync-broker.js';
@@ -98,6 +102,8 @@ app.commandLine.appendSwitch('disable-sync');
 app.commandLine.appendSwitch('no-pings');
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,AutofillServerCommunication');
 
+let lifecycle: ReturnType<typeof createWindowLifecycle<BrowserWindow>> | undefined;
+
 function createWindow(): void {
   // A suite run never puts a window on screen.
   const visibility = windowVisibility();
@@ -160,7 +166,9 @@ function createWindow(): void {
   });
   // Remembered as it closes: the size it has when not maximized, and whether
   // it is, so a maximized window comes back maximized over the right size.
-  window.on('close', () => {
+  window.on('close', event => {
+    lifecycle?.close(event, window);
+    if (event.defaultPrevented) return;
     const { x, y, width, height } = window.getNormalBounds();
     save({ ...load(), windowBounds: { x, y, width, height, maximized: window.isMaximized() } });
   });
@@ -175,6 +183,9 @@ function createWindow(): void {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  // Before whenReady and before any utility fork, only the lock winner
+  // recovers proven processes from the prior run.
+  const processRun = await startProcessRun(true, app.getPath('userData'), systemProcessTable());
   app.on('second-instance', () => {
     const window = BrowserWindow.getAllWindows()[0];
     if (window?.isMinimized()) window.restore();
@@ -522,25 +533,26 @@ if (!app.requestSingleInstanceLock()) {
     // After the stores have closed, so nothing is replaced under a write.
     app.on('will-quit', () => updater.applyOnQuit());
 
-    // Closing the stores is the one thing here worth waiting for: a clean
-    // close checkpoints the WAL, so the next start has nothing to replay. So
-    // the first quit is held while QG Storage closes, and the quit is asked
-    // for again; the second one is let through.
-    let quitting = false;
-    app.on('before-quit', event => {
-      stopTqslSync();
-      homeBroker?.stop();
-      extensionBroker?.stop();
-      updater.stop();
-      stopCallsignBroker(); stopSettingsBroker(); stopWhatsNew(); stopAppearanceBroker(); links.stop(); stopLogsBroker();
-      if (quitting) return;
-      quitting = true;
-      event.preventDefault();
-      // Every port closed, and the stores: both waited for, neither for long.
-      void Promise.allSettled([integrations?.stop(), storageBroker.stop()
-        .catch(() => log.warn({}, 'storage did not close cleanly'))])
-        .finally(() => app.quit());
+    lifecycle = createWindowLifecycle<BrowserWindow>({
+      windows: () => BrowserWindow.getAllWindows().filter(window => resourceName(window.webContents.getURL()) === 'index.html'),
+      ask: startWindowCloseBroker(),
+      quit: () => app.quit(),
+      stop: async () => {
+        // Freeze the journal before will-quit may start the detached updater.
+        processRun?.stop();
+        stopTqslSync();
+        homeBroker?.stop();
+        extensionBroker?.stop();
+        updater.stop();
+        stopCallsignBroker(); stopSettingsBroker(); stopWhatsNew(); stopAppearanceBroker(); links.stop(); stopLogsBroker();
+        await Promise.allSettled([integrations?.stop(), storageBroker.stop()
+          .catch(() => log.warn({}, 'storage did not close cleanly'))]);
+        // Broker shutdown closes ports/stores first; then end any remaining
+        // recorded child (including descendants), checking its OS identity.
+        await processRun?.endChildren().catch(() => log.warn({}, 'application children did not close cleanly'));
+      }
     });
+    app.on('before-quit', event => lifecycle?.quit(event));
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !allowsResource(details.url) });
     });
@@ -660,5 +672,6 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (lifecycle) lifecycle.allClosed();
+  else app.quit();
 });

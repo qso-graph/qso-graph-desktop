@@ -30,6 +30,7 @@ declare const __QG_VERSION__: string;
 
 declare global {
   interface Window {
+    windowClose?: { onRequest(listener: () => Promise<boolean>): () => void };
     tqsl?: { sync(): Promise<unknown> };
     callsigns: { request(command: CallsignCommand): Promise<CallsignReply>; platform?: string };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
@@ -89,8 +90,8 @@ const tabKeyboard = createTabKeyboard(shell, {
 window.menu?.onTab?.(action => { void tabKeyboard.action(action); });
 window.addEventListener('keydown', tabKeyboard.keydown);
 window.addEventListener('blur', tabKeyboard.reset);
-// Step 5 can ask this before requesting quit; no quit wiring in step 2.
 export const mayCloseWindow = () => shell.mayCloseWindow();
+window.windowClose?.onRequest(mayCloseWindow);
 // The version in the window's title bar.
 document.title = windowTitle(__QG_VERSION__);
 // Home's pins and the open page: read once, then pushed (QGD-HOM-0005).

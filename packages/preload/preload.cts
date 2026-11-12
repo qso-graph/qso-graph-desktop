@@ -63,6 +63,19 @@ const SETUP_ACTIONS = ['callsigns', 'locations', 'adif', 'pota', 'sota', 'pins',
 // Sandboxed preload is bundled alone: keep the fixed wire vocabulary here,
 // and test it against the menu's contract rather than importing runtime code.
 const TAB_ACTIONS = ['next', 'previous', 'recent', 'close', 'move-right', 'move-left'];
+contextBridge.exposeInMainWorld('windowClose', Object.freeze({
+  onRequest: (listener: () => Promise<boolean>) => {
+    if (typeof listener !== 'function') return () => undefined;
+    const handler = (_event: unknown, token: unknown) => {
+      if (typeof token !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(token)) return;
+      void Promise.resolve().then(listener).then(
+        allowed => { ipcRenderer.send('window:close-answer', token, allowed === true); },
+        () => { ipcRenderer.send('window:close-answer', token, false); });
+    };
+    ipcRenderer.on('window:may-close', handler);
+    return () => { ipcRenderer.removeListener('window:may-close', handler); };
+  }
+}));
 contextBridge.exposeInMainWorld('menu', Object.freeze({
   onTab: (listener: (action: string) => void) => {
     if (typeof listener !== 'function') return () => undefined;

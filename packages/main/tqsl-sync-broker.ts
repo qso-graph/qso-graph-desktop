@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { app, ipcMain } from 'electron';
+import { ipcMain } from 'electron';
 import { allowsSender } from '../callsigns/callsign-contract.js';
 import { TQSL_SYNC_MESSAGES, type TqslSyncResult } from './tqsl-sync.js';
 export function startTqslSyncBroker(run: (signal: AbortSignal) => Promise<TqslSyncResult>) {
@@ -15,6 +15,6 @@ export function startTqslSyncBroker(run: (signal: AbortSignal) => Promise<TqslSy
     catch (error) { return { ok: false, error: error instanceof Error && TQSL_SYNC_MESSAGES.includes(error.message) ? error.message : 'Sync from TQSL could not be completed. Check that TQSL can read its station locations, then try again.' }; }
     finally { pending.delete(controller); event.sender.removeListener('destroyed', abort); event.sender.removeListener('did-start-navigation', abort); }
   });
-  app.once('before-quit', stop);
+  // Main calls stop only after the unsaved-work quit question is accepted.
   return stop;
 }

@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Closing the last window quits on macOS too, asks about unsaved tabs, and stops the application’s processes. The next single-instance start removes only prior-run processes whose recorded OS identities still match; detached update installers continue.
+
 - Settings groups its existing cards into General, Data sources and Extensions tabs, remembers the last tab, and opens the matching tab from menu and welcome links.
 
 - Tab shortcuts switch in order or to the previously shown destination, close through the unsaved-changes question, and move tabs left or right. The Tabs menu shows each platform's shortcuts, including the macOS move chord.
