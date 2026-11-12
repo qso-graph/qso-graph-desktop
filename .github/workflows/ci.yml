@@ -74,7 +74,7 @@ jobs:
       candidate: ${{ steps.plan.outputs.candidate }}
       daily: ${{ steps.plan.outputs.daily }}
       run: ${{ steps.plan.outputs.run }}
-      docs_only: ${{ steps.docs.outputs.docs_only }}
+      docs_only: ${{ steps.plan.outputs.docs_only }}
       pr: ${{ steps.plan.outputs.pr }}
     # Reading which files a pull request changed needs to read the pull request.
     permissions:
@@ -136,7 +136,10 @@ jobs:
             push) if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] && green "$BEFORE"; then
                     files=$(compared "$BEFORE" "$SHA"); fi ;;
           esac
-          docs_only=$(printf '%s\n' "$files" | node scripts/docs-only.mjs)
+          # --changelog: a pull request's CHANGELOG.md line builds nothing; a release
+          # candidate builds whatever changed (the plan step below), and Release
+          # asks without it.
+          docs_only=$(printf '%s\n' "$files" | node scripts/docs-only.mjs --changelog)
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
           printf 'Changed files:\n%s\ndocumentation only: %s\n' "${files:-(none read)}" "$docs_only"
       - id: plan
@@ -153,6 +156,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ github.token }}
+          DOCS_ONLY: ${{ steps.docs.outputs.docs_only }}
         run: |
           set -euo pipefail
           ref=""; sha="$SHA"; sign=false; candidate=false; daily=false; run=true; pr=""
@@ -212,7 +216,11 @@ jobs:
               fi
               ;;
           esac
-          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "candidate=$candidate"; echo "daily=$daily"; echo "run=$run"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
+          # A release candidate is what Release publishes, so it always builds, even
+          # when the push that made it changed only documentation and CHANGELOG.md.
+          docs_only="$DOCS_ONLY"
+          if [ "$candidate" = true ] && [ "$docs_only" = true ]; then docs_only=false; echo "A release candidate builds, whatever changed."; fi
+          { echo "ref=$ref"; echo "sha=$sha"; echo "sign=$sign"; echo "candidate=$candidate"; echo "daily=$daily"; echo "run=$run"; echo "pr=$pr"; echo "docs_only=$docs_only"; } >> "$GITHUB_OUTPUT"
           echo "event=$EVENT ref=${ref:-$REF} sign=$sign candidate=$candidate daily=$daily run=$run pr=${pr:-none}"
 
   # Every requirement ID a Markdown file cites exists in the spec (#95), and
