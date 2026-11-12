@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Restore open destination tabs on Home after a restart, and ask to save pending changes before closing tabs or turning off an extension.
+
 ### Changed
 
 - Destinations open once in a tab bar above the page. Tabs can be closed, reordered by dragging, and selected with arrow keys, Home and End; closing the shown tab returns to the most recently used destination.

@@ -14,9 +14,9 @@
     tabs: readonly Destination[];
     current: string;
     onShow: (id: string) => void;
-    onClose: (id: string) => void;
-    onCloseOthers: (id: string) => void;
-    onCloseAll: () => void;
+    onClose: (id: string) => void | Promise<unknown>;
+    onCloseOthers: (id: string) => void | Promise<unknown>;
+    onCloseAll: () => void | Promise<unknown>;
     onReorder: (id: string, beforeId: string) => void;
   }
   const { tabs, current, onShow, onClose, onCloseOthers, onCloseAll, onReorder }: Props = $props();
@@ -49,10 +49,10 @@
     void focusShown();
   }
 
-  function close(action: () => void) {
+  async function close(action: () => void | Promise<unknown>) {
     if (actions) actions.open = false;
-    action();
-    void focusShown();
+    await action();
+    await focusShown();
   }
 
   function onDragstart(event: DragEvent, id: string) {

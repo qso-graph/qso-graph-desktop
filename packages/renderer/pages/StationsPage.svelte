@@ -14,6 +14,7 @@
   Storage's pushed status; what it keeps is only the form being edited.
 -->
 <script lang="ts">
+  import type { PageWork } from '../page-work.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import { caseAsTyped, type CaseRule } from '../../ui/typed-case.js';
   import ConfirmDialog from '../../ui/ConfirmDialog.svelte';
@@ -25,6 +26,7 @@
   import type { LinkCommand } from '../../main/links-contract.js';
 
   interface Props {
+    registerWork?: (work: PageWork) => () => void;
     stations?: StationsView;
     onSyncTqsl?: () => Promise<string>;
     // The active callsign's id, and how it is shown; empty when there is none.
@@ -51,7 +53,7 @@
     onOpenPage?: (command: LinkCommand) => void;
   }
   const {
-    onSyncTqsl = () => Promise.resolve('Sync from TQSL is unavailable.'), stations, callsignId, callsignLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
+    registerWork, onSyncTqsl = () => Promise.resolve('Sync from TQSL is unavailable.'), stations, callsignId, callsignLabel, parksLoaded, onSave, onDelete, onSetActive, onFromPark,
     onChoices = () => Promise.resolve(undefined),
     onLookUpParks = () => Promise.resolve(undefined),
     onCountiesAt = () => Promise.resolve({ counties: [], sections: {} }),
@@ -190,6 +192,13 @@
   let formError = $state('');
   let note = $state('');
   let working = $state(false);
+  let original = '';
+  const fingerprint = () => JSON.stringify({ name, kind, lotwPark, notes, place, makeDefault, anotherPark });
+  $effect(() => registerWork?.({
+    isDirty: () => editing && fingerprint() !== original,
+    save,
+    discard: close
+  }));
 
   let parkReference = $state('');
   let parkError = $state('');
@@ -253,6 +262,7 @@
     problems = [];
     formError = '';
     note = withNote;
+    original = draft && !draft.id ? '' : fingerprint();
     void loadChoices();
   }
 
@@ -282,31 +292,39 @@
     };
   }
 
-  async function save() {
+  async function save(): Promise<boolean> {
+    if (working) return false;
+    const saving = fingerprint();
     // Two things are this product's own rather than ADIF's, so they are
     // checked here before the request is sent: a request off its shape is
     // refused whole at the boundary, and would say less (QGD-SEC-0006).
     const own: FieldProblem[] = [];
+    if (anotherPark.trim()) own.push({ field: 'MY_POTA_REF', reason: 'Add the additional park before saving.' });
     if (name.trim() === '') own.push({ field: 'name', reason: 'A location needs a name.' });
     if (!(place.MY_GRIDSQUARE ?? '').trim()) own.push({ field: 'MY_GRIDSQUARE', reason: 'A location needs a grid.' });
     if (/[<>]/.test(notes)) own.push({ field: 'notes', reason: 'Notes cannot hold < or >.' });
     if (lotwPark.trim() && !isLotwPark(lotwPark.trim().toUpperCase())) {
       own.push({ field: 'lotwPark', reason: 'TQSL\'s park codes are two letters and two digits, as NP33, separated by commas.' });
     }
-    if (own.length) { problems = own; formError = ''; return; }
+    if (own.length) { problems = own; formError = ''; return false; }
     working = true;
     try {
       const refused = await onSave(draftOf(), makeDefault);
-      if (refused) {
+      if (refused !== undefined) {
         problems = refused.problems ?? [];
         // Said again beside the button, by field, because the field itself
         // may be scrolled out of sight.
         formError = problems.length
           ? `${refused.error} ${problems.map(problem => `${labelOf(problem.field)}: ${problem.reason}.`).join(' ')}`
           : refused.error;
-        return;
+        return false;
       }
+      if (saving !== fingerprint()) return false;
       close();
+      return true;
+    } catch {
+      formError = 'The location could not be confirmed saved. Try again.';
+      return false;
     } finally {
       working = false;
     }

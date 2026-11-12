@@ -69,9 +69,13 @@
   // What is being typed, per field, until it is asked with.
   let typed = $state<Record<string, string>>({});
   let lastKey = '';
+  const drafts: Record<string, Record<string, string>> = {};
   $effect(() => {
     // A different page starts from what it was last asked with.
-    if (page && page.key !== lastKey) { lastKey = page.key; typed = { ...page.values }; }
+    if (page && page.key !== lastKey) {
+      if (lastKey) drafts[lastKey] = { ...typed };
+      lastKey = page.key; typed = { ...(drafts[page.key] ?? page.values) };
+    }
   });
   const problems = $derived(Object.fromEntries((page?.inputs ?? []).map(input => {
     const value = typed[input.id] ?? '';

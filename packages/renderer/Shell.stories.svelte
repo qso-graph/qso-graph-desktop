@@ -54,6 +54,7 @@
   name="Settings"
   args={{
     store: createShellStore({
+      closeQuestion: null, closeError: '',
       page: 'settings', extensionPage: null, extensionSettings: false,
       tabs: ['home', 'settings'], tabMru: ['settings', 'home'], extensionTabs: {},
       activeCallsign: 'W1AW',

@@ -18,14 +18,18 @@
     confirmLabel: string;
     cancelLabel?: string;
     destructive?: boolean;
+    alternateLabel?: string;
+    onAlternate?: () => void;
     onConfirm: () => void;
     onCancel: () => void;
   }
   const {
     open, title, message, confirmLabel,
-    cancelLabel = 'Cancel', destructive = false, onConfirm, onCancel
+    cancelLabel = 'Cancel', destructive = false, alternateLabel, onAlternate, onConfirm, onCancel
   }: Props = $props();
 
+  const uid = $props.id();
+  const titleId = `${uid}-title`;
   let dialog: HTMLDialogElement | undefined = $state();
 
   $effect(() => {
@@ -38,11 +42,12 @@
 
 <!-- cancel fires for Escape and for the backdrop; it must mean the same thing
      as pressing Cancel, or Escape silently confirms. -->
-<dialog bind:this={dialog} class="confirm" aria-labelledby="confirm-title" oncancel={onCancel}>
-  <h2 id="confirm-title">{title}</h2>
+<dialog bind:this={dialog} class="confirm" aria-labelledby={titleId} oncancel={onCancel}>
+  <h2 id={titleId}>{title}</h2>
   <p>{message}</p>
   <div class="form-footer">
     <button type="button" class="secondary" onclick={onCancel}>{cancelLabel}</button>
+    {#if alternateLabel && onAlternate}<button type="button" class="secondary" onclick={onAlternate}>{alternateLabel}</button>{/if}
     <button type="button" class={destructive ? 'danger-solid' : ''} onclick={onConfirm}>{confirmLabel}</button>
   </div>
 </dialog>

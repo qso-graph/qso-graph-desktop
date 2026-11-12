@@ -5,6 +5,8 @@
 // Plain TypeScript rather than a rune, so `tsc -p tsconfig.renderer.json`
 // checks it and a test can drive it without a component tree. Shell.svelte
 // draws it; navigation and app.ts both write through this store.
+import type { PageWork, CloseChoice } from './page-work.js';
+import { isSavedTabs } from '../main/settings-contract.js';
 import type { IntegrationsView } from '../main/integrations-page-contract.js';
 import type { ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
 import type { UpdateState } from '../main/update-contract.js';
@@ -82,6 +84,8 @@ export function isPageId(value: unknown): value is PageId {
 
 export interface ShellState {
   // A core page, or 'extension' for an extension's page, named below.
+  closeQuestion: readonly string[] | null;
+  closeError: string;
   page: PageId | 'extension';
   // The extension page on screen ("extension/page"), when page is
   // 'extension'; null otherwise.
@@ -170,6 +174,8 @@ export interface ExtensionSwitch {
 export const INITIAL_SHELL: ShellState = {
   // The application opens on Home. Nothing there reads a credential, which is
   // half of why it is the right place to open (QGD-CRD-0009).
+  closeQuestion: null,
+  closeError: '',
   page: 'home',
   extensionPage: null,
   extensionSettings: false,
@@ -206,9 +212,15 @@ export interface ShellStore {
   set(change: Partial<ShellState>): void;
   openExtension(key: string, area: string, settings?: boolean): void;
   showTab(id: string): void;
-  closeTab(id: string): void;
-  closeOtherTabs(id: string): void;
-  closeAllTabs(): void;
+  closeTab(id: string): Promise<boolean>;
+  closeOtherTabs(id: string): Promise<boolean>;
+  closeAllTabs(): Promise<boolean>;
+  registerWork(id: string, work: PageWork): () => void;
+  setTabLabels(labels: Readonly<Record<string, string>>): void;
+  answerClose(choice: CloseChoice): void;
+  mayCloseWindow(): Promise<boolean>;
+  withClosingTabs(ids: readonly string[], action: () => Promise<boolean>): Promise<boolean>;
+  restoreTabs(saved: unknown, available: readonly { key: string; area: string }[]): void;
   reorderTab(id: string, target: string): void;
   // Entering and leaving guided setup, which the screens ask for rather than
   // reaching into the store for.
@@ -262,6 +274,63 @@ export function createShellStore(initial: ShellState = INITIAL_SHELL): ShellStor
     const id = tabs.includes(shownTab(state)) ? shownTab(state) : recent[0] ?? tabs[0];
     choose({ ...selection(id), tabs, tabMru: recent });
   }
+  const work = new Map<string, Set<PageWork>>();
+  let answering: ((choice: CloseChoice) => void) | undefined;
+  let closing = false;
+  let labels: Readonly<Record<string, string>> = {};
+  const nameOf = (id: string) => PAGES.find(page => page.id === id)?.label ?? labels[id] ?? 'Extension';
+  async function check(ids: readonly string[]): Promise<boolean> {
+    const dirty = ids.flatMap(id => [...(work.get(id) ?? [])].filter(page => page.isDirty()).map(page => ({ id, page })));
+    if (dirty.length === 0) return true;
+    choose(selection(dirty[0].id));
+    dirty[0].page.reveal?.();
+    const choice = await new Promise<CloseChoice>(resolve => {
+      answering = resolve;
+      publish({ ...state, closeQuestion: [...new Set(dirty.map(entry => entry.id))].map(nameOf), closeError: '' });
+    });
+    answering = undefined;
+    publish({ ...state, closeQuestion: null });
+    if (choice === 'cancel') return false;
+    if (choice === 'save') {
+      for (const { id, page } of dirty) {
+        choose(selection(id));
+        page.reveal?.();
+        try {
+          if (await page.save() === true && !page.isDirty()) continue;
+        } catch { /* A failed or unknown save keeps the draft. */ }
+        publish({ ...state, closeError: 'The changes could not be confirmed saved. The tab is still open.' });
+        return false;
+      }
+      // A later save may have left time for another draft to change.
+      const changed = ids.flatMap(id => [...(work.get(id) ?? [])].map(page => ({ id, page })))
+        .find(entry => entry.page.isDirty());
+      if (changed) {
+        choose(selection(changed.id)); changed.page.reveal?.();
+        publish({ ...state, closeError: 'There are still unsaved changes. The tabs are still open.' });
+        return false;
+      }
+    }
+    return true;
+  }
+  async function runClose(ids: readonly string[], action?: () => Promise<boolean>, windowOnly = false): Promise<boolean> {
+    if (closing) return false;
+    if (ids.length === 0 && !action) return true;
+    closing = true;
+    try {
+      publish({ ...state, closeError: '' });
+      // No await on the clean path: existing tab operations remain immediate.
+      if (ids.some(id => [...(work.get(id) ?? [])].some(page => page.isDirty())) && !await check(ids)) return false;
+      if (action && await action() !== true) return false;
+      if (!windowOnly) {
+        for (const id of ids) for (const page of work.get(id) ?? []) page.discard();
+        close(state.tabs.filter(id => !ids.includes(id)));
+      }
+      return true;
+    } catch {
+      publish({ ...state, closeError: 'The tabs could not be closed. Try again.' });
+      return false;
+    } finally { closing = false; }
+  }
   choose({});
   return {
     get: () => state,
@@ -271,9 +340,29 @@ export function createShellStore(initial: ShellState = INITIAL_SHELL): ShellStor
       choose({ page: 'extension', extensionPage: key, extensionSettings: settings }, `ext:${area}`);
     },
     showTab(id) { if (state.tabs.includes(id)) choose(selection(id)); },
-    closeTab(id) { if (state.tabs.includes(id)) close(state.tabs.filter(tab => tab !== id)); },
-    closeOtherTabs(id) { if (state.tabs.includes(id)) close([id]); },
-    closeAllTabs() { close([]); },
+    closeTab(id) { return runClose(state.tabs.includes(id) ? [id] : []); },
+    closeOtherTabs(id) { return runClose(state.tabs.includes(id) ? state.tabs.filter(tab => tab !== id) : []); },
+    closeAllTabs() { return runClose([...state.tabs]); },
+    registerWork(id, page) {
+      const participants = work.get(id) ?? new Set<PageWork>();
+      participants.add(page); work.set(id, participants);
+      return () => { participants.delete(page); if (participants.size === 0) work.delete(id); };
+    },
+    setTabLabels(next) { labels = next; },
+    answerClose(choice) { answering?.(choice); },
+    mayCloseWindow() { return runClose([...state.tabs], undefined, true); },
+    withClosingTabs(ids, action) { return runClose(ids, action); },
+    restoreTabs(saved, available) {
+      if (!isSavedTabs(saved)) return;
+      const areas = new Set(available.map(page => page.area));
+      const restored = saved.filter(id => isPageId(id) || areas.has(id.slice(4)));
+      const extensionTabs = { ...state.extensionTabs };
+      for (const id of restored) if (!isPageId(id) && !extensionTabs[id]) {
+        const page = available.find(page => page.area === id.slice(4));
+        if (page) extensionTabs[id] = { page: page.key, settings: false };
+      }
+      publish({ ...state, tabs: [...new Set([...restored, ...state.tabs])], extensionTabs });
+    },
     reorderTab(id, target) {
       const from = state.tabs.indexOf(id);
       const to = state.tabs.indexOf(target);

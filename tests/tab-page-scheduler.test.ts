@@ -74,7 +74,7 @@ describe('P14-shown-page (QGD-HOM-0005)', () => {
     run.stop();
   });
 
-  it('aborts hidden work and discards a reply delivered after switching destinations', async () => {
+  it('cancels a hidden page\'s data request and discards a reply delivered after switching destinations', async () => {
     const run = harness(true);
     run.shell.openExtension('test/spots', 'test/near');
     run.shell.openExtension('test/monitor', 'test/monitor');

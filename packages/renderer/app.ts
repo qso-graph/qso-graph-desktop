@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {
-  callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
+  callsignLabel, isCredentialStatus, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
   type BackupPart, type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
 } from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
@@ -17,6 +17,7 @@ import Shell from './Shell.svelte';
 import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
 import { windowTitle } from '../ui/release.js';
 import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
+import { createTabSession } from './tab-session.js';
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
@@ -75,10 +76,17 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
+// Step 5 can ask this before requesting quit; no quit wiring in step 2.
+export const mayCloseWindow = () => shell.mayCloseWindow();
 // The version in the window's title bar.
 document.title = windowTitle(__QG_VERSION__);
 // Home's pins and the open page: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
+const tabSession = createTabSession(shell, {
+  catalogue: () => home.catalogue(),
+  write: tabs => window.settings.request({ type: 'write', key: 'tabs', value: tabs })
+});
+home.subscribe(() => tabSession.catalogueChanged());
 home.start();
 // Offline or online, as the operating system says, with no polling: the
 // events fire only when it changes.
@@ -188,6 +196,18 @@ let selected: string | null = null;
 // Intent is now read from the operator's own input events rather than from the
 // value: a field nobody typed into sends nothing, whatever it contains.
 const edited = new Set<string>();
+let callsignRevision = 0;
+let callsignSaved = 0;
+let credentialRevision = 0;
+let credentialSaved = 0;
+let savingCallsign = false;
+let savingCredential = false;
+for (const type of ['input', 'change']) {
+  element('callsign-form').addEventListener(type, () => { callsignRevision++; });
+  element('credential-form').addEventListener(type, event => {
+    if (['username', 'password', 'api-key'].includes((event.target as HTMLElement).id)) credentialRevision++;
+  });
+}
 
 function clearSecretFields() {
   for (const id of ['password', 'api-key']) {
@@ -388,6 +408,8 @@ function select(id: string | null) {
   input('username').value = callsign?.call ?? '';
   element('keychain-id').textContent = callsign?.id ?? '';
   clearSecretFields();
+  callsignSaved = callsignRevision;
+  credentialSaved = credentialRevision;
   if (callsign) void credentialStatus(); else input('callsign').focus();
 }
 async function busy(buttonId: string, action: () => Promise<void>) {
@@ -406,22 +428,36 @@ async function busy(buttonId: string, action: () => Promise<void>) {
   }
 }
 element('new-callsign').addEventListener('click', () => select(null));
-element('callsign-form').addEventListener('submit', event => {
-  event.preventDefault(); void busy('save-callsign', async () => {
+async function saveCallsignDetails(): Promise<boolean> {
+  const form = element<HTMLFormElement>('callsign-form');
+  if (savingCallsign || !form.reportValidity()) return false;
+  savingCallsign = true;
+  const revision = callsignRevision;
+  try {
     const details = {
       call: input('callsign').value, description: input('callsign-description').value,
       start: input('start-date').value || undefined, end: input('end-date').value || undefined
     };
     if (selected) {
       snapshot = await request({ type: 'update', id: selected, ...details }) as Snapshot;
-      select(selected);
+      if (!snapshot.callsigns.some(entry => entry.id === selected && entry.call === details.call.trim() && entry.description === details.description.trim())) return false;
+      // Do not redraw the credential form: it may have its own pending edits.
+      list();
     } else {
       const before = new Set(snapshot.callsigns.map(entry => entry.id));
       snapshot = await request({ type: 'create', ...details }) as Snapshot;
-      select(snapshot.callsigns.find(entry => !before.has(entry.id))?.id ?? null);
+      const made = snapshot.callsigns.find(entry => !before.has(entry.id));
+      if (!made) return false;
+      if (callsignRevision === revision) select(made.id);
     }
+    callsignSaved = revision;
     message('Callsign saved.');
-  });
+    return callsignRevision === revision;
+  } catch { message('The callsign could not be confirmed saved. Try again.', true); return false; }
+  finally { savingCallsign = false; }
+}
+element('callsign-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-callsign', async () => { await saveCallsignDetails(); });
 });
 // Make active, from a row: that callsign is the active one, and the one
 // being edited stays as it was.
@@ -447,23 +483,40 @@ for (const id of ['password', 'api-key']) {
   // case this exists to refuse.
   input(id).addEventListener('input', () => { edited.add(id); });
 }
-element('credential-form').addEventListener('submit', event => {
-  event.preventDefault(); void busy('save-credential', async () => {
-    if (!selected) return;
+async function saveCredentialDetails(): Promise<boolean> {
+  if (!selected || savingCredential || !element<HTMLFormElement>('credential-form').reportValidity()) return false;
+  savingCredential = true;
+  const revision = credentialRevision;
+  try {
     const credentials = {
       username: input('username').disabled ? undefined : input('username').value || undefined,
-      password: enteredSecret('password'),
-      apiKey: enteredSecret('api-key')
+      password: enteredSecret('password'), apiKey: enteredSecret('api-key')
     };
-    clearSecretFields();
     const id = selected;
     const provider = element<HTMLSelectElement>('provider').value;
-    const status = await request({ type: 'save-credentials', id, provider, credentials }) as CredentialStatus;
-    if (id === selected && provider === element<HTMLSelectElement>('provider').value) {
-      showCredentialStatus(status); message(forStore('Credential saved in macOS Keychain.', PLATFORM));
-      invalidateTest();
-    }
-  });
+    const status = await request({ type: 'save-credentials', id, provider, credentials });
+    if (!isCredentialStatus(status) || !status.stored) return false;
+    if (id !== selected || provider !== element<HTMLSelectElement>('provider').value || credentialRevision !== revision) return false;
+    showCredentialStatus(status);
+    clearSecretFields();
+    credentialSaved = revision; message(forStore('Credential saved in macOS Keychain.', PLATFORM));
+    invalidateTest();
+    return true;
+  } catch { message('The credential could not be confirmed saved. Your changes are still here.', true); return false; }
+  finally { savingCredential = false; }
+}
+element('credential-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-credential', async () => { await saveCredentialDetails(); });
+});
+shell.registerWork('callsigns', {
+  isDirty: () => callsignRevision !== callsignSaved || credentialRevision !== credentialSaved,
+  async save() {
+    if (callsignRevision !== callsignSaved && !await saveCallsignDetails()) return false;
+    if (credentialRevision !== credentialSaved && !await saveCredentialDetails()) return false;
+    return true;
+  },
+  discard() { select(selected); },
+  reveal() { shell.set({ setup: false }); }
 });
 element('remove-credential').addEventListener('click', () => void busy('remove-credential', async () => {
   if (!selected || !window.confirm('Remove the saved credential for this callsign and service?')) return;
@@ -597,6 +650,7 @@ async function loadTheme(): Promise<void> {
   // run was an update from it (or going back), and Home says so in one line.
   // A new install records its version and says nothing.
   if (reply.ok) {
+    tabSession.restore(reply.data.tabs);
     const start = versionAtStart(reply.data, __QG_VERSION__);
     for (const [key, value] of Object.entries(start.write) as [keyof VersionRecord, string][]) {
       void window.settings.request({ type: 'write', key, value });
@@ -645,7 +699,9 @@ function takeExtensions(reply: unknown): boolean {
 
 export async function setExtensionEnabled(id: string, enabled: boolean): Promise<boolean> {
   try {
-    const done = takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+    const apply = async () => takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+    const tabs = shell.get().tabs.filter(tab => tab.startsWith(`ext:${id}/`));
+    const done = enabled ? await apply() : await shell.withClosingTabs(tabs, apply);
     // Turned on, its pages join the rail at once; turned off, they leave it
     // (QGD-HOM-0004, QGD-HOM-0007). The rail is drawn from Home's state, which was read
     // only when Home came on screen, so it is read again here.
