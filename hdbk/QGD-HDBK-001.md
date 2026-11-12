@@ -541,3 +541,21 @@ that look like them; the event keeps WSJT-X's text exactly.
 program an operator or a developer would, pinned by version, run with `uvx`. The adapter's decoder
 is also held to captured messages, in `extensions/wsjtx/tests/fixtures`: the simulator's now, and
 WSJT-X's own once they are captured from WSJT-X on Rig: None playing recorded audio.
+
+## 17. The frame, modelled on VS Code
+
+0.8.0's frame (`QGD-FRM-0023` to `QGD-FRM-0035`) is laid out the way VS Code lays out its own, because
+the people this product is for already know that layout, and because VS Code's team has spent years on
+the details. It is modelled, not copied: this product's frame is its own Svelte. What VS Code does was
+read from Code - OSS (MIT) at commit `b6902a918af9204d5793858a0eb83ce97ba4ca19`, paths under `src/vs/`:
+
+| What | VS Code | Here |
+|---|---|---|
+| One tab per document | `EditorGroupModel.openEditor` finds an open editor and shows it (`workbench/common/editor/editorGroupModel.ts`) | The same, one tab per destination (`QGD-FRM-0024`). VS Code's preview tabs are not taken |
+| After closing the tab shown | `doCloseEditor` shows the most recently used (`focusRecentEditorAfterClose`, default on); neighbour order is the setting's other value | Most recently used. With nothing left VS Code shows an empty area; this product opens Home |
+| Unsaved changes | `EditorGroupView.doHandleCloseConfirmation`: Save, Don't Save, Cancel; the editor is shown first; Close All asks one question naming every unsaved editor | The same, and *close others* asks as *close all* does (`QGD-FRM-0025`) |
+| Tab keyboard | `multiEditorTabsControl.ts`: a `tablist` with roving tabindex; arrows, Home and End move and show; Ctrl+PgDn/PgUp next and previous; Ctrl+Tab the recently used; Ctrl+W closes; Ctrl+Shift+PgDn/PgUp move a tab, on macOS the chord ⌘K then ⌘⇧→/← (`editorActions.ts`, `editorCommands.ts`) | The same keys, the macOS chord included (`QGD-FRM-0028`) |
+| The panel | `panelActions.ts`: toggled by Ctrl/⌘+J, maximised by hiding the editor area; `layout.ts` keeps its height and last view and, on hiding, moves focus to the editor | The same (`QGD-FRM-0031`). VS Code's divider has no keyboard handling and resizes from the keyboard by command only; so does this product's |
+| The terminal list | `terminalTabsList.ts`: entries by instance id, renamed in place (F2), split, a status icon each, its accessible name with its place in a split; closing an entry kills the terminal | Entries by adapter and source identity, renamed and split the same way (`QGD-FRM-0033`). **Closing hides the view and kills nothing**: a source here is a program on the air, not a process this product started |
+| Terminal accessibility | xterm.js in screen-reader mode when VS Code is (`terminalInstance.ts`), with an accessible buffer | Screen-reader mode, and a text equivalent of every fact (`QGD-FRM-0035`) |
+

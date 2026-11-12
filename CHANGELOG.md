@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The specification describes 0.8.0's frame (`QGD-PRT-0114`, `QGD-PRT-0115`): every destination opens as a tab and the open tabs come back after a restart, a resizable panel beneath holds the live sources' terminals with a list of them on its right, Settings is in tabs by type, and closing the window ends the application on every system, macOS included, so the next start holds no port from the last.
+
 ## [0.7.1] - 2026-11-12
 
 ### Changed
