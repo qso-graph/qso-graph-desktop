@@ -20,17 +20,24 @@ export function outcome(result: LotwManageResult, deleting: boolean): string {
     ...(result.locations ? [`${result.locations} Location(s) added.`] : []),
     ...(result.skippedLocations.length ? [`${result.skippedLocations.length} Location(s) skipped.`] : [])].join(' ');
 }
+// The grants are named only when a grant refused the request; any other
+// failure would send the operator to Settings for nothing (#200).
+export function unreadable(what: string, reply: unknown): string {
+  const refused = typeof reply === 'object' && reply !== null && (reply as { ok?: unknown }).ok === false && 'refused' in reply;
+  return refused ? `${what} could not be read. Check the LoTW grants in Settings and try again.`
+    : `${what} could not be read. Try again; if it keeps happening, check the output.`;
+}
 export function activate(context: ExtensionContext): void {
   context.subscriptions.push(
     context.pages.register('certificates', async ({ signal }) => {
       const reply = await context.request({ kind: 'lotw.certificates' }, { signal });
       return isLotwReply(reply, 'lotw.certificates') && reply.ok && reply.kind === 'lotw.certificates'
-        ? certificatesPage(reply.certificates) : { ok: false, reason: 'LoTW certificates could not be read. Check the LoTW grants in Settings and try again.' };
+        ? certificatesPage(reply.certificates) : { ok: false, reason: unreadable('LoTW certificates', reply) };
     }),
     context.pages.register('roots', async ({ signal }) => {
       const reply = await context.request({ kind: 'lotw.roots' }, { signal });
       return isLotwReply(reply, 'lotw.roots') && reply.ok && reply.kind === 'lotw.roots'
-        ? rootsPage(reply.roots) : { ok: false, reason: 'Trusted roots could not be read. Check the LoTW grants in Settings and try again.' };
+        ? rootsPage(reply.roots) : { ok: false, reason: unreadable('Trusted roots', reply) };
     }),
     context.pages.onAction('certificates', async event => {
       if ((event.action === 'sign' || event.action === 'upload') && event.row === undefined) {

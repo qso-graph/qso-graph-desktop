@@ -7,7 +7,9 @@ use napi_derive::napi;
 use qso_graph_trust::store::{Listing, RootKind};
 use serde::Serialize;
 
-#[napi(object)]
+// `use_nullable`: a `None` crosses as `null`, not as a missing key, because the
+// boundary checks require every field (QGD-SEC-0006; #200).
+#[napi(object, use_nullable = true)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LotwCertificate {
@@ -23,7 +25,7 @@ pub struct LotwCertificate {
     pub has_key: bool,
 }
 
-#[napi(object)]
+#[napi(object, use_nullable = true)]
 pub struct LotwTrustedRoot {
     pub kind: String,
     pub subject: String,
