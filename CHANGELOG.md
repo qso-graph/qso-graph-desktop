@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- LoTW's Trusted roots tab always said the roots could not be read: a built-in root has no accepted time, and the native code left that field out instead of sending `null`, so the list was refused. A certificate without a DXCC name would have done the same to Certificates. Both now send `null`, a test reads them from the real native code, and the pages name the LoTW grants only when a grant refused the request (#200).
+
 ## [0.7.0] - 2026-11-12
 
 ### Added
