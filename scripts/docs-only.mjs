@@ -5,18 +5,25 @@
 // into docs/ is not documentation; found in review, #92). Prints true or false.
 //
 // The spec and the RVM generated from it are documentation: the application
-// does not ship them, and the citations job checks both. Not on the list, on
-// purpose: CHANGELOG.md, which ships as What's New. No files at all is not
+// does not ship them, and the citations job checks both. No files at all is not
 // documentation only: a run that could not read them builds everything.
+//
+// CHANGELOG.md ships as What's New, so it counts only when asked for
+// (--changelog). A pull request asks: every change adds a line to it, and a
+// line there should not cost an hour of builds. Two things keep What's New
+// right: a release candidate always builds (ci.yml's plan), and Release asks
+// without it, so a build is never published as current once CHANGELOG.md has
+// changed after it.
 import { readFileSync } from 'node:fs';
 
 const DOCUMENTATION = /^(README\.md|CONTRIBUTING\.md|SECURITY\.md|PRIVACY\.md|AGENTS\.md|CLAUDE\.md|\.github\/pull_request_template\.md|guide\/.+|docs\/.+|spec\/.+|rvm\/.+)$/;
 
-export function documentationOnly(files) {
+export function documentationOnly(files, { changelog = false } = {}) {
   const names = files.map(name => name.trim()).filter(Boolean);
-  return names.length > 0 && names.every(name => DOCUMENTATION.test(name));
+  return names.length > 0 && names.every(name => DOCUMENTATION.test(name) || (changelog && name === 'CHANGELOG.md'));
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop())) {
-  console.log(String(documentationOnly(readFileSync(0, 'utf8').split('\n'))));
+  const changelog = process.argv.slice(2).includes('--changelog');
+  console.log(String(documentationOnly(readFileSync(0, 'utf8').split('\n'), { changelog })));
 }

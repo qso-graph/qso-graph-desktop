@@ -33,6 +33,13 @@ describe('a documentation-only change (#95)', () => {
     expect(documentationOnly(['spec/QGD-SPEC-001.md', 'CHANGELOG.md'])).toBe(false);
   });
 
+  it('counts the CHANGELOG only when asked, as a pull request asks and Release does not', () => {
+    expect(documentationOnly(['CHANGELOG.md'], { changelog: true })).toBe(true);
+    expect(documentationOnly(['spec/QGD-SPEC-001.md', 'CHANGELOG.md'], { changelog: true })).toBe(true);
+    expect(documentationOnly(['CHANGELOG.md', 'packages/main/main.ts'], { changelog: true })).toBe(false);
+    expect(documentationOnly(['packages/CHANGELOG.md'], { changelog: true })).toBe(false);
+  });
+
   it('is not a spec-looking path anywhere else', () => {
     expect(documentationOnly(['packages/spec/index.ts'])).toBe(false);
     expect(documentationOnly(['spec'])).toBe(false);
