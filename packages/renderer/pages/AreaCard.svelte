@@ -8,12 +8,16 @@
   (settings-contract.ts MAX_AREA).
 -->
 <script lang="ts">
+  import { createAreaWork, type AreaWork } from '../area-work.js';
+  import type { PageWork } from '../page-work.js';
   import AreaPicker from '../../ui/AreaPicker.svelte';
   import { labelOf, type PickNode } from '../../ui/tree-pick.js';
   import type { AreaProgram } from '../../storage/area-entry.js';
 
   interface Props {
     // What is saved: the operator's choice, or empty for the Location's own.
+    work?: AreaWork;
+    registerWork?: (work: PageWork) => () => void;
     area: readonly string[];
     most: number;
     parksLoaded: boolean;
@@ -22,13 +26,16 @@
     onSave: (area: readonly string[]) => Promise<boolean>;
     onDownloadParks?: () => void;
   }
-  const { area, most, parksLoaded, loadChoices, loadDefault, onSave, onDownloadParks }: Props = $props();
+  const { work: externalWork, registerWork, area, most, parksLoaded, loadChoices, loadDefault, onSave, onDownloadParks }: Props = $props();
 
   let nodes = $state<readonly PickNode[]>([]);
   let problem = $state('');
   let own = $state<string | undefined>(undefined);
-  let chosen = $state<readonly string[]>([]);
+  const ownWork = $state(createAreaWork(area => onSave(area)));
+  const draft = $derived(externalWork ?? ownWork);
+  const chosen = $derived(draft.chosen ?? []);
   let saved = $state('');
+
   // Unset until the first load: '' is the saved area when it is the
   // Location's own, and starting from '' skipped that first load (#57, found
   // in review: the picker showed no choices).
@@ -52,13 +59,20 @@
           : program.entities.map(entity => ({ id: entity.id, label: entity.name, children: locationsOf(entity) }))
       }));
       own = await loadDefault();
-      chosen = area.length > 0 ? area : own ? [own] : [];
+      if (!draft.dirty) draft.chosen = area.length > 0 ? area : own ? [own] : [];
     })();
   });
 
-  async function save(): Promise<void> {
-    saved = (await onSave(chosen)) ? 'Saved.' : 'The focus area could not be saved.';
+  async function save(): Promise<boolean> {
+    const confirmed = await draft.save();
+    saved = confirmed ? 'Saved.' : 'The focus area could not be saved.';
+    return confirmed;
   }
+  $effect(() => registerWork?.({
+    isDirty: () => draft.isDirty(), save,
+    discard() { draft.discard(); draft.chosen = area.length > 0 ? area : own ? [own] : []; saved = ''; }
+  }));
+
 </script>
 
 <section class="extension-setting" aria-labelledby="area-title" id="my-area">
@@ -77,9 +91,9 @@
   {:else if problem}
     <p class="field-error" role="status">{problem}</p>
   {:else}
-    <AreaPicker {nodes} {chosen} {most} searchLabel="Find a program, entity or location" onChange={next => { chosen = next; saved = ''; }} />
+    <AreaPicker {nodes} {chosen} {most} searchLabel="Find a program, entity or location" onChange={next => { draft.choose(next); saved = ''; }} />
     <div class="form-footer">
-      {#if own}<button type="button" class="secondary" id="area-own" onclick={() => { chosen = [own!]; saved = ''; }}>Just my Location's ({labelOf(nodes, own) ?? own})</button>{/if}
+      {#if own}<button type="button" class="secondary" id="area-own" onclick={() => { draft.choose([own!]); saved = ''; }}>Just my Location's ({labelOf(nodes, own) ?? own})</button>{/if}
       <button type="button" id="area-save" onclick={save}>Save focus area</button>
     </div>
     {#if saved}<p class="hint" role="status" id="area-saved">{saved}</p>{/if}

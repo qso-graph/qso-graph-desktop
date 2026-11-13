@@ -6,6 +6,7 @@
 // up (QGD-ENG-0003). Its status reaches the screen two ways: once when the
 // screen asks, and pushed whenever it changes (an exit, a restart, a finished
 // reference build). So nothing polls and nothing goes stale.
+import { recordUtilityProcess } from './process-run.js';
 import type { AdifBand, AdifEntry, AdifList } from '../storage/adif-entry.js';
 import type { StationsBackup } from '../storage/station-contract.js';
 import type { AreaPlace } from '../storage/area-entry.js';
@@ -135,6 +136,7 @@ export function startStorageBroker(options: StorageBrokerOptions): StorageBroker
       options.root, options.stateMigrations, options.referenceDdl, options.registerFile,
       options.referenceCache, options.appVersion
     ], { serviceName: 'QG Storage', stdio: 'ignore' });
+    recordUtilityProcess(worker);
     // Logged so the connection-capture suite can name this process, and so a
     // support bundle can tell which pid was storage (QGD-ENG-0017). After the
     // spawn event: until then Electron does not know the pid.

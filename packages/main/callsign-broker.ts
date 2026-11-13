@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { recordUtilityProcess } from './process-run.js';
 import { isLotwLocationMessage, TQSL_READ_REFUSED } from '../callsigns/lotw-contract.js';
 import { app, BrowserWindow, dialog, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -146,6 +147,7 @@ export function startCallsignBroker(distDirectory: string, registerFile: string)
     worker = utilityProcess.fork(join(distDirectory, 'callsigns', 'callsign-service.js'), [profileDirectory, registerFile], {
       serviceName: 'QG Callsigns', stdio: 'ignore', allowLoadingUnsignedLibraries: true
     });
+    recordUtilityProcess(worker);
     worker.on('message', (message: unknown) => {
       if (message === null || typeof message !== 'object') return;
       const payload = message as { ready?: unknown; log?: unknown; id?: unknown; reply?: unknown };

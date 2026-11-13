@@ -16,6 +16,10 @@ export { THEME_CHOICES, isThemeChoice, type ThemeChoice };
 export interface Settings {
   // QGD-FRM-0002: Dark is the default.
   theme: ThemeChoice;
+  // Open destinations only; drafts and selection never go to disk.
+  tabs: readonly string[];
+  // The last inner Settings tab; destination selection still starts on Home.
+  settingsTab: SettingsTab;
   // Which grants the operator has allowed, per application id (QGD-APP-0012).
   // Here rather than in the database because the core decides what an
   // application may do before the engine is up (QGD-ENG-0003), and because a
@@ -110,6 +114,12 @@ export function isIntegrationSettings(value: unknown): value is Readonly<Record<
   return entries.length <= 16 && entries.every(([id, entry]) => APP_ID.test(id) && isAdapterSettings(entry));
 }
 
+export const SETTINGS_TABS = ['general', 'data-sources', 'extensions'] as const;
+export type SettingsTab = typeof SETTINGS_TABS[number];
+export function isSettingsTab(value: unknown): value is SettingsTab {
+  return (SETTINGS_TABS as readonly unknown[]).includes(value);
+}
+
 export const UPDATE_TRACKS = ['stable', 'early'] as const;
 export type UpdateTrack = typeof UPDATE_TRACKS[number];
 export function isUpdateTrack(value: unknown): value is UpdateTrack {
@@ -145,7 +155,7 @@ export const DAY_ONE_PINS: readonly string[] = [];
 
 // Dark by default: rig control and SDR software is dark,
 // day or night. Light and System stay one choice away (QGD-FRM-0002).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', lastRunVersion: '', updatedFrom: '', area: [],
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', tabs: ['home'], settingsTab: 'general', grants: {}, pins: DAY_ONE_PINS, extensionsOn: [], seenVersion: '', lastRunVersion: '', updatedFrom: '', area: [],
   updateCheck: true, updateTrack: 'stable', windowBounds: null, integrations: {}, pageSettings: {} };
 
 // A version, as package.json writes one, or empty. Up to 60 characters: a lab
@@ -155,6 +165,20 @@ export function isSeenVersion(value: unknown): value is string {
 }
 
 const PAGE_KEY = /^[a-z][a-z0-9-]{1,30}\/[a-z][a-z0-9-]{1,30}$/;
+
+// Five core destinations plus 64 enabled extensions with at most 16 pages each.
+export function isSavedTabs(value: unknown): value is readonly string[] {
+  if (!Array.isArray(value) || value.length > 1029) return false;
+  const seen = new Set<string>();
+  for (let at = 0; at < value.length; at++) {
+    const id: unknown = value[at];
+    if (!Object.hasOwn(value, at) || typeof id !== 'string' || seen.has(id)
+      || (!['home', 'callsigns', 'stations', 'integrations', 'settings'].includes(id)
+        && !(id.startsWith('ext:') && PAGE_KEY.test(id.slice(4))))) return false;
+    seen.add(id);
+  }
+  return true;
+}
 
 export function isPins(value: unknown): value is readonly string[] {
   if (!Array.isArray(value) || value.length > MAX_PINS) return false;
@@ -240,6 +264,8 @@ function keys(value: Record<string, unknown>, allowed: string[]): boolean {
 // rather than widening a general one.
 const VALIDATORS: { [K in WritableSetting]: (value: unknown) => value is Settings[K] } = {
   theme: isThemeChoice,
+  tabs: isSavedTabs,
+  settingsTab: isSettingsTab,
   grants: isGrantMap,
   seenVersion: isSeenVersion,
   lastRunVersion: isSeenVersion,
@@ -291,6 +317,8 @@ export function readSettings(stored: unknown): Settings {
     if (accepts(source[key])) settings[key] = source[key] as Settings[K];
   };
   read('theme', isThemeChoice);
+  read('tabs', isSavedTabs);
+  read('settingsTab', isSettingsTab);
   // Grants are read entry by entry, failing closed: an extension whose entry
   // cannot be read holds only the grants that need nobody, as if every other
   // were withdrawn. Discarding the whole map would hand an official extension

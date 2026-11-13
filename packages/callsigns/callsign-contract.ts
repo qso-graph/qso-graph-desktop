@@ -25,6 +25,14 @@ export function callsignLabel(callsign: Pick<Callsign, 'call' | 'description'>):
 // where the register is read and checked.
 export type { ServiceSummary };
 export interface CredentialStatus { testable: boolean; stored: boolean; kindsKnown: boolean; hasUsername: boolean; hasPassword: boolean; hasApiKey: boolean; preferred: 'service' | 'password' | 'api_key'; effective?: 'password' | 'api_key' | null }
+// A save is confirmed only by a readable status, never by an arbitrary payload.
+export function isCredentialStatus(value: unknown): value is CredentialStatus {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const status = value as Record<string, unknown>;
+  return ['testable', 'stored', 'kindsKnown', 'hasUsername', 'hasPassword', 'hasApiKey'].every(key => typeof status[key] === 'boolean')
+    && ['service', 'password', 'api_key'].includes(status.preferred as string)
+    && (status.effective === undefined || status.effective === null || status.effective === 'password' || status.effective === 'api_key');
+}
 export interface CredentialTest { outcome: 'success' | 'rejected' | 'network-error' | 'rate-limited' | 'invalid-response' | 'missing' | 'unsupported' }
 // The sealed file on its way from the core to the broker. It never reaches a
 // renderer: the broker writes it where the operator chose and replies with

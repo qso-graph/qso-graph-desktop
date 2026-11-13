@@ -7,11 +7,9 @@
   cannot be left half-done is a setup an operator abandons, and this one is in
   front of somebody who has just installed the thing.
 
-  Nothing is held in limbo. The callsign is created the moment it is named, and
-  each credential is saved the moment it is entered, so leaving the flow and
-  returning loses nothing: what is on screen is a position in a list, not
-  unsaved work. That is what makes "can be returned to" true rather than
-  something to implement.
+  A completed step is saved immediately. Fields typed in the current step
+  are a page-owned draft: the shell asks through PageWork before closing.
+  The page stays mounted when hidden, so returning keeps those fields.
 
   The steps after the first are drawn from the service register (QGD-PSN-0002)
   — the fields, the labels, the instructions and whether there is a test all
@@ -19,12 +17,14 @@
   to this file.
 -->
 <script lang="ts">
+  import type { PageWork } from '../page-work.js';
   import { caseAsTyped } from '../../ui/typed-case.js';
   import { untrack } from 'svelte';
   import Field, { type ControlAttributes } from '../../ui/Field.svelte';
   import type { ServiceSummary } from '../../callsigns/callsign-contract.js';
 
   interface Props {
+    registerWork?: (work: PageWork) => () => void;
     services: ServiceSummary[];
     // The callsign this setup is for, as it is shown, once it exists. Present
     // when returning to a setup that already made one.
@@ -35,7 +35,7 @@
     ) => Promise<string | undefined>;
     onDone: () => void;
   }
-  const { services, existing, onCreateCallsign, onSaveCredential, onDone }: Props = $props();
+  const { registerWork, services, existing, onCreateCallsign, onSaveCredential, onDone }: Props = $props();
 
   // Where we are: 0 is the callsign, 1..services.length are the services, and
   // one past the end is the summary. Starting past the callsign when the
@@ -69,26 +69,35 @@
       .every(field => valueOf(summary.id, field.name).trim() !== '');
   }
 
-  async function createCallsign() {
+  async function createCallsign(): Promise<boolean> {
+    if (working || !callsign.trim()) return false;
     working = true;
     problem = '';
     try {
+      const saving = { callsign, name };
       const failed = await onCreateCallsign(callsign.trim(), name.trim());
-      if (failed) problem = failed;
-      else step = 1;
+      if (failed !== undefined) { problem = failed; return false; }
+      if (callsign !== saving.callsign || name !== saving.name) return false;
+      step = 1;
+      return true;
     } finally {
       working = false;
     }
   }
 
-  async function saveService(summary: ServiceSummary) {
+  async function saveService(summary: ServiceSummary): Promise<boolean> {
+    if (working || !ready(summary)) return false;
     working = true;
     problem = '';
+    const saving = { ...(entered[summary.id] ?? {}) };
     try {
-      const failed = await onSaveCredential(summary.id, entered[summary.id] ?? {});
-      if (failed) { problem = failed; return; }
+      const failed = await onSaveCredential(summary.id, saving);
+      if (failed !== undefined) { problem = failed; return false; }
+      if (JSON.stringify(saving) !== JSON.stringify(entered[summary.id])) return false;
+      entered[summary.id] = {};
       saved[summary.id] = true;
       step += 1;
+      return true;
     } finally {
       working = false;
     }
@@ -96,10 +105,16 @@
 
   function skip(summary: ServiceSummary) {
     skipped[summary.id] = true;
+    entered[summary.id] = {};
     problem = '';
     step += 1;
   }
 
+  $effect(() => registerWork?.({
+    isDirty: () => step === 0 ? callsign !== '' || name !== '' : !!service && Object.values(entered[service.id] ?? {}).some(value => value !== ''),
+    save: () => step === 0 ? createCallsign() : service ? saveService(service) : Promise.resolve(true),
+    discard() { callsign = ''; name = ''; for (const id of Object.keys(entered)) delete entered[id]; }
+  }));
   const savedCount = $derived(Object.values(saved).filter(Boolean).length);
   const skippedCount = $derived(Object.values(skipped).filter(Boolean).length);
 </script>

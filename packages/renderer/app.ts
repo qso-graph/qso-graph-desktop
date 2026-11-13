@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {
-  callsignLabel, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
+  callsignLabel, isCredentialStatus, type Callsign, type Snapshot, type CredentialStatus, type CredentialTest, type ExportResult,
   type BackupPart, type ImportPreview, type ImportResult, type CallsignCommand, type CallsignReply, type ServiceSummary
 } from '../callsigns/callsign-contract.js';
 import type { SettingsCommand, SettingsReply, ThemeChoice, UpdateTrack } from '../main/settings-contract.js';
@@ -17,6 +17,10 @@ import Shell from './Shell.svelte';
 import { isExtensionsReply, type ExtensionsCommand, type ExtensionsReply } from '../main/extensions-contract.js';
 import { windowTitle } from '../ui/release.js';
 import { callsignDates, isExpired, orderCallsigns } from './callsign-order.js';
+import { createSettingsTabSession } from './settings-tab-session.js';
+import { createTabSession } from './tab-session.js';
+import { createTabKeyboard } from './tab-keyboard.js';
+import { focusShownTab } from '../ui/tab-focus.js';
 import { createShellStore } from './shell-store.js';
 import type { LinkCommand } from '../main/links-contract.js';
 import { createHomeStore } from './home-store.js';
@@ -26,6 +30,7 @@ declare const __QG_VERSION__: string;
 
 declare global {
   interface Window {
+    windowClose?: { onRequest(listener: () => Promise<boolean>): () => void };
     tqsl?: { sync(): Promise<unknown> };
     callsigns: { request(command: CallsignCommand): Promise<CallsignReply>; platform?: string };
     settings: { request(command: SettingsCommand): Promise<SettingsReply> };
@@ -44,7 +49,7 @@ declare global {
       inventory(command: ExtensionsCommand): Promise<ExtensionsReply>;
     };
     appearance?: Appearance;
-    menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void };
+    menu?: { onTroubleshooting(listener: () => void): () => void; onSetup?(listener: (action: string) => void): () => void; onTab?(listener: (action: string) => void): () => void };
     // What's new (QGD-FRM-0016): the notes, from the changelog that ships.
     whatsNew?: { notes(since: string | null): Promise<unknown> };
     // A page in the browser, built by main from its register (QGD-SEC-0009).
@@ -75,10 +80,28 @@ declare global {
 // The credential store this platform has, named on screen (credential-store.ts).
 const PLATFORM = window.callsigns.platform ?? 'darwin';
 const shell = createShellStore();
+const tabKeyboard = createTabKeyboard(shell, {
+  platform: PLATFORM,
+  focusShown: () => focusShownTab(document),
+  blocked: () => document.querySelector('dialog[open]') !== null,
+  editing: () => Boolean(document.activeElement?.closest('input, textarea, select, [role="textbox"], [contenteditable]:not([contenteditable="false"])')),
+  now: () => performance.now()
+});
+window.menu?.onTab?.(action => { void tabKeyboard.action(action); });
+window.addEventListener('keydown', tabKeyboard.keydown);
+window.addEventListener('blur', tabKeyboard.reset);
+export const mayCloseWindow = () => shell.mayCloseWindow();
+window.windowClose?.onRequest(mayCloseWindow);
 // The version in the window's title bar.
 document.title = windowTitle(__QG_VERSION__);
 // Home's pins and the open page: read once, then pushed (QGD-HOM-0005).
 const home = createHomeStore(window.home);
+const tabSession = createTabSession(shell, {
+  catalogue: () => home.catalogue(),
+  write: tabs => window.settings.request({ type: 'write', key: 'tabs', value: tabs })
+});
+const settingsTabSession = createSettingsTabSession(shell, tab => window.settings.request({ type: 'write', key: 'settingsTab', value: tab }));
+home.subscribe(() => tabSession.catalogueChanged());
 home.start();
 // Offline or online, as the operating system says, with no polling: the
 // events fire only when it changes.
@@ -188,6 +211,18 @@ let selected: string | null = null;
 // Intent is now read from the operator's own input events rather than from the
 // value: a field nobody typed into sends nothing, whatever it contains.
 const edited = new Set<string>();
+let callsignRevision = 0;
+let callsignSaved = 0;
+let credentialRevision = 0;
+let credentialSaved = 0;
+let savingCallsign = false;
+let savingCredential = false;
+for (const type of ['input', 'change']) {
+  element('callsign-form').addEventListener(type, () => { callsignRevision++; });
+  element('credential-form').addEventListener(type, event => {
+    if (['username', 'password', 'api-key'].includes((event.target as HTMLElement).id)) credentialRevision++;
+  });
+}
 
 function clearSecretFields() {
   for (const id of ['password', 'api-key']) {
@@ -388,6 +423,8 @@ function select(id: string | null) {
   input('username').value = callsign?.call ?? '';
   element('keychain-id').textContent = callsign?.id ?? '';
   clearSecretFields();
+  callsignSaved = callsignRevision;
+  credentialSaved = credentialRevision;
   if (callsign) void credentialStatus(); else input('callsign').focus();
 }
 async function busy(buttonId: string, action: () => Promise<void>) {
@@ -406,22 +443,36 @@ async function busy(buttonId: string, action: () => Promise<void>) {
   }
 }
 element('new-callsign').addEventListener('click', () => select(null));
-element('callsign-form').addEventListener('submit', event => {
-  event.preventDefault(); void busy('save-callsign', async () => {
+async function saveCallsignDetails(): Promise<boolean> {
+  const form = element<HTMLFormElement>('callsign-form');
+  if (savingCallsign || !form.reportValidity()) return false;
+  savingCallsign = true;
+  const revision = callsignRevision;
+  try {
     const details = {
       call: input('callsign').value, description: input('callsign-description').value,
       start: input('start-date').value || undefined, end: input('end-date').value || undefined
     };
     if (selected) {
       snapshot = await request({ type: 'update', id: selected, ...details }) as Snapshot;
-      select(selected);
+      if (!snapshot.callsigns.some(entry => entry.id === selected && entry.call === details.call.trim() && entry.description === details.description.trim())) return false;
+      // Do not redraw the credential form: it may have its own pending edits.
+      list();
     } else {
       const before = new Set(snapshot.callsigns.map(entry => entry.id));
       snapshot = await request({ type: 'create', ...details }) as Snapshot;
-      select(snapshot.callsigns.find(entry => !before.has(entry.id))?.id ?? null);
+      const made = snapshot.callsigns.find(entry => !before.has(entry.id));
+      if (!made) return false;
+      if (callsignRevision === revision) select(made.id);
     }
+    callsignSaved = revision;
     message('Callsign saved.');
-  });
+    return callsignRevision === revision;
+  } catch { message('The callsign could not be confirmed saved. Try again.', true); return false; }
+  finally { savingCallsign = false; }
+}
+element('callsign-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-callsign', async () => { await saveCallsignDetails(); });
 });
 // Make active, from a row: that callsign is the active one, and the one
 // being edited stays as it was.
@@ -447,23 +498,40 @@ for (const id of ['password', 'api-key']) {
   // case this exists to refuse.
   input(id).addEventListener('input', () => { edited.add(id); });
 }
-element('credential-form').addEventListener('submit', event => {
-  event.preventDefault(); void busy('save-credential', async () => {
-    if (!selected) return;
+async function saveCredentialDetails(): Promise<boolean> {
+  if (!selected || savingCredential || !element<HTMLFormElement>('credential-form').reportValidity()) return false;
+  savingCredential = true;
+  const revision = credentialRevision;
+  try {
     const credentials = {
       username: input('username').disabled ? undefined : input('username').value || undefined,
-      password: enteredSecret('password'),
-      apiKey: enteredSecret('api-key')
+      password: enteredSecret('password'), apiKey: enteredSecret('api-key')
     };
-    clearSecretFields();
     const id = selected;
     const provider = element<HTMLSelectElement>('provider').value;
-    const status = await request({ type: 'save-credentials', id, provider, credentials }) as CredentialStatus;
-    if (id === selected && provider === element<HTMLSelectElement>('provider').value) {
-      showCredentialStatus(status); message(forStore('Credential saved in macOS Keychain.', PLATFORM));
-      invalidateTest();
-    }
-  });
+    const status = await request({ type: 'save-credentials', id, provider, credentials });
+    if (!isCredentialStatus(status) || !status.stored) return false;
+    if (id !== selected || provider !== element<HTMLSelectElement>('provider').value || credentialRevision !== revision) return false;
+    showCredentialStatus(status);
+    clearSecretFields();
+    credentialSaved = revision; message(forStore('Credential saved in macOS Keychain.', PLATFORM));
+    invalidateTest();
+    return true;
+  } catch { message('The credential could not be confirmed saved. Your changes are still here.', true); return false; }
+  finally { savingCredential = false; }
+}
+element('credential-form').addEventListener('submit', event => {
+  event.preventDefault(); void busy('save-credential', async () => { await saveCredentialDetails(); });
+});
+shell.registerWork('callsigns', {
+  isDirty: () => callsignRevision !== callsignSaved || credentialRevision !== credentialSaved,
+  async save() {
+    if (callsignRevision !== callsignSaved && !await saveCallsignDetails()) return false;
+    if (credentialRevision !== credentialSaved && !await saveCredentialDetails()) return false;
+    return true;
+  },
+  discard() { select(selected); },
+  reveal() { shell.set({ setup: false }); }
 });
 element('remove-credential').addEventListener('click', () => void busy('remove-credential', async () => {
   if (!selected || !window.confirm('Remove the saved credential for this callsign and service?')) return;
@@ -596,7 +664,9 @@ async function loadTheme(): Promise<void> {
   // What's new (QGD-FRM-0016, #119): a different version from the one last
   // run was an update from it (or going back), and Home says so in one line.
   // A new install records its version and says nothing.
+  settingsTabSession.restore(reply.ok ? reply.data.settingsTab : undefined);
   if (reply.ok) {
+    tabSession.restore(reply.data.tabs);
     const start = versionAtStart(reply.data, __QG_VERSION__);
     for (const [key, value] of Object.entries(start.write) as [keyof VersionRecord, string][]) {
       void window.settings.request({ type: 'write', key, value });
@@ -645,7 +715,9 @@ function takeExtensions(reply: unknown): boolean {
 
 export async function setExtensionEnabled(id: string, enabled: boolean): Promise<boolean> {
   try {
-    const done = takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+    const apply = async () => takeExtensions(await window.extensions?.inventory({ type: 'set-enabled', id, enabled }));
+    const tabs = shell.get().tabs.filter(tab => tab.startsWith(`ext:${id}/`));
+    const done = enabled ? await apply() : await shell.withClosingTabs(tabs, apply);
     // Turned on, its pages join the rail at once; turned off, they leave it
     // (QGD-HOM-0004, QGD-HOM-0007). The rail is drawn from Home's state, which was read
     // only when Home came on screen, so it is read again here.
@@ -950,14 +1022,14 @@ window.menu?.onSetup?.(action => {
   if (action === 'whats-new') { openWhatsNew(); return; }
   // About: Settings' About card.
   if (action === 'about') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'general' });
     requestAnimationFrame(() => document.getElementById('about-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
   // Check for Updates…: main has started the check;
   // Settings' Updates card shows it.
   if (action === 'updates') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'general' });
     requestAnimationFrame(() => document.getElementById('updates-title')?.scrollIntoView({ block: 'start' }));
     return;
   }
@@ -972,13 +1044,16 @@ window.menu?.onSetup?.(action => {
   else if (action === 'locations') shell.set({ page: 'stations', extensionPage: null });
   // The Focus Area is Parks On the Air's own setting, on its area's
   // Settings tab.
-  else if (action === 'area') shell.set({ page: 'extension', extensionPage: 'pota/parks', extensionSettings: true });
+  else if (action === 'area') {
+    const page = home.get().available.find(page => page.key === 'pota/parks');
+    if (page) shell.openExtension(page.key, page.area, true);
+  }
   else if (action === 'settings') shell.set({ page: 'settings', extensionPage: null });
   else if (action === 'pins') shell.set({ page: 'home', extensionPage: null, customizing: true });
   // Tools: Settings' Back up and restore, at the button
   // the step needs.
   else if (action === 'export-callsigns' || action === 'import-callsigns') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'general' });
     const field = action === 'export-callsigns' ? 'backup-export' : 'backup-import';
     requestAnimationFrame(() => {
       const input = document.getElementById(field);
@@ -987,7 +1062,7 @@ window.menu?.onSetup?.(action => {
     });
   }
   else if (action === 'adif' || action === 'pota' || action === 'sota') {
-    shell.set({ page: 'settings', extensionPage: null });
+    shell.set({ page: 'settings', extensionPage: null, settingsTab: 'data-sources' });
     void updateReference(action);
   }
 });

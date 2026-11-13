@@ -22,3 +22,5 @@
 <Story name="Destructive" />
 <Story name="Ordinary" args={{ title: 'Use this callsign?', message: 'W1AW becomes the active callsign.', confirmLabel: 'Use callsign', destructive: false }} />
 <Story name="Closed" args={{ open: false }} />
+
+<Story name="Unsaved changes" args={{ title: 'Save changes before closing?', message: 'Callsigns, Locations have unsaved changes.', confirmLabel: 'Save', alternateLabel: "Don't save", onAlternate: () => {}, destructive: false }} />

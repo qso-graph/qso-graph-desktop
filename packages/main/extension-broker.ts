@@ -20,6 +20,7 @@
 // (QGD-APP-0004). Until then only `official` manifests load, which is what
 // makes the gap bounded rather than open: the code that claims an identity
 // here is code this project built and reviewed.
+import { recordUtilityProcess } from './process-run.js';
 import { ipcMain, MessageChannelMain, utilityProcess, type MessagePortMain } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -129,6 +130,7 @@ export async function startExtensionBroker(options: ExtensionBrokerOptions): Pro
     spawn: () => {
       const child = utilityProcess.fork(join(options.distDirectory, 'extension-host', 'host.js'), [],
         { serviceName: 'QG Extensions', stdio: 'ignore' });
+      recordUtilityProcess(child);
       child.once('spawn', () => { log.info({ hostPid: child.pid }, 'extension host process started'); });
       return {
         post: (message, transfer) => child.postMessage(message, transfer ? [transfer as MessagePortMain] : []),

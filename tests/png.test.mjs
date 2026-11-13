@@ -110,7 +110,7 @@ describe('what the screenshots allow against a baseline', () => {
   it('still fails on text moved by one pixel', async () => {
     // The page heading, "Settings", is in this box on the baseline.
     const before = await load('settings-light');
-    const after = shift(before, 128, 100, 110, 35);
+    const after = shift(before, 128, 148, 110, 35);
     const result = compare(before, after, RENDER_TOLERANCE);
     expect(result.same).toBe(false);
     expect(result.differing).toBeGreaterThan(50);

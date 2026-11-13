@@ -8,6 +8,7 @@
 // Storage is (QGD-ENG-0006), while the window and every other process keep
 // running (QGD-PRC-0001). Its arguments are a path inside the application,
 // never a user's.
+import { recordUtilityProcess } from './process-run.js';
 import { BrowserWindow, ipcMain, utilityProcess, type UtilityProcess } from 'electron';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
@@ -103,6 +104,7 @@ export function startIntegrationsBroker(options: IntegrationsBrokerOptions): Int
     if (stopped || worker) return;
     const child = utilityProcess.fork(join(options.distDirectory, 'integrations', 'integrations-service.js'), [options.limitsFile],
       { serviceName: 'QG Integrations', stdio: 'ignore' });
+    recordUtilityProcess(child);
     worker = child;
     child.once('spawn', () => {
       // Logged so the connection-capture suite can name this process, which

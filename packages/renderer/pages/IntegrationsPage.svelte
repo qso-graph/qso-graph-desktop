@@ -10,18 +10,20 @@
   switch, which this page carries too.
 -->
 <script lang="ts">
+  import type { PageWork } from '../page-work.js';
   import PageLayout from '../../ui/PageLayout.svelte';
   import type { AdapterView, IntegrationsView } from '../../main/integrations-page-contract.js';
   import { isAddress } from '../../extension-api/address.js';
 
   interface Props {
+    registerWork?: (work: PageWork) => () => void;
     view: IntegrationsView | undefined;
     // Saves an adapter's port, network and senders; a sentence when refused.
     onSet: (adapter: string, port: number, network: string | null, allow: string[]) => Promise<string | undefined>;
     // Turns an adapter's extension on or off (QGD-HOM-0007).
     onSetExtension: (id: string, enabled: boolean) => Promise<boolean>;
   }
-  const { view, onSet, onSetExtension }: Props = $props();
+  const { registerWork, view, onSet, onSetExtension }: Props = $props();
 
   const clock = (iso: string) => `${new Date(iso).toISOString().slice(11, 19)} UTC`;
   const REASONS: Record<string, string> = {
@@ -57,14 +59,26 @@
     }
     return '';
   }
-  async function save(adapter: AdapterView): Promise<void> {
-    if (problem(adapter)) return;
+  async function save(adapter: AdapterView): Promise<boolean> {
+    if (problem(adapter)) return false;
     const typed = draft(adapter);
     const network = typed.network === '' ? null : typed.network;
     const refused = await onSet(adapter.id, Number(typed.port), network, network === null ? [] : [...new Set(senders(typed.allow))]);
     said = { ...said, [adapter.id]: refused ?? 'Saved.' };
-    if (!refused) { const { [adapter.id]: _, ...rest } = editing; editing = rest; }
+    if (refused === undefined && typed === editing[adapter.id]) { const { [adapter.id]: _, ...rest } = editing; editing = rest; return true; }
+    return false;
   }
+  $effect(() => registerWork?.({
+    isDirty: () => Object.keys(editing).length > 0,
+    async save() {
+      for (const id of Object.keys(editing)) {
+        const adapter = view?.adapters.find(entry => entry.id === id);
+        if (!adapter || !await save(adapter)) return false;
+      }
+      return true;
+    },
+    discard() { editing = {}; said = {}; }
+  }));
   const where = (address: string) => address === '127.0.0.1' || address === '::1' ? 'this computer' : address;
 </script>
 

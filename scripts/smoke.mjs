@@ -490,6 +490,7 @@ try {
   // holds the pinned cards only (QGD-FRM-0011, 2026-10-22); the version and
   // what the application sends are in Settings' About.
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Data sources', exact: true }).click();
   // One row per resource the register lists, read from it rather than
   // counted here: SOTA's summits made it three, and a count written down
   // failed the moment they arrived.
@@ -497,6 +498,7 @@ try {
   await expect.poll(() => page.locator('.reference-state').allInnerTexts(), { timeout: 10_000 })
     .toEqual(resources.map(() => 'Not downloaded'));
   await expect(page.getByRole('button', { name: 'Download ADIF definitions' })).toBeVisible();
+  await page.getByRole('tab', { name: 'General', exact: true }).click();
   await expect(page.locator('#about-version')).not.toBeEmpty();
   await expect(page.locator('#about-privacy')).toContainText('Everything you enter stays on this computer');
   await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Callsigns', exact: true }).click();

@@ -17,11 +17,11 @@ it('only the shell main frame can request Sync, with no path or other arguments'
   }
   expect(run).not.toHaveBeenCalled(); expect((await electron.handler(e)).ok).toBe(true); expect(run).toHaveBeenCalledOnce(); stop();
 });
-it.each(['destroyed','did-start-navigation','before-quit'])('requester %s aborts pending work and releases listeners', async how => {
+it.each(['destroyed','did-start-navigation','confirmed-quit'])('requester %s aborts pending work and releases listeners', async how => {
   let signal:AbortSignal|undefined;
   const run=vi.fn((s:AbortSignal)=>{signal=s;return new Promise<any>(resolve=>s.addEventListener('abort',()=>resolve({status:'cancelled',folder:'',locations:[],added:0}),{once:true}));});
   const stop=startTqslSyncBroker(run); const e=event(); const pending=electron.handler(e);
-  if(how==='before-quit') electron.app.emit(how); else e.sender.emit(how);
+  if(how==='confirmed-quit') stop(); else e.sender.emit(how);
   expect(signal?.aborted).toBe(true); expect((await pending).result.status).toBe('cancelled');
   expect(e.sender.listenerCount('destroyed')).toBe(0); expect(e.sender.listenerCount('did-start-navigation')).toBe(0); stop();
 });

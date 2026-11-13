@@ -6,7 +6,9 @@ import { INITIAL_SHELL, PAGES, createShellStore, isPageId, type ShellState, visi
 describe('the shell store', () => {
   it('starts on Home with no active callsign and the system theme', () => {
     expect(INITIAL_SHELL).toEqual({
+      closeQuestion: null, closeError: '',
       page: 'home', extensionPage: null, extensionSettings: false, activeCallsign: '', activeCallsignId: '', activeCallsignLabel: '', themeChoice: 'dark', logs: undefined, storage: undefined,
+      tabs: ['home'], settingsTab: 'general', tabMru: ['home'], extensionTabs: {},
       // Troubleshooting closed. It is in the store rather than local to the
       // shell because what it shows is fetched while it is open: the logs
       // (QGD-LOG-0013, QGD-FRM-0012).
