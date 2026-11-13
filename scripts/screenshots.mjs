@@ -68,6 +68,8 @@ const VOLATILE = [
   // checkout, but the baselines are committed and compared from any checkout
   // (~/qgd-bob, a maintainer's own clone), so the path differs between them.
   '#log-directory',
+  // A callsign's Keychain ID is its random id (QGD-CRD-0003), new each run.
+  '#keychain-id',
   // The header's clock: its times, not its "UTC" and "Local" labels.
   '#header-clock .clock-time',
   '#page-observed', '.figure-time'
