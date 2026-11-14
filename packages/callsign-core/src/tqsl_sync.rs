@@ -402,17 +402,26 @@ mod tests {
                 .is_empty()
         );
     }
-    fn snapshot(dir: &Path) -> Vec<(std::path::PathBuf, u64, std::time::SystemTime)> {
-        let mut files: Vec<_> = std::fs::read_dir(dir)
+    type Snapshot = Vec<(std::path::PathBuf, u64, std::time::SystemTime, Vec<u8>)>;
+    /// Every file under `dir`, with what it holds: its size and modified time as the file
+    /// itself reports them, and its contents. Not `DirEntry::metadata`, which on Windows is
+    /// the folder's cached copy: NTFS refreshes it lazily, after a later handle on the file
+    /// closes, so a file just written could read one size before a preview and another after
+    /// it with nothing changed (tqsl_sync failed so on Windows CI, 2026-11-13 and -14).
+    fn snapshot(dir: &Path) -> Snapshot {
+        let mut files: Snapshot = std::fs::read_dir(dir)
             .unwrap()
             .flat_map(|e| {
-                let e = e.unwrap();
-                let m = e.metadata().unwrap();
-                let mut entries = vec![(e.path(), m.len(), m.modified().unwrap())];
+                let path = e.unwrap().path();
+                let m = std::fs::metadata(&path).unwrap();
                 if m.is_dir() {
-                    entries.extend(snapshot(&e.path()));
+                    let mut entries = vec![(path.clone(), 0, m.modified().unwrap(), Vec::new())];
+                    entries.extend(snapshot(&path));
+                    entries
+                } else {
+                    let bytes = std::fs::read(&path).unwrap();
+                    vec![(path, m.len(), m.modified().unwrap(), bytes)]
                 }
-                entries
             })
             .collect();
         files.sort();
