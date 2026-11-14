@@ -21,6 +21,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - QG Trust 0.2.2. The test for a `.p12` with no password reads one from QG Trust's test corpus instead of making it with the `openssl` on `PATH`, which failed wherever that was LibreSSL, as on macOS Intel.
 - The integration suites drive QG Interop's `qg-interop sim` (0.1.0, built from crates.io) instead of `qso-graph-sim` from PyPI, so no suite needs Python or `uv` (`QGD-INT-0024`, `QGD-CRD-0004`). The adapter's captured-message fixture is re-captured from it: the same 159 messages in the same order.
 
+### Fixed
+
+- The rail's scroller is always drawn on its own layer, so its icons render the same way every time. Whether Chromium gave it one used to change as the page behind it changed, and the screenshot suite failed intermittently on Conditions (#207).
+
 ## [0.7.1] - 2026-11-12
 
 ### Changed
