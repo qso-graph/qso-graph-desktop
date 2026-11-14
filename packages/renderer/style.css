@@ -198,7 +198,11 @@ header { height: 56px; padding: 0 28px; background: var(--surface); border-botto
 /* More destinations than the window is tall: the upper group scrolls and
    Settings stays at the foot, however many extensions there are. */
 .rail { min-height: 0; }
-.rail-group:not(.rail-end) { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+/* Its own layer, always. Otherwise whether the scroller gets one is decided
+   anew as the page behind it changes, and its icons' edges were drawn either
+   of two ways depending on that decision: 6 of 8 runs differed on Conditions,
+   0 of 14 with this (#207). */
+.rail-group:not(.rail-end) { min-height: 0; overflow-y: auto; scrollbar-width: thin; will-change: transform; }
 .rail-end { flex-shrink: 0; }
 .rail-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; padding: 10px 4px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-muted); font-size: 11px; font-weight: 600; line-height: 1.2; }
 .rail-item.current { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
