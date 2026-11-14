@@ -537,8 +537,10 @@ refuses markup in what it draws (`QGD-HOM-0002`), so the Monitor draws them as t
 that look like them; the event keeps WSJT-X's text exactly.
 
 **The simulator is the operator's, not a copy in this repository.** #125 asked for
-`scripts/wsjtx-sim`; `QGD-INT-0024` names `qso-graph-sim` instead, so the suites drive the same
-program an operator or a developer would, pinned by version, run with `uvx`. The adapter's decoder
+`scripts/wsjtx-sim`; `QGD-INT-0024` names QG Interop's `qg-interop sim` instead, so the suites drive the
+same program an operator or a developer would, built from crates.io at an exact version
+(`scripts/qg-interop.mjs`). It replaced `qso-graph-sim`, a Python program run with `uvx`, which
+`QGD-CRD-0004` rules out for any suite. The adapter's decoder
 is also held to captured messages, in `extensions/wsjtx/tests/fixtures`: the simulator's now, and
 WSJT-X's own once they are captured from WSJT-X on Rig: None playing recorded audio.
 

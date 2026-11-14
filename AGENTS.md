@@ -237,8 +237,8 @@ Versions change, so pick the current ones rather than the names here.
 - **Language:** TypeScript (pinned at 6.0.3 until typescript-eslint supports 7; see
   `QGD-HDBK-001`), Svelte for screens, Rust only in `callsign-core` (D-17) and in Integrations'
   listener, `integrations-core` (`QGD-INT-0001`). No Python anywhere in the product
-  (`QGD-CRD-0004`); `qso-graph-sim`, which the integrations-sim suite drives, is a test tool from
-  PyPI and never ships.
+  (`QGD-CRD-0004`); `qg-interop`, which the integrations-sim suite drives, is QG Interop's test tool,
+  built from crates.io for the suites, and never ships.
 - **Dependencies:** runtime dependencies are deliberately few. Each new one is a reviewed
   decision, pinned exactly, installed with `npm ci` (`QGD-SEC-0012`).
 - **Security rules:** `QGD-SEC-0001` onward, with `QGD-PRC-0006`, `QGD-CRD-0006` and `QGD-LOG-*`.

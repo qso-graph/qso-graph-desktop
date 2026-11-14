@@ -82,7 +82,10 @@ function summarize(output, leaked, stopped) {
   // Playwright's own words too: "locator.click: Timeout 30000ms exceeded"
   // and the call log's "waiting for getByRole(…)" name the element a suite
   // stopped on, and without them a failure said only that it waited.
-  const telling = lines.filter(line => /×|❯|FAIL|Error|expected|Expected|Received|Timed out|timed out|Timeout \d+ms exceeded|waiting for (locator|getBy)|stdout \||stderr \|/.test(line));
+  // Rust's words as well: a test's panic names its file and line, and the
+  // assertion or unwrap under it says what was found. Without them a failed
+  // cargo test showed only its name (tqsl_sync on Windows, 2026-11-14).
+  const telling = lines.filter(line => /×|❯|FAIL|Error|expected|Expected|Received|Timed out|timed out|Timeout \d+ms exceeded|waiting for (locator|getBy)|stdout \||stderr \||panicked at|assertion|^\s*(left|right): |called `(Result|Option)::unwrap/.test(line));
   const shown = (telling.length ? telling : lines).slice(0, 40).join('\n');
   const head = (stopped ? `${stopped}\n` : '') + (leaked ? `Printed ${leaked} credential sentinel(s) to its output. Values omitted.\n` : '');
   return (head + shown).trim() || 'Command did not finish.';

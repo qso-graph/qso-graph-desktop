@@ -30,4 +30,4 @@ The protocol is read as WSJT-X's own
 [`Network/NetworkMessage.hpp`](https://github.com/WSJTX/wsjtx/blob/master/Network/NetworkMessage.hpp)
 defines it, schema 3. The decoder is fuzz-tested and checked against messages captured from
 WSJT-X (`tests/`), and the end-to-end suites drive it with
-[`qso-graph-sim`](https://github.com/qso-graph/qso-graph-sim) (`QGD-INT-0024`).
+[`qg-interop sim`](https://github.com/qso-graph/qso-graph-interop) (`QGD-INT-0024`).

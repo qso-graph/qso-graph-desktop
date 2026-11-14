@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The WSJT-X adapter and the Monitor together (QGD-INT-0022, QGD-INT-0023):
-// a session captured from qso-graph-sim, read by the adapter, checked as the
+// a session captured from qg-interop sim, read by the adapter, checked as the
 // core checks events, held by the Monitor, and drawn as the core accepts a
 // page. Here rather than in either extension, because an extension depends on
 // extension-api and ui alone (QGD-REP-0006).
@@ -22,7 +22,7 @@ const table = (data: PageData) => data.sections.find((section): section is Extra
 
 describe('a simulated session, from datagrams to the Monitor\'s page', () => {
   it('draws a session the simulator played, through the adapter, as the core accepts it', () => {
-    const capture = (JSON.parse(readFileSync('extensions/wsjtx/tests/fixtures/qso-graph-sim-0.2.0.json', 'utf8')) as { datagrams: string[] })
+    const capture = (JSON.parse(readFileSync('extensions/wsjtx/tests/fixtures/qg-interop-0.1.0.json', 'utf8')) as { datagrams: string[] })
       .datagrams.map(hex => ({ from: '127.0.0.1:50000', bytes: new Uint8Array(Buffer.from(hex, 'hex')) }));
     // Each as the core checks it, then as the Monitor receives it.
     const events: DeliveredEvent[] = createAdapter().receive(capture).events.map(event => validateDelivered({ ...validateEvent(event), adapter: 'wsjtx' }));

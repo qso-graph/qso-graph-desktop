@@ -4,6 +4,8 @@
 // stderr it inherited from the suite: the runner waited on the pipe until
 // integrations-sim's time limit with every check passed (CI, windows-latest,
 // 2026-10-30). taskkill /T stops the tree; elsewhere uvx's child goes with it.
+// qg-interop, which replaced it, is one process; stopping the tree still
+// means a simulator that starts its own children cannot hold the pipe again.
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 

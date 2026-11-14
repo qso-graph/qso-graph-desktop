@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { createAdapter } from '../src/adapter.js';
 import { replayMessage } from '../src/protocol.js';
 
-const capture = (JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'qso-graph-sim-0.2.0.json'), 'utf8')) as { datagrams: string[] })
+const capture = (JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'qg-interop-0.1.0.json'), 'utf8')) as { datagrams: string[] })
   .datagrams.map(hex => new Uint8Array(Buffer.from(hex, 'hex')));
 const from = '127.0.0.1:50123';
 

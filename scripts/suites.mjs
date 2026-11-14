@@ -112,7 +112,7 @@ export function suiteCommands(npmCli) {
   ['callsign-export', ['scripts/callsign-export.mjs']],
   ['electron-smoke', ['scripts/smoke.mjs']],
   ['home-pages', ['scripts/home-pages.mjs']],
-  // Integrations end to end (QGD-INT-0024): qso-graph-sim into the Monitor.
+  // Integrations end to end (QGD-INT-0024): qg-interop sim into the Monitor.
   ['integrations-sim', ['scripts/integrations-sim.mjs']],
   ['stations', ['scripts/stations.mjs']],
   ['setup-walk', ['scripts/setup-walk.mjs']],
