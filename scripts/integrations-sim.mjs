@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// P13 in the running application (QGD-INT-0024): qso-graph-sim plays its
+// P13 in the running application (QGD-INT-0024): qg-interop sim plays its
 // sample of 20 m FT8 as WSJT-X's own messages into QSO Graph Desktop, and the
 // Monitor shows them.
 //
@@ -9,7 +9,7 @@
 //   P13-on        the WSJT-X adapter turned on opens its port, on this
 //                 computer only, held by the QG Integrations process and no
 //                 other (QGD-INT-0001, QGD-INT-0002, QGD-INT-0005)
-//   P13-sim       qso-graph-sim's decodes reach the Monitor: its tabs are All
+//   P13-sim       qg-interop's decodes reach the Monitor: its tabs are All
 //                 and the copy of WSJT-X heard, its status line has the dial
 //                 frequency and mode, and its grid has decodes by cycle
 //                 (QGD-INT-0011, QGD-INT-0022, QGD-INT-0023, QGD-HOM-0015,
@@ -21,10 +21,11 @@
 //                 again, and the page says nothing is listening
 //                 (QGD-INT-0004)
 //
-// The simulator is qso-graph-sim from PyPI, pinned, run with uv's uvx: the
-// same program an operator would use, not a copy of it in this repository.
+// The simulator is QG Interop's qg-interop, built from crates.io at an exact
+// version (scripts/qg-interop.mjs): the same program an operator would use,
+// not a copy of it in this repository.
 import { _electron as electron, expect } from '@playwright/test';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { createSocket } from 'node:dgram';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -34,16 +35,19 @@ import { redact } from './report.mjs';
 import { socketsOf } from './platform-process.mjs';
 import { assertNoVisibleWindow } from './no-visible-window.mjs';
 import { enableTestKeychain } from './keychain-service.mjs';
+import { QG_INTEROP, qgInterop } from './qg-interop.mjs';
 
 enableTestKeychain();
 
-export const SIMULATOR = 'qso-graph-sim==0.2.0';
+export const SIMULATOR = `qg-interop ${QG_INTEROP.version}`;
 
-// uvx, or nothing: a suite that cannot run its simulator fails and says why,
+// The simulator, or nothing: a suite that cannot run it fails and says why,
 // rather than passing having checked nothing.
-const uvx = process.platform === 'win32' ? 'uvx.exe' : 'uvx';
-if (spawnSync(uvx, ['--version'], { encoding: 'utf8' }).status !== 0) {
-  console.error(`integrations-sim needs uv's uvx on the PATH to run ${SIMULATOR} (https://docs.astral.sh/uv/).`);
+let interop;
+try {
+  interop = qgInterop();
+} catch (error) {
+  console.error(`integrations-sim needs ${SIMULATOR}: ${error.message}`);
   process.exit(1);
 }
 
@@ -113,14 +117,14 @@ try {
 
   // P13-sim: the simulator plays its sample, looping, at four times real
   // speed, so a cycle arrives every few seconds.
-  simulator = spawn(uvx, [SIMULATOR, '--wsjtx', '--to', `127.0.0.1:${port}`, '--call', 'KI7MT', '--grid', 'DN13', '--speed', '4', '--loop'],
+  simulator = spawn(interop, ['sim', '--wsjtx', '--to', `127.0.0.1:${port}`, '--call', 'KI7MT', '--grid', 'DN13', '--speed', '4', '--loop'],
     { stdio: ['ignore', 'ignore', 'inherit'] });
   // Home reads what is on afresh each time it shows; the Monitor's rail item
   // is there after it.
   await rail(page, 'Home').click();
   await rail(page, 'Monitor').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Monitor' })).toBeVisible({ timeout: 30_000 });
-  // uvx fetches the simulator on its first run; then a cycle every few seconds.
+  // A cycle every few seconds.
   await expect(page.locator('#page-view-source-0')).toHaveText('WSJT-X', { timeout: 120_000 });
   await expect(page.locator('#page-view-all')).toHaveText('All');
   await expect(page.locator('section.page-body')).toContainText('14.074', { timeout: 30_000 });

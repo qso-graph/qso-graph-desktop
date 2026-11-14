@@ -19,6 +19,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Destinations open once in a tab bar above the page. Tabs can be closed, reordered by dragging, and selected with arrow keys, Home and End; closing the shown tab returns to the most recently used destination.
 - The specification describes 0.8.0's frame (`QGD-PRT-0114`, `QGD-PRT-0115`): every destination opens as a tab and the open tabs come back after a restart, a resizable panel beneath holds the live sources' terminals with a list of them on its right, Settings is in tabs by type, and closing the window ends the application on every system, macOS included, so the next start holds no port from the last.
 - QG Trust 0.2.2. The test for a `.p12` with no password reads one from QG Trust's test corpus instead of making it with the `openssl` on `PATH`, which failed wherever that was LibreSSL, as on macOS Intel.
+- The integration suites drive QG Interop's `qg-interop sim` (0.1.0, built from crates.io) instead of `qso-graph-sim` from PyPI, so no suite needs Python or `uv` (`QGD-INT-0024`, `QGD-CRD-0004`). The adapter's captured-message fixture is re-captured from it: the same 159 messages in the same order.
 
 ## [0.7.1] - 2026-11-12
 
