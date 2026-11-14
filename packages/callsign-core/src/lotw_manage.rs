@@ -526,32 +526,10 @@ mod tests {
         assert_eq!(summary.certificates.len(), 1);
         let certs = session.store.certificates().unwrap();
         session.store.with_key(&certs[0].id, |_| ()).unwrap();
-        // Produce an empty-password container from generated test material only. No secret is
-        // placed on a command line, and every fixture stays under this temporary directory.
-        let source = tmp.path().join("source.p12");
-        std::fs::write(&source, corpus("tqsl/1024/QG0TEST.p12")).unwrap();
-        let password = tmp.path().join("password");
-        std::fs::write(&password, corpus("pki/p12-password")).unwrap();
-        let pem = tmp.path().join("test-only.pem");
-        let status = std::process::Command::new("openssl")
-            .args(["pkcs12", "-in"])
-            .arg(&source)
-            .arg("-passin")
-            .arg(format!("file:{}", password.display()))
-            .args(["-nodes", "-out"])
-            .arg(&pem)
-            .output()
-            .unwrap();
-        assert!(status.status.success());
+        // QG Trust's corpus carries the same export with an empty password, so the test does not
+        // depend on the `openssl` a machine happens to have: LibreSSL could not make it.
         let empty = tmp.path().join("empty.p12");
-        let status = std::process::Command::new("openssl")
-            .args(["pkcs12", "-export", "-in"])
-            .arg(&pem)
-            .args(["-passout", "pass:", "-out"])
-            .arg(&empty)
-            .output()
-            .unwrap();
-        assert!(status.status.success());
+        std::fs::write(&empty, corpus("tqsl/1024/QG0TEST-no-password.p12")).unwrap();
         let dir = tmp.path().join("empty");
         let p = inspect(&mut m, &empty, &dir, &trust);
         assert_eq!(p["needsPassword"], false);

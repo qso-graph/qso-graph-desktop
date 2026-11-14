@@ -30,7 +30,7 @@ webpki-roots = "1"
 roxmltree = "0.21"
 # QG Trust's library, from its repository at a release tag; Cargo.lock records
 # the tag's commit (QGD-LTW-0001). Never from crates.io or a branch.
-qso-graph-trust = { git = "https://github.com/qso-graph/qso-graph-trust", tag = "v0.2.1" }
+qso-graph-trust = { git = "https://github.com/qso-graph/qso-graph-trust", tag = "v0.2.2" }
 # The wiping global allocator QG Trust's AGENTS.md names, at its exact version
 # (QGD-LTW-0006).
 zeroizing-alloc = { version = "=0.1.1", default-features = false }
