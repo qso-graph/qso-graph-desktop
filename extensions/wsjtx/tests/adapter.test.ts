@@ -7,8 +7,9 @@ import { join } from 'node:path';
 import { createAdapter } from '../src/adapter.js';
 import { replayMessage } from '../src/protocol.js';
 
-const capture = (JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'qg-interop-0.1.0.json'), 'utf8')) as { datagrams: string[] })
+const fixture = (name: string) => (JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', name), 'utf8')) as { datagrams: string[] })
   .datagrams.map(hex => new Uint8Array(Buffer.from(hex, 'hex')));
+const capture = fixture('qg-interop-0.1.0.json');
 const from = '127.0.0.1:50123';
 
 describe('the WSJT-X adapter', () => {
@@ -55,6 +56,20 @@ describe('the WSJT-X adapter', () => {
     expect(adapter.receive([{ from: '127.0.0.1:60000', bytes: capture[1] }]).replies).toHaveLength(1);
     adapter.receive([{ from: '127.0.0.1:60000', bytes: close }]);
     expect(adapter.receive([{ from: '127.0.0.1:60000', bytes: capture[0] }]).replies).toHaveLength(1);
+  });
+
+  // JTTY's text (JTTYText, type 19, as WSJT-X pull request 171 proposes it) is
+  // not read yet: it is ignored as any type this does not read is, never counted
+  // as malformed, and the rest of the session still arrives.
+  it('ignores JTTY text and keeps the session around it', () => {
+    // In fixtures/not-read/, out of the sessions protocol.test.ts reads in full.
+    const jtty = fixture('not-read/qg-interop-0.2.0-beta.1-jtty.json');
+    const types = jtty.map(bytes => new DataView(bytes.buffer, bytes.byteOffset).getUint32(8));
+    expect(types.filter(type => type === 19).length).toBeGreaterThan(0);
+    const { events, malformed } = createAdapter().receive(jtty.map(bytes => ({ from, bytes })));
+    expect(malformed).toBe(0);
+    expect(events.map(event => event.type)).toEqual(['heartbeat', 'status', 'close']);
+    expect(events[1]).toMatchObject({ type: 'status', mode: 'JTTY' });
   });
 
   it('counts what it cannot read, and sends nothing for it', () => {
