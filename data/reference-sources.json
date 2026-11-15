@@ -27,14 +27,14 @@
   ],
   "resourcesNote": "What the operator loads and updates, one control each: nothing is fetched at start, and someone who never uses a resource never downloads it. A resource names the data a person cares about, not a URL; ADIF's archive is one resource, and POTA's three lists are one. Adding one (EME, meteor scatter) is a row here and its loader, not a new screen.",
   "adif": {
-    "version": "3.1.7",
+    "version": "3.1.8",
     "source": {
       "what": "ADIF's published resources archive: the specification exported as JSON, CSV, TSV and XML, together with ADIF's own test QSOs.",
-      "url": "https://adif.org.uk/317/ADIF_317_resources_2026_03_22.zip",
-      "sha256": "1a70caf3a152c67c23ce9c4681f24b8e5f814862d8153d9a72e741375358e6d9",
-      "published": "2026-03-22",
-      "definitions": "317/exports/json/all.json",
-      "testQsos": "317/tests/ADIF_317_test_QSOs_2026_03_22.adi"
+      "url": "https://adif.org.uk/318/ADIF_318_resources_2026_10_12.zip",
+      "sha256": "d211e1d41adaf7fc341c73a8a3a56c343534aac57043b7474f7df2d528e56d8c",
+      "published": "2026-10-12",
+      "definitions": "318/exports/json/all.json",
+      "testQsos": "318/tests/ADIF_318_test_QSOs_2026_10_12.adi"
     }
   },
   "lists": [

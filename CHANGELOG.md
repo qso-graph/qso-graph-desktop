@@ -11,6 +11,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- ADIF's reference data is ADIF 3.1.8 (released 2026-10-12), which adds the `JTTY` submode and four SKCC contest IDs. Its fields, bands and ADI rules are unchanged from 3.1.7.
+- The credential core uses QG Trust 0.2.3.
+- The WSJT-X integration's tests run against QG Interop's `qg-interop` 0.2.0-beta.1. JTTY's text messages, as WSJT-X's JTTY pull request proposes them, are ignored for now and do not disturb the rest of a session.
+- The specification no longer names JS8Call.
+
 - Closing the last window quits on macOS too, asks about unsaved tabs, and stops the application’s processes. The next single-instance start removes only prior-run processes whose recorded OS identities still match; detached update installers continue.
 
 - Settings groups its existing cards into General, Data sources and Extensions tabs, remembers the last tab, and opens the matching tab from menu and welcome links.

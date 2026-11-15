@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-export const QG_INTEROP = { crate: 'qso-graph-interop-cli', version: '0.1.0' };
+export const QG_INTEROP = { crate: 'qso-graph-interop-cli', version: '0.2.0-beta.1' };
 
 const root = resolve('out', 'tools', `qg-interop-${QG_INTEROP.version}`);
 const binary = join(root, 'bin', process.platform === 'win32' ? 'qg-interop.exe' : 'qg-interop');
