@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Fetches what the US county data is built from (data/county-sources.json):
 // two Census boundary files, TQSL's configuration and ARRL's section
-// boundaries. Each is checked against
-// its SHA-256 before it is kept, and kept under vendor/.cache/, which is not
-// in the repository. Run by `make setup` and `make update`; a file already
+// boundaries, each from QSO Graph's copy (scripts/reference-copy.mjs) when it
+// has it, else from its own site. Each is checked against its SHA-256
+// before it is kept, and kept under vendor/.cache/, which is not in the
+// repository. Run by `make setup` and `make update`; a file already
 // there and matching is not fetched again, so it goes to the network once.
 //
 //   node scripts/fetch-counties.mjs
@@ -11,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { cachedSource } from './county-data.mjs';
+import { fromCopy } from './reference-copy.mjs';
 
 const sources = JSON.parse(await readFile('data/county-sources.json', 'utf8'));
 const cache = resolve('vendor', '.cache');
@@ -30,7 +32,8 @@ for (const key of ['boundaries', 'connecticut', 'names', 'sections']) {
   // 15, 30 then 60 seconds, never more than two minutes at a time. The
   // Internet Archive answers 503 for minutes at a time, and two retries a few
   // seconds apart failed the build on 2026-10-26 for an outage of its own.
-  let body;
+  // QSO Graph's own copy first (#213), then the file's own site.
+  let body = await fromCopy(source.sha256, { what: key });
   const attempts = 4;
   for (let attempt = 1; attempt <= attempts && !body; attempt++) {
     let wait = 15_000 * 2 ** (attempt - 1);

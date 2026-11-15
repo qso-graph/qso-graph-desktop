@@ -15,6 +15,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The credential core uses QG Trust 0.2.3.
 - The WSJT-X integration's tests run against QG Interop's `qg-interop` 0.2.0-beta.1. JTTY's text messages, as WSJT-X's JTTY pull request proposes them, are ignored for now and do not disturb the rest of a session.
 - The specification no longer names JS8Call.
+- `make setup` and CI download ADIF's archive and the US county sources from QSO Graph's own copy at `reference.qso-graph.net` first, and from each file's own site only when the copy can't give it. Every file is still checked against its pinned SHA-256 (#213).
 
 - Closing the last window quits on macOS too, asks about unsaved tabs, and stops the application’s processes. The next single-instance start removes only prior-run processes whose recorded OS identities still match; detached update installers continue.
 
