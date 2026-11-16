@@ -30,7 +30,9 @@
     "version": "3.1.8",
     "source": {
       "what": "ADIF's published resources archive: the specification exported as JSON, CSV, TSV and XML, together with ADIF's own test QSOs.",
-      "url": "https://adif.org.uk/318/ADIF_318_resources_2026_10_12.zip",
+      "url": "https://reference.qso-graph.net/d211e1d41adaf7fc341c73a8a3a56c343534aac57043b7474f7df2d528e56d8c",
+      "upstream": "https://adif.org.uk/318/ADIF_318_resources_2026_10_12.zip",
+      "copy": "url is QSO Graph's copy of ADIF's release, unmodified and stored under its SHA-256, which is where the app fetches it, over TLS 1.3 (#213). upstream is where ADIF publishes it: the copy is filled from there, `make setup` falls back to it, and the app never asks it. Whichever served the bytes, they are used only when they match sha256.",
       "sha256": "d211e1d41adaf7fc341c73a8a3a56c343534aac57043b7474f7df2d528e56d8c",
       "published": "2026-10-12",
       "definitions": "318/exports/json/all.json",
@@ -293,7 +295,7 @@
     "adif": {
       "minSeconds": 86400,
       "stated": null,
-      "basis": "adif.org.uk states no limit. A pinned release, fetched once per version by its SHA-256; the floor only stops a retry loop."
+      "basis": "Asked of QSO Graph's own copy, never adif.org.uk (#213). A pinned release, fetched once per version by its SHA-256; the floor only stops a retry loop."
     },
     "pota": {
       "minSeconds": 86400,

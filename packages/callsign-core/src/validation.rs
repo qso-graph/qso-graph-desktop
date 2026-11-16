@@ -32,8 +32,9 @@ pub fn tls_config() -> CoreResult<rustls::ClientConfig> {
     Ok(config)
 }
 
-// For public reference data, which carries no credential, and for eQSL's login
-// (credential_tls_config): TLS 1.3, or TLS 1.2 where a source offers nothing newer (adif.org.uk offers only 1.2).
+// For eQSL's login (credential_tls_config) and the update download (updates.rs):
+// TLS 1.3, or TLS 1.2 where a host offers nothing newer (www.eqsl.cc offers only
+// 1.2). Reference data used it until ADIF's archive moved to QSO Graph's copy (#213).
 // Still the FIPS provider, so 1.2 means ECDHE with AES-GCM on P-256 or P-384
 // and Extended Master Secret required (NIST SP 800-52r2); config.fips() is
 // checked as it is above (QGD-SEC-0020).

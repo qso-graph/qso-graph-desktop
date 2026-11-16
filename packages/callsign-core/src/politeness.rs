@@ -72,11 +72,16 @@ fn seconds(politeness: &serde_json::Value, key: &str) -> Option<u64> {
 
 // Every https:// string under `value`, which is how the reference register
 // holds a group's URLs (`sources.parks.url`, `source.urls.location`, ...).
+// Not an `upstream`: that is where a copy came from, which this product never
+// asks (ADIF's, #213), so it gets no floor and is refused like any other.
 fn urls(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::String(text) if text.starts_with("https://") => out.push(text.clone()),
         serde_json::Value::Array(items) => items.iter().for_each(|item| urls(item, out)),
-        serde_json::Value::Object(map) => map.values().for_each(|item| urls(item, out)),
+        serde_json::Value::Object(map) => map
+            .iter()
+            .filter(|(key, _)| key.as_str() != "upstream")
+            .for_each(|(_, item)| urls(item, out)),
         _ => {}
     }
 }
@@ -322,6 +327,28 @@ mod tests {
             ledger.gate(&floors, "https://api.pota.app/location/parks/US-WA", t0),
             Ok(Gate::Resting(_))
         ));
+    }
+
+    #[test]
+    fn adif_is_asked_of_the_copy_and_never_of_its_own_site() {
+        // ADIF's own site offers only TLS 1.2; the copy is TLS 1.3 (#213).
+        let register: serde_json::Value = serde_json::from_str(REFERENCE_SOURCES).unwrap();
+        let source = &register["adif"]["source"];
+        let mut ledger = Ledger::default();
+        let now = Instant::now();
+        let copy = source["url"].as_str().unwrap();
+        assert!(copy.starts_with("https://reference.qso-graph.net/"));
+        assert_eq!(ledger.gate(&table(), copy, now), Ok(Gate::Go));
+        let upstream = source["upstream"].as_str().unwrap();
+        assert!(
+            ledger.gate(&table(), upstream, now).is_err(),
+            "{upstream} must not be asked"
+        );
+        assert!(
+            table()
+                .iter()
+                .all(|floor| !floor.prefix.contains("adif.org.uk"))
+        );
     }
 
     #[test]

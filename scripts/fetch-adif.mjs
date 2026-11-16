@@ -39,21 +39,21 @@ if (already?.ok && !process.argv.includes('--force')) {
       archive = await fromCopy(release.source.sha256, { what: `ADIF ${release.version}` });
     }
     if (!archive) {
-      console.log(`Fetching ADIF ${release.version} from ${new URL(release.source.url).host} …`);
+      console.log(`Fetching ADIF ${release.version} from ${new URL(release.source.upstream).host} …`);
       // Five tries, waiting 15, 30, 60 and 120 seconds between them, as the county
       // sources are fetched: a volunteer-run site can be out of reach for a minute,
       // and asking again at once would only add to its load.
       let response;
       const attempts = 5;
       for (let attempt = 1; ; attempt++) {
-        try { response = await fetch(release.source.url); break; } catch (error) {
+        try { response = await fetch(release.source.upstream); break; } catch (error) {
           if (attempt === attempts) throw error;
           const wait = 15_000 * 2 ** (attempt - 1);
-          console.log(`Could not reach ${new URL(release.source.url).host}; trying again in ${wait / 1000} s.`);
+          console.log(`Could not reach ${new URL(release.source.upstream).host}; trying again in ${wait / 1000} s.`);
           await new Promise(settle => setTimeout(settle, wait));
         }
       }
-      if (!response.ok) throw new Error(`${release.source.url} answered ${response.status}`);
+      if (!response.ok) throw new Error(`${release.source.upstream} answered ${response.status}`);
       archive = Buffer.from(await response.arrayBuffer());
     }
 
