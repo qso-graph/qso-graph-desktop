@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { archiveRoot, definitionsPath, releaseDirectory, testQsosPath } from '../scripts/adif-release.mjs';
+import { REFERENCE_COPY } from '../scripts/reference-copy.mjs';
 
 const sources = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const release = sources.adif;
@@ -11,8 +12,14 @@ describe('QGD-REF-0003 the pinned ADIF release', () => {
   it('is pinned exactly, from one place, with a hash to check it by', () => {
     expect(release.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(release.source.sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(release.source.url.startsWith('https://')).toBe(true);
-    expect(release.source.url).toContain(archiveRoot(release));
+    expect(release.source.upstream.startsWith('https://')).toBe(true);
+    expect(release.source.upstream).toContain(archiveRoot(release));
+  });
+
+  it('is fetched from QSO Graph\'s copy, under its SHA-256 (#213)', () => {
+    // The app asks only `url`; ADIF's own site offers nothing newer than TLS 1.2.
+    expect(release.source.url).toBe(`${REFERENCE_COPY}/${release.source.sha256}`);
+    expect(new URL(release.source.upstream).host).not.toBe(new URL(release.source.url).host);
   });
 
   it('lives in vendor, out of the repository', async () => {

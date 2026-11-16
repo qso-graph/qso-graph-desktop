@@ -4,7 +4,7 @@
 //
 // QGD-REF-0001 and QGD-REF-0003. The archive is not in the installer: a later
 // ADIF release has to be new data rather than a new build, so the core
-// fetches it and nothing of ADIF's is redistributed by this product. The
+// fetches it, from QSO Graph's copy of ADIF's release, unmodified (#213). The
 // SHA-256 in data/reference-sources.json is checked before a byte is read out
 // of it, exactly as QGD-ENG-0004 treats the database build.
 //
