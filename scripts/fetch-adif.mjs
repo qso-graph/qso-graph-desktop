@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Fetches ADIF's published resources archive, and verifies it.
+// Fetches ADIF's published resources archive, and verifies it: from QSO Graph's
+// copy (scripts/reference-copy.mjs) when it has it, else from adif.org.uk.
 //
 // QGD-REF-0003. Run by `make setup`. The hash is checked against
 // data/reference-sources.json before anything is unpacked, so a changed or
@@ -14,6 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { releaseDirectory, verifyRelease } from './adif-release.mjs';
+import { fromCopy } from './reference-copy.mjs';
 
 const sources = JSON.parse(await readFile('data/reference-sources.json', 'utf8'));
 const release = sources.adif;
@@ -34,7 +36,10 @@ if (already?.ok && !process.argv.includes('--force')) {
     if (archive) {
       console.log(`Using the cached ADIF ${release.version} download.`);
     } else {
-      console.log(`Fetching ADIF ${release.version} …`);
+      archive = await fromCopy(release.source.sha256, { what: `ADIF ${release.version}` });
+    }
+    if (!archive) {
+      console.log(`Fetching ADIF ${release.version} from ${new URL(release.source.url).host} …`);
       // Five tries, waiting 15, 30, 60 and 120 seconds between them, as the county
       // sources are fetched: a volunteer-run site can be out of reach for a minute,
       // and asking again at once would only add to its load.
