@@ -26,7 +26,8 @@ on:
     branches: [main, '[0-9]*.[0-9]*.x']
   # Once a day (#157): the Daily, a signed build of main
   # with its own version, on a day main has changed; a day it has not builds
-  # nothing. GitHub runs a schedule from the default branch.
+  # nothing, and neither does any day the repository variable DAILY is
+  # "paused" (the plan step). GitHub runs a schedule from the default branch.
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
@@ -148,6 +149,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           SHA: ${{ github.sha }}
+          DAILY: ${{ vars.DAILY }}
           MAC_ONLY: ${{ inputs.mac_only }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
@@ -173,6 +175,10 @@ jobs:
               sign=true; daily=true
               if [ -n "$published" ]; then run=false; echo "main is already the Daily ${published#refs/tags/} ($sha)."; fi
               if [ -n "$released" ]; then run=false; echo "main is published as ${released#refs/tags/} ($sha)."; fi
+              # Paused by KI7MT (2026-11-16): the repository variable DAILY set to
+              # "paused" makes the schedule build nothing. Deleting it, or any other
+              # value, resumes the Daily without a change to this file.
+              if [ "$DAILY" = paused ]; then run=false; echo "The Daily is paused (repository variable DAILY=paused)."; fi
               ;;
             workflow_dispatch)
               if [ "$REF" = refs/heads/main ]; then sign=true; fi
