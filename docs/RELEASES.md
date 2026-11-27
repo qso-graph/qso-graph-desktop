@@ -61,6 +61,13 @@ in bulk.
 1. **KI7MT defines the milestone:** its version and its issues.
 2. **`feature/x.y.z` is created from `main`.** Its first commit sets the
    version in `package.json` (and its lock) to `x.y.z`.
+   **The name is exactly `feature/x.y.z`**, with nothing added: CI signs a
+   pull request's build, and stamps it with the version rather than
+   `x.y.z-prN`, only for a branch named that way (or one aimed at a fix
+   branch such as `0.2.x`), so only that build is a release candidate Release can
+   publish. 0.8.0's first release pull request came from
+   `feature/0.8.0-release`; its build was stamped `0.8.0-pr217`, and Release
+   found nothing to publish.
 3. **Its pull request into `main` is opened with the first fix**, as a draft,
    not before: a pull request with nothing in it builds for an hour and has
    nothing to test. From then on every push to the branch
