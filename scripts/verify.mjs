@@ -51,8 +51,14 @@ for (const [name, args] of commands) {
   const blocked = blockedBy(name, suites);
   if (blocked) {
     suites.push({ name, result: 'NOT RUN', blockedBy: blocked });
+    console.log(`${name}: NOT RUN`);
     continue;
   }
+  // Each suite is named as it starts and its result printed as it ends, so a
+  // run ended from outside still says how far it got (#222): the results
+  // below are printed only once every suite has run.
+  const started = Date.now();
+  console.log(`${name}: running`);
   // Per suite: a flat bound killed any suite that legitimately waits longer
   // than it, which is not the same as failing it (see suites.mjs).
   const run = spawnSync(process.execPath, args,
@@ -72,6 +78,8 @@ for (const [name, args] of commands) {
     ...(passed ? {} : { failure: summarize(output, leaked.length,
       run.error && /ETIMEDOUT/.test(String(run.error)) ? `Stopped at its time limit of ${suiteTimeout(name) / 1000} s, before it finished.` : undefined) })
   });
+  console.log(`${name}: ${passed ? 'PASS' : 'FAIL'} in ${Math.round((Date.now() - started) / 1000)} s`
+    + (run.signal ? ` (ended by ${run.signal})` : run.status === null ? '' : ` (exit ${run.status})`));
 }
 // What a failed suite said, in the lines that say what failed: the failing
 // tests, their errors, and which test printed what. The first lines of the
