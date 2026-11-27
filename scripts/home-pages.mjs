@@ -160,6 +160,22 @@ try {
   await rail(page, 'Home').click();
   await openPin(page, 'Astro');
   await expect(body(page)).toContainText('Astro needs a Location', { timeout: 30_000 });
+  // A page shorter than the window gives its spare height to nothing but
+  // itself: the tab bar stays as tall as its tabs (#220). An unused list rule
+  // for the same class once made the frame's column a grid, and the bar
+  // stretched on every short page, as this one is with no Location.
+  // Its own height is what it takes when nothing stretches it: aligned to
+  // the start, a stretched bar shrinks to its tabs, and one laid out right
+  // keeps its height.
+  const bar = await page.locator('.destination-bar').evaluate(element => {
+    const shown = element.getBoundingClientRect().height;
+    element.style.alignSelf = 'start';
+    const own = element.getBoundingClientRect().height;
+    element.style.alignSelf = '';
+    return { shown, own };
+  });
+  if (bar.shown - bar.own > 1) throw new Error(`the tab bar is ${bar.shown}px for ${bar.own}px of tabs on a short page (#220)`);
+  console.log(`Tab bar: ${bar.shown}px on a short page, its tabs' own height (#220): PASS`);
   await expect(page.locator('#page-input-dx')).toBeVisible();
   // An empty field says what it wants, under the box.
   // Under the section's own heading, Grey line DX check, so it does not say
