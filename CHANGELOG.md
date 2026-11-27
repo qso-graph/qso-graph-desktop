@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-27
+
 - Restore open destination tabs on Home after a restart, and ask to save pending changes before closing tabs or turning off an extension.
 
 ### Changed
@@ -30,6 +32,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The credential core uses `url` 2.5.9, which fixes RUSTSEC-2026-0592, a stack overflow on nested `blob:` URLs (#218).
 - The rail's scroller is always drawn on its own layer, so its icons render the same way every time. Whether Chromium gave it one used to change as the page behind it changed, and the screenshot suite failed intermittently on Conditions (#207).
 
 ## [0.7.1] - 2026-11-12
