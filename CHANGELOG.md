@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-27
+
 ### Fixed
 
 - The tab bar stays the height of its tabs on every page. On pages shorter than the window, such as Integrations, Conditions and ADIF, it used to stretch, and shrank back only on a long page (#220).
