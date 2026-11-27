@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-27
+
 - Restore open destination tabs on Home after a restart, and ask to save pending changes before closing tabs or turning off an extension.
 
 ### Changed
