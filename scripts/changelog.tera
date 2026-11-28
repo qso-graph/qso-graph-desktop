@@ -1,0 +1,19 @@
+{#- SPDX-License-Identifier: GPL-3.0-or-later -#}
+{#- release.mjs adds the version heading. -#}
+{% set groups = commits | group_by(attribute="type") -%}
+{% for type in ["Features", "Bug Fixes", "Performance Improvements", "Revert"] -%}
+{% if groups[type] -%}
+{% if type == "Features" -%}
+### Added
+{% elif type == "Bug Fixes" -%}
+### Fixed
+{% elif type == "Performance Improvements" -%}
+### Changed
+{% elif type == "Revert" -%}
+### Removed
+{% endif %}
+{% for commit in groups[type] -%}
+- {% if commit.breaking_change %}**Breaking:** {% endif %}{{ commit.summary }}
+{% endfor %}
+{% endif -%}
+{% endfor -%}

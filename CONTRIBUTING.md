@@ -94,12 +94,15 @@ No credentials or real station data belong in this repository.
 - **Outside contributions:** fork the repository and open a pull request into `main` from a
   branch of your own (`fix-…`, `feat-…`, `docs-…`). KI7MT decides when it is merged, usually
   as part of the current milestone.
-- **Documentation-only changes** (README, the guide, `docs/`, AGENTS.md) build nothing: CI only
-  checks that every requirement ID they cite exists in the spec, in about a minute.
+- **Documentation-only changes** (README, the guide, `docs/`, AGENTS.md) build nothing.
+  CI checks spec citations, the generated verification matrix, and commit messages.
 - **"All green" must pass before anything is merged.** It's CI's final check, and it reports on
   every change.
-- **Commits:** one logical change each, with a message that explains why. Merge commits, not
-  squash, so contributors' history and credit are kept.
+- **Commits:** one logical change each, with a Conventional Commit subject
+  `type: what changed (#N)` and a message that explains why. Write `feat` and `fix`
+  subjects for hams, starting with a capital letter, because they appear in What's New as
+  written. Merge commits keep contributors'
+  history and credit. See [Release notes](docs/RELEASES.md#release-notes).
 - **Outside contributions** are credited in [CHANGELOG.md](CHANGELOG.md).
 
 ## Coding conventions

@@ -34,9 +34,9 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 6. **Nobody pushes to `main`.** Every change reaches it by a pull request that
    KI7MT merges, with a merge commit, and **only once CI's `ci-all-green` check
    has passed**: a required check, so a red pull request cannot be merged.
-   Documentation-only changes run just the citation check (every `QGD-…` ID a
-   Markdown file cites must exist in the spec), about a minute, and build
-   nothing else. Work is authored by an agent and merged
+   Documentation-only changes run the `citations` job, which checks spec
+   citations, the generated verification matrix, and commit messages.
+   Work is authored by an agent and merged
    by KI7MT, so each change is merged by someone other than its author, which
    is what OpenSSF Scorecard's code-review check asks. A change KI7MT authors
    and merges himself does not meet that check; that is accepted, and rare.
@@ -51,7 +51,7 @@ Items marked *(not built yet)* are listed at the end, with what builds them.
 | **`main`** | | | always |
 | **`feature/x.y.z`** | `main`, when milestone `x.y.z` starts | `main`, by one pull request, when every issue in the milestone is validated | the length of the milestone |
 | **`x.y.x`** (`0.2.x`) | the release's tag, `v0.2.0` | released from itself; never merged back | only when an already released version needs a fix: rare |
-| **`docs/<topic>`** | `main` | `main` | a documentation-only change: only the citation check runs (a minute), then merged |
+| **`docs/<topic>`** | `main` | `main` | a documentation-only change: the `citations` job runs before merging |
 
 The author deletes a branch once it is merged, everywhere it exists, by name, never
 in bulk.
@@ -74,7 +74,8 @@ in bulk.
    builds a **validation build** (below), and its installer links are posted
    on the pull request.
 4. **The issues are worked one at a time.** Each commit names its issue
-   (`#91: …`). When an issue's fix is in, KI7MT installs that validation build
+   in its Conventional Commit subject (`fix: Keep the tab bar visible (#91)`).
+   When an issue's fix is in, KI7MT installs that validation build
    and tries it, or a lab build of the commit (`qg-lab-build`, below). The
    issue records **"validated on"** the build's version (`x.y.z-pr<N>.<commit>`,
    or for a release candidate its version and commit) and is closed: KI7MT says it is validated, and the agent working the
@@ -83,17 +84,18 @@ in bulk.
    run that proves it, which the comment names. GitHub's "Fixes #N" is not
    used: it closes an issue at the merge, after validation should already
    have happened.
-5. **A Beta, when KI7MT wants one** (#157): a pull request
-   whose one change sets `package.json`'s version to `x.y.z-beta.N`
-   (`x.y.z-beta.1`, then `beta.2` …), merged, and then **Release** with
+5. **A Beta, when KI7MT wants one** (#157): a pull request that sets the
+   version in `package.json` and its lock to `x.y.z-beta.N`
+   (`x.y.z-beta.1`, then `beta.2` …) and runs `node scripts/release.mjs prepare`
+   to generate notes under `[Unreleased]`. Merge it, then run **Release** with
    `x.y.z-beta.N` (below). Its build is the **release candidate**: stamped
    `x.y.z-beta.N` itself, and the very files Release publishes. It is published as a pre-release and offered on the
    Beta track. As many Betas as the milestone needs; none is required.
 6. **When KI7MT says the milestone is done** (its open issues do not hold it):
    the release checks on a lab machine (screenshots and the gallery, as before),
    `package.json`'s version back to `x.y.z` if a Beta set it, `node
-   scripts/release.mjs prepare` (CHANGELOG.md's `[Unreleased]` becomes
-   `[x.y.z] - <date>`), a final build, which is the release candidate and is
+   scripts/release.mjs prepare` to generate `[x.y.z] - <date>` in CHANGELOG.md,
+   a final build, which is the release candidate and is
    what Release publishes, a review on the pull request, and **KI7MT merges
    it**. The branch must be up to date with `main` when it merges, or its build
    is not of `main`'s files and Release refuses it; with one pull request at a
@@ -272,17 +274,27 @@ Every version is **Semantic Versioning** (semver.org): `MAJOR.MINOR.PATCH`.
 
 ## Release notes
 
-`CHANGELOG.md` collects changes under **Unreleased** as they land on a
-milestone's branch. **Every change starts from an issue**,
-so the history reads issue, commits naming it (`#91: …`), the build it was
-validated on, and **a CHANGELOG line that cites it** (`(#91)`). Changes a user
-can't see (CI, process, documentation) need an issue but no CHANGELOG line.
+Every change starts from an issue. Use a Conventional Commit subject in the
+form `type: what changed (#N)`. Write `feat` and `fix` subjects for hams
+because they appear in What's New. CI uses cocogitto (`cog`) to check commit
+messages.
 
-`release.mjs prepare` renames that heading to the version
-and date, and the release's notes on GitHub are that section. A Beta's notes are
-what `[Unreleased]` holds when it is published. The CHANGELOG
-also ships inside the application as What's New, which is why a change to it
-always builds.
+With cocogitto 7.0.0 on PATH, run `node scripts/release.mjs prepare` from the
+repository root after committing the changes that belong in the notes. The
+command reads the version from `package.json` and generates the CHANGELOG.md
+section. Leave editing the notes to this command.
+
+- A **Release** gets `## [x.y.z] - <date>` with the notes since the previous
+  Release tag, including changes shipped in its Betas. The command leaves
+  `[Unreleased]` empty.
+- A **Beta** gets `## [Unreleased]` with the notes since the previous Release
+  or Beta tag.
+
+Notes group `feat` under Added, `fix` under Fixed, `perf` under Changed, and
+`revert` under Removed. They mark breaking changes with **Breaking:** and omit
+scopes, merge commits, and other commit types. Preparing a version requires at
+least one note. GitHub uses the generated section for its release notes, and the
+app ships CHANGELOG.md as What's New.
 
 ## Signing
 

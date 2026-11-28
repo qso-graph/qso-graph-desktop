@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CI checks the range selected by scripts/release.mjs.
+tag_prefix = "v"
+from_latest_tag = true
+ignore_merge_commits = true
+
+[changelog]
+template = "scripts/changelog.tera"
+
+[commit_types]
+build = { changelog_title = "", omit_from_changelog = true }
+chore = { changelog_title = "", omit_from_changelog = true }
+ci = { changelog_title = "", omit_from_changelog = true }
+docs = { changelog_title = "", omit_from_changelog = true }
+refactor = { changelog_title = "", omit_from_changelog = true }
+style = { changelog_title = "", omit_from_changelog = true }
+test = { changelog_title = "", omit_from_changelog = true }

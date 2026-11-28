@@ -4,7 +4,7 @@
 // release only when that section is there.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { check, feedEntry, quickDownloads, isPublishable, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
+import { check, cogRange, feedEntry, quickDownloads, isPublishable, isRelease, LISTED_STABLE, listEntry, listed, next, notes, prepare, releaseState, resumePlan, tracks, withEntry, withListed, withVersion } from '../scripts/release.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,6 +17,48 @@ const changelog = [
   '### Added', '', '- Parks Near Me.', '',
   '## [0.0.9] - 2026-09-01', '', '- Older.', ''
 ].join('\n');
+
+const releaseTag = 'v0.0.9';
+const betaTag = 'v0.1.0-beta.2';
+const dailyTag = 'v0.1.0-202610230124-34d3a62a1b0';
+const added = '### Added\n\n- Show nearby parks.';
+const fixed = '### Fixed\n\n- Keep the tabs visible.';
+
+function gitWithTags(tags, tagsAfterAdoption = []) {
+  return (command, ...args) => {
+    switch (command) {
+      case 'tag':
+        expect(args).toEqual(['--merged', 'HEAD', '--list', 'v[0-9]*']);
+        return tags.join('\n');
+      case 'describe':
+        return tags.find(tag => args.includes(tag));
+      case 'rev-list':
+        expect(args.slice(0, 2)).toEqual(['-1', '--ancestry-path']);
+        return tagsAfterAdoption.some(tag => args[2] === `3555940..${tag}`) ? '1234567' : '';
+      default:
+        throw new Error(`Unexpected git command: ${command}`);
+    }
+  };
+}
+
+const git = gitWithTags([dailyTag, betaTag, releaseTag]);
+const cog = range => ({
+  [`${releaseTag}..HEAD`]: `${fixed}\n\n- - -\n\n${added}\n`,
+  [`${betaTag}..HEAD`]: fixed
+})[range];
+
+describe('the Conventional Commit check range', () => {
+  it('starts at the adoption base with no tag or a tag at or before adoption', () => {
+    expect(cogRange(gitWithTags([]))).toBe('3555940..HEAD');
+    expect(cogRange(gitWithTags(['v0.8.1']))).toBe('3555940..HEAD');
+  });
+
+  it('starts at the latest reachable tag when its history goes past the adoption base', () => {
+    const tags = ['v0.9.0-beta.2', 'v0.9.0-beta.1', 'v0.8.1'];
+    expect(cogRange(gitWithTags(tags, tags.slice(0, 2)))).toBe('v0.9.0-beta.2..HEAD');
+    expect(cogRange(gitWithTags([dailyTag], [dailyTag]))).toBe(`${dailyTag}..HEAD`);
+  });
+});
 
 describe('quick downloads (after WSJT-X\'s release pages)', () => {
   const files = ['qso-graph-desktop-0.4.0-linux-aarch64.rpm', 'qso-graph-desktop-0.4.0-linux-amd64.deb',
@@ -47,22 +89,57 @@ describe('quick downloads (after WSJT-X\'s release pages)', () => {
 });
 
 describe('release text', () => {
-  it('turns [Unreleased] into the version, under a new empty [Unreleased]', () => {
-    const done = prepare(changelog, '0.1.0', '2026-10-24');
-    expect(done).toContain('## [Unreleased]\n\n## [0.1.0] - 2026-10-24\n\n### Added');
-    expect(notes(done, '0.1.0')).toBe('### Added\n\n- Parks Near Me.');
-    expect(notes(done, '0.0.9')).toBe('- Older.');
+  it('prepares a Release from the previous Release tag, including changes shipped in Betas', () => {
+    const done = prepare(changelog, '0.1.0', '2026-10-24', { git, cog });
+    expect(done).toBe(`# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-24\n\n${added}\n\n${fixed}\n\n## [0.0.9] - 2026-09-01\n\n- Older.\n`);
   });
 
-  it('refuses to prepare twice, or a version that is not a release', () => {
-    const done = prepare(changelog, '0.1.0', '2026-10-24');
-    expect(() => prepare(done, '0.1.0', '2026-10-24')).toThrow(/already has/);
-    expect(() => prepare(changelog, '0.1.0-202610230124-34d3a62a1b0', '2026-10-24')).toThrow(/not a release/);
+  it('replaces [Unreleased] for a Beta with notes since the previous Beta tag', () => {
+    const done = prepare(changelog, '0.1.0-beta.3', '2026-10-24', { git, cog });
+    expect(done).toBe(`# Changelog\n\n## [Unreleased]\n\n${fixed}\n\n## [0.0.9] - 2026-09-01\n\n- Older.\n`);
+    expect(check(done, '0.1.0-beta.3')).toBeUndefined();
+  });
+
+  it('takes the first Beta’s notes from the previous Release and preserves CRLF', () => {
+    const done = prepare(changelog.replaceAll('\n', '\r\n'), '0.1.0-beta.1', '2026-10-24', {
+      git: gitWithTags([dailyTag, releaseTag]), cog
+    });
+    expect(done).toBe(`# Changelog\n\n## [Unreleased]\n\n${added}\n\n${fixed}\n\n## [0.0.9] - 2026-09-01\n\n- Older.\n`.replaceAll('\n', '\r\n'));
+  });
+
+  it('refuses to prepare twice, or a version that is neither a Release nor a Beta', () => {
+    const done = prepare(changelog, '0.1.0', '2026-10-24', { git, cog });
+    expect(() => prepare(done, '0.1.0', '2026-10-24', { git, cog })).toThrow(/already has/);
+    expect(() => prepare(changelog, dailyTag.slice(1), '2026-10-24', { git, cog })).toThrow(/not a release or Beta/);
+  });
+
+  it('refuses to prepare when cog supplies no release notes', () => {
+    for (const version of ['0.1.0', '0.1.0-beta.3']) {
+      for (const output of ['', '\n\n- - -\n\n']) {
+        expect(() => prepare(changelog, version, '2026-10-24', { git, cog: () => output })).toThrow(/No feat, fix, perf or revert notes/);
+      }
+    }
+  });
+
+  it('keeps the template’s headings and breaking marker, combining cog’s groups across tags', () => {
+    const template = readFileSync(new URL('../scripts/changelog.tera', import.meta.url), 'utf8');
+    const mappings = [...template.matchAll(/(?:if|elif) type == "([^"]+)" -%\}\n(### \w+)/g)]
+      .map(([, type, heading]) => [type, heading]);
+    expect(mappings).toEqual([
+      ['Features', '### Added'], ['Bug Fixes', '### Fixed'],
+      ['Performance Improvements', '### Changed'], ['Revert', '### Removed']
+    ]);
+
+    const changed = '### Changed\n\n- Load the band list faster.';
+    const removed = '### Removed\n\n- **Breaking:** Remove the old list.';
+    const output = `${fixed}\n\n${changed}\n\n- - -\n\n${added}\n\n### Fixed\n\n- Restore saved tabs.\n\n${removed}\n`;
+    const done = prepare(changelog, '0.1.0', '2026-10-24', { git, cog: () => output });
+    expect(notes(done, '0.1.0')).toBe(`${added}\n\n${fixed}\n- Restore saved tabs.\n\n${changed}\n\n${removed}`);
   });
 
   it('lets main release only a plain version with a section that says something', () => {
     expect(check(changelog, '0.1.0')).toMatch(/no "## \[0.1.0\]/);
-    expect(check(prepare(changelog, '0.1.0', '2026-10-24'), '0.1.0')).toBeUndefined();
+    expect(check(prepare(changelog, '0.1.0', '2026-10-24', { git, cog }), '0.1.0')).toBeUndefined();
     expect(check(changelog, '0.1.0-202610230124-34d3a62a1b0')).toMatch(/not a release/);
     expect(check('## [0.1.0] - 2026-10-24\n\n## [0.0.9] - 2026-09-01\n', '0.1.0')).toMatch(/empty/);
   });
