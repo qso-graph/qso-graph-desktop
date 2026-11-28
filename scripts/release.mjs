@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The release steps that are text, not builds (docs/RELEASES.md).
 //
-//   node scripts/release.mjs prepare            the milestone's branch, once its
-//                                               issues are closed: [Unreleased]
-//                                               becomes this version and today's
-//                                               date, under a new empty [Unreleased]
+//   node scripts/release.mjs prepare            generate notes from conventional
+//                                               commits for a Release or Beta
+//   node scripts/release.mjs cog-range          the range CI gives to cog check
 //   node scripts/release.mjs check              the Release workflow: the version is
 //                                               a release with its CHANGELOG
 //                                               section, or a Beta (#157) with
@@ -37,6 +36,7 @@
 // Offline, and it changes nothing but CHANGELOG.md, package.json and
 // package-lock.json. The workflow asks GitHub about the tag and the release;
 // what follows from the answers is decided here, where it is tested.
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -113,14 +113,60 @@ export function quickDownloads(version, files) {
   return body.length ? `## Quick downloads\n\n${body.join('\n\n')}` : '';
 }
 
-// [Unreleased] renamed to the version and date, with an empty [Unreleased]
-// above it for what lands next.
-export function prepare(changelog, version, date) {
-  if (!isRelease(version)) throw new Error(`${version} is not a release version (MAJOR.MINOR.PATCH).`);
-  if (notes(changelog, version) !== undefined) throw new Error(`CHANGELOG.md already has a section for ${version}.`);
-  const heading = /^## \[Unreleased\][ \t]*$/m;
-  if (!heading.test(changelog)) throw new Error('CHANGELOG.md has no [Unreleased] section.');
-  return changelog.replace(heading, `## [Unreleased]\n\n## [${version}] - ${date}`);
+const ADOPTION_BASE = '3555940';
+const runGit = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+const runCog = range => execFileSync('cog', ['changelog', range], { encoding: 'utf8' });
+
+function latestTag(git, acceptsVersion = () => true) {
+  const tags = git('tag', '--merged', 'HEAD', '--list', 'v[0-9]*')
+    .split('\n')
+    .filter(tag => tag && acceptsVersion(tag.slice(1)));
+  if (tags.length === 0) return undefined;
+  return git('describe', '--tags', '--abbrev=0', ...tags.flatMap(tag => ['--match', tag]), 'HEAD');
+}
+
+export function cogRange(git = runGit) {
+  const tag = latestTag(git);
+  // A tag advances the check only when it is strictly past the adoption base on its own history.
+  const newer = tag && git('rev-list', '-1', '--ancestry-path', `${ADOPTION_BASE}..${tag}`);
+  return `${newer ? tag : ADOPTION_BASE}..HEAD`;
+}
+
+function changelogBody(output) {
+  // Cog renders each intervening tag separately. Collect its bullets by heading
+  // so one Desktop release has one group per heading, even across several Betas.
+  const groups = new Map(['### Added', '### Fixed', '### Changed', '### Removed'].map(heading => [heading, []]));
+  let bullets;
+  for (const line of output.split(/\r?\n/)) {
+    if (groups.has(line)) bullets = groups.get(line);
+    else if (line === '- - -') bullets = undefined;
+    else if (line.startsWith('- ')) bullets?.push(line);
+  }
+  return Array.from(groups)
+    .filter(([, items]) => items.length > 0)
+    .map(([heading, items]) => `${heading}\n\n${items.join('\n')}`)
+    .join('\n\n');
+}
+
+export function prepare(changelog, version, date, { git = runGit, cog = runCog } = {}) {
+  if (!isPublishable(version)) throw new Error(`${version} is not a release or Beta version.`);
+  const beta = isBeta(version);
+  if (!beta && notes(changelog, version) !== undefined) throw new Error(`CHANGELOG.md already has a section for ${version}.`);
+  const heading = /^## \[Unreleased\][ \t]*\r?$/m.exec(changelog);
+  if (!heading) throw new Error('CHANGELOG.md has no [Unreleased] section.');
+
+  const tag = latestTag(git, beta ? isPublishable : isRelease);
+  if (!tag) throw new Error(`No previous ${beta ? 'Release or Beta' : 'Release'} tag is reachable from HEAD.`);
+  const range = `${tag}..HEAD`;
+  const body = changelogBody(cog(range));
+  if (!body) throw new Error(`No feat, fix, perf or revert notes in ${range}.`);
+
+  const rest = changelog.slice(heading.index + heading[0].length);
+  const nextHeading = rest.search(/^## /m);
+  const section = beta ? body : `## [${version}] - ${date}\n\n${body}`;
+  const eol = heading[0].endsWith('\r') ? '\r\n' : '\n';
+  const generated = `## [Unreleased]\n\n${section}\n`.replaceAll('\n', eol);
+  return changelog.slice(0, heading.index) + generated + (nextHeading < 0 ? '' : eol + rest.slice(nextHeading));
 }
 
 // The body under `## [Unreleased]`, up to the next `## `.
@@ -134,8 +180,7 @@ export function unreleased(changelog) {
 }
 
 export function check(changelog, version) {
-  // A Beta's notes are what [Unreleased] holds so far: the release it leads
-  // to gets its own section only when it is prepared.
+  // prepare writes a Beta's notes under [Unreleased].
   if (isBeta(version)) {
     const body = unreleased(changelog);
     if (body === undefined) return 'CHANGELOG.md has no [Unreleased] section.';
@@ -340,6 +385,10 @@ function writeJson(path, value) {
 }
 
 function main([command, argument]) {
+  if (command === 'cog-range') {
+    console.log(cogRange());
+    return 0;
+  }
   if (command === 'tracks') {
     if (!argument) { console.error('Usage: node scripts/release.mjs tracks <releases.json>'); return 2; }
     const { stable, early } = tracks(readJson(argument));
@@ -388,7 +437,7 @@ function main([command, argument]) {
     case 'prepare': {
       const date = new Date().toISOString().slice(0, 10);
       writeFileSync('CHANGELOG.md', prepare(changelog, version, date));
-      console.log(`CHANGELOG.md: [Unreleased] is now [${version}] - ${date}.`);
+      console.log(`CHANGELOG.md: generated notes for ${version}.`);
       return 0;
     }
     case 'check': {
@@ -422,7 +471,7 @@ function main([command, argument]) {
       return 0;
     }
     default:
-      console.error('Usage: node scripts/release.mjs prepare | check | notes [version] | downloads <version> <folder> | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed> | listed <releases.json> | list <track> <tag> <date> <sums> <feed> | state <version> <built> <tag-commit|-> <release.json|-> | resume <expected-sums> <present-sums>');
+      console.error('Usage: node scripts/release.mjs prepare | cog-range | check | notes [version] | downloads <version> <folder> | next <major|minor|patch> | tracks <releases.json> | feed <track> <version> <sums> <feed> | listed <releases.json> | list <track> <tag> <date> <sums> <feed> | state <version> <built> <tag-commit|-> <release.json|-> | resume <expected-sums> <present-sums>');
       return 2;
   }
 }

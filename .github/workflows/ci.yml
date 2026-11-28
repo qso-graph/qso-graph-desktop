@@ -240,9 +240,24 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - run: node scripts/check-citations.mjs
       - run: node scripts/gen-rvm.mjs --check
+      - name: Pinned Linux cocogitto
+        env:
+          COG_SHA256: e03938ff2c4c86d71c00c0f3284dbbe95c5ca76fe34a51f33e945c23010d59bb
+        run: |
+          curl -fsSL --proto '=https' --tlsv1.2 -o "$RUNNER_TEMP/cog.tar.gz" \
+            https://github.com/cocogitto/cocogitto/releases/download/7.0.0/cocogitto-7.0.0-x86_64-unknown-linux-musl.tar.gz
+          echo "$COG_SHA256  $RUNNER_TEMP/cog.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/cog"
+          tar -xzf "$RUNNER_TEMP/cog.tar.gz" -C "$RUNNER_TEMP/cog" --strip-components=1
+          echo "$RUNNER_TEMP/cog" >> "$GITHUB_PATH"
+      - name: Check Conventional Commits
+        run: |
+          range=$(node scripts/release.mjs cog-range)
+          cog check "$range"
 
   check:
     name: check (${{ matrix.os }})

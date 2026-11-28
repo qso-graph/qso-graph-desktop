@@ -7,7 +7,7 @@
 - Report security vulnerabilities through private vulnerability reporting, never in a public issue.
 - Keep one open pull request per repository, targeting `main`; the next change waits for it or joins it.
 - Use the pull request template headings: Issues, What changed, Verification, and Credentials.
-- Add each change under `## [Unreleased]` in `CHANGELOG.md`.
+- Record each change for the release notes: under `## [Unreleased]` in `CHANGELOG.md`, or, where a repository generates its notes with cocogitto, in a Conventional Commit.
 - Bump versions only in a release pull request; merging publishes nothing, and release is a separate step.
 - Install, run, and develop Python with uv (`uvx`, `uv tool install`, `uv add`, `uv run`); documentation never tells users to use pip.
 - Make `README.md` the product page: what it is, who it is for, what it does, installation, and first use.
@@ -249,7 +249,12 @@ Versions change, so pick the current ones rather than the names here.
   `feature/x.y.z` with one pull request into `main`; each fix validated on that pull request's
   own build; a release only by the Release workflow. [docs/RELEASES.md](docs/RELEASES.md) is
   the whole of it.
-- **Commits:** one logical change each, with a message that says why.
+- **Commits:** one logical change each, with a Conventional Commit subject
+  `type: what changed (#N)` and a message that says why. Write `feat` and `fix`
+  subjects for hams, starting with a capital letter, because they appear in What's New as
+  written.
+- **CHANGELOG.md:** generate release notes with `node scripts/release.mjs prepare`.
+  See [Release notes](docs/RELEASES.md#release-notes) for when to run it.
 
 ## Key libraries
 
